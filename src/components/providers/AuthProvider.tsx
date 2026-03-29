@@ -12,16 +12,37 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     const supabase = createClient();
     let mounted = true;
 
-    const fetchProfile = async (userId: string) => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
+    // Timeout de sécurité : si rien ne répond en 5s, on débloque
+    const timeout = setTimeout(() => {
       if (mounted) {
-        setProfile(data as Profile | null);
+        console.warn('AuthProvider: timeout atteint, déblocage forcé');
         setLoading(false);
+      }
+    }, 5000);
+
+    const fetchProfile = async (userId: string) => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+
+        if (mounted) {
+          if (!error && data) {
+            setProfile(data as Profile);
+          } else {
+            setProfile(null);
+          }
+        }
+      } catch (e) {
+        console.error('fetchProfile error:', e);
+        if (mounted) setProfile(null);
+      } finally {
+        if (mounted) {
+          clearTimeout(timeout);
+          setLoading(false);
+        }
       }
     };
 
@@ -31,6 +52,13 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       if (session?.user) {
         fetchProfile(session.user.id);
       } else {
+        clearTimeout(timeout);
+        setProfile(null);
+        setLoading(false);
+      }
+    }).catch(() => {
+      if (mounted) {
+        clearTimeout(timeout);
         setProfile(null);
         setLoading(false);
       }
@@ -42,6 +70,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       if (event === 'SIGNED_IN' && session?.user) {
         fetchProfile(session.user.id);
       } else if (event === 'SIGNED_OUT') {
+        clearTimeout(timeout);
         setProfile(null);
         setLoading(false);
       }
@@ -49,6 +78,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
     return () => {
       mounted = false;
+      clearTimeout(timeout);
       subscription.unsubscribe();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { MessageSquare, Clock, Package, BookOpen, Plus, Wrench } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { useAuthStore } from '@/lib/auth-store';
 import { ServiceRequest, Listing, ForumPost } from '@/types';
-import { Profile } from '@/types';
 import Link from 'next/link';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
@@ -14,77 +14,70 @@ import EmptyState from '@/components/ui/EmptyState';
 import { STATUS_LABELS, URGENCY_LABELS, formatRelative } from '@/lib/utils';
 
 export default function DashboardPage() {
+  const { profile, loading: authLoading } = useAuthStore();
   const router = useRouter();
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [forumPosts, setForumPosts] = useState<ForumPost[]>([]);
-  const [pageLoading, setPageLoading] = useState(true);
-
-  const loadAll = useCallback(async () => {
-    const supabase = createClient();
-
-    // 1. Récupérer la session
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) {
-      router.push('/connexion');
-      return;
-    }
-
-    // 2. Récupérer le profil
-    const { data: prof } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', session.user.id)
-      .single();
-
-    if (!prof) {
-      router.push('/connexion');
-      return;
-    }
-    setProfile(prof as Profile);
-
-    // 3. Récupérer les données
-    const [{ data: reqs }, { data: listedItems }, { data: posts }] = await Promise.all([
-      supabase.from('service_requests')
-        .select('*, category:trade_categories(name, icon)')
-        .eq('resident_id', prof.id)
-        .order('created_at', { ascending: false })
-        .limit(5),
-      supabase.from('listings')
-        .select('*, category:listing_categories(name, icon)')
-        .eq('user_id', prof.id)
-        .order('created_at', { ascending: false })
-        .limit(5),
-      supabase.from('forum_posts')
-        .select('*, category:forum_categories(name, icon)')
-        .eq('author_id', prof.id)
-        .order('created_at', { ascending: false })
-        .limit(3),
-    ]);
-
-    setRequests((reqs as ServiceRequest[]) || []);
-    setListings((listedItems as Listing[]) || []);
-    setForumPosts((posts as ForumPost[]) || []);
-    setPageLoading(false);
-  }, [router]);
+  const [dataLoading, setDataLoading] = useState(false);
 
   useEffect(() => {
-    loadAll();
-  }, [loadAll]);
+    // Attendre que l'auth soit prête
+    if (authLoading) return;
 
-  // Skeleton
-  if (pageLoading) {
+    // Non connecté → rediriger
+    if (!profile) {
+      router.push('/connexion');
+      return;
+    }
+
+    // Charger les données
+    const fetchData = async () => {
+      setDataLoading(true);
+      try {
+        const supabase = createClient();
+        const [{ data: reqs }, { data: listedItems }, { data: posts }] = await Promise.all([
+          supabase.from('service_requests')
+            .select('*, category:trade_categories(name, icon)')
+            .eq('resident_id', profile.id)
+            .order('created_at', { ascending: false })
+            .limit(5),
+          supabase.from('listings')
+            .select('*, category:listing_categories(name, icon)')
+            .eq('user_id', profile.id)
+            .order('created_at', { ascending: false })
+            .limit(5),
+          supabase.from('forum_posts')
+            .select('*, category:forum_categories(name, icon)')
+            .eq('author_id', profile.id)
+            .order('created_at', { ascending: false })
+            .limit(3),
+        ]);
+        setRequests((reqs as ServiceRequest[]) || []);
+        setListings((listedItems as Listing[]) || []);
+        setForumPosts((posts as ForumPost[]) || []);
+      } catch (e) {
+        console.error('fetchData error:', e);
+      } finally {
+        setDataLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [profile?.id, authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pendant chargement auth → skeleton
+  if (authLoading) {
     return (
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="flex items-center gap-4 mb-10">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
+        <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-gray-200 animate-pulse" />
           <div className="space-y-2">
             <div className="h-7 w-48 bg-gray-200 rounded animate-pulse" />
             <div className="h-4 w-64 bg-gray-100 rounded animate-pulse" />
           </div>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[...Array(4)].map((_, i) => <div key={i} className="h-24 bg-gray-100 rounded-2xl animate-pulse" />)}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -188,7 +181,9 @@ export default function DashboardPage() {
               <Plus className="w-3.5 h-3.5" /> Nouvelle
             </Link>
           </div>
-          {requests.length === 0 ? (
+          {dataLoading ? (
+            <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}</div>
+          ) : requests.length === 0 ? (
             <EmptyState icon="📝" title="Aucune demande" description="Pas encore de demande envoyée." />
           ) : (
             <div className="space-y-3">
@@ -226,7 +221,9 @@ export default function DashboardPage() {
               <Plus className="w-3.5 h-3.5" /> Nouvelle
             </Link>
           </div>
-          {listings.length === 0 ? (
+          {dataLoading ? (
+            <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}</div>
+          ) : listings.length === 0 ? (
             <EmptyState icon="📦" title="Aucune annonce" description="Pas encore d'annonce publiée." action={{ label: 'Publier', onClick: () => router.push('/annonces/nouvelle') }} />
           ) : (
             <div className="space-y-3">
