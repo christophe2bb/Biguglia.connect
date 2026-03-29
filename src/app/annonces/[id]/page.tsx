@@ -1,0 +1,281 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { ChevronLeft, MapPin, Calendar, MessageSquare, Flag, Tag } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import { useAuthStore } from '@/lib/auth-store';
+import { Listing } from '@/types';
+import Link from 'next/link';
+import Avatar from '@/components/ui/Avatar';
+import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
+import { LISTING_TYPE_LABELS, LISTING_TYPE_COLORS, STATUS_LABELS, formatDate } from '@/lib/utils';
+import toast from 'react-hot-toast';
+
+export default function AnnonceDetailPage() {
+  const { id } = useParams();
+  const router = useRouter();
+  const { profile } = useAuthStore();
+  const [listing, setListing] = useState<Listing | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [currentPhoto, setCurrentPhoto] = useState(0);
+
+  useEffect(() => {
+    const fetchListing = async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('listings')
+        .select(`
+          *,
+          user:profiles!listings_user_id_fkey(id, full_name, avatar_url),
+          category:listing_categories(*),
+          photos:listing_photos(id, url, display_order)
+        `)
+        .eq('id', id as string)
+        .single();
+
+      if (error || !data) {
+        toast.error('Annonce introuvable');
+        router.push('/annonces');
+        return;
+      }
+
+      // Sort photos
+      if (data.photos) {
+        data.photos.sort((a: { display_order: number }, b: { display_order: number }) => a.display_order - b.display_order);
+      }
+
+      setListing(data as unknown as Listing);
+      setLoading(false);
+    };
+
+    fetchListing();
+  }, [id, router]);
+
+  const handleContact = async () => {
+    if (!profile) {
+      router.push('/connexion?redirect=/annonces/' + id);
+      return;
+    }
+    if (!listing) return;
+
+    const supabase = createClient();
+
+    // Check if conversation already exists
+    const { data: existing } = await supabase
+      .from('conversations')
+      .select('id, participants:conversation_participants(user_id)')
+      .eq('related_type', 'listing')
+      .eq('related_id', listing.id)
+      .single();
+
+    if (existing && existing.participants?.some((p: { user_id: string }) => p.user_id === profile.id)) {
+      router.push(`/messages/${existing.id}`);
+      return;
+    }
+
+    // Create new conversation
+    const { data: conv } = await supabase
+      .from('conversations')
+      .insert({
+        subject: listing.title,
+        related_type: 'listing',
+        related_id: listing.id,
+      })
+      .select()
+      .single();
+
+    if (conv) {
+      await supabase.from('conversation_participants').insert([
+        { conversation_id: conv.id, user_id: profile.id },
+        { conversation_id: conv.id, user_id: listing.user_id },
+      ]);
+      router.push(`/messages/${conv.id}`);
+    }
+  };
+
+  const handleReport = async () => {
+    if (!profile) {
+      toast.error('Vous devez être connecté pour signaler');
+      return;
+    }
+    const reason = prompt('Motif du signalement :');
+    if (!reason) return;
+
+    const supabase = createClient();
+    await supabase.from('reports').insert({
+      reporter_id: profile.id,
+      target_type: 'listing',
+      target_id: id as string,
+      reason,
+      status: 'pending',
+    });
+    toast.success('Signalement envoyé à l\'équipe de modération');
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-10">
+        <div className="animate-pulse space-y-4">
+          <div className="h-64 bg-gray-200 rounded-2xl" />
+          <div className="h-8 bg-gray-200 rounded w-3/4" />
+          <div className="h-4 bg-gray-100 rounded w-1/2" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!listing) return null;
+
+  const photos = listing.photos as Array<{ id: string; url: string; display_order: number }> | undefined;
+  const isOwner = profile?.id === listing.user_id;
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      {/* Back */}
+      <Link href="/annonces" className="inline-flex items-center gap-1 text-gray-500 hover:text-gray-700 mb-6 transition-colors">
+        <ChevronLeft className="w-4 h-4" />
+        Retour aux annonces
+      </Link>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main content */}
+        <div className="lg:col-span-2">
+          {/* Photos */}
+          {photos && photos.length > 0 ? (
+            <div className="mb-6">
+              <div className="h-72 rounded-2xl overflow-hidden bg-gray-100 mb-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={photos[currentPhoto].url}
+                  alt={listing.title}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              {photos.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {photos.map((p, i) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setCurrentPhoto(i)}
+                      className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-colors ${i === currentPhoto ? 'border-brand-500' : 'border-gray-200'}`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={p.url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="h-48 bg-gray-100 rounded-2xl flex items-center justify-center mb-6">
+              <span className="text-4xl">{listing.category?.icon || '📦'}</span>
+            </div>
+          )}
+
+          {/* Title & badges */}
+          <div className="mb-6">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${LISTING_TYPE_COLORS[listing.listing_type]}`}>
+                {LISTING_TYPE_LABELS[listing.listing_type]}
+              </span>
+              <Badge variant={listing.status === 'active' ? 'success' : 'default'}>
+                {STATUS_LABELS[listing.status]}
+              </Badge>
+              {listing.category && (
+                <span className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">
+                  {listing.category.icon} {listing.category.name}
+                </span>
+              )}
+            </div>
+
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">{listing.title}</h1>
+
+            {listing.price !== undefined && listing.price !== null && (
+              <div className="text-3xl font-bold text-brand-600 mb-2">
+                {listing.price === 0 ? 'Gratuit' : `${listing.price.toLocaleString('fr-FR')} €`}
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+              <div className="flex items-center gap-1">
+                <MapPin className="w-4 h-4" />
+                {listing.location}
+              </div>
+              <div className="flex items-center gap-1">
+                <Calendar className="w-4 h-4" />
+                {formatDate(listing.created_at)}
+              </div>
+              {listing.condition && (
+                <div className="flex items-center gap-1">
+                  <Tag className="w-4 h-4" />
+                  {listing.condition === 'neuf' ? 'Neuf' : listing.condition === 'tres_bon' ? 'Très bon état' : 'Bon état'}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Description */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+            <h2 className="font-semibold text-gray-900 mb-3">Description</h2>
+            <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{listing.description}</p>
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-4">
+          {/* Vendeur */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-5">
+            <h3 className="font-semibold text-gray-900 mb-4">Publié par</h3>
+            <div className="flex items-center gap-3 mb-4">
+              <Avatar
+                src={(listing.user as { avatar_url?: string })?.avatar_url}
+                name={(listing.user as { full_name?: string })?.full_name || '?'}
+                size="md"
+              />
+              <div>
+                <div className="font-medium text-gray-900">
+                  {(listing.user as { full_name?: string })?.full_name || 'Anonyme'}
+                </div>
+                <div className="text-xs text-gray-400">Membre Biguglia Connect</div>
+              </div>
+            </div>
+
+            {!isOwner && listing.status === 'active' && (
+              <Button onClick={handleContact} className="w-full mb-3">
+                <MessageSquare className="w-4 h-4" />
+                Contacter
+              </Button>
+            )}
+
+            {isOwner && (
+              <div className="text-sm text-center text-gray-500 py-2">
+                C&apos;est votre annonce
+              </div>
+            )}
+
+            <button
+              onClick={handleReport}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors mx-auto"
+            >
+              <Flag className="w-3.5 h-3.5" />
+              Signaler cette annonce
+            </button>
+          </div>
+
+          {/* Sécurité */}
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+            <h4 className="text-sm font-medium text-blue-800 mb-2">🔒 Conseils de sécurité</h4>
+            <ul className="text-xs text-blue-700 space-y-1">
+              <li>• Rencontrez-vous dans un lieu public</li>
+              <li>• Vérifiez le produit avant de payer</li>
+              <li>• N&apos;envoyez pas d&apos;argent à l&apos;avance</li>
+              <li>• Utilisez la messagerie de la plateforme</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

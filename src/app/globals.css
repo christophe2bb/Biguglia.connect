@@ -1,0 +1,292 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --brand-primary: #f97316;
+  --brand-dark: #ea6c0a;
+  --ocean: #0ca5e9;
+  --sand: #cfab47;
+  --maquis: #559139;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Glass effects */
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20;
+  }
+
+  .glass-dark {
+    @apply bg-gray-900/70 backdrop-blur-xl border border-gray-800/20;
+  }
+
+  .glass-brand {
+    @apply bg-brand-500/10 backdrop-blur-xl border border-brand-200/30;
+  }
+
+  /* Gradients */
+  .gradient-brand {
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  }
+
+  .gradient-hero {
+    background: linear-gradient(
+      135deg,
+      #fff7f0 0%,
+      #fff1e6 25%,
+      #fef3e2 50%,
+      #fff8f1 100%
+    );
+  }
+
+  .gradient-mediterranean {
+    background: linear-gradient(
+      135deg,
+      #0ca5e9 0%,
+      #0086c9 40%,
+      #026aa2 100%
+    );
+  }
+
+  .gradient-sunset {
+    background: linear-gradient(
+      135deg,
+      #f97316 0%,
+      #ef4444 50%,
+      #dc2626 100%
+    );
+  }
+
+  .gradient-nature {
+    background: linear-gradient(
+      135deg,
+      #559139 0%,
+      #43742c 100%
+    );
+  }
+
+  .gradient-sand {
+    background: linear-gradient(
+      135deg,
+      #cfab47 0%,
+      #b9923a 100%
+    );
+  }
+
+  /* Shadows */
+  .shadow-glow {
+    box-shadow: 0 0 40px rgba(249, 115, 22, 0.15);
+  }
+
+  .shadow-glow-ocean {
+    box-shadow: 0 0 40px rgba(12, 165, 233, 0.15);
+  }
+
+  .shadow-card {
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.08);
+  }
+
+  .shadow-card-hover {
+    box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Line clamp */
+  .line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, #f97316, #ef4444);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gradient-text-ocean {
+    background: linear-gradient(135deg, #0ca5e9, #026aa2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Pattern overlay */
+  .pattern-dots {
+    background-image: radial-gradient(circle, rgba(249, 115, 22, 0.08) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .pattern-grid {
+    background-image:
+      linear-gradient(rgba(249, 115, 22, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(249, 115, 22, 0.04) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  /* Shimmer effect */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.3) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  /* Card styles */
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-card-hover hover:-translate-y-1;
+  }
+
+  /* Animated underline */
+  .link-underline {
+    position: relative;
+  }
+  .link-underline::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: #f97316;
+    transition: width 0.3s ease;
+  }
+  .link-underline:hover::after {
+    width: 100%;
+  }
+
+  /* Section decorators */
+  .section-wave {
+    position: relative;
+  }
+  .section-wave::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: inherit;
+    clip-path: ellipse(60% 100% at 50% 0%);
+  }
+}
+
+/* Scrollbar minimaliste */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #f97316;
+  border-radius: 9999px;
+  opacity: 0.5;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #ea6c0a;
+}
+
+/* Animations d'entrée avec stagger */
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+.stagger-5 { animation-delay: 0.5s; }
+.stagger-6 { animation-delay: 0.6s; }
+
+/* Hero image overlay */
+.hero-overlay {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 247, 240, 0.97) 0%,
+    rgba(255, 241, 230, 0.92) 40%,
+    rgba(255, 245, 235, 0.75) 70%,
+    transparent 100%
+  );
+}
+
+/* Blob shapes */
+.blob {
+  border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  animation: blob-morph 8s ease-in-out infinite;
+}
+
+@keyframes blob-morph {
+  0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+  25% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+  50% { border-radius: 50% 40% 60% 30% / 40% 50% 60% 50%; }
+  75% { border-radius: 40% 60% 30% 70% / 60% 40% 50% 40%; }
+}
+
+/* Floating particles */
+@keyframes particle-float {
+  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(-100vh) rotate(720deg); opacity: 0; }
+}
+
+/* Number counter animation */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.count-up {
+  animation: countUp 0.5s ease-out forwards;
+}
+
+/* Image hover effect */
+.img-zoom {
+  overflow: hidden;
+}
+.img-zoom img {
+  transition: transform 0.5s ease;
+}
+.img-zoom:hover img {
+  transform: scale(1.05);
+}
