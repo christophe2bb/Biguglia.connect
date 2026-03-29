@@ -22,7 +22,13 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!profile) { router.push('/connexion'); return; }
+    if (!profile) { 
+      // Attendre un peu que l'auth se charge avant de rediriger
+      const timer = setTimeout(() => {
+        if (!profile) router.push('/connexion');
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
 
     const fetchData = async () => {
       const supabase = createClient();

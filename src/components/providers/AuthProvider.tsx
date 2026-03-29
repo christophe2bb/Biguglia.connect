@@ -12,13 +12,24 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     const supabase = createClient();
 
     const fetchProfile = async (userId: string) => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      setProfile(data as Profile | null);
-      setLoading(false);
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+        if (error) {
+          console.error('fetchProfile error:', error);
+          setProfile(null);
+        } else {
+          setProfile(data as Profile | null);
+        }
+      } catch (e) {
+        console.error('fetchProfile exception:', e);
+        setProfile(null);
+      } finally {
+        setLoading(false);
+      }
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => {
