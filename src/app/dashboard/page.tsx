@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, Clock, Package, Heart, BookOpen, Plus, Wrench } from 'lucide-react';
+import { MessageSquare, Clock, Package, BookOpen, Plus, Wrench, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { ServiceRequest, Listing, ForumPost } from '@/types';
@@ -11,54 +11,72 @@ import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
 import Card from '@/components/ui/Card';
 import EmptyState from '@/components/ui/EmptyState';
-import { STATUS_LABELS, URGENCY_LABELS, URGENCY_COLORS, formatRelative } from '@/lib/utils';
+import { STATUS_LABELS, URGENCY_LABELS, formatRelative } from '@/lib/utils';
 
 export default function DashboardPage() {
-  const { profile } = useAuthStore();
+  const { profile, loading: authLoading } = useAuthStore();
   const router = useRouter();
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [forumPosts, setForumPosts] = useState<ForumPost[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
-    if (!profile) { 
-      // Attendre un peu que l'auth se charge avant de rediriger
-      const timer = setTimeout(() => {
-        if (!profile) router.push('/connexion');
-      }, 2000);
-      return () => clearTimeout(timer);
+    // Attendre que l'auth soit initialisée
+    if (authLoading) return;
+
+    // Si pas de profil après l'init, rediriger
+    if (!profile) {
+      router.push('/connexion');
+      return;
     }
 
     const fetchData = async () => {
-      const supabase = createClient();
+      try {
+        const supabase = createClient();
 
-      const [{ data: reqs }, { data: listedItems }, { data: posts }] = await Promise.all([
-        supabase.from('service_requests')
-          .select('*, category:trade_categories(name, icon), artisan:artisan_profiles(business_name)')
-          .eq('resident_id', profile.id)
-          .order('created_at', { ascending: false })
-          .limit(5),
-        supabase.from('listings')
-          .select('*, category:listing_categories(name, icon)')
-          .eq('user_id', profile.id)
-          .order('created_at', { ascending: false })
-          .limit(5),
-        supabase.from('forum_posts')
-          .select('*, category:forum_categories(name, icon)')
-          .eq('author_id', profile.id)
-          .order('created_at', { ascending: false })
-          .limit(3),
-      ]);
+        const [{ data: reqs }, { data: listedItems }, { data: posts }] = await Promise.all([
+          supabase.from('service_requests')
+            .select('*, category:trade_categories(name, icon), artisan:artisan_profiles(business_name)')
+            .eq('resident_id', profile.id)
+            .order('created_at', { ascending: false })
+            .limit(5),
+          supabase.from('listings')
+            .select('*, category:listing_categories(name, icon)')
+            .eq('user_id', profile.id)
+            .order('created_at', { ascending: false })
+            .limit(5),
+          supabase.from('forum_posts')
+            .select('*, category:forum_categories(name, icon)')
+            .eq('author_id', profile.id)
+            .order('created_at', { ascending: false })
+            .limit(3),
+        ]);
 
-      setRequests((reqs as ServiceRequest[]) || []);
-      setListings((listedItems as Listing[]) || []);
-      setForumPosts((posts as ForumPost[]) || []);
-      setLoading(false);
+        setRequests((reqs as ServiceRequest[]) || []);
+        setListings((listedItems as Listing[]) || []);
+        setForumPosts((posts as ForumPost[]) || []);
+      } catch (e) {
+        console.error('fetchData error:', e);
+      } finally {
+        setDataLoading(false);
+      }
     };
 
     fetchData();
-  }, [profile, router]);
+  }, [profile, authLoading, router]);
+
+  // Afficher un loader pendant l'initialisation de l'auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 animate-spin text-brand-500 mx-auto mb-4" />
+          <p className="text-gray-500">Chargement de votre espace...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!profile) return null;
 
@@ -71,6 +89,7 @@ export default function DashboardPage() {
 
   const isPendingArtisan = profile.role === 'artisan_pending';
   const isVerifiedArtisan = profile.role === 'artisan_verified';
+  const isAdmin = profile.role === 'admin';
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -83,9 +102,15 @@ export default function DashboardPage() {
           </h1>
           <p className="text-gray-500">
             {isPendingArtisan && '⏳ Votre profil artisan est en cours de validation'}
-            {isVerifiedArtisan && '✅ Artisan vérifié — '}
-            {!isPendingArtisan && !isVerifiedArtisan && 'Bienvenue sur Biguglia Connect'}
+            {isVerifiedArtisan && '✅ Artisan vérifié'}
+            {isAdmin && '👑 Administrateur — '}
+            {!isPendingArtisan && !isVerifiedArtisan && !isAdmin && 'Bienvenue sur Biguglia Connect'}
           </p>
+          {isAdmin && (
+            <Link href="/admin" className="text-sm text-brand-600 hover:underline font-medium">
+              Accéder au panneau admin →
+            </Link>
+          )}
           {isVerifiedArtisan && (
             <Link href="/dashboard/artisan" className="text-sm text-brand-600 hover:underline font-medium">
               Accéder à l&apos;espace artisan →
@@ -106,6 +131,23 @@ export default function DashboardPage() {
                 Vous recevrez une notification dès que votre profil sera validé.
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bandeau admin */}
+      {isAdmin && (
+        <div className="bg-brand-50 border border-brand-200 rounded-2xl p-5 mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-brand-800 mb-1">👑 Espace Administrateur</h3>
+              <p className="text-sm text-brand-700">
+                Vous avez accès à toutes les fonctions d&apos;administration de Biguglia Connect.
+              </p>
+            </div>
+            <Link href="/admin" className="bg-brand-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-brand-700 transition-colors">
+              Admin Panel
+            </Link>
           </div>
         </div>
       )}
@@ -134,7 +176,7 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          {loading ? (
+          {dataLoading ? (
             <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}</div>
           ) : requests.length === 0 ? (
             <EmptyState icon="📝" title="Aucune demande" description="Vous n'avez pas encore envoyé de demande." />
@@ -175,7 +217,7 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          {loading ? (
+          {dataLoading ? (
             <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}</div>
           ) : listings.length === 0 ? (
             <EmptyState icon="📦" title="Aucune annonce" description="Vous n'avez pas encore publié d'annonce." action={{ label: 'Publier', onClick: () => router.push('/annonces/nouvelle') }} />
