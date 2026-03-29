@@ -25,36 +25,20 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
+  // Refresh session uniquement (pas de vérification de rôle ici)
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Routes protégées
-  const protectedRoutes = ['/dashboard', '/admin', '/messages', '/profil'];
-  const adminRoutes = ['/admin'];
   const pathname = request.nextUrl.pathname;
 
+  // Rediriger vers connexion si route protégée et pas connecté
+  const protectedRoutes = ['/dashboard', '/admin', '/messages', '/profil', '/notifications'];
   const isProtected = protectedRoutes.some(r => pathname.startsWith(r));
-  const isAdmin = adminRoutes.some(r => pathname.startsWith(r));
 
   if (isProtected && !user) {
     const url = request.nextUrl.clone();
     url.pathname = '/connexion';
     url.searchParams.set('redirect', pathname);
     return NextResponse.redirect(url);
-  }
-
-  if (isAdmin && user) {
-    // Vérifier le rôle admin
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile || profile.role !== 'admin') {
-      const url = request.nextUrl.clone();
-      url.pathname = '/';
-      return NextResponse.redirect(url);
-    }
   }
 
   return supabaseResponse;

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, Clock, Package, BookOpen, Plus, Wrench, Loader2 } from 'lucide-react';
+import { MessageSquare, Clock, Package, BookOpen, Plus, Wrench } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { ServiceRequest, Listing, ForumPost } from '@/types';
@@ -22,10 +22,7 @@ export default function DashboardPage() {
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
-    // Attendre que l'auth soit initialisée
     if (authLoading) return;
-
-    // Si pas de profil après l'init, rediriger
     if (!profile) {
       router.push('/connexion');
       return;
@@ -34,10 +31,9 @@ export default function DashboardPage() {
     const fetchData = async () => {
       try {
         const supabase = createClient();
-
         const [{ data: reqs }, { data: listedItems }, { data: posts }] = await Promise.all([
           supabase.from('service_requests')
-            .select('*, category:trade_categories(name, icon), artisan:artisan_profiles(business_name)')
+            .select('*, category:trade_categories(name, icon)')
             .eq('resident_id', profile.id)
             .order('created_at', { ascending: false })
             .limit(5),
@@ -52,7 +48,6 @@ export default function DashboardPage() {
             .order('created_at', { ascending: false })
             .limit(3),
         ]);
-
         setRequests((reqs as ServiceRequest[]) || []);
         setListings((listedItems as Listing[]) || []);
         setForumPosts((posts as ForumPost[]) || []);
@@ -66,19 +61,27 @@ export default function DashboardPage() {
     fetchData();
   }, [profile, authLoading, router]);
 
-  // Afficher un loader pendant l'initialisation de l'auth
-  if (authLoading) {
+  // Skeleton pendant le chargement auth
+  if (authLoading || !profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-10 h-10 animate-spin text-brand-500 mx-auto mb-4" />
-          <p className="text-gray-500">Chargement de votre espace...</p>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="flex items-center gap-4 mb-10">
+          <div className="w-16 h-16 rounded-full bg-gray-200 animate-pulse" />
+          <div>
+            <div className="h-7 w-48 bg-gray-200 rounded animate-pulse mb-2" />
+            <div className="h-4 w-64 bg-gray-100 rounded animate-pulse" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
+          {[...Array(4)].map((_, i) => <div key={i} className="h-24 bg-gray-100 rounded-2xl animate-pulse" />)}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}</div>
+          <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}</div>
         </div>
       </div>
     );
   }
-
-  if (!profile) return null;
 
   const quickActions = [
     { icon: Wrench, label: 'Trouver un artisan', href: '/artisans', color: 'bg-blue-50 text-blue-600' },
@@ -93,17 +96,18 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      {/* Accueil utilisateur */}
+
+      {/* Header */}
       <div className="flex items-center gap-4 mb-10">
         <Avatar src={profile.avatar_url} name={profile.full_name || profile.email} size="xl" />
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
             Bonjour, {profile.full_name?.split(' ')[0] || 'vous'} 👋
           </h1>
-          <p className="text-gray-500">
-            {isPendingArtisan && '⏳ Votre profil artisan est en cours de validation'}
+          <p className="text-gray-500 text-sm">
+            {isPendingArtisan && '⏳ Profil artisan en cours de validation'}
             {isVerifiedArtisan && '✅ Artisan vérifié'}
-            {isAdmin && '👑 Administrateur — '}
+            {isAdmin && '👑 Administrateur de Biguglia Connect'}
             {!isPendingArtisan && !isVerifiedArtisan && !isAdmin && 'Bienvenue sur Biguglia Connect'}
           </p>
           {isAdmin && (
@@ -127,8 +131,7 @@ export default function DashboardPage() {
             <div>
               <h3 className="font-semibold text-orange-800 mb-1">Validation en cours</h3>
               <p className="text-sm text-orange-700">
-                Votre inscription en tant qu&apos;artisan est en cours de vérification par l&apos;administrateur.
-                Vous recevrez une notification dès que votre profil sera validé.
+                Votre inscription artisan est en cours de vérification. Vous serez notifié dès validation.
               </p>
             </div>
           </div>
@@ -137,18 +140,14 @@ export default function DashboardPage() {
 
       {/* Bandeau admin */}
       {isAdmin && (
-        <div className="bg-brand-50 border border-brand-200 rounded-2xl p-5 mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-brand-800 mb-1">👑 Espace Administrateur</h3>
-              <p className="text-sm text-brand-700">
-                Vous avez accès à toutes les fonctions d&apos;administration de Biguglia Connect.
-              </p>
-            </div>
-            <Link href="/admin" className="bg-brand-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-brand-700 transition-colors">
-              Admin Panel
-            </Link>
+        <div className="bg-gradient-to-r from-brand-50 to-blue-50 border border-brand-200 rounded-2xl p-5 mb-8 flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-brand-800 mb-1">👑 Panneau Administrateur</h3>
+            <p className="text-sm text-brand-700">Gérez artisans, annonces et utilisateurs.</p>
           </div>
+          <Link href="/admin" className="bg-brand-600 text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-brand-700 transition-colors whitespace-nowrap">
+            Admin Panel
+          </Link>
         </div>
       )}
 
@@ -156,7 +155,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
         {quickActions.map(({ icon: Icon, label, href, color }) => (
           <Link key={href} href={href}>
-            <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-sm hover:border-gray-200 transition-all duration-200 text-center">
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-sm hover:border-gray-200 transition-all text-center">
               <div className={`inline-flex p-2.5 rounded-xl ${color} mb-2`}>
                 <Icon className="w-5 h-5" />
               </div>
@@ -175,11 +174,10 @@ export default function DashboardPage() {
               <Plus className="w-3.5 h-3.5" /> Nouvelle
             </Link>
           </div>
-
           {dataLoading ? (
             <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}</div>
           ) : requests.length === 0 ? (
-            <EmptyState icon="📝" title="Aucune demande" description="Vous n'avez pas encore envoyé de demande." />
+            <EmptyState icon="📝" title="Aucune demande" description="Pas encore de demande envoyée." />
           ) : (
             <div className="space-y-3">
               {requests.map(req => (
@@ -216,11 +214,10 @@ export default function DashboardPage() {
               <Plus className="w-3.5 h-3.5" /> Nouvelle
             </Link>
           </div>
-
           {dataLoading ? (
             <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}</div>
           ) : listings.length === 0 ? (
-            <EmptyState icon="📦" title="Aucune annonce" description="Vous n'avez pas encore publié d'annonce." action={{ label: 'Publier', onClick: () => router.push('/annonces/nouvelle') }} />
+            <EmptyState icon="📦" title="Aucune annonce" description="Pas encore d'annonce publiée." action={{ label: 'Publier', onClick: () => router.push('/annonces/nouvelle') }} />
           ) : (
             <div className="space-y-3">
               {listings.map(listing => (
