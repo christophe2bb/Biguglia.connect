@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
@@ -14,7 +14,6 @@ function ConnexionForm() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/dashboard';
 
@@ -36,7 +35,8 @@ function ConnexionForm() {
     }
 
     toast.success('Connexion réussie !');
-    router.push(redirect);
+    // Navigation directe sans router pour éviter les problèmes de middleware
+    window.location.href = redirect;
   };
 
   return (
@@ -76,7 +76,7 @@ function ConnexionForm() {
         </div>
 
         <Button type="submit" className="w-full" size="lg" loading={loading}>
-          Se connecter
+          {loading ? 'Connexion en cours...' : 'Se connecter'}
         </Button>
       </form>
 
