@@ -37,7 +37,6 @@ function ConnexionForm() {
 
     toast.success('Connexion réussie !');
     router.push(redirect);
-    router.refresh();
   };
 
   return (
