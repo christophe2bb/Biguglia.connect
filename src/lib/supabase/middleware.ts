@@ -25,21 +25,8 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Refresh session uniquement (pas de vérification de rôle ici)
-  const { data: { user } } = await supabase.auth.getUser();
-
-  const pathname = request.nextUrl.pathname;
-
-  // Rediriger vers connexion si route protégée et pas connecté
-  const protectedRoutes = ['/dashboard', '/admin', '/messages', '/profil', '/notifications'];
-  const isProtected = protectedRoutes.some(r => pathname.startsWith(r));
-
-  if (isProtected && !user) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/connexion';
-    url.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(url);
-  }
+  // Juste rafraîchir la session - PAS de redirection ici
+  await supabase.auth.getUser();
 
   return supabaseResponse;
 }

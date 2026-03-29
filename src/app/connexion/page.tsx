@@ -3,7 +3,7 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, CheckCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import Button from '@/components/ui/Button';
@@ -14,6 +14,7 @@ function ConnexionForm() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/dashboard';
 
@@ -21,23 +22,54 @@ function ConnexionForm() {
     e.preventDefault();
     setLoading(true);
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (error) {
-      toast.error(
-        error.message === 'Invalid login credentials'
-          ? 'Email ou mot de passe incorrect'
-          : 'Erreur de connexion. Réessayez.'
-      );
+      if (error) {
+        toast.error(
+          error.message === 'Invalid login credentials'
+            ? 'Email ou mot de passe incorrect'
+            : `Erreur : ${error.message}`
+        );
+        setLoading(false);
+        return;
+      }
+
+      if (!data.session) {
+        toast.error('Session non créée. Réessayez.');
+        setLoading(false);
+        return;
+      }
+
+      // Session créée avec succès
+      setSuccess(true);
+      toast.success('Connexion réussie !');
+
+      // Redirection après un court délai pour laisser les cookies s'établir
+      setTimeout(() => {
+        window.location.replace(redirect);
+      }, 500);
+
+    } catch (err) {
+      console.error('Login error:', err);
+      toast.error('Erreur inattendue. Réessayez.');
       setLoading(false);
-      return;
     }
-
-    toast.success('Connexion réussie !');
-    // Navigation directe sans router pour éviter les problèmes de middleware
-    window.location.href = redirect;
   };
+
+  if (success) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
+        <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">Connexion réussie !</h2>
+        <p className="text-gray-500 text-sm">Redirection en cours...</p>
+        <div className="mt-4 h-1 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-full bg-brand-500 rounded-full animate-pulse" style={{ width: '60%' }} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
@@ -51,6 +83,7 @@ function ConnexionForm() {
           leftIcon={<Mail className="w-4 h-4" />}
           required
           autoComplete="email"
+          disabled={loading}
         />
 
         <Input
@@ -67,6 +100,7 @@ function ConnexionForm() {
           }
           required
           autoComplete="current-password"
+          disabled={loading}
         />
 
         <div className="flex justify-end">
@@ -75,8 +109,8 @@ function ConnexionForm() {
           </Link>
         </div>
 
-        <Button type="submit" className="w-full" size="lg" loading={loading}>
-          {loading ? 'Connexion en cours...' : 'Se connecter'}
+        <Button type="submit" className="w-full" size="lg" loading={loading} disabled={loading}>
+          {loading ? 'Vérification...' : 'Se connecter'}
         </Button>
       </form>
 
