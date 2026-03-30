@@ -256,18 +256,19 @@ export default function EvenementsPage() {
   // ── Fetch forum ───────────────────────────────────────────────────────────
   const fetchForum = useCallback(async () => {
     setLoadingForum(true);
-    const { data: cats } = await supabase.from('forum_categories').select('id').eq('slug', 'evenements').single();
-    const catId = cats?.id ?? null;
-    setForumCategoryId(catId);
-    if (!catId) { setLoadingForum(false); return; }
-    const { data } = await supabase
-      .from('forum_posts')
-      .select(`*, author:profiles!forum_posts_author_id_fkey(full_name, avatar_url), comment_count:forum_comments(count)`)
-      .eq('category_id', catId)
-      .eq('is_closed', false)
-      .order('created_at', { ascending: false })
-      .limit(20);
-    setForumPosts((data as unknown as ForumPost[]) || []);
+    try {
+      const { data: cats } = await supabase
+        .from('forum_categories').select('id').eq('slug', 'evenements').maybeSingle();
+      const catId = cats?.id ?? null;
+      setForumCategoryId(catId);
+      if (!catId) { setLoadingForum(false); return; }
+      const { data } = await supabase
+        .from('forum_posts')
+        .select(`*, author:profiles!forum_posts_author_id_fkey(full_name, avatar_url), comment_count:forum_comments(count)`)
+        .eq('category_id', catId).eq('is_closed', false)
+        .order('created_at', { ascending: false }).limit(20);
+      setForumPosts((data as unknown as ForumPost[]) || []);
+    } catch (err) { console.error('fetchForum evenements:', err); }
     setLoadingForum(false);
   }, []);
 
@@ -325,22 +326,27 @@ export default function EvenementsPage() {
   // ── Submit forum post ─────────────────────────────────────────────────────
   const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile || !forumCategoryId) return;
+    if (!profile) { toast.error('Connectez-vous pour poster'); return; }
     if (!postForm.title.trim() || !postForm.content.trim()) {
-      toast.error('Remplissez tous les champs');
+      toast.error('Titre et contenu requis');
       return;
     }
     setSubmittingPost(true);
+    let catId = forumCategoryId;
+    if (!catId) {
+      const { data: existing } = await supabase
+        .from('forum_categories').select('id').eq('slug', 'evenements').maybeSingle();
+      catId = existing?.id ?? null;
+      if (catId) setForumCategoryId(catId);
+    }
+    if (!catId) { toast.error('Catégorie forum introuvable — la migration SQL doit être exécutée dans Supabase.'); setSubmittingPost(false); return; }
     const { error } = await supabase.from('forum_posts').insert({
-      category_id: forumCategoryId,
-      author_id: profile.id,
-      title: postForm.title.trim(),
-      content: postForm.content.trim(),
+      category_id: catId, author_id: profile.id,
+      title: postForm.title.trim(), content: postForm.content.trim(),
     });
-    if (error) {
-      toast.error('Erreur lors de la publication');
-    } else {
-      toast.success('Message publié !');
+    if (error) { console.error(error); toast.error(`Erreur : ${error.message}`); }
+    else {
+      toast.success('Message publié dans le forum !');
       setPostForm({ title: '', content: '' });
       setShowPostForm(false);
       fetchForum();
@@ -592,6 +598,21 @@ export default function EvenementsPage() {
             {loadingForum ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-7 h-7 text-purple-400 animate-spin" />
+              </div>
+            ) : !forumCategoryId && !loadingForum ? (
+              <div className="bg-purple-50 border border-purple-200 rounded-2xl p-6 text-center">
+                <AlertCircle className="w-10 h-10 text-purple-300 mx-auto mb-3" />
+                <p className="font-bold text-purple-800 mb-1">Forum temporairement indisponible</p>
+                <p className="text-purple-700 text-sm mb-4">
+                  La catégorie forum &quot;Événements&quot; n&apos;existe pas encore.<br />
+                  Exécutez <code className="bg-purple-100 px-1 rounded font-mono text-xs">migration_themes.sql</code> dans Supabase.
+                </p>
+                {profile && (
+                  <Link href="/forum/nouveau"
+                    className="inline-flex items-center gap-2 bg-purple-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-purple-600 transition-all">
+                    <Plus className="w-4 h-4" /> Poster dans le forum général
+                  </Link>
+                )}
               </div>
             ) : forumPosts.length === 0 ? (
               <div className="text-center py-16">

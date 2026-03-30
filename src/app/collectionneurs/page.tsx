@@ -280,18 +280,21 @@ export default function CollectionneursPage() {
     setLoadingItems(false);
   }, [selectedCat, selectedType]);
 
-  // ── Fetch forum ───────────────────────────────────────────────────────────
+  // ── Fetch forum ────────────────────────────────────────────────────────────
   const fetchForum = useCallback(async () => {
     setLoadingForum(true);
     try {
+      // Cherche la catégorie forum "collectionneurs" (créée via migration SQL)
       const { data: cats } = await supabase
         .from('forum_categories')
         .select('id')
         .eq('slug', 'collectionneurs')
-        .single();
+        .maybeSingle();
+
       const catId = cats?.id ?? null;
       setForumCategoryId(catId);
       if (!catId) { setLoadingForum(false); return; }
+
       const { data } = await supabase
         .from('forum_posts')
         .select(`*, author:profiles!forum_posts_author_id_fkey(full_name, avatar_url), comment_count:forum_comments(count)`)
@@ -300,7 +303,9 @@ export default function CollectionneursPage() {
         .order('created_at', { ascending: false })
         .limit(20);
       setForumPosts((data as unknown as ForumPost[]) || []);
-    } catch { /* silently ignore */ }
+    } catch (err) {
+      console.error('fetchForum error:', err);
+    }
     setLoadingForum(false);
   }, []);
 
@@ -434,21 +439,44 @@ export default function CollectionneursPage() {
   // ── Publier un message forum ──────────────────────────────────────────────
   const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile || !forumCategoryId) return;
+    if (!profile) { toast.error('Connectez-vous pour poster'); return; }
     if (!postForm.title.trim() || !postForm.content.trim()) {
-      toast.error('Remplissez tous les champs');
+      toast.error('Remplissez le titre et le contenu');
       return;
     }
+
     setSubmittingPost(true);
+
+    // Récupère le catId (dernier recours : nouvelle requête)
+    let catId = forumCategoryId;
+    if (!catId) {
+      const { data: existing } = await supabase
+        .from('forum_categories')
+        .select('id')
+        .eq('slug', 'collectionneurs')
+        .maybeSingle();
+      catId = existing?.id ?? null;
+      if (catId) setForumCategoryId(catId);
+    }
+
+    if (!catId) {
+      toast.error('Catégorie forum introuvable — la migration SQL doit être exécutée dans Supabase.');
+      setSubmittingPost(false);
+      return;
+    }
+
     const { error } = await supabase.from('forum_posts').insert({
-      category_id: forumCategoryId,
+      category_id: catId,
       author_id: profile.id,
       title: postForm.title.trim(),
       content: postForm.content.trim(),
     });
-    if (error) { toast.error('Erreur lors de la publication'); }
-    else {
-      toast.success('Message publié !');
+
+    if (error) {
+      console.error('forum_posts insert error:', error);
+      toast.error(`Erreur publication : ${error.message}`);
+    } else {
+      toast.success('Message publié dans le forum !');
       setPostForm({ title: '', content: '' });
       setShowPostForm(false);
       fetchForum();
@@ -782,6 +810,21 @@ export default function CollectionneursPage() {
             {loadingForum ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-7 h-7 text-amber-400 animate-spin" />
+              </div>
+            ) : !forumCategoryId && !loadingForum ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center">
+                <AlertCircle className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+                <p className="font-bold text-amber-800 mb-1">Forum temporairement indisponible</p>
+                <p className="text-amber-700 text-sm mb-4">
+                  La catégorie forum &quot;Collectionneurs&quot; n&apos;existe pas encore.<br />
+                  Exécutez <code className="bg-amber-100 px-1 rounded font-mono text-xs">migration_themes.sql</code> dans Supabase.
+                </p>
+                {profile && (
+                  <Link href="/forum/nouveau"
+                    className="inline-flex items-center gap-2 bg-amber-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-amber-600 transition-all">
+                    <Plus className="w-4 h-4" /> Poster dans le forum général
+                  </Link>
+                )}
               </div>
             ) : forumPosts.length === 0 ? (
               <div className="text-center py-16">

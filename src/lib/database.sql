@@ -357,7 +357,10 @@ INSERT INTO forum_categories (name, slug, description, icon, display_order) VALU
   ('Recherche matériel', 'recherche-materiel', 'Cherchez ou proposez du matériel et des outils', '🔧', 4),
   ('Bons plans Biguglia', 'bons-plans', 'Astuces, bons plans et infos locales', '💡', 5),
   ('Vente / Échange', 'vente-echange', 'Transactions et échanges entre voisins', '🤝', 6),
-  ('Entraide de quartier', 'entraide', 'Solidarité et entraide entre habitants', '🏘️', 7)
+  ('Entraide de quartier', 'entraide', 'Solidarité et entraide entre habitants', '🏘️', 7),
+  ('🌿 Promenades & Nature', 'promenades', 'Itinéraires, sorties, balades et nature à Biguglia', '🌿', 8),
+  ('🏆 Collectionneurs', 'collectionneurs', 'Échanges, expertises et rencontres de collectionneurs', '🏆', 9),
+  ('🎉 Événements locaux', 'evenements', 'Discussions autour des événements de Biguglia', '🎉', 10)
 ON CONFLICT (slug) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS forum_posts (
