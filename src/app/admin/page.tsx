@@ -147,6 +147,7 @@ function AdminContent() {
           { href: '/admin/stats', label: 'Statistiques', desc: 'Graphiques & activité complète', icon: '📊', highlight: true },
           { href: '/admin/artisans', label: 'Gestion artisans', desc: 'Valider, refuser, suspendre', icon: '⚒️' },
           { href: '/admin/utilisateurs', label: 'Utilisateurs', desc: 'Gérer les comptes', icon: '👥' },
+          { href: '/admin/contenu', label: 'Contenu', desc: 'Annonces, forum, avis, matériel', icon: '📋' },
           { href: '/admin/signalements', label: 'Signalements', desc: 'Modérer le contenu', icon: '🚩' },
         ].map(({ href, label, desc, icon, highlight }) => (
           <Link key={href} href={href}>
