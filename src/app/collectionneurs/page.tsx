@@ -212,6 +212,7 @@ export default function CollectionneursPage() {
   const [showForm, setShowForm] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: '', description: '', category_id: '', item_type: 'vente',
     price: '', condition: 'bon', tags: '',
@@ -380,6 +381,7 @@ export default function CollectionneursPage() {
       toast.error('Titre, description et catégorie obligatoires');
       return;
     }
+    setSubmitError(null);
     setSubmitting(true);
 
     // Si la catégorie choisie est statique (pas encore en DB), on la crée d'abord
@@ -444,13 +446,15 @@ export default function CollectionneursPage() {
 
     if (error) {
       console.error('collection_items insert error:', error);
+      let msg = '';
       if (error.code === '42P01' || error.message?.includes('does not exist')) {
-        toast.error('❌ Table manquante — exécutez migration_themes.sql dans Supabase SQL Editor', { duration: 6000 });
+        msg = '⚠️ Tables manquantes — exécutez migration_themes.sql dans Supabase SQL Editor (voir /admin/migration).';
       } else if (error.code === '42501' || error.message?.includes('policy')) {
-        toast.error('❌ Erreur de permission — vérifiez les politiques RLS', { duration: 6000 });
+        msg = '⚠️ Erreur de permission RLS. Vérifiez les politiques dans Supabase.';
       } else {
-        toast.error(`❌ Erreur : ${error.message}`, { duration: 6000 });
+        msg = `⚠️ Erreur Supabase : ${error.message}`;
       }
+      setSubmitError(msg);
       setSubmitting(false);
       return;
     }
@@ -589,7 +593,7 @@ export default function CollectionneursPage() {
             </div>
             {profile && (
               <button
-                onClick={() => { setActiveTab('annonces'); setShowForm(true); window.scrollTo({ top: 300, behavior: 'smooth' }); }}
+                onClick={() => { setActiveTab('annonces'); setShowForm(true); setSubmitError(null); window.scrollTo({ top: 300, behavior: 'smooth' }); }}
                 className="flex-shrink-0 inline-flex items-center gap-2 bg-white text-amber-700 font-bold px-6 py-3 rounded-2xl hover:bg-amber-50 transition-all shadow-lg hover:-translate-y-0.5"
               >
                 <Plus className="w-4 h-4" /> Déposer une annonce
@@ -674,7 +678,7 @@ export default function CollectionneursPage() {
               <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-amber-200 p-6 mb-6 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-bold text-gray-800 text-lg">Publier une annonce</h3>
-                  <button type="button" onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
+                  <button type="button" onClick={() => { setShowForm(false); setSubmitError(null); }} className="text-gray-400 hover:text-gray-600">
                     <X className="w-5 h-5" />
                   </button>
                 </div>
@@ -757,12 +761,27 @@ export default function CollectionneursPage() {
                   )}
                 </div>
 
+                {submitError && (
+                  <div className="mb-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-red-700 mb-1">Publication impossible</p>
+                        <p className="text-sm text-red-600 leading-relaxed">{submitError}</p>
+                        <a href="/admin/migration" className="inline-block mt-2 text-sm font-bold text-red-700 underline">→ Page Migration SQL</a>
+                      </div>
+                      <button type="button" onClick={() => setSubmitError(null)} className="text-red-300 hover:text-red-500">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <button type="submit" disabled={submitting}
                     className="flex items-center gap-2 bg-amber-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-amber-600 disabled:opacity-50 transition-all">
                     {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Publication...</> : 'Publier l\'annonce'}
                   </button>
-                  <button type="button" onClick={() => setShowForm(false)}
+                  <button type="button" onClick={() => { setShowForm(false); setSubmitError(null); }}
                     className="px-5 py-2.5 rounded-xl text-sm text-gray-500 hover:bg-gray-100">Annuler</button>
                 </div>
               </form>
