@@ -443,8 +443,14 @@ export default function CollectionneursPage() {
       .single();
 
     if (error) {
-      toast.error('Erreur lors de la publication');
-      console.error(error);
+      console.error('collection_items insert error:', error);
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        toast.error('❌ Table manquante — exécutez migration_themes.sql dans Supabase SQL Editor', { duration: 6000 });
+      } else if (error.code === '42501' || error.message?.includes('policy')) {
+        toast.error('❌ Erreur de permission — vérifiez les politiques RLS', { duration: 6000 });
+      } else {
+        toast.error(`❌ Erreur : ${error.message}`, { duration: 6000 });
+      }
       setSubmitting(false);
       return;
     }
@@ -530,16 +536,21 @@ export default function CollectionneursPage() {
 
       {/* ── BANNER migration DB ── */}
       {!dbReady && (
-        <div className="bg-amber-50 border-b border-amber-300 px-4 py-3">
-          <div className="max-w-7xl mx-auto flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-bold text-amber-800">Migration SQL requise</p>
-              <p className="text-xs text-amber-700 mt-0.5">
-                Exécutez <code className="bg-amber-100 px-1 rounded font-mono">src/lib/migration_themes.sql</code> dans Supabase SQL Editor.
-                Les catégories affichées ci-dessous sont des exemples. Créez-en via le bouton &quot;+ Nouvelle catégorie&quot;.
-              </p>
+        <div className="bg-red-50 border-b border-red-300 px-4 py-3">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold text-red-800">⚠️ Tables manquantes — publication impossible</p>
+                <p className="text-xs text-red-700 mt-0.5">
+                  Les tables <code className="bg-red-100 px-1 rounded font-mono">collection_items</code> et <code className="bg-red-100 px-1 rounded font-mono">collection_categories</code> n&apos;existent pas encore dans Supabase.
+                </p>
+              </div>
             </div>
+            <Link href="/admin/migration"
+              className="flex-shrink-0 inline-flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-red-700 transition-all">
+              🗄️ Voir la migration SQL
+            </Link>
           </div>
         </div>
       )}
