@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
 import { CheckCircle, XCircle, AlertCircle, Copy, Check, Database, Loader2, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -221,20 +219,18 @@ const TABLES_TO_CHECK = [
 type TableStatus = { name: string; exists: boolean | null };
 
 export default function MigrationPage() {
-  const { profile } = useAuthStore();
-  const router = useRouter();
   const supabase = createClient();
 
   const [checking, setChecking] = useState(true);
   const [tables, setTables] = useState<TableStatus[]>([]);
   const [copied, setCopied] = useState(false);
+  const [copiedShort, setCopiedShort] = useState(false);
+  const [sqlTab, setSqlTab] = useState<'full' | 'collectionneurs'>('collectionneurs');
 
   useEffect(() => {
-    if (!profile) { router.push('/connexion'); return; }
-    if (profile.role !== 'admin') { router.push('/'); return; }
     checkTables();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile]);
+  }, []);
 
   const checkTables = async () => {
     setChecking(true);
@@ -250,8 +246,92 @@ export default function MigrationPage() {
   const handleCopy = () => {
     navigator.clipboard.writeText(MIGRATION_SQL).then(() => {
       setCopied(true);
-      toast.success('SQL copié dans le presse-papier !');
+      toast.success('SQL complet copié !');
       setTimeout(() => setCopied(false), 3000);
+    });
+  };
+
+  const SQL_COLLECTIONNEURS = `-- Tables Collectionneurs uniquement
+-- Coller dans Supabase > SQL Editor > New query > Run
+
+CREATE TABLE IF NOT EXISTS collection_categories (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name TEXT NOT NULL, slug TEXT NOT NULL UNIQUE,
+  icon TEXT NOT NULL DEFAULT '📦', color TEXT NOT NULL DEFAULT 'gray',
+  display_order INT NOT NULL DEFAULT 0,
+  is_custom BOOLEAN NOT NULL DEFAULT false,
+  author_id UUID REFERENCES profiles(id) ON DELETE SET NULL
+);
+INSERT INTO collection_categories (name, slug, icon, color, display_order) VALUES
+  ('Timbres & philatélie','timbres','📮','blue',1),
+  ('Monnaies & numismatique','monnaies','🪙','amber',2),
+  ('Vinyles & musique','vinyles','🎵','purple',3),
+  ('Livres anciens','livres','📚','emerald',4),
+  ('Figurines & jouets','figurines','🎮','rose',5),
+  ('Cartes postales','cartes','🗺️','sky',6),
+  ('Art & tableaux','art','🎨','pink',7),
+  ('Vintage & mode','vintage','👗','orange',8),
+  ('Minéraux & fossiles','mineraux','🪨','teal',9),
+  ('Miniatures & maquettes','miniatures','🏗️','indigo',10),
+  ('Automobilia','automobilia','🚗','red',11),
+  ('Nature & botanique','nature-col','🌿','green',12)
+ON CONFLICT (slug) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS collection_items (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  author_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  category_id UUID REFERENCES collection_categories(id),
+  title TEXT NOT NULL, description TEXT NOT NULL,
+  item_type TEXT NOT NULL DEFAULT 'vente' CHECK (item_type IN ('vente','troc','don','recherche')),
+  price NUMERIC(10,2),
+  condition TEXT NOT NULL DEFAULT 'bon' CHECK (condition IN ('neuf','excellent','bon','passable')),
+  tags TEXT[] DEFAULT '{}',
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','sold','archived')),
+  views INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS collection_item_photos (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  item_id UUID REFERENCES collection_items(id) ON DELETE CASCADE NOT NULL,
+  url TEXT NOT NULL, display_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE collection_categories ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='collection_categories' AND policyname='collection_categories_select') THEN
+    CREATE POLICY "collection_categories_select" ON collection_categories FOR SELECT USING (true);
+    CREATE POLICY "collection_categories_insert" ON collection_categories FOR INSERT WITH CHECK (auth.uid() = author_id);
+    CREATE POLICY "collection_categories_delete" ON collection_categories FOR DELETE USING (auth.uid() = author_id);
+  END IF;
+END $$;
+
+ALTER TABLE collection_items ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='collection_items' AND policyname='collection_items_select') THEN
+    CREATE POLICY "collection_items_select" ON collection_items FOR SELECT USING (status = 'active');
+    CREATE POLICY "collection_items_insert" ON collection_items FOR INSERT WITH CHECK (auth.uid() = author_id);
+    CREATE POLICY "collection_items_update" ON collection_items FOR UPDATE USING (auth.uid() = author_id);
+    CREATE POLICY "collection_items_delete" ON collection_items FOR DELETE USING (auth.uid() = author_id);
+  END IF;
+END $$;
+
+ALTER TABLE collection_item_photos ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='collection_item_photos' AND policyname='collection_item_photos_select') THEN
+    CREATE POLICY "collection_item_photos_select" ON collection_item_photos FOR SELECT USING (true);
+    CREATE POLICY "collection_item_photos_insert" ON collection_item_photos FOR INSERT WITH CHECK (
+      EXISTS (SELECT 1 FROM collection_items WHERE id = item_id AND author_id = auth.uid()));
+  END IF;
+END $$;`;
+
+  const handleCopyShort = () => {
+    navigator.clipboard.writeText(SQL_COLLECTIONNEURS).then(() => {
+      setCopiedShort(true);
+      toast.success('SQL Collectionneurs copié !');
+      setTimeout(() => setCopiedShort(false), 3000);
     });
   };
 
@@ -341,34 +421,56 @@ export default function MigrationPage() {
       {/* SQL à copier */}
       {!allOk && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-            <div>
-              <h2 className="font-bold text-gray-800">SQL à exécuter dans Supabase</h2>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Supabase → SQL Editor → New query → Coller → Run
-              </p>
+
+          {/* Instructions */}
+          <div className="px-5 py-4 bg-blue-50 border-b border-blue-100 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-blue-800">
+              <strong>Étapes :</strong> 1) Cliquez <strong>Copier le SQL</strong> ci-dessous &nbsp;→&nbsp;
+              2) Ouvrez <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="underline font-bold">supabase.com</a> → votre projet →{' '}
+              <strong>SQL Editor</strong> → <strong>New query</strong> &nbsp;→&nbsp;
+              3) Collez (Ctrl+V) &nbsp;→&nbsp; 4) Cliquez <strong>Run</strong> &nbsp;→&nbsp;
+              5) Revenez ici et cliquez <strong>Actualiser</strong>.
             </div>
-            <button onClick={handleCopy}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                copied
-                  ? 'bg-emerald-500 text-white'
-                  : 'bg-indigo-500 text-white hover:bg-indigo-600'
-              }`}>
-              {copied ? <><Check className="w-4 h-4" /> Copié !</> : <><Copy className="w-4 h-4" /> Copier le SQL</>}
+          </div>
+
+          {/* Onglets */}
+          <div className="flex gap-2 px-5 pt-4 pb-0 border-b border-gray-100">
+            <button onClick={() => setSqlTab('collectionneurs')}
+              className={`px-4 py-2 text-sm font-bold rounded-t-xl border-b-2 transition-all ${sqlTab === 'collectionneurs' ? 'border-amber-500 text-amber-700 bg-amber-50' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+              🏆 Collectionneurs seulement
+            </button>
+            <button onClick={() => setSqlTab('full')}
+              className={`px-4 py-2 text-sm font-bold rounded-t-xl border-b-2 transition-all ${sqlTab === 'full' ? 'border-indigo-500 text-indigo-700 bg-indigo-50' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+              📦 SQL complet (tous les thèmes)
             </button>
           </div>
-          <div className="p-4 bg-gray-950 overflow-auto max-h-[500px]">
-            <pre className="text-xs text-green-400 font-mono leading-relaxed whitespace-pre-wrap">{MIGRATION_SQL}</pre>
+
+          {/* Header copier */}
+          <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+            <p className="text-xs text-gray-500">
+              {sqlTab === 'collectionneurs'
+                ? 'Tables : collection_categories, collection_items, collection_item_photos'
+                : 'Tables : promenades, collectionneurs, événements (toutes les tables des 3 thèmes)'}
+            </p>
+            {sqlTab === 'collectionneurs' ? (
+              <button onClick={handleCopyShort}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${copiedShort ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white hover:bg-amber-600'}`}>
+                {copiedShort ? <><Check className="w-4 h-4" /> Copié !</> : <><Copy className="w-4 h-4" /> Copier le SQL</>}
+              </button>
+            ) : (
+              <button onClick={handleCopy}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${copied ? 'bg-emerald-500 text-white' : 'bg-indigo-500 text-white hover:bg-indigo-600'}`}>
+                {copied ? <><Check className="w-4 h-4" /> Copié !</> : <><Copy className="w-4 h-4" /> Copier le SQL</>}
+              </button>
+            )}
           </div>
-          <div className="px-5 py-4 bg-amber-50 border-t border-amber-100 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-amber-700">
-              <strong>Instructions :</strong> Copiez ce SQL → ouvrez{' '}
-              <a href="https://supabase.com" target="_blank" rel="noopener noreferrer"
-                className="underline font-semibold">supabase.com</a>
-              {' '}→ votre projet → <strong>SQL Editor</strong> → <strong>New query</strong> → collez → cliquez <strong>Run</strong>.
-              Revenez ensuite sur cette page et cliquez &quot;Actualiser&quot;.
-            </div>
+
+          {/* Code SQL */}
+          <div className="p-4 bg-gray-950 overflow-auto max-h-[500px]">
+            <pre className="text-xs text-green-400 font-mono leading-relaxed whitespace-pre-wrap">
+              {sqlTab === 'collectionneurs' ? SQL_COLLECTIONNEURS : MIGRATION_SQL}
+            </pre>
           </div>
         </div>
       )}
