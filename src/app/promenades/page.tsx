@@ -1,83 +1,61 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
 import { formatRelative } from '@/lib/utils';
 import {
-  MapPin, Clock, ArrowRight, Mountain, Camera, MessageSquare,
-  Footprints, TreePine, Star, Heart, Share2, ChevronRight,
-  Navigation, Compass, Sun, Cloud, Filter, Plus, Users, Eye,
-  Bookmark, TrendingUp, Map, Wind, Thermometer, Leaf,
+  MapPin, Clock, Mountain, Camera, MessageSquare, Footprints, TreePine,
+  Heart, ChevronRight, Navigation, Compass, Sun, Plus, Users, Eye,
+  Map, Leaf, X, Image as ImageIcon, AlertCircle, Loader2, RefreshCw,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import toast from 'react-hot-toast';
 
-// ─── Types locaux ─────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 type Promenade = {
   id: string;
   title: string;
   description: string;
-  distance_km: number;
-  duration_min: number;
+  distance_km: number | null;
+  duration_min: number | null;
   difficulty: 'facile' | 'moyen' | 'difficile';
   tags: string[];
   author_id: string;
-  author?: { full_name: string; avatar_url?: string };
-  likes: number;
+  author?: { full_name: string; avatar_url?: string } | null;
+  likes_count?: number;
+  user_liked?: boolean;
   views: number;
   created_at: string;
   type: 'balade' | 'randonnee' | 'velo' | 'plage' | 'nature';
+  photos?: { url: string }[];
 };
 
-type Post = {
+type ForumPost = {
   id: string;
   title: string;
   content: string;
   author_id: string;
-  author?: { full_name: string; avatar_url?: string };
+  author?: { full_name: string; avatar_url?: string } | null;
   created_at: string;
   comment_count?: number;
 };
 
-// ─── Données exemple (affichées tant que la table Supabase n'existe pas) ──────
-const SAMPLE_PROMENADES: Promenade[] = [
-  {
-    id: 'p1', title: 'Tour du Cap Tormentoso', description: 'Une balade magnifique le long des falaises avec vue panoramique sur le golfe de Biguglia. Parfait en soirée pour le coucher de soleil.',
-    distance_km: 4.5, duration_min: 90, difficulty: 'facile',
-    tags: ['vue mer', 'coucher de soleil', 'famille'],
-    author_id: '', likes: 24, views: 187,
-    created_at: new Date(Date.now() - 3 * 86400000).toISOString(), type: 'balade',
-  },
-  {
-    id: 'p2', title: 'Sentier de l\'Étang de Biguglia', description: 'Le tour complet de l\'étang, réserve naturelle classée. Idéal pour observer les flamants roses, hérons et autres oiseaux migrateurs.',
-    distance_km: 12, duration_min: 210, difficulty: 'moyen',
-    tags: ['nature', 'oiseaux', 'étang', 'réserve'],
-    author_id: '', likes: 41, views: 312,
-    created_at: new Date(Date.now() - 7 * 86400000).toISOString(), type: 'nature',
-  },
-  {
-    id: 'p3', title: 'Piste cyclable côtière', description: 'Le long du bord de mer jusqu\'à Furiani. Accessible à tous en vélo. On longe la plage sur plusieurs kilomètres.',
-    distance_km: 8, duration_min: 60, difficulty: 'facile',
-    tags: ['vélo', 'mer', 'plage', 'accessible'],
-    author_id: '', likes: 17, views: 134,
-    created_at: new Date(Date.now() - 1 * 86400000).toISOString(), type: 'velo',
-  },
-  {
-    id: 'p4', title: 'Montée au Monte Castellu', description: 'Randonnée avec dénivelé vers les ruines médiévales. Vue à 360° sur toute la plaine orientale et le littoral. Emporter de l\'eau.',
-    distance_km: 7, duration_min: 180, difficulty: 'difficile',
-    tags: ['histoire', 'panorama', 'ruines', 'sport'],
-    author_id: '', likes: 33, views: 256,
-    created_at: new Date(Date.now() - 14 * 86400000).toISOString(), type: 'randonnee',
-  },
-];
-
-const SAMPLE_POSTS = [
-  { id: 'f1', title: 'Meilleur moment pour voir les flamants ?', content: 'Quelqu\'un sait à quelle heure ils sont les plus visibles à l\'étang ?', author_id: '', created_at: new Date(Date.now() - 2 * 86400000).toISOString(), comment_count: 8 },
-  { id: 'f2', title: 'Sentier glissant après la pluie', content: 'Attention sur le chemin du Cap, très glissant hier soir.', author_id: '', created_at: new Date(Date.now() - 86400000).toISOString(), comment_count: 3 },
-  { id: 'f3', title: 'Groupe de randonnée dimanche matin ?', content: 'Je propose une sortie dimanche à 8h, qui est partant ?', author_id: '', created_at: new Date(Date.now() - 3600000).toISOString(), comment_count: 12 },
-];
+type GroupOuting = {
+  id: string;
+  title: string;
+  description: string | null;
+  outing_date: string;
+  outing_time: string;
+  max_participants: number;
+  meeting_point: string | null;
+  status: string;
+  organizer_id: string;
+  organizer?: { full_name: string } | null;
+  participants_count?: number;
+  user_joined?: boolean;
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const DIFF_CONFIG = {
@@ -87,50 +65,74 @@ const DIFF_CONFIG = {
 };
 
 const TYPE_CONFIG = {
-  balade:    { icon: Footprints, label: 'Balade',     color: 'text-sky-600',     bg: 'bg-sky-50' },
-  randonnee: { icon: Mountain,   label: 'Randonnée',  color: 'text-orange-600',  bg: 'bg-orange-50' },
-  velo:      { icon: Navigation, label: 'Vélo',       color: 'text-purple-600',  bg: 'bg-purple-50' },
-  plage:     { icon: Sun,        label: 'Plage',      color: 'text-yellow-600',  bg: 'bg-yellow-50' },
-  nature:    { icon: Leaf,       label: 'Nature',     color: 'text-emerald-600', bg: 'bg-emerald-50' },
+  balade:    { icon: Footprints, label: 'Balade',    color: 'text-sky-600',     bg: 'bg-sky-50' },
+  randonnee: { icon: Mountain,   label: 'Randonnée', color: 'text-orange-600',  bg: 'bg-orange-50' },
+  velo:      { icon: Navigation, label: 'Vélo',      color: 'text-purple-600',  bg: 'bg-purple-50' },
+  plage:     { icon: Sun,        label: 'Plage',     color: 'text-yellow-600',  bg: 'bg-yellow-50' },
+  nature:    { icon: Leaf,       label: 'Nature',    color: 'text-emerald-600', bg: 'bg-emerald-50' },
 };
 
-function formatDuration(min: number) {
+function formatDuration(min: number | null) {
+  if (!min) return '—';
   if (min < 60) return `${min} min`;
   const h = Math.floor(min / 60);
   const m = min % 60;
   return m ? `${h}h${m.toString().padStart(2, '0')}` : `${h}h`;
 }
 
-// ─── Composant carte promenade ────────────────────────────────────────────────
-function PromenadeCard({ p }: { p: Promenade }) {
+// ─── PromenadeCard ─────────────────────────────────────────────────────────────
+function PromenadeCard({
+  p, userId, onLike,
+}: { p: Promenade; userId?: string; onLike: (id: string, liked: boolean) => void }) {
   const diff = DIFF_CONFIG[p.difficulty];
   const type = TYPE_CONFIG[p.type];
   const TypeIcon = type.icon;
+  const firstPhoto = p.photos?.[0]?.url;
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 overflow-hidden group">
-      {/* Header coloré par type */}
-      <div className={`${type.bg} px-5 pt-4 pb-2`}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className={`p-2 bg-white rounded-xl shadow-sm`}>
-              <TypeIcon className={`w-4 h-4 ${type.color}`} />
-            </div>
-            <span className={`text-xs font-bold ${type.color}`}>{type.label}</span>
-          </div>
-          <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${diff.color}`}>{diff.label}</span>
+      {/* Photo ou header coloré */}
+      {firstPhoto ? (
+        <div className="h-36 overflow-hidden relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={firstPhoto} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+          <span className={`absolute top-3 right-3 text-xs font-bold px-2.5 py-1 rounded-full border ${diff.color}`}>{diff.label}</span>
         </div>
-      </div>
+      ) : (
+        <div className={`${type.bg} px-5 pt-4 pb-2`}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-white rounded-xl shadow-sm">
+                <TypeIcon className={`w-4 h-4 ${type.color}`} />
+              </div>
+              <span className={`text-xs font-bold ${type.color}`}>{type.label}</span>
+            </div>
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${diff.color}`}>{diff.label}</span>
+          </div>
+        </div>
+      )}
+
       <div className="p-5">
-        <h3 className="font-bold text-gray-900 text-base mb-2 group-hover:text-emerald-700 transition-colors leading-snug">{p.title}</h3>
+        <h3 className="font-bold text-gray-900 text-base mb-2 group-hover:text-emerald-700 transition-colors leading-snug line-clamp-2">{p.title}</h3>
         <p className="text-gray-500 text-sm leading-relaxed mb-4 line-clamp-2">{p.description}</p>
 
         {/* Stats */}
-        <div className="flex items-center gap-4 mb-4 text-xs text-gray-500">
-          <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-emerald-500" />{p.distance_km} km</span>
-          <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-sky-500" />{formatDuration(p.duration_min)}</span>
+        <div className="flex items-center gap-3 mb-4 text-xs text-gray-500">
+          {p.distance_km && (
+            <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-emerald-500" />{p.distance_km} km</span>
+          )}
+          {p.duration_min && (
+            <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-sky-500" />{formatDuration(p.duration_min)}</span>
+          )}
           <span className="flex items-center gap-1"><Eye className="w-3.5 h-3.5 text-gray-400" />{p.views}</span>
-          <span className="flex items-center gap-1"><Heart className="w-3.5 h-3.5 text-rose-400" />{p.likes}</span>
+          <button
+            onClick={() => userId && onLike(p.id, !!p.user_liked)}
+            className={`flex items-center gap-1 transition-colors ${p.user_liked ? 'text-rose-500' : 'text-gray-400 hover:text-rose-400'} ${!userId ? 'cursor-default' : 'cursor-pointer'}`}
+          >
+            <Heart className={`w-3.5 h-3.5 ${p.user_liked ? 'fill-current' : ''}`} />
+            {p.likes_count || 0}
+          </button>
         </div>
 
         {/* Tags */}
@@ -144,10 +146,7 @@ function PromenadeCard({ p }: { p: Promenade }) {
 
         {/* Footer */}
         <div className="flex items-center justify-between pt-3 border-t border-gray-50">
-          <span className="text-xs text-gray-400">{formatRelative(p.created_at)}</span>
-          <button className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 group-hover:gap-1.5 transition-all">
-            Voir le détail <ChevronRight className="w-3.5 h-3.5" />
-          </button>
+          <span className="text-xs text-gray-400">{p.author?.full_name ?? 'Anonyme'} · {formatRelative(p.created_at)}</span>
         </div>
       </div>
     </div>
@@ -157,27 +156,303 @@ function PromenadeCard({ p }: { p: Promenade }) {
 // ─── Page principale ──────────────────────────────────────────────────────────
 export default function PromenadePage() {
   const { profile } = useAuthStore();
+  const supabase = createClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [activeTab, setActiveTab] = useState<'itineraires' | 'forum' | 'agenda'>('itineraires');
   const [filter, setFilter] = useState<string>('all');
+
+  // Promenades state
+  const [promenades, setPromenades] = useState<Promenade[]>([]);
+  const [loadingPromenades, setLoadingPromenades] = useState(true);
+
+  // Forum state
+  const [forumPosts, setForumPosts] = useState<ForumPost[]>([]);
+  const [loadingForum, setLoadingForum] = useState(false);
+  const [forumCategoryId, setForumCategoryId] = useState<string | null>(null);
+
+  // Agenda state
+  const [outings, setOutings] = useState<GroupOuting[]>([]);
+  const [loadingOutings, setLoadingOutings] = useState(false);
+
+  // New promenade form
   const [showForm, setShowForm] = useState(false);
-  const [newPost, setNewPost] = useState({ title: '', content: '' });
+  const [photos, setPhotos] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState({
+    title: '', description: '', distance_km: '', duration_min: '',
+    difficulty: 'facile', type: 'balade', tags: '', start_point: '',
+  });
 
-  const filteredPromenades = filter === 'all'
-    ? SAMPLE_PROMENADES
-    : SAMPLE_PROMENADES.filter(p => p.type === filter || p.difficulty === filter);
+  // New forum post form
+  const [showPostForm, setShowPostForm] = useState(false);
+  const [postForm, setPostForm] = useState({ title: '', content: '' });
+  const [submittingPost, setSubmittingPost] = useState(false);
 
-  const handlePostSubmit = async (e: React.FormEvent) => {
+  // New outing form
+  const [showOutingForm, setShowOutingForm] = useState(false);
+  const [outingForm, setOutingForm] = useState({
+    title: '', description: '', outing_date: '', outing_time: '09:00',
+    max_participants: '10', meeting_point: '',
+  });
+  const [submittingOuting, setSubmittingOuting] = useState(false);
+
+  // ── Fetch promenades ──────────────────────────────────────────────────────
+  const fetchPromenades = useCallback(async () => {
+    setLoadingPromenades(true);
+    let query = supabase
+      .from('promenades')
+      .select(`*, author:profiles!promenades_author_id_fkey(full_name, avatar_url), photos:promenade_photos(url)`)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false });
+
+    if (filter !== 'all') {
+      if (['balade', 'randonnee', 'velo', 'plage', 'nature'].includes(filter)) {
+        query = query.eq('type', filter);
+      } else if (['facile', 'moyen', 'difficile'].includes(filter)) {
+        query = query.eq('difficulty', filter);
+      }
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('Promenades fetch error:', error);
+      setLoadingPromenades(false);
+      return;
+    }
+
+    // Fetch likes
+    let enriched = (data || []) as Promenade[];
+    if (profile) {
+      const ids = enriched.map(p => p.id);
+      const { data: likesData } = await supabase
+        .from('promenade_likes')
+        .select('promenade_id')
+        .in('promenade_id', ids)
+        .eq('user_id', profile.id);
+      const likedSet = new Set((likesData || []).map((l: { promenade_id: string }) => l.promenade_id));
+
+      const { data: countsData } = await supabase
+        .from('promenade_likes')
+        .select('promenade_id')
+        .in('promenade_id', ids);
+      const countMap: Record<string, number> = {};
+      (countsData || []).forEach((l: { promenade_id: string }) => {
+        countMap[l.promenade_id] = (countMap[l.promenade_id] || 0) + 1;
+      });
+      enriched = enriched.map(p => ({
+        ...p,
+        user_liked: likedSet.has(p.id),
+        likes_count: countMap[p.id] || 0,
+      }));
+    }
+    setPromenades(enriched);
+    setLoadingPromenades(false);
+  }, [filter, profile]);
+
+  // ── Fetch forum ───────────────────────────────────────────────────────────
+  const fetchForum = useCallback(async () => {
+    setLoadingForum(true);
+    // Get or create promenades forum category
+    const { data: cats } = await supabase.from('forum_categories').select('id').eq('slug', 'promenades').single();
+    const catId = cats?.id ?? null;
+    setForumCategoryId(catId);
+
+    if (!catId) { setLoadingForum(false); return; }
+
+    const { data } = await supabase
+      .from('forum_posts')
+      .select(`*, author:profiles!forum_posts_author_id_fkey(full_name, avatar_url), comment_count:forum_comments(count)`)
+      .eq('category_id', catId)
+      .eq('is_closed', false)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    setForumPosts((data as unknown as ForumPost[]) || []);
+    setLoadingForum(false);
+  }, []);
+
+  // ── Fetch outings ─────────────────────────────────────────────────────────
+  const fetchOutings = useCallback(async () => {
+    setLoadingOutings(true);
+    const { data } = await supabase
+      .from('group_outings')
+      .select(`*, organizer:profiles!group_outings_organizer_id_fkey(full_name), participants:outing_participants(count)`)
+      .in('status', ['open', 'full'])
+      .gte('outing_date', new Date().toISOString().split('T')[0])
+      .order('outing_date', { ascending: true })
+      .limit(10);
+    const enriched = (data || []).map((o: GroupOuting & { participants?: { count: number }[] }) => ({
+      ...o,
+      participants_count: o.participants?.[0]?.count ?? 0,
+      user_joined: false,
+    }));
+    // Check joins
+    if (profile && enriched.length > 0) {
+      const ids = enriched.map(o => o.id);
+      const { data: joins } = await supabase
+        .from('outing_participants')
+        .select('outing_id')
+        .in('outing_id', ids)
+        .eq('user_id', profile.id);
+      const joinedSet = new Set((joins || []).map((j: { outing_id: string }) => j.outing_id));
+      setOutings(enriched.map(o => ({ ...o, user_joined: joinedSet.has(o.id) })));
+    } else {
+      setOutings(enriched);
+    }
+    setLoadingOutings(false);
+  }, [profile]);
+
+  useEffect(() => { fetchPromenades(); }, [fetchPromenades]);
+  useEffect(() => { if (activeTab === 'forum') fetchForum(); }, [activeTab, fetchForum]);
+  useEffect(() => { if (activeTab === 'agenda') fetchOutings(); }, [activeTab, fetchOutings]);
+
+  // ── Like / Unlike ─────────────────────────────────────────────────────────
+  const handleLike = async (id: string, alreadyLiked: boolean) => {
+    if (!profile) { toast.error('Connectez-vous pour liker'); return; }
+    if (alreadyLiked) {
+      await supabase.from('promenade_likes').delete().eq('promenade_id', id).eq('user_id', profile.id);
+    } else {
+      await supabase.from('promenade_likes').insert({ promenade_id: id, user_id: profile.id });
+    }
+    setPromenades(prev => prev.map(p => p.id === id ? {
+      ...p,
+      user_liked: !alreadyLiked,
+      likes_count: (p.likes_count || 0) + (alreadyLiked ? -1 : 1),
+    } : p));
+  };
+
+  // ── Submit promenade ──────────────────────────────────────────────────────
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPost.title || !newPost.content) { toast.error('Remplissez tous les champs'); return; }
+    if (!profile) return;
+    if (!form.title.trim() || !form.description.trim()) {
+      toast.error('Titre et description obligatoires');
+      return;
+    }
     setSubmitting(true);
-    // Simulation d'envoi (à brancher sur forum_posts avec category_id = 'promenades')
-    await new Promise(r => setTimeout(r, 800));
-    toast.success('Votre message a été publié !');
-    setNewPost({ title: '', content: '' });
+    const tags = form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
+    const { data: prom, error } = await supabase
+      .from('promenades')
+      .insert({
+        author_id: profile.id,
+        title: form.title.trim(),
+        description: form.description.trim(),
+        distance_km: form.distance_km ? parseFloat(form.distance_km) : null,
+        duration_min: form.duration_min ? parseInt(form.duration_min) : null,
+        difficulty: form.difficulty,
+        type: form.type,
+        tags,
+        start_point: form.start_point.trim() || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      toast.error('Erreur lors de la publication');
+      console.error(error);
+      setSubmitting(false);
+      return;
+    }
+
+    // Upload photos
+    if (photos.length > 0 && prom) {
+      for (let i = 0; i < photos.length; i++) {
+        const photo = photos[i];
+        const ext = photo.name.split('.').pop() || 'jpg';
+        const fileName = `promenades/${prom.id}/${Date.now()}-${i}.${ext}`;
+        const { data: up, error: upErr } = await supabase.storage
+          .from('photos')
+          .upload(fileName, photo, { upsert: true });
+        if (up && !upErr) {
+          const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(up.path);
+          await supabase.from('promenade_photos').insert({
+            promenade_id: prom.id, url: publicUrl, display_order: i,
+          });
+        }
+      }
+    }
+
+    toast.success('Itinéraire publié avec succès !');
+    setForm({ title: '', description: '', distance_km: '', duration_min: '', difficulty: 'facile', type: 'balade', tags: '', start_point: '' });
+    setPhotos([]);
     setShowForm(false);
+    fetchPromenades();
     setSubmitting(false);
   };
+
+  // ── Submit forum post ─────────────────────────────────────────────────────
+  const handlePostSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile || !forumCategoryId) return;
+    if (!postForm.title.trim() || !postForm.content.trim()) {
+      toast.error('Remplissez tous les champs');
+      return;
+    }
+    setSubmittingPost(true);
+    const { error } = await supabase.from('forum_posts').insert({
+      category_id: forumCategoryId,
+      author_id: profile.id,
+      title: postForm.title.trim(),
+      content: postForm.content.trim(),
+    });
+    if (error) {
+      toast.error('Erreur lors de la publication');
+      console.error(error);
+    } else {
+      toast.success('Message publié !');
+      setPostForm({ title: '', content: '' });
+      setShowPostForm(false);
+      fetchForum();
+    }
+    setSubmittingPost(false);
+  };
+
+  // ── Submit outing ─────────────────────────────────────────────────────────
+  const handleOutingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile) return;
+    if (!outingForm.title.trim() || !outingForm.outing_date) {
+      toast.error('Titre et date obligatoires');
+      return;
+    }
+    setSubmittingOuting(true);
+    const { error } = await supabase.from('group_outings').insert({
+      organizer_id: profile.id,
+      title: outingForm.title.trim(),
+      description: outingForm.description.trim() || null,
+      outing_date: outingForm.outing_date,
+      outing_time: outingForm.outing_time,
+      max_participants: parseInt(outingForm.max_participants) || 10,
+      meeting_point: outingForm.meeting_point.trim() || null,
+    });
+    if (error) {
+      toast.error('Erreur lors de la création');
+      console.error(error);
+    } else {
+      toast.success('Sortie créée ! Les participants pourront s\'inscrire.');
+      setOutingForm({ title: '', description: '', outing_date: '', outing_time: '09:00', max_participants: '10', meeting_point: '' });
+      setShowOutingForm(false);
+      fetchOutings();
+    }
+    setSubmittingOuting(false);
+  };
+
+  // ── Join / Leave outing ───────────────────────────────────────────────────
+  const handleJoinOuting = async (outingId: string, joined: boolean) => {
+    if (!profile) { toast.error('Connectez-vous pour participer'); return; }
+    if (joined) {
+      await supabase.from('outing_participants').delete().eq('outing_id', outingId).eq('user_id', profile.id);
+      toast.success('Inscription annulée');
+    } else {
+      const { error } = await supabase.from('outing_participants').insert({ outing_id: outingId, user_id: profile.id });
+      if (error) { toast.error('Erreur lors de l\'inscription'); return; }
+      toast.success('Inscription confirmée ! L\'organisateur vous contactera.');
+    }
+    fetchOutings();
+  };
+
+  const filteredPromenades = promenades;
+  const totalCount = promenades.length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-white">
@@ -202,7 +477,7 @@ export default function PromenadePage() {
               </p>
               <div className="flex flex-wrap gap-3 mt-5">
                 {[
-                  { icon: Footprints, label: `${SAMPLE_PROMENADES.length} itinéraires` },
+                  { icon: Footprints, label: `${totalCount} itinéraire${totalCount !== 1 ? 's' : ''}` },
                   { icon: TreePine,   label: 'Réserve naturelle' },
                   { icon: Camera,    label: 'Photos partagées' },
                 ].map(({ icon: I, label }) => (
@@ -214,7 +489,7 @@ export default function PromenadePage() {
             </div>
             {profile && (
               <button
-                onClick={() => { setActiveTab('forum'); setShowForm(true); }}
+                onClick={() => { setActiveTab('itineraires'); setShowForm(true); }}
                 className="flex-shrink-0 inline-flex items-center gap-2 bg-white text-emerald-700 font-bold px-6 py-3 rounded-2xl hover:bg-emerald-50 transition-all shadow-lg hover:-translate-y-0.5"
               >
                 <Plus className="w-4 h-4" /> Partager un itinéraire
@@ -272,29 +547,161 @@ export default function PromenadePage() {
                   {label}
                 </button>
               ))}
+              <button onClick={fetchPromenades} className="p-2 border border-gray-200 rounded-xl bg-white text-gray-400 hover:text-emerald-600 hover:border-emerald-300 transition-all">
+                <RefreshCw className="w-4 h-4" />
+              </button>
             </div>
 
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredPromenades.map(p => <PromenadeCard key={p.id} p={p} />)}
-            </div>
+            {/* Formulaire d'ajout */}
+            {showForm && profile && (
+              <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-emerald-200 p-6 mb-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-gray-800 text-lg">Partager un itinéraire</h3>
+                  <button type="button" onClick={() => setShowForm(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-3 mb-3">
+                  <input type="text" placeholder="Titre de l'itinéraire *"
+                    value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                    className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" required
+                  />
+                  <div className="flex gap-2">
+                    <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
+                      className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-300">
+                      <option value="balade">🚶 Balade</option>
+                      <option value="randonnee">⛰️ Randonnée</option>
+                      <option value="velo">🚴 Vélo</option>
+                      <option value="plage">🏖️ Plage</option>
+                      <option value="nature">🌿 Nature</option>
+                    </select>
+                    <select value={form.difficulty} onChange={e => setForm(f => ({ ...f, difficulty: e.target.value }))}
+                      className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-300">
+                      <option value="facile">✅ Facile</option>
+                      <option value="moyen">🟡 Moyen</option>
+                      <option value="difficile">🔴 Difficile</option>
+                    </select>
+                  </div>
+                </div>
+
+                <textarea placeholder="Description du parcours : points d'intérêt, conseils, points de départ..."
+                  rows={3} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none mb-3 focus:outline-none focus:ring-2 focus:ring-emerald-300" required
+                />
+
+                <div className="grid sm:grid-cols-3 gap-3 mb-3">
+                  <input type="number" placeholder="Distance (km)" min="0" step="0.1"
+                    value={form.distance_km} onChange={e => setForm(f => ({ ...f, distance_km: e.target.value }))}
+                    className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                  />
+                  <input type="number" placeholder="Durée (min)" min="0"
+                    value={form.duration_min} onChange={e => setForm(f => ({ ...f, duration_min: e.target.value }))}
+                    className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                  />
+                  <input type="text" placeholder="Point de départ"
+                    value={form.start_point} onChange={e => setForm(f => ({ ...f, start_point: e.target.value }))}
+                    className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                  />
+                </div>
+
+                <input type="text" placeholder="Tags (séparés par virgule : mer, famille, nature)"
+                  value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                />
+
+                {/* Photos */}
+                <div className="mb-3">
+                  <button type="button" onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-2 text-sm text-emerald-600 font-medium border border-dashed border-emerald-300 rounded-xl px-4 py-2.5 hover:bg-emerald-50 transition-all">
+                    <ImageIcon className="w-4 h-4" /> Ajouter des photos (max 5)
+                  </button>
+                  <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden"
+                    onChange={e => {
+                      const files = Array.from(e.target.files || []);
+                      if (photos.length + files.length > 5) { toast.error('Max 5 photos'); return; }
+                      setPhotos(p => [...p, ...files]);
+                    }}
+                  />
+                  {photos.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {photos.map((ph, i) => (
+                        <div key={i} className="relative w-16 h-16 group">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={URL.createObjectURL(ph)} alt="" className="w-full h-full object-cover rounded-xl" />
+                          <button type="button" onClick={() => setPhotos(p => p.filter((_, j) => j !== i))}
+                            className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center shadow">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <button type="submit" disabled={submitting}
+                    className="flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 disabled:opacity-50 transition-all">
+                    {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Publication...</> : 'Publier l\'itinéraire'}
+                  </button>
+                  <button type="button" onClick={() => setShowForm(false)}
+                    className="px-5 py-2.5 rounded-xl text-sm text-gray-500 hover:bg-gray-100 transition-all">Annuler</button>
+                </div>
+              </form>
+            )}
+
+            {/* Liste */}
+            {loadingPromenades ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+              </div>
+            ) : filteredPromenades.length === 0 ? (
+              <div className="text-center py-20">
+                <TreePine className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                <p className="text-gray-500 font-semibold text-lg">Aucun itinéraire pour l'instant</p>
+                <p className="text-gray-400 text-sm mt-1 mb-6">Soyez le premier à partager une balade autour de Biguglia !</p>
+                {profile && (
+                  <button onClick={() => setShowForm(true)}
+                    className="inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl hover:bg-emerald-600 transition-all">
+                    <Plus className="w-4 h-4" /> Partager un itinéraire
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredPromenades.map(p => (
+                  <PromenadeCard key={p.id} p={p} userId={profile?.id} onLike={handleLike} />
+                ))}
+              </div>
+            )}
 
             {/* CTA ajouter */}
-            {profile && (
+            {profile && filteredPromenades.length > 0 && !showForm && (
               <div className="mt-8 bg-emerald-50 border border-emerald-200 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div>
                   <p className="font-bold text-emerald-800">Vous connaissez un beau sentier ?</p>
-                  <p className="text-emerald-600 text-sm">Partagez votre itinéraire avec la communauté de Biguglia</p>
+                  <p className="text-emerald-600 text-sm">Partagez votre itinéraire avec la communauté</p>
                 </div>
-                <button
-                  onClick={() => { setActiveTab('forum'); setShowForm(true); }}
-                  className="flex-shrink-0 inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl hover:bg-emerald-600 transition-all"
-                >
+                <button onClick={() => setShowForm(true)}
+                  className="flex-shrink-0 inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl hover:bg-emerald-600 transition-all">
                   <Plus className="w-4 h-4" /> Ajouter un itinéraire
                 </button>
               </div>
             )}
 
-            {/* Carte info */}
+            {!profile && (
+              <div className="mt-8 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex flex-col sm:flex-row items-center gap-4">
+                <div className="flex-1">
+                  <p className="font-bold text-emerald-800">Partagez vos itinéraires</p>
+                  <p className="text-emerald-600 text-sm">Connectez-vous pour ajouter un itinéraire, liker ou rejoindre une sortie groupée.</p>
+                </div>
+                <Link href="/connexion" className="flex-shrink-0 inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-emerald-600 transition-all">
+                  Se connecter
+                </Link>
+              </div>
+            )}
+
+            {/* Info réserve */}
             <div className="mt-6 bg-sky-50 border border-sky-200 rounded-2xl p-5 flex items-start gap-4">
               <div className="p-2.5 bg-sky-100 rounded-xl flex-shrink-0">
                 <Compass className="w-5 h-5 text-sky-600" />
@@ -315,61 +722,80 @@ export default function PromenadePage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-gray-900">Échanges & conseils promenades</h2>
               {profile && (
-                <button
-                  onClick={() => setShowForm(!showForm)}
-                  className="inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl hover:bg-emerald-600 transition-all text-sm"
-                >
+                <button onClick={() => setShowPostForm(!showPostForm)}
+                  className="inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl hover:bg-emerald-600 transition-all text-sm">
                   <Plus className="w-4 h-4" /> Nouveau message
                 </button>
               )}
             </div>
 
-            {/* Formulaire */}
-            {showForm && profile && (
+            {showPostForm && profile && (
               <form onSubmit={handlePostSubmit} className="bg-white rounded-2xl border border-emerald-200 p-5 mb-6 shadow-sm">
-                <h3 className="font-bold text-gray-800 mb-4">Partager votre expérience</h3>
-                <input
-                  type="text" placeholder="Titre (ex: Groupe rando samedi matin...)"
-                  value={newPost.title} onChange={e => setNewPost(f => ({ ...f, title: e.target.value }))}
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-gray-800">Nouveau message</h3>
+                  <button type="button" onClick={() => setShowPostForm(false)} className="text-gray-400 hover:text-gray-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <input type="text" placeholder="Titre (ex: Groupe rando samedi matin...)" required
+                  value={postForm.title} onChange={e => setPostForm(f => ({ ...f, title: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-emerald-300"
                 />
-                <textarea
-                  placeholder="Décrivez votre itinéraire, partagez un bon plan, proposez une sortie groupée..."
-                  rows={4} value={newPost.content} onChange={e => setNewPost(f => ({ ...f, content: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                <textarea placeholder="Décrivez votre itinéraire, partagez un bon plan, proposez une sortie groupée..."
+                  rows={4} value={postForm.content} onChange={e => setPostForm(f => ({ ...f, content: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-300" required
                 />
                 <div className="flex gap-2 mt-3">
-                  <button type="submit" disabled={submitting}
-                    className="bg-emerald-500 text-white font-bold px-5 py-2 rounded-xl text-sm hover:bg-emerald-600 disabled:opacity-50 transition-all">
-                    {submitting ? 'Publication...' : 'Publier'}
+                  <button type="submit" disabled={submittingPost}
+                    className="flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2 rounded-xl text-sm hover:bg-emerald-600 disabled:opacity-50 transition-all">
+                    {submittingPost ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Publication...</> : 'Publier'}
                   </button>
-                  <button type="button" onClick={() => setShowForm(false)}
-                    className="px-5 py-2 rounded-xl text-sm text-gray-500 hover:bg-gray-100 transition-all">
-                    Annuler
-                  </button>
+                  <button type="button" onClick={() => setShowPostForm(false)}
+                    className="px-5 py-2 rounded-xl text-sm text-gray-500 hover:bg-gray-100">Annuler</button>
                 </div>
               </form>
             )}
 
-            {/* Posts */}
-            <div className="space-y-3">
-              {SAMPLE_POSTS.map(post => (
-                <div key={post.id} className="bg-white rounded-2xl border border-gray-100 p-5 hover:border-emerald-200 hover:shadow-sm transition-all">
-                  <h3 className="font-bold text-gray-900 mb-2">{post.title}</h3>
-                  <p className="text-gray-600 text-sm mb-3">{post.content}</p>
-                  <div className="flex items-center justify-between text-xs text-gray-400">
-                    <span>{formatRelative(post.created_at)}</span>
-                    <span className="flex items-center gap-1">
-                      <MessageSquare className="w-3.5 h-3.5" /> {post.comment_count} réponses
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {loadingForum ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-7 h-7 text-emerald-400 animate-spin" />
+              </div>
+            ) : forumPosts.length === 0 ? (
+              <div className="text-center py-16">
+                <MessageSquare className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                <p className="text-gray-500 font-medium">Aucun message pour l'instant</p>
+                {profile && (
+                  <button onClick={() => setShowPostForm(true)}
+                    className="mt-4 text-emerald-600 font-semibold text-sm hover:underline">
+                    Soyez le premier à écrire !
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {forumPosts.map(post => (
+                  <Link key={post.id} href={`/forum/${post.id}`}
+                    className="block bg-white rounded-2xl border border-gray-100 p-5 hover:border-emerald-200 hover:shadow-sm transition-all">
+                    <h3 className="font-bold text-gray-900 mb-2 hover:text-emerald-700 transition-colors">{post.title}</h3>
+                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">{post.content}</p>
+                    <div className="flex items-center justify-between text-xs text-gray-400">
+                      <span className="flex items-center gap-2">
+                        {post.author && <Avatar src={post.author.avatar_url} name={post.author.full_name} size="xs" />}
+                        {post.author?.full_name ?? 'Membre'} · {formatRelative(post.created_at)}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        {(post.comment_count as unknown as { count: number }[])?.[0]?.count ?? 0} réponses
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
 
             {!profile && (
               <div className="mt-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-center">
-                <p className="text-emerald-700 font-medium mb-3">Connectez-vous pour partager un itinéraire ou répondre</p>
+                <p className="text-emerald-700 font-medium mb-3">Connectez-vous pour participer aux discussions</p>
                 <Link href="/connexion" className="inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 transition-all">
                   Se connecter
                 </Link>
@@ -381,54 +807,149 @@ export default function PromenadePage() {
         {/* ── SORTIES GROUPÉES ── */}
         {activeTab === 'agenda' && (
           <div className="max-w-3xl">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Sorties groupées & rendez-vous nature</h2>
-
-            <div className="space-y-4">
-              {[
-                { date: 'Dimanche 6 avril', time: '08h00', title: 'Randonnée Monte Castellu', organizer: 'Marie-Hélène D.', spots: 6, joined: 4, color: 'emerald' },
-                { date: 'Samedi 12 avril',  time: '17h30', title: 'Balade coucher de soleil Cap Tormentoso', organizer: 'Antoine M.', spots: 8, joined: 3, color: 'sky' },
-                { date: 'Dimanche 20 avril', time: '09h00', title: 'Observation oiseaux Étang de Biguglia', organizer: 'Sylvie R.', spots: 10, joined: 7, color: 'teal' },
-              ].map(({ date, time, title, organizer, spots, joined, color }) => (
-                <div key={title} className={`bg-white rounded-2xl border border-${color}-100 p-5 hover:shadow-md transition-all`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <div className={`inline-flex items-center gap-1.5 text-xs font-bold text-${color}-600 bg-${color}-50 border border-${color}-200 rounded-full px-3 py-1 mb-3`}>
-                        <Sun className="w-3 h-3" /> {date} · {time}
-                      </div>
-                      <h3 className="font-bold text-gray-900 mb-1">{title}</h3>
-                      <p className="text-sm text-gray-500">Organisé par <span className="font-medium text-gray-700">{organizer}</span></p>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="text-xs text-gray-500 mb-1">{joined}/{spots} participants</div>
-                      <div className={`w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden`}>
-                        <div className={`h-full bg-${color}-400 rounded-full`} style={{ width: `${(joined/spots)*100}%` }} />
-                      </div>
-                    </div>
-                  </div>
-                  {profile && (
-                    <button
-                      onClick={() => toast.success('Inscription confirmée ! L\'organisateur vous contactera.')}
-                      className={`mt-3 inline-flex items-center gap-2 bg-${color}-500 text-white font-semibold px-4 py-2 rounded-xl text-sm hover:opacity-90 transition-all`}
-                    >
-                      <Users className="w-4 h-4" /> Je participe
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {profile && (
-              <div className="mt-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex flex-col sm:flex-row items-center gap-4">
-                <div className="flex-1">
-                  <p className="font-bold text-emerald-800">Organisez une sortie !</p>
-                  <p className="text-emerald-600 text-sm">Proposez une balade, une randonnée ou une sortie nature à la communauté.</p>
-                </div>
-                <button
-                  onClick={() => toast('Fonctionnalité bientôt disponible 🚀')}
-                  className="flex-shrink-0 inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 transition-all"
-                >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Sorties groupées & rendez-vous nature</h2>
+              {profile && (
+                <button onClick={() => setShowOutingForm(!showOutingForm)}
+                  className="inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 transition-all">
                   <Plus className="w-4 h-4" /> Créer une sortie
                 </button>
+              )}
+            </div>
+
+            {/* Formulaire sortie */}
+            {showOutingForm && profile && (
+              <form onSubmit={handleOutingSubmit} className="bg-white rounded-2xl border border-emerald-200 p-5 mb-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-gray-800">Organiser une sortie</h3>
+                  <button type="button" onClick={() => setShowOutingForm(false)} className="text-gray-400 hover:text-gray-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  <input type="text" placeholder="Titre de la sortie *" required
+                    value={outingForm.title} onChange={e => setOutingForm(f => ({ ...f, title: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Date *</label>
+                      <input type="date" required value={outingForm.outing_date}
+                        onChange={e => setOutingForm(f => ({ ...f, outing_date: e.target.value }))}
+                        min={new Date().toISOString().split('T')[0]}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Heure</label>
+                      <input type="time" value={outingForm.outing_time}
+                        onChange={e => setOutingForm(f => ({ ...f, outing_time: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <input type="text" placeholder="Point de rendez-vous"
+                      value={outingForm.meeting_point} onChange={e => setOutingForm(f => ({ ...f, meeting_point: e.target.value }))}
+                      className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                    />
+                    <input type="number" placeholder="Nb max participants" min="2" max="100"
+                      value={outingForm.max_participants} onChange={e => setOutingForm(f => ({ ...f, max_participants: e.target.value }))}
+                      className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                    />
+                  </div>
+                  <textarea placeholder="Description (optionnel)"
+                    rows={2} value={outingForm.description} onChange={e => setOutingForm(f => ({ ...f, description: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                  />
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <button type="submit" disabled={submittingOuting}
+                    className="flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 disabled:opacity-50 transition-all">
+                    {submittingOuting ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Création...</> : 'Créer la sortie'}
+                  </button>
+                  <button type="button" onClick={() => setShowOutingForm(false)}
+                    className="px-5 py-2.5 rounded-xl text-sm text-gray-500 hover:bg-gray-100">Annuler</button>
+                </div>
+              </form>
+            )}
+
+            {loadingOutings ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-7 h-7 text-emerald-400 animate-spin" />
+              </div>
+            ) : outings.length === 0 ? (
+              <div className="text-center py-16">
+                <Users className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                <p className="text-gray-500 font-medium">Aucune sortie groupée prévue</p>
+                {profile ? (
+                  <button onClick={() => setShowOutingForm(true)}
+                    className="mt-4 inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 transition-all">
+                    <Plus className="w-4 h-4" /> Organiser une sortie
+                  </button>
+                ) : (
+                  <Link href="/connexion" className="mt-4 inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 transition-all">
+                    Se connecter pour créer une sortie
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {outings.map(outing => {
+                  const fillPct = Math.round(((outing.participants_count || 0) / outing.max_participants) * 100);
+                  const isFull = (outing.participants_count || 0) >= outing.max_participants;
+                  const d = new Date(outing.outing_date);
+                  const dateLabel = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+                  return (
+                    <div key={outing.id} className="bg-white rounded-2xl border border-emerald-100 p-5 hover:shadow-md transition-all">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1 mb-3 capitalize">
+                            <Sun className="w-3 h-3" /> {dateLabel} · {outing.outing_time}
+                          </div>
+                          <h3 className="font-bold text-gray-900 mb-1">{outing.title}</h3>
+                          {outing.description && <p className="text-sm text-gray-500 mb-1">{outing.description}</p>}
+                          {outing.meeting_point && (
+                            <p className="text-xs text-gray-500 flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-emerald-500" /> {outing.meeting_point}
+                            </p>
+                          )}
+                          <p className="text-sm text-gray-500 mt-1">Organisé par <span className="font-medium text-gray-700">{outing.organizer?.full_name ?? 'Membre'}</span></p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <div className="text-xs text-gray-500 mb-1">{outing.participants_count || 0}/{outing.max_participants}</div>
+                          <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full ${fillPct > 80 ? 'bg-red-400' : 'bg-emerald-400'}`} style={{ width: `${fillPct}%` }} />
+                          </div>
+                          {isFull && <span className="text-xs text-red-500 font-bold mt-1 block">Complet</span>}
+                        </div>
+                      </div>
+                      {profile && (
+                        <button
+                          onClick={() => handleJoinOuting(outing.id, !!outing.user_joined)}
+                          disabled={isFull && !outing.user_joined}
+                          className={`mt-3 inline-flex items-center gap-2 font-semibold px-4 py-2 rounded-xl text-sm transition-all disabled:opacity-50 ${
+                            outing.user_joined
+                              ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                          }`}
+                        >
+                          <Users className="w-4 h-4" />
+                          {outing.user_joined ? 'Annuler mon inscription' : isFull ? 'Complet' : 'Je participe'}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {!profile && outings.length > 0 && (
+              <div className="mt-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-center">
+                <p className="text-emerald-700 font-medium mb-3">Connectez-vous pour rejoindre ou créer une sortie</p>
+                <Link href="/connexion" className="inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 transition-all">
+                  Se connecter
+                </Link>
               </div>
             )}
           </div>
