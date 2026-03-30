@@ -249,16 +249,20 @@ export default function HomePage() {
                 <span className="text-sm font-semibold text-gray-700">Biguglia · Haute-Corse</span>
               </div>
 
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 leading-[1.0] mb-6 tracking-tight">
-                Votre village,{' '}
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-gray-900 leading-[1.1] mb-3 tracking-tight">
+                Services, entraide et vie locale
                 <br />
                 <span className="bg-gradient-to-r from-brand-500 via-orange-500 to-amber-500 bg-clip-text text-transparent">
-                  vos artisans.
+                  Tout Biguglia, au même endroit
                 </span>
               </h1>
 
-              <p className="text-gray-600 text-lg sm:text-xl leading-relaxed mb-10 max-w-lg">
-                Trouvez un artisan local vérifié, échangez des services, prêtez du matériel et rejoignez la communauté de Biguglia — gratuitement.
+              <p className="text-gray-500 text-base sm:text-lg font-semibold mb-3 max-w-lg">
+                Le réseau local des habitants de Biguglia
+              </p>
+
+              <p className="text-gray-600 text-base sm:text-lg leading-relaxed mb-10 max-w-lg">
+                Trouvez un artisan vérifié, échangez des services, prêtez du matériel et rejoignez la communauté — gratuitement.
               </p>
 
               {/* Primary CTAs */}
