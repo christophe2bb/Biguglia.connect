@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, X, Bell, MessageSquare, User, LogOut, Shield, Home, Wrench, BookOpen, Package, ChevronDown, PenLine, Drill } from 'lucide-react';
+import { Menu, X, Bell, MessageSquare, User, LogOut, Shield, Home, Wrench, BookOpen, Package, ChevronDown, PenLine, Drill, TreePine, Gem, PartyPopper, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { useUnreadCounts } from '@/hooks/useUnreadCounts';
@@ -15,7 +15,13 @@ const navLinks = [
   { href: '/artisans', label: 'Artisans', icon: Wrench },
   { href: '/annonces', label: 'Annonces', icon: Package },
   { href: '/materiel', label: 'Matériel', icon: Drill },
-  { href: '/forum', label: 'Forum', icon: BookOpen },
+  { href: '/forum',    label: 'Forum',    icon: BookOpen },
+];
+
+const themeLinks = [
+  { href: '/promenades',     label: 'Promenades',     icon: TreePine,     color: 'text-emerald-600', bg: 'bg-emerald-50 hover:bg-emerald-100', dot: 'bg-emerald-500' },
+  { href: '/collectionneurs',label: 'Collectionneurs',icon: Gem,          color: 'text-amber-600',   bg: 'bg-amber-50 hover:bg-amber-100',     dot: 'bg-amber-500' },
+  { href: '/evenements',     label: 'Événements',     icon: PartyPopper,  color: 'text-purple-600',  bg: 'bg-purple-50 hover:bg-purple-100',   dot: 'bg-purple-500' },
 ];
 
 // Badge rouge avec compteur
@@ -31,6 +37,7 @@ function UnreadBadge({ count }: { count: number }) {
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -94,6 +101,38 @@ export default function Navbar() {
                 </Link>
               );
             })}
+
+            {/* Thèmes dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setThemeMenuOpen(!themeMenuOpen)}
+                className={cn(
+                  'flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200',
+                  (pathname.startsWith('/promenades') || pathname.startsWith('/collectionneurs') || pathname.startsWith('/evenements'))
+                    ? 'bg-purple-50 text-purple-700'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                )}
+              >
+                ✨ Thèmes
+                <ChevronDown className={cn('w-3.5 h-3.5 text-gray-400 transition-transform', themeMenuOpen && 'rotate-180')} />
+              </button>
+              {themeMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setThemeMenuOpen(false)} />
+                  <div className="absolute left-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 z-20 overflow-hidden animate-fade-in-down p-1.5">
+                    {themeLinks.map(({ href, label, icon: TIcon, color, bg, dot }) => (
+                      <Link key={href} href={href}
+                        onClick={() => setThemeMenuOpen(false)}
+                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${bg}`}>
+                        <span className={`w-2 h-2 rounded-full ${dot}`} />
+                        <TIcon className={`w-4 h-4 ${color}`} />
+                        <span className="text-gray-800">{label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Actions */}
@@ -286,6 +325,22 @@ export default function Navbar() {
                   {label}
                 </Link>
               ))}
+              {/* Thèmes mobile */}
+              <div className="pt-1 pb-1">
+                <div className="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">✨ Thèmes locaux</div>
+                {themeLinks.map(({ href, label, icon: TIcon, color, bg, dot }) => (
+                  <Link key={href} href={href}
+                    onClick={() => setMenuOpen(false)}
+                    className={cn('flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors',
+                      pathname.startsWith(href) ? `${bg.split(' ')[0]}` : 'text-gray-700 hover:bg-gray-50'
+                    )}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${dot} flex-shrink-0`} />
+                    <TIcon className={`w-4 h-4 ${color}`} />
+                    {label}
+                  </Link>
+                ))}
+              </div>
               {!profile && (
                 <Link
                   href="/artisans/demande"

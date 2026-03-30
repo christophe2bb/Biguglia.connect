@@ -471,6 +471,79 @@ export default function HomePage() {
       </section>
 
       {/* ══════════════════════════════════════
+          THÈMES LOCAUX — Promenades / Collectionneurs / Événements
+      ══════════════════════════════════════ */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-full px-4 py-2 mb-5">
+              <span className="text-purple-600 text-sm font-bold">✨ Nouveaux thèmes</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4">La vie locale en thèmes</h2>
+            <p className="text-gray-500 text-lg max-w-2xl mx-auto">Bien plus que des artisans — explorez tout ce qui fait vibrer Biguglia</p>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-5">
+            {[
+              {
+                href: '/promenades',
+                emoji: '🌿',
+                title: 'Promenades & Nature',
+                desc: 'Itinéraires, sentiers, balades en famille, sorties groupées et observation de la réserve naturelle de l\'étang.',
+                tags: ['Itinéraires', 'Sorties groupées', 'Réserve naturelle', 'Vélo'],
+                grad: 'from-emerald-400 to-teal-500',
+                bg: 'bg-emerald-50',
+                border: 'border-emerald-100',
+                text: 'text-emerald-700',
+                badge: 'bg-emerald-100 text-emerald-700',
+              },
+              {
+                href: '/collectionneurs',
+                emoji: '🏆',
+                title: 'Collectionneurs',
+                desc: 'Achetez, vendez, échangez ou donnez des objets de collection. Timbres, vinyles, monnaies, figurines et bien plus.',
+                tags: ['Vente', 'Troc & don', 'Forum entraide', '12 catégories'],
+                grad: 'from-amber-400 to-orange-500',
+                bg: 'bg-amber-50',
+                border: 'border-amber-100',
+                text: 'text-amber-700',
+                badge: 'bg-amber-100 text-amber-700',
+              },
+              {
+                href: '/evenements',
+                emoji: '🎉',
+                title: 'Événements locaux',
+                desc: 'Concerts, matchs du SC Biguglia, vide-greniers, fêtes de quartier — tout l\'agenda local au même endroit.',
+                tags: ['Agenda', 'Stade & sport', 'Créer un événement', 'Forum'],
+                grad: 'from-purple-400 to-violet-500',
+                bg: 'bg-purple-50',
+                border: 'border-purple-100',
+                text: 'text-purple-700',
+                badge: 'bg-purple-100 text-purple-700',
+              },
+            ].map(({ href, emoji, title, desc, tags, grad, bg, border, text, badge }) => (
+              <Link key={href} href={href}
+                className={`group ${bg} ${border} border-2 rounded-3xl p-6 hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col`}>
+                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${grad} flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform duration-300 text-2xl`}>
+                  {emoji}
+                </div>
+                <h3 className="font-black text-gray-900 text-lg mb-2">{title}</h3>
+                <p className="text-gray-500 text-sm leading-relaxed flex-1 mb-4">{desc}</p>
+                <div className="flex flex-wrap gap-1.5 mb-4">
+                  {tags.map(t => (
+                    <span key={t} className={`text-xs font-semibold px-2.5 py-1 rounded-full ${badge}`}>{t}</span>
+                  ))}
+                </div>
+                <span className={`inline-flex items-center gap-1 ${text} text-sm font-bold`}>
+                  Explorer <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </span>
+                <div className={`h-1 bg-gradient-to-r ${grad} scale-x-0 group-hover:scale-x-100 transition-transform duration-400 origin-left mt-4 rounded-full`} />
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════
           COMMENT ÇA MARCHE
       ══════════════════════════════════════ */}
       <section className="py-24 bg-white">
