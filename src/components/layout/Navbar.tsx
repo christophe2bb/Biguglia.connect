@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Menu, X, Bell, MessageSquare, User, LogOut, Shield, Home, Wrench, BookOpen, Package, ChevronDown } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
+import { useUnreadCounts } from '@/hooks/useUnreadCounts';
 import { cn } from '@/lib/utils';
 import Avatar from '@/components/ui/Avatar';
 import Logo from '@/components/ui/Logo';
@@ -17,6 +18,16 @@ const navLinks = [
   { href: '/forum', label: 'Forum', icon: BookOpen, color: 'text-sand-600' },
 ];
 
+// Badge rouge avec compteur
+function UnreadBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-sm animate-pulse-once">
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+}
+
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -24,12 +35,20 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { profile, isAdmin } = useAuthStore();
+  const unread = useUnreadCounts();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Quand on visite /messages, signaler que les messages sont lus
+  useEffect(() => {
+    if (pathname.startsWith('/messages')) {
+      window.dispatchEvent(new Event('messages-read'));
+    }
+  }, [pathname]);
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -81,22 +100,30 @@ export default function Navbar() {
           <div className="flex items-center gap-2">
             {profile ? (
               <>
+                {/* Bouton Messages avec badge */}
                 <Link
                   href="/messages"
                   className={cn(
-                    'hidden sm:flex p-2 rounded-xl transition-colors',
+                    'hidden sm:flex relative p-2 rounded-xl transition-colors',
                     pathname.startsWith('/messages') ? 'bg-brand-50 text-brand-600' : 'text-gray-500 hover:bg-gray-100'
                   )}
-                  title="Messages"
+                  title={unread.messages > 0 ? `${unread.messages} message(s) non lu(s)` : 'Messages'}
                 >
                   <MessageSquare className="w-5 h-5" />
+                  <UnreadBadge count={unread.messages} />
                 </Link>
+
+                {/* Bouton Notifications avec badge */}
                 <Link
                   href="/notifications"
-                  className="hidden sm:flex p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors relative"
-                  title="Notifications"
+                  className={cn(
+                    'hidden sm:flex relative p-2 rounded-xl transition-colors',
+                    pathname.startsWith('/notifications') ? 'bg-brand-50 text-brand-600' : 'text-gray-500 hover:bg-gray-100'
+                  )}
+                  title={unread.notifications > 0 ? `${unread.notifications} notification(s)` : 'Notifications'}
                 >
                   <Bell className="w-5 h-5" />
+                  <UnreadBadge count={unread.notifications} />
                 </Link>
 
                 {/* Menu utilisateur */}
@@ -105,11 +132,17 @@ export default function Navbar() {
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-200"
                   >
-                    <Avatar
-                      src={profile.avatar_url}
-                      name={profile.full_name || profile.email}
-                      size="sm"
-                    />
+                    <div className="relative">
+                      <Avatar
+                        src={profile.avatar_url}
+                        name={profile.full_name || profile.email}
+                        size="sm"
+                      />
+                      {/* Point rouge si messages ou notifs non lus */}
+                      {unread.total > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />
+                      )}
+                    </div>
                     <span className="hidden sm:block text-sm font-medium text-gray-700 max-w-[100px] truncate">
                       {profile.full_name?.split(' ')[0] || 'Compte'}
                     </span>
@@ -147,9 +180,29 @@ export default function Navbar() {
                             className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                             <User className="w-4 h-4 text-gray-400" /> Mon profil
                           </Link>
+                          {/* Messages dans le menu avec badge */}
                           <Link href="/messages" onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors sm:hidden">
-                            <MessageSquare className="w-4 h-4 text-gray-400" /> Messages
+                            className="flex items-center justify-between gap-2.5 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors sm:hidden">
+                            <div className="flex items-center gap-2.5">
+                              <MessageSquare className="w-4 h-4 text-gray-400" /> Messages
+                            </div>
+                            {unread.messages > 0 && (
+                              <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">
+                                {unread.messages > 99 ? '99+' : unread.messages}
+                              </span>
+                            )}
+                          </Link>
+                          {/* Notifications dans le menu avec badge */}
+                          <Link href="/notifications" onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center justify-between gap-2.5 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors sm:hidden">
+                            <div className="flex items-center gap-2.5">
+                              <Bell className="w-4 h-4 text-gray-400" /> Notifications
+                            </div>
+                            {unread.notifications > 0 && (
+                              <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">
+                                {unread.notifications > 99 ? '99+' : unread.notifications}
+                              </span>
+                            )}
                           </Link>
                           {profile.role === 'artisan_verified' && (
                             <Link href="/dashboard/artisan" onClick={() => setUserMenuOpen(false)}
@@ -226,8 +279,26 @@ export default function Navbar() {
             {profile && (
               <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
                 <Link href="/messages" onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
-                  <MessageSquare className="w-4 h-4" /> Messages
+                  className="flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
+                  <div className="flex items-center gap-3">
+                    <MessageSquare className="w-4 h-4" /> Messages
+                  </div>
+                  {unread.messages > 0 && (
+                    <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">
+                      {unread.messages}
+                    </span>
+                  )}
+                </Link>
+                <Link href="/notifications" onClick={() => setMenuOpen(false)}
+                  className="flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
+                  <div className="flex items-center gap-3">
+                    <Bell className="w-4 h-4" /> Notifications
+                  </div>
+                  {unread.notifications > 0 && (
+                    <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">
+                      {unread.notifications}
+                    </span>
+                  )}
                 </Link>
                 <Link href="/dashboard" onClick={() => setMenuOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">

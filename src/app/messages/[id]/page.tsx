@@ -103,6 +103,9 @@ export default function ConversationPage() {
         .update({ last_read_at: new Date().toISOString() })
         .eq('conversation_id', id as string)
         .eq('user_id', profile.id);
+
+      // Signaler à la Navbar que les messages sont lus
+      window.dispatchEvent(new Event('messages-read'));
     };
 
     fetchConversation();
