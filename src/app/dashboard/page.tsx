@@ -138,6 +138,20 @@ function DashboardContent() {
         </div>
       )}
 
+      {isVerifiedArtisan && (
+        <div className="bg-gradient-to-r from-green-50 to-brand-50 border-2 border-green-200 rounded-2xl p-5 mb-8 flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-green-800 mb-1 flex items-center gap-2">
+              <Wrench className="w-4 h-4" /> Espace Artisan
+            </h3>
+            <p className="text-sm text-green-700">Consultez vos demandes clients, gérez vos avis et votre profil.</p>
+          </div>
+          <Link href="/dashboard/artisan" className="bg-green-600 text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors whitespace-nowrap">
+            Mon espace →
+          </Link>
+        </div>
+      )}
+
       {isAdminRole && (
         <div className="bg-gradient-to-r from-brand-50 to-blue-50 border border-brand-200 rounded-2xl p-5 mb-8 flex items-center justify-between">
           <div>

@@ -25,6 +25,10 @@ export interface ArtisanProfile {
   years_experience?: number;
   siret?: string;
   insurance?: string;
+  doc_kbis_url?: string;
+  doc_insurance_url?: string;
+  doc_id_url?: string;
+  rejection_reason?: string;
   verification_notes?: string;
   is_featured: boolean;
   created_at: string;

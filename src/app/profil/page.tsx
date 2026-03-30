@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Mail, Phone, Save, LogOut, Trash2, Camera } from 'lucide-react';
+import { User, Mail, Phone, Save, LogOut, Trash2, Camera, Wrench, Shield, Clock, ArrowRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import toast from 'react-hot-toast';
@@ -12,6 +12,7 @@ import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 import { ROLE_LABELS } from '@/lib/utils';
+import Link from 'next/link';
 
 function ProfilContent() {
   const { profile, setProfile } = useAuthStore();
@@ -164,6 +165,53 @@ function ProfilContent() {
             <Save className="w-4 h-4" /> Enregistrer les modifications
           </Button>
         </div>
+
+        {/* Espace artisan — si artisan vérifié */}
+        {profile.role === 'artisan_verified' && (
+          <div className="bg-gradient-to-r from-brand-50 to-blue-50 border-2 border-brand-200 rounded-2xl p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-brand-100 rounded-xl">
+                <Wrench className="w-5 h-5 text-brand-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-brand-900">Espace Artisan</h3>
+                <p className="text-sm text-brand-700">Gérez vos demandes, avis et profil professionnel</p>
+              </div>
+              <Badge variant="success" className="ml-auto">✅ Vérifié</Badge>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Link href="/dashboard/artisan"
+                className="flex items-center justify-center gap-2 bg-brand-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-brand-700 transition-colors">
+                <Wrench className="w-4 h-4" /> Mon espace artisan
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+              <Link href="/inscription/artisan-profil"
+                className="flex items-center justify-center gap-2 bg-white border border-brand-200 text-brand-700 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-brand-50 transition-colors">
+                <Shield className="w-4 h-4" /> Modifier mon profil
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Artisan en attente */}
+        {profile.role === 'artisan_pending' && (
+          <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5">
+            <div className="flex items-center gap-3 mb-2">
+              <Clock className="w-5 h-5 text-amber-600 flex-shrink-0" />
+              <div>
+                <h3 className="font-semibold text-amber-900">Validation en cours</h3>
+                <p className="text-sm text-amber-700">
+                  Votre dossier artisan est en cours d&apos;examen par l&apos;administrateur.
+                  Vous serez notifié par email et dans l&apos;application.
+                </p>
+              </div>
+            </div>
+            <Link href="/inscription/artisan-profil"
+              className="inline-flex items-center gap-2 text-sm text-amber-700 font-medium hover:underline mt-1">
+              Compléter / modifier mon dossier →
+            </Link>
+          </div>
+        )}
 
         {/* Consentement légal */}
         <div className="bg-white rounded-2xl border border-gray-100 p-6">

@@ -385,11 +385,7 @@ const steps = [
   { num: '03', emoji: '📅', title: 'Planifiez l\'intervention', desc: 'Convenez d\'un rendez-vous, suivez l\'avancement et laissez un avis authentique.', color: 'from-green-400 to-green-600', bg: 'bg-green-50', border: 'border-green-200' },
 ];
 
-const testimonials = [
-  { name: 'Marie-Hélène C.', role: 'Habitante de Biguglia', avatar: '👩', color: 'from-pink-400 to-rose-500', text: 'J\'ai trouvé un plombier en 2 heures ! Intervention le lendemain, travail impeccable. La plateforme est vraiment pratique.', rating: 5 },
-  { name: 'Pierre-Antoine M.', role: 'Électricien certifié', avatar: '👨‍🔧', color: 'from-blue-400 to-indigo-500', text: 'Depuis que je suis sur Biguglia Connect, j\'ai doublé mon nombre de clients locaux. La validation rassure vraiment.', rating: 5 },
-  { name: 'Sophie L.', role: 'Résidente', avatar: '👩‍🦱', color: 'from-green-400 to-teal-500', text: 'J\'ai emprunté une perceuse à un voisin, offert ma tondeuse le temps d\'un été. La communauté est super sympa !', rating: 5 },
-];
+// Pas de témoignages fictifs — section remplacée par "Soyez parmi les premiers"
 
 // ─── Compteur animé ────────────────────────────────────────────────────────────
 
@@ -469,18 +465,12 @@ function TradeCard({ icon, label, href, bg, color }: typeof trades[0]) {
 export default function HomePage() {
   const { profile } = useAuthStore();
   const [heroLoaded, setHeroLoaded] = useState(false);
-  const [activeTestimonial, setActiveTestimonial] = useState(0);
   const [counts, setCounts] = useState({ artisans: 0, membres: 0, annonces: 0 });
   const [countsLoading, setCountsLoading] = useState(true);
 
   useEffect(() => {
     const t = setTimeout(() => setHeroLoaded(true), 80);
     return () => clearTimeout(t);
-  }, []);
-
-  useEffect(() => {
-    const iv = setInterval(() => setActiveTestimonial(p => (p + 1) % testimonials.length), 4500);
-    return () => clearInterval(iv);
   }, []);
 
   // Charger les vrais compteurs depuis Supabase
@@ -796,48 +786,71 @@ export default function HomePage() {
       </section>
 
       {/* ══════════════════════════════════════
-          TÉMOIGNAGES
+          SOYEZ PARMI LES PREMIERS
       ══════════════════════════════════════ */}
       <section className="py-24 bg-gradient-to-br from-orange-50 via-amber-50/40 to-white relative overflow-hidden">
         <div className="absolute inset-0 pattern-dots opacity-40" />
-        <div className="absolute right-0 top-0 bottom-0 w-80 hidden xl:flex items-center justify-center opacity-15 pointer-events-none">
-          <ArtisanIllustration />
-        </div>
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 bg-white border border-amber-200 rounded-full px-4 py-2 mb-5 shadow-sm">
-              <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-              <span className="text-gray-700 text-sm font-bold">Ils nous font confiance</span>
+              <span className="text-lg">🌱</span>
+              <span className="text-gray-700 text-sm font-bold">Plateforme en plein lancement</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-black text-gray-900">Ce que disent nos membres</h2>
+            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4">Soyez parmi les premiers !</h2>
+            <p className="text-gray-500 text-lg max-w-2xl mx-auto">
+              Biguglia Connect est une toute nouvelle plateforme. Elle grandit avec vous et vos retours.
+              Chaque inscription compte pour construire une communauté de qualité.
+            </p>
           </div>
-          <div className="relative min-h-[220px]">
-            {testimonials.map((t, i) => (
-              <div key={i} className={`transition-all duration-700 ${i === activeTestimonial ? 'opacity-100 translate-y-0 relative' : 'opacity-0 translate-y-4 absolute inset-0 pointer-events-none'}`}>
-                <div className="bg-white rounded-3xl p-8 shadow-lg border border-gray-100 max-w-2xl mx-auto">
-                  <div className="flex gap-1 mb-5">
-                    {Array.from({ length: t.rating }).map((_, j) => <Star key={j} className="w-5 h-5 fill-amber-400 text-amber-400" />)}
-                  </div>
-                  <p className="text-gray-700 text-lg leading-relaxed mb-6 italic">&ldquo;{t.text}&rdquo;</p>
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 bg-gradient-to-br ${t.color} rounded-2xl flex items-center justify-center text-2xl shadow-sm`}>{t.avatar}</div>
-                    <div>
-                      <div className="font-black text-gray-900">{t.name}</div>
-                      <div className="text-sm text-gray-500">{t.role}</div>
-                    </div>
-                    <div className="ml-auto">
-                      <span className="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full">Vérifié ✓</span>
-                    </div>
-                  </div>
-                </div>
+          <div className="grid sm:grid-cols-3 gap-6">
+            {[
+              {
+                emoji: '🏠',
+                title: 'Habitants',
+                desc: 'Inscrivez-vous et accédez à tous les artisans locaux vérifiés. Postez des annonces et participez au forum.',
+                cta: 'Rejoindre',
+                href: '/inscription',
+                color: 'bg-orange-50 border-orange-100',
+                btnColor: 'bg-brand-600 hover:bg-brand-700 text-white',
+              },
+              {
+                emoji: '🔨',
+                title: 'Artisans',
+                desc: 'Créez votre profil professionnel vérifié et connectez-vous directement avec les habitants de Biguglia.',
+                cta: 'Rejoindre',
+                href: '/inscription?role=artisan',
+                color: 'bg-blue-50 border-blue-100',
+                btnColor: 'bg-blue-600 hover:bg-blue-700 text-white',
+              },
+              {
+                emoji: '💬',
+                title: 'Partager',
+                desc: 'Parlez de Biguglia Connect à vos voisins ! Plus la communauté est grande, plus elle est utile.',
+                cta: 'Découvrir',
+                href: '/confiance',
+                color: 'bg-green-50 border-green-100',
+                btnColor: 'bg-green-600 hover:bg-green-700 text-white',
+              },
+            ].map(({ emoji, title, desc, cta, href, color, btnColor }) => (
+              <div key={title} className={`${color} border-2 rounded-3xl p-6 flex flex-col items-center text-center`}>
+                <div className="text-5xl mb-4">{emoji}</div>
+                <h3 className="font-black text-gray-900 text-xl mb-2">{title}</h3>
+                <p className="text-gray-600 text-sm leading-relaxed flex-1 mb-5">{desc}</p>
+                <Link href={href}
+                  className={`inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 ${btnColor}`}>
+                  {cta} <ArrowRight className="w-4 h-4" />
+                </Link>
               </div>
             ))}
           </div>
-          <div className="flex justify-center gap-2 mt-8">
-            {testimonials.map((_, i) => (
-              <button key={i} onClick={() => setActiveTestimonial(i)}
-                className={`h-2 rounded-full transition-all duration-300 ${i === activeTestimonial ? 'w-8 bg-brand-500' : 'w-3 bg-gray-300 hover:bg-gray-400'}`} />
-            ))}
+          <div className="mt-10 text-center">
+            <div className="inline-flex items-center gap-3 bg-white border border-gray-200 rounded-2xl px-6 py-4 shadow-sm">
+              <span className="text-2xl">🤝</span>
+              <p className="text-sm text-gray-600 text-left">
+                <strong className="text-gray-900">Projet citoyen et local</strong><br />
+                Biguglia Connect est gratuit, sans publicité et pensé par et pour les habitants de Biguglia.
+              </p>
+            </div>
           </div>
         </div>
       </section>
