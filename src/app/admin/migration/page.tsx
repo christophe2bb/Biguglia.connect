@@ -243,7 +243,8 @@ DO $$ BEGIN
     CREATE POLICY "request_comments_select" ON request_comments FOR SELECT USING (true);
     CREATE POLICY "request_comments_insert" ON request_comments FOR INSERT WITH CHECK (auth.uid() = author_id);
     CREATE POLICY "request_comments_delete" ON request_comments FOR DELETE USING (
-      auth.uid() = author_id OR current_user_role() IN ('admin','moderator')
+      auth.uid() = author_id
+      OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
     );
   END IF;
 END $$;
