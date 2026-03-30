@@ -121,14 +121,45 @@ function getCatClasses(color: string) {
 }
 
 // ─── ItemCard ─────────────────────────────────────────────────────────────────
-function ItemCard({ item }: { item: CollectionItem }) {
+function ItemCard({
+  item,
+  currentUserId,
+  onEdit,
+  onDelete,
+}: {
+  item: CollectionItem;
+  currentUserId?: string;
+  onEdit: (item: CollectionItem) => void;
+  onDelete: (item: CollectionItem) => void;
+}) {
   const tc = TYPE_CONFIG[item.item_type];
   const cc = CONDITION_CONFIG[item.condition];
   const catClasses = item.category ? getCatClasses(item.category.color) : COLOR_CLASSES.gray;
   const firstPhoto = item.photos?.[0]?.url;
+  const isOwner = currentUserId === item.author_id;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 overflow-hidden group">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 overflow-hidden group relative">
+      {/* Boutons auteur */}
+      {isOwner && (
+        <div className="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={() => onEdit(item)}
+            title="Modifier"
+            className="p-1.5 bg-white rounded-lg shadow border border-gray-200 hover:bg-amber-50 hover:border-amber-300 transition-all"
+          >
+            <Pencil className="w-3.5 h-3.5 text-amber-600" />
+          </button>
+          <button
+            onClick={() => onDelete(item)}
+            title="Supprimer"
+            className="p-1.5 bg-white rounded-lg shadow border border-gray-200 hover:bg-red-50 hover:border-red-300 transition-all"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-red-500" />
+          </button>
+        </div>
+      )}
+
       {firstPhoto ? (
         <div className="h-36 overflow-hidden relative bg-gray-50">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -172,10 +203,18 @@ function ItemCard({ item }: { item: CollectionItem }) {
 
         <div className="flex items-center justify-between pt-3 border-t border-gray-50 text-xs text-gray-400">
           <span className="truncate max-w-[120px]">{item.author?.full_name ?? 'Membre'} · {formatRelative(item.created_at)}</span>
-          <Link href={`/messages?to=${item.author_id}`}
-            className="text-amber-600 font-semibold hover:text-amber-700 flex items-center gap-1 transition-colors flex-shrink-0">
-            Contacter <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
+          {isOwner ? (
+            <div className="flex items-center gap-2">
+              <button onClick={() => onEdit(item)} className="text-amber-600 font-semibold hover:text-amber-700 flex items-center gap-1 transition-colors">
+                <Pencil className="w-3 h-3" /> Modifier
+              </button>
+            </div>
+          ) : (
+            <Link href={`/messages?to=${item.author_id}`}
+              className="text-amber-600 font-semibold hover:text-amber-700 flex items-center gap-1 transition-colors flex-shrink-0">
+              Contacter <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          )}
         </div>
       </div>
     </div>
@@ -486,6 +525,74 @@ export default function CollectionneursPage() {
     setShowForm(false);
     fetchItems();
     setSubmitting(false);
+  };
+
+  // ── Modale édition annonce ────────────────────────────────────────────────
+  const [editItem, setEditItem] = useState<CollectionItem | null>(null);
+  const [editForm, setEditForm] = useState({
+    title: '', description: '', item_type: 'vente' as CollectionItem['item_type'],
+    price: '', condition: 'bon' as CollectionItem['condition'], tags: '',
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const openEdit = (item: CollectionItem) => {
+    setEditItem(item);
+    setEditForm({
+      title: item.title,
+      description: item.description,
+      item_type: item.item_type,
+      price: item.price != null ? String(item.price) : '',
+      condition: item.condition,
+      tags: (item.tags ?? []).join(', '),
+    });
+  };
+
+  const handleUpdateItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editItem || !profile) return;
+    if (!editForm.title.trim() || !editForm.description.trim()) {
+      toast.error('Titre et description obligatoires');
+      return;
+    }
+    setSavingEdit(true);
+    const tags = editForm.tags ? editForm.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
+    const { error } = await supabase
+      .from('collection_items')
+      .update({
+        title: editForm.title.trim(),
+        description: editForm.description.trim(),
+        item_type: editForm.item_type,
+        price: editForm.price && editForm.item_type === 'vente' ? parseFloat(editForm.price) : null,
+        condition: editForm.condition,
+        tags,
+      })
+      .eq('id', editItem.id)
+      .eq('author_id', profile.id);
+
+    if (error) {
+      toast.error(`Erreur : ${error.message}`);
+    } else {
+      toast.success('✅ Annonce modifiée !', { duration: 3000 });
+      setEditItem(null);
+      fetchItems();
+    }
+    setSavingEdit(false);
+  };
+
+  const handleDeleteItem = async (item: CollectionItem) => {
+    if (!profile || profile.id !== item.author_id) return;
+    if (!confirm(`Supprimer l'annonce "${item.title}" ? Cette action est irréversible.`)) return;
+    const { error } = await supabase
+      .from('collection_items')
+      .delete()
+      .eq('id', item.id)
+      .eq('author_id', profile.id);
+    if (error) {
+      toast.error(`Erreur suppression : ${error.message}`);
+    } else {
+      toast.success('🗑️ Annonce supprimée', { duration: 3000 });
+      fetchItems();
+    }
   };
 
   // ── Publier un message forum ──────────────────────────────────────────────
@@ -839,7 +946,15 @@ export default function CollectionneursPage() {
               </div>
             ) : (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredItems.map(item => <ItemCard key={item.id} item={item} />)}
+                {filteredItems.map(item => (
+                  <ItemCard
+                    key={item.id}
+                    item={item}
+                    currentUserId={profile?.id}
+                    onEdit={openEdit}
+                    onDelete={handleDeleteItem}
+                  />
+                ))}
               </div>
             )}
 
@@ -1158,6 +1273,132 @@ export default function CollectionneursPage() {
         )}
 
       </div>
+
+      {/* ── Modale édition annonce ── */}
+      {editItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+              <div>
+                <h2 className="text-lg font-black text-gray-900">Modifier l&apos;annonce</h2>
+                <p className="text-gray-400 text-xs mt-0.5">Les modifications sont immédiates</p>
+              </div>
+              <button onClick={() => setEditItem(null)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+
+            {/* Formulaire */}
+            <form onSubmit={handleUpdateItem} className="px-6 py-5 space-y-4">
+
+              {/* Titre */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Titre *</label>
+                <input
+                  type="text"
+                  value={editForm.title}
+                  onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  maxLength={100}
+                  required
+                />
+              </div>
+
+              {/* Type + Condition */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Type</label>
+                  <select
+                    value={editForm.item_type}
+                    onChange={e => setEditForm(f => ({ ...f, item_type: e.target.value as CollectionItem['item_type'] }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                  >
+                    {Object.entries(TYPE_CONFIG).map(([k, v]) => (
+                      <option key={k} value={k}>{v.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">État</label>
+                  <select
+                    value={editForm.condition}
+                    onChange={e => setEditForm(f => ({ ...f, condition: e.target.value as CollectionItem['condition'] }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                  >
+                    {Object.entries(CONDITION_CONFIG).map(([k, v]) => (
+                      <option key={k} value={k}>{v.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Prix (si vente) */}
+              {editForm.item_type === 'vente' && (
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Prix (€)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editForm.price}
+                    onChange={e => setEditForm(f => ({ ...f, price: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    placeholder="0.00"
+                  />
+                </div>
+              )}
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Description *</label>
+                <textarea
+                  value={editForm.description}
+                  onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+                  rows={4}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+                  required
+                />
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">
+                  Tags <span className="text-gray-400 font-normal">(séparés par des virgules)</span>
+                </label>
+                <input
+                  type="text"
+                  value={editForm.tags}
+                  onChange={e => setEditForm(f => ({ ...f, tags: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  placeholder="ex: rare, vintage, 1950"
+                />
+              </div>
+
+              {/* Boutons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={savingEdit}
+                  className="flex-1 flex items-center justify-center gap-2 bg-amber-500 text-white font-bold py-3 rounded-xl hover:bg-amber-600 transition-all disabled:opacity-60"
+                >
+                  {savingEdit
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Sauvegarde…</>
+                    : <><Pencil className="w-4 h-4" /> Enregistrer</>}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditItem(null)}
+                  className="px-5 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all"
+                >
+                  Annuler
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
