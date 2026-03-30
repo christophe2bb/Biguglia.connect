@@ -380,19 +380,58 @@ export default function CollectionneursPage() {
       toast.error('Titre, description et catégorie obligatoires');
       return;
     }
-    // Vérifie si la catégorie sélectionnée est statique (non DB)
-    const isStaticCat = form.category_id.startsWith('static-');
-    if (isStaticCat) {
-      toast.error("Cette catégorie n'existe pas encore en base. Exécutez la migration SQL d'abord, ou créez une catégorie personnalisée.");
-      return;
-    }
     setSubmitting(true);
+
+    // Si la catégorie choisie est statique (pas encore en DB), on la crée d'abord
+    let realCategoryId: string | null = form.category_id;
+    if (form.category_id.startsWith('static-')) {
+      const staticCat = STATIC_CATEGORIES.find(c => c.id === form.category_id);
+      if (staticCat) {
+        // Vérifie si elle existe déjà en DB (slug unique)
+        const { data: existing } = await supabase
+          .from('collection_categories')
+          .select('id')
+          .eq('slug', staticCat.slug)
+          .maybeSingle();
+        if (existing?.id) {
+          realCategoryId = existing.id;
+        } else {
+          // Crée la catégorie en DB
+          const { data: created, error: catErr } = await supabase
+            .from('collection_categories')
+            .insert({
+              name: staticCat.name,
+              slug: staticCat.slug,
+              icon: staticCat.icon,
+              color: staticCat.color,
+              display_order: staticCat.display_order,
+              is_custom: false,
+              author_id: profile.id,
+            })
+            .select('id')
+            .single();
+          if (catErr || !created) {
+            // Table pas encore créée → publier sans catégorie
+            realCategoryId = null;
+          } else {
+            realCategoryId = created.id;
+            // Mise à jour locale pour les prochaines publications
+            setDbCategories(prev => {
+              const already = prev.find(c => c.slug === staticCat.slug);
+              if (already) return prev;
+              return [...prev, { ...staticCat, id: created.id }];
+            });
+          }
+        }
+      }
+    }
+
     const tags = form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
     const { data: item, error } = await supabase
       .from('collection_items')
       .insert({
         author_id: profile.id,
-        category_id: form.category_id,
+        category_id: realCategoryId,
         title: form.title.trim(),
         description: form.description.trim(),
         item_type: form.item_type,
@@ -638,8 +677,8 @@ export default function CollectionneursPage() {
                     className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-300">
                     <option value="">Choisir une catégorie *</option>
                     {allCategories.map(c => (
-                      <option key={c.id} value={c.id} disabled={c.id.startsWith('static-')}>
-                        {c.icon} {c.name}{c.id.startsWith('static-') ? ' (migration requise)' : ''}
+                      <option key={c.id} value={c.id}>
+                        {c.icon} {c.name}
                       </option>
                     ))}
                   </select>
