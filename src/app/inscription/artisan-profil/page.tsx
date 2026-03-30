@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Camera, X, ChevronLeft, Briefcase, MapPin, Clock, FileText, Upload, CheckCircle, AlertCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -96,16 +96,16 @@ function DocumentUploader({
 
 export default function ArtisanProfilPage() {
   const router = useRouter();
-  const { profile } = useAuthStore();
+  const { profile, loading: authLoading } = useAuthStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [categories, setCategories] = useState<TradeCategory[]>([]);
   const [photos, setPhotos] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const emptyDoc = (): DocUpload => ({ file: null, uploading: false, url: null, name: '' });
-  const [docKbis, setDocKbis] = useState<DocUpload>(emptyDoc());
-  const [docInsurance, setDocInsurance] = useState<DocUpload>(emptyDoc());
-  const [docId, setDocId] = useState<DocUpload>(emptyDoc());
+  const emptyDoc = useCallback((): DocUpload => ({ file: null, uploading: false, url: null, name: '' }), []);
+  const [docKbis, setDocKbis] = useState<DocUpload>({ file: null, uploading: false, url: null, name: '' });
+  const [docInsurance, setDocInsurance] = useState<DocUpload>({ file: null, uploading: false, url: null, name: '' });
+  const [docId, setDocId] = useState<DocUpload>({ file: null, uploading: false, url: null, name: '' });
 
   const [form, setForm] = useState({
     business_name: '',
@@ -118,6 +118,8 @@ export default function ArtisanProfilPage() {
   });
 
   useEffect(() => {
+    // Attendre la fin du chargement de l'authentification avant de rediriger
+    if (authLoading) return;
     if (!profile) { router.push('/connexion'); return; }
     if (profile.role !== 'artisan_pending') { router.push('/dashboard'); return; }
     const fetchCats = async () => {
@@ -126,7 +128,20 @@ export default function ArtisanProfilPage() {
       setCategories(data || []);
     };
     fetchCats();
-  }, [profile, router]);
+  }, [profile, authLoading, router]);
+
+  // Afficher un écran de chargement pendant que l'auth se résout
+  if (authLoading) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-10">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-1/3" />
+          <div className="h-4 bg-gray-200 rounded w-2/3" />
+          <div className="h-64 bg-gray-200 rounded-2xl" />
+        </div>
+      </div>
+    );
+  }
 
   const handlePhotoAdd = (files: FileList | null) => {
     if (!files) return;
@@ -192,7 +207,7 @@ export default function ArtisanProfilPage() {
     router.push('/dashboard');
   };
 
-  if (!profile) return null;
+  if (!profile || profile.role !== 'artisan_pending') return null;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">

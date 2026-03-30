@@ -40,7 +40,7 @@ function InscriptionForm() {
     setLoading(true);
     const supabase = createClient();
 
-    const { error } = await supabase.auth.signUp({
+    const { data: signUpData, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -64,12 +64,24 @@ function InscriptionForm() {
       return;
     }
 
+    // Vérifier si l'email doit être confirmé (pas de session immédiate)
+    const needsEmailConfirm = !signUpData?.session;
+
     if (role === 'artisan_pending') {
-      toast.success(
-        'Compte créé ! Votre inscription en tant qu\'artisan est en attente de validation par l\'administrateur.',
-        { duration: 6000 }
-      );
-      router.push('/inscription/artisan-profil');
+      if (needsEmailConfirm) {
+        // Confirmation email requise → page de confirmation dédiée artisan
+        toast.success(
+          'Compte créé ! Vérifiez votre email pour activer votre compte, puis connectez-vous pour compléter votre profil artisan.',
+          { duration: 8000 }
+        );
+        router.push('/inscription/confirmation?artisan=1');
+      } else {
+        toast.success(
+          'Compte créé ! Complétez maintenant votre profil artisan.',
+          { duration: 5000 }
+        );
+        router.push('/inscription/artisan-profil');
+      }
     } else {
       toast.success('Compte créé ! Vérifiez votre email pour confirmer votre inscription.', { duration: 5000 });
       router.push('/inscription/confirmation');

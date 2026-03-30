@@ -129,11 +129,20 @@ function DashboardContent() {
       </div>
 
       {isPendingArtisan && (
-        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-5 mb-8 flex gap-3">
+        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-5 mb-8 flex items-start gap-3">
           <Clock className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
-          <div>
+          <div className="flex-1">
             <h3 className="font-semibold text-orange-800 mb-1">Validation en cours</h3>
-            <p className="text-sm text-orange-700">Votre inscription artisan est en cours de vérification.</p>
+            <p className="text-sm text-orange-700 mb-3">
+              Votre inscription artisan est en cours de vérification par l&apos;administrateur.
+              Vous pouvez compléter ou modifier votre dossier en attendant.
+            </p>
+            <Link
+              href="/inscription/artisan-profil"
+              className="inline-flex items-center gap-2 bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-orange-700 transition-colors"
+            >
+              <Wrench className="w-4 h-4" /> Compléter mon dossier artisan
+            </Link>
           </div>
         </div>
       )}
