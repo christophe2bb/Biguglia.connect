@@ -10,7 +10,7 @@ import {
   Package, ArrowLeftRight, Trophy, Coins, Camera, BookOpen,
   BadgeCheck, Users, Gem, Palette, Music, Stamp, Car,
   Shirt, FlaskConical, Gamepad2, Leaf, Globe, Layers, X,
-  Loader2, RefreshCw, ImageIcon,
+  Loader2, RefreshCw, ImageIcon, AlertCircle,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import toast from 'react-hot-toast';
@@ -157,6 +157,7 @@ export default function CollectionneursPage() {
 
   const [loadingItems, setLoadingItems] = useState(true);
   const [loadingForum, setLoadingForum] = useState(false);
+  const [dbReady, setDbReady] = useState(true);
 
   const [selectedCat, setSelectedCat] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<string>('all');
@@ -179,8 +180,20 @@ export default function CollectionneursPage() {
   // ── Fetch categories ──────────────────────────────────────────────────────
   useEffect(() => {
     const fetchCats = async () => {
-      const { data } = await supabase.from('collection_categories').select('*').order('display_order');
-      setCategories(data || []);
+      try {
+        const { data, error } = await supabase.from('collection_categories').select('*').order('display_order');
+        if (error) {
+          if (error.code === '42P01' || error.message?.includes('relation') || error.message?.includes('does not exist')) {
+            setDbReady(false);
+          }
+          return;
+        }
+        setCategories(data || []);
+        setDbReady(true);
+      } catch (err) {
+        console.error('fetchCats error:', err);
+        setDbReady(false);
+      }
     };
     fetchCats();
   }, []);
@@ -188,18 +201,30 @@ export default function CollectionneursPage() {
   // ── Fetch items ───────────────────────────────────────────────────────────
   const fetchItems = useCallback(async () => {
     setLoadingItems(true);
-    let query = supabase
-      .from('collection_items')
-      .select(`*, author:profiles!collection_items_author_id_fkey(full_name, avatar_url), category:collection_categories(*), photos:collection_item_photos(url)`)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false });
+    try {
+      let query = supabase
+        .from('collection_items')
+        .select(`*, author:profiles!collection_items_author_id_fkey(full_name, avatar_url), category:collection_categories(*), photos:collection_item_photos(url)`)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
 
-    if (selectedCat !== 'all') query = query.eq('category_id', selectedCat);
-    if (selectedType !== 'all') query = query.eq('item_type', selectedType);
+      if (selectedCat !== 'all') query = query.eq('category_id', selectedCat);
+      if (selectedType !== 'all') query = query.eq('item_type', selectedType);
 
-    const { data, error } = await query;
-    if (error) { console.error(error); setLoadingItems(false); return; }
-    setItems((data || []) as CollectionItem[]);
+      const { data, error } = await query;
+      if (error) {
+        if (error.code === '42P01' || error.message?.includes('relation') || error.message?.includes('does not exist')) {
+          setDbReady(false);
+        }
+        setLoadingItems(false);
+        return;
+      }
+      setDbReady(true);
+      setItems((data || []) as CollectionItem[]);
+    } catch (err) {
+      console.error('fetchItems error:', err);
+      setDbReady(false);
+    }
     setLoadingItems(false);
   }, [selectedCat, selectedType]);
 
@@ -317,6 +342,22 @@ export default function CollectionneursPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-white">
+
+      {/* ── BANNER migration DB ── */}
+      {!dbReady && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
+          <div className="max-w-7xl mx-auto flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-amber-800">Tables de base de données manquantes</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                Exécutez le fichier <code className="bg-amber-100 px-1 rounded font-mono">src/lib/migration_themes.sql</code> dans votre éditeur SQL Supabase pour activer cette page.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── HERO ── */}
       <div className="relative overflow-hidden bg-gradient-to-br from-amber-500 via-orange-500 to-yellow-500 text-white">
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />

@@ -161,6 +161,7 @@ export default function PromenadePage() {
 
   const [activeTab, setActiveTab] = useState<'itineraires' | 'forum' | 'agenda'>('itineraires');
   const [filter, setFilter] = useState<string>('all');
+  const [dbReady, setDbReady] = useState(true);
 
   // Promenades state
   const [promenades, setPromenades] = useState<Promenade[]>([]);
@@ -200,53 +201,60 @@ export default function PromenadePage() {
   // ── Fetch promenades ──────────────────────────────────────────────────────
   const fetchPromenades = useCallback(async () => {
     setLoadingPromenades(true);
-    let query = supabase
-      .from('promenades')
-      .select(`*, author:profiles!promenades_author_id_fkey(full_name, avatar_url), photos:promenade_photos(url)`)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false });
+    try {
+      let query = supabase
+        .from('promenades')
+        .select(`*, author:profiles!promenades_author_id_fkey(full_name, avatar_url), photos:promenade_photos(url)`)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
 
-    if (filter !== 'all') {
-      if (['balade', 'randonnee', 'velo', 'plage', 'nature'].includes(filter)) {
-        query = query.eq('type', filter);
-      } else if (['facile', 'moyen', 'difficile'].includes(filter)) {
-        query = query.eq('difficulty', filter);
+      if (filter !== 'all') {
+        if (['balade', 'randonnee', 'velo', 'plage', 'nature'].includes(filter)) {
+          query = query.eq('type', filter);
+        } else if (['facile', 'moyen', 'difficile'].includes(filter)) {
+          query = query.eq('difficulty', filter);
+        }
       }
-    }
 
-    const { data, error } = await query;
-    if (error) {
-      console.error('Promenades fetch error:', error);
-      setLoadingPromenades(false);
-      return;
-    }
+      const { data, error } = await query;
+      if (error) {
+        if (error.code === '42P01' || error.message?.includes('relation') || error.message?.includes('does not exist')) {
+          setDbReady(false);
+        }
+        setLoadingPromenades(false);
+        return;
+      }
+      setDbReady(true);
 
-    // Fetch likes
-    let enriched = (data || []) as Promenade[];
-    if (profile) {
-      const ids = enriched.map(p => p.id);
-      const { data: likesData } = await supabase
-        .from('promenade_likes')
-        .select('promenade_id')
-        .in('promenade_id', ids)
-        .eq('user_id', profile.id);
-      const likedSet = new Set((likesData || []).map((l: { promenade_id: string }) => l.promenade_id));
+      let enriched = (data || []) as Promenade[];
+      if (profile && enriched.length > 0) {
+        const ids = enriched.map(p => p.id);
+        const { data: likesData } = await supabase
+          .from('promenade_likes')
+          .select('promenade_id')
+          .in('promenade_id', ids)
+          .eq('user_id', profile.id);
+        const likedSet = new Set((likesData || []).map((l: { promenade_id: string }) => l.promenade_id));
 
-      const { data: countsData } = await supabase
-        .from('promenade_likes')
-        .select('promenade_id')
-        .in('promenade_id', ids);
-      const countMap: Record<string, number> = {};
-      (countsData || []).forEach((l: { promenade_id: string }) => {
-        countMap[l.promenade_id] = (countMap[l.promenade_id] || 0) + 1;
-      });
-      enriched = enriched.map(p => ({
-        ...p,
-        user_liked: likedSet.has(p.id),
-        likes_count: countMap[p.id] || 0,
-      }));
+        const { data: countsData } = await supabase
+          .from('promenade_likes')
+          .select('promenade_id')
+          .in('promenade_id', ids);
+        const countMap: Record<string, number> = {};
+        (countsData || []).forEach((l: { promenade_id: string }) => {
+          countMap[l.promenade_id] = (countMap[l.promenade_id] || 0) + 1;
+        });
+        enriched = enriched.map(p => ({
+          ...p,
+          user_liked: likedSet.has(p.id),
+          likes_count: countMap[p.id] || 0,
+        }));
+      }
+      setPromenades(enriched);
+    } catch (err) {
+      console.error('fetchPromenades error:', err);
+      setDbReady(false);
     }
-    setPromenades(enriched);
     setLoadingPromenades(false);
   }, [filter, profile]);
 
@@ -456,6 +464,22 @@ export default function PromenadePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-white">
+
+      {/* ── BANNER migration DB ── */}
+      {!dbReady && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
+          <div className="max-w-7xl mx-auto flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-amber-800">Tables de base de données manquantes</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                Exécutez le fichier <code className="bg-amber-100 px-1 rounded font-mono">src/lib/migration_themes.sql</code> dans votre éditeur SQL Supabase pour activer cette page.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── HERO ── */}
       <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 via-teal-500 to-sky-500 text-white">
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />

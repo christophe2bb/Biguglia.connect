@@ -185,6 +185,7 @@ export default function EvenementsPage() {
 
   const [events, setEvents] = useState<LocalEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
+  const [dbReady, setDbReady] = useState(true); // false si tables manquantes
   const [forumPosts, setForumPosts] = useState<ForumPost[]>([]);
   const [forumCategoryId, setForumCategoryId] = useState<string | null>(null);
   const [loadingForum, setLoadingForum] = useState(false);
@@ -205,38 +206,50 @@ export default function EvenementsPage() {
   // ── Fetch events ──────────────────────────────────────────────────────────
   const fetchEvents = useCallback(async () => {
     setLoadingEvents(true);
-    const today = new Date().toISOString().split('T')[0];
-    let query = supabase
-      .from('local_events')
-      .select(`*, author:profiles!local_events_author_id_fkey(full_name, avatar_url), participants:event_participations(count)`)
-      .eq('status', 'active')
-      .gte('event_date', today)
-      .order('event_date', { ascending: true });
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      let query = supabase
+        .from('local_events')
+        .select(`*, author:profiles!local_events_author_id_fkey(full_name, avatar_url), participants:event_participations(count)`)
+        .eq('status', 'active')
+        .gte('event_date', today)
+        .order('event_date', { ascending: true });
 
-    if (filterCat !== 'all') query = query.eq('category', filterCat);
+      if (filterCat !== 'all') query = query.eq('category', filterCat);
 
-    const { data, error } = await query;
-    if (error) { console.error(error); setLoadingEvents(false); return; }
+      const { data, error } = await query;
+      if (error) {
+        // Table manquante → code 42P01 ou PGRST116
+        if (error.code === '42P01' || error.message?.includes('relation') || error.message?.includes('does not exist')) {
+          setDbReady(false);
+        }
+        setLoadingEvents(false);
+        return;
+      }
+      setDbReady(true);
 
-    let enriched = (data || []).map((e: LocalEvent & { participants?: { count: number }[] }) => ({
-      ...e,
-      participants_count: e.participants?.[0]?.count ?? 0,
-      user_joined: false,
-    }));
+      let enriched = (data || []).map((e: LocalEvent & { participants?: { count: number }[] }) => ({
+        ...e,
+        participants_count: e.participants?.[0]?.count ?? 0,
+        user_joined: false,
+      }));
 
-    // Check user participations
-    if (profile && enriched.length > 0) {
-      const ids = enriched.map(e => e.id);
-      const { data: joins } = await supabase
-        .from('event_participations')
-        .select('event_id')
-        .in('event_id', ids)
-        .eq('user_id', profile.id);
-      const joinedSet = new Set((joins || []).map((j: { event_id: string }) => j.event_id));
-      enriched = enriched.map(e => ({ ...e, user_joined: joinedSet.has(e.id) }));
+      if (profile && enriched.length > 0) {
+        const ids = enriched.map(e => e.id);
+        const { data: joins } = await supabase
+          .from('event_participations')
+          .select('event_id')
+          .in('event_id', ids)
+          .eq('user_id', profile.id);
+        const joinedSet = new Set((joins || []).map((j: { event_id: string }) => j.event_id));
+        enriched = enriched.map(e => ({ ...e, user_joined: joinedSet.has(e.id) }));
+      }
+
+      setEvents(enriched);
+    } catch (err) {
+      console.error('fetchEvents error:', err);
+      setDbReady(false);
     }
-
-    setEvents(enriched);
     setLoadingEvents(false);
   }, [filterCat, profile]);
 
@@ -341,6 +354,21 @@ export default function EvenementsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-white">
+
+      {/* ── BANNER migration DB ── */}
+      {!dbReady && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
+          <div className="max-w-7xl mx-auto flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-amber-800">Tables de base de données manquantes</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                Exécutez le fichier <code className="bg-amber-100 px-1 rounded font-mono">src/lib/migration_themes.sql</code> dans votre éditeur SQL Supabase pour activer cette page.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       {/* ── HERO ── */}
       <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 via-violet-600 to-pink-500 text-white">
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
