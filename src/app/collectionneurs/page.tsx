@@ -559,6 +559,34 @@ export default function CollectionneursPage() {
         </div>
       )}
 
+      {/* ── BANNER erreur publication ── */}
+      {submitError && (
+        <div className="bg-red-600 px-4 py-4">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3 flex-1">
+              <AlertCircle className="w-6 h-6 text-white flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-white font-black text-base">❌ Publication impossible</p>
+                <p className="text-red-100 text-sm mt-1 leading-relaxed">{submitError}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 flex-shrink-0 mt-2 sm:mt-0">
+              <a
+                href="/admin/migration"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-white text-red-700 font-black text-sm px-5 py-3 rounded-xl hover:bg-red-50 transition-all shadow-lg"
+              >
+                🗄️ Voir le SQL à exécuter
+              </a>
+              <button onClick={() => setSubmitError(null)} className="text-red-200 hover:text-white p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── HERO ── */}
       <div className="relative overflow-hidden bg-gradient-to-br from-amber-500 via-orange-500 to-yellow-500 text-white">
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
@@ -761,21 +789,6 @@ export default function CollectionneursPage() {
                   )}
                 </div>
 
-                {submitError && (
-                  <div className="mb-3 p-4 bg-red-50 border border-red-200 rounded-xl">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm font-bold text-red-700 mb-1">Publication impossible</p>
-                        <p className="text-sm text-red-600 leading-relaxed">{submitError}</p>
-                        <a href="/admin/migration" className="inline-block mt-2 text-sm font-bold text-red-700 underline">→ Page Migration SQL</a>
-                      </div>
-                      <button type="button" onClick={() => setSubmitError(null)} className="text-red-300 hover:text-red-500">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
                 <div className="flex gap-2">
                   <button type="submit" disabled={submitting}
                     className="flex items-center gap-2 bg-amber-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-amber-600 disabled:opacity-50 transition-all">
