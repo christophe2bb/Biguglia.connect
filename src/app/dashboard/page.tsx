@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, Clock, Package, BookOpen, Plus, Wrench } from 'lucide-react';
+import { MessageSquare, Clock, Package, BookOpen, Plus, Wrench, Bell, TrendingUp, Eye } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
+import { useUnreadCounts } from '@/hooks/useUnreadCounts';
 import { ServiceRequest, Listing, ForumPost } from '@/types';
 import Link from 'next/link';
 import Avatar from '@/components/ui/Avatar';
@@ -12,14 +13,48 @@ import Badge from '@/components/ui/Badge';
 import Card from '@/components/ui/Card';
 import EmptyState from '@/components/ui/EmptyState';
 import ProtectedPage from '@/components/providers/ProtectedPage';
-import { STATUS_LABELS, URGENCY_LABELS, formatRelative } from '@/lib/utils';
+import { STATUS_LABELS, URGENCY_LABELS, formatRelative, cn } from '@/lib/utils';
+
+function StatCard({ icon: Icon, label, value, href, color, badge }: {
+  icon: React.ElementType;
+  label: string;
+  value: number | string;
+  href: string;
+  color: string;
+  badge?: number;
+}) {
+  return (
+    <Link href={href}>
+      <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-sm hover:border-gray-200 transition-all group">
+        <div className="flex items-center justify-between mb-3">
+          <div className={cn('p-2 rounded-xl', color)}>
+            <Icon className="w-4 h-4" />
+          </div>
+          {badge !== undefined && badge > 0 && (
+            <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">
+              {badge > 99 ? '99+' : badge}
+            </span>
+          )}
+        </div>
+        <div className="text-2xl font-bold text-gray-900">{value}</div>
+        <div className="text-sm text-gray-500 mt-0.5">{label}</div>
+      </div>
+    </Link>
+  );
+}
 
 function DashboardContent() {
   const { profile } = useAuthStore();
   const router = useRouter();
+  const unread = useUnreadCounts();
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [forumPosts, setForumPosts] = useState<ForumPost[]>([]);
+  const [stats, setStats] = useState({
+    activeListings: 0,
+    totalViews: 0,
+    forumComments: 0,
+  });
   const [dataLoading, setDataLoading] = useState(false);
 
   useEffect(() => {
@@ -39,28 +74,43 @@ function DashboardContent() {
         .select('*, category:forum_categories(name, icon)')
         .eq('author_id', profile.id)
         .order('created_at', { ascending: false }).limit(3),
-    ]).then(([{ data: reqs }, { data: listedItems }, { data: posts }]) => {
+      // Stats: annonces actives
+      supabase.from('listings')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', profile.id)
+        .eq('status', 'active'),
+      // Stats: vues total des annonces
+      supabase.from('listings')
+        .select('views')
+        .eq('user_id', profile.id),
+    ]).then(([
+      { data: reqs },
+      { data: listedItems },
+      { data: posts },
+      { count: activeCount },
+      { data: viewsData },
+    ]) => {
       setRequests((reqs as ServiceRequest[]) || []);
       setListings((listedItems as Listing[]) || []);
       setForumPosts((posts as ForumPost[]) || []);
+      const totalViews = (viewsData || []).reduce((sum, l) => sum + (l.views || 0), 0);
+      setStats({
+        activeListings: activeCount || 0,
+        totalViews,
+        forumComments: 0,
+      });
     }).finally(() => setDataLoading(false));
   }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!profile) return null;
 
-  const quickActions = [
-    { icon: Wrench, label: 'Trouver un artisan', href: '/artisans', color: 'bg-blue-50 text-blue-600' },
-    { icon: MessageSquare, label: 'Mes messages', href: '/messages', color: 'bg-green-50 text-green-600' },
-    { icon: Package, label: 'Publier une annonce', href: '/annonces/nouvelle', color: 'bg-orange-50 text-orange-600' },
-    { icon: BookOpen, label: 'Forum', href: '/forum', color: 'bg-purple-50 text-purple-600' },
-  ];
-
   const isPendingArtisan = profile.role === 'artisan_pending';
   const isVerifiedArtisan = profile.role === 'artisan_verified';
-  const isAdmin = profile.role === 'admin';
+  const isAdminRole = profile.role === 'admin';
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      {/* Header */}
       <div className="flex items-center gap-4 mb-10">
         <Avatar src={profile.avatar_url} name={profile.full_name || profile.email} size="xl" />
         <div>
@@ -70,10 +120,10 @@ function DashboardContent() {
           <p className="text-gray-500 text-sm">
             {isPendingArtisan && '⏳ Profil artisan en cours de validation'}
             {isVerifiedArtisan && '✅ Artisan vérifié'}
-            {isAdmin && '👑 Administrateur de Biguglia Connect'}
-            {!isPendingArtisan && !isVerifiedArtisan && !isAdmin && 'Bienvenue sur Biguglia Connect'}
+            {isAdminRole && '👑 Administrateur de Biguglia Connect'}
+            {!isPendingArtisan && !isVerifiedArtisan && !isAdminRole && 'Bienvenue sur Biguglia Connect'}
           </p>
-          {isAdmin && <Link href="/admin" className="text-sm text-brand-600 hover:underline font-medium">Accéder au panneau admin →</Link>}
+          {isAdminRole && <Link href="/admin" className="text-sm text-brand-600 hover:underline font-medium">Accéder au panneau admin →</Link>}
           {isVerifiedArtisan && <Link href="/dashboard/artisan" className="text-sm text-brand-600 hover:underline font-medium">Espace artisan →</Link>}
         </div>
       </div>
@@ -88,7 +138,7 @@ function DashboardContent() {
         </div>
       )}
 
-      {isAdmin && (
+      {isAdminRole && (
         <div className="bg-gradient-to-r from-brand-50 to-blue-50 border border-brand-200 rounded-2xl p-5 mb-8 flex items-center justify-between">
           <div>
             <h3 className="font-semibold text-brand-800 mb-1">👑 Panneau Administrateur</h3>
@@ -100,15 +150,58 @@ function DashboardContent() {
         </div>
       )}
 
+      {/* Stats cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
-        {quickActions.map(({ icon: Icon, label, href, color }) => (
-          <Link key={href} href={href}>
-            <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-sm hover:border-gray-200 transition-all text-center">
-              <div className={`inline-flex p-2.5 rounded-xl ${color} mb-2`}><Icon className="w-5 h-5" /></div>
-              <p className="text-sm font-medium text-gray-700">{label}</p>
-            </div>
-          </Link>
-        ))}
+        <StatCard
+          icon={MessageSquare}
+          label="Messages non lus"
+          value={unread.messages}
+          href="/messages"
+          color="bg-green-100 text-green-600"
+          badge={unread.messages}
+        />
+        <StatCard
+          icon={Bell}
+          label="Notifications"
+          value={unread.notifications}
+          href="/notifications"
+          color="bg-blue-100 text-blue-600"
+          badge={unread.notifications}
+        />
+        <StatCard
+          icon={Package}
+          label="Annonces actives"
+          value={dataLoading ? '...' : stats.activeListings}
+          href="/annonces"
+          color="bg-orange-100 text-orange-600"
+        />
+        <StatCard
+          icon={Eye}
+          label="Vues totales"
+          value={dataLoading ? '...' : stats.totalViews}
+          href="/annonces"
+          color="bg-purple-100 text-purple-600"
+        />
+      </div>
+
+      {/* Quick actions */}
+      <div className="mb-10">
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Actions rapides</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { icon: Wrench, label: 'Trouver un artisan', href: '/artisans', color: 'bg-blue-50 text-blue-600' },
+            { icon: Package, label: 'Nouvelle annonce', href: '/annonces/nouvelle', color: 'bg-orange-50 text-orange-600' },
+            { icon: TrendingUp, label: 'Matériel', href: '/materiel/nouveau', color: 'bg-maquis-50 text-maquis-600' },
+            { icon: BookOpen, label: 'Nouveau sujet', href: '/forum/nouveau', color: 'bg-purple-50 text-purple-600' },
+          ].map(({ icon: Icon, label, href, color }) => (
+            <Link key={href} href={href}>
+              <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-sm hover:border-gray-200 transition-all text-center">
+                <div className={`inline-flex p-2.5 rounded-xl ${color} mb-2`}><Icon className="w-5 h-5" /></div>
+                <p className="text-sm font-medium text-gray-700">{label}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -162,11 +255,27 @@ function DashboardContent() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-800 text-sm truncate">{listing.title}</p>
-                        <p className="text-xs text-gray-400">{listing.category?.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-xs text-gray-400">{listing.category?.name}</p>
+                          {(listing.views || 0) > 0 && (
+                            <span className="text-xs text-gray-400 flex items-center gap-0.5">
+                              <Eye className="w-3 h-3" />{listing.views}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <Badge variant={listing.status === 'active' ? 'success' : 'default'}>
-                        {listing.status === 'active' ? 'Active' : listing.status === 'sold' ? 'Vendue' : 'Archivée'}
-                      </Badge>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge variant={listing.status === 'active' ? 'success' : 'default'}>
+                          {listing.status === 'active' ? 'Active' : listing.status === 'sold' ? 'Vendue' : 'Archivée'}
+                        </Badge>
+                        <Link
+                          href={`/annonces/${listing.id}/modifier`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-xs text-brand-600 hover:underline"
+                        >
+                          Modifier
+                        </Link>
+                      </div>
                     </div>
                   </Card>
                 </Link>
@@ -191,7 +300,12 @@ function DashboardContent() {
                       <p className="font-medium text-gray-800 text-sm">{post.title}</p>
                       <p className="text-xs text-gray-400">{post.category?.name} · {formatRelative(post.created_at)}</p>
                     </div>
-                    <BookOpen className="w-4 h-4 text-gray-300" />
+                    <div className="flex items-center gap-2">
+                      {(post.views || 0) > 0 && (
+                        <span className="text-xs text-gray-400 flex items-center gap-0.5"><Eye className="w-3 h-3" />{post.views}</span>
+                      )}
+                      <BookOpen className="w-4 h-4 text-gray-300" />
+                    </div>
                   </div>
                 </Card>
               </Link>

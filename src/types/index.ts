@@ -148,6 +148,7 @@ export interface Listing {
   condition?: 'neuf' | 'tres_bon' | 'bon' | 'usage';
   location: string;
   status: 'active' | 'sold' | 'archived';
+  views?: number;
   created_at: string;
   updated_at: string;
   user?: Profile;
@@ -276,6 +277,7 @@ export interface Notification {
   type: string;
   title: string;
   message: string;
+  body?: string;
   link?: string;
   is_read: boolean;
   created_at: string;

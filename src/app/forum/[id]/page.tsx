@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft, MessageCircle, Flag, Trash2 } from 'lucide-react';
+import { ChevronLeft, MessageCircle, Flag, Trash2, Pencil } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { ForumPost, ForumComment } from '@/types';
@@ -29,26 +29,44 @@ export default function ForumPostPage() {
     const fetchPost = async () => {
       const supabase = createClient();
 
+      // Récupérer le post sans JOIN cassé
       const { data } = await supabase
         .from('forum_posts')
-        .select(`*, author:profiles!forum_posts_author_id_fkey(id, full_name, avatar_url, role), category:forum_categories(*)`)
+        .select('*, category:forum_categories(*)')
         .eq('id', id as string)
         .single();
 
       if (!data) { router.push('/forum'); return; }
-      setPost(data as ForumPost);
+
+      // Profil auteur séparément
+      let authorData = null;
+      if (data.author_id) {
+        const { data: ap } = await supabase.from('profiles').select('id, full_name, avatar_url, role').eq('id', data.author_id).single();
+        authorData = ap;
+      }
+      setPost({ ...data, author: authorData } as ForumPost);
 
       // Incrémenter les vues
       await supabase.from('forum_posts').update({ views: (data.views || 0) + 1 }).eq('id', id as string);
 
-      // Commentaires
+      // Commentaires sans JOIN cassé
       const { data: comms } = await supabase
         .from('forum_comments')
-        .select('*, author:profiles!forum_comments_author_id_fkey(id, full_name, avatar_url, role)')
+        .select('*')
         .eq('post_id', id as string)
         .order('created_at', { ascending: true });
 
-      setComments((comms as ForumComment[]) || []);
+      // Enrichir avec les profils des auteurs
+      const enrichedComments: ForumComment[] = [];
+      const profileCache: Record<string, unknown> = {};
+      for (const comm of comms || []) {
+        if (comm.author_id && !profileCache[comm.author_id]) {
+          const { data: cp } = await supabase.from('profiles').select('id, full_name, avatar_url, role').eq('id', comm.author_id).single();
+          if (cp) profileCache[comm.author_id] = cp;
+        }
+        enrichedComments.push({ ...comm, author: profileCache[comm.author_id] } as ForumComment);
+      }
+      setComments(enrichedComments);
       setLoading(false);
     };
     if (id) fetchPost();
@@ -63,12 +81,14 @@ export default function ForumPostPage() {
     const { data: comment, error } = await supabase
       .from('forum_comments')
       .insert({ post_id: id as string, author_id: profile.id, content: newComment.trim() })
-      .select('*, author:profiles!forum_comments_author_id_fkey(id, full_name, avatar_url, role)')
+      .select('*')
       .single();
 
     if (error) { toast.error('Erreur lors du commentaire'); }
     else {
-      setComments(prev => [...prev, comment as ForumComment]);
+      // Ajouter le profil courant au commentaire
+      const newCommentWithAuthor = { ...comment, author: { id: profile.id, full_name: profile.full_name, avatar_url: profile.avatar_url, role: profile.role } } as ForumComment;
+      setComments(prev => [...prev, newCommentWithAuthor]);
       setNewComment('');
       toast.success('Commentaire publié !');
     }
@@ -101,6 +121,7 @@ export default function ForumPostPage() {
   if (!post) return null;
 
   const canDelete = profile && (profile.id === post.author_id || isModerator());
+  const canEdit = profile && profile.id === post.author_id;
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -125,11 +146,18 @@ export default function ForumPostPage() {
             <div className="font-medium text-gray-800">{post.author?.full_name}</div>
             <div className="text-sm text-gray-400">{formatRelative(post.created_at)}</div>
           </div>
-          {canDelete && (
-            <button onClick={deletePost} className="ml-auto p-2 rounded-xl text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors">
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
+          <div className="ml-auto flex items-center gap-1">
+            {canEdit && (
+              <Link href={`/forum/${id}/modifier`} className="p-2 rounded-xl text-gray-400 hover:bg-gray-50 hover:text-gray-700 transition-colors" title="Modifier">
+                <Pencil className="w-4 h-4" />
+              </Link>
+            )}
+            {canDelete && (
+              <button onClick={deletePost} className="p-2 rounded-xl text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Supprimer">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{post.content}</p>

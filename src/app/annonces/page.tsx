@@ -23,6 +23,7 @@ export default function AnnoncesPage() {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedType, setSelectedType] = useState('');
+  const [sortBy, setSortBy] = useState('recent');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -33,9 +34,8 @@ export default function AnnoncesPage() {
 
       let query = supabase
         .from('listings')
-        .select('*, user:profiles!listings_user_id_fkey(id, full_name, avatar_url), category:listing_categories(*), photos:listing_photos(*)')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
+        .select('*, category:listing_categories(*), photos:listing_photos(*)')
+        .eq('status', 'active');
 
       if (selectedCategory) {
         const cat = cats?.find(c => c.slug === selectedCategory);
@@ -43,12 +43,16 @@ export default function AnnoncesPage() {
       }
       if (selectedType) query = query.eq('listing_type', selectedType);
 
+      if (sortBy === 'price_asc') query = query.order('price', { ascending: true });
+      else if (sortBy === 'price_desc') query = query.order('price', { ascending: false });
+      else query = query.order('created_at', { ascending: false });
+
       const { data } = await query;
       setListings((data as Listing[]) || []);
       setLoading(false);
     };
     fetchData();
-  }, [selectedCategory, selectedType]);
+  }, [selectedCategory, selectedType, sortBy]);
 
   const filtered = listings.filter(l =>
     !search ||
@@ -90,6 +94,11 @@ export default function AnnoncesPage() {
         <Select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="sm:w-48">
           <option value="">Toutes catégories</option>
           {categories.map(c => <option key={c.id} value={c.slug}>{c.icon} {c.name}</option>)}
+        </Select>
+        <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="sm:w-44">
+          <option value="recent">🕐 Plus récentes</option>
+          <option value="price_asc">💶 Prix croissant</option>
+          <option value="price_desc">💶 Prix décroissant</option>
         </Select>
       </div>
 
