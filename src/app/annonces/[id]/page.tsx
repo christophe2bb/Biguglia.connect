@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft, MapPin, Calendar, MessageSquare, Flag, Tag } from 'lucide-react';
+import { ChevronLeft, MapPin, Calendar, MessageSquare, Flag, Tag, Pencil, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { Listing } from '@/types';
@@ -21,6 +21,7 @@ export default function AnnonceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [currentPhoto, setCurrentPhoto] = useState(0);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -141,6 +142,40 @@ export default function AnnonceDetailPage() {
     }
 
     router.push(`/messages/${conv.id}`);
+  };
+
+  const handleDelete = async () => {
+    if (!listing || !profile) return;
+    if (!window.confirm('Supprimer définitivement cette annonce ? Cette action est irréversible.')) return;
+
+    setDeleting(true);
+    const supabase = createClient();
+
+    // Supprimer les photos du storage
+    const photos = listing.photos as Array<{ id: string; url: string }> | undefined;
+    if (photos && photos.length > 0) {
+      for (const photo of photos) {
+        // Extraire le path depuis l'URL publique
+        const urlParts = photo.url.split('/storage/v1/object/public/photos/');
+        if (urlParts[1]) {
+          await supabase.storage.from('photos').remove([urlParts[1]]);
+        }
+      }
+      // Supprimer les entrées listing_photos
+      await supabase.from('listing_photos').delete().eq('listing_id', listing.id);
+    }
+
+    // Supprimer l'annonce
+    const { error } = await supabase.from('listings').delete().eq('id', listing.id);
+
+    if (error) {
+      toast.error('Erreur lors de la suppression');
+      setDeleting(false);
+      return;
+    }
+
+    toast.success('Annonce supprimée');
+    router.push('/annonces');
   };
 
   const handleReport = async () => {
@@ -314,8 +349,25 @@ export default function AnnonceDetailPage() {
             )}
 
             {isOwner && (
-              <div className="text-sm text-center text-brand-600 font-medium py-2 bg-brand-50 rounded-xl">
-                ✅ C&apos;est votre annonce
+              <div className="space-y-2">
+                <div className="text-xs text-center text-brand-600 font-medium py-1.5 bg-brand-50 rounded-xl">
+                  ✅ C&apos;est votre annonce
+                </div>
+                <Link
+                  href={`/annonces/${listing.id}/modifier`}
+                  className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-700 transition-colors"
+                >
+                  <Pencil className="w-4 h-4" />
+                  Modifier l&apos;annonce
+                </Link>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex items-center justify-center gap-2 w-full px-4 py-2.5 border border-red-200 text-red-600 text-sm font-medium rounded-xl hover:bg-red-50 transition-colors disabled:opacity-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {deleting ? 'Suppression...' : 'Supprimer l\'annonce'}
+                </button>
               </div>
             )}
 
