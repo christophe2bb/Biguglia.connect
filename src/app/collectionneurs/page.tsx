@@ -595,6 +595,55 @@ export default function CollectionneursPage() {
     }
   };
 
+  // ── Édition / suppression sujets forum ───────────────────────────────────
+  const [editPost, setEditPost] = useState<ForumPost | null>(null);
+  const [editPostForm, setEditPostForm] = useState({ title: '', content: '' });
+  const [savingPost, setSavingPost] = useState(false);
+
+  const openEditPost = (post: ForumPost) => {
+    setEditPost(post);
+    setEditPostForm({ title: post.title, content: post.content });
+  };
+
+  const handleUpdatePost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editPost || !profile) return;
+    if (!editPostForm.title.trim() || !editPostForm.content.trim()) {
+      toast.error('Titre et contenu obligatoires');
+      return;
+    }
+    setSavingPost(true);
+    const { error } = await supabase
+      .from('forum_posts')
+      .update({ title: editPostForm.title.trim(), content: editPostForm.content.trim() })
+      .eq('id', editPost.id)
+      .eq('author_id', profile.id);
+    if (error) {
+      toast.error(`Erreur : ${error.message}`);
+    } else {
+      toast.success('✅ Sujet modifié !', { duration: 3000 });
+      setEditPost(null);
+      fetchForum();
+    }
+    setSavingPost(false);
+  };
+
+  const handleDeletePost = async (post: ForumPost) => {
+    if (!profile || profile.id !== post.author_id) return;
+    if (!confirm(`Supprimer le sujet "${post.title}" et toutes ses réponses ? Action irréversible.`)) return;
+    const { error } = await supabase
+      .from('forum_posts')
+      .delete()
+      .eq('id', post.id)
+      .eq('author_id', profile.id);
+    if (error) {
+      toast.error(`Erreur suppression : ${error.message}`);
+    } else {
+      toast.success('🗑️ Sujet supprimé', { duration: 3000 });
+      fetchForum();
+    }
+  };
+
   // ── Publier un message forum ──────────────────────────────────────────────
   const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1055,23 +1104,49 @@ export default function CollectionneursPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {forumPosts.map(post => (
-                  <Link key={post.id} href={`/forum/${post.id}`}
-                    className="block bg-white rounded-2xl border border-gray-100 p-5 hover:border-amber-200 hover:shadow-sm transition-all">
-                    <h3 className="font-bold text-gray-900 text-sm mb-2 hover:text-amber-700 transition-colors">{post.title}</h3>
-                    <p className="text-gray-500 text-xs mb-3 line-clamp-2">{post.content}</p>
-                    <div className="flex items-center justify-between text-xs text-gray-400">
-                      <span className="flex items-center gap-2">
-                        {post.author && <Avatar src={post.author.avatar_url} name={post.author.full_name} size="xs" />}
-                        {post.author?.full_name ?? 'Membre'} · {formatRelative(post.created_at)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        {(post.comment_count as unknown as { count: number }[])?.[0]?.count ?? 0} réponses
-                      </span>
+                {forumPosts.map(post => {
+                  const isPostOwner = profile?.id === post.author_id;
+                  return (
+                    <div key={post.id} className="bg-white rounded-2xl border border-gray-100 p-5 hover:border-amber-200 hover:shadow-sm transition-all group">
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <Link href={`/forum/${post.id}`} className="flex-1 min-w-0">
+                          <h3 className="font-bold text-gray-900 text-sm hover:text-amber-700 transition-colors leading-snug">{post.title}</h3>
+                        </Link>
+                        {isPostOwner && (
+                          <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => openEditPost(post)}
+                              title="Modifier le sujet"
+                              className="p-1.5 bg-gray-50 rounded-lg border border-gray-200 hover:bg-amber-50 hover:border-amber-300 transition-all"
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-amber-600" />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePost(post)}
+                              title="Supprimer le sujet"
+                              className="p-1.5 bg-gray-50 rounded-lg border border-gray-200 hover:bg-red-50 hover:border-red-300 transition-all"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <Link href={`/forum/${post.id}`} className="block">
+                        <p className="text-gray-500 text-xs mb-3 line-clamp-2">{post.content}</p>
+                        <div className="flex items-center justify-between text-xs text-gray-400">
+                          <span className="flex items-center gap-2">
+                            {post.author && <Avatar src={post.author.avatar_url} name={post.author.full_name} size="xs" />}
+                            {post.author?.full_name ?? 'Membre'} · {formatRelative(post.created_at)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            {(post.comment_count as unknown as { count: number }[])?.[0]?.count ?? 0} réponses
+                          </span>
+                        </div>
+                      </Link>
                     </div>
-                  </Link>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -1273,6 +1348,64 @@ export default function CollectionneursPage() {
         )}
 
       </div>
+
+      {/* ── Modale édition sujet forum ── */}
+      {editPost && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+              <div>
+                <h2 className="text-lg font-black text-gray-900">Modifier le sujet</h2>
+                <p className="text-gray-400 text-xs mt-0.5">Les modifications sont immédiates</p>
+              </div>
+              <button onClick={() => setEditPost(null)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            <form onSubmit={handleUpdatePost} className="px-6 py-5 space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Titre *</label>
+                <input
+                  type="text"
+                  value={editPostForm.title}
+                  onChange={e => setEditPostForm(f => ({ ...f, title: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  maxLength={150}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Contenu *</label>
+                <textarea
+                  value={editPostForm.content}
+                  onChange={e => setEditPostForm(f => ({ ...f, content: e.target.value }))}
+                  rows={6}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+                  required
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={savingPost}
+                  className="flex-1 flex items-center justify-center gap-2 bg-amber-500 text-white font-bold py-3 rounded-xl hover:bg-amber-600 transition-all disabled:opacity-60"
+                >
+                  {savingPost
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Sauvegarde…</>
+                    : <><Pencil className="w-4 h-4" /> Enregistrer</>}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditPost(null)}
+                  className="px-5 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all"
+                >
+                  Annuler
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── Modale édition annonce ── */}
       {editItem && (
