@@ -6,11 +6,10 @@ import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
 import { formatRelative } from '@/lib/utils';
 import {
-  Tag, MessageSquare, Heart, Search, Plus, Eye, ChevronRight,
-  Package, ArrowLeftRight, Trophy, Coins, Camera, BookOpen,
-  BadgeCheck, Users, Gem, Palette, Music, Stamp, Car,
-  Shirt, FlaskConical, Gamepad2, Leaf, Globe, Layers, X,
-  Loader2, RefreshCw, ImageIcon, AlertCircle,
+  Tag, MessageSquare, Search, Plus, Eye, ChevronRight,
+  Package, ArrowLeftRight, Gem,
+  BadgeCheck, Layers, X,
+  Loader2, RefreshCw, Camera, AlertCircle, Pencil, Trash2,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import toast from 'react-hot-toast';
@@ -23,6 +22,8 @@ type CollectionCategory = {
   icon: string;
   color: string;
   display_order: number;
+  is_custom?: boolean; // créée par un utilisateur
+  author_id?: string;
 };
 
 type CollectionItem = {
@@ -52,12 +53,36 @@ type ForumPost = {
   comment_count?: number;
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Catégories statiques (fallback + base toujours visible) ──────────────────
+const STATIC_CATEGORIES: CollectionCategory[] = [
+  { id: 'static-1',  name: 'Timbres & philatélie',   slug: 'timbres',     icon: '📮', color: 'blue',    display_order: 1 },
+  { id: 'static-2',  name: 'Monnaies & numismatique', slug: 'monnaies',    icon: '🪙', color: 'amber',   display_order: 2 },
+  { id: 'static-3',  name: 'Vinyles & musique',       slug: 'vinyles',     icon: '🎵', color: 'purple',  display_order: 3 },
+  { id: 'static-4',  name: 'Livres anciens',          slug: 'livres',      icon: '📚', color: 'emerald', display_order: 4 },
+  { id: 'static-5',  name: 'Figurines & jouets',      slug: 'figurines',   icon: '🎮', color: 'rose',    display_order: 5 },
+  { id: 'static-6',  name: 'Cartes postales',         slug: 'cartes',      icon: '🗺️', color: 'sky',     display_order: 6 },
+  { id: 'static-7',  name: 'Art & tableaux',          slug: 'art',         icon: '🎨', color: 'pink',    display_order: 7 },
+  { id: 'static-8',  name: 'Vintage & mode',          slug: 'vintage',     icon: '👗', color: 'orange',  display_order: 8 },
+  { id: 'static-9',  name: 'Minéraux & fossiles',     slug: 'mineraux',    icon: '🪨', color: 'teal',    display_order: 9 },
+  { id: 'static-10', name: 'Miniatures & maquettes',  slug: 'miniatures',  icon: '🏗️', color: 'indigo',  display_order: 10 },
+  { id: 'static-11', name: 'Automobilia',             slug: 'automobilia', icon: '🚗', color: 'red',     display_order: 11 },
+  { id: 'static-12', name: 'Nature & botanique',      slug: 'nature-col',  icon: '🌿', color: 'green',   display_order: 12 },
+];
+
+// Emojis disponibles pour nouvelle catégorie
+const EMOJI_CHOICES = [
+  '📦','🎯','⭐','🏅','🔮','🎁','💎','🧸','🖼️','📷',
+  '🎸','🎺','🪗','🎻','⚽','🏀','🎾','🏈','🎱','🀄',
+  '🧩','🪆','🪀','🪁','🎪','🎭','🎬','📼','📻','☎️',
+  '🔭','🧪','⚗️','🦴','🌸','🍂','🦋','🐚','🪸','💫',
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const TYPE_CONFIG = {
-  vente:     { label: 'Vente',      color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  troc:      { label: 'Troc',       color: 'bg-amber-100 text-amber-700 border-amber-200' },
-  don:       { label: 'Don ❤️',     color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  recherche: { label: 'Recherche',  color: 'bg-purple-100 text-purple-700 border-purple-200' },
+  vente:     { label: 'Vente',     color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  troc:      { label: 'Troc',      color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  don:       { label: 'Don ❤️',    color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  recherche: { label: 'Recherche', color: 'bg-purple-100 text-purple-700 border-purple-200' },
 };
 const CONDITION_CONFIG = {
   neuf:      { label: 'Neuf',      color: 'text-emerald-600' },
@@ -66,22 +91,30 @@ const CONDITION_CONFIG = {
   passable:  { label: 'Passable',  color: 'text-gray-500' },
 };
 
-// Color palette by index for dynamic styling
-const COLOR_CLASSES: Record<string, { bg: string; text: string; border: string }> = {
-  blue:    { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200' },
-  amber:   { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200' },
-  purple:  { bg: 'bg-purple-50',  text: 'text-purple-700',  border: 'border-purple-200' },
-  emerald: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-  rose:    { bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200' },
-  sky:     { bg: 'bg-sky-50',     text: 'text-sky-700',     border: 'border-sky-200' },
-  pink:    { bg: 'bg-pink-50',    text: 'text-pink-700',    border: 'border-pink-200' },
-  orange:  { bg: 'bg-orange-50',  text: 'text-orange-700',  border: 'border-orange-200' },
-  teal:    { bg: 'bg-teal-50',    text: 'text-teal-700',    border: 'border-teal-200' },
-  indigo:  { bg: 'bg-indigo-50',  text: 'text-indigo-700',  border: 'border-indigo-200' },
-  red:     { bg: 'bg-red-50',     text: 'text-red-700',     border: 'border-red-200' },
-  green:   { bg: 'bg-green-50',   text: 'text-green-700',   border: 'border-green-200' },
-  gray:    { bg: 'bg-gray-50',    text: 'text-gray-700',    border: 'border-gray-200' },
+const COLOR_CLASSES: Record<string, { bg: string; text: string; border: string; btn: string }> = {
+  blue:    { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200',   btn: 'bg-blue-500' },
+  amber:   { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',  btn: 'bg-amber-500' },
+  purple:  { bg: 'bg-purple-50',  text: 'text-purple-700',  border: 'border-purple-200', btn: 'bg-purple-500' },
+  emerald: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200',btn: 'bg-emerald-500' },
+  rose:    { bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200',   btn: 'bg-rose-500' },
+  sky:     { bg: 'bg-sky-50',     text: 'text-sky-700',     border: 'border-sky-200',    btn: 'bg-sky-500' },
+  pink:    { bg: 'bg-pink-50',    text: 'text-pink-700',    border: 'border-pink-200',   btn: 'bg-pink-500' },
+  orange:  { bg: 'bg-orange-50',  text: 'text-orange-700',  border: 'border-orange-200', btn: 'bg-orange-500' },
+  teal:    { bg: 'bg-teal-50',    text: 'text-teal-700',    border: 'border-teal-200',   btn: 'bg-teal-500' },
+  indigo:  { bg: 'bg-indigo-50',  text: 'text-indigo-700',  border: 'border-indigo-200', btn: 'bg-indigo-500' },
+  red:     { bg: 'bg-red-50',     text: 'text-red-700',     border: 'border-red-200',    btn: 'bg-red-500' },
+  green:   { bg: 'bg-green-50',   text: 'text-green-700',   border: 'border-green-200',  btn: 'bg-green-500' },
+  gray:    { bg: 'bg-gray-50',    text: 'text-gray-700',    border: 'border-gray-200',   btn: 'bg-gray-500' },
 };
+
+const COLOR_OPTIONS = [
+  { value: 'blue', label: 'Bleu' }, { value: 'amber', label: 'Ambre' },
+  { value: 'purple', label: 'Violet' }, { value: 'emerald', label: 'Émeraude' },
+  { value: 'rose', label: 'Rose' }, { value: 'sky', label: 'Ciel' },
+  { value: 'pink', label: 'Rose vif' }, { value: 'orange', label: 'Orange' },
+  { value: 'teal', label: 'Teal' }, { value: 'indigo', label: 'Indigo' },
+  { value: 'red', label: 'Rouge' }, { value: 'green', label: 'Vert' },
+];
 
 function getCatClasses(color: string) {
   return COLOR_CLASSES[color] ?? COLOR_CLASSES.gray;
@@ -96,10 +129,14 @@ function ItemCard({ item }: { item: CollectionItem }) {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 overflow-hidden group">
-      {firstPhoto && (
-        <div className="h-32 overflow-hidden relative">
+      {firstPhoto ? (
+        <div className="h-36 overflow-hidden relative bg-gray-50">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={firstPhoto} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        </div>
+      ) : (
+        <div className="h-20 bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center">
+          <span className="text-3xl opacity-40">{item.category?.icon ?? '📦'}</span>
         </div>
       )}
       <div className="p-5">
@@ -107,10 +144,10 @@ function ItemCard({ item }: { item: CollectionItem }) {
           {item.category && (
             <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${catClasses.bg} ${catClasses.text}`}>
               <span>{item.category.icon}</span>
-              <span className="hidden sm:inline">{item.category.name}</span>
+              <span className="hidden sm:inline truncate max-w-[80px]">{item.category.name.split(' ')[0]}</span>
             </div>
           )}
-          <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${tc.color}`}>{tc.label}</span>
+          <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${tc.color} ml-auto flex-shrink-0`}>{tc.label}</span>
         </div>
 
         <h3 className="font-bold text-gray-900 text-sm mb-2 leading-snug group-hover:text-amber-700 transition-colors line-clamp-2">{item.title}</h3>
@@ -127,14 +164,16 @@ function ItemCard({ item }: { item: CollectionItem }) {
 
         {item.tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-3">
-            {item.tags.map(t => <span key={t} className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">#{t}</span>)}
+            {item.tags.slice(0, 3).map(t => (
+              <span key={t} className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">#{t}</span>
+            ))}
           </div>
         )}
 
         <div className="flex items-center justify-between pt-3 border-t border-gray-50 text-xs text-gray-400">
-          <span>{item.author?.full_name ?? 'Membre'} · {formatRelative(item.created_at)}</span>
+          <span className="truncate max-w-[120px]">{item.author?.full_name ?? 'Membre'} · {formatRelative(item.created_at)}</span>
           <Link href={`/messages?to=${item.author_id}`}
-            className="text-amber-600 font-semibold hover:text-amber-700 flex items-center gap-1 transition-colors">
+            className="text-amber-600 font-semibold hover:text-amber-700 flex items-center gap-1 transition-colors flex-shrink-0">
             Contacter <ChevronRight className="w-3.5 h-3.5" />
           </Link>
         </div>
@@ -150,7 +189,13 @@ export default function CollectionneursPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [activeTab, setActiveTab] = useState<'annonces' | 'forum' | 'categories'>('annonces');
-  const [categories, setCategories] = useState<CollectionCategory[]>([]);
+
+  // Catégories = statiques + celles de la DB fusionnées
+  const [dbCategories, setDbCategories] = useState<CollectionCategory[]>([]);
+  const allCategories: CollectionCategory[] = dbCategories.length > 0
+    ? dbCategories
+    : STATIC_CATEGORIES;
+
   const [items, setItems] = useState<CollectionItem[]>([]);
   const [forumPosts, setForumPosts] = useState<ForumPost[]>([]);
   const [forumCategoryId, setForumCategoryId] = useState<string | null>(null);
@@ -163,7 +208,7 @@ export default function CollectionneursPage() {
   const [selectedType, setSelectedType] = useState<string>('all');
   const [search, setSearch] = useState('');
 
-  // New item form
+  // ── Formulaire nouvelle annonce ───────────────────────────────────────────
   const [showForm, setShowForm] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -172,30 +217,38 @@ export default function CollectionneursPage() {
     price: '', condition: 'bon', tags: '',
   });
 
-  // Forum form
+  // ── Formulaire nouvelle catégorie ─────────────────────────────────────────
+  const [showCatForm, setShowCatForm] = useState(false);
+  const [submittingCat, setSubmittingCat] = useState(false);
+  const [catForm, setCatForm] = useState({
+    name: '', icon: '📦', color: 'amber',
+  });
+
+  // ── Formulaire forum ──────────────────────────────────────────────────────
   const [showPostForm, setShowPostForm] = useState(false);
   const [postForm, setPostForm] = useState({ title: '', content: '' });
   const [submittingPost, setSubmittingPost] = useState(false);
 
-  // ── Fetch categories ──────────────────────────────────────────────────────
-  useEffect(() => {
-    const fetchCats = async () => {
-      try {
-        const { data, error } = await supabase.from('collection_categories').select('*').order('display_order');
-        if (error) {
-          if (error.code === '42P01' || error.message?.includes('relation') || error.message?.includes('does not exist')) {
-            setDbReady(false);
-          }
-          return;
+  // ── Fetch categories depuis DB ────────────────────────────────────────────
+  const fetchCategories = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('collection_categories')
+        .select('*')
+        .order('display_order');
+      if (error) {
+        if (error.code === '42P01' || error.message?.includes('relation') || error.message?.includes('does not exist')) {
+          setDbReady(false);
         }
-        setCategories(data || []);
-        setDbReady(true);
-      } catch (err) {
-        console.error('fetchCats error:', err);
-        setDbReady(false);
+        return;
       }
-    };
-    fetchCats();
+      if (data && data.length > 0) {
+        setDbCategories(data);
+        setDbReady(true);
+      }
+    } catch {
+      setDbReady(false);
+    }
   }, []);
 
   // ── Fetch items ───────────────────────────────────────────────────────────
@@ -213,7 +266,7 @@ export default function CollectionneursPage() {
 
       const { data, error } = await query;
       if (error) {
-        if (error.code === '42P01' || error.message?.includes('relation') || error.message?.includes('does not exist')) {
+        if (error.code === '42P01' || error.message?.includes('does not exist')) {
           setDbReady(false);
         }
         setLoadingItems(false);
@@ -221,8 +274,7 @@ export default function CollectionneursPage() {
       }
       setDbReady(true);
       setItems((data || []) as CollectionItem[]);
-    } catch (err) {
-      console.error('fetchItems error:', err);
+    } catch {
       setDbReady(false);
     }
     setLoadingItems(false);
@@ -231,35 +283,102 @@ export default function CollectionneursPage() {
   // ── Fetch forum ───────────────────────────────────────────────────────────
   const fetchForum = useCallback(async () => {
     setLoadingForum(true);
-    const { data: cats } = await supabase.from('forum_categories').select('id').eq('slug', 'collectionneurs').single();
-    const catId = cats?.id ?? null;
-    setForumCategoryId(catId);
-    if (!catId) { setLoadingForum(false); return; }
-    const { data } = await supabase
-      .from('forum_posts')
-      .select(`*, author:profiles!forum_posts_author_id_fkey(full_name, avatar_url), comment_count:forum_comments(count)`)
-      .eq('category_id', catId)
-      .eq('is_closed', false)
-      .order('created_at', { ascending: false })
-      .limit(20);
-    setForumPosts((data as unknown as ForumPost[]) || []);
+    try {
+      const { data: cats } = await supabase
+        .from('forum_categories')
+        .select('id')
+        .eq('slug', 'collectionneurs')
+        .single();
+      const catId = cats?.id ?? null;
+      setForumCategoryId(catId);
+      if (!catId) { setLoadingForum(false); return; }
+      const { data } = await supabase
+        .from('forum_posts')
+        .select(`*, author:profiles!forum_posts_author_id_fkey(full_name, avatar_url), comment_count:forum_comments(count)`)
+        .eq('category_id', catId)
+        .eq('is_closed', false)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      setForumPosts((data as unknown as ForumPost[]) || []);
+    } catch { /* silently ignore */ }
     setLoadingForum(false);
   }, []);
 
+  useEffect(() => { fetchCategories(); }, [fetchCategories]);
   useEffect(() => { fetchItems(); }, [fetchItems]);
   useEffect(() => { if (activeTab === 'forum') fetchForum(); }, [activeTab, fetchForum]);
 
-  // Filtered by search
   const filteredItems = search
-    ? items.filter(i => i.title.toLowerCase().includes(search.toLowerCase()) || i.description.toLowerCase().includes(search.toLowerCase()))
+    ? items.filter(i =>
+        i.title.toLowerCase().includes(search.toLowerCase()) ||
+        i.description.toLowerCase().includes(search.toLowerCase())
+      )
     : items;
 
-  // ── Submit item ───────────────────────────────────────────────────────────
+  // ── Créer une nouvelle catégorie ──────────────────────────────────────────
+  const handleCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile) return;
+    if (!catForm.name.trim()) { toast.error('Nom de catégorie requis'); return; }
+
+    setSubmittingCat(true);
+    const slug = catForm.name
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      + '-' + Date.now();
+
+    const { data, error } = await supabase
+      .from('collection_categories')
+      .insert({
+        name: catForm.name.trim(),
+        slug,
+        icon: catForm.icon,
+        color: catForm.color,
+        display_order: 99,
+        is_custom: true,
+        author_id: profile.id,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      toast.error('Impossible de créer la catégorie. Vérifiez la migration SQL.');
+      console.error(error);
+    } else {
+      toast.success(`Catégorie "${catForm.name}" créée !`);
+      setDbCategories(prev => [...prev, data]);
+      setCatForm({ name: '', icon: '📦', color: 'amber' });
+      setShowCatForm(false);
+    }
+    setSubmittingCat(false);
+  };
+
+  // ── Supprimer une catégorie personnalisée ─────────────────────────────────
+  const handleDeleteCategory = async (cat: CollectionCategory) => {
+    if (!profile || cat.author_id !== profile.id) return;
+    if (!confirm(`Supprimer la catégorie "${cat.name}" ?`)) return;
+    const { error } = await supabase.from('collection_categories').delete().eq('id', cat.id);
+    if (error) { toast.error('Erreur lors de la suppression'); }
+    else {
+      toast.success('Catégorie supprimée');
+      setDbCategories(prev => prev.filter(c => c.id !== cat.id));
+    }
+  };
+
+  // ── Publier une annonce ───────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
     if (!form.title.trim() || !form.description.trim() || !form.category_id) {
       toast.error('Titre, description et catégorie obligatoires');
+      return;
+    }
+    // Vérifie si la catégorie sélectionnée est statique (non DB)
+    const isStaticCat = form.category_id.startsWith('static-');
+    if (isStaticCat) {
+      toast.error("Cette catégorie n'existe pas encore en base. Exécutez la migration SQL d'abord, ou créez une catégorie personnalisée.");
       return;
     }
     setSubmitting(true);
@@ -304,7 +423,7 @@ export default function CollectionneursPage() {
       }
     }
 
-    toast.success('Annonce publiée avec succès !');
+    toast.success('Annonce publiée !');
     setForm({ title: '', description: '', category_id: '', item_type: 'vente', price: '', condition: 'bon', tags: '' });
     setPhotos([]);
     setShowForm(false);
@@ -312,7 +431,7 @@ export default function CollectionneursPage() {
     setSubmitting(false);
   };
 
-  // ── Submit forum post ─────────────────────────────────────────────────────
+  // ── Publier un message forum ──────────────────────────────────────────────
   const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile || !forumCategoryId) return;
@@ -327,9 +446,8 @@ export default function CollectionneursPage() {
       title: postForm.title.trim(),
       content: postForm.content.trim(),
     });
-    if (error) {
-      toast.error('Erreur lors de la publication');
-    } else {
+    if (error) { toast.error('Erreur lors de la publication'); }
+    else {
       toast.success('Message publié !');
       setPostForm({ title: '', content: '' });
       setShowPostForm(false);
@@ -345,13 +463,14 @@ export default function CollectionneursPage() {
 
       {/* ── BANNER migration DB ── */}
       {!dbReady && (
-        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
+        <div className="bg-amber-50 border-b border-amber-300 px-4 py-3">
           <div className="max-w-7xl mx-auto flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-bold text-amber-800">Tables de base de données manquantes</p>
+              <p className="text-sm font-bold text-amber-800">Migration SQL requise</p>
               <p className="text-xs text-amber-700 mt-0.5">
-                Exécutez le fichier <code className="bg-amber-100 px-1 rounded font-mono">src/lib/migration_themes.sql</code> dans votre éditeur SQL Supabase pour activer cette page.
+                Exécutez <code className="bg-amber-100 px-1 rounded font-mono">src/lib/migration_themes.sql</code> dans Supabase SQL Editor.
+                Les catégories affichées ci-dessous sont des exemples. Créez-en via le bouton &quot;+ Nouvelle catégorie&quot;.
               </p>
             </div>
           </div>
@@ -375,14 +494,14 @@ export default function CollectionneursPage() {
                 🏆 Collectionneurs de Biguglia
               </h1>
               <p className="text-amber-100 text-base sm:text-lg max-w-xl leading-relaxed">
-                Vendez, échangez, donnez ou recherchez des objets de collection. Rencontrez d'autres passionnés du village.
+                Vendez, échangez, donnez ou recherchez des objets de collection. Rencontrez d&apos;autres passionnés du village.
               </p>
               <div className="flex flex-wrap gap-3 mt-5">
                 {[
                   { icon: Tag,            label: `${totalCount} annonce${totalCount !== 1 ? 's' : ''}` },
                   { icon: ArrowLeftRight, label: 'Troc & don' },
                   { icon: MessageSquare,  label: 'Forum entraide' },
-                  { icon: Trophy,         label: `${categories.length} catégories` },
+                  { icon: Layers,         label: `${allCategories.length} catégories` },
                 ].map(({ icon: I, label }) => (
                   <span key={label} className="inline-flex items-center gap-1.5 bg-white/15 border border-white/25 rounded-full px-3 py-1.5 text-sm font-medium">
                     <I className="w-3.5 h-3.5" /> {label}
@@ -403,8 +522,9 @@ export default function CollectionneursPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
         {/* ── ONGLETS ── */}
-        <div className="flex gap-2 mb-8 bg-white rounded-2xl border border-gray-100 p-1.5 w-fit shadow-sm">
+        <div className="flex flex-wrap gap-2 mb-8 bg-white rounded-2xl border border-gray-100 p-1.5 w-fit shadow-sm">
           {[
             { id: 'annonces',   label: 'Annonces & troc', icon: Tag },
             { id: 'forum',      label: 'Forum',            icon: MessageSquare },
@@ -424,7 +544,7 @@ export default function CollectionneursPage() {
           ))}
         </div>
 
-        {/* ── ANNONCES ── */}
+        {/* ══ TAB : ANNONCES ══ */}
         {activeTab === 'annonces' && (
           <div>
             {/* Barre de recherche + filtres */}
@@ -444,33 +564,32 @@ export default function CollectionneursPage() {
                 <option value="don">Don</option>
                 <option value="recherche">Recherche</option>
               </select>
-              <button onClick={fetchItems} className="p-2.5 border border-gray-200 rounded-xl bg-white text-gray-400 hover:text-amber-600 hover:border-amber-300 transition-all">
+              <button onClick={fetchItems} className="p-2.5 border border-gray-200 rounded-xl bg-white text-gray-400 hover:text-amber-600 hover:border-amber-300 transition-all" title="Actualiser">
                 <RefreshCw className="w-4 h-4" />
               </button>
             </div>
 
             {/* Filtres catégorie */}
-            {categories.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-6">
-                <button onClick={() => setSelectedCat('all')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${selectedCat === 'all' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-gray-600 border-gray-200 hover:border-amber-300'}`}>
-                  Tout
-                </button>
-                {categories.map(cat => {
-                  const cls = getCatClasses(cat.color);
-                  return (
-                    <button key={cat.id} onClick={() => setSelectedCat(cat.id)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-                        selectedCat === cat.id
-                          ? `${cls.bg} ${cls.text} ${cls.border} shadow-sm`
-                          : 'bg-white text-gray-600 border-gray-200 hover:border-amber-200'
-                      }`}>
-                      <span>{cat.icon}</span> {cat.name.split(' ')[0]}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            <div className="flex flex-wrap gap-2 mb-6">
+              <button onClick={() => setSelectedCat('all')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${selectedCat === 'all' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-gray-600 border-gray-200 hover:border-amber-300'}`}>
+                Tout ({items.length})
+              </button>
+              {allCategories.map(cat => {
+                const cls = getCatClasses(cat.color);
+                return (
+                  <button key={cat.id} onClick={() => setSelectedCat(cat.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                      selectedCat === cat.id
+                        ? `${cls.bg} ${cls.text} ${cls.border} shadow-sm`
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-amber-200'
+                    }`}>
+                    <span>{cat.icon}</span>
+                    <span className="max-w-[80px] truncate">{cat.name.split(' ')[0]}</span>
+                  </button>
+                );
+              })}
+            </div>
 
             {/* Formulaire de publication */}
             {showForm && profile && (
@@ -478,7 +597,7 @@ export default function CollectionneursPage() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-bold text-gray-800 text-lg">Publier une annonce</h3>
                   <button type="button" onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
-                    <X className="w-4 h-4" />
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
 
@@ -489,8 +608,12 @@ export default function CollectionneursPage() {
                   />
                   <select value={form.category_id} onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))} required
                     className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-300">
-                    <option value="">Catégorie... *</option>
-                    {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+                    <option value="">Choisir une catégorie *</option>
+                    {allCategories.map(c => (
+                      <option key={c.id} value={c.id} disabled={c.id.startsWith('static-')}>
+                        {c.icon} {c.name}{c.id.startsWith('static-') ? ' (migration requise)' : ''}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -517,12 +640,12 @@ export default function CollectionneursPage() {
                   )}
                 </div>
 
-                <textarea placeholder="Description de votre objet, état, prix souhaité, conditions de remise en main propre..." required
+                <textarea placeholder="Description : état, histoire de l'objet, conditions d'échange..." required
                   rows={4} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none mb-3 focus:outline-none focus:ring-2 focus:ring-amber-300"
                 />
 
-                <input type="text" placeholder="Tags (ex: timbres, france, rare)"
+                <input type="text" placeholder="Tags (ex: timbres, france, rare) — séparés par virgule"
                   value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-amber-300"
                 />
@@ -575,7 +698,9 @@ export default function CollectionneursPage() {
             ) : filteredItems.length === 0 ? (
               <div className="py-16 text-center">
                 <Package className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                <p className="text-gray-500 font-semibold text-lg">{search ? 'Aucun résultat pour cette recherche' : 'Aucune annonce pour l\'instant'}</p>
+                <p className="text-gray-500 font-semibold text-lg">
+                  {search ? 'Aucun résultat pour cette recherche' : 'Aucune annonce pour l\'instant'}
+                </p>
                 {profile && !search && (
                   <button onClick={() => setShowForm(true)}
                     className="mt-4 inline-flex items-center gap-2 bg-amber-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-amber-600 transition-all">
@@ -602,18 +727,19 @@ export default function CollectionneursPage() {
               </div>
             )}
 
-            {/* Conseil anti-arnaque */}
             <div className="mt-6 bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-3">
               <BadgeCheck className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-bold text-amber-800 mb-1">💡 Conseil anti-arnaque</p>
-                <p className="text-amber-700 text-sm leading-relaxed">Pour tout achat, privilégiez les échanges en main propre à Biguglia. Ne jamais envoyer d'argent avant d'avoir vu l'objet. En cas de doute, signalez l'annonce.</p>
+                <p className="text-amber-700 text-sm leading-relaxed">
+                  Privilégiez les échanges en main propre à Biguglia. Ne jamais envoyer d&apos;argent avant d&apos;avoir vu l&apos;objet.
+                </p>
               </div>
             </div>
           </div>
         )}
 
-        {/* ── FORUM ── */}
+        {/* ══ TAB : FORUM ══ */}
         {activeTab === 'forum' && (
           <div className="max-w-3xl">
             <div className="flex items-center justify-between mb-6">
@@ -660,7 +786,7 @@ export default function CollectionneursPage() {
             ) : forumPosts.length === 0 ? (
               <div className="text-center py-16">
                 <MessageSquare className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-                <p className="text-gray-500 font-medium">Aucun sujet pour l'instant</p>
+                <p className="text-gray-500 font-medium">Aucun sujet pour l&apos;instant</p>
                 {profile && (
                   <button onClick={() => setShowPostForm(true)}
                     className="mt-4 text-amber-600 font-semibold text-sm hover:underline">
@@ -702,36 +828,191 @@ export default function CollectionneursPage() {
           </div>
         )}
 
-        {/* ── CATÉGORIES ── */}
+        {/* ══ TAB : CATÉGORIES ══ */}
         {activeTab === 'categories' && (
           <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Toutes les catégories de collection</h2>
-            {categories.length === 0 ? (
-              <div className="text-center py-12">
-                <Loader2 className="w-8 h-8 text-amber-300 animate-spin mx-auto" />
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Catégories de collection</h2>
+                <p className="text-gray-500 text-sm mt-0.5">{allCategories.length} catégories disponibles</p>
               </div>
-            ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {categories.map(cat => {
-                  const cls = getCatClasses(cat.color);
-                  return (
-                    <button key={cat.id}
-                      onClick={() => { setSelectedCat(cat.id); setActiveTab('annonces'); }}
-                      className={`group ${cls.bg} ${cls.border} border rounded-2xl p-5 text-left hover:shadow-md transition-all duration-300 hover:-translate-y-0.5`}>
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-3xl">{cat.icon}</span>
-                      </div>
-                      <h3 className={`font-bold text-sm ${cls.text} leading-snug`}>{cat.name}</h3>
-                      <p className="text-gray-500 text-xs mt-1 group-hover:text-gray-700 transition-colors flex items-center gap-1">
-                        Voir les annonces <ChevronRight className="w-3 h-3" />
-                      </p>
+              {profile && (
+                <button
+                  onClick={() => setShowCatForm(!showCatForm)}
+                  className="inline-flex items-center gap-2 bg-amber-500 text-white font-bold px-5 py-2.5 rounded-xl hover:bg-amber-600 transition-all text-sm shadow-sm"
+                >
+                  <Plus className="w-4 h-4" /> Nouvelle catégorie
+                </button>
+              )}
+            </div>
+
+            {/* ── Formulaire création catégorie ── */}
+            {showCatForm && profile && (
+              <form onSubmit={handleCreateCategory}
+                className="bg-white rounded-2xl border-2 border-amber-200 p-6 mb-8 shadow-md">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center">
+                      <Pencil className="w-4 h-4 text-amber-600" />
+                    </div>
+                    <h3 className="font-bold text-gray-800 text-base">Créer une nouvelle catégorie</h3>
+                  </div>
+                  <button type="button" onClick={() => setShowCatForm(false)} className="text-gray-400 hover:text-gray-600">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1.5">Nom de la catégorie *</label>
+                    <input
+                      type="text"
+                      placeholder="Ex : Capsules de champagne, BD anciennes…"
+                      required
+                      value={catForm.name}
+                      onChange={e => setCatForm(f => ({ ...f, name: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1.5">Couleur du badge</label>
+                    <div className="grid grid-cols-6 gap-1.5">
+                      {COLOR_OPTIONS.map(opt => {
+                        const cls = getCatClasses(opt.value);
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            title={opt.label}
+                            onClick={() => setCatForm(f => ({ ...f, color: opt.value }))}
+                            className={`w-8 h-8 rounded-lg border-2 transition-all ${cls.btn} ${
+                              catForm.color === opt.value ? 'border-gray-800 scale-110 shadow-md' : 'border-transparent opacity-60 hover:opacity-100'
+                            }`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mb-5">
+                  <label className="block text-xs font-bold text-gray-600 mb-2">Emoji représentatif</label>
+                  <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto bg-gray-50 rounded-xl p-2">
+                    {EMOJI_CHOICES.map(emoji => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => setCatForm(f => ({ ...f, icon: emoji }))}
+                        className={`w-9 h-9 text-xl rounded-lg flex items-center justify-center transition-all ${
+                          catForm.icon === emoji
+                            ? 'bg-amber-200 border-2 border-amber-500 scale-110'
+                            : 'bg-white border border-gray-200 hover:bg-amber-50'
+                        }`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Aperçu */}
+                <div className="mb-5 p-3 bg-gray-50 rounded-xl flex items-center gap-3">
+                  <span className="text-xs text-gray-500 font-medium">Aperçu :</span>
+                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm font-bold ${getCatClasses(catForm.color).bg} ${getCatClasses(catForm.color).text} ${getCatClasses(catForm.color).border}`}>
+                    <span>{catForm.icon}</span>
+                    <span>{catForm.name || 'Ma catégorie'}</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button type="submit" disabled={submittingCat}
+                    className="flex items-center gap-2 bg-amber-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-amber-600 disabled:opacity-50 transition-all">
+                    {submittingCat ? <><Loader2 className="w-4 h-4 animate-spin" /> Création...</> : <><Plus className="w-4 h-4" /> Créer la catégorie</>}
+                  </button>
+                  <button type="button" onClick={() => setShowCatForm(false)}
+                    className="px-5 py-2.5 rounded-xl text-sm text-gray-500 hover:bg-gray-100">Annuler</button>
+                </div>
+              </form>
+            )}
+
+            {/* Grille des catégories */}
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {allCategories.map(cat => {
+                const cls = getCatClasses(cat.color);
+                const isOwner = profile && cat.author_id === profile.id;
+                const isStatic = cat.id.startsWith('static-');
+                return (
+                  <div key={cat.id}
+                    className={`group relative ${cls.bg} ${cls.border} border-2 rounded-2xl p-5 hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 ${isStatic ? 'opacity-75' : ''}`}>
+                    {/* Badge statique */}
+                    {isStatic && (
+                      <span className="absolute top-2 right-2 text-[9px] font-bold bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded-full uppercase tracking-wide">
+                        exemple
+                      </span>
+                    )}
+                    {/* Badge personnalisé */}
+                    {cat.is_custom && !isStatic && (
+                      <span className="absolute top-2 right-2 text-[9px] font-bold bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full uppercase tracking-wide">
+                        perso
+                      </span>
+                    )}
+
+                    <div className="flex items-start justify-between mb-3">
+                      <span className="text-3xl">{cat.icon}</span>
+                      {isOwner && !isStatic && (
+                        <button
+                          onClick={() => handleDeleteCategory(cat)}
+                          className="opacity-0 group-hover:opacity-100 p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    <h3 className={`font-bold text-sm ${cls.text} leading-snug mb-1`}>{cat.name}</h3>
+
+                    <button
+                      onClick={() => { if (!isStatic) { setSelectedCat(cat.id); setActiveTab('annonces'); } }}
+                      className={`mt-2 text-xs flex items-center gap-1 transition-colors ${isStatic ? 'text-gray-400 cursor-default' : `${cls.text} hover:underline cursor-pointer`}`}
+                    >
+                      {isStatic ? 'Migration SQL requise' : 'Voir les annonces'}
+                      {!isStatic && <ChevronRight className="w-3 h-3" />}
                     </button>
-                  );
-                })}
+                  </div>
+                );
+              })}
+
+              {/* Card "Créer" */}
+              {profile && (
+                <button
+                  onClick={() => setShowCatForm(true)}
+                  className="border-2 border-dashed border-amber-300 rounded-2xl p-5 flex flex-col items-center justify-center gap-2 hover:border-amber-500 hover:bg-amber-50 transition-all duration-300 group min-h-[120px]"
+                >
+                  <div className="w-10 h-10 bg-amber-100 group-hover:bg-amber-200 rounded-xl flex items-center justify-center transition-colors">
+                    <Plus className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <span className="text-sm font-bold text-amber-600">Nouvelle catégorie</span>
+                  <span className="text-xs text-amber-500">Créez votre propre thème</span>
+                </button>
+              )}
+            </div>
+
+            {!profile && (
+              <div className="mt-8 bg-amber-50 border border-amber-200 rounded-2xl p-5 flex flex-col sm:flex-row items-center gap-4">
+                <div className="flex-1">
+                  <p className="font-bold text-amber-800">Vous avez une collection unique ?</p>
+                  <p className="text-amber-600 text-sm">Connectez-vous pour créer votre propre catégorie et publier des annonces.</p>
+                </div>
+                <Link href="/connexion"
+                  className="flex-shrink-0 inline-flex items-center gap-2 bg-amber-500 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-amber-600 transition-all">
+                  Se connecter
+                </Link>
               </div>
             )}
           </div>
         )}
+
       </div>
     </div>
   );

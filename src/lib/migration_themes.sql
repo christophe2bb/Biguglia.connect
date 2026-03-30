@@ -103,7 +103,9 @@ CREATE TABLE IF NOT EXISTS collection_categories (
   slug TEXT NOT NULL UNIQUE,
   icon TEXT NOT NULL DEFAULT '📦',
   color TEXT NOT NULL DEFAULT 'gray',
-  display_order INT NOT NULL DEFAULT 0
+  display_order INT NOT NULL DEFAULT 0,
+  is_custom BOOLEAN NOT NULL DEFAULT false,
+  author_id UUID REFERENCES profiles(id) ON DELETE SET NULL
 );
 
 INSERT INTO collection_categories (name, slug, icon, color, display_order) VALUES
@@ -149,6 +151,8 @@ CREATE TABLE IF NOT EXISTS collection_item_photos (
 -- RLS Collection
 ALTER TABLE collection_categories ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "collection_categories_select" ON collection_categories FOR SELECT USING (true);
+CREATE POLICY "collection_categories_insert" ON collection_categories FOR INSERT WITH CHECK (auth.uid() = author_id);
+CREATE POLICY "collection_categories_delete" ON collection_categories FOR DELETE USING (auth.uid() = author_id);
 
 ALTER TABLE collection_items ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "collection_items_select" ON collection_items FOR SELECT USING (status = 'active');
