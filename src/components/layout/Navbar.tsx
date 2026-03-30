@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, X, Bell, MessageSquare, User, LogOut, Shield, Home, Wrench, BookOpen, Package, ChevronDown } from 'lucide-react';
+import { Menu, X, Bell, MessageSquare, User, LogOut, Shield, Home, Wrench, BookOpen, Package, ChevronDown, PenLine, Drill } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { useUnreadCounts } from '@/hooks/useUnreadCounts';
@@ -12,10 +12,10 @@ import Avatar from '@/components/ui/Avatar';
 import Logo from '@/components/ui/Logo';
 
 const navLinks = [
-  { href: '/artisans', label: 'Artisans', icon: Wrench, color: 'text-brand-600' },
-  { href: '/annonces', label: 'Annonces', icon: Package, color: 'text-ocean-600' },
-  { href: '/materiel', label: 'Matériel', icon: Package, color: 'text-maquis-600' },
-  { href: '/forum', label: 'Forum', icon: BookOpen, color: 'text-sand-600' },
+  { href: '/artisans', label: 'Artisans', icon: Wrench },
+  { href: '/annonces', label: 'Annonces', icon: Package },
+  { href: '/materiel', label: 'Matériel', icon: Drill },
+  { href: '/forum', label: 'Forum', icon: BookOpen },
 ];
 
 // Badge rouge avec compteur
@@ -217,6 +217,11 @@ export default function Navbar() {
                             </Link>
                           )}
                           <div className="my-1.5 border-t border-gray-100" />
+                          <Link href="/confiance" onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                            <Shield className="w-4 h-4 text-emerald-500" /> Confiance & Sécurité
+                          </Link>
+                          <div className="my-1.5 border-t border-gray-100" />
                           <button
                             onClick={() => { setUserMenuOpen(false); handleSignOut(); }}
                             className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-red-600 hover:bg-red-50 transition-colors"
@@ -232,6 +237,12 @@ export default function Navbar() {
             ) : (
               <div className="flex items-center gap-2">
                 <Link
+                  href="/artisans/demande"
+                  className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-brand-500 to-brand-600 text-white text-sm font-bold rounded-xl hover:from-brand-600 hover:to-brand-700 transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-px"
+                >
+                  <PenLine className="w-4 h-4" /> Déposer une demande
+                </Link>
+                <Link
                   href="/connexion"
                   className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
                 >
@@ -239,7 +250,7 @@ export default function Navbar() {
                 </Link>
                 <Link
                   href="/inscription"
-                  className="px-4 py-2 bg-gradient-to-r from-brand-500 to-brand-600 text-white text-sm font-semibold rounded-xl hover:from-brand-600 hover:to-brand-700 transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-px"
+                  className="px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-px"
                 >
                   S&apos;inscrire
                 </Link>
@@ -275,6 +286,15 @@ export default function Navbar() {
                   {label}
                 </Link>
               ))}
+              {!profile && (
+                <Link
+                  href="/artisans/demande"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-brand-700 bg-brand-50 transition-colors"
+                >
+                  <PenLine className="w-4 h-4" /> Déposer une demande
+                </Link>
+              )}
             </div>
             {profile && (
               <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
