@@ -230,7 +230,7 @@ export default function HomePage() {
       {/* ══════════════════════════════════════
           HERO — ultra-moderne
       ══════════════════════════════════════ */}
-      <section className="relative min-h-[92vh] flex items-center overflow-hidden bg-gradient-to-br from-slate-950 via-gray-900 to-slate-900">
+      <section className="relative min-h-[92vh] flex items-center overflow-hidden bg-gradient-to-br from-orange-50 via-amber-50 to-sky-50">
         {/* Orbs */}
         <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-blue-500/8 rounded-full blur-3xl pointer-events-none" />
@@ -243,21 +243,21 @@ export default function HomePage() {
             {/* LEFT */}
             <div className={`transition-all duration-700 ${heroLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
               {/* Location badge */}
-              <div className="inline-flex items-center gap-2.5 bg-white/8 border border-white/15 rounded-full px-4 py-2 mb-8">
-                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                <span className="text-sm font-semibold text-gray-300">Biguglia · Haute-Corse</span>
+              <div className="inline-flex items-center gap-2.5 bg-white/80 border border-orange-200 rounded-full px-4 py-2 mb-8 shadow-sm">
+                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                <MapPin className="w-3.5 h-3.5 text-brand-500" />
+                <span className="text-sm font-semibold text-gray-700">Biguglia · Haute-Corse</span>
               </div>
 
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-[1.0] mb-6 tracking-tight">
+              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 leading-[1.0] mb-6 tracking-tight">
                 Votre village,{' '}
                 <br />
-                <span className="bg-gradient-to-r from-brand-400 via-orange-400 to-amber-400 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-brand-500 via-orange-500 to-amber-500 bg-clip-text text-transparent">
                   vos artisans.
                 </span>
               </h1>
 
-              <p className="text-gray-400 text-lg sm:text-xl leading-relaxed mb-10 max-w-lg">
+              <p className="text-gray-600 text-lg sm:text-xl leading-relaxed mb-10 max-w-lg">
                 Trouvez un artisan local vérifié, échangez des services, prêtez du matériel et rejoignez la communauté de Biguglia — gratuitement.
               </p>
 
@@ -274,9 +274,9 @@ export default function HomePage() {
                 </Link>
                 <Link
                   href="/artisans"
-                  className="group inline-flex items-center justify-center gap-2 bg-white/8 text-white px-8 py-4 rounded-2xl font-bold text-base border border-white/15 hover:bg-white/15 hover:border-white/30 transition-all duration-300 backdrop-blur"
+                  className="group inline-flex items-center justify-center gap-2 bg-white text-gray-700 px-8 py-4 rounded-2xl font-bold text-base border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 shadow-md"
                 >
-                  <Wrench className="w-5 h-5 text-gray-400" />
+                  <Wrench className="w-5 h-5 text-brand-500" />
                   Trouver un artisan
                   <ChevronRight className="w-4 h-4 text-gray-500 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
@@ -285,12 +285,12 @@ export default function HomePage() {
               {/* Trust chips */}
               <div className={`flex flex-wrap gap-2 transition-all duration-700 delay-400 ${heroLoaded ? 'opacity-100' : 'opacity-0'}`}>
                 {[
-                  { icon: Shield,       text: 'Artisans vérifiés', color: 'text-emerald-400', bg: 'bg-emerald-400/10 border-emerald-400/20' },
-                  { icon: CheckCircle,  text: '100% gratuit',       color: 'text-sky-400',     bg: 'bg-sky-400/10 border-sky-400/20' },
-                  { icon: MapPin,       text: '100% local',          color: 'text-amber-400',   bg: 'bg-amber-400/10 border-amber-400/20' },
+                  { icon: Shield,       text: 'Artisans vérifiés', color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
+                  { icon: CheckCircle,  text: '100% gratuit',       color: 'text-sky-600',     bg: 'bg-sky-50 border-sky-200' },
+                  { icon: MapPin,       text: '100% local',          color: 'text-amber-600',   bg: 'bg-amber-50 border-amber-200' },
                 ].map(({ icon: I, text, color, bg }) => (
                   <span key={text} className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border ${bg}`}>
-                    <I className={`w-3.5 h-3.5 ${color}`} /><span className="text-gray-300">{text}</span>
+                    <I className={`w-3.5 h-3.5 ${color}`} /><span className="text-gray-700">{text}</span>
                   </span>
                 ))}
               </div>
@@ -303,28 +303,28 @@ export default function HomePage() {
                   <HeroIllustration />
                 </div>
                 {/* Floating card — artisan */}
-                <div className="absolute -bottom-6 -left-6 bg-gray-900/90 backdrop-blur-xl rounded-2xl ring-1 ring-white/10 p-4 w-60 animate-float" style={{ animationDelay: '1.2s' }}>
+                <div className="absolute -bottom-6 -left-6 bg-white shadow-xl rounded-2xl ring-1 ring-gray-100 p-4 w-60 animate-float" style={{ animationDelay: '1.2s' }}>
                   <div className="flex items-center gap-3 mb-2.5">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-lg shadow-lg">🔧</div>
                     <div>
-                      <div className="font-bold text-white text-sm">Jean-Pierre M.</div>
-                      <div className="text-xs text-gray-400">Plombier · Biguglia</div>
+                      <div className="font-bold text-gray-900 text-sm">Jean-Pierre M.</div>
+                      <div className="text-xs text-gray-500">Plombier · Biguglia</div>
                     </div>
-                    <span className="ml-auto text-[10px] bg-emerald-400/20 text-emerald-400 font-bold px-2 py-0.5 rounded-full whitespace-nowrap border border-emerald-400/30">● Dispo</span>
+                    <span className="ml-auto text-[10px] bg-emerald-50 text-emerald-600 font-bold px-2 py-0.5 rounded-full whitespace-nowrap border border-emerald-200">● Dispo</span>
                   </div>
                   <div className="flex gap-0.5">
                     {[1,2,3,4,5].map(i => <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />)}
-                    <span className="text-xs text-gray-400 ml-1">5.0</span>
+                    <span className="text-xs text-gray-500 ml-1">5.0</span>
                   </div>
                 </div>
                 {/* Floating badge — verified */}
-                <div className="absolute -top-4 -right-4 bg-gray-900/90 backdrop-blur-xl rounded-2xl ring-1 ring-emerald-400/30 px-3 py-2.5 flex items-center gap-2 shadow-xl animate-bounce-soft">
-                  <div className="w-8 h-8 bg-emerald-400/20 rounded-xl flex items-center justify-center">
-                    <Shield className="w-4 h-4 text-emerald-400" />
+                <div className="absolute -top-4 -right-4 bg-white shadow-xl rounded-2xl ring-1 ring-emerald-200 px-3 py-2.5 flex items-center gap-2 animate-bounce-soft">
+                  <div className="w-8 h-8 bg-emerald-100 rounded-xl flex items-center justify-center">
+                    <Shield className="w-4 h-4 text-emerald-600" />
                   </div>
                   <div className="text-xs">
-                    <div className="font-bold text-white">Vérifié ✓</div>
-                    <div className="text-gray-400">Documents validés</div>
+                    <div className="font-bold text-gray-900">Vérifié ✓</div>
+                    <div className="text-gray-500">Documents validés</div>
                   </div>
                 </div>
               </div>
@@ -504,63 +504,63 @@ export default function HomePage() {
       {/* ══════════════════════════════════════
           CONFIANCE & PREUVES
       ══════════════════════════════════════ */}
-      <section className="py-20 bg-gradient-to-br from-slate-950 via-gray-900 to-slate-900 relative overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-brand-500/8 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-emerald-500/6 rounded-full blur-3xl pointer-events-none" />
+      <section className="py-20 bg-gradient-to-br from-emerald-50 via-sky-50 to-blue-50 relative overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-emerald-200/30 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-sky-200/25 rounded-full blur-3xl pointer-events-none" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
-            <div className="inline-flex items-center gap-2 bg-emerald-400/10 border border-emerald-400/20 rounded-full px-4 py-2 mb-5">
-              <Shield className="w-4 h-4 text-emerald-400" />
-              <span className="text-emerald-400 text-sm font-bold">Notre engagement</span>
+            <div className="inline-flex items-center gap-2 bg-emerald-100 border border-emerald-200 rounded-full px-4 py-2 mb-5">
+              <Shield className="w-4 h-4 text-emerald-600" />
+              <span className="text-emerald-700 text-sm font-bold">Notre engagement</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">Pourquoi nous faire confiance ?</h2>
-            <p className="text-gray-400 text-lg max-w-2xl mx-auto">Des preuves concrètes, pas des promesses vagues</p>
+            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4">Pourquoi nous faire confiance ?</h2>
+            <p className="text-gray-500 text-lg max-w-2xl mx-auto">Des preuves concrètes, pas des promesses vagues</p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
             {[
               {
                 icon: Shield, title: 'Vérification manuelle',
                 desc: 'Chaque artisan est examiné un par un par notre équipe avant d\'être publié. Zéro automatisation sur la validation.',
-                accent: 'text-emerald-400', bg: 'bg-emerald-400/8 border-emerald-400/20',
+                accent: 'text-emerald-700', bg: 'bg-white border-emerald-200', iconBg: 'bg-emerald-100',
               },
               {
                 icon: AlertCircle, title: 'Documents contrôlés',
                 desc: 'Attestation d\'assurance RC Pro, SIRET vérifié, identité confirmée. Les profils "Professionnel vérifié" le sont vraiment.',
-                accent: 'text-sky-400', bg: 'bg-sky-400/8 border-sky-400/20',
+                accent: 'text-sky-700', bg: 'bg-white border-sky-200', iconBg: 'bg-sky-100',
               },
               {
                 icon: Star, title: 'Avis clients réels',
                 desc: 'Seuls les membres inscrits ayant effectué une demande peuvent laisser un avis. Impossible de falsifier.',
-                accent: 'text-amber-400', bg: 'bg-amber-400/8 border-amber-400/20',
+                accent: 'text-amber-700', bg: 'bg-white border-amber-200', iconBg: 'bg-amber-100',
               },
               {
                 icon: MessageSquare, title: 'Messagerie sécurisée',
                 desc: 'Vos échanges restent dans la plateforme. Votre numéro de téléphone ne circule jamais sans votre accord.',
-                accent: 'text-purple-400', bg: 'bg-purple-400/8 border-purple-400/20',
+                accent: 'text-purple-700', bg: 'bg-white border-purple-200', iconBg: 'bg-purple-100',
               },
               {
                 icon: Bell, title: 'Signalement facilité',
                 desc: 'Un bouton "Signaler" sur chaque profil, chaque annonce et chaque message. Notre équipe traite sous 24h.',
-                accent: 'text-rose-400', bg: 'bg-rose-400/8 border-rose-400/20',
+                accent: 'text-rose-700', bg: 'bg-white border-rose-200', iconBg: 'bg-rose-100',
               },
               {
                 icon: Users, title: 'Communauté modérée',
                 desc: 'Un modérateur humain surveille le forum et les annonces. Pas de bots, pas d\'automatisation aveugle.',
-                accent: 'text-indigo-400', bg: 'bg-indigo-400/8 border-indigo-400/20',
+                accent: 'text-indigo-700', bg: 'bg-white border-indigo-200', iconBg: 'bg-indigo-100',
               },
-            ].map(({ icon: Icon, title, desc, accent, bg }) => (
-              <div key={title} className={`${bg} border rounded-2xl p-6`}>
-                <div className={`inline-flex p-2.5 rounded-xl ${bg} mb-4`}>
+            ].map(({ icon: Icon, title, desc, accent, bg, iconBg }) => (
+              <div key={title} className={`${bg} border rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow`}>
+                <div className={`inline-flex p-2.5 rounded-xl ${iconBg} mb-4`}>
                   <Icon className={`w-5 h-5 ${accent}`} />
                 </div>
-                <h3 className="font-bold text-white mb-2">{title}</h3>
-                <p className="text-gray-400 text-sm leading-relaxed">{desc}</p>
+                <h3 className="font-bold text-gray-900 mb-2">{title}</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
               </div>
             ))}
           </div>
           <div className="text-center">
             <Link href="/confiance"
-              className="inline-flex items-center gap-2 text-gray-300 font-semibold hover:text-white transition-colors group">
+              className="inline-flex items-center gap-2 text-brand-600 font-semibold hover:text-brand-700 transition-colors group">
               Voir notre politique de confiance complète
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
@@ -602,41 +602,41 @@ export default function HomePage() {
           CTA — inscription
       ══════════════════════════════════════ */}
       {!profile && (
-        <section className="relative py-24 overflow-hidden bg-gradient-to-br from-slate-950 via-gray-900 to-slate-900">
-          <div className="absolute -top-20 -right-20 w-80 h-80 bg-brand-500/15 rounded-full blur-3xl animate-pulse-soft pointer-events-none" />
-          <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-blue-500/8 rounded-full blur-3xl animate-float-slow pointer-events-none" />
+        <section className="relative py-24 overflow-hidden bg-gradient-to-br from-brand-50 via-orange-50 to-amber-50">
+          <div className="absolute -top-20 -right-20 w-80 h-80 bg-brand-200/30 rounded-full blur-3xl animate-pulse-soft pointer-events-none" />
+          <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-amber-200/25 rounded-full blur-3xl animate-float-slow pointer-events-none" />
           <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <div className="inline-flex p-3 bg-brand-500/20 rounded-2xl mb-6 border border-brand-500/30">
-              <Users className="w-8 h-8 text-brand-400" />
+            <div className="inline-flex p-3 bg-brand-100 rounded-2xl mb-6 border border-brand-200">
+              <Users className="w-8 h-8 text-brand-600" />
             </div>
-            <h2 className="text-4xl sm:text-5xl font-black text-white mb-6 leading-tight">
+            <h2 className="text-4xl sm:text-5xl font-black text-gray-900 mb-6 leading-tight">
               Rejoignez la communauté<br />
-              <span className="bg-gradient-to-r from-brand-400 to-amber-400 bg-clip-text text-transparent">de Biguglia</span>
+              <span className="bg-gradient-to-r from-brand-500 to-amber-500 bg-clip-text text-transparent">de Biguglia</span>
             </h2>
-            <p className="text-gray-400 text-lg mb-10 max-w-2xl mx-auto">
+            <p className="text-gray-600 text-lg mb-10 max-w-2xl mx-auto">
               Habitant ou artisan, inscrivez-vous gratuitement et commencez dès aujourd&apos;hui.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
               <Link href="/inscription"
-                className="group inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-brand-500 to-brand-600 text-white px-8 py-4 rounded-2xl font-bold text-base hover:from-brand-400 hover:to-brand-500 transition-all duration-300 shadow-xl hover:-translate-y-0.5">
+                className="group inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-brand-500 to-brand-600 text-white px-8 py-4 rounded-2xl font-bold text-base hover:from-brand-600 hover:to-brand-700 transition-all duration-300 shadow-lg hover:-translate-y-0.5">
                 🏠 Créer un compte habitant <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link href="/inscription?role=artisan"
-                className="group inline-flex items-center justify-center gap-2 bg-white/8 text-white px-8 py-4 rounded-2xl font-bold text-base border border-white/20 hover:bg-white/15 transition-all duration-300 backdrop-blur">
+                className="group inline-flex items-center justify-center gap-2 bg-white text-gray-800 px-8 py-4 rounded-2xl font-bold text-base border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 shadow-md">
                 🔨 Rejoindre en tant qu&apos;artisan
               </Link>
             </div>
-            <div className="flex flex-wrap justify-center gap-10 pt-8 border-t border-white/10">
+            <div className="flex flex-wrap justify-center gap-10 pt-8 border-t border-orange-200">
               {[
                 { v: counts.artisans, l: 'Artisans', ld: countsLoading },
                 { v: counts.membres,  l: 'Membres',  ld: countsLoading },
                 { v: 0, l: 'Inscription', ld: false, suf: '€' },
               ].map(({ v, l, ld, suf }) => (
                 <div key={l} className="text-center">
-                  <div className="text-3xl font-black text-white">
-                    {ld ? <Loader2 className="w-7 h-7 animate-spin text-gray-600 inline" /> : <>{v}{suf || ''}</>}
+                  <div className="text-3xl font-black text-gray-900">
+                    {ld ? <Loader2 className="w-7 h-7 animate-spin text-gray-400 inline" /> : <>{v}{suf || ''}</>}
                   </div>
-                  <div className="text-sm text-gray-400 font-medium">{l}</div>
+                  <div className="text-sm text-gray-500 font-medium">{l}</div>
                 </div>
               ))}
             </div>
