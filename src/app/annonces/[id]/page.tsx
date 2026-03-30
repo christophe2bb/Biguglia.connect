@@ -75,23 +75,39 @@ export default function AnnonceDetailPage() {
     }
     if (!listing) return;
 
-    const supabase = createClient();
-
-    // Check if conversation already exists
-    const { data: existing } = await supabase
-      .from('conversations')
-      .select('id, participants:conversation_participants(user_id)')
-      .eq('related_type', 'listing')
-      .eq('related_id', listing.id)
-      .single();
-
-    if (existing && existing.participants?.some((p: { user_id: string }) => p.user_id === profile.id)) {
-      router.push(`/messages/${existing.id}`);
+    // Don't contact yourself
+    if (profile.id === listing.user_id) {
+      toast.error('Vous ne pouvez pas vous contacter vous-même');
       return;
     }
 
+    const supabase = createClient();
+
+    // Check if a conversation already exists for this listing with the current user
+    // Use maybeSingle() to avoid crash when no row found
+    const { data: myParticipations } = await supabase
+      .from('conversation_participants')
+      .select('conversation_id')
+      .eq('user_id', profile.id);
+
+    if (myParticipations && myParticipations.length > 0) {
+      const myConvIds = myParticipations.map((p: { conversation_id: string }) => p.conversation_id);
+      const { data: existing } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('related_type', 'listing')
+        .eq('related_id', listing.id)
+        .in('id', myConvIds)
+        .maybeSingle();
+
+      if (existing) {
+        router.push(`/messages/${existing.id}`);
+        return;
+      }
+    }
+
     // Create new conversation
-    const { data: conv } = await supabase
+    const { data: conv, error: convError } = await supabase
       .from('conversations')
       .insert({
         subject: listing.title,
@@ -101,13 +117,26 @@ export default function AnnonceDetailPage() {
       .select()
       .single();
 
-    if (conv) {
-      await supabase.from('conversation_participants').insert([
+    if (convError || !conv) {
+      console.error('Conversation error:', convError);
+      toast.error('Erreur lors de la création de la conversation');
+      return;
+    }
+
+    const { error: partError } = await supabase
+      .from('conversation_participants')
+      .insert([
         { conversation_id: conv.id, user_id: profile.id },
         { conversation_id: conv.id, user_id: listing.user_id },
       ]);
-      router.push(`/messages/${conv.id}`);
+
+    if (partError) {
+      console.error('Participants error:', partError);
+      toast.error('Erreur lors de l\'ouverture de la messagerie');
+      return;
     }
+
+    router.push(`/messages/${conv.id}`);
   };
 
   const handleReport = async () => {

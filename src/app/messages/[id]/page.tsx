@@ -37,7 +37,7 @@ export default function ConversationPage() {
       // Vérifier accès
       const { data: participants } = await supabase
         .from('conversation_participants')
-        .select('user_id, profile:profiles(id, full_name, avatar_url)')
+        .select('user_id')
         .eq('conversation_id', id as string);
 
       if (!participants?.find(p => p.user_id === profile.id)) {
@@ -46,8 +46,16 @@ export default function ConversationPage() {
         return;
       }
 
-      const other = participants.find(p => p.user_id !== profile.id);
-      setOtherUser((other?.profile as unknown as Profile) || null);
+      // Récupérer le profil de l'autre participant
+      const otherParticipant = participants.find(p => p.user_id !== profile.id);
+      if (otherParticipant) {
+        const { data: otherProfile } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .eq('id', otherParticipant.user_id)
+          .single();
+        setOtherUser((otherProfile as unknown as Profile) || null);
+      }
 
       // Sujet
       const { data: conv } = await supabase
@@ -57,14 +65,28 @@ export default function ConversationPage() {
         .single();
       setSubject(conv?.subject || 'Conversation');
 
-      // Messages
+      // Messages (sans JOIN cassé — on récupère les profils séparément)
       const { data: msgs } = await supabase
         .from('messages')
-        .select('*, sender:profiles!messages_sender_id_fkey(id, full_name, avatar_url)')
+        .select('*')
         .eq('conversation_id', id as string)
         .order('created_at', { ascending: true });
 
-      setMessages((msgs as (Message & { sender?: Profile })[]) || []);
+      // Enrichir avec les profils des expéditeurs
+      const enriched: (Message & { sender?: Profile })[] = [];
+      const profileCache: Record<string, Profile> = {};
+      for (const msg of msgs || []) {
+        if (msg.sender_id && !profileCache[msg.sender_id]) {
+          const { data: senderProfile } = await supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url')
+            .eq('id', msg.sender_id)
+            .single();
+          if (senderProfile) profileCache[msg.sender_id] = senderProfile as Profile;
+        }
+        enriched.push({ ...msg, sender: profileCache[msg.sender_id] });
+      }
+      setMessages(enriched);
       setLoading(false);
 
       // Marquer comme lu
@@ -87,13 +109,23 @@ export default function ConversationPage() {
         table: 'messages',
         filter: `conversation_id=eq.${id}`,
       }, async (payload) => {
-        const { data } = await supabase
+        const { data: newMsg } = await supabase
           .from('messages')
-          .select('*, sender:profiles!messages_sender_id_fkey(id, full_name, avatar_url)')
+          .select('*')
           .eq('id', payload.new.id)
           .single();
-        if (data) {
-          setMessages(prev => [...prev, data as Message & { sender?: Profile }]);
+        if (newMsg) {
+          // Fetch sender profile
+          let senderProfile: Profile | undefined;
+          if (newMsg.sender_id) {
+            const { data: sp } = await supabase
+              .from('profiles')
+              .select('id, full_name, avatar_url')
+              .eq('id', newMsg.sender_id)
+              .single();
+            senderProfile = sp as Profile | undefined;
+          }
+          setMessages(prev => [...prev, { ...newMsg, sender: senderProfile } as Message & { sender?: Profile }]);
         }
       })
       .subscribe();
