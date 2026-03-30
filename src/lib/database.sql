@@ -777,3 +777,26 @@ COMMENT ON TABLE artisan_profiles IS 'Profils artisans - visible seulement si ar
 COMMENT ON TABLE service_requests IS 'Demandes de service avec photos';
 COMMENT ON TABLE conversations IS 'Conversations privées - accès uniquement aux participants';
 COMMENT ON TABLE messages IS 'Messages - accès uniquement aux participants de la conversation';
+
+-- ============================================================
+-- DEMANDES PUBLIQUES — commentaires communautaires
+-- ============================================================
+CREATE TABLE IF NOT EXISTS request_comments (
+  id         UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  request_id UUID REFERENCES service_requests(id) ON DELETE CASCADE NOT NULL,
+  author_id  UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  content    TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE request_comments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "request_comments_select" ON request_comments FOR SELECT USING (true);
+CREATE POLICY "request_comments_insert" ON request_comments FOR INSERT WITH CHECK (auth.uid() = author_id);
+CREATE POLICY "request_comments_delete" ON request_comments FOR DELETE USING (
+  auth.uid() = author_id OR current_user_role() IN ('admin','moderator')
+);
+
+-- Rendre les service_requests lisibles publiquement (lecture seule)
+DROP POLICY IF EXISTS "Voir ses propres demandes" ON service_requests;
+CREATE POLICY "service_requests_select_public" ON service_requests
+  FOR SELECT USING (true);

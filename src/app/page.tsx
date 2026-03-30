@@ -213,10 +213,10 @@ export default function HomePage() {
                 <div className="flex flex-wrap gap-2 items-center">
                   <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest w-full">Services</span>
                   {[
-                    { href: '/artisans',         label: '🔧 Artisans',     bg: 'bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200' },
-                    { href: '/artisans/demande',  label: '📋 Demandes',    bg: 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200' },
-                    { href: '/artisans',          label: '💰 Devis',       bg: 'bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-200' },
-                    { href: '/artisans',          label: '📅 Rendez-vous', bg: 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' },
+                    { href: '/artisans',         label: '🔧 Artisans',       bg: 'bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200' },
+                    { href: '/artisans/demande',  label: '📋 Poster demande', bg: 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200' },
+                    { href: '/demandes',          label: '👥 Voir demandes',  bg: 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200' },
+                    { href: '/artisans',          label: '💰 Devis',          bg: 'bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-200' },
                   ].map(({ href, label, bg }) => (
                     <Link key={label} href={href}
                       className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm ${bg}`}>

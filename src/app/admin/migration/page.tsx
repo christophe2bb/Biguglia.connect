@@ -229,17 +229,45 @@ INSERT INTO forum_categories (name, slug, description, icon, display_order) VALU
   ('🎉 Événements locaux',   'evenements',      'Discussions autour des événements de Biguglia', '🎉', 10)
 ON CONFLICT (slug) DO NOTHING;
 
+-- DEMANDES PUBLIQUES — commentaires communautaires
+CREATE TABLE IF NOT EXISTS request_comments (
+  id         UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  request_id UUID REFERENCES service_requests(id) ON DELETE CASCADE NOT NULL,
+  author_id  UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  content    TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE request_comments ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='request_comments' AND policyname='request_comments_select') THEN
+    CREATE POLICY "request_comments_select" ON request_comments FOR SELECT USING (true);
+    CREATE POLICY "request_comments_insert" ON request_comments FOR INSERT WITH CHECK (auth.uid() = author_id);
+    CREATE POLICY "request_comments_delete" ON request_comments FOR DELETE USING (
+      auth.uid() = author_id OR current_user_role() IN ('admin','moderator')
+    );
+  END IF;
+END $$;
+
+-- Rendre les demandes lisibles par tous (tableau d'affichage public)
+DROP POLICY IF EXISTS "Voir ses propres demandes" ON service_requests;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='service_requests' AND policyname='service_requests_select_public') THEN
+    CREATE POLICY "service_requests_select_public" ON service_requests FOR SELECT USING (true);
+  END IF;
+END $$;
+
 -- Recharge le cache PostgREST (OBLIGATOIRE après création de tables)
 NOTIFY pgrst, 'reload schema';`;
 
 // ─── Tables à vérifier via REST direct ───────────────────────────────────────
 const TABLES_TO_CHECK = [
-  { name: 'collection_categories', label: 'Catégories collections', theme: '🏆 Collectionneurs' },
-  { name: 'collection_items',      label: 'Annonces collections',   theme: '🏆 Collectionneurs' },
-  { name: 'promenades',            label: 'Promenades',             theme: '🌿 Promenades' },
-  { name: 'group_outings',         label: 'Sorties groupées',       theme: '🌿 Promenades' },
-  { name: 'local_events',          label: 'Événements locaux',      theme: '🎉 Événements' },
-  { name: 'event_participations',  label: 'Participations',         theme: '🎉 Événements' },
+  { name: 'collection_categories', label: 'Catégories collections',  theme: '🏆 Collectionneurs' },
+  { name: 'collection_items',      label: 'Annonces collections',    theme: '🏆 Collectionneurs' },
+  { name: 'promenades',            label: 'Promenades',              theme: '🌿 Promenades' },
+  { name: 'group_outings',         label: 'Sorties groupées',        theme: '🌿 Promenades' },
+  { name: 'local_events',          label: 'Événements locaux',       theme: '🎉 Événements' },
+  { name: 'event_participations',  label: 'Participations',          theme: '🎉 Événements' },
+  { name: 'request_comments',      label: 'Commentaires demandes',   theme: '🔧 Vie pratique' },
 ];
 
 type TableStatus = { name: string; exists: boolean };

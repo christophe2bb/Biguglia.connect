@@ -149,8 +149,8 @@ function DemandeServiceForm() {
       }
     }
 
-    toast.success('Demande envoyée avec succès !', { duration: 5000 });
-    router.push('/dashboard');
+    toast.success('Demande publiée ! Les habitants peuvent maintenant vous répondre.', { duration: 5000 });
+    router.push('/demandes');
   };
 
   return (

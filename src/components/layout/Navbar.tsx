@@ -43,10 +43,18 @@ const UNIVERS = [
       {
         href: '/artisans/demande',
         icon: ClipboardList,
-        label: 'Demandes',
+        label: 'Poster une demande',
         desc: 'Déposez votre besoin en 2 min',
         iconColor: 'text-amber-600',
         iconBg: 'bg-amber-100',
+      },
+      {
+        href: '/demandes',
+        icon: MessageSquare,
+        label: 'Tableau des demandes',
+        desc: 'Consulter et répondre aux habitants',
+        iconColor: 'text-blue-600',
+        iconBg: 'bg-blue-100',
       },
       {
         href: '/artisans',
