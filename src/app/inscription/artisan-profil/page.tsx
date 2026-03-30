@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Camera, X, ChevronLeft, Briefcase, MapPin, Clock, FileText, Upload, CheckCircle, AlertCircle } from 'lucide-react';
+import { Camera, X, ChevronLeft, Briefcase, MapPin, Clock, FileText, Upload, CheckCircle, AlertCircle, HardHat, Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { TradeCategory } from '@/types';
@@ -124,6 +124,7 @@ export default function ArtisanProfilPage() {
     years_experience: '',
     siret: '',
     insurance: '',
+    artisan_type: 'particulier' as 'professionnel' | 'particulier',
   });
 
   useEffect(() => {
@@ -166,8 +167,10 @@ export default function ArtisanProfilPage() {
     if (!form.business_name || !form.trade_category_id || !form.description) {
       toast.error('Veuillez remplir tous les champs obligatoires'); return;
     }
-    if (!docInsurance.url) {
-      toast.error('L\'attestation d\'assurance est obligatoire'); return;
+    // Pour les professionnels : l'assurance est fortement recommandée mais pas bloquante
+    if (form.artisan_type === 'professionnel' && !docInsurance.url) {
+      const ok = window.confirm('Vous avez indiqué être un professionnel mais aucune attestation d\'assurance n\'a été jointe. Continuer sans assurance ?');
+      if (!ok) { setLoading(false); return; }
     }
 
     setLoading(true);
@@ -186,6 +189,7 @@ export default function ArtisanProfilPage() {
       years_experience: Number(form.years_experience) || null,
       siret: form.siret || null,
       insurance: form.insurance || null,
+      artisan_type: form.artisan_type,
       doc_kbis_url: docKbis.url || null,
       doc_insurance_url: docInsurance.url || null,
       doc_id_url: docId.url || null,
@@ -227,6 +231,75 @@ export default function ArtisanProfilPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Complétez votre profil artisan</h1>
         <p className="text-gray-500">Ces informations seront vérifiées par notre équipe avant validation.</p>
+      </div>
+
+      {/* Choix du type d'artisan */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+        <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+          <HardHat className="w-4 h-4" /> Quel type d&apos;intervenant êtes-vous ?
+        </h2>
+        <p className="text-xs text-gray-500 mb-4">Cette information sera visible sur votre profil public pour informer les habitants.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setForm(f => ({ ...f, artisan_type: 'professionnel' }))}
+            className={`p-4 rounded-2xl border-2 text-left transition-all ${
+              form.artisan_type === 'professionnel'
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-200 bg-white hover:border-gray-300'
+            }`}
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                form.artisan_type === 'professionnel' ? 'bg-blue-100' : 'bg-gray-100'
+              }`}>
+                <HardHat className={`w-4 h-4 ${form.artisan_type === 'professionnel' ? 'text-blue-600' : 'text-gray-500'}`} />
+              </div>
+              <div>
+                <div className={`font-semibold text-sm ${form.artisan_type === 'professionnel' ? 'text-blue-800' : 'text-gray-800'}`}>
+                  🏢 Professionnel
+                </div>
+                <div className="text-xs text-gray-500">Entreprise, auto-entrepreneur, artisan déclaré</div>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Vous avez un SIRET, une assurance professionnelle. Vous proposez vos services à titre commercial.
+            </p>
+            {form.artisan_type === 'professionnel' && (
+              <div className="mt-2 text-xs text-blue-600 font-medium">✓ Sélectionné — fournir les documents est recommandé</div>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setForm(f => ({ ...f, artisan_type: 'particulier' }))}
+            className={`p-4 rounded-2xl border-2 text-left transition-all ${
+              form.artisan_type === 'particulier'
+                ? 'border-green-500 bg-green-50'
+                : 'border-gray-200 bg-white hover:border-gray-300'
+            }`}
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                form.artisan_type === 'particulier' ? 'bg-green-100' : 'bg-gray-100'
+              }`}>
+                <Users className={`w-4 h-4 ${form.artisan_type === 'particulier' ? 'text-green-600' : 'text-gray-500'}`} />
+              </div>
+              <div>
+                <div className={`font-semibold text-sm ${form.artisan_type === 'particulier' ? 'text-green-800' : 'text-gray-800'}`}>
+                  🤝 Particulier / Bénévole
+                </div>
+                <div className="text-xs text-gray-500">Aide de voisinage, savoir-faire, échange de services</div>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Vous proposez votre aide, vos compétences ou votre savoir-faire sans cadre professionnel déclaré.
+            </p>
+            {form.artisan_type === 'particulier' && (
+              <div className="mt-2 text-xs text-green-600 font-medium">✓ Sélectionné — aucun document requis</div>
+            )}
+          </button>
+        </div>
       </div>
 
       <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-6">
@@ -291,38 +364,52 @@ export default function ArtisanProfilPage() {
           />
         </div>
 
-        {/* Informations légales */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
-          <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-            <FileText className="w-4 h-4" /> Informations légales
-          </h2>
-          <Input
-            label="Numéro SIRET"
-            placeholder="Ex : 123 456 789 00001"
-            value={form.siret}
-            onChange={(e) => setForm(f => ({ ...f, siret: e.target.value }))}
-          />
-          <Input
-            label="Assurance décennale / RC Pro — Nom de l'assureur"
-            placeholder="Ex : MAAF, AXA, Allianz — n° de contrat..."
-            value={form.insurance}
-            onChange={(e) => setForm(f => ({ ...f, insurance: e.target.value }))}
-          />
-        </div>
+        {/* Informations légales — uniquement pour les professionnels */}
+        {form.artisan_type === 'professionnel' && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+              <FileText className="w-4 h-4" /> Informations légales
+              <span className="text-xs text-gray-400 font-normal">(optionnel mais recommandé)</span>
+            </h2>
+            <Input
+              label="Numéro SIRET"
+              placeholder="Ex : 123 456 789 00001"
+              value={form.siret}
+              onChange={(e) => setForm(f => ({ ...f, siret: e.target.value }))}
+            />
+            <Input
+              label="Assurance décennale / RC Pro — Nom de l'assureur"
+              placeholder="Ex : MAAF, AXA, Allianz — n° de contrat..."
+              value={form.insurance}
+              onChange={(e) => setForm(f => ({ ...f, insurance: e.target.value }))}
+            />
+          </div>
+        )}
 
         {/* Documents justificatifs */}
         <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-5">
           <div>
             <h2 className="font-semibold text-gray-900 flex items-center gap-2 mb-1">
               <Upload className="w-4 h-4" /> Documents justificatifs
+              <span className="text-xs text-gray-400 font-normal">(tous optionnels)</span>
             </h2>
             <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl p-3 mt-2">
               <AlertCircle className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
               <p className="text-xs text-blue-700">
-                Ces documents permettent à l&apos;administrateur de vérifier votre identité et votre légitimité professionnelle.
-                Vos documents sont stockés de manière sécurisée et ne sont accessibles qu&apos;aux administrateurs.
+                <strong>Ces documents sont optionnels</strong> mais permettent à l&apos;administrateur de valider votre profil
+                et d&apos;afficher un badge &ldquo;Documents vérifiés&rdquo; sur votre fiche publique.
+                Ils sont stockés de manière sécurisée et ne sont accessibles qu&apos;aux administrateurs.
               </p>
             </div>
+            {form.artisan_type === 'particulier' && (
+              <div className="flex items-start gap-2 bg-green-50 border border-green-200 rounded-xl p-3 mt-2">
+                <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-green-700">
+                  En tant que particulier / bénévole, aucun document professionnel n&apos;est requis.
+                  Vous pouvez soumettre directement votre profil.
+                </p>
+              </div>
+            )}
           </div>
 
           <DocumentUploader

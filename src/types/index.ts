@@ -15,6 +15,8 @@ export interface Profile {
   legal_consent_at?: string;
 }
 
+export type ArtisanType = 'professionnel' | 'particulier';
+
 export interface ArtisanProfile {
   id: string;
   user_id: string;
@@ -25,6 +27,7 @@ export interface ArtisanProfile {
   years_experience?: number;
   siret?: string;
   insurance?: string;
+  artisan_type?: ArtisanType;
   doc_kbis_url?: string;
   doc_insurance_url?: string;
   doc_id_url?: string;

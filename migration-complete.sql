@@ -9,7 +9,9 @@ ALTER TABLE artisan_profiles
   ADD COLUMN IF NOT EXISTS doc_kbis_url       TEXT,
   ADD COLUMN IF NOT EXISTS doc_insurance_url  TEXT,
   ADD COLUMN IF NOT EXISTS doc_id_url         TEXT,
-  ADD COLUMN IF NOT EXISTS rejection_reason   TEXT;
+  ADD COLUMN IF NOT EXISTS rejection_reason   TEXT,
+  ADD COLUMN IF NOT EXISTS artisan_type       TEXT NOT NULL DEFAULT 'particulier'
+    CHECK (artisan_type IN ('professionnel', 'particulier'));
 
 -- ============================================================
 -- 2. BUCKET "documents" PRIVÉ pour les pièces justificatives

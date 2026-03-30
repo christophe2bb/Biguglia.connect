@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { MapPin, Clock, Shield, Star, Phone, MessageSquare, Calendar, ChevronLeft, Heart } from 'lucide-react';
+import { MapPin, Clock, Shield, Star, Phone, MessageSquare, Calendar, ChevronLeft, Heart, HardHat, Users, CheckCircle, FileCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { ArtisanProfile, Review } from '@/types';
 import { useAuthStore } from '@/lib/auth-store';
@@ -14,6 +14,35 @@ import Button from '@/components/ui/Button';
 import StarRating from '@/components/ui/StarRating';
 import EmptyState from '@/components/ui/EmptyState';
 import { formatRelative } from '@/lib/utils';
+
+// Nombre de documents fournis (sans exposer leur contenu)
+function DocBadge({ artisan }: { artisan: ArtisanProfile }) {
+  const docCount = [artisan.doc_kbis_url, artisan.doc_insurance_url, artisan.doc_id_url].filter(Boolean).length;
+  if (docCount === 0) return null;
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+      <FileCheck className="w-3.5 h-3.5" />
+      {docCount} document{docCount > 1 ? 's' : ''} vérifié{docCount > 1 ? 's' : ''}
+    </div>
+  );
+}
+
+// Badge type artisan
+function ArtisanTypeBadge({ artisan }: { artisan: ArtisanProfile }) {
+  const isPro = artisan.artisan_type === 'professionnel';
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
+      isPro
+        ? 'bg-blue-100 text-blue-800 border border-blue-200'
+        : 'bg-green-100 text-green-800 border border-green-200'
+    }`}>
+      {isPro
+        ? <><HardHat className="w-3.5 h-3.5" /> Professionnel</>
+        : <><Users className="w-3.5 h-3.5" /> Particulier / Bénévole</>
+      }
+    </span>
+  );
+}
 
 export default function ArtisanDetailPage() {
   const { id } = useParams();
@@ -174,12 +203,17 @@ export default function ArtisanDetailPage() {
                 />
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">{artisan.business_name}</h1>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-gray-500">{artisan.trade_category?.icon} {artisan.trade_category?.name}</span>
+                  <div className="flex items-center flex-wrap gap-2 mt-1.5">
+                    <span className="text-gray-500 text-sm">{artisan.trade_category?.icon} {artisan.trade_category?.name}</span>
+                    {/* Badge type artisan */}
+                    <ArtisanTypeBadge artisan={artisan} />
+                    {/* Badge vérifié admin */}
                     <Badge variant="success">
                       <Shield className="w-3 h-3 mr-1" />
                       Vérifié
                     </Badge>
+                    {/* Badge documents fournis */}
+                    <DocBadge artisan={artisan} />
                   </div>
                 </div>
               </div>
@@ -284,19 +318,62 @@ export default function ArtisanDetailPage() {
             </p>
           </div>
 
-          {/* Trust */}
+          {/* Trust adapté au type */}
           <div className="bg-white rounded-2xl border border-gray-100 p-5">
-            <h4 className="text-sm font-semibold text-gray-900 mb-3">🔒 Artisan vérifié</h4>
-            <ul className="space-y-2 text-xs text-gray-500">
-              <li className="flex items-center gap-2">
-                <Shield className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                Profil validé par l&apos;administrateur
-              </li>
-              <li className="flex items-center gap-2">
-                <Star className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
-                Avis laissés par de vrais clients
-              </li>
-            </ul>
+            {artisan.artisan_type === 'professionnel' ? (
+              <>
+                <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <HardHat className="w-4 h-4 text-blue-600" /> Professionnel vérifié
+                </h4>
+                <ul className="space-y-2 text-xs text-gray-500">
+                  <li className="flex items-center gap-2">
+                    <Shield className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                    Profil validé par l&apos;administrateur
+                  </li>
+                  {artisan.siret && (
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                      SIRET déclaré : {artisan.siret}
+                    </li>
+                  )}
+                  {[artisan.doc_kbis_url, artisan.doc_insurance_url, artisan.doc_id_url].filter(Boolean).length > 0 && (
+                    <li className="flex items-center gap-2">
+                      <FileCheck className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                      Documents vérifiés par l&apos;admin
+                    </li>
+                  )}
+                  <li className="flex items-center gap-2">
+                    <Star className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                    Avis laissés par de vrais clients
+                  </li>
+                </ul>
+              </>
+            ) : (
+              <>
+                <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-green-600" /> Particulier / Bénévole
+                </h4>
+                <ul className="space-y-2 text-xs text-gray-500">
+                  <li className="flex items-center gap-2">
+                    <Shield className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                    Profil validé par l&apos;administrateur
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Users className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                    Aide de voisinage ou savoir-faire partagé
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Star className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                    Avis laissés par de vrais clients
+                  </li>
+                </ul>
+                <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
+                  <p className="text-xs text-amber-700">
+                    ⚠️ Cet intervenant n&apos;est pas un professionnel déclaré. Renseignez-vous sur les conditions d&apos;intervention.
+                  </p>
+                </div>
+              </>
+            )}
             <Link href="/confiance" className="text-xs text-brand-600 hover:underline mt-3 block">
               En savoir plus sur la confiance →
             </Link>

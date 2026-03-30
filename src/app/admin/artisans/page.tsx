@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import {
   CheckCircle, XCircle, Eye, ChevronLeft, Search,
   FileText, ExternalLink, MessageSquare, AlertCircle,
-  Shield, Clock, MapPin, Briefcase, ChevronDown, ChevronUp
+  Shield, Clock, MapPin, Briefcase, ChevronDown, ChevronUp,
+  HardHat, Users
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -28,6 +29,7 @@ interface ArtisanEntry {
   years_experience?: number;
   siret?: string;
   insurance?: string;
+  artisan_type?: 'professionnel' | 'particulier';
   doc_kbis_url?: string;
   doc_insurance_url?: string;
   doc_id_url?: string;
@@ -134,6 +136,16 @@ function ArtisanCard({
               <Badge variant={isVerified ? 'success' : isPending ? 'warning' : 'default'}>
                 {ROLE_LABELS[artisan.profile?.role || 'artisan_pending']}
               </Badge>
+              {/* Type d'artisan */}
+              {artisan.artisan_type === 'professionnel' ? (
+                <span className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium border border-blue-200">
+                  <HardHat className="w-3 h-3" /> Pro
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium border border-green-200">
+                  <Users className="w-3 h-3" /> Particulier
+                </span>
+              )}
               {docCount > 0 && (
                 <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
                   📎 {docCount} doc{docCount > 1 ? 's' : ''}
@@ -358,7 +370,7 @@ export default function AdminArtisansPage() {
       .from('artisan_profiles')
       .select(`
         id, user_id, business_name, description, service_area, years_experience,
-        siret, insurance, doc_kbis_url, doc_insurance_url, doc_id_url, rejection_reason, created_at,
+        siret, insurance, artisan_type, doc_kbis_url, doc_insurance_url, doc_id_url, rejection_reason, created_at,
         profile:profiles!artisan_profiles_user_id_fkey(id, full_name, email, avatar_url, role, status, created_at),
         trade_category:trade_categories(name, icon)
       `)
