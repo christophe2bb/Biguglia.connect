@@ -213,6 +213,7 @@ export default function CollectionneursPage() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [copiedNotify, setCopiedNotify] = useState(false);
   const [form, setForm] = useState({
     title: '', description: '', category_id: '', item_type: 'vente',
     price: '', condition: 'bon', tags: '',
@@ -447,10 +448,12 @@ export default function CollectionneursPage() {
     if (error) {
       console.error('collection_items insert error:', error);
       let msg = '';
-      if (error.code === '42P01' || error.message?.includes('does not exist')) {
-        msg = '⚠️ Tables manquantes — exécutez migration_themes.sql dans Supabase SQL Editor (voir /admin/migration).';
-      } else if (error.code === '42501' || error.message?.includes('policy')) {
-        msg = '⚠️ Erreur de permission RLS. Vérifiez les politiques dans Supabase.';
+      if (error.code === '42P01' || error.message?.includes('does not exist') || error.message?.includes('schema cache')) {
+        msg = '⚠️ Cache Supabase non rechargé. Les tables existent mais PostgREST ne les voit pas encore. Allez sur /admin/migration et exécutez "NOTIFY pgrst, \'reload schema\';" dans Supabase SQL Editor.';
+      } else if (error.message?.includes('Could not find the table')) {
+        msg = '⚠️ Cache Supabase non rechargé. Allez sur /admin/migration et exécutez "NOTIFY pgrst, \'reload schema\';" dans le SQL Editor de Supabase.';
+      } else if (error.code === '42501' || error.message?.includes('policy') || error.message?.includes('permission')) {
+        msg = '⚠️ Erreur de permission RLS. Vérifiez que vous êtes bien connecté et que les politiques sont correctes dans Supabase.';
       } else {
         msg = `⚠️ Erreur Supabase : ${error.message}`;
       }
@@ -561,27 +564,43 @@ export default function CollectionneursPage() {
 
       {/* ── BANNER erreur publication ── */}
       {submitError && (
-        <div className="bg-red-600 px-4 py-4">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-start gap-3 flex-1">
-              <AlertCircle className="w-6 h-6 text-white flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-white font-black text-base">❌ Publication impossible</p>
-                <p className="text-red-100 text-sm mt-1 leading-relaxed">{submitError}</p>
+        <div className="bg-red-600 px-4 py-5">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3 flex-1">
+                <AlertCircle className="w-6 h-6 text-white flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-white font-black text-base">❌ Publication impossible</p>
+                  <p className="text-red-100 text-sm mt-1 leading-relaxed">{submitError}</p>
+                </div>
               </div>
+              <button onClick={() => setSubmitError(null)} className="text-red-200 hover:text-white p-1 flex-shrink-0">
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <div className="flex items-center gap-3 flex-shrink-0 mt-2 sm:mt-0">
+            {/* Boutons d'action */}
+            <div className="flex flex-wrap items-center gap-3 mt-4 ml-9">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText("NOTIFY pgrst, 'reload schema';").then(() => {
+                    setCopiedNotify(true);
+                    setTimeout(() => setCopiedNotify(false), 4000);
+                  });
+                }}
+                className={`inline-flex items-center gap-2 font-black text-sm px-5 py-2.5 rounded-xl transition-all shadow ${
+                  copiedNotify ? 'bg-emerald-500 text-white' : 'bg-orange-400 text-white hover:bg-orange-300'
+                }`}
+              >
+                {copiedNotify ? '✅ Copié ! Collez dans Supabase SQL Editor' : '⚡ Copier NOTIFY pgrst (fix cache)'}
+              </button>
               <a
                 href="/admin/migration"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-white text-red-700 font-black text-sm px-5 py-3 rounded-xl hover:bg-red-50 transition-all shadow-lg"
+                className="inline-flex items-center gap-2 bg-white text-red-700 font-black text-sm px-5 py-2.5 rounded-xl hover:bg-red-50 transition-all shadow"
               >
-                🗄️ Voir le SQL à exécuter
+                🗄️ Page Migration SQL
               </a>
-              <button onClick={() => setSubmitError(null)} className="text-red-200 hover:text-white p-1">
-                <X className="w-5 h-5" />
-              </button>
             </div>
           </div>
         </div>

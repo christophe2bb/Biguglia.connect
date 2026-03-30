@@ -204,7 +204,10 @@ INSERT INTO forum_categories (name, slug, description, icon, display_order) VALU
   ('🌿 Promenades & Nature', 'promenades', 'Itinéraires, sorties, balades et nature à Biguglia', '🌿', 8),
   ('🏆 Collectionneurs', 'collectionneurs', 'Échanges, expertises et rencontres de collectionneurs', '🏆', 9),
   ('🎉 Événements locaux', 'evenements', 'Discussions autour des événements de Biguglia', '🎉', 10)
-ON CONFLICT (slug) DO NOTHING;`;
+ON CONFLICT (slug) DO NOTHING;
+
+-- Recharge le cache PostgREST (indispensable après création de tables)
+NOTIFY pgrst, 'reload schema';`;
 
 // ─── Tables à vérifier ────────────────────────────────────────────────────────
 const TABLES_TO_CHECK = [
@@ -226,6 +229,7 @@ export default function MigrationPage() {
   const [copied, setCopied] = useState(false);
   const [copiedShort, setCopiedShort] = useState(false);
   const [sqlTab, setSqlTab] = useState<'full' | 'collectionneurs'>('collectionneurs');
+  const [copiedNotify, setCopiedNotify] = useState(false);
 
   useEffect(() => {
     checkTables();
@@ -325,13 +329,24 @@ DO $$ BEGIN
     CREATE POLICY "collection_item_photos_insert" ON collection_item_photos FOR INSERT WITH CHECK (
       EXISTS (SELECT 1 FROM collection_items WHERE id = item_id AND author_id = auth.uid()));
   END IF;
-END $$;`;
+END $$;
+
+-- Recharge le cache PostgREST (indispensable après création de tables)
+NOTIFY pgrst, 'reload schema';`;
 
   const handleCopyShort = () => {
     navigator.clipboard.writeText(SQL_COLLECTIONNEURS).then(() => {
       setCopiedShort(true);
       toast.success('SQL Collectionneurs copié !');
       setTimeout(() => setCopiedShort(false), 3000);
+    });
+  };
+
+  const handleCopyNotify = () => {
+    navigator.clipboard.writeText("NOTIFY pgrst, 'reload schema';").then(() => {
+      setCopiedNotify(true);
+      toast.success("Commande copiée ! Collez-la dans Supabase SQL Editor et cliquez Run.");
+      setTimeout(() => setCopiedNotify(false), 5000);
     });
   };
 
@@ -360,13 +375,45 @@ END $$;`;
           <span className="text-gray-500">Vérification des tables...</span>
         </div>
       ) : allOk ? (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex items-center gap-3 mb-6">
-          <CheckCircle className="w-6 h-6 text-emerald-500 flex-shrink-0" />
-          <div>
-            <p className="font-bold text-emerald-800">✅ Toutes les tables sont présentes</p>
-            <p className="text-emerald-700 text-sm">La migration a déjà été exécutée. Les 3 thèmes fonctionnent.</p>
+        <>
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex items-center gap-3 mb-4">
+            <CheckCircle className="w-6 h-6 text-emerald-500 flex-shrink-0" />
+            <div>
+              <p className="font-bold text-emerald-800">✅ Toutes les tables sont présentes</p>
+              <p className="text-emerald-700 text-sm">La migration a déjà été exécutée. Les 3 thèmes fonctionnent.</p>
+            </div>
           </div>
-        </div>
+          {/* Alerte critique : si les tables sont présentes mais qu'une erreur "schema cache" apparaît */}
+          <div className="bg-red-50 border-2 border-red-400 rounded-2xl p-5 mb-6">
+            <div className="flex items-start gap-3">
+              <span className="text-3xl flex-shrink-0">🚨</span>
+              <div className="flex-1">
+                <p className="font-black text-red-800 text-base mb-1">
+                  Si vous voyez encore &quot;Could not find the table&apos;public.collection_items&apos;&quot;
+                </p>
+                <p className="text-red-700 text-sm mb-3">
+                  Les tables existent mais <strong>Supabase PostgREST n&apos;a pas rechargé son cache</strong>.
+                  Vous devez exécuter cette commande dans le SQL Editor de Supabase :
+                </p>
+                <div className="bg-gray-900 rounded-xl px-4 py-3 font-mono text-green-400 text-sm mb-3 flex items-center justify-between gap-3">
+                  <code>NOTIFY pgrst, &apos;reload schema&apos;;</code>
+                  <button
+                    onClick={handleCopyNotify}
+                    className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${copiedNotify ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white hover:bg-orange-600'}`}
+                  >
+                    {copiedNotify ? <><Check className="w-3 h-3" /> Copié !</> : <><Copy className="w-3 h-3" /> Copier</>}
+                  </button>
+                </div>
+                <ol className="text-red-700 text-sm space-y-1 list-decimal list-inside">
+                  <li>Cliquez <strong>Copier</strong> ci-dessus</li>
+                  <li>Ouvrez <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="underline font-bold text-red-800">supabase.com</a> → votre projet → <strong>SQL Editor</strong> → <strong>New query</strong></li>
+                  <li>Collez la commande et cliquez <strong>Run</strong></li>
+                  <li>Retournez sur <strong>/collectionneurs</strong> et réessayez de publier</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+        </>
       ) : (
         <div className="bg-red-50 border border-red-200 rounded-2xl p-5 flex items-center gap-3 mb-6">
           <XCircle className="w-6 h-6 text-red-500 flex-shrink-0" />
@@ -376,6 +423,22 @@ END $$;`;
           </div>
         </div>
       )}
+
+      {/* Bandeau rechargement cache — toujours visible */}
+      <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl flex-shrink-0">⚡</span>
+          <div>
+            <p className="font-bold text-orange-800 text-sm">Rechargement du cache Supabase requis</p>
+            <p className="text-orange-700 text-xs mt-0.5">
+              Après chaque migration, Supabase doit recharger son cache. Si vous voyez <em>"Could not find the table"</em>, exécutez cette commande.
+            </p>
+          </div>
+        </div>
+        <button onClick={handleCopyNotify} className={`flex-shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow ${copiedNotify ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white hover:bg-orange-600'}`}>
+          {copiedNotify ? <><Check className="w-4 h-4" /> Copié !</> : <><Copy className="w-4 h-4" /> Copier NOTIFY pgrst</>}
+        </button>
+      </div>
 
       {/* Tableau des tables */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mb-6 overflow-hidden">
@@ -476,8 +539,13 @@ END $$;`;
       )}
 
       {allOk && (
-        <div className="text-center py-6 text-gray-500 text-sm">
-          Aucune action requise. Revenez ici si vous ajoutez de nouvelles tables.
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-center">
+          <p className="text-blue-800 text-sm font-semibold mb-1">💡 Toujours une erreur malgré les tables OK ?</p>
+          <p className="text-blue-700 text-xs mb-3">Rechargez le cache PostgREST en copiant et exécutant la commande ci-dessus dans Supabase SQL Editor.</p>
+          <button onClick={handleCopyNotify}
+            className={`inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all ${copiedNotify ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white hover:bg-orange-600'}`}>
+            {copiedNotify ? <><Check className="w-4 h-4" /> Commande copiée !</> : <><Copy className="w-4 h-4" /> Copier NOTIFY pgrst</>}
+          </button>
         </div>
       )}
     </div>
