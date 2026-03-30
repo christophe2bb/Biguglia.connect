@@ -19,16 +19,19 @@ export default function AnnonceDetailPage() {
   const { profile } = useAuthStore();
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [currentPhoto, setCurrentPhoto] = useState(0);
 
   useEffect(() => {
+    if (!id) return;
     const fetchListing = async () => {
       const supabase = createClient();
+      
+      // Fetch listing without problematic JOIN on profiles
       const { data, error } = await supabase
         .from('listings')
         .select(`
           *,
-          user:profiles!listings_user_id_fkey(id, full_name, avatar_url),
           category:listing_categories(*),
           photos:listing_photos(id, url, display_order)
         `)
@@ -36,9 +39,21 @@ export default function AnnonceDetailPage() {
         .single();
 
       if (error || !data) {
-        toast.error('Annonce introuvable');
-        router.push('/annonces');
+        console.error('Listing fetch error:', error);
+        setNotFound(true);
+        setLoading(false);
         return;
+      }
+
+      // Fetch user profile separately
+      let userData = null;
+      if (data.user_id) {
+        const { data: userProfile } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .eq('id', data.user_id)
+          .single();
+        userData = userProfile;
       }
 
       // Sort photos
@@ -46,12 +61,12 @@ export default function AnnonceDetailPage() {
         data.photos.sort((a: { display_order: number }, b: { display_order: number }) => a.display_order - b.display_order);
       }
 
-      setListing(data as unknown as Listing);
+      setListing({ ...data, user: userData } as unknown as Listing);
       setLoading(false);
     };
 
     fetchListing();
-  }, [id, router]);
+  }, [id]);
 
   const handleContact = async () => {
     if (!profile) {
@@ -111,13 +126,14 @@ export default function AnnonceDetailPage() {
       reason,
       status: 'pending',
     });
-    toast.success('Signalement envoyé à l\'équipe de modération');
+    toast.success("Signalement envoyé à l'équipe de modération");
   };
 
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-10">
         <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-32 mb-6" />
           <div className="h-64 bg-gray-200 rounded-2xl" />
           <div className="h-8 bg-gray-200 rounded w-3/4" />
           <div className="h-4 bg-gray-100 rounded w-1/2" />
@@ -126,7 +142,22 @@ export default function AnnonceDetailPage() {
     );
   }
 
-  if (!listing) return null;
+  if (notFound || !listing) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-10 text-center">
+        <div className="text-6xl mb-4">😕</div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Annonce introuvable</h1>
+        <p className="text-gray-500 mb-6">Cette annonce n&apos;existe pas ou a été supprimée.</p>
+        <Link
+          href="/annonces"
+          className="inline-flex items-center gap-2 bg-brand-600 text-white px-6 py-3 rounded-xl hover:bg-brand-700 transition-colors"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          Retour aux annonces
+        </Link>
+      </div>
+    );
+  }
 
   const photos = listing.photos as Array<{ id: string; url: string; display_order: number }> | undefined;
   const isOwner = profile?.id === listing.user_id;
@@ -250,14 +281,14 @@ export default function AnnonceDetailPage() {
             )}
 
             {isOwner && (
-              <div className="text-sm text-center text-gray-500 py-2">
-                C&apos;est votre annonce
+              <div className="text-sm text-center text-brand-600 font-medium py-2 bg-brand-50 rounded-xl">
+                ✅ C&apos;est votre annonce
               </div>
             )}
 
             <button
               onClick={handleReport}
-              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors mx-auto"
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors mx-auto mt-3"
             >
               <Flag className="w-3.5 h-3.5" />
               Signaler cette annonce
