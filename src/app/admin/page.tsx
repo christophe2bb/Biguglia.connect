@@ -142,16 +142,17 @@ function AdminContent() {
       </div>
 
       {/* Navigation admin */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
         {[
+          { href: '/admin/stats', label: 'Statistiques', desc: 'Graphiques & activité complète', icon: '📊', highlight: true },
           { href: '/admin/artisans', label: 'Gestion artisans', desc: 'Valider, refuser, suspendre', icon: '⚒️' },
           { href: '/admin/utilisateurs', label: 'Utilisateurs', desc: 'Gérer les comptes', icon: '👥' },
           { href: '/admin/signalements', label: 'Signalements', desc: 'Modérer le contenu', icon: '🚩' },
-        ].map(({ href, label, desc, icon }) => (
+        ].map(({ href, label, desc, icon, highlight }) => (
           <Link key={href} href={href}>
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-sm hover:border-gray-200 transition-all cursor-pointer">
+            <div className={`bg-white rounded-2xl border p-5 hover:shadow-sm transition-all cursor-pointer ${highlight ? 'border-brand-300 bg-brand-50/30' : 'border-gray-100 hover:border-gray-200'}`}>
               <div className="text-2xl mb-2">{icon}</div>
-              <div className="font-semibold text-gray-900">{label}</div>
+              <div className={`font-semibold ${highlight ? 'text-brand-700' : 'text-gray-900'}`}>{label}</div>
               <div className="text-sm text-gray-500">{desc}</div>
             </div>
           </Link>
