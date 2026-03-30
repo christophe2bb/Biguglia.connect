@@ -61,13 +61,40 @@ export default function ModifierForumPage() {
     setSaving(true);
     const supabase = createClient();
 
-    const { error } = await supabase.from('forum_posts').update({
-      title: form.title.trim(),
-      content: form.content.trim(),
-      category_id: form.category_id,
-    }).eq('id', id as string);
+    // Vérifier la session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error('Session expirée, reconnectez-vous.');
+      router.push('/connexion');
+      return;
+    }
 
-    if (error) { toast.error('Erreur lors de la sauvegarde'); setSaving(false); return; }
+    const { data: updated, error } = await supabase
+      .from('forum_posts')
+      .update({
+        title: form.title.trim(),
+        content: form.content.trim(),
+        category_id: form.category_id,
+      })
+      .eq('id', id as string)
+      .select('id');
+
+    if (error) {
+      console.error('Erreur modification forum_post:', error);
+      if (error.code === '42501' || error.message?.includes('policy')) {
+        toast.error('Vous n\'êtes pas autorisé à modifier ce sujet.');
+      } else {
+        toast.error(`Erreur : ${error.message}`);
+      }
+      setSaving(false);
+      return;
+    }
+
+    if (!updated || updated.length === 0) {
+      toast.error('Aucune ligne modifiée — vous n\'êtes peut-être pas l\'auteur de ce sujet.');
+      setSaving(false);
+      return;
+    }
 
     toast.success('Sujet modifié !');
     router.push(`/forum/${id}`);

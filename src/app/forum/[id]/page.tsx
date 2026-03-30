@@ -18,7 +18,7 @@ import { formatRelative } from '@/lib/utils';
 export default function ForumPostPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { profile, isModerator } = useAuthStore();
+  const { profile, isModerator, loading: authLoading } = useAuthStore();
   const [post, setPost] = useState<ForumPost | null>(null);
   const [comments, setComments] = useState<ForumComment[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -96,9 +96,32 @@ export default function ForumPostPage() {
   };
 
   const deletePost = async () => {
-    if (!confirm('Supprimer ce sujet ?')) return;
+    if (!confirm('Supprimer définitivement ce sujet et tous ses commentaires ?')) return;
     const supabase = createClient();
-    await supabase.from('forum_posts').delete().eq('id', id as string);
+
+    // Vérifier la session en cours
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error('Vous devez être connecté pour supprimer un sujet.');
+      router.push('/connexion');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('forum_posts')
+      .delete()
+      .eq('id', id as string);
+
+    if (error) {
+      console.error('Erreur suppression post:', error);
+      if (error.code === '42501' || error.message?.includes('policy')) {
+        toast.error('Vous n\'êtes pas autorisé à supprimer ce sujet.');
+      } else {
+        toast.error(`Erreur : ${error.message}`);
+      }
+      return;
+    }
+
     toast.success('Sujet supprimé');
     router.push('/forum');
   };
@@ -106,7 +129,24 @@ export default function ForumPostPage() {
   const deleteComment = async (commentId: string) => {
     if (!confirm('Supprimer ce commentaire ?')) return;
     const supabase = createClient();
-    await supabase.from('forum_comments').delete().eq('id', commentId);
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error('Session expirée, reconnectez-vous.');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('forum_comments')
+      .delete()
+      .eq('id', commentId);
+
+    if (error) {
+      console.error('Erreur suppression commentaire:', error);
+      toast.error(`Impossible de supprimer : ${error.message}`);
+      return;
+    }
+
     setComments(prev => prev.filter(c => c.id !== commentId));
     toast.success('Commentaire supprimé');
   };
@@ -120,8 +160,9 @@ export default function ForumPostPage() {
   );
   if (!post) return null;
 
-  const canDelete = profile && (profile.id === post.author_id || isModerator());
-  const canEdit = profile && profile.id === post.author_id;
+  // Attendre que l'auth soit chargée avant de calculer les permissions
+  const canDelete = !authLoading && profile && (profile.id === post.author_id || isModerator());
+  const canEdit = !authLoading && profile && profile.id === post.author_id;
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
