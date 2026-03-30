@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight, Star, Shield, Users, CheckCircle, MapPin,
-  Wrench, Package, BookOpen, ChevronRight,
+  Wrench, Package, BookOpen, ChevronRight, ClipboardList,
   MessageSquare, Bell, PenLine, Hammer, Zap, Paintbrush,
   Layers, Wind, Leaf, Drill, Loader2, Sparkles,
   TreePine, Gem, PartyPopper, Trophy, Calendar,
@@ -128,13 +128,6 @@ const themes = [
   },
 ];
 
-// ─── Services classiques ──────────────────────────────────────────────────────
-const services = [
-  { icon: Wrench,  emoji: '⚒️', title: 'Artisans vérifiés', desc: 'Plombiers, électriciens, maçons — tous contrôlés.', href: '/artisans',  grad: 'from-brand-500 to-orange-600', bg: 'bg-brand-50',   border: 'border-brand-100',   text: 'text-brand-700' },
-  { icon: Package, emoji: '📦', title: 'Petites annonces',  desc: 'Vendez, achetez, échangez entre voisins.',        href: '/annonces',  grad: 'from-blue-500 to-indigo-600',  bg: 'bg-blue-50',    border: 'border-blue-100',    text: 'text-blue-700' },
-  { icon: Drill,   emoji: '🔧', title: 'Prêt de matériel',  desc: 'Perceuse, escabeau, remorque… Solidarité !',      href: '/materiel',  grad: 'from-teal-500 to-cyan-600',    bg: 'bg-teal-50',    border: 'border-teal-100',    text: 'text-teal-700' },
-  { icon: BookOpen,emoji: '💬', title: 'Forum communauté',  desc: 'Échangez avec tous les habitants.',               href: '/forum',     grad: 'from-violet-500 to-purple-600',bg: 'bg-violet-50',  border: 'border-violet-100',  text: 'text-violet-700' },
-];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function HomePage() {
@@ -214,22 +207,53 @@ export default function HomePage() {
                 <strong className="text-gray-800"> Le réseau gratuit des habitants de Biguglia.</strong>
               </p>
 
-              {/* Pills thèmes */}
-              <div className={`flex flex-wrap gap-2 mb-8 transition-all duration-700 delay-200 ${heroLoaded ? 'opacity-100' : 'opacity-0'}`}>
-                {[
-                  { href: '/evenements',     label: '🎉 Événements',    bg: 'bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200' },
-                  { href: '/promenades',     label: '🌿 Promenades',    bg: 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200' },
-                  { href: '/collectionneurs',label: '🏆 Collectionneurs',bg: 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200' },
-                  { href: '/artisans',       label: '🔧 Artisans',      bg: 'bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200' },
-                  { href: '/annonces',       label: '📦 Annonces',      bg: 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200' },
-                  { href: '/materiel',       label: '🛠️ Matériel',      bg: 'bg-teal-100 text-teal-700 border-teal-200 hover:bg-teal-200' },
-                  { href: '/forum',          label: '💬 Forum',         bg: 'bg-violet-100 text-violet-700 border-violet-200 hover:bg-violet-200' },
-                ].map(({ href, label, bg }) => (
-                  <Link key={href} href={href}
-                    className={`inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-full border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm ${bg}`}>
-                    {label}
-                  </Link>
-                ))}
+              {/* Pills thèmes — 3 univers */}
+              <div className={`space-y-2.5 mb-8 transition-all duration-700 delay-200 ${heroLoaded ? 'opacity-100' : 'opacity-0'}`}>
+                {/* Services */}
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest w-full">Services</span>
+                  {[
+                    { href: '/artisans',         label: '🔧 Artisans',     bg: 'bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200' },
+                    { href: '/artisans/demande',  label: '📋 Demandes',    bg: 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200' },
+                    { href: '/artisans',          label: '💰 Devis',       bg: 'bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-200' },
+                    { href: '/artisans',          label: '📅 Rendez-vous', bg: 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' },
+                  ].map(({ href, label, bg }) => (
+                    <Link key={label} href={href}
+                      className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm ${bg}`}>
+                      {label}
+                    </Link>
+                  ))}
+                </div>
+                {/* Vie pratique */}
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest w-full">Vie pratique</span>
+                  {[
+                    { href: '/annonces',          label: '📦 Annonces',        bg: 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200' },
+                    { href: '/materiel',           label: '🛠️ Matériel',        bg: 'bg-teal-100 text-teal-700 border-teal-200 hover:bg-teal-200' },
+                    { href: '/annonces',           label: '🔄 Échanges',        bg: 'bg-cyan-100 text-cyan-700 border-cyan-200 hover:bg-cyan-200' },
+                    { href: '/collectionneurs',    label: '🏆 Collectionneurs', bg: 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200' },
+                  ].map(({ href, label, bg }) => (
+                    <Link key={label} href={href}
+                      className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm ${bg}`}>
+                      {label}
+                    </Link>
+                  ))}
+                </div>
+                {/* Vie locale */}
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest w-full">Vie locale</span>
+                  {[
+                    { href: '/evenements',  label: '🎉 Événements',  bg: 'bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200' },
+                    { href: '/promenades',  label: '🌿 Promenades',  bg: 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200' },
+                    { href: '/forum',       label: '💬 Forum',       bg: 'bg-violet-100 text-violet-700 border-violet-200 hover:bg-violet-200' },
+                    { href: '/forum',       label: '🤝 Communauté',  bg: 'bg-rose-100 text-rose-700 border-rose-200 hover:bg-rose-200' },
+                  ].map(({ href, label, bg }) => (
+                    <Link key={label} href={href}
+                      className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm ${bg}`}>
+                      {label}
+                    </Link>
+                  ))}
+                </div>
               </div>
 
               {/* CTA */}
@@ -490,28 +514,115 @@ export default function HomePage() {
       </section>
 
       {/* ══════════════════════════════════════
-          4 SERVICES CLASSIQUES
+          3 UNIVERS — Vue d'ensemble structurée
       ══════════════════════════════════════ */}
       <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4">Et aussi, les services du quotidien</h2>
-            <p className="text-gray-500 text-lg max-w-xl mx-auto">Artisans vérifiés, annonces, matériel à partager, forum</p>
+          <div className="text-center mb-14">
+            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4">Tout Biguglia, bien organisé</h2>
+            <p className="text-gray-500 text-lg max-w-xl mx-auto">3 grands univers pour trouver ce dont vous avez besoin</p>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {services.map(({ icon: Icon, emoji, title, desc, href, grad, bg, border, text }) => (
-              <Link key={href} href={href}
-                className={`group ${bg} ${border} border-2 rounded-3xl p-6 hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col`}>
-                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${grad} flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform duration-300 text-2xl`}>
-                  {emoji}
+
+          <div className="grid lg:grid-cols-3 gap-6">
+
+            {/* ── UNIVERS 1 · SERVICES ── */}
+            <div className="bg-white rounded-3xl border-2 border-orange-100 overflow-hidden shadow-sm hover:shadow-lg transition-shadow">
+              <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-5 flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                  <Wrench className="w-5 h-5 text-white" />
                 </div>
-                <h3 className="font-black text-gray-900 text-lg mb-2">{title}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed flex-1 mb-4">{desc}</p>
-                <span className={`inline-flex items-center gap-1 ${text} text-sm font-bold`}>
-                  Explorer <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </span>
-              </Link>
-            ))}
+                <div>
+                  <p className="text-[10px] font-black text-white/70 uppercase tracking-widest">Univers 1</p>
+                  <h3 className="text-lg font-black text-white">Services</h3>
+                </div>
+              </div>
+              <div className="p-4 space-y-2">
+                {[
+                  { href: '/artisans',        icon: Wrench,        label: 'Artisans',      desc: 'Professionnels vérifiés', color: 'text-orange-500', bg: 'bg-orange-50' },
+                  { href: '/artisans/demande', icon: ClipboardList, label: 'Demandes',      desc: 'Déposez votre besoin',    color: 'text-amber-600',  bg: 'bg-amber-50' },
+                  { href: '/artisans',         icon: Star,          label: 'Devis',         desc: 'Comparez les offres',     color: 'text-yellow-500', bg: 'bg-yellow-50' },
+                  { href: '/artisans',         icon: Calendar,      label: 'Rendez-vous',   desc: 'Planifiez facilement',    color: 'text-red-400',    bg: 'bg-red-50' },
+                ].map(({ href, icon: Icon, label, desc, color, bg }) => (
+                  <Link key={label} href={href}
+                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-orange-50 transition-colors group">
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${bg} flex-shrink-0`}>
+                      <Icon className={`w-4 h-4 ${color}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-900">{label}</p>
+                      <p className="text-xs text-gray-400">{desc}</p>
+                    </div>
+                    <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-orange-400 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* ── UNIVERS 2 · VIE PRATIQUE ── */}
+            <div className="bg-white rounded-3xl border-2 border-blue-100 overflow-hidden shadow-sm hover:shadow-lg transition-shadow">
+              <div className="bg-gradient-to-r from-blue-500 to-teal-500 p-5 flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                  <Package className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-white/70 uppercase tracking-widest">Univers 2</p>
+                  <h3 className="text-lg font-black text-white">Vie pratique</h3>
+                </div>
+              </div>
+              <div className="p-4 space-y-2">
+                {[
+                  { href: '/annonces',       icon: Package, label: 'Annonces',        desc: 'Vendez et achetez local',     color: 'text-blue-500',  bg: 'bg-blue-50' },
+                  { href: '/materiel',       icon: Drill,   label: 'Matériel',         desc: 'Empruntez des outils',         color: 'text-teal-500',  bg: 'bg-teal-50' },
+                  { href: '/annonces',       icon: Heart,   label: 'Échanges',         desc: 'Troc et dons entre voisins',   color: 'text-cyan-500',  bg: 'bg-cyan-50' },
+                  { href: '/collectionneurs',icon: Gem,     label: 'Collectionneurs',  desc: 'Timbres, vinyles, rareté…',    color: 'text-amber-500', bg: 'bg-amber-50' },
+                ].map(({ href, icon: Icon, label, desc, color, bg }) => (
+                  <Link key={label} href={href}
+                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 transition-colors group">
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${bg} flex-shrink-0`}>
+                      <Icon className={`w-4 h-4 ${color}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-900">{label}</p>
+                      <p className="text-xs text-gray-400">{desc}</p>
+                    </div>
+                    <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* ── UNIVERS 3 · VIE LOCALE ── */}
+            <div className="bg-white rounded-3xl border-2 border-purple-100 overflow-hidden shadow-sm hover:shadow-lg transition-shadow">
+              <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-5 flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                  <PartyPopper className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-white/70 uppercase tracking-widest">Univers 3</p>
+                  <h3 className="text-lg font-black text-white">Vie locale</h3>
+                </div>
+              </div>
+              <div className="p-4 space-y-2">
+                {[
+                  { href: '/evenements',  icon: Calendar,   label: 'Événements',  desc: 'Concerts, matchs, fêtes',          color: 'text-purple-500',  bg: 'bg-purple-50' },
+                  { href: '/promenades',  icon: Footprints, label: 'Promenades',  desc: 'Sentiers et sorties groupées',      color: 'text-emerald-500', bg: 'bg-emerald-50' },
+                  { href: '/forum',       icon: BookOpen,   label: 'Forum',       desc: 'Discussions entre habitants',       color: 'text-violet-500',  bg: 'bg-violet-50' },
+                  { href: '/forum',       icon: Users,      label: 'Communauté',  desc: 'Entraide et vie de quartier',       color: 'text-rose-500',    bg: 'bg-rose-50' },
+                ].map(({ href, icon: Icon, label, desc, color, bg }) => (
+                  <Link key={label} href={href}
+                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-purple-50 transition-colors group">
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${bg} flex-shrink-0`}>
+                      <Icon className={`w-4 h-4 ${color}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-900">{label}</p>
+                      <p className="text-xs text-gray-400">{desc}</p>
+                    </div>
+                    <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-purple-400 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+                  </Link>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* CTA artisans */}
