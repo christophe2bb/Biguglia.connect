@@ -123,17 +123,21 @@ export default function AnnonceDetailPage() {
       return;
     }
 
+    // Ajouter les participants (ON CONFLICT DO NOTHING pour éviter les doublons)
+    const participants = profile.id === listing.user_id
+      ? [{ conversation_id: conv.id, user_id: profile.id }]
+      : [
+          { conversation_id: conv.id, user_id: profile.id },
+          { conversation_id: conv.id, user_id: listing.user_id },
+        ];
+
     const { error: partError } = await supabase
       .from('conversation_participants')
-      .insert([
-        { conversation_id: conv.id, user_id: profile.id },
-        { conversation_id: conv.id, user_id: listing.user_id },
-      ]);
+      .upsert(participants, { onConflict: 'conversation_id,user_id', ignoreDuplicates: true });
 
     if (partError) {
       console.error('Participants error:', partError);
-      toast.error('Erreur lors de l\'ouverture de la messagerie');
-      return;
+      // On continue quand même — la conversation existe, on peut y aller
     }
 
     router.push(`/messages/${conv.id}`);
