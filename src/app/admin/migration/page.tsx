@@ -2,54 +2,65 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { CheckCircle, XCircle, AlertCircle, Copy, Check, Database, Loader2, RefreshCw } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
 
-// ─── SQL de migration thèmes (copie fidèle de migration_themes.sql) ────────────
+// ─── SQL complet à copier-coller dans Supabase SQL Editor ─────────────────────
 const MIGRATION_SQL = `-- ============================================================
 -- BIGUGLIA CONNECT — Migration thèmes locaux
--- Promenades · Collectionneurs · Événements
+-- Coller entièrement dans Supabase > SQL Editor > New query > Run
 -- ============================================================
 
 -- THÈME 1 — PROMENADES
 CREATE TABLE IF NOT EXISTS promenades (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   author_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  title TEXT NOT NULL, description TEXT NOT NULL,
-  distance_km NUMERIC(5,2), duration_min INT,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  distance_km NUMERIC(5,2),
+  duration_min INT,
   difficulty TEXT NOT NULL DEFAULT 'facile' CHECK (difficulty IN ('facile', 'moyen', 'difficile')),
   type TEXT NOT NULL DEFAULT 'balade' CHECK (type IN ('balade', 'randonnee', 'velo', 'plage', 'nature')),
-  tags TEXT[] DEFAULT '{}', start_point TEXT,
+  tags TEXT[] DEFAULT '{}',
+  start_point TEXT,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
   views INT NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS promenade_photos (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   promenade_id UUID REFERENCES promenades(id) ON DELETE CASCADE NOT NULL,
-  url TEXT NOT NULL, display_order INT NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  url TEXT NOT NULL,
+  display_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS promenade_likes (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   promenade_id UUID REFERENCES promenades(id) ON DELETE CASCADE NOT NULL,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(promenade_id, user_id)
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(promenade_id, user_id)
 );
 CREATE TABLE IF NOT EXISTS group_outings (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   organizer_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
   promenade_id UUID REFERENCES promenades(id) ON DELETE SET NULL,
-  title TEXT NOT NULL, description TEXT,
-  outing_date DATE NOT NULL, outing_time TEXT NOT NULL DEFAULT '09:00',
-  max_participants INT NOT NULL DEFAULT 10, meeting_point TEXT,
+  title TEXT NOT NULL,
+  description TEXT,
+  outing_date DATE NOT NULL,
+  outing_time TEXT NOT NULL DEFAULT '09:00',
+  max_participants INT NOT NULL DEFAULT 10,
+  meeting_point TEXT,
   status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'full', 'cancelled', 'done')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS outing_participants (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   outing_id UUID REFERENCES group_outings(id) ON DELETE CASCADE NOT NULL,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(outing_id, user_id)
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(outing_id, user_id)
 );
 ALTER TABLE promenades ENABLE ROW LEVEL SECURITY;
 DO $$ BEGIN
@@ -96,43 +107,49 @@ END $$;
 -- THÈME 2 — COLLECTIONNEURS
 CREATE TABLE IF NOT EXISTS collection_categories (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  name TEXT NOT NULL, slug TEXT NOT NULL UNIQUE,
-  icon TEXT NOT NULL DEFAULT '📦', color TEXT NOT NULL DEFAULT 'gray',
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  icon TEXT NOT NULL DEFAULT '📦',
+  color TEXT NOT NULL DEFAULT 'gray',
   display_order INT NOT NULL DEFAULT 0,
   is_custom BOOLEAN NOT NULL DEFAULT false,
   author_id UUID REFERENCES profiles(id) ON DELETE SET NULL
 );
 INSERT INTO collection_categories (name, slug, icon, color, display_order) VALUES
-  ('Timbres & philatélie','timbres','📮','blue',1),
-  ('Monnaies & numismatique','monnaies','🪙','amber',2),
-  ('Vinyles & musique','vinyles','🎵','purple',3),
-  ('Livres anciens','livres','📚','emerald',4),
-  ('Figurines & jouets','figurines','🎮','rose',5),
-  ('Cartes postales','cartes','🗺️','sky',6),
-  ('Art & tableaux','art','🎨','pink',7),
-  ('Vintage & mode','vintage','👗','orange',8),
-  ('Minéraux & fossiles','mineraux','🪨','teal',9),
-  ('Miniatures & maquettes','miniatures','🏗️','indigo',10),
-  ('Automobilia','automobilia','🚗','red',11),
-  ('Nature & botanique','nature-col','🌿','green',12)
+  ('Timbres & philatélie',   'timbres',      '📮', 'blue',    1),
+  ('Monnaies & numismatique','monnaies',     '🪙', 'amber',   2),
+  ('Vinyles & musique',      'vinyles',      '🎵', 'purple',  3),
+  ('Livres anciens',         'livres',       '📚', 'emerald', 4),
+  ('Figurines & jouets',     'figurines',    '🎮', 'rose',    5),
+  ('Cartes postales',        'cartes',       '🗺️', 'sky',     6),
+  ('Art & tableaux',         'art',          '🎨', 'pink',    7),
+  ('Vintage & mode',         'vintage',      '👗', 'orange',  8),
+  ('Minéraux & fossiles',    'mineraux',     '🪨', 'teal',    9),
+  ('Miniatures & maquettes', 'miniatures',   '🏗️', 'indigo',  10),
+  ('Automobilia',            'automobilia',  '🚗', 'red',     11),
+  ('Nature & botanique',     'nature-col',   '🌿', 'green',   12)
 ON CONFLICT (slug) DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS collection_items (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   author_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
   category_id UUID REFERENCES collection_categories(id),
-  title TEXT NOT NULL, description TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
   item_type TEXT NOT NULL DEFAULT 'vente' CHECK (item_type IN ('vente','troc','don','recherche')),
   price NUMERIC(10,2),
   condition TEXT NOT NULL DEFAULT 'bon' CHECK (condition IN ('neuf','excellent','bon','passable')),
   tags TEXT[] DEFAULT '{}',
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','sold','archived')),
   views INT NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS collection_item_photos (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   item_id UUID REFERENCES collection_items(id) ON DELETE CASCADE NOT NULL,
-  url TEXT NOT NULL, display_order INT NOT NULL DEFAULT 0,
+  url TEXT NOT NULL,
+  display_order INT NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE collection_categories ENABLE ROW LEVEL SECURITY;
@@ -161,33 +178,39 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- THÈME 3 — ÉVÉNEMENTS
+-- THÈME 3 — ÉVÉNEMENTS LOCAUX
 CREATE TABLE IF NOT EXISTS local_events (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   author_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  title TEXT NOT NULL, description TEXT NOT NULL,
-  event_date DATE NOT NULL, event_time TEXT NOT NULL DEFAULT '18:00',
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  event_date DATE NOT NULL,
+  event_time TEXT NOT NULL DEFAULT '18:00',
   location TEXT NOT NULL DEFAULT 'Biguglia',
   category TEXT NOT NULL DEFAULT 'social' CHECK (category IN ('sport','culture','musique','repas','nature','famille','social','conference')),
-  organizer_name TEXT, max_participants INT,
-  is_free BOOLEAN NOT NULL DEFAULT true, price NUMERIC(10,2),
-  tags TEXT[] DEFAULT '{}', is_official BOOLEAN NOT NULL DEFAULT false,
+  organizer_name TEXT,
+  max_participants INT,
+  is_free BOOLEAN NOT NULL DEFAULT true,
+  price NUMERIC(10,2),
+  tags TEXT[] DEFAULT '{}',
+  is_official BOOLEAN NOT NULL DEFAULT false,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','active','cancelled','done')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS event_participations (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   event_id UUID REFERENCES local_events(id) ON DELETE CASCADE NOT NULL,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(event_id, user_id)
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(event_id, user_id)
 );
 ALTER TABLE local_events ENABLE ROW LEVEL SECURITY;
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='local_events' AND policyname='local_events_select') THEN
     CREATE POLICY "local_events_select" ON local_events FOR SELECT USING (status = 'active');
     CREATE POLICY "local_events_insert" ON local_events FOR INSERT WITH CHECK (auth.uid() = author_id);
-    CREATE POLICY "local_events_update" ON local_events FOR UPDATE USING (auth.uid() = author_id OR auth.uid() IN (SELECT id FROM profiles WHERE role = 'admin'));
-    CREATE POLICY "local_events_delete" ON local_events FOR DELETE USING (auth.uid() = author_id);
+    CREATE POLICY "local_events_update_own" ON local_events FOR UPDATE USING (auth.uid() = author_id);
   END IF;
 END $$;
 ALTER TABLE event_participations ENABLE ROW LEVEL SECURITY;
@@ -201,47 +224,49 @@ END $$;
 
 -- Catégories forum pour les 3 thèmes
 INSERT INTO forum_categories (name, slug, description, icon, display_order) VALUES
-  ('🌿 Promenades & Nature', 'promenades', 'Itinéraires, sorties, balades et nature à Biguglia', '🌿', 8),
-  ('🏆 Collectionneurs', 'collectionneurs', 'Échanges, expertises et rencontres de collectionneurs', '🏆', 9),
-  ('🎉 Événements locaux', 'evenements', 'Discussions autour des événements de Biguglia', '🎉', 10)
+  ('🌿 Promenades & Nature', 'promenades',     'Itinéraires, sorties, balades et nature à Biguglia', '🌿', 8),
+  ('🏆 Collectionneurs',     'collectionneurs', 'Échanges, expertises et rencontres de collectionneurs', '🏆', 9),
+  ('🎉 Événements locaux',   'evenements',      'Discussions autour des événements de Biguglia', '🎉', 10)
 ON CONFLICT (slug) DO NOTHING;
 
--- Recharge le cache PostgREST (indispensable après création de tables)
+-- Recharge le cache PostgREST (OBLIGATOIRE après création de tables)
 NOTIFY pgrst, 'reload schema';`;
 
-// ─── Tables à vérifier ────────────────────────────────────────────────────────
+// ─── Tables à vérifier via REST direct ───────────────────────────────────────
 const TABLES_TO_CHECK = [
-  { name: 'collection_categories', label: 'Catégories collections', theme: 'Collectionneurs' },
-  { name: 'collection_items',      label: 'Annonces collections',   theme: 'Collectionneurs' },
-  { name: 'promenades',            label: 'Promenades',             theme: 'Promenades' },
-  { name: 'group_outings',         label: 'Sorties groupées',       theme: 'Promenades' },
-  { name: 'local_events',          label: 'Événements locaux',      theme: 'Événements' },
-  { name: 'event_participations',  label: 'Participations',         theme: 'Événements' },
+  { name: 'collection_categories', label: 'Catégories collections', theme: '🏆 Collectionneurs' },
+  { name: 'collection_items',      label: 'Annonces collections',   theme: '🏆 Collectionneurs' },
+  { name: 'promenades',            label: 'Promenades',             theme: '🌿 Promenades' },
+  { name: 'group_outings',         label: 'Sorties groupées',       theme: '🌿 Promenades' },
+  { name: 'local_events',          label: 'Événements locaux',      theme: '🎉 Événements' },
+  { name: 'event_participations',  label: 'Participations',         theme: '🎉 Événements' },
 ];
 
-type TableStatus = { name: string; exists: boolean | null };
+type TableStatus = { name: string; exists: boolean };
 
 export default function MigrationPage() {
   const supabase = createClient();
 
-  const [checking, setChecking] = useState(true);
-  const [tables, setTables] = useState<TableStatus[]>([]);
-  const [copied, setCopied] = useState(false);
-  const [copiedShort, setCopiedShort] = useState(false);
-  const [sqlTab, setSqlTab] = useState<'full' | 'collectionneurs'>('collectionneurs');
+  const [checking, setChecking]       = useState(true);
+  const [tables,   setTables]         = useState<TableStatus[]>([]);
+  const [copied,   setCopied]         = useState(false);
   const [copiedNotify, setCopiedNotify] = useState(false);
 
-  useEffect(() => {
-    checkTables();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { checkTables(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   const checkTables = async () => {
     setChecking(true);
     const results: TableStatus[] = [];
     for (const t of TABLES_TO_CHECK) {
       const { error } = await supabase.from(t.name).select('id').limit(1);
-      results.push({ name: t.name, exists: !error || error.code !== '42P01' });
+      // Absent si : 42P01 (PostgreSQL), PGRST205 (PostgREST schema cache), ou message "schema cache"
+      const missing = !!error && (
+        error.code === '42P01' ||
+        error.code === 'PGRST205' ||
+        (error.message ?? '').includes('schema cache') ||
+        (error.message ?? '').includes('Could not find')
+      );
+      results.push({ name: t.name, exists: !missing });
     }
     setTables(results);
     setChecking(false);
@@ -250,114 +275,24 @@ export default function MigrationPage() {
   const handleCopy = () => {
     navigator.clipboard.writeText(MIGRATION_SQL).then(() => {
       setCopied(true);
-      toast.success('SQL complet copié !');
-      setTimeout(() => setCopied(false), 3000);
-    });
-  };
-
-  const SQL_COLLECTIONNEURS = `-- Tables Collectionneurs uniquement
--- Coller dans Supabase > SQL Editor > New query > Run
-
-CREATE TABLE IF NOT EXISTS collection_categories (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  name TEXT NOT NULL, slug TEXT NOT NULL UNIQUE,
-  icon TEXT NOT NULL DEFAULT '📦', color TEXT NOT NULL DEFAULT 'gray',
-  display_order INT NOT NULL DEFAULT 0,
-  is_custom BOOLEAN NOT NULL DEFAULT false,
-  author_id UUID REFERENCES profiles(id) ON DELETE SET NULL
-);
-INSERT INTO collection_categories (name, slug, icon, color, display_order) VALUES
-  ('Timbres & philatélie','timbres','📮','blue',1),
-  ('Monnaies & numismatique','monnaies','🪙','amber',2),
-  ('Vinyles & musique','vinyles','🎵','purple',3),
-  ('Livres anciens','livres','📚','emerald',4),
-  ('Figurines & jouets','figurines','🎮','rose',5),
-  ('Cartes postales','cartes','🗺️','sky',6),
-  ('Art & tableaux','art','🎨','pink',7),
-  ('Vintage & mode','vintage','👗','orange',8),
-  ('Minéraux & fossiles','mineraux','🪨','teal',9),
-  ('Miniatures & maquettes','miniatures','🏗️','indigo',10),
-  ('Automobilia','automobilia','🚗','red',11),
-  ('Nature & botanique','nature-col','🌿','green',12)
-ON CONFLICT (slug) DO NOTHING;
-
-CREATE TABLE IF NOT EXISTS collection_items (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  author_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  category_id UUID REFERENCES collection_categories(id),
-  title TEXT NOT NULL, description TEXT NOT NULL,
-  item_type TEXT NOT NULL DEFAULT 'vente' CHECK (item_type IN ('vente','troc','don','recherche')),
-  price NUMERIC(10,2),
-  condition TEXT NOT NULL DEFAULT 'bon' CHECK (condition IN ('neuf','excellent','bon','passable')),
-  tags TEXT[] DEFAULT '{}',
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','sold','archived')),
-  views INT NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS collection_item_photos (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  item_id UUID REFERENCES collection_items(id) ON DELETE CASCADE NOT NULL,
-  url TEXT NOT NULL, display_order INT NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-ALTER TABLE collection_categories ENABLE ROW LEVEL SECURITY;
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='collection_categories' AND policyname='collection_categories_select') THEN
-    CREATE POLICY "collection_categories_select" ON collection_categories FOR SELECT USING (true);
-    CREATE POLICY "collection_categories_insert" ON collection_categories FOR INSERT WITH CHECK (auth.uid() = author_id);
-    CREATE POLICY "collection_categories_delete" ON collection_categories FOR DELETE USING (auth.uid() = author_id);
-  END IF;
-END $$;
-
-ALTER TABLE collection_items ENABLE ROW LEVEL SECURITY;
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='collection_items' AND policyname='collection_items_select') THEN
-    CREATE POLICY "collection_items_select" ON collection_items FOR SELECT USING (status = 'active');
-    CREATE POLICY "collection_items_insert" ON collection_items FOR INSERT WITH CHECK (auth.uid() = author_id);
-    CREATE POLICY "collection_items_update" ON collection_items FOR UPDATE USING (auth.uid() = author_id);
-    CREATE POLICY "collection_items_delete" ON collection_items FOR DELETE USING (auth.uid() = author_id);
-  END IF;
-END $$;
-
-ALTER TABLE collection_item_photos ENABLE ROW LEVEL SECURITY;
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='collection_item_photos' AND policyname='collection_item_photos_select') THEN
-    CREATE POLICY "collection_item_photos_select" ON collection_item_photos FOR SELECT USING (true);
-    CREATE POLICY "collection_item_photos_insert" ON collection_item_photos FOR INSERT WITH CHECK (
-      EXISTS (SELECT 1 FROM collection_items WHERE id = item_id AND author_id = auth.uid()));
-  END IF;
-END $$;
-
--- Recharge le cache PostgREST (indispensable après création de tables)
-NOTIFY pgrst, 'reload schema';`;
-
-  const handleCopyShort = () => {
-    navigator.clipboard.writeText(SQL_COLLECTIONNEURS).then(() => {
-      setCopiedShort(true);
-      toast.success('SQL Collectionneurs copié !');
-      setTimeout(() => setCopiedShort(false), 3000);
+      setTimeout(() => setCopied(false), 4000);
     });
   };
 
   const handleCopyNotify = () => {
     navigator.clipboard.writeText("NOTIFY pgrst, 'reload schema';").then(() => {
       setCopiedNotify(true);
-      toast.success("Commande copiée ! Collez-la dans Supabase SQL Editor et cliquez Run.");
-      setTimeout(() => setCopiedNotify(false), 5000);
+      setTimeout(() => setCopiedNotify(false), 4000);
     });
   };
 
-  const allOk = tables.length > 0 && tables.every(t => t.exists);
-  const missingCount = tables.filter(t => t.exists === false).length;
-
-  const getTableInfo = (name: string) => TABLES_TO_CHECK.find(t => t.name === name);
+  const allOk       = tables.length > 0 && tables.every(t => t.exists);
+  const missingCount = tables.filter(t => !t.exists).length;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10">
-      {/* Header */}
+    <div className="max-w-3xl mx-auto px-4 py-10">
+
+      {/* ── En-tête ── */}
       <div className="flex items-center gap-3 mb-8">
         <div className="p-3 bg-indigo-100 rounded-2xl">
           <Database className="w-6 h-6 text-indigo-600" />
@@ -368,105 +303,55 @@ NOTIFY pgrst, 'reload schema';`;
         </div>
       </div>
 
-      {/* Status global */}
+      {/* ── Statut global ── */}
       {checking ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-8 flex items-center justify-center gap-3 mb-6">
+        <div className="bg-white rounded-2xl border p-8 flex items-center justify-center gap-3 mb-6">
           <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
-          <span className="text-gray-500">Vérification des tables...</span>
+          <span className="text-gray-500">Vérification en cours…</span>
         </div>
       ) : allOk ? (
-        <>
-          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex items-center gap-3 mb-4">
-            <CheckCircle className="w-6 h-6 text-emerald-500 flex-shrink-0" />
-            <div>
-              <p className="font-bold text-emerald-800">✅ Toutes les tables sont présentes</p>
-              <p className="text-emerald-700 text-sm">La migration a déjà été exécutée. Les 3 thèmes fonctionnent.</p>
-            </div>
-          </div>
-          {/* Alerte critique : si les tables sont présentes mais qu'une erreur "schema cache" apparaît */}
-          <div className="bg-red-50 border-2 border-red-400 rounded-2xl p-5 mb-6">
-            <div className="flex items-start gap-3">
-              <span className="text-3xl flex-shrink-0">🚨</span>
-              <div className="flex-1">
-                <p className="font-black text-red-800 text-base mb-1">
-                  Si vous voyez encore &quot;Could not find the table&apos;public.collection_items&apos;&quot;
-                </p>
-                <p className="text-red-700 text-sm mb-3">
-                  Les tables existent mais <strong>Supabase PostgREST n&apos;a pas rechargé son cache</strong>.
-                  Vous devez exécuter cette commande dans le SQL Editor de Supabase :
-                </p>
-                <div className="bg-gray-900 rounded-xl px-4 py-3 font-mono text-green-400 text-sm mb-3 flex items-center justify-between gap-3">
-                  <code>NOTIFY pgrst, &apos;reload schema&apos;;</code>
-                  <button
-                    onClick={handleCopyNotify}
-                    className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${copiedNotify ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white hover:bg-orange-600'}`}
-                  >
-                    {copiedNotify ? <><Check className="w-3 h-3" /> Copié !</> : <><Copy className="w-3 h-3" /> Copier</>}
-                  </button>
-                </div>
-                <ol className="text-red-700 text-sm space-y-1 list-decimal list-inside">
-                  <li>Cliquez <strong>Copier</strong> ci-dessus</li>
-                  <li>Ouvrez <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="underline font-bold text-red-800">supabase.com</a> → votre projet → <strong>SQL Editor</strong> → <strong>New query</strong></li>
-                  <li>Collez la commande et cliquez <strong>Run</strong></li>
-                  <li>Retournez sur <strong>/collectionneurs</strong> et réessayez de publier</li>
-                </ol>
-              </div>
-            </div>
-          </div>
-        </>
-      ) : (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-5 flex items-center gap-3 mb-6">
-          <XCircle className="w-6 h-6 text-red-500 flex-shrink-0" />
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex items-center gap-3 mb-6">
+          <CheckCircle className="w-6 h-6 text-emerald-500 flex-shrink-0" />
           <div>
-            <p className="font-bold text-red-800">{missingCount} table{missingCount > 1 ? 's' : ''} manquante{missingCount > 1 ? 's' : ''}</p>
-            <p className="text-red-700 text-sm">Copiez le SQL ci-dessous et exécutez-le dans Supabase SQL Editor.</p>
+            <p className="font-bold text-emerald-800">✅ Toutes les tables sont présentes</p>
+            <p className="text-emerald-700 text-sm">Les 3 thèmes sont opérationnels.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-5 flex items-start gap-3 mb-6">
+          <XCircle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold text-red-800 text-base">
+              {missingCount} table{missingCount > 1 ? 's' : ''} manquante{missingCount > 1 ? 's' : ''} — migration requise
+            </p>
+            <p className="text-red-700 text-sm mt-1">
+              Copiez le SQL ci-dessous et exécutez-le dans votre projet Supabase.
+            </p>
           </div>
         </div>
       )}
 
-      {/* Bandeau rechargement cache — toujours visible */}
-      <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <span className="text-2xl flex-shrink-0">⚡</span>
-          <div>
-            <p className="font-bold text-orange-800 text-sm">Rechargement du cache Supabase requis</p>
-            <p className="text-orange-700 text-xs mt-0.5">
-              Après chaque migration, Supabase doit recharger son cache. Si vous voyez <em>"Could not find the table"</em>, exécutez cette commande.
-            </p>
-          </div>
-        </div>
-        <button onClick={handleCopyNotify} className={`flex-shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow ${copiedNotify ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white hover:bg-orange-600'}`}>
-          {copiedNotify ? <><Check className="w-4 h-4" /> Copié !</> : <><Copy className="w-4 h-4" /> Copier NOTIFY pgrst</>}
-        </button>
-      </div>
-
-      {/* Tableau des tables */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mb-6 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+      {/* ── Tableau état des tables ── */}
+      <div className="bg-white rounded-2xl border shadow-sm mb-6 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b">
           <h2 className="font-bold text-gray-800">État des tables</h2>
           <button onClick={checkTables} disabled={checking}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-indigo-600 transition-colors disabled:opacity-50">
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-indigo-600 transition-colors disabled:opacity-40">
             <RefreshCw className={`w-4 h-4 ${checking ? 'animate-spin' : ''}`} /> Actualiser
           </button>
         </div>
-        <div className="divide-y divide-gray-50">
+        <div className="divide-y">
           {TABLES_TO_CHECK.map(t => {
-            const status = tables.find(s => s.name === t.name);
-            const exists = status?.exists;
+            const s = tables.find(r => r.name === t.name);
             return (
-              <div key={t.name} className="flex items-center justify-between px-5 py-3.5">
+              <div key={t.name} className="flex items-center justify-between px-5 py-3">
                 <div>
-                  <span className="font-mono text-sm text-gray-700">{t.name}</span>
-                  <span className="ml-3 text-xs text-gray-400">{t.label}</span>
-                  <span className={`ml-2 text-xs font-semibold px-2 py-0.5 rounded-full ${
-                    t.theme === 'Collectionneurs' ? 'bg-amber-100 text-amber-700' :
-                    t.theme === 'Promenades' ? 'bg-emerald-100 text-emerald-700' :
-                    'bg-purple-100 text-purple-700'
-                  }`}>{t.theme}</span>
+                  <span className="text-sm font-semibold text-gray-800">{t.label}</span>
+                  <span className="ml-2 text-xs text-gray-400">{t.theme}</span>
                 </div>
-                {checking || exists === null ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-gray-300" />
-                ) : exists ? (
+                {!s ? (
+                  <span className="text-gray-400 text-sm">—</span>
+                ) : s.exists ? (
                   <span className="flex items-center gap-1 text-emerald-600 text-sm font-semibold">
                     <CheckCircle className="w-4 h-4" /> OK
                   </span>
@@ -481,73 +366,71 @@ NOTIFY pgrst, 'reload schema';`;
         </div>
       </div>
 
-      {/* SQL à copier */}
-      {!allOk && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      {/* ── Bloc SQL — toujours visible ── */}
+      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden mb-6">
 
-          {/* Instructions */}
-          <div className="px-5 py-4 bg-blue-50 border-b border-blue-100 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-blue-800">
-              <strong>Étapes :</strong> 1) Cliquez <strong>Copier le SQL</strong> ci-dessous &nbsp;→&nbsp;
-              2) Ouvrez <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="underline font-bold">supabase.com</a> → votre projet →{' '}
-              <strong>SQL Editor</strong> → <strong>New query</strong> &nbsp;→&nbsp;
-              3) Collez (Ctrl+V) &nbsp;→&nbsp; 4) Cliquez <strong>Run</strong> &nbsp;→&nbsp;
-              5) Revenez ici et cliquez <strong>Actualiser</strong>.
-            </div>
-          </div>
-
-          {/* Onglets */}
-          <div className="flex gap-2 px-5 pt-4 pb-0 border-b border-gray-100">
-            <button onClick={() => setSqlTab('collectionneurs')}
-              className={`px-4 py-2 text-sm font-bold rounded-t-xl border-b-2 transition-all ${sqlTab === 'collectionneurs' ? 'border-amber-500 text-amber-700 bg-amber-50' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
-              🏆 Collectionneurs seulement
-            </button>
-            <button onClick={() => setSqlTab('full')}
-              className={`px-4 py-2 text-sm font-bold rounded-t-xl border-b-2 transition-all ${sqlTab === 'full' ? 'border-indigo-500 text-indigo-700 bg-indigo-50' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
-              📦 SQL complet (tous les thèmes)
-            </button>
-          </div>
-
-          {/* Header copier */}
-          <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-            <p className="text-xs text-gray-500">
-              {sqlTab === 'collectionneurs'
-                ? 'Tables : collection_categories, collection_items, collection_item_photos'
-                : 'Tables : promenades, collectionneurs, événements (toutes les tables des 3 thèmes)'}
-            </p>
-            {sqlTab === 'collectionneurs' ? (
-              <button onClick={handleCopyShort}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${copiedShort ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white hover:bg-amber-600'}`}>
-                {copiedShort ? <><Check className="w-4 h-4" /> Copié !</> : <><Copy className="w-4 h-4" /> Copier le SQL</>}
-              </button>
-            ) : (
-              <button onClick={handleCopy}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${copied ? 'bg-emerald-500 text-white' : 'bg-indigo-500 text-white hover:bg-indigo-600'}`}>
-                {copied ? <><Check className="w-4 h-4" /> Copié !</> : <><Copy className="w-4 h-4" /> Copier le SQL</>}
-              </button>
-            )}
-          </div>
-
-          {/* Code SQL */}
-          <div className="p-4 bg-gray-950 overflow-auto max-h-[500px]">
-            <pre className="text-xs text-green-400 font-mono leading-relaxed whitespace-pre-wrap">
-              {sqlTab === 'collectionneurs' ? SQL_COLLECTIONNEURS : MIGRATION_SQL}
-            </pre>
+        {/* Instructions */}
+        <div className="px-5 py-4 bg-blue-50 border-b border-blue-100 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-blue-800">
+            <strong>Instructions :</strong>
+            <ol className="list-decimal list-inside mt-1 space-y-0.5">
+              <li>Cliquez <strong>Copier le SQL</strong> ci-dessous</li>
+              <li>Ouvrez <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="underline font-bold">supabase.com</a> → votre projet → <strong>SQL Editor</strong></li>
+              <li>Cliquez <strong>New query</strong>, collez (<kbd>Ctrl+V</kbd>), puis cliquez <strong>Run</strong></li>
+              <li>Revenez ici et cliquez <strong>Actualiser</strong></li>
+            </ol>
           </div>
         </div>
-      )}
 
-      {allOk && (
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-center">
-          <p className="text-blue-800 text-sm font-semibold mb-1">💡 Toujours une erreur malgré les tables OK ?</p>
-          <p className="text-blue-700 text-xs mb-3">Rechargez le cache PostgREST en copiant et exécutant la commande ci-dessus dans Supabase SQL Editor.</p>
-          <button onClick={handleCopyNotify}
-            className={`inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all ${copiedNotify ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white hover:bg-orange-600'}`}>
-            {copiedNotify ? <><Check className="w-4 h-4" /> Commande copiée !</> : <><Copy className="w-4 h-4" /> Copier NOTIFY pgrst</>}
+        {/* Bouton copier */}
+        <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
+          <p className="text-xs text-gray-500">
+            SQL complet — promenades + collectionneurs + événements + NOTIFY
+          </p>
+          <button onClick={handleCopy}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow ${
+              copied ? 'bg-emerald-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+            }`}>
+            {copied
+              ? <><Check className="w-4 h-4" /> SQL copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier le SQL</>}
           </button>
         </div>
-      )}
+
+        {/* Code SQL */}
+        <div className="p-4 bg-gray-950 overflow-auto max-h-80">
+          <pre className="text-xs text-green-400 font-mono leading-relaxed whitespace-pre-wrap">
+            {MIGRATION_SQL}
+          </pre>
+        </div>
+      </div>
+
+      {/* ── Bandeau NOTIFY — si tables OK mais erreur cache ── */}
+      <div className="bg-orange-50 border-2 border-orange-300 rounded-2xl p-5">
+        <div className="flex items-start gap-3 mb-3">
+          <span className="text-2xl flex-shrink-0">⚡</span>
+          <div>
+            <p className="font-bold text-orange-800 text-sm">
+              Tables présentes mais erreur &quot;Could not find the table&quot; ?
+            </p>
+            <p className="text-orange-700 text-xs mt-0.5">
+              PostgREST n&apos;a pas rechargé son cache après la migration.
+              Exécutez cette commande dans Supabase SQL Editor :
+            </p>
+          </div>
+        </div>
+        <div className="bg-gray-900 rounded-xl px-4 py-3 flex items-center justify-between gap-3 font-mono text-sm text-green-400">
+          <code>NOTIFY pgrst, &apos;reload schema&apos;;</code>
+          <button onClick={handleCopyNotify}
+            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              copiedNotify ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white hover:bg-orange-600'
+            }`}>
+            {copiedNotify ? <><Check className="w-3 h-3" /> Copié !</> : <><Copy className="w-3 h-3" /> Copier</>}
+          </button>
+        </div>
+      </div>
+
     </div>
   );
 }
