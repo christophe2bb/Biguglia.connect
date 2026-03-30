@@ -37,25 +37,68 @@ interface ArtisanEntry {
   trade_category?: { name: string; icon: string };
 }
 
-function DocLink({ url, label, icon }: { url?: string; label: string; icon: string }) {
-  if (!url) return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 text-gray-400 text-xs">
+function DocLink({ storagePath, label, icon }: { storagePath?: string; label: string; icon: string }) {
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [loadingUrl, setLoadingUrl] = useState(false);
+
+  const openDoc = async () => {
+    if (!storagePath) return;
+    setLoadingUrl(true);
+    try {
+      const supabase = createClient();
+      // Le chemin stocké est "documents/userId/fichier.ext"
+      // On extrait la partie après "documents/"
+      const path = storagePath.startsWith('documents/')
+        ? storagePath.slice('documents/'.length)
+        : storagePath;
+
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .createSignedUrl(path, 60 * 60); // URL valide 1 heure
+
+      if (error || !data?.signedUrl) {
+        // Fallback : peut-être encore dans l'ancien bucket "photos" (migration en cours)
+        const { data: d2 } = await supabase.storage
+          .from('photos')
+          .createSignedUrl(path, 60 * 60);
+        if (d2?.signedUrl) {
+          window.open(d2.signedUrl, '_blank');
+        } else {
+          // Dernier recours : essai URL directe
+          window.open(storagePath, '_blank');
+          toast.error('Impossible de générer une URL sécurisée — le document s\'est ouvert directement.');
+        }
+      } else {
+        window.open(data.signedUrl, '_blank');
+      }
+    } catch {
+      window.open(storagePath, '_blank');
+    } finally {
+      setLoadingUrl(false);
+    }
+  };
+
+  if (!storagePath) return (
+    <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-gray-400 text-xs">
       <span>{icon}</span>
-      <span>{label}</span>
-      <span className="ml-auto italic">Non fourni</span>
+      <span className="flex-1">{label}</span>
+      <span className="italic text-gray-300">Non fourni</span>
     </div>
   );
+
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-50 border border-green-200 text-green-700 text-xs hover:bg-green-100 transition-colors group"
+    <button
+      onClick={openDoc}
+      disabled={loadingUrl}
+      className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-green-50 border border-green-200 text-green-700 text-xs hover:bg-green-100 transition-colors group disabled:opacity-60 text-left"
     >
       <span>{icon}</span>
-      <span className="font-medium">{label}</span>
-      <ExternalLink className="w-3 h-3 ml-auto opacity-60 group-hover:opacity-100" />
-    </a>
+      <span className="font-medium flex-1">{label}</span>
+      {loadingUrl
+        ? <div className="w-3 h-3 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+        : <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100" />
+      }
+    </button>
   );
 }
 
@@ -185,9 +228,9 @@ function ArtisanCard({
               <Shield className="w-3.5 h-3.5" /> Documents justificatifs
             </h4>
             <div className="space-y-2">
-              <DocLink url={artisan.doc_insurance_url} label="Attestation d'assurance décennale / RC Pro" icon="🛡️" />
-              <DocLink url={artisan.doc_kbis_url} label="Kbis / Justificatif d'immatriculation" icon="📋" />
-              <DocLink url={artisan.doc_id_url} label="Pièce d'identité" icon="🪪" />
+              <DocLink storagePath={artisan.doc_insurance_url} label="Attestation d'assurance décennale / RC Pro" icon="🛡️" />
+              <DocLink storagePath={artisan.doc_kbis_url} label="Kbis / Justificatif d'immatriculation" icon="📋" />
+              <DocLink storagePath={artisan.doc_id_url} label="Pièce d'identité" icon="🪪" />
             </div>
 
             {docCount === 0 && (

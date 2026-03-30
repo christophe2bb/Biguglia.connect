@@ -21,10 +21,11 @@ interface DocUpload {
 }
 
 function DocumentUploader({
-  label, hint, required, value, onChange,
+  label, hint, required, value, onChange, userId,
 }: {
   label: string; hint: string; required?: boolean;
   value: DocUpload; onChange: (v: DocUpload) => void;
+  userId: string;
 }) {
   const ref = useRef<HTMLInputElement>(null);
 
@@ -38,17 +39,25 @@ function DocumentUploader({
     onChange(updated);
 
     const supabase = createClient();
-    const ext = file.name.split('.').pop();
-    const path = `documents/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'pdf';
+    // Chemin : userId/nom-doc-timestamp.ext  → bucket privé "documents"
+    const path = `${userId}/${label.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.${ext}`;
 
-    const { data, error } = await supabase.storage.from('photos').upload(path, file, { upsert: true });
+    const { data, error } = await supabase.storage
+      .from('documents')
+      .upload(path, file, { upsert: true, contentType: file.type });
+
     if (error || !data) {
-      toast.error('Erreur lors de l\'upload');
+      console.error('Upload error:', error);
+      toast.error(`Erreur upload : ${error?.message || 'inconnue'}`);
       onChange({ ...updated, uploading: false, file: null });
       return;
     }
-    const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(data.path);
-    onChange({ file, uploading: false, url: publicUrl, name: file.name });
+
+    // On stocke le chemin Storage (pas l'URL publique — le bucket est privé)
+    // L'admin utilisera une URL signée pour consulter le document
+    const storagePath = `documents/${data.path}`;
+    onChange({ file, uploading: false, url: storagePath, name: file.name });
     toast.success(`${label} ajouté ✓`);
   };
 
@@ -322,6 +331,7 @@ export default function ArtisanProfilPage() {
             required
             value={docInsurance}
             onChange={setDocInsurance}
+            userId={profile.id}
           />
 
           <DocumentUploader
@@ -329,6 +339,7 @@ export default function ArtisanProfilPage() {
             hint="Kbis de moins de 3 mois, ou avis de situation SIRENE pour les auto-entrepreneurs."
             value={docKbis}
             onChange={setDocKbis}
+            userId={profile.id}
           />
 
           <DocumentUploader
@@ -336,6 +347,7 @@ export default function ArtisanProfilPage() {
             hint="Carte nationale d'identité ou passeport en cours de validité (recto-verso)."
             value={docId}
             onChange={setDocId}
+            userId={profile.id}
           />
         </div>
 
