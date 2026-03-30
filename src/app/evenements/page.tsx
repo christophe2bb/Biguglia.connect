@@ -346,7 +346,7 @@ export default function EvenementsPage() {
     });
     if (error) { console.error(error); toast.error(`Erreur : ${error.message}`); }
     else {
-      toast.success('Message publié dans le forum !');
+      toast.success('🎉 Sujet publié dans le forum des événements !', { duration: 4000 });
       setPostForm({ title: '', content: '' });
       setShowPostForm(false);
       fetchForum();

@@ -352,7 +352,7 @@ export default function CollectionneursPage() {
       toast.error('Impossible de créer la catégorie. Vérifiez la migration SQL.');
       console.error(error);
     } else {
-      toast.success(`Catégorie "${catForm.name}" créée !`);
+      toast.success(`✅ Catégorie "${catForm.name}" créée !`, { duration: 4000 });
       setDbCategories(prev => [...prev, data]);
       setCatForm({ name: '', icon: '📦', color: 'amber' });
       setShowCatForm(false);
@@ -428,7 +428,7 @@ export default function CollectionneursPage() {
       }
     }
 
-    toast.success('Annonce publiée !');
+    toast.success('🏆 Annonce publiée avec succès !', { duration: 4000 });
     setForm({ title: '', description: '', category_id: '', item_type: 'vente', price: '', condition: 'bon', tags: '' });
     setPhotos([]);
     setShowForm(false);
@@ -476,7 +476,7 @@ export default function CollectionneursPage() {
       console.error('forum_posts insert error:', error);
       toast.error(`Erreur publication : ${error.message}`);
     } else {
-      toast.success('Message publié dans le forum !');
+      toast.success('🎉 Sujet publié dans le forum des collectionneurs !', { duration: 4000 });
       setPostForm({ title: '', content: '' });
       setShowPostForm(false);
       fetchForum();

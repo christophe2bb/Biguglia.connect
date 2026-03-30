@@ -380,7 +380,7 @@ export default function PromenadePage() {
       }
     }
 
-    toast.success('Itinéraire publié avec succès !');
+    toast.success('🌿 Itinéraire publié avec succès !', { duration: 4000 });
     setForm({ title: '', description: '', distance_km: '', duration_min: '', difficulty: 'facile', type: 'balade', tags: '', start_point: '' });
     setPhotos([]);
     setShowForm(false);
@@ -419,7 +419,7 @@ export default function PromenadePage() {
       console.error(error);
       toast.error(`Erreur : ${error.message}`);
     } else {
-      toast.success('Message publié dans le forum !');
+      toast.success('🎉 Sujet publié dans le forum des promenades !', { duration: 4000 });
       setPostForm({ title: '', content: '' });
       setShowPostForm(false);
       fetchForum();
@@ -449,7 +449,7 @@ export default function PromenadePage() {
       toast.error('Erreur lors de la création');
       console.error(error);
     } else {
-      toast.success('Sortie créée ! Les participants pourront s\'inscrire.');
+      toast.success('🥾 Sortie créée ! Les participants pourront s\'inscrire.', { duration: 4000 });
       setOutingForm({ title: '', description: '', outing_date: '', outing_time: '09:00', max_participants: '10', meeting_point: '' });
       setShowOutingForm(false);
       fetchOutings();
