@@ -7,7 +7,7 @@ import {
   Menu, X, Bell, MessageSquare, User, LogOut, Shield, Home,
   Wrench, ChevronDown, PenLine, Drill, TreePine, Gem, PartyPopper,
   Package, BookOpen, Calendar, Footprints, ArrowRight,
-  ClipboardList, Search, Handshake,
+  ClipboardList, Search, Handshake, Users,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -134,9 +134,17 @@ const UNIVERS = [
         href: '/promenades',
         icon: Footprints,
         label: 'Promenades',
-        desc: 'Sentiers, nature, sorties groupées',
+        desc: 'Sentiers, nature, itinéraires',
         iconColor: 'text-emerald-500',
         iconBg: 'bg-emerald-100',
+      },
+      {
+        href: '/promenades?tab=agenda',
+        icon: Users,
+        label: 'Sorties groupées',
+        desc: 'Organiser ou rejoindre une sortie',
+        iconColor: 'text-teal-500',
+        iconBg: 'bg-teal-100',
       },
       {
         href: '/forum',

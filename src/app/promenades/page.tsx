@@ -415,6 +415,14 @@ export default function PromenadePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [activeTab, setActiveTab] = useState<'forum' | 'agenda'>('forum');
+
+  // Lire ?tab=agenda depuis l'URL côté client
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('tab') === 'agenda') setActiveTab('agenda');
+    }
+  }, []);
   const [filter, setFilter] = useState<string>('all');
   const [dbReady, setDbReady] = useState(true);
 
