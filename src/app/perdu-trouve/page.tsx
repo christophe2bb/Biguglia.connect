@@ -47,7 +47,7 @@ type LostFoundItem = {
   need_community_help: boolean;
   author_id: string;
   author?: { full_name: string; avatar_url?: string } | null;
-  photos?: { url: string }[];
+  photos?: { url: string; display_order?: number }[];
   created_at: string;
   expires_at: string | null;
 };
@@ -421,7 +421,7 @@ export default function PerduTrouvePage() {
     setDbReady(true);
 
     // Sort photos by display_order
-    const enriched = (data || []).map((it: LostFoundItem & { photos?: { url: string; display_order: number }[] }) => ({
+    const enriched = (data || []).map((it: LostFoundItem & { photos?: { url: string; display_order?: number }[] }) => ({
       ...it,
       photos: (it.photos || []).sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)),
     }));
