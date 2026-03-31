@@ -427,6 +427,105 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- ── ASSOCIATIONS ──────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS associations (
+  id                   UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  author_id            UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  pub_type             TEXT NOT NULL DEFAULT 'vitrine' CHECK (pub_type IN ('vitrine','benevoles','activite','adherents','materiel','evenement','dons','partenaires')),
+  status               TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','inactive','draft')),
+  name                 TEXT NOT NULL,
+  slogan               TEXT,
+  category             TEXT NOT NULL DEFAULT 'autre',
+  description_short    TEXT NOT NULL DEFAULT '',
+  description_full     TEXT,
+  location             TEXT NOT NULL DEFAULT 'Biguglia',
+  address              TEXT,
+  schedule             TEXT,
+  public_target        TEXT[] NOT NULL DEFAULT '{}',
+  age_min              INT,
+  age_max              INT,
+  membership_required  BOOLEAN NOT NULL DEFAULT false,
+  price_type           TEXT NOT NULL DEFAULT 'gratuit',
+  price_detail         TEXT,
+  capacity             INT,
+  activities           TEXT[] NOT NULL DEFAULT '{}',
+  frequency            TEXT,
+  tags                 TEXT[] NOT NULL DEFAULT '{}',
+  needs                TEXT[] NOT NULL DEFAULT '{}',
+  need_detail          TEXT,
+  contact_name         TEXT NOT NULL DEFAULT '',
+  contact_role         TEXT,
+  contact_phone        TEXT,
+  contact_email        TEXT,
+  contact_website      TEXT,
+  contact_facebook     TEXT,
+  contact_instagram    TEXT,
+  contact_mode         TEXT NOT NULL DEFAULT 'messagerie',
+  show_phone           BOOLEAN NOT NULL DEFAULT false,
+  declared             BOOLEAN NOT NULL DEFAULT false,
+  rna_number           TEXT,
+  pmr_accessible       BOOLEAN NOT NULL DEFAULT false,
+  families_welcome     BOOLEAN NOT NULL DEFAULT false,
+  animals_ok           BOOLEAN NOT NULL DEFAULT false,
+  indoor               BOOLEAN,
+  parking_nearby       BOOLEAN NOT NULL DEFAULT false,
+  material_provided    BOOLEAN NOT NULL DEFAULT false,
+  registration_required BOOLEAN NOT NULL DEFAULT false,
+  places_limited       BOOLEAN NOT NULL DEFAULT false,
+  urgent_need          BOOLEAN NOT NULL DEFAULT false,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE associations ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='associations' AND policyname='asso_select') THEN
+    CREATE POLICY "asso_select" ON associations FOR SELECT USING (status <> 'draft' OR auth.uid() = author_id);
+    CREATE POLICY "asso_insert" ON associations FOR INSERT WITH CHECK (auth.uid() = author_id);
+    CREATE POLICY "asso_update" ON associations FOR UPDATE USING (auth.uid() = author_id);
+    CREATE POLICY "asso_delete" ON associations FOR DELETE USING (
+      auth.uid() = author_id
+      OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+    );
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS asso_photos (
+  id            UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  asso_id       UUID REFERENCES associations(id) ON DELETE CASCADE NOT NULL,
+  url           TEXT NOT NULL,
+  display_order INT NOT NULL DEFAULT 0,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE asso_photos ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='asso_photos' AND policyname='asso_photos_select') THEN
+    CREATE POLICY "asso_photos_select" ON asso_photos FOR SELECT USING (true);
+    CREATE POLICY "asso_photos_insert" ON asso_photos FOR INSERT WITH CHECK (
+      EXISTS (SELECT 1 FROM associations WHERE id = asso_id AND author_id = auth.uid()));
+    CREATE POLICY "asso_photos_delete" ON asso_photos FOR DELETE USING (
+      EXISTS (SELECT 1 FROM associations WHERE id = asso_id AND author_id = auth.uid()));
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS asso_comments (
+  id         UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  asso_id    UUID REFERENCES associations(id) ON DELETE CASCADE NOT NULL,
+  author_id  UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  content    TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE asso_comments ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='asso_comments' AND policyname='asso_comments_select') THEN
+    CREATE POLICY "asso_comments_select" ON asso_comments FOR SELECT USING (true);
+    CREATE POLICY "asso_comments_insert" ON asso_comments FOR INSERT WITH CHECK (auth.uid() = author_id);
+    CREATE POLICY "asso_comments_delete" ON asso_comments FOR DELETE USING (
+      auth.uid() = author_id
+      OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+    );
+  END IF;
+END $$;
+
 -- Recharge le cache PostgREST (OBLIGATOIRE après création de tables)
 NOTIFY pgrst, 'reload schema';`;
 
@@ -443,6 +542,9 @@ const TABLES_TO_CHECK = [
   { name: 'event_photos',          label: 'Photos événements',       theme: '🎉 Événements' },
   { name: 'event_comments',        label: 'Commentaires événements', theme: '🎉 Événements' },
   { name: 'request_comments',      label: 'Commentaires demandes',   theme: '🔧 Vie pratique' },
+  { name: 'associations',           label: 'Associations',            theme: '🏛️ Associations' },
+  { name: 'asso_photos',            label: 'Photos associations',     theme: '🏛️ Associations' },
+  { name: 'asso_comments',          label: 'Forum associations',      theme: '🏛️ Associations' },
   { name: 'lost_found_items',      label: 'Annonces Perdu/Trouvé',   theme: '🔍 Perdu/Trouvé' },
   { name: 'lf_photos',             label: 'Photos Perdu/Trouvé',     theme: '🔍 Perdu/Trouvé' },
   { name: 'lf_comments',           label: 'Commentaires Perdu/Trouvé', theme: '🔍 Perdu/Trouvé' },
