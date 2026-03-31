@@ -1394,7 +1394,7 @@ export default function EvenementsPage() {
           objectFit: 'cover',
           objectPosition: 'center top',
           zIndex: 0,
-          opacity: 0.13,
+          opacity: 0.25,
           pointerEvents: 'none',
           imageRendering: 'crisp-edges',
         }}
