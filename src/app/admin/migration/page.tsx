@@ -345,6 +345,88 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- ── PERDU / TROUVÉ ──────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS lost_found_items (
+  id                  UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  author_id           UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  type                TEXT NOT NULL CHECK (type IN ('perdu','trouve')),
+  status              TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','resolved','draft')),
+  title               TEXT NOT NULL,
+  category            TEXT NOT NULL DEFAULT 'autre',
+  description         TEXT NOT NULL DEFAULT '',
+  brand               TEXT,
+  color               TEXT,
+  distinctive_sign    TEXT,
+  keep_secret         BOOLEAN NOT NULL DEFAULT false,
+  lost_date           DATE NOT NULL,
+  lost_time           TEXT,
+  location_area       TEXT NOT NULL DEFAULT '',
+  location_detail     TEXT,
+  contact_name        TEXT NOT NULL DEFAULT '',
+  contact_phone       TEXT,
+  contact_email       TEXT,
+  contact_mode        TEXT NOT NULL DEFAULT 'messagerie',
+  show_phone          BOOLEAN NOT NULL DEFAULT false,
+  reward              TEXT,
+  sentimental_value   BOOLEAN NOT NULL DEFAULT false,
+  declared_authorities BOOLEAN NOT NULL DEFAULT false,
+  need_community_help BOOLEAN NOT NULL DEFAULT true,
+  deposited_at        TEXT,
+  proof_required      BOOLEAN NOT NULL DEFAULT false,
+  expires_at          TIMESTAMPTZ,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE lost_found_items ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='lost_found_items' AND policyname='lfi_select') THEN
+    CREATE POLICY "lfi_select" ON lost_found_items FOR SELECT USING (status <> 'draft' OR auth.uid() = author_id);
+    CREATE POLICY "lfi_insert" ON lost_found_items FOR INSERT WITH CHECK (auth.uid() = author_id);
+    CREATE POLICY "lfi_update" ON lost_found_items FOR UPDATE USING (auth.uid() = author_id);
+    CREATE POLICY "lfi_delete" ON lost_found_items FOR DELETE USING (
+      auth.uid() = author_id
+      OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+    );
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS lf_photos (
+  id           UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  item_id      UUID REFERENCES lost_found_items(id) ON DELETE CASCADE NOT NULL,
+  url          TEXT NOT NULL,
+  display_order INT NOT NULL DEFAULT 0,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE lf_photos ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='lf_photos' AND policyname='lf_photos_select') THEN
+    CREATE POLICY "lf_photos_select" ON lf_photos FOR SELECT USING (true);
+    CREATE POLICY "lf_photos_insert" ON lf_photos FOR INSERT WITH CHECK (
+      EXISTS (SELECT 1 FROM lost_found_items WHERE id = item_id AND author_id = auth.uid()));
+    CREATE POLICY "lf_photos_delete" ON lf_photos FOR DELETE USING (
+      EXISTS (SELECT 1 FROM lost_found_items WHERE id = item_id AND author_id = auth.uid()));
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS lf_comments (
+  id         UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  item_id    UUID REFERENCES lost_found_items(id) ON DELETE CASCADE NOT NULL,
+  author_id  UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  content    TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE lf_comments ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='lf_comments' AND policyname='lf_comments_select') THEN
+    CREATE POLICY "lf_comments_select" ON lf_comments FOR SELECT USING (true);
+    CREATE POLICY "lf_comments_insert" ON lf_comments FOR INSERT WITH CHECK (auth.uid() = author_id);
+    CREATE POLICY "lf_comments_delete" ON lf_comments FOR DELETE USING (
+      auth.uid() = author_id
+      OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+    );
+  END IF;
+END $$;
+
 -- Recharge le cache PostgREST (OBLIGATOIRE après création de tables)
 NOTIFY pgrst, 'reload schema';`;
 
@@ -361,6 +443,9 @@ const TABLES_TO_CHECK = [
   { name: 'event_photos',          label: 'Photos événements',       theme: '🎉 Événements' },
   { name: 'event_comments',        label: 'Commentaires événements', theme: '🎉 Événements' },
   { name: 'request_comments',      label: 'Commentaires demandes',   theme: '🔧 Vie pratique' },
+  { name: 'lost_found_items',      label: 'Annonces Perdu/Trouvé',   theme: '🔍 Perdu/Trouvé' },
+  { name: 'lf_photos',             label: 'Photos Perdu/Trouvé',     theme: '🔍 Perdu/Trouvé' },
+  { name: 'lf_comments',           label: 'Commentaires Perdu/Trouvé', theme: '🔍 Perdu/Trouvé' },
 ];
 
 type TableStatus = { name: string; exists: boolean };

@@ -7,7 +7,7 @@ import {
   Menu, X, Bell, MessageSquare, User, LogOut, Shield, Home,
   Wrench, ChevronDown, PenLine, Drill, TreePine, Gem, PartyPopper,
   Package, BookOpen, Calendar, Footprints, ArrowRight,
-  ClipboardList,
+  ClipboardList, Search,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -71,7 +71,7 @@ const UNIVERS = [
     gradFrom: 'from-blue-500',
     gradTo: 'to-teal-500',
     headerBg: 'bg-gradient-to-r from-blue-50 to-teal-50 border-blue-100',
-    paths: ['/annonces', '/materiel', '/collectionneurs'],
+    paths: ['/annonces', '/materiel', '/collectionneurs', '/perdu-trouve'],
     items: [
       {
         href: '/annonces',
@@ -96,6 +96,14 @@ const UNIVERS = [
         desc: 'Timbres, vinyles, objets rares',
         iconColor: 'text-amber-500',
         iconBg: 'bg-amber-100',
+      },
+      {
+        href: '/perdu-trouve',
+        icon: Search,
+        label: 'Perdu / Trouvé',
+        desc: 'Retrouvez vos objets perdus',
+        iconColor: 'text-orange-500',
+        iconBg: 'bg-orange-100',
       },
     ],
   },
