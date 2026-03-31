@@ -3,12 +3,13 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
-  ArrowRight, Star, Shield, Users, CheckCircle, MapPin,
-  Wrench, Package, BookOpen, ChevronRight, ClipboardList,
-  MessageSquare, Bell, PenLine, Hammer, Zap, Paintbrush,
+  ArrowRight, Shield, Users, CheckCircle, MapPin,
+  Wrench, MessageSquare, PenLine, Hammer, Zap, Paintbrush,
   Layers, Wind, Leaf, Drill, Loader2, Sparkles,
   TreePine, Gem, PartyPopper, Trophy, Calendar,
-  Heart, Mountain, Music, Footprints, Tag,
+  Heart, Music, Footprints, HandHeart, Dog,
+  Building2, ShoppingBag, ChevronRight, Star,
+  Package, Lock, Eye, Bell,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
@@ -31,7 +32,7 @@ function AnimatedCount({ target, suffix = '', loading = false }: { target: numbe
   useEffect(() => {
     if (!started || target === 0) return;
     let start = 0;
-    const duration = 1200;
+    const duration = 1400;
     const step = (timestamp: number) => {
       if (!start) start = timestamp;
       const progress = Math.min((timestamp - start) / duration, 1);
@@ -42,727 +43,784 @@ function AnimatedCount({ target, suffix = '', loading = false }: { target: numbe
     requestAnimationFrame(step);
   }, [started, target]);
 
-  if (loading) return <Loader2 className="w-5 h-5 animate-spin text-gray-400 inline" />;
+  if (loading) return <Loader2 className="w-5 h-5 animate-spin text-gray-300 inline" />;
   return <span ref={ref}>{display}{suffix}</span>;
 }
 
-// ─── Données métiers ──────────────────────────────────────────────────────────
+// ─── Métiers ──────────────────────────────────────────────────────────────────
 const trades = [
-  { icon: Drill,      label: 'Plomberie',    href: '/artisans?categorie=plomberie',    grad: 'from-sky-400 to-blue-600',    bg: 'bg-sky-50 hover:bg-sky-100 border-sky-100' },
-  { icon: Zap,        label: 'Électricité',  href: '/artisans?categorie=electricite',  grad: 'from-yellow-400 to-amber-500', bg: 'bg-yellow-50 hover:bg-yellow-100 border-yellow-100' },
-  { icon: Layers,     label: 'Maçonnerie',   href: '/artisans?categorie=maconnerie',   grad: 'from-stone-400 to-stone-600',  bg: 'bg-stone-50 hover:bg-stone-100 border-stone-100' },
-  { icon: Paintbrush, label: 'Peinture',     href: '/artisans?categorie=peinture',     grad: 'from-pink-400 to-rose-500',    bg: 'bg-pink-50 hover:bg-pink-100 border-pink-100' },
-  { icon: Hammer,     label: 'Menuiserie',   href: '/artisans?categorie=menuiserie',   grad: 'from-amber-400 to-orange-600', bg: 'bg-amber-50 hover:bg-amber-100 border-amber-100' },
-  { icon: Wind,       label: 'Climatisation',href: '/artisans?categorie=climatisation',grad: 'from-cyan-400 to-cyan-600',    bg: 'bg-cyan-50 hover:bg-cyan-100 border-cyan-100' },
-  { icon: Leaf,       label: 'Jardinage',    href: '/artisans?categorie=jardinage',    grad: 'from-green-400 to-green-600',  bg: 'bg-green-50 hover:bg-green-100 border-green-100' },
-  { icon: Wrench,     label: 'Bricolage',    href: '/artisans?categorie=bricolage',    grad: 'from-orange-400 to-orange-600',bg: 'bg-orange-50 hover:bg-orange-100 border-orange-100' },
+  { icon: Drill,      label: 'Plomberie',     href: '/artisans?categorie=plomberie',     color: 'bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-200' },
+  { icon: Zap,        label: 'Électricité',   href: '/artisans?categorie=electricite',   color: 'bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-200' },
+  { icon: Layers,     label: 'Maçonnerie',    href: '/artisans?categorie=maconnerie',    color: 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200' },
+  { icon: Paintbrush, label: 'Peinture',      href: '/artisans?categorie=peinture',      color: 'bg-pink-100 text-pink-700 border-pink-200 hover:bg-pink-200' },
+  { icon: Hammer,     label: 'Menuiserie',    href: '/artisans?categorie=menuiserie',    color: 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200' },
+  { icon: Wind,       label: 'Climatisation', href: '/artisans?categorie=climatisation', color: 'bg-cyan-100 text-cyan-700 border-cyan-200 hover:bg-cyan-200' },
+  { icon: Leaf,       label: 'Jardinage',     href: '/artisans?categorie=jardinage',     color: 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200' },
+  { icon: Wrench,     label: 'Bricolage',     href: '/artisans?categorie=bricolage',     color: 'bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200' },
 ];
 
-// ─── Thèmes principaux ────────────────────────────────────────────────────────
-const themes = [
+// ─── Tous les thèmes/rubriques ────────────────────────────────────────────────
+const allThemes = [
+  // ── Services
   {
-    href: '/evenements',
-    emoji: '🎉',
-    label: 'NOUVEAU',
-    title: 'Événements locaux',
-    headline: 'Tout l\'agenda de Biguglia',
-    desc: 'Matchs du SC Biguglia, concerts, vide-greniers, fêtes de quartier, ateliers enfants… Ne ratez plus rien !',
-    features: ['📅 Agenda complet', '⚽ Stade & matchs', '🎵 Concerts & culture', '🏡 Fêtes de quartier'],
-    grad: 'from-purple-500 via-violet-500 to-pink-500',
-    gradLight: 'from-purple-50 to-violet-50',
-    border: 'border-purple-200',
-    text: 'text-purple-700',
-    badge: 'bg-purple-100 text-purple-700 border-purple-200',
-    cta: 'Voir l\'agenda',
-    icon: PartyPopper,
-    bigIcon: '🎉',
-    preview: [
-      { dot: 'bg-blue-400',   label: 'Match SC Biguglia · Dim. 15h30' },
-      { dot: 'bg-pink-400',   label: 'Concert fanfare · Sam. 19h' },
-      { dot: 'bg-amber-400',  label: 'Vide-grenier · 13 avril' },
-    ],
+    group: 'Services',
+    href: '/artisans',
+    emoji: '🔧',
+    title: 'Artisans vérifiés',
+    desc: 'Trouvez un professionnel de confiance à Biguglia. SIRET, assurance RC Pro, avis réels.',
+    color: 'bg-brand-50 border-brand-200 text-brand-700',
+    dot: 'bg-brand-500',
   },
   {
-    href: '/promenades',
-    emoji: '🌿',
-    label: 'NATURE',
-    title: 'Promenades & Nature',
-    headline: 'Explorez Biguglia autrement',
-    desc: 'Sentiers, balades en famille, sorties groupées, observation des flamants roses à l\'étang de Biguglia.',
-    features: ['🗺️ Itinéraires détaillés', '🦩 Réserve naturelle', '🚴 Pistes cyclables', '👨‍👩‍👧 Sorties groupées'],
-    grad: 'from-emerald-500 via-teal-500 to-green-500',
-    gradLight: 'from-emerald-50 to-teal-50',
-    border: 'border-emerald-200',
-    text: 'text-emerald-700',
-    badge: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    cta: 'Découvrir les sentiers',
-    icon: TreePine,
-    bigIcon: '🌿',
-    preview: [
-      { dot: 'bg-emerald-400', label: 'Étang de Biguglia · 12 km' },
-      { dot: 'bg-teal-400',    label: 'Cap Tormentoso · 4,5 km · Facile' },
-      { dot: 'bg-green-400',   label: 'Sortie dimanche · 8 participants' },
-    ],
+    group: 'Services',
+    href: '/artisans/demande',
+    emoji: '📋',
+    title: 'Déposer une demande',
+    desc: 'Décrivez votre projet en 2 min. Les artisans locaux vous contactent avec un devis.',
+    color: 'bg-indigo-50 border-indigo-200 text-indigo-700',
+    dot: 'bg-indigo-500',
+  },
+  // ── Vie pratique
+  {
+    group: 'Vie pratique',
+    href: '/annonces',
+    emoji: '📦',
+    title: 'Petites annonces',
+    desc: 'Achetez, vendez, échangez ou donnez avec vos voisins. Tout est local.',
+    color: 'bg-blue-50 border-blue-200 text-blue-700',
+    dot: 'bg-blue-500',
   },
   {
+    group: 'Vie pratique',
+    href: '/materiel',
+    emoji: '🛠️',
+    title: 'Matériel partagé',
+    desc: 'Empruntez ou prêtez outils, perceuse, échelle… Sans rien acheter.',
+    color: 'bg-teal-50 border-teal-200 text-teal-700',
+    dot: 'bg-teal-500',
+  },
+  {
+    group: 'Vie pratique',
     href: '/collectionneurs',
     emoji: '🏆',
-    label: 'PASSIONNÉS',
     title: 'Collectionneurs',
-    headline: 'Vendez, échangez, partagez',
-    desc: 'Timbres, vinyles, monnaies, figurines, cartes postales… Un marché local dédié aux passionnés de collections.',
-    features: ['🏷️ Vente & troc', '🎁 Dons gratuits', '🔍 Petites recherches', '💬 Forum entraide'],
-    grad: 'from-amber-500 via-orange-500 to-yellow-500',
-    gradLight: 'from-amber-50 to-orange-50',
-    border: 'border-amber-200',
-    text: 'text-amber-700',
-    badge: 'bg-amber-100 text-amber-700 border-amber-200',
-    cta: 'Explorer les collections',
-    icon: Gem,
-    bigIcon: '🏆',
-    preview: [
-      { dot: 'bg-amber-400',  label: 'Timbres France 1960-80 · 280€' },
-      { dot: 'bg-orange-400', label: 'Vinyles jazz · Troc proposé' },
-      { dot: 'bg-yellow-400', label: 'Cartes Corse XXe · Don' },
-    ],
+    desc: 'Timbres, vinyles, monnaies, figurines, livres anciens… Un marché de passionnés.',
+    color: 'bg-amber-50 border-amber-200 text-amber-700',
+    dot: 'bg-amber-500',
+  },
+  {
+    group: 'Vie pratique',
+    href: '/perdu-trouve',
+    emoji: '🔍',
+    title: 'Perdu / Trouvé',
+    desc: 'Clés, animal, portefeuille, vélo… Signalez ou retrouvez ce qui est perdu.',
+    color: 'bg-rose-50 border-rose-200 text-rose-700',
+    dot: 'bg-rose-500',
+  },
+  // ── Vie locale
+  {
+    group: 'Vie locale',
+    href: '/evenements',
+    emoji: '🎉',
+    title: 'Événements',
+    desc: 'Matchs SC Biguglia, concerts, vide-greniers, fêtes, ateliers… Un seul agenda.',
+    color: 'bg-purple-50 border-purple-200 text-purple-700',
+    dot: 'bg-purple-500',
+  },
+  {
+    group: 'Vie locale',
+    href: '/promenades',
+    emoji: '🌿',
+    title: 'Promenades & Nature',
+    desc: 'Sentiers, étang aux flamants roses, sorties groupées chaque week-end.',
+    color: 'bg-emerald-50 border-emerald-200 text-emerald-700',
+    dot: 'bg-emerald-500',
+  },
+  {
+    group: 'Vie locale',
+    href: '/forum',
+    emoji: '💬',
+    title: 'Forum',
+    desc: 'Posez vos questions, partagez vos infos, discutez avec les habitants.',
+    color: 'bg-sky-50 border-sky-200 text-sky-700',
+    dot: 'bg-sky-500',
+  },
+  {
+    group: 'Vie locale',
+    href: '/associations',
+    emoji: '🏛️',
+    title: 'Associations',
+    desc: 'Sport, culture, bénévolat, seniors… Toutes les associations de Biguglia.',
+    color: 'bg-violet-50 border-violet-200 text-violet-700',
+    dot: 'bg-violet-500',
+  },
+  {
+    group: 'Vie locale',
+    href: '/coups-de-main',
+    emoji: '🤝',
+    title: 'Coups de main',
+    desc: 'Besoin d\'aide ? Gardiennage, co-voiturage, course… Les voisins sont là.',
+    color: 'bg-orange-50 border-orange-200 text-orange-700',
+    dot: 'bg-orange-500',
   },
 ];
-
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const { profile } = useAuthStore();
   const [heroLoaded, setHeroLoaded] = useState(false);
-  const [counts, setCounts] = useState({ artisans: 0, membres: 0, annonces: 0 });
+  const [counts, setCounts] = useState({ artisans: 0, membres: 0, annonces: 0, events: 0, help: 0, outings: 0 });
   const [countsLoading, setCountsLoading] = useState(true);
-  const [activeTheme, setActiveTheme] = useState(0);
 
   useEffect(() => {
     const t = setTimeout(() => setHeroLoaded(true), 60);
     return () => clearTimeout(t);
   }, []);
 
-  // Auto-rotate theme showcase
-  useEffect(() => {
-    const interval = setInterval(() => setActiveTheme(p => (p + 1) % themes.length), 4000);
-    return () => clearInterval(interval);
-  }, []);
-
   useEffect(() => {
     const fetchCounts = async () => {
       const supabase = createClient();
-      const [{ count: artisans }, { count: membres }, { count: annonces }] = await Promise.all([
+      const [
+        { count: artisans },
+        { count: membres },
+        { count: annonces },
+        { count: events },
+        { count: help },
+        { count: outings },
+      ] = await Promise.all([
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'artisan_verified'),
         supabase.from('profiles').select('id', { count: 'exact', head: true }),
         supabase.from('listings').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+        supabase.from('local_events').select('id', { count: 'exact', head: true }).gte('event_date', new Date().toISOString().split('T')[0]),
+        supabase.from('help_requests').select('id', { count: 'exact', head: true }).eq('status', 'open'),
+        supabase.from('group_outings').select('id', { count: 'exact', head: true }).gte('outing_date', new Date().toISOString().split('T')[0]),
       ]);
-      setCounts({ artisans: artisans || 0, membres: membres || 0, annonces: annonces || 0 });
+      setCounts({
+        artisans: artisans || 0,
+        membres: membres || 0,
+        annonces: annonces || 0,
+        events: events || 0,
+        help: help || 0,
+        outings: outings || 0,
+      });
       setCountsLoading(false);
     };
     fetchCounts();
   }, []);
 
-  const th = themes[activeTheme];
+  const groups = ['Services', 'Vie pratique', 'Vie locale'] as const;
 
   return (
     <div className="overflow-hidden">
 
-      {/* ══════════════════════════════════════
-          HERO — Vie locale complète
-      ══════════════════════════════════════ */}
-      <section className="relative min-h-screen flex items-center overflow-hidden">
-        {/* ── Photo de Biguglia en arrière-plan ── */}
+      {/* ══════════════════════════════════════════════════════════
+          HERO
+      ══════════════════════════════════════════════════════════ */}
+      <section className="relative min-h-[92vh] flex items-center overflow-hidden bg-gray-950">
+        {/* Fond photo */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/images/biguglia-hero.jpg"
-          alt="Vue de Biguglia"
-          className="absolute inset-0 w-full h-full object-cover object-center"
-          style={{ zIndex: 0 }}
+          alt="Biguglia"
+          className="absolute inset-0 w-full h-full object-cover object-center opacity-40"
         />
-        {/* Overlay dégradé pour lisibilité du texte */}
-        <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/20 pointer-events-none" style={{ zIndex: 1 }} />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" style={{ zIndex: 1 }} />
+        {/* Overlay gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-950/80 via-gray-900/60 to-brand-900/40" />
+        <div className="absolute inset-0 bg-gradient-to-t from-gray-950/70 via-transparent to-transparent" />
+        {/* Grain subtil */}
+        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
 
-        {/* Points décoratifs subtils */}
-        <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '30px 30px', zIndex: 2 }} />
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 w-full">
-          <div className="grid lg:grid-cols-2 gap-14 lg:gap-20 items-center">
-
-            {/* ── GAUCHE ── */}
+            {/* GAUCHE */}
             <div className={`transition-all duration-700 ${heroLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
 
-              {/* Badge localisation */}
-              <div className="inline-flex items-center gap-2.5 bg-white/20 backdrop-blur-md border border-white/30 rounded-full px-4 py-2 mb-8 shadow-lg">
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 rounded-full px-4 py-2 mb-7">
                 <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                <MapPin className="w-3.5 h-3.5 text-white" />
+                <MapPin className="w-3.5 h-3.5 text-white/70" />
                 <span className="text-sm font-bold text-white">Biguglia · Haute-Corse · 2B</span>
               </div>
 
               {/* Titre */}
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-[1.1] mb-4 tracking-tight drop-shadow-lg">
-                Toute la vie locale
+              <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-black text-white leading-[1.05] mb-5 tracking-tight">
+                Toute la vie de
                 <br />
-                <span className="bg-gradient-to-r from-orange-300 via-amber-200 to-yellow-300 bg-clip-text text-transparent">
-                  de Biguglia
+                <span className="bg-gradient-to-r from-brand-400 via-orange-300 to-amber-300 bg-clip-text text-transparent">
+                  Biguglia
                 </span>
                 <br />
                 au même endroit
               </h1>
 
-              <p className="text-white/85 text-lg sm:text-xl leading-relaxed mb-8 max-w-lg drop-shadow">
-                Artisans, événements, promenades, collectionneurs, annonces, forum, matériel partagé… 
-                <strong className="text-white"> Le réseau gratuit des habitants de Biguglia.</strong>
+              <p className="text-white/70 text-lg leading-relaxed mb-8 max-w-lg">
+                Artisans vérifiés, événements, promenades, associations, annonces, forum,
+                coups de main entre voisins…{' '}
+                <span className="text-white font-semibold">100% gratuit, 100% local.</span>
               </p>
 
-              {/* Pills thèmes — 3 univers */}
-              <div className={`space-y-2.5 mb-8 transition-all duration-700 delay-200 ${heroLoaded ? 'opacity-100' : 'opacity-0'}`}>
-                {/* Services */}
-                <div className="flex flex-wrap gap-2 items-center">
-                  <span className="text-[10px] font-black text-orange-300 uppercase tracking-widest w-full drop-shadow">Services</span>
-                  {[
-                    { href: '/artisans',          label: '🔧 Artisans' },
-                    { href: '/artisans/demande',   label: '📋 Poster demande' },
-                    { href: '/demandes',           label: '👥 Voir demandes' },
-                    { href: '/artisans',           label: '💰 Devis' },
-                  ].map(({ href, label }) => (
-                    <Link key={label} href={href}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border border-white/25 bg-white/15 backdrop-blur-sm text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/25 hover:shadow-md">
-                      {label}
-                    </Link>
-                  ))}
-                </div>
-                {/* Vie pratique */}
-                <div className="flex flex-wrap gap-2 items-center">
-                  <span className="text-[10px] font-black text-sky-300 uppercase tracking-widest w-full drop-shadow">Vie pratique</span>
-                  {[
-                    { href: '/annonces',        label: '📦 Annonces' },
-                    { href: '/materiel',        label: '🛠️ Matériel' },
-                    { href: '/annonces',        label: '🔄 Échanges' },
-                    { href: '/collectionneurs', label: '🏆 Collectionneurs' },
-                  ].map(({ href, label }) => (
-                    <Link key={label} href={href}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border border-white/25 bg-white/15 backdrop-blur-sm text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/25 hover:shadow-md">
-                      {label}
-                    </Link>
-                  ))}
-                </div>
-                {/* Vie locale */}
-                <div className="flex flex-wrap gap-2 items-center">
-                  <span className="text-[10px] font-black text-purple-300 uppercase tracking-widest w-full drop-shadow">Vie locale</span>
-                  {[
-                    { href: '/evenements', label: '🎉 Événements' },
-                    { href: '/promenades', label: '🌿 Promenades' },
-                    { href: '/forum',      label: '💬 Forum' },
-                    { href: '/forum',      label: '🤝 Communauté' },
-                  ].map(({ href, label }) => (
-                    <Link key={label} href={href}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border border-white/25 bg-white/15 backdrop-blur-sm text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/25 hover:shadow-md">
-                      {label}
-                    </Link>
-                  ))}
-                </div>
+              {/* Rubriques condensées */}
+              <div className={`space-y-3 mb-9 transition-all duration-700 delay-150 ${heroLoaded ? 'opacity-100' : 'opacity-0'}`}>
+                {groups.map(g => {
+                  const items = allThemes.filter(t => t.group === g);
+                  const groupColor = g === 'Services' ? 'text-brand-400' : g === 'Vie pratique' ? 'text-sky-400' : 'text-purple-400';
+                  return (
+                    <div key={g} className="flex flex-wrap items-center gap-2">
+                      <span className={`text-[10px] font-black uppercase tracking-widest ${groupColor} w-full sm:w-auto sm:min-w-[80px]`}>{g}</span>
+                      {items.map(t => (
+                        <Link key={t.href} href={t.href}
+                          className="text-xs font-bold px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/90 hover:bg-white/20 hover:text-white transition-all hover:-translate-y-0.5">
+                          {t.emoji} {t.title.split(' ')[0]}
+                        </Link>
+                      ))}
+                    </div>
+                  );
+                })}
               </div>
 
               {/* CTA */}
               <div className={`flex flex-col sm:flex-row gap-3 transition-all duration-700 delay-300 ${heroLoaded ? 'opacity-100' : 'opacity-0'}`}>
-                <Link href="/inscription"
-                  className="group relative inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-brand-500 to-purple-600 text-white px-8 py-4 rounded-2xl font-black text-base hover:from-brand-600 hover:to-purple-700 transition-all duration-300 shadow-xl hover:-translate-y-0.5 overflow-hidden">
-                  <span className="absolute inset-0 bg-gradient-to-r from-white/0 to-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <Sparkles className="w-5 h-5 relative z-10" />
-                  <span className="relative z-10">Rejoindre la communauté</span>
-                  <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
-                </Link>
-                <Link href="/artisans/demande"
-                  className="group inline-flex items-center justify-center gap-2 bg-white/20 backdrop-blur-md text-white px-8 py-4 rounded-2xl font-bold text-base border border-white/30 hover:bg-white/30 transition-all duration-300 shadow-md">
-                  <PenLine className="w-5 h-5 text-white" />
-                  Trouver un artisan
-                  <ChevronRight className="w-4 h-4 text-white/70 group-hover:translate-x-0.5 transition-transform" />
-                </Link>
+                {!profile ? (
+                  <>
+                    <Link href="/inscription"
+                      className="group inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white px-8 py-4 rounded-2xl font-black text-base shadow-xl hover:-translate-y-0.5 transition-all">
+                      <Sparkles className="w-5 h-5" />
+                      Rejoindre la communauté
+                      <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                    <Link href="/artisans"
+                      className="inline-flex items-center justify-center gap-2 bg-white/10 border border-white/25 text-white px-8 py-4 rounded-2xl font-bold text-base hover:bg-white/20 transition-all backdrop-blur-sm">
+                      <PenLine className="w-5 h-5" />
+                      Trouver un artisan
+                    </Link>
+                  </>
+                ) : (
+                  <Link href="/artisans/demande"
+                    className="group inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white px-8 py-4 rounded-2xl font-black text-base shadow-xl hover:-translate-y-0.5 transition-all">
+                    <PenLine className="w-5 h-5" />
+                    Déposer ma demande
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                )}
               </div>
 
-              {/* Preuves sociales */}
-              <div className={`flex flex-wrap gap-4 mt-8 transition-all duration-700 delay-500 ${heroLoaded ? 'opacity-100' : 'opacity-0'}`}>
+              {/* Social proof */}
+              <div className={`flex flex-wrap gap-3 mt-7 transition-all duration-700 delay-500 ${heroLoaded ? 'opacity-100' : 'opacity-0'}`}>
                 {[
-                  { icon: Shield,      text: 'Artisans vérifiés', color: 'text-emerald-300' },
-                  { icon: CheckCircle, text: '100 % gratuit',      color: 'text-sky-300'     },
-                  { icon: Heart,       text: 'Projet citoyen',     color: 'text-rose-300'    },
+                  { icon: Shield,       text: 'Artisans vérifiés',  color: 'text-emerald-400' },
+                  { icon: CheckCircle,  text: '100 % gratuit',       color: 'text-sky-400'     },
+                  { icon: Heart,        text: 'Projet citoyen',      color: 'text-rose-400'    },
+                  { icon: Lock,         text: 'RGPD respecté',       color: 'text-amber-400'   },
                 ].map(({ icon: I, text, color }) => (
-                  <span key={text} className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-sm border border-white/25 text-white">
-                    <I className={`w-3.5 h-3.5 ${color}`} /><span>{text}</span>
+                  <span key={text} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80">
+                    <I className={`w-3.5 h-3.5 ${color}`} />{text}
                   </span>
                 ))}
               </div>
             </div>
 
-            {/* ── DROITE — Showcase thèmes animé ── */}
+            {/* DROITE — Stats live + thèmes */}
             <div className={`transition-all duration-1000 delay-300 ${heroLoaded ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-12'}`}>
 
-              {/* Sélecteur thèmes */}
-              <div className="flex gap-2 mb-4">
-                {themes.map((t, i) => (
-                  <button key={t.href} onClick={() => setActiveTheme(i)}
-                    className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all duration-300 border ${
-                      i === activeTheme
-                        ? `bg-gradient-to-r ${t.grad} text-white border-transparent shadow-lg`
-                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
-                    }`}>
-                    {t.emoji} {t.title.split(' ')[0]}
-                  </button>
-                ))}
-              </div>
-
-              {/* Carte thème actif */}
-              <div key={activeTheme} className={`bg-gradient-to-br ${th.gradLight} border-2 ${th.border} rounded-3xl p-6 shadow-xl transition-all duration-500`}>
-                {/* Header */}
-                <div className="flex items-center justify-between mb-5">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${th.grad} flex items-center justify-center text-2xl shadow-lg`}>
-                      {th.bigIcon}
-                    </div>
-                    <div>
-                      <span className={`text-xs font-black px-2.5 py-1 rounded-full border ${th.badge}`}>{th.label}</span>
-                      <h3 className="font-black text-gray-900 text-lg mt-1">{th.title}</h3>
-                    </div>
-                  </div>
-                </div>
-
-                <p className="text-gray-600 text-sm leading-relaxed mb-5">{th.desc}</p>
-
-                {/* Preview items */}
-                <div className="space-y-2.5 mb-5">
-                  {th.preview.map(({ dot, label }) => (
-                    <div key={label} className="flex items-center gap-3 bg-white/80 rounded-xl px-3 py-2.5 shadow-sm">
-                      <span className={`w-2.5 h-2.5 rounded-full ${dot} flex-shrink-0`} />
-                      <span className="text-sm text-gray-700 font-medium">{label}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Features */}
-                <div className="flex flex-wrap gap-1.5 mb-5">
-                  {th.features.map(f => (
-                    <span key={f} className="text-xs bg-white/70 text-gray-700 font-semibold px-2.5 py-1 rounded-full border border-white">{f}</span>
-                  ))}
-                </div>
-
-                <Link href={th.href}
-                  className={`w-full flex items-center justify-center gap-2 bg-gradient-to-r ${th.grad} text-white font-bold py-3 rounded-xl hover:opacity-90 transition-all hover:-translate-y-0.5 shadow-lg text-sm`}>
-                  {th.cta} <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-
-              {/* Stats rapides */}
-              <div className="grid grid-cols-3 gap-3 mt-4">
+              {/* Grille stats live */}
+              <div className="grid grid-cols-3 gap-3 mb-5">
                 {[
-                  { val: counts.artisans, label: 'Artisans',  color: 'text-brand-600',   ld: countsLoading },
-                  { val: counts.membres,  label: 'Membres',   color: 'text-purple-600',  ld: countsLoading },
-                  { val: counts.annonces, label: 'Annonces',  color: 'text-emerald-600', ld: countsLoading },
-                ].map(({ val, label, color, ld }) => (
-                  <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 text-center">
-                    <div className={`text-2xl font-black ${color} tabular-nums`}>
-                      <AnimatedCount target={val} loading={ld} />
+                  { val: counts.artisans, label: 'Artisans',    suffix: '', color: 'from-brand-500 to-brand-600',     icon: Wrench      },
+                  { val: counts.membres,  label: 'Membres',     suffix: '', color: 'from-purple-500 to-violet-600',   icon: Users       },
+                  { val: counts.annonces, label: 'Annonces',    suffix: '', color: 'from-blue-500 to-blue-600',       icon: ShoppingBag },
+                  { val: counts.events,   label: 'Événements',  suffix: '', color: 'from-pink-500 to-rose-600',       icon: Calendar    },
+                  { val: counts.outings,  label: 'Sorties',     suffix: '', color: 'from-emerald-500 to-teal-600',    icon: Footprints  },
+                  { val: counts.help,     label: 'Coups de main',suffix:'', color: 'from-orange-500 to-amber-600',    icon: HandHeart   },
+                ].map(({ val, label, suffix, color, icon: Icon }) => (
+                  <div key={label} className="bg-white/8 backdrop-blur-sm border border-white/10 rounded-2xl p-3 text-center">
+                    <div className={`w-8 h-8 mx-auto mb-1.5 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center`}>
+                      <Icon className="w-4 h-4 text-white" />
                     </div>
-                    <div className="text-xs text-gray-500 font-medium mt-0.5">{label}</div>
+                    <div className="text-xl font-black text-white tabular-nums">
+                      <AnimatedCount target={val} suffix={suffix} loading={countsLoading} />
+                    </div>
+                    <div className="text-[10px] text-white/50 font-medium leading-tight mt-0.5">{label}</div>
                   </div>
                 ))}
+              </div>
+
+              {/* Card "Nouveautés" */}
+              <div className="bg-white/8 backdrop-blur-sm border border-white/10 rounded-3xl p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-black text-white/70 uppercase tracking-wider">Les rubriques</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {allThemes.map(t => (
+                    <Link key={t.href} href={t.href}
+                      className="flex items-center gap-2.5 bg-white/6 hover:bg-white/14 border border-white/8 hover:border-white/20 rounded-xl px-3 py-2.5 transition-all group">
+                      <span className="text-base flex-shrink-0">{t.emoji}</span>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-white/90 truncate">{t.title}</div>
+                        <div className="text-[10px] text-white/40 truncate">{t.group}</div>
+                      </div>
+                      <ChevronRight className="w-3 h-3 text-white/30 ml-auto flex-shrink-0 group-hover:text-white/60 group-hover:translate-x-0.5 transition-all" />
+                    </Link>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Vague bas */}
-        <div className="absolute bottom-0 left-0 right-0">
-          <svg viewBox="0 0 1440 60" className="w-full fill-white" preserveAspectRatio="none">
-            <path d="M0,30 C360,60 1080,0 1440,40 L1440,60 L0,60 Z" />
+        {/* Vague */}
+        <div className="absolute bottom-0 left-0 right-0 z-10">
+          <svg viewBox="0 0 1440 56" className="w-full fill-gray-50" preserveAspectRatio="none">
+            <path d="M0,28 C480,56 960,0 1440,36 L1440,56 L0,56 Z" />
           </svg>
         </div>
       </section>
 
-      {/* ══════════════════════════════════════
-          3 THÈMES — Grands spotlight
-      ══════════════════════════════════════ */}
-      <section className="py-24 bg-white">
+      {/* ══════════════════════════════════════════════════════════
+          VIE LOCALE — 5 rubriques en spotlight
+      ══════════════════════════════════════════════════════════ */}
+      <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-100 to-pink-100 border border-purple-200 rounded-full px-5 py-2.5 mb-5">
+
+          <div className="text-center mb-14">
+            <div className="inline-flex items-center gap-2 bg-purple-100 border border-purple-200 rounded-full px-5 py-2 mb-5">
               <Sparkles className="w-4 h-4 text-purple-600" />
-              <span className="text-purple-700 text-sm font-black">Thèmes exclusifs · Vie locale</span>
+              <span className="text-purple-700 text-sm font-black">Vie locale · Nouveautés</span>
             </div>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-gray-900 mb-4">
-              Biguglia, c'est bien plus<br />
-              <span className="bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">qu'un annuaire d'artisans</span>
+              Bien plus qu&apos;un annuaire
+              <br />
+              <span className="bg-gradient-to-r from-purple-600 via-brand-500 to-orange-500 bg-clip-text text-transparent">
+                d&apos;artisans
+              </span>
             </h2>
-            <p className="text-gray-500 text-lg max-w-2xl mx-auto">Trois espaces dédiés à la vraie vie de votre village</p>
+            <p className="text-gray-500 text-lg max-w-2xl mx-auto">
+              Biguglia Connect rassemble tous les aspects de la vie de village en un seul endroit
+            </p>
           </div>
 
-          {/* Spotlight 1 — Événements (grand) */}
-          <div className="rounded-3xl overflow-hidden bg-gradient-to-br from-purple-600 via-violet-600 to-pink-500 mb-6 relative">
-            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl" />
-            <div className="grid lg:grid-cols-2 gap-0 items-stretch">
-              {/* Texte */}
-              <div className="p-8 lg:p-12 relative z-10">
-                <span className="inline-flex items-center gap-2 bg-white/20 border border-white/30 rounded-full px-4 py-1.5 text-white text-xs font-black mb-6">
-                  <PartyPopper className="w-3.5 h-3.5" /> THÈME · ÉVÉNEMENTS LOCAUX
+          {/* Grille 5 thèmes vie locale */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
+
+            {/* Événements — grand */}
+            <div className="lg:col-span-2 rounded-3xl overflow-hidden bg-gradient-to-br from-purple-600 via-violet-600 to-pink-500 relative group">
+              <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+              <div className="p-7 relative z-10 h-full flex flex-col">
+                <span className="inline-flex items-center gap-1.5 self-start bg-white/20 border border-white/30 rounded-full px-3 py-1 text-white text-xs font-black mb-5">
+                  <PartyPopper className="w-3 h-3" /> Événements locaux
                 </span>
-                <h3 className="text-3xl sm:text-4xl font-black text-white mb-4 leading-tight">
-                  🎉 Ne ratez plus<br />aucun événement<br />à Biguglia
+                <h3 className="text-2xl sm:text-3xl font-black text-white mb-3 leading-tight">
+                  🎉 Ne ratez plus<br />aucun événement
                 </h3>
-                <p className="text-purple-100 text-base leading-relaxed mb-6 max-w-md">
-                  Matchs du <strong className="text-white">SC Biguglia</strong>, concerts de la fanfare, vide-greniers, ateliers enfants, fêtes de quartier… Tout est là, dans un seul agenda.
+                <p className="text-purple-100 text-sm leading-relaxed mb-5 flex-1">
+                  SC Biguglia, concerts, vide-greniers, ateliers enfants, fêtes de quartier…
                 </p>
-                <div className="grid grid-cols-2 gap-3 mb-8">
+                <div className="space-y-2 mb-6">
                   {[
-                    { icon: Trophy,      label: 'Stade & matchs' },
-                    { icon: Music,       label: 'Concerts & culture' },
-                    { icon: Calendar,    label: 'Agenda complet' },
-                    { icon: Users,       label: 'Créer un événement' },
-                  ].map(({ icon: I, label }) => (
-                    <div key={label} className="flex items-center gap-2.5 bg-white/15 rounded-xl px-3 py-2.5">
-                      <I className="w-4 h-4 text-white flex-shrink-0" />
-                      <span className="text-white text-sm font-semibold">{label}</span>
+                    { e: '⚽', t: 'Match SC Biguglia · Dim. 15h30', c: 'bg-white/15' },
+                    { e: '🎵', t: 'Concert fanfare · Sam. 19h',     c: 'bg-white/10' },
+                    { e: '🛒', t: 'Vide-grenier · 13 avril',        c: 'bg-white/10' },
+                  ].map(({ e, t, c }) => (
+                    <div key={t} className={`${c} backdrop-blur-sm border border-white/15 rounded-xl px-3 py-2 flex items-center gap-2.5`}>
+                      <span className="text-base">{e}</span>
+                      <span className="text-sm text-white font-medium">{t}</span>
                     </div>
                   ))}
                 </div>
                 <Link href="/evenements"
-                  className="inline-flex items-center gap-2.5 bg-white text-purple-700 font-black px-8 py-4 rounded-2xl hover:bg-purple-50 transition-all shadow-xl hover:-translate-y-0.5 text-base">
-                  Voir l&apos;agenda <ArrowRight className="w-5 h-5" />
+                  className="self-start inline-flex items-center gap-2 bg-white text-purple-700 font-black px-6 py-3 rounded-xl hover:bg-purple-50 transition-all shadow-lg text-sm hover:-translate-y-0.5">
+                  Voir l&apos;agenda <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
-              {/* Preview événements */}
-              <div className="p-6 lg:p-8 relative z-10 flex flex-col justify-center gap-3">
-                {[
-                  { emoji: '⚽', title: 'Match SC Biguglia vs Furiani', sub: 'Dimanche 6 avril · 15h30 · Stade municipal', tag: '🏠 Domicile', tagBg: 'bg-blue-400/30' },
-                  { emoji: '🎵', title: 'Concert fanfare municipale', sub: 'Samedi 19 avril · 19h00 · Salle des fêtes', tag: '🎟️ Gratuit', tagBg: 'bg-emerald-400/30' },
-                  { emoji: '🛒', title: 'Vide-grenier de printemps', sub: 'Dimanche 13 avril · Dès 8h · Place du village', tag: '200 exposants', tagBg: 'bg-amber-400/30' },
-                  { emoji: '🎨', title: 'Atelier poterie enfants', sub: 'Samedi 12 avril · 10h · Médiathèque', tag: '8/12 places', tagBg: 'bg-rose-400/30' },
-                ].map(({ emoji, title, sub, tag, tagBg }) => (
-                  <div key={title} className="bg-white/15 backdrop-blur-sm border border-white/25 rounded-2xl p-4 hover:bg-white/20 transition-all">
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl flex-shrink-0">{emoji}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white font-bold text-sm leading-tight">{title}</p>
-                        <p className="text-purple-200 text-xs mt-0.5">{sub}</p>
-                      </div>
-                      <span className={`flex-shrink-0 text-xs text-white font-bold px-2 py-1 rounded-full ${tagBg}`}>{tag}</span>
-                    </div>
-                  </div>
-                ))}
-                <p className="text-center text-purple-200 text-xs font-semibold mt-1">+ des dizaines d&apos;autres événements</p>
-              </div>
             </div>
-          </div>
 
-          {/* Spotlight 2 & 3 — Promenades + Collectionneurs (côte à côte) */}
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Promenades */}
-            <div className="rounded-3xl overflow-hidden bg-gradient-to-br from-emerald-500 via-teal-500 to-green-500 relative">
-              <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
-              <div className="p-8 relative z-10">
-                <span className="inline-flex items-center gap-2 bg-white/20 border border-white/30 rounded-full px-4 py-1.5 text-white text-xs font-black mb-5">
-                  <TreePine className="w-3.5 h-3.5" /> THÈME · PROMENADES & NATURE
+            {/* Coups de main */}
+            <div className="rounded-3xl overflow-hidden bg-gradient-to-br from-orange-500 to-amber-500 relative group">
+              <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+              <div className="p-7 relative z-10 h-full flex flex-col">
+                <span className="inline-flex items-center gap-1.5 self-start bg-white/20 border border-white/30 rounded-full px-3 py-1 text-white text-xs font-black mb-5">
+                  <HandHeart className="w-3 h-3" /> Coups de main
                 </span>
-                <h3 className="text-2xl sm:text-3xl font-black text-white mb-3 leading-tight">
-                  🌿 Explorez<br />la nature de<br />Biguglia
+                <h3 className="text-2xl font-black text-white mb-3 leading-tight">
+                  🤝 L&apos;entraide<br />entre voisins
                 </h3>
-                <p className="text-emerald-100 text-sm leading-relaxed mb-5">
-                  Sentiers balisés, balades en bord de mer, tour de l&apos;étang avec ses <strong className="text-white">flamants roses</strong>, sorties groupées chaque week-end.
+                <p className="text-orange-100 text-sm leading-relaxed mb-5 flex-1">
+                  Gardiennage, co-voiturage, bricolage, courses, déménagement…
+                  Les habitants s&apos;entraident.
                 </p>
                 <div className="space-y-2 mb-6">
                   {[
-                    { icon: Footprints, label: 'Itinéraires balisés avec difficulté' },
-                    { icon: Mountain,   label: 'Randonnées Monte Castellu' },
-                    { icon: Users,      label: 'Sorties groupées organisées' },
-                  ].map(({ icon: I, label }) => (
-                    <div key={label} className="flex items-center gap-2 text-white/90 text-sm">
-                      <I className="w-3.5 h-3.5 flex-shrink-0" /> {label}
+                    '🚗 Co-voiturage Bastia',
+                    '🌱 Jardinage chez voisin',
+                    '📦 Aide déménagement',
+                  ].map(t => (
+                    <div key={t} className="bg-white/15 border border-white/20 rounded-xl px-3 py-2 text-sm text-white font-medium">
+                      {t}
+                    </div>
+                  ))}
+                </div>
+                <Link href="/coups-de-main"
+                  className="self-start inline-flex items-center gap-2 bg-white text-orange-700 font-black px-6 py-3 rounded-xl hover:bg-orange-50 transition-all shadow-lg text-sm hover:-translate-y-0.5">
+                  Voir les demandes <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+
+            {/* Promenades */}
+            <div className="rounded-3xl overflow-hidden bg-gradient-to-br from-emerald-500 via-teal-500 to-green-600 relative group">
+              <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+              <div className="p-7 relative z-10 h-full flex flex-col">
+                <span className="inline-flex items-center gap-1.5 self-start bg-white/20 border border-white/30 rounded-full px-3 py-1 text-white text-xs font-black mb-5">
+                  <TreePine className="w-3 h-3" /> Promenades & Nature
+                </span>
+                <h3 className="text-2xl font-black text-white mb-3 leading-tight">
+                  🌿 Explorez<br />la nature
+                </h3>
+                <p className="text-emerald-100 text-sm leading-relaxed mb-5 flex-1">
+                  Étang aux flamants roses, sentiers balisés, sorties groupées chaque week-end.
+                </p>
+                <div className="space-y-2 mb-6">
+                  {[
+                    '🦩 Étang de Biguglia · 12 km',
+                    '⛰️ Monte Castellu · Facile',
+                    '👥 Sortie dim. · 8 participants',
+                  ].map(t => (
+                    <div key={t} className="bg-white/15 border border-white/20 rounded-xl px-3 py-2 text-sm text-white font-medium">
+                      {t}
                     </div>
                   ))}
                 </div>
                 <Link href="/promenades"
-                  className="inline-flex items-center gap-2 bg-white text-emerald-700 font-black px-6 py-3 rounded-2xl hover:bg-emerald-50 transition-all shadow-lg hover:-translate-y-0.5 text-sm">
+                  className="self-start inline-flex items-center gap-2 bg-white text-emerald-700 font-black px-6 py-3 rounded-xl hover:bg-emerald-50 transition-all shadow-lg text-sm hover:-translate-y-0.5">
                   Voir les sentiers <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
             </div>
 
-            {/* Collectionneurs */}
-            <div className="rounded-3xl overflow-hidden bg-gradient-to-br from-amber-500 via-orange-500 to-yellow-400 relative">
-              <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
-              <div className="p-8 relative z-10">
-                <span className="inline-flex items-center gap-2 bg-white/20 border border-white/30 rounded-full px-4 py-1.5 text-white text-xs font-black mb-5">
-                  <Gem className="w-3.5 h-3.5" /> THÈME · COLLECTIONNEURS
+            {/* Associations */}
+            <div className="rounded-3xl overflow-hidden bg-gradient-to-br from-violet-500 to-purple-700 relative group">
+              <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+              <div className="p-7 relative z-10 h-full flex flex-col">
+                <span className="inline-flex items-center gap-1.5 self-start bg-white/20 border border-white/30 rounded-full px-3 py-1 text-white text-xs font-black mb-5">
+                  <Building2 className="w-3 h-3" /> Associations
                 </span>
-                <h3 className="text-2xl sm:text-3xl font-black text-white mb-3 leading-tight">
-                  🏆 Vendez,<br />échangez,<br />donnez
+                <h3 className="text-2xl font-black text-white mb-3 leading-tight">
+                  🏛️ La vie<br />associative
                 </h3>
-                <p className="text-amber-100 text-sm leading-relaxed mb-5">
-                  <strong className="text-white">12 catégories</strong> de collections : timbres, vinyles, monnaies, figurines, cartes postales, livres anciens, art, vintage…
+                <p className="text-violet-100 text-sm leading-relaxed mb-5 flex-1">
+                  Sport, culture, bénévolat, seniors, environnement…
+                  Toutes les assos de Biguglia.
                 </p>
                 <div className="space-y-2 mb-6">
                   {[
-                    { icon: Tag,     label: 'Vente, troc et dons gratuits' },
-                    { icon: Heart,   label: 'Forum entraide entre passionnés' },
-                    { icon: Gem,     label: 'Estimation & conseils' },
-                  ].map(({ icon: I, label }) => (
-                    <div key={label} className="flex items-center gap-2 text-white/90 text-sm">
-                      <I className="w-3.5 h-3.5 flex-shrink-0" /> {label}
+                    '⚽ SC Biguglia Football',
+                    '🎵 Fanfare municipale',
+                    '🌱 Biguglia Nature',
+                  ].map(t => (
+                    <div key={t} className="bg-white/15 border border-white/20 rounded-xl px-3 py-2 text-sm text-white font-medium">
+                      {t}
                     </div>
                   ))}
                 </div>
-                <Link href="/collectionneurs"
-                  className="inline-flex items-center gap-2 bg-white text-amber-700 font-black px-6 py-3 rounded-2xl hover:bg-amber-50 transition-all shadow-lg hover:-translate-y-0.5 text-sm">
-                  Explorer les collections <ArrowRight className="w-4 h-4" />
+                <Link href="/associations"
+                  className="self-start inline-flex items-center gap-2 bg-white text-violet-700 font-black px-6 py-3 rounded-xl hover:bg-violet-50 transition-all shadow-lg text-sm hover:-translate-y-0.5">
+                  Voir les assos <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* ══════════════════════════════════════
-          3 UNIVERS — Vue d'ensemble structurée
-      ══════════════════════════════════════ */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4">Tout Biguglia, bien organisé</h2>
-            <p className="text-gray-500 text-lg max-w-xl mx-auto">3 grands univers pour trouver ce dont vous avez besoin</p>
-          </div>
-
-          <div className="grid lg:grid-cols-3 gap-6">
-
-            {/* ── UNIVERS 1 · SERVICES ── */}
-            <div className="bg-white rounded-3xl border-2 border-orange-100 overflow-hidden shadow-sm hover:shadow-lg transition-shadow">
-              <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-5 flex items-center gap-3">
-                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                  <Wrench className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-white/70 uppercase tracking-widest">Univers 1</p>
-                  <h3 className="text-lg font-black text-white">Services</h3>
-                </div>
-              </div>
-              <div className="p-4 space-y-2">
-                {[
-                  { href: '/artisans',        icon: Wrench,        label: 'Artisans',      desc: 'Professionnels vérifiés', color: 'text-orange-500', bg: 'bg-orange-50' },
-                  { href: '/artisans/demande', icon: ClipboardList, label: 'Demandes',      desc: 'Déposez votre besoin',    color: 'text-amber-600',  bg: 'bg-amber-50' },
-                  { href: '/artisans',         icon: Star,          label: 'Devis',         desc: 'Comparez les offres',     color: 'text-yellow-500', bg: 'bg-yellow-50' },
-                  { href: '/artisans',         icon: Calendar,      label: 'Rendez-vous',   desc: 'Planifiez facilement',    color: 'text-red-400',    bg: 'bg-red-50' },
-                ].map(({ href, icon: Icon, label, desc, color, bg }) => (
-                  <Link key={label} href={href}
-                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-orange-50 transition-colors group">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${bg} flex-shrink-0`}>
-                      <Icon className={`w-4 h-4 ${color}`} />
+            {/* Perdu / Trouvé */}
+            <div className="rounded-3xl overflow-hidden bg-gradient-to-br from-rose-500 to-pink-600 relative group">
+              <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+              <div className="p-7 relative z-10 h-full flex flex-col">
+                <span className="inline-flex items-center gap-1.5 self-start bg-white/20 border border-white/30 rounded-full px-3 py-1 text-white text-xs font-black mb-5">
+                  <Dog className="w-3 h-3" /> Perdu / Trouvé
+                </span>
+                <h3 className="text-2xl font-black text-white mb-3 leading-tight">
+                  🔍 Perdu<br />ou trouvé ?
+                </h3>
+                <p className="text-rose-100 text-sm leading-relaxed mb-5 flex-1">
+                  Clés, animal, vélo, portefeuille… Signalez ou aidez à retrouver.
+                </p>
+                <div className="space-y-2 mb-6">
+                  {[
+                    '🐕 Chien perdu · Biguglia',
+                    '🔑 Clés trouvées · Centre',
+                    '👜 Sac retrouvé · Marché',
+                  ].map(t => (
+                    <div key={t} className="bg-white/15 border border-white/20 rounded-xl px-3 py-2 text-sm text-white font-medium">
+                      {t}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-gray-900">{label}</p>
-                      <p className="text-xs text-gray-400">{desc}</p>
-                    </div>
-                    <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-orange-400 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
-                  </Link>
-                ))}
+                  ))}
+                </div>
+                <Link href="/perdu-trouve"
+                  className="self-start inline-flex items-center gap-2 bg-white text-rose-700 font-black px-6 py-3 rounded-xl hover:bg-rose-50 transition-all shadow-lg text-sm hover:-translate-y-0.5">
+                  Voir les annonces <ArrowRight className="w-4 h-4" />
+                </Link>
               </div>
             </div>
 
-            {/* ── UNIVERS 2 · VIE PRATIQUE ── */}
-            <div className="bg-white rounded-3xl border-2 border-blue-100 overflow-hidden shadow-sm hover:shadow-lg transition-shadow">
-              <div className="bg-gradient-to-r from-blue-500 to-teal-500 p-5 flex items-center gap-3">
-                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                  <Package className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-white/70 uppercase tracking-widest">Univers 2</p>
-                  <h3 className="text-lg font-black text-white">Vie pratique</h3>
-                </div>
-              </div>
-              <div className="p-4 space-y-2">
-                {[
-                  { href: '/annonces',       icon: Package, label: 'Annonces',        desc: 'Vendez et achetez local',     color: 'text-blue-500',  bg: 'bg-blue-50' },
-                  { href: '/materiel',       icon: Drill,   label: 'Matériel',         desc: 'Empruntez des outils',         color: 'text-teal-500',  bg: 'bg-teal-50' },
-                  { href: '/annonces',       icon: Heart,   label: 'Échanges',         desc: 'Troc et dons entre voisins',   color: 'text-cyan-500',  bg: 'bg-cyan-50' },
-                  { href: '/collectionneurs',icon: Gem,     label: 'Collectionneurs',  desc: 'Timbres, vinyles, rareté…',    color: 'text-amber-500', bg: 'bg-amber-50' },
-                ].map(({ href, icon: Icon, label, desc, color, bg }) => (
-                  <Link key={label} href={href}
-                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 transition-colors group">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${bg} flex-shrink-0`}>
-                      <Icon className={`w-4 h-4 ${color}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-gray-900">{label}</p>
-                      <p className="text-xs text-gray-400">{desc}</p>
-                    </div>
-                    <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            {/* ── UNIVERS 3 · VIE LOCALE ── */}
-            <div className="bg-white rounded-3xl border-2 border-purple-100 overflow-hidden shadow-sm hover:shadow-lg transition-shadow">
-              <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-5 flex items-center gap-3">
-                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                  <PartyPopper className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-white/70 uppercase tracking-widest">Univers 3</p>
-                  <h3 className="text-lg font-black text-white">Vie locale</h3>
-                </div>
-              </div>
-              <div className="p-4 space-y-2">
-                {[
-                  { href: '/evenements',   icon: Calendar,   label: 'Événements',     desc: 'Concerts, matchs, fêtes',          color: 'text-purple-500',  bg: 'bg-purple-50' },
-                  { href: '/promenades',   icon: Footprints, label: 'Promenades',     desc: 'Sentiers et sorties groupées',      color: 'text-emerald-500', bg: 'bg-emerald-50' },
-                  { href: '/forum',        icon: BookOpen,   label: 'Forum',          desc: 'Discussions entre habitants',       color: 'text-violet-500',  bg: 'bg-violet-50' },
-                  { href: '/coups-de-main',icon: Heart,      label: 'Coups de main',  desc: 'Entraide entre voisins',            color: 'text-orange-500',  bg: 'bg-orange-50' },
-                ].map(({ href, icon: Icon, label, desc, color, bg }) => (
-                  <Link key={label} href={href}
-                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-purple-50 transition-colors group">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${bg} flex-shrink-0`}>
-                      <Icon className={`w-4 h-4 ${color}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-gray-900">{label}</p>
-                      <p className="text-xs text-gray-400">{desc}</p>
-                    </div>
-                    <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-purple-400 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
-                  </Link>
-                ))}
-              </div>
-            </div>
           </div>
 
-          {/* CTA artisans */}
-          <div className="mt-10 bg-gradient-to-r from-brand-500 via-orange-500 to-amber-500 rounded-3xl p-8 relative overflow-hidden">
-            <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='white'%3E%3Cpath d='M20 20v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4z'/%3E%3C/g%3E%3C/svg%3E\")" }} />
-            <div className="relative flex flex-col sm:flex-row items-center justify-between gap-6">
-              <div>
-                <h3 className="text-2xl sm:text-3xl font-black text-white mb-2">Besoin d&apos;un artisan ?</h3>
-                <p className="text-orange-100">Décrivez votre projet, recevez des réponses d&apos;artisans locaux vérifiés.</p>
-              </div>
-              <Link href="/artisans/demande"
-                className="flex-shrink-0 inline-flex items-center gap-2.5 bg-white text-brand-600 px-8 py-4 rounded-2xl font-black text-base hover:bg-orange-50 transition-all shadow-xl hover:-translate-y-0.5 whitespace-nowrap">
-                <PenLine className="w-5 h-5" /> Déposer ma demande <ArrowRight className="w-5 h-5" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════
-          MÉTIERS — grille compacte
-      ══════════════════════════════════════ */}
-      <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl sm:text-3xl font-black text-gray-900">Quel artisan cherchez-vous ?</h2>
-            <Link href="/artisans" className="hidden sm:inline-flex items-center gap-1 text-brand-600 font-bold text-sm hover:text-brand-700 transition-colors">
-              Voir tout <ChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
-          <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
-            {trades.map(({ icon: Icon, label, href, grad, bg }) => (
-              <Link key={href} href={href}
-                className={`group flex flex-col items-center gap-2.5 p-4 rounded-2xl border-2 ${bg} transition-all duration-300 hover:shadow-lg hover:-translate-y-1.5`}>
-                <div className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${grad} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300`}>
-                  <Icon className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-xs font-bold text-gray-700 text-center leading-tight">{label}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════
-          CONFIANCE
-      ══════════════════════════════════════ */}
-      <section className="py-20 bg-gradient-to-br from-emerald-50 via-sky-50 to-blue-50 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-200/25 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 bg-emerald-100 border border-emerald-200 rounded-full px-4 py-2 mb-4">
-              <Shield className="w-4 h-4 text-emerald-600" />
-              <span className="text-emerald-700 text-sm font-bold">Plateforme de confiance</span>
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4">Pourquoi nous faire confiance ?</h2>
-            <p className="text-gray-500 text-lg max-w-xl mx-auto">Des preuves concrètes, pas des promesses</p>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+          {/* Forum + Collectionneurs — petits */}
+          <div className="grid sm:grid-cols-2 gap-5">
             {[
-              { icon: Shield,       title: 'Vérification manuelle', desc: 'Chaque artisan est contrôlé un par un. SIRET, assurance RC Pro, identité confirmée.', accent: 'text-emerald-700', iconBg: 'bg-emerald-100', border: 'border-emerald-200' },
-              { icon: Star,         title: 'Avis clients réels',     desc: 'Seuls les membres ayant fait appel à un artisan peuvent laisser un avis. Zéro faux avis.', accent: 'text-amber-700',   iconBg: 'bg-amber-100',   border: 'border-amber-200' },
-              { icon: MessageSquare,title: 'Messagerie sécurisée',  desc: 'Vos échanges restent dans la plateforme. Votre numéro ne circule jamais sans votre accord.', accent: 'text-sky-700',     iconBg: 'bg-sky-100',     border: 'border-sky-200' },
-              { icon: Bell,         title: 'Signalement facilité',  desc: 'Bouton "Signaler" sur chaque profil. Notre équipe traite sous 24h.', accent: 'text-rose-700',    iconBg: 'bg-rose-100',    border: 'border-rose-200' },
-              { icon: Users,        title: 'Modération humaine',    desc: 'Pas de bots. Un modérateur humain surveille forum, annonces et événements.', accent: 'text-purple-700', iconBg: 'bg-purple-100',  border: 'border-purple-200' },
-              { icon: CheckCircle,  title: 'Données protégées',     desc: 'RGPD respecté. Vos données ne sont jamais vendues ni partagées sans consentement.', accent: 'text-teal-700',   iconBg: 'bg-teal-100',    border: 'border-teal-200' },
-            ].map(({ icon: Icon, title, desc, accent, iconBg, border }) => (
-              <div key={title} className={`bg-white border ${border} rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow`}>
-                <div className={`inline-flex p-2.5 rounded-xl ${iconBg} mb-3`}>
-                  <Icon className={`w-5 h-5 ${accent}`} />
+              {
+                href: '/forum',
+                emoji: '💬',
+                label: 'Forum',
+                title: 'Discutez avec les habitants',
+                desc: 'Questions, infos pratiques, bons plans, discussions locales…',
+                color: 'bg-sky-600',
+                textColor: 'text-sky-700',
+                bg: 'bg-sky-50 border-sky-200',
+                cta: 'Rejoindre le forum',
+              },
+              {
+                href: '/collectionneurs',
+                emoji: '🏆',
+                label: 'Collectionneurs',
+                title: 'Vendez, échangez, partagez',
+                desc: 'Timbres, vinyles, monnaies, figurines, cartes postales… Un marché de passionnés.',
+                color: 'bg-amber-500',
+                textColor: 'text-amber-700',
+                bg: 'bg-amber-50 border-amber-200',
+                cta: 'Explorer les collections',
+              },
+            ].map(item => (
+              <div key={item.href} className={`rounded-3xl border-2 ${item.bg} p-6 flex items-center gap-5`}>
+                <div className={`w-14 h-14 rounded-2xl ${item.color} flex items-center justify-center text-3xl flex-shrink-0 shadow-md`}>
+                  {item.emoji}
                 </div>
-                <h3 className="font-bold text-gray-900 mb-1.5 text-sm">{title}</h3>
-                <p className="text-gray-500 text-xs leading-relaxed">{desc}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-1">{item.label}</p>
+                  <h3 className="font-black text-gray-900 text-base mb-1">{item.title}</h3>
+                  <p className="text-sm text-gray-500 mb-3 leading-relaxed">{item.desc}</p>
+                  <Link href={item.href}
+                    className={`inline-flex items-center gap-1.5 text-sm font-bold ${item.textColor} hover:underline`}>
+                    {item.cta} <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
               </div>
             ))}
-          </div>
-          <div className="text-center">
-            <Link href="/confiance" className="inline-flex items-center gap-2 text-brand-600 font-semibold hover:text-brand-700 transition-colors group">
-              Voir notre politique de confiance complète
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
           </div>
         </div>
       </section>
 
-      {/* ══════════════════════════════════════
-          CTA FINAL — Rejoindre
-      ══════════════════════════════════════ */}
-      {!profile && (
-        <section className="relative py-24 overflow-hidden bg-gradient-to-br from-brand-50 via-purple-50 to-amber-50">
-          <div className="absolute -top-20 -right-20 w-80 h-80 bg-purple-300/20 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-brand-300/15 rounded-full blur-3xl pointer-events-none" />
-          <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <div className="inline-flex p-3 bg-gradient-to-br from-brand-100 to-purple-100 rounded-2xl mb-6 border border-purple-200">
-              <Users className="w-8 h-8 text-purple-600" />
+      {/* ══════════════════════════════════════════════════════════
+          ARTISANS — Section
+      ══════════════════════════════════════════════════════════ */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+
+            {/* Texte */}
+            <div>
+              <div className="inline-flex items-center gap-2 bg-brand-50 border border-brand-200 rounded-full px-4 py-2 mb-6">
+                <Wrench className="w-4 h-4 text-brand-600" />
+                <span className="text-brand-700 text-sm font-black">Services · Artisans</span>
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-5 leading-tight">
+                Besoin d&apos;un artisan ?
+                <br />
+                <span className="text-brand-600">Trouvez-le ici.</span>
+              </h2>
+              <p className="text-gray-500 text-lg leading-relaxed mb-8 max-w-lg">
+                Chaque artisan est vérifié manuellement — SIRET, assurance RC Pro, identité confirmée.
+                Avis réels, messagerie sécurisée, devis gratuits.
+              </p>
+
+              {/* Métiers */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+                {trades.map(({ icon: I, label, href, color }) => (
+                  <Link key={label} href={href}
+                    className={`flex flex-col items-center gap-2 p-3 rounded-2xl border text-sm font-bold transition-all hover:-translate-y-0.5 hover:shadow-sm ${color}`}>
+                    <I className="w-5 h-5" />
+                    {label}
+                  </Link>
+                ))}
+              </div>
+
+              <div className="flex gap-3">
+                <Link href="/artisans/demande"
+                  className="inline-flex items-center gap-2 bg-brand-600 text-white px-6 py-3.5 rounded-2xl font-black hover:bg-brand-700 transition-all shadow-lg hover:-translate-y-0.5 text-sm">
+                  Déposer ma demande <ArrowRight className="w-4 h-4" />
+                </Link>
+                <Link href="/artisans"
+                  className="inline-flex items-center gap-2 border-2 border-brand-200 text-brand-700 px-6 py-3.5 rounded-2xl font-bold hover:bg-brand-50 transition-all text-sm">
+                  Voir les artisans
+                </Link>
+              </div>
             </div>
-            <h2 className="text-4xl sm:text-5xl font-black text-gray-900 mb-5 leading-tight">
-              Rejoignez la vraie<br />
-              <span className="bg-gradient-to-r from-brand-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                communauté de Biguglia
-              </span>
-            </h2>
-            <p className="text-gray-600 text-lg mb-10 max-w-2xl mx-auto">
-              Habitant ou artisan — accédez à <strong>tous les thèmes</strong>, les événements, les promenades, les artisans et bien plus. <strong>Gratuitement, pour toujours.</strong>
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-              <Link href="/inscription"
-                className="group inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-brand-500 via-purple-600 to-pink-500 text-white px-10 py-4 rounded-2xl font-black text-base hover:opacity-90 transition-all shadow-xl hover:-translate-y-0.5">
-                <Sparkles className="w-5 h-5" /> Créer mon compte gratuit <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Link>
-              <Link href="/artisans/demande"
-                className="group inline-flex items-center justify-center gap-2 bg-white text-gray-800 px-8 py-4 rounded-2xl font-bold text-base border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-md">
-                🔧 Trouver un artisan
-              </Link>
-            </div>
-            <div className="flex flex-wrap justify-center gap-10 pt-8 border-t border-purple-200">
+
+            {/* Garanties */}
+            <div className="space-y-4">
               {[
-                { v: counts.artisans, l: 'Artisans vérifiés', ld: countsLoading, color: 'text-brand-600' },
-                { v: counts.membres,  l: 'Membres inscrits',  ld: countsLoading, color: 'text-purple-600' },
-                { v: 0,               l: 'Inscription',       ld: false,         suf: '€', color: 'text-emerald-600' },
-              ].map(({ v, l, ld, suf, color }) => (
-                <div key={l} className="text-center">
-                  <div className={`text-3xl font-black ${color}`}>
-                    {ld ? <Loader2 className="w-7 h-7 animate-spin text-gray-300 inline" /> : <>{v}{suf || ''}</>}
+                { icon: Shield,   color: 'bg-emerald-100 text-emerald-600', title: 'Vérification manuelle',   desc: 'SIRET, assurance RC Pro, identité confirmée un par un.' },
+                { icon: Star,     color: 'bg-amber-100 text-amber-600',     title: 'Avis clients réels',      desc: 'Seuls les membres ayant fait appel peuvent laisser un avis.' },
+                { icon: Lock,     color: 'bg-blue-100 text-blue-600',       title: 'Messagerie sécurisée',    desc: 'Vos échanges restent dans la plateforme. Votre numéro est protégé.' },
+                { icon: Eye,      color: 'bg-purple-100 text-purple-600',   title: 'Modération humaine',      desc: 'Pas de bots. Un modérateur surveille forum, annonces et événements.' },
+              ].map(({ icon: I, color, title, desc }) => (
+                <div key={title} className="flex items-start gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                  <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center flex-shrink-0`}>
+                    <I className="w-5 h-5" />
                   </div>
-                  <div className="text-sm text-gray-500 font-medium mt-0.5">{l}</div>
+                  <div>
+                    <p className="font-bold text-gray-900">{title}</p>
+                    <p className="text-sm text-gray-500 mt-0.5">{desc}</p>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-        </section>
-      )}
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════════════
+          VIE PRATIQUE — Annonces / Matériel
+      ══════════════════════════════════════════════════════════ */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-3">
+              La vie pratique de{' '}
+              <span className="text-blue-600">tous les jours</span>
+            </h2>
+            <p className="text-gray-500 text-lg">Achetez, vendez, empruntez, donnez — tout reste local</p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[
+              {
+                href: '/annonces',
+                emoji: '📦',
+                title: 'Petites annonces',
+                desc: 'Vendez, achetez, échangez ou donnez avec vos voisins de Biguglia.',
+                items: ['🏷️ Vente entre particuliers', '🎁 Dons gratuits', '🔄 Troc local'],
+                color: 'border-blue-200 bg-white',
+                badge: 'bg-blue-100 text-blue-700',
+                cta: 'Voir les annonces',
+                ctaStyle: 'text-blue-700 hover:bg-blue-50 border-blue-200',
+              },
+              {
+                href: '/materiel',
+                emoji: '🛠️',
+                title: 'Matériel partagé',
+                desc: 'Empruntez outils, perceuse, échelle, karcher… Sans rien acheter.',
+                items: ['🔩 Outillage pro', '🚜 Matériel de jardin', '🎉 Matériel de fête'],
+                color: 'border-teal-200 bg-white',
+                badge: 'bg-teal-100 text-teal-700',
+                cta: 'Voir le matériel',
+                ctaStyle: 'text-teal-700 hover:bg-teal-50 border-teal-200',
+              },
+              {
+                href: '/collectionneurs',
+                emoji: '🏆',
+                title: 'Collectionneurs',
+                desc: '12 catégories : timbres, vinyles, monnaies, figurines, cartes postales…',
+                items: ['🏷️ Vente & troc', '🎁 Dons gratuits', '🔍 Petites recherches'],
+                color: 'border-amber-200 bg-white',
+                badge: 'bg-amber-100 text-amber-700',
+                cta: 'Explorer',
+                ctaStyle: 'text-amber-700 hover:bg-amber-50 border-amber-200',
+              },
+            ].map(card => (
+              <div key={card.href} className={`rounded-3xl border-2 ${card.color} p-6 flex flex-col`}>
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="text-4xl">{card.emoji}</span>
+                  <div>
+                    <span className={`text-xs font-black px-2.5 py-1 rounded-full ${card.badge}`}>Vie pratique</span>
+                    <h3 className="font-black text-gray-900 mt-1">{card.title}</h3>
+                  </div>
+                </div>
+                <p className="text-gray-500 text-sm leading-relaxed mb-4">{card.desc}</p>
+                <div className="space-y-1.5 mb-5 flex-1">
+                  {card.items.map(i => (
+                    <div key={i} className="flex items-center gap-2 text-sm text-gray-600">
+                      <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                      {i}
+                    </div>
+                  ))}
+                </div>
+                <Link href={card.href}
+                  className={`w-full flex items-center justify-center gap-2 border-2 font-bold py-3 rounded-2xl transition-all text-sm ${card.ctaStyle}`}>
+                  {card.cta} <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════════════
+          CTA INSCRIPTION — Final
+      ══════════════════════════════════════════════════════════ */}
+      <section className="py-20 bg-gradient-to-br from-gray-950 via-gray-900 to-brand-950 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
+        <div className="absolute top-0 left-1/3 w-72 h-72 bg-brand-600/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-purple-600/15 rounded-full blur-3xl" />
+
+        <div className="relative z-10 max-w-4xl mx-auto px-4 text-center">
+          <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-5 py-2 mb-8">
+            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+            <span className="text-white/80 text-sm font-bold">100 % gratuit · Projet citoyen</span>
+          </div>
+
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-6 leading-tight">
+            Rejoignez la communauté
+            <br />
+            <span className="bg-gradient-to-r from-brand-400 to-amber-300 bg-clip-text text-transparent">
+              de Biguglia
+            </span>
+          </h2>
+
+          <p className="text-white/60 text-lg mb-10 max-w-2xl mx-auto leading-relaxed">
+            {counts.membres > 0
+              ? `Déjà ${counts.membres} habitants inscrits. Artisans, événements, promenades, forum, coups de main…`
+              : 'Artisans vérifiés, événements, promenades, forum, coups de main entre voisins…'
+            } Tout ce qui fait la vie de votre village.
+          </p>
+
+          {!profile ? (
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link href="/inscription"
+                className="group inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white px-10 py-5 rounded-2xl font-black text-lg shadow-2xl hover:-translate-y-1 transition-all">
+                <Sparkles className="w-5 h-5" />
+                Créer mon compte gratuit
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <Link href="/connexion"
+                className="inline-flex items-center justify-center gap-2 border-2 border-white/20 text-white px-10 py-5 rounded-2xl font-bold text-lg hover:bg-white/10 transition-all">
+                J&apos;ai déjà un compte
+              </Link>
+            </div>
+          ) : (
+            <Link href="/artisans/demande"
+              className="group inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white px-10 py-5 rounded-2xl font-black text-lg shadow-2xl hover:-translate-y-1 transition-all">
+              <PenLine className="w-5 h-5" />
+              Déposer une demande
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          )}
+
+          {/* Avantages */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-12">
+            {[
+              { icon: Shield,      label: 'Artisans vérifiés',  color: 'text-emerald-400' },
+              { icon: Users,       label: 'Communauté locale',  color: 'text-blue-400'    },
+              { icon: Bell,        label: 'Alertes & notifs',   color: 'text-amber-400'   },
+              { icon: MessageSquare, label: 'Messagerie privée', color: 'text-purple-400'  },
+            ].map(({ icon: I, label, color }) => (
+              <div key={label} className="flex flex-col items-center gap-2 p-4 bg-white/5 rounded-2xl border border-white/8">
+                <I className={`w-6 h-6 ${color}`} />
+                <span className="text-xs font-semibold text-white/60 text-center">{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
     </div>
   );
 }
