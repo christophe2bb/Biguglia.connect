@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { formatRelative } from '@/lib/utils';
 import {
   Calendar, MapPin, Clock, Users, Plus, MessageSquare, ChevronRight,
-  Trophy, Music, Utensils, Dumbbell, Heart, Palette,
+  Music, Utensils, Dumbbell, Heart, Palette,
   PartyPopper, CheckCircle, Bell, ArrowRight,
   AlertCircle, Baby, Mic2, X, Loader2, RefreshCw,
 } from 'lucide-react';
@@ -50,7 +50,6 @@ type ForumPost = {
 // ─── Catégories d'événements ──────────────────────────────────────────────────
 type EventCat = { id: string; label: string; icon: React.ElementType; color: string; bg: string; border: string };
 const EVENT_CATEGORIES: EventCat[] = [
-  { id: 'sport',      label: 'Sport & stade',   icon: Trophy,      color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-200' },
   { id: 'culture',    label: 'Culture & arts',  icon: Palette,     color: 'text-purple-700',  bg: 'bg-purple-50',  border: 'border-purple-200' },
   { id: 'musique',    label: 'Musique',          icon: Music,       color: 'text-pink-700',    bg: 'bg-pink-50',    border: 'border-pink-200' },
   { id: 'repas',      label: 'Repas & fête',     icon: Utensils,    color: 'text-orange-700',  bg: 'bg-orange-50',  border: 'border-orange-200' },
@@ -221,7 +220,7 @@ export default function EvenementsPage() {
   const { profile } = useAuthStore();
   const supabase = createClient();
 
-  const [activeTab, setActiveTab] = useState<'agenda' | 'stade' | 'forum' | 'creer'>('agenda');
+  const [activeTab, setActiveTab] = useState<'agenda' | 'forum' | 'creer'>('agenda');
   const [filterCat, setFilterCat] = useState<string>('all');
 
   const [events, setEvents] = useState<LocalEvent[]>([]);
@@ -234,7 +233,7 @@ export default function EvenementsPage() {
   // Create event form
   const [newEvent, setNewEvent] = useState({
     title: '', description: '', event_date: '', event_time: '18:00',
-    location: '', category: 'sport', organizer_name: '',
+    location: '', category: 'culture', organizer_name: '',
     max_participants: '', is_free: true, price: '',
   });
   const [submittingEvent, setSubmittingEvent] = useState(false);
@@ -360,7 +359,7 @@ export default function EvenementsPage() {
       console.error(error);
     } else {
       toast.success('🎉 Événement publié ! Il est maintenant visible dans l\'agenda.', { duration: 4000 });
-      setNewEvent({ title: '', description: '', event_date: '', event_time: '18:00', location: '', category: 'sport', organizer_name: '', max_participants: '', is_free: true, price: '' });
+      setNewEvent({ title: '', description: '', event_date: '', event_time: '18:00', location: '', category: 'culture', organizer_name: '', max_participants: '', is_free: true, price: '' });
       setActiveTab('agenda');
       fetchEvents();
     }
@@ -398,7 +397,6 @@ export default function EvenementsPage() {
     setSubmittingPost(false);
   };
 
-  const sportEvents = events.filter(e => e.category === 'sport');
   const filteredEvents = filterCat === 'all' ? events : events.filter(e => e.category === filterCat);
   const totalCount = events.length;
 
@@ -441,7 +439,6 @@ export default function EvenementsPage() {
               <div className="flex flex-wrap gap-3 mt-5">
                 {[
                   { icon: Calendar, label: `${totalCount} événement${totalCount !== 1 ? 's' : ''}` },
-                  { icon: Trophy,   label: 'Matchs & sport' },
                   { icon: Music,    label: 'Culture & musique' },
                   { icon: Users,    label: 'Fêtes & social' },
                 ].map(({ icon: I, label }) => (
@@ -465,9 +462,8 @@ export default function EvenementsPage() {
         {/* ── ONGLETS ── */}
         <div className="flex flex-wrap gap-2 mb-8 bg-white rounded-2xl border border-gray-100 p-1.5 w-fit shadow-sm">
           {[
-            { id: 'agenda', label: 'Agenda',           icon: Calendar },
-            { id: 'stade',  label: 'Stade & sport',    icon: Trophy },
-            { id: 'forum',  label: 'Forum',             icon: MessageSquare },
+            { id: 'agenda', label: 'Agenda',                icon: Calendar },
+            { id: 'forum',  label: 'Forum',                 icon: MessageSquare },
             { id: 'creer',  label: 'Proposer un événement', icon: Plus },
           ].map(({ id, label, icon: Icon }) => (
             <button key={id} onClick={() => setActiveTab(id as typeof activeTab)}
@@ -543,61 +539,7 @@ export default function EvenementsPage() {
           </div>
         )}
 
-        {/* ── STADE ── */}
-        {activeTab === 'stade' && (
-          <div>
-            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-6 text-white mb-6 relative overflow-hidden">
-              <div className="absolute right-0 top-0 opacity-10 text-[120px] leading-none font-black">⚽</div>
-              <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-3">
-                  <Trophy className="w-5 h-5 text-yellow-300" />
-                  <span className="font-bold text-blue-100 text-sm">SC Biguglia — Stade municipal</span>
-                </div>
-                <h2 className="text-2xl font-black mb-2">Suivez le SC Biguglia</h2>
-                <p className="text-blue-100 text-sm max-w-lg">Calendrier des matchs, résultats et prochains rendez-vous au stade.</p>
-              </div>
-            </div>
 
-            <h3 className="font-bold text-gray-900 text-lg mb-4">Événements sportifs à venir</h3>
-            {loadingEvents ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-7 h-7 text-blue-400 animate-spin" />
-              </div>
-            ) : sportEvents.length === 0 ? (
-              <div className="text-center py-12">
-                <Trophy className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-                <p className="text-gray-500 font-medium">Aucun événement sportif à venir</p>
-                {profile && (
-                  <button onClick={() => { setNewEvent(f => ({ ...f, category: 'sport' })); setActiveTab('creer'); }}
-                    className="mt-4 inline-flex items-center gap-2 bg-blue-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-blue-600 transition-all">
-                    <Plus className="w-4 h-4" /> Proposer un événement sportif
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {sportEvents.map(event => (
-                  <EventCard key={event.id} event={event} userId={profile?.id} onJoin={handleJoin} />
-                ))}
-              </div>
-            )}
-
-            <div className="mt-6 bg-blue-50 border border-blue-200 rounded-2xl p-5">
-              <p className="font-bold text-blue-800 mb-1">📣 Vous êtes du SC Biguglia ?</p>
-              <p className="text-blue-600 text-sm mb-3">Publiez les prochains matchs et événements du club pour que tous les habitants puissent les suivre.</p>
-              {profile ? (
-                <button onClick={() => { setNewEvent(f => ({ ...f, category: 'sport' })); setActiveTab('creer'); }}
-                  className="inline-flex items-center gap-2 bg-blue-500 text-white font-bold px-4 py-2 rounded-xl text-sm hover:bg-blue-600 transition-all">
-                  <Plus className="w-3.5 h-3.5" /> Publier un événement sportif
-                </button>
-              ) : (
-                <Link href="/inscription" className="inline-flex items-center gap-2 bg-blue-500 text-white font-bold px-4 py-2 rounded-xl text-sm hover:bg-blue-600 transition-all">
-                  Créer un compte <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* ── FORUM ── */}
         {activeTab === 'forum' && (
