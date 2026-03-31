@@ -277,27 +277,287 @@ function EventCard({
   );
 }
 
-// ─── Calendrier mensuel style Apple ──────────────────────────────────────────
+// ─── Calendrier moderne animé ─────────────────────────────────────────────────
 const JOURS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const MOIS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+// Gradients par catégorie pour les cases
+const CAT_GRADIENTS: Record<string, string> = {
+  culture:    'from-purple-500 to-violet-600',
+  musique:    'from-pink-500 to-rose-500',
+  repas:      'from-orange-400 to-amber-500',
+  nature:     'from-emerald-400 to-teal-500',
+  famille:    'from-sky-400 to-blue-500',
+  social:     'from-rose-400 to-pink-500',
+  conference: 'from-teal-400 to-cyan-500',
+};
+
+function AnimatedEventCell({
+  date, dayEvents, isToday, isPast, isSelected, onSelect,
+}: {
+  date: Date;
+  dayEvents: LocalEvent[];
+  isToday: boolean;
+  isPast: boolean;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const hasEvents = dayEvents.length > 0 && !isPast;
+  const firstEv = dayEvents[0];
+  const cat = firstEv ? getCat(firstEv.category) : null;
+  const gradient = cat ? (CAT_GRADIENTS[cat.id] ?? 'from-purple-500 to-pink-500') : '';
+  const hasCover = !!firstEv?.cover_photo;
+
+  return (
+    <button
+      onClick={onSelect}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={`
+        relative overflow-hidden text-left
+        border-b border-gray-100
+        transition-all duration-300
+        ${isSelected ? 'z-20' : 'z-0'}
+      `}
+      style={{
+        height: '7rem',
+        borderRight: '1px solid #f3f4f6',
+        boxShadow: isSelected
+          ? '0 0 0 2px #a855f7 inset, 0 8px 30px rgba(168,85,247,0.25)'
+          : hovered && hasEvents
+            ? '0 4px 20px rgba(168,85,247,0.15)'
+            : undefined,
+        transform: hovered && hasEvents ? 'scale(1.02)' : 'scale(1)',
+      }}
+    >
+      {/* ── Fond animé pour cases avec événements ── */}
+      {hasEvents && (
+        <>
+          {hasCover ? (
+            /* Photo de couverture animée */
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={firstEv!.cover_photo!}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover transition-all duration-700"
+                style={{
+                  opacity: hovered ? 0.65 : 0.38,
+                  transform: hovered ? 'scale(1.12)' : 'scale(1.03)',
+                }}
+              />
+              {/* Dégradé overlay dynamique */}
+              <div
+                className="absolute inset-0 transition-opacity duration-500"
+                style={{
+                  background: hovered
+                    ? 'linear-gradient(135deg, rgba(139,92,246,0.6) 0%, rgba(236,72,153,0.4) 100%)'
+                    : 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.55) 100%)',
+                  opacity: 1,
+                }}
+              />
+            </>
+          ) : (
+            /* Fond dégradé animé */
+            <>
+              <div
+                className={`absolute inset-0 bg-gradient-to-br ${gradient} transition-opacity duration-300`}
+                style={{ opacity: hovered ? 0.85 : 0.55 }}
+              />
+              {/* Cercles décoratifs animés */}
+              <div
+                className="absolute rounded-full transition-all duration-500"
+                style={{
+                  width: '60%', height: '60%',
+                  background: 'rgba(255,255,255,0.15)',
+                  top: hovered ? '-15%' : '-20%',
+                  right: hovered ? '-10%' : '-15%',
+                  transform: hovered ? 'scale(1.2)' : 'scale(1)',
+                  filter: 'blur(8px)',
+                }}
+              />
+              <div
+                className="absolute rounded-full transition-all duration-700"
+                style={{
+                  width: '40%', height: '40%',
+                  background: 'rgba(255,255,255,0.1)',
+                  bottom: hovered ? '-5%' : '-10%',
+                  left: hovered ? '5%' : '0%',
+                  transform: hovered ? 'scale(1.3) rotate(20deg)' : 'scale(1)',
+                  filter: 'blur(6px)',
+                }}
+              />
+            </>
+          )}
+
+          {/* Particules scintillantes au hover */}
+          {hovered && (
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+              {[...Array(5)].map((_, pi) => (
+                <div
+                  key={pi}
+                  className="absolute rounded-full bg-white"
+                  style={{
+                    width: `${3 + pi * 1.5}px`,
+                    height: `${3 + pi * 1.5}px`,
+                    left: `${15 + pi * 17}%`,
+                    top: `${20 + (pi % 3) * 25}%`,
+                    opacity: 0.6 - pi * 0.08,
+                    animation: `pulse ${0.8 + pi * 0.2}s ease-in-out infinite alternate`,
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── Fond des jours sans événements ── */}
+      {!hasEvents && (
+        <div
+          className="absolute inset-0 transition-colors duration-200"
+          style={{ background: hovered ? 'rgba(243,244,246,0.8)' : (isPast ? 'rgba(249,250,251,0.5)' : 'white') }}
+        />
+      )}
+
+      {/* ── Contenu ── */}
+      <div className="relative z-10 h-full flex flex-col p-1.5 sm:p-2">
+
+        {/* Numéro du jour */}
+        <div
+          className="flex-shrink-0 self-start transition-all duration-300"
+          style={{ transform: hovered && hasEvents ? 'scale(1.15)' : 'scale(1)' }}
+        >
+          <span
+            className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full text-xs sm:text-sm font-black"
+            style={{
+              background: isToday
+                ? 'linear-gradient(135deg, #7c3aed, #ec4899)'
+                : 'transparent',
+              color: isToday
+                ? 'white'
+                : isPast
+                  ? '#d1d5db'
+                  : hasEvents
+                    ? hasCover ? 'white' : 'white'
+                    : '#374151',
+              boxShadow: isToday ? '0 2px 12px rgba(124,58,237,0.5)' : undefined,
+              textShadow: hasEvents && !isToday ? '0 1px 3px rgba(0,0,0,0.4)' : undefined,
+            }}
+          >
+            {date.getDate()}
+          </span>
+        </div>
+
+        {/* ── Labels événements ── */}
+        {hasEvents && (
+          <div className="mt-1 flex flex-col gap-0.5 flex-1 min-h-0 overflow-hidden">
+
+            {/* Premier événement */}
+            <div
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded-md transition-all duration-300"
+              style={{
+                background: hasCover
+                  ? 'rgba(0,0,0,0.45)'
+                  : 'rgba(255,255,255,0.25)',
+                backdropFilter: 'blur(4px)',
+                transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
+              }}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                style={{ background: 'rgba(255,255,255,0.9)' }}
+              />
+              <span className="text-[10px] sm:text-xs font-bold truncate text-white leading-tight"
+                style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+                {firstEv!.title}
+              </span>
+            </div>
+
+            {/* Deuxième événement */}
+            {dayEvents.length >= 2 && (() => {
+              const ev2 = dayEvents[1];
+              const c2 = getCat(ev2.category);
+              return (
+                <div
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded-md transition-all duration-300"
+                  style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    backdropFilter: 'blur(4px)',
+                    transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
+                    transitionDelay: '30ms',
+                  }}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${c2.dot}`} />
+                  <span className="text-[10px] font-semibold truncate text-white/90 leading-tight">
+                    {ev2.title}
+                  </span>
+                </div>
+              );
+            })()}
+
+            {/* Badge +N */}
+            {dayEvents.length > 2 && (
+              <div
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded-md"
+                style={{ background: 'rgba(255,255,255,0.15)' }}
+              >
+                <span className="text-[10px] font-bold text-white/80">
+                  +{dayEvents.length - 1} événements
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Compteur participants (si 1 seul événement avec participants) */}
+        {hasEvents && dayEvents.length === 1 && (firstEv!.participants_count ?? 0) > 0 && (
+          <div
+            className="mt-auto flex items-center gap-1 transition-all duration-300"
+            style={{
+              opacity: hovered ? 1 : 0.7,
+              transform: hovered ? 'translateY(0)' : 'translateY(2px)',
+            }}
+          >
+            <Users className="w-2.5 h-2.5 text-white/80" />
+            <span className="text-[9px] sm:text-[10px] font-semibold text-white/80">
+              {firstEv!.participants_count}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* ── Bordure sélection animée ── */}
+      {isSelected && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            boxShadow: '0 0 0 2.5px #a855f7 inset',
+            borderRadius: '2px',
+          }}
+        />
+      )}
+    </button>
+  );
+}
 
 function CalendarView({
   events, userId, onJoin,
 }: { events: LocalEvent[]; userId?: string; onJoin: (id: string, joined: boolean) => void }) {
   const today = new Date(); today.setHours(0,0,0,0);
-  const [calYear, setCalYear] = useState(today.getFullYear());
-  const [calMonth, setCalMonth] = useState(today.getMonth()); // 0-indexed
-  const [selectedDay, setSelectedDay] = useState<string | null>(null); // 'YYYY-MM-DD'
+  const [calYear, setCalYear]   = useState(today.getFullYear());
+  const [calMonth, setCalMonth] = useState(today.getMonth());
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [animDir, setAnimDir]   = useState<'left' | 'right' | null>(null);
+  const [visible, setVisible]   = useState(true);
 
-  // Build days grid (42 cells, Mon-start)
   const firstOfMonth = new Date(calYear, calMonth, 1);
-  const lastOfMonth = new Date(calYear, calMonth + 1, 0);
-  // Mon=0 ... Sun=6
-  const startDow = (firstOfMonth.getDay() + 6) % 7; // offset to make Mon=0
-  const totalDays = lastOfMonth.getDate();
-  const totalCells = Math.ceil((startDow + totalDays) / 7) * 7;
+  const lastOfMonth  = new Date(calYear, calMonth + 1, 0);
+  const startDow     = (firstOfMonth.getDay() + 6) % 7;
+  const totalDays    = lastOfMonth.getDate();
+  const totalCells   = Math.ceil((startDow + totalDays) / 7) * 7;
 
-  // Map date string → events
   const eventsByDay: Record<string, LocalEvent[]> = {};
   events.forEach(ev => {
     if (!eventsByDay[ev.event_date]) eventsByDay[ev.event_date] = [];
@@ -306,186 +566,177 @@ function CalendarView({
 
   const cells: (Date | null)[] = [];
   for (let i = 0; i < totalCells; i++) {
-    const dayNum = i - startDow + 1;
-    if (dayNum < 1 || dayNum > totalDays) cells.push(null);
-    else cells.push(new Date(calYear, calMonth, dayNum));
+    const d = i - startDow + 1;
+    cells.push(d >= 1 && d <= totalDays ? new Date(calYear, calMonth, d) : null);
   }
 
-  const prevMonth = () => {
-    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
-    else setCalMonth(m => m - 1);
-    setSelectedDay(null);
-  };
-  const nextMonth = () => {
-    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
-    else setCalMonth(m => m + 1);
-    setSelectedDay(null);
+  const toISO = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  const changeMonth = (dir: 'prev' | 'next') => {
+    setAnimDir(dir === 'prev' ? 'right' : 'left');
+    setVisible(false);
+    setTimeout(() => {
+      if (dir === 'prev') {
+        if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
+        else setCalMonth(m => m - 1);
+      } else {
+        if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
+        else setCalMonth(m => m + 1);
+      }
+      setSelectedDay(null);
+      setVisible(true);
+      setAnimDir(null);
+    }, 200);
   };
 
-  const toISO = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-
-  const monthPrefix = `${calYear}-${String(calMonth+1).padStart(2,'0')}`;
+  const monthPrefix     = `${calYear}-${String(calMonth+1).padStart(2,'0')}`;
   const eventsThisMonth = events.filter(e => e.event_date.startsWith(monthPrefix));
-
-  const selectedEvents = selectedDay ? (eventsByDay[selectedDay] ?? []) : [];
+  const selectedEvents  = selectedDay ? (eventsByDay[selectedDay] ?? []) : [];
 
   return (
     <div className="flex flex-col lg:flex-row gap-6">
-      {/* ── Calendrier ── */}
+      {/* ── GRILLE CALENDRIER ── */}
       <div className="flex-1 min-w-0">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          {/* Header navigation */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-pink-50">
-            <button onClick={prevMonth} className="p-2 rounded-xl hover:bg-white hover:shadow-sm transition-all text-gray-500 border border-transparent hover:border-gray-200">
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <div className="text-center">
-              <h2 className="text-xl font-black text-gray-900 tracking-tight">
-                {MOIS_FR[calMonth]} <span className="text-purple-600">{calYear}</span>
-              </h2>
-              <p className="text-xs text-gray-400 mt-0.5">{eventsThisMonth.length} événement{eventsThisMonth.length !== 1 ? 's' : ''} ce mois</p>
+        <div
+          className="rounded-3xl overflow-hidden shadow-2xl"
+          style={{
+            background: 'linear-gradient(145deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)',
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}
+        >
+          {/* ── HEADER ── */}
+          <div
+            className="relative px-6 py-5 overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, rgba(139,92,246,0.3) 0%, rgba(236,72,153,0.2) 50%, rgba(59,130,246,0.2) 100%)',
+              borderBottom: '1px solid rgba(255,255,255,0.08)',
+            }}
+          >
+            {/* Orbes décoratifs */}
+            <div className="absolute top-0 left-1/4 w-32 h-32 rounded-full opacity-20 blur-2xl"
+              style={{ background: 'radial-gradient(circle, #a855f7, transparent)' }} />
+            <div className="absolute top-0 right-1/4 w-24 h-24 rounded-full opacity-15 blur-xl"
+              style={{ background: 'radial-gradient(circle, #ec4899, transparent)' }} />
+
+            <div className="relative flex items-center justify-between">
+              <button
+                onClick={() => changeMonth('prev')}
+                className="w-10 h-10 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-110 active:scale-95"
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  color: 'white',
+                }}
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+
+              <div className="text-center">
+                <h2
+                  className="text-2xl font-black tracking-tight"
+                  style={{
+                    background: 'linear-gradient(135deg, #fff 0%, #e9d5ff 50%, #fbcfe8 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  {MOIS_FR[calMonth]}
+                  <span className="ml-2 text-white/50 font-light text-xl">{calYear}</span>
+                </h2>
+                <div className="flex items-center justify-center gap-2 mt-1">
+                  <span
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold"
+                    style={{
+                      background: 'rgba(168,85,247,0.3)',
+                      border: '1px solid rgba(168,85,247,0.5)',
+                      color: '#e9d5ff',
+                    }}
+                  >
+                    <PartyPopper className="w-3 h-3" />
+                    {eventsThisMonth.length} événement{eventsThisMonth.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => changeMonth('next')}
+                className="w-10 h-10 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-110 active:scale-95"
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  color: 'white',
+                }}
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
             </div>
-            <button onClick={nextMonth} className="p-2 rounded-xl hover:bg-white hover:shadow-sm transition-all text-gray-500 border border-transparent hover:border-gray-200">
-              <ChevronRight className="w-5 h-5" />
-            </button>
           </div>
 
-          {/* Jours de la semaine */}
-          <div className="grid grid-cols-7 border-b border-gray-100 bg-gray-50/60">
+          {/* ── EN-TÊTES JOURS ── */}
+          <div className="grid grid-cols-7" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             {JOURS.map((j, ji) => (
-              <div key={j} className={`py-3 text-center text-xs font-black text-gray-400 uppercase tracking-widest ${ji < 5 ? '' : 'text-purple-400'}`}>
+              <div
+                key={j}
+                className="py-3 text-center text-xs font-black uppercase tracking-widest"
+                style={{ color: ji >= 5 ? 'rgba(216,180,254,0.7)' : 'rgba(255,255,255,0.35)' }}
+              >
                 {j}
               </div>
             ))}
           </div>
 
-          {/* Grille des jours */}
-          <div className="grid grid-cols-7">
+          {/* ── GRILLE DES JOURS ── */}
+          <div
+            className="grid grid-cols-7"
+            style={{
+              opacity: visible ? 1 : 0,
+              transform: visible ? 'translateX(0)' : `translateX(${animDir === 'left' ? '-20px' : '20px'})`,
+              transition: 'opacity 0.2s ease, transform 0.2s ease',
+            }}
+          >
             {cells.map((date, i) => {
-              if (!date) return (
-                <div key={i} className={`h-24 sm:h-32 border-b border-gray-100 bg-gray-50/40 ${i % 7 !== 6 ? 'border-r border-gray-100' : ''}`} />
-              );
-              const iso = toISO(date);
+              if (!date) {
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      height: '7rem',
+                      borderBottom: '1px solid rgba(255,255,255,0.04)',
+                      borderRight: i % 7 !== 6 ? '1px solid rgba(255,255,255,0.04)' : undefined,
+                      background: 'rgba(0,0,0,0.15)',
+                    }}
+                  />
+                );
+              }
+              const iso       = toISO(date);
               const dayEvents = eventsByDay[iso] ?? [];
-              const isToday = iso === toISO(today);
-              const isPast = date < today;
+              const isToday   = iso === toISO(today);
+              const isPast    = date < today;
               const isSelected = selectedDay === iso;
-              const hasEvents = dayEvents.length > 0;
-              const firstEvent = dayEvents[0];
-              const firstCat = firstEvent ? getCat(firstEvent.category) : null;
 
               return (
-                <button
-                  key={i}
-                  onClick={() => setSelectedDay(isSelected ? null : iso)}
-                  className={`
-                    relative h-24 sm:h-32 border-b border-gray-100 text-left transition-all duration-200 overflow-hidden group
-                    ${i % 7 !== 6 ? 'border-r border-gray-100' : ''}
-                    ${isSelected ? 'ring-2 ring-inset ring-purple-400 z-10' : ''}
-                    ${hasEvents && !isPast ? 'cursor-pointer' : 'cursor-default'}
-                  `}
-                >
-                  {/* ── Fond photo si 1 événement avec cover ── */}
-                  {hasEvents && firstEvent?.cover_photo && !isPast && (
-                    <>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={firstEvent.cover_photo}
-                        alt=""
-                        className="absolute inset-0 w-full h-full object-cover opacity-30 group-hover:opacity-45 transition-opacity duration-300"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-                    </>
-                  )}
-
-                  {/* ── Fond coloré si événements sans photo ── */}
-                  {hasEvents && !firstEvent?.cover_photo && !isPast && firstCat && (
-                    <div className={`absolute inset-0 ${firstCat.bg} opacity-40 group-hover:opacity-60 transition-opacity duration-200`} />
-                  )}
-
-                  {/* ── Contenu ── */}
-                  <div className="relative z-10 h-full flex flex-col p-1.5 sm:p-2">
-                    {/* Numéro du jour */}
-                    <span className={`
-                      w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full text-xs sm:text-sm font-black flex-shrink-0 self-start
-                      ${isToday
-                        ? 'bg-purple-600 text-white shadow-lg'
-                        : isPast
-                          ? 'text-gray-300'
-                          : hasEvents
-                            ? 'text-gray-800'
-                            : 'text-gray-600'}
-                      ${isSelected && !isToday ? 'ring-2 ring-purple-500' : ''}
-                    `}>
-                      {date.getDate()}
-                    </span>
-
-                    {/* ── Pills événements ── */}
-                    {hasEvents && !isPast && (
-                      <div className="mt-1 flex flex-col gap-0.5 flex-1 min-h-0 overflow-hidden">
-                        {/* Premier événement : pill avec titre */}
-                        {(() => {
-                          const ev = firstEvent!;
-                          const c = getCat(ev.category);
-                          return (
-                            <div
-                              key={ev.id}
-                              className={`
-                                flex items-center gap-1 px-1.5 py-0.5 rounded-md text-left
-                                ${ev.cover_photo
-                                  ? 'bg-black/50 backdrop-blur-sm'
-                                  : `${c.bg} border ${c.border}`}
-                              `}
-                              style={{ minWidth: 0 }}
-                            >
-                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${c.dot}`} />
-                              <span className={`
-                                text-[10px] sm:text-xs font-bold leading-tight truncate
-                                ${ev.cover_photo ? 'text-white' : c.color}
-                              `}>
-                                {ev.title}
-                              </span>
-                            </div>
-                          );
-                        })()}
-
-                        {/* Événements supplémentaires */}
-                        {dayEvents.length === 2 && (() => {
-                          const ev = dayEvents[1];
-                          const c = getCat(ev.category);
-                          return (
-                            <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md ${c.bg} border ${c.border}`} style={{ minWidth: 0 }}>
-                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${c.dot}`} />
-                              <span className={`text-[10px] font-bold leading-tight truncate ${c.color}`}>{ev.title}</span>
-                            </div>
-                          );
-                        })()}
-
-                        {dayEvents.length > 2 && (
-                          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-gray-100 border border-gray-200">
-                            <span className="text-[10px] font-bold text-gray-500 leading-tight">
-                              +{dayEvents.length - 1} événements
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ── Effet hover glow ── */}
-                  {hasEvents && !isPast && (
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none ring-2 ring-inset ring-purple-300 rounded-sm" />
-                  )}
-                </button>
+                <AnimatedEventCell
+                  key={iso}
+                  date={date}
+                  dayEvents={dayEvents}
+                  isToday={isToday}
+                  isPast={isPast}
+                  isSelected={isSelected}
+                  onSelect={() => setSelectedDay(isSelected ? null : iso)}
+                />
               );
             })}
           </div>
 
-          {/* Légende */}
-          <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50 flex flex-wrap gap-x-4 gap-y-1.5">
+          {/* ── LÉGENDE ── */}
+          <div
+            className="px-5 py-3 flex flex-wrap gap-x-4 gap-y-1.5"
+            style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
+          >
             {EVENT_CATEGORIES.map(c => (
-              <span key={c.id} className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
-                <span className={`w-2.5 h-2.5 rounded-sm ${c.dot} opacity-80`} />
+              <span key={c.id} className="flex items-center gap-1.5 text-xs font-medium" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                <span className={`w-2 h-2 rounded-sm ${c.dot}`} style={{ opacity: 0.85 }} />
                 {c.label}
               </span>
             ))}
@@ -493,15 +744,17 @@ function CalendarView({
         </div>
       </div>
 
-      {/* ── Panel latéral : événements du jour sélectionné ── */}
+      {/* ── PANEL LATÉRAL ── */}
       <div className="lg:w-80 xl:w-96 flex-shrink-0">
         {selectedDay ? (
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-black text-gray-900 text-base">
-                {new Date(selectedDay + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^\w/, c => c.toUpperCase())}
+                {new Date(selectedDay + 'T00:00:00').toLocaleDateString('fr-FR', {
+                  weekday: 'long', day: 'numeric', month: 'long'
+                }).replace(/^\w/, c => c.toUpperCase())}
               </h3>
-              <button onClick={() => setSelectedDay(null)} className="text-gray-400 hover:text-gray-600 p-1">
+              <button onClick={() => setSelectedDay(null)} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -520,7 +773,6 @@ function CalendarView({
             )}
           </div>
         ) : (
-          // Prochains événements (liste latérale)
           <div>
             <h3 className="font-black text-gray-900 text-base mb-4">Prochains événements</h3>
             {events.length === 0 ? (
@@ -549,7 +801,6 @@ function CalendarView({
                               </span>
                             )}
                           </div>
-                          {/* Compteur participants */}
                           <div className="flex items-center gap-1 mt-1.5">
                             <Users className={`w-3 h-3 flex-shrink-0 ${pcount > 0 ? 'text-purple-500' : 'text-gray-300'}`} />
                             <span className={`text-xs font-semibold ${pcount > 0 ? 'text-purple-600' : 'text-gray-400'}`}>
@@ -565,7 +816,7 @@ function CalendarView({
                 })}
                 {events.length > 6 && (
                   <p className="text-xs text-gray-400 text-center pt-1">
-                    + {events.length - 6} autres événements ce mois
+                    + {events.length - 6} autres événements
                   </p>
                 )}
               </div>
@@ -576,7 +827,6 @@ function CalendarView({
     </div>
   );
 }
-
 // ─── Page principale ──────────────────────────────────────────────────────────
 export default function EvenementsPage() {
   const { profile } = useAuthStore();
