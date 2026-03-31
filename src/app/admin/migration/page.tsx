@@ -550,57 +550,36 @@ ON CONFLICT (id) DO UPDATE SET
   allowed_mime_types = ARRAY['image/jpeg','image/jpg','image/png','image/webp','image/gif','image/heic','image/heif'];
 
 -- 2. Policies RLS sur le bucket storage.objects
+-- On supprime les anciennes policies d'abord pour éviter les conflits
+DROP POLICY IF EXISTS "photos_public_select" ON storage.objects;
+DROP POLICY IF EXISTS "photos_auth_insert" ON storage.objects;
+DROP POLICY IF EXISTS "photos_auth_update" ON storage.objects;
+DROP POLICY IF EXISTS "photos_owner_delete" ON storage.objects;
+-- Anciennes versions (noms alternatifs)
+DROP POLICY IF EXISTS "Public Access" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can upload photos" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update own photos" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete own photos" ON storage.objects;
+
 -- Lecture publique (tout le monde peut voir les photos)
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'storage' AND tablename = 'objects'
-    AND policyname = 'photos_public_select'
-  ) THEN
-    CREATE POLICY "photos_public_select"
-    ON storage.objects FOR SELECT
-    USING (bucket_id = 'photos');
-  END IF;
-END $$;
+CREATE POLICY "photos_public_select"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'photos');
 
 -- Upload autorisé pour les utilisateurs connectés
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'storage' AND tablename = 'objects'
-    AND policyname = 'photos_auth_insert'
-  ) THEN
-    CREATE POLICY "photos_auth_insert"
-    ON storage.objects FOR INSERT
-    WITH CHECK (bucket_id = 'photos' AND auth.role() = 'authenticated');
-  END IF;
-END $$;
+CREATE POLICY "photos_auth_insert"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'photos' AND auth.role() = 'authenticated');
 
 -- Mise à jour (upsert) pour les utilisateurs connectés
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'storage' AND tablename = 'objects'
-    AND policyname = 'photos_auth_update'
-  ) THEN
-    CREATE POLICY "photos_auth_update"
-    ON storage.objects FOR UPDATE
-    USING (bucket_id = 'photos' AND auth.role() = 'authenticated');
-  END IF;
-END $$;
+CREATE POLICY "photos_auth_update"
+ON storage.objects FOR UPDATE
+USING (bucket_id = 'photos' AND auth.role() = 'authenticated');
 
 -- Suppression par le propriétaire du fichier
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'storage' AND tablename = 'objects'
-    AND policyname = 'photos_owner_delete'
-  ) THEN
-    CREATE POLICY "photos_owner_delete"
-    ON storage.objects FOR DELETE
-    USING (bucket_id = 'photos' AND auth.uid() = owner);
-  END IF;
-END $$;
+CREATE POLICY "photos_owner_delete"
+ON storage.objects FOR DELETE
+USING (bucket_id = 'photos' AND auth.uid() = owner);
 
 -- Vérification finale
 SELECT id, name, public, file_size_limit FROM storage.buckets WHERE id = 'photos';
@@ -707,13 +686,25 @@ export default function MigrationPage() {
         void files; // suppress unused warning
       }
 
-      // 2. Tester un upload (petit fichier texte de test)
+      // 2. Tester un upload avec une vraie image PNG 1x1 pixel
       if (diag.bucketExists) {
-        const testBlob = new Blob(['diagnostic-test'], { type: 'text/plain' });
-        const testPath = `__diagnostic__/test_${Date.now()}.txt`;
+        // PNG 1x1 pixel transparent (format binaire valide)
+        const pngBytes = new Uint8Array([
+          0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A, // PNG signature
+          0x00,0x00,0x00,0x0D,0x49,0x48,0x44,0x52, // IHDR chunk length + type
+          0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x01, // 1x1 px
+          0x08,0x02,0x00,0x00,0x00,0x90,0x77,0x53, // bit depth, color type, etc.
+          0xDE,0x00,0x00,0x00,0x0C,0x49,0x44,0x41, // IDAT chunk
+          0x54,0x08,0xD7,0x63,0xF8,0xCF,0xC0,0x00, // compressed pixel
+          0x00,0x00,0x02,0x00,0x01,0xE2,0x21,0xBC, // CRC
+          0x33,0x00,0x00,0x00,0x00,0x49,0x45,0x4E, // IEND
+          0x44,0xAE,0x42,0x60,0x82               // IEND CRC
+        ]);
+        const testBlob = new Blob([pngBytes], { type: 'image/png' });
+        const testPath = `__diagnostic__/test_${Date.now()}.png`;
         const { data: upData, error: upErr } = await supabase.storage
           .from('photos')
-          .upload(testPath, testBlob, { upsert: true });
+          .upload(testPath, testBlob, { upsert: true, contentType: 'image/png' });
 
         if (upErr) {
           diag.canUpload = false;
@@ -990,12 +981,13 @@ export default function MigrationPage() {
                 ? <span className="text-gray-400 text-sm">—</span>
                 : storageDiag.canUpload
                   ? <span className="flex items-center gap-1 text-emerald-600 font-semibold text-sm"><CheckCircle className="w-4 h-4" /> OK</span>
-                  : <span className="flex items-center gap-1 text-red-500 font-semibold text-sm"><XCircle className="w-4 h-4" /> Bloqué — Policies manquantes !</span>}
+                  : <span className="flex items-center gap-1 text-red-500 font-semibold text-sm"><XCircle className="w-4 h-4" /> Bloqué → appliquer SQL Storage</span>}
             </div>
             {/* Erreur détaillée */}
             {storageDiag.error && (
-              <div className="px-5 py-3 bg-red-50">
-                <p className="text-xs text-red-700 font-mono break-all">⚠️ {storageDiag.error}</p>
+              <div className="px-5 py-3 bg-amber-50 border-t border-amber-100">
+                <p className="text-xs text-amber-800 font-mono break-all font-semibold">ℹ️ Détail : {storageDiag.error}</p>
+                <p className="text-xs text-amber-700 mt-1">→ Copiez et exécutez le <strong>SQL Storage</strong> ci-dessous dans Supabase SQL Editor.</p>
               </div>
             )}
           </div>
@@ -1034,8 +1026,15 @@ export default function MigrationPage() {
         <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 mb-4 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-bold text-amber-800 text-sm">⚠️ Bucket présent mais upload bloqué — Policies RLS manquantes !</p>
-            <p className="text-amber-700 text-xs mt-1">Exécutez le SQL Storage ci-dessous pour ajouter les permissions d&apos;upload.</p>
+            <p className="font-bold text-amber-800 text-sm">⚠️ Bucket présent mais upload bloqué</p>
+            <p className="text-amber-700 text-xs mt-1">
+              {storageDiag.error?.includes('mime type')
+                ? '→ Le bucket existe mais les policies RLS bloquent l\'upload. Exécutez le SQL Storage ci-dessous (DROP + CREATE POLICY) pour corriger.'
+                : '→ Policies RLS manquantes ou incorrectes. Exécutez le SQL Storage ci-dessous pour ajouter les permissions d\'upload.'}
+            </p>
+            {storageDiag.error && (
+              <p className="text-amber-600 text-xs mt-1 font-mono bg-amber-100 px-2 py-1 rounded">{storageDiag.error}</p>
+            )}
           </div>
         </div>
       )}
