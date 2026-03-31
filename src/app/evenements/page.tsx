@@ -1296,28 +1296,54 @@ export default function EvenementsPage() {
     if (error) {
       toast.error('Erreur lors de la soumission'); console.error(error);
     } else {
+      // ── Upload photos AVANT fetchEvents ──────────────────────────────────
       if (eventPhotos.length > 0 && inserted?.id) {
+        const uploadToast = toast.loading(`Upload des photos (0/${eventPhotos.length})…`);
+        let uploaded = 0;
         for (let i = 0; i < eventPhotos.length; i++) {
           const file = eventPhotos[i];
-          const ext = file.name.split('.').pop();
+          // Extension sécurisée
+          const rawExt = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
+          const ext = ['jpg','jpeg','png','webp','gif'].includes(rawExt) ? rawExt : 'jpg';
+          // Chemin : events/<event_id>/<timestamp>_<i>.<ext>
           const path = `events/${inserted.id}/${Date.now()}_${i}.${ext}`;
-          const { data: up, error: upErr } = await supabase.storage.from('photos').upload(path, file, { upsert: true });
+
+          const { data: up, error: upErr } = await supabase.storage
+            .from('photos')
+            .upload(path, file, { upsert: true, contentType: file.type });
+
           if (upErr) {
             console.error('[storage] upload error:', upErr.message);
+            toast.error(`Photo ${i+1} : échec upload — ${upErr.message}`);
+            continue;
           }
+
           if (up?.path) {
             const { data: urlData } = supabase.storage.from('photos').getPublicUrl(up.path);
-            const { error: insErr } = await supabase.from('event_photos').insert({ event_id: inserted.id, url: urlData.publicUrl, display_order: i });
-            if (insErr) console.error('[event_photos] insert error:', insErr.message, insErr.code);
-            else console.log('[event_photos] photo saved:', urlData.publicUrl);
+            const publicUrl = urlData.publicUrl;
+            console.log('[event_photos] uploading to DB:', publicUrl);
+            const { error: insErr } = await supabase
+              .from('event_photos')
+              .insert({ event_id: inserted.id, url: publicUrl, display_order: i });
+            if (insErr) {
+              console.error('[event_photos] insert error:', insErr.message, insErr.code);
+              toast.error(`Photo ${i+1} : erreur DB — ${insErr.message}`);
+            } else {
+              uploaded++;
+              toast.loading(`Upload des photos (${uploaded}/${eventPhotos.length})…`, { id: uploadToast });
+            }
           }
         }
+        toast.dismiss(uploadToast);
+        if (uploaded > 0) toast.success(`${uploaded} photo${uploaded > 1 ? 's' : ''} uploadée${uploaded > 1 ? 's' : ''} ✓`);
       }
+
       toast.success('🎉 Événement publié ! Visible dans l\'agenda.', { duration: 4000 });
       setNewEvent({ title: '', description: '', event_date: '', event_time: '18:00', location: '', category: 'culture', organizer_name: '', max_participants: '', is_free: true, price: '' });
       setEventPhotos([]); setEventPhotoPreviews([]);
       setActiveTab('agenda');
-      fetchEvents();
+      // fetchEvents après que les photos soient bien enregistrées
+      await fetchEvents();
     }
     setSubmittingEvent(false);
   };
