@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   Menu, X, Bell, MessageSquare, User, LogOut, Shield, Home,
   Wrench, ChevronDown, PenLine, Drill, TreePine, Gem, PartyPopper,
-  Package, BookOpen, Users, Calendar, Footprints, ArrowRight,
+  Package, BookOpen, Calendar, Footprints, ArrowRight,
   ClipboardList,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -137,14 +137,6 @@ const UNIVERS = [
         desc: 'Discussions entre habitants',
         iconColor: 'text-violet-500',
         iconBg: 'bg-violet-100',
-      },
-      {
-        href: '/forum',
-        icon: Users,
-        label: 'Communauté',
-        desc: 'Entraide et vie de quartier',
-        iconColor: 'text-rose-500',
-        iconBg: 'bg-rose-100',
       },
     ],
   },
