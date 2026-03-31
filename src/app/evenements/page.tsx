@@ -1382,8 +1382,9 @@ export default function EvenementsPage() {
     <div className="min-h-screen relative" style={{
       backgroundImage: 'url(/images/biguglia-village.jpg)',
       backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundAttachment: 'fixed',
+      backgroundPosition: 'center top',
+      backgroundRepeat: 'no-repeat',
+      backgroundAttachment: 'scroll',
     }}>
       {/* Overlay très léger pour ne pas gêner les couleurs du site */}
       <div className="absolute inset-0 bg-white/82 pointer-events-none" style={{ zIndex: 0 }} />
