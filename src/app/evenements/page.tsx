@@ -1379,7 +1379,15 @@ export default function EvenementsPage() {
   const totalCount = events.length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-white">
+    <div className="min-h-screen relative" style={{
+      backgroundImage: 'url(/images/biguglia-village.jpg)',
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundAttachment: 'fixed',
+    }}>
+      {/* Overlay très léger pour ne pas gêner les couleurs du site */}
+      <div className="absolute inset-0 bg-white/82 pointer-events-none" style={{ zIndex: 0 }} />
+      <div className="relative" style={{ zIndex: 1 }}>
 
       {!dbReady && (
         <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
@@ -1396,7 +1404,7 @@ export default function EvenementsPage() {
       )}
 
       {/* ── HERO ── */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 via-violet-600 to-pink-500 text-white">
+      <div className="relative overflow-hidden bg-gradient-to-br from-purple-600/90 via-violet-600/90 to-pink-500/90 text-white">
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
         <div className="absolute top-0 right-0 w-80 h-80 bg-white/5 rounded-full blur-3xl" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
@@ -1700,6 +1708,7 @@ export default function EvenementsPage() {
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
