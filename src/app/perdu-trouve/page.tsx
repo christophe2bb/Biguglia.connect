@@ -614,10 +614,16 @@ export default function PerduTrouvePage() {
         const file = photos[i];
         const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
         const path = `lost-found/${itemId}/${Date.now()}_${i}.${ext}`;
-        const { data: up } = await supabase.storage.from('photos').upload(path, file, { upsert: true, contentType: file.type });
+        const { data: up, error: upErr } = await supabase.storage.from('photos').upload(path, file, { upsert: true, contentType: file.type });
+        if (upErr) {
+          console.error('[storage] lf photo upload error:', upErr.message);
+          toast.error(`Photo ${i+1} non sauvegardée : ${upErr.message}`);
+          continue;
+        }
         if (up?.path) {
           const { data: u } = supabase.storage.from('photos').getPublicUrl(up.path);
-          await supabase.from('lf_photos').insert({ item_id: itemId, url: u.publicUrl, display_order: i });
+          const { error: dbErr } = await supabase.from('lf_photos').insert({ item_id: itemId, url: u.publicUrl, display_order: i });
+          if (dbErr) console.error('[lf_photos] insert error:', dbErr.message);
         }
       }
     }

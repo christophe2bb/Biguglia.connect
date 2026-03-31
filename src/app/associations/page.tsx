@@ -717,10 +717,16 @@ export default function AssociationsPage() {
         const file = photos[i];
         const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
         const path = `associations/${assoId}/${Date.now()}_${i}.${ext}`;
-        const { data: up } = await supabase.storage.from('photos').upload(path, file, { upsert: true, contentType: file.type });
+        const { data: up, error: upErr } = await supabase.storage.from('photos').upload(path, file, { upsert: true, contentType: file.type });
+        if (upErr) {
+          console.error('[storage] asso photo upload error:', upErr.message);
+          toast.error(`Photo ${i+1} non sauvegardée : ${upErr.message}`);
+          continue;
+        }
         if (up?.path) {
           const { data: u } = supabase.storage.from('photos').getPublicUrl(up.path);
-          await supabase.from('asso_photos').insert({ asso_id: assoId, url: u.publicUrl, display_order: i });
+          const { error: dbErr } = await supabase.from('asso_photos').insert({ asso_id: assoId, url: u.publicUrl, display_order: i });
+          if (dbErr) console.error('[asso_photos] insert error:', dbErr.message);
         }
       }
     }

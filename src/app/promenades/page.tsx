@@ -633,11 +633,17 @@ export default function PromenadePage() {
         const { data: up, error: upErr } = await supabase.storage
           .from('photos')
           .upload(fileName, photo, { upsert: true });
-        if (up && !upErr) {
+        if (upErr) {
+          console.error('[storage] promenade photo upload error:', upErr.message);
+          toast.error(`Photo ${i+1} non sauvegardée : ${upErr.message}`);
+          continue;
+        }
+        if (up?.path) {
           const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(up.path);
-          await supabase.from('promenade_photos').insert({
+          const { error: dbErr } = await supabase.from('promenade_photos').insert({
             promenade_id: prom.id, url: publicUrl, display_order: i,
           });
+          if (dbErr) console.error('[promenade_photos] insert error:', dbErr.message);
         }
       }
     }
@@ -768,10 +774,16 @@ export default function PromenadePage() {
         const file = outingPhotos[i];
         const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
         const path = `outings/${outingId}/${Date.now()}_${i}.${ext}`;
-        const { data: up } = await supabase.storage.from('photos').upload(path, file, { upsert: true, contentType: file.type });
+        const { data: up, error: upErr } = await supabase.storage.from('photos').upload(path, file, { upsert: true, contentType: file.type });
+        if (upErr) {
+          console.error('[storage] upload error:', upErr.message);
+          toast.error(`Photo ${i+1} : ${upErr.message}. Vérifiez le bucket "photos" dans Admin → Migration.`);
+          continue;
+        }
         if (up?.path) {
           const { data: u } = supabase.storage.from('photos').getPublicUrl(up.path);
-          await supabase.from('outing_photos').insert({ outing_id: outingId, url: u.publicUrl, display_order: i });
+          const { error: dbErr } = await supabase.from('outing_photos').insert({ outing_id: outingId, url: u.publicUrl, display_order: i });
+          if (dbErr) console.error('[outing_photos] insert error:', dbErr.message);
         }
       }
     }

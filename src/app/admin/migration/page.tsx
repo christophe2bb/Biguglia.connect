@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
+import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon } from 'lucide-react';
 
 // ─── SQL complet à copier-coller dans Supabase SQL Editor ─────────────────────
 const MIGRATION_SQL = `-- ============================================================
@@ -529,6 +529,83 @@ END $$;
 -- Recharge le cache PostgREST (OBLIGATOIRE après création de tables)
 NOTIFY pgrst, 'reload schema';`;
 
+// ─── SQL Bucket Storage (à exécuter dans Supabase SQL Editor) ─────────────────
+const BUCKET_SQL = `-- ============================================================
+-- BIGUGLIA CONNECT — Création bucket Storage "photos"
+-- Coller dans Supabase > SQL Editor > New query > Run
+-- ============================================================
+
+-- 1. Créer le bucket public "photos" (si inexistant)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'photos',
+  'photos',
+  true,
+  10485760,  -- 10 MB max par fichier
+  ARRAY['image/jpeg','image/jpg','image/png','image/webp','image/gif','image/heic','image/heif']
+)
+ON CONFLICT (id) DO UPDATE SET
+  public = true,
+  file_size_limit = 10485760,
+  allowed_mime_types = ARRAY['image/jpeg','image/jpg','image/png','image/webp','image/gif','image/heic','image/heif'];
+
+-- 2. Policies RLS sur le bucket storage.objects
+-- Lecture publique (tout le monde peut voir les photos)
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'storage' AND tablename = 'objects'
+    AND policyname = 'photos_public_select'
+  ) THEN
+    CREATE POLICY "photos_public_select"
+    ON storage.objects FOR SELECT
+    USING (bucket_id = 'photos');
+  END IF;
+END $$;
+
+-- Upload autorisé pour les utilisateurs connectés
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'storage' AND tablename = 'objects'
+    AND policyname = 'photos_auth_insert'
+  ) THEN
+    CREATE POLICY "photos_auth_insert"
+    ON storage.objects FOR INSERT
+    WITH CHECK (bucket_id = 'photos' AND auth.role() = 'authenticated');
+  END IF;
+END $$;
+
+-- Mise à jour (upsert) pour les utilisateurs connectés
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'storage' AND tablename = 'objects'
+    AND policyname = 'photos_auth_update'
+  ) THEN
+    CREATE POLICY "photos_auth_update"
+    ON storage.objects FOR UPDATE
+    USING (bucket_id = 'photos' AND auth.role() = 'authenticated');
+  END IF;
+END $$;
+
+-- Suppression par le propriétaire du fichier
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'storage' AND tablename = 'objects'
+    AND policyname = 'photos_owner_delete'
+  ) THEN
+    CREATE POLICY "photos_owner_delete"
+    ON storage.objects FOR DELETE
+    USING (bucket_id = 'photos' AND auth.uid() = owner);
+  END IF;
+END $$;
+
+-- Vérification finale
+SELECT id, name, public, file_size_limit FROM storage.buckets WHERE id = 'photos';
+SELECT policyname, cmd FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname LIKE 'photos%';`;
+
 // ─── Tables à vérifier via REST direct ───────────────────────────────────────
 const TABLES_TO_CHECK = [
   { name: 'collection_categories', label: 'Catégories collections',  theme: '🏆 Collectionneurs' },
@@ -551,16 +628,38 @@ const TABLES_TO_CHECK = [
 ];
 
 type TableStatus = { name: string; exists: boolean };
+type StorageDiag = {
+  bucketExists: boolean | null;
+  bucketPublic: boolean | null;
+  canUpload: boolean | null;
+  canRead: boolean | null;
+  testFileUrl: string | null;
+  error: string | null;
+};
 
 export default function MigrationPage() {
   const supabase = createClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [checking, setChecking]       = useState(true);
   const [tables,   setTables]         = useState<TableStatus[]>([]);
   const [copied,   setCopied]         = useState(false);
   const [copiedNotify, setCopiedNotify] = useState(false);
+  const [copiedBucket, setCopiedBucket] = useState(false);
 
-  useEffect(() => { checkTables(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  // Storage diagnostic
+  const [storageDiag, setStorageDiag] = useState<StorageDiag>({
+    bucketExists: null, bucketPublic: null,
+    canUpload: null, canRead: null, testFileUrl: null, error: null,
+  });
+  const [checkingStorage, setCheckingStorage] = useState(false);
+  const [testingUpload, setTestingUpload] = useState(false);
+
+  useEffect(() => {
+    checkTables();
+    checkStorage();
+  /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, []);
 
   const checkTables = async () => {
     setChecking(true);
@@ -580,6 +679,85 @@ export default function MigrationPage() {
     setChecking(false);
   };
 
+  const checkStorage = async () => {
+    setCheckingStorage(true);
+    const diag: StorageDiag = {
+      bucketExists: null, bucketPublic: null,
+      canUpload: null, canRead: null, testFileUrl: null, error: null,
+    };
+    try {
+      // 1. Vérifier si le bucket existe en listant les fichiers
+      const { data: files, error: listErr } = await supabase.storage
+        .from('photos')
+        .list('__diagnostic__', { limit: 1 });
+
+      if (listErr) {
+        if (listErr.message?.includes('Bucket not found') || listErr.message?.includes('bucket') || listErr.message?.includes('does not exist')) {
+          diag.bucketExists = false;
+          diag.error = `Bucket "photos" introuvable : ${listErr.message}`;
+        } else {
+          // Bucket existe mais autre erreur (permissions)
+          diag.bucketExists = true;
+          diag.canRead = false;
+          diag.error = `Erreur lecture bucket : ${listErr.message}`;
+        }
+      } else {
+        diag.bucketExists = true;
+        diag.canRead = true;
+        void files; // suppress unused warning
+      }
+
+      // 2. Tester un upload (petit fichier texte de test)
+      if (diag.bucketExists) {
+        const testBlob = new Blob(['diagnostic-test'], { type: 'text/plain' });
+        const testPath = `__diagnostic__/test_${Date.now()}.txt`;
+        const { data: upData, error: upErr } = await supabase.storage
+          .from('photos')
+          .upload(testPath, testBlob, { upsert: true });
+
+        if (upErr) {
+          diag.canUpload = false;
+          diag.error = (diag.error ? diag.error + ' | ' : '') + `Upload bloqué : ${upErr.message}`;
+        } else if (upData?.path) {
+          diag.canUpload = true;
+          const { data: urlData } = supabase.storage.from('photos').getPublicUrl(upData.path);
+          diag.testFileUrl = urlData?.publicUrl ?? null;
+          // Check public URL structure
+          if (diag.testFileUrl) {
+            diag.bucketPublic = diag.testFileUrl.includes('/object/public/');
+          }
+          // Cleanup test file
+          await supabase.storage.from('photos').remove([testPath]);
+        }
+      }
+    } catch (e: unknown) {
+      diag.error = `Exception : ${e instanceof Error ? e.message : String(e)}`;
+    }
+    setStorageDiag(diag);
+    setCheckingStorage(false);
+  };
+
+  const testRealUpload = async (file: File) => {
+    if (!file) return;
+    setTestingUpload(true);
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `__diagnostic__/real_test_${Date.now()}.${ext}`;
+    const { data, error } = await supabase.storage
+      .from('photos')
+      .upload(path, file, { upsert: true, contentType: file.type });
+    if (error) {
+      alert(`❌ Upload échoué :\n\nErreur : ${error.message}\nCode : ${(error as {statusCode?: string}).statusCode ?? 'N/A'}\n\nVérifiez :\n1. Que le bucket "photos" existe (SQL ci-dessous)\n2. Que les policies sont appliquées\n3. Que vous êtes connecté`);
+    } else if (data?.path) {
+      const { data: urlData } = supabase.storage.from('photos').getPublicUrl(data.path);
+      const url = urlData?.publicUrl;
+      // Cleanup
+      await supabase.storage.from('photos').remove([path]);
+      alert(`✅ Upload réussi !\n\nURL publique : ${url}\n\nLe bucket fonctionne correctement.`);
+    }
+    setTestingUpload(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleCopy = () => {
     navigator.clipboard.writeText(MIGRATION_SQL).then(() => {
       setCopied(true);
@@ -591,6 +769,13 @@ export default function MigrationPage() {
     navigator.clipboard.writeText("NOTIFY pgrst, 'reload schema';").then(() => {
       setCopiedNotify(true);
       setTimeout(() => setCopiedNotify(false), 4000);
+    });
+  };
+
+  const handleCopyBucket = () => {
+    navigator.clipboard.writeText(BUCKET_SQL).then(() => {
+      setCopiedBucket(true);
+      setTimeout(() => setCopiedBucket(false), 4000);
     });
   };
 
@@ -715,7 +900,7 @@ export default function MigrationPage() {
       </div>
 
       {/* ── Bandeau NOTIFY — si tables OK mais erreur cache ── */}
-      <div className="bg-orange-50 border-2 border-orange-300 rounded-2xl p-5">
+      <div className="bg-orange-50 border-2 border-orange-300 rounded-2xl p-5 mb-8">
         <div className="flex items-start gap-3 mb-3">
           <span className="text-2xl flex-shrink-0">⚡</span>
           <div>
@@ -736,6 +921,155 @@ export default function MigrationPage() {
             }`}>
             {copiedNotify ? <><Check className="w-3 h-3" /> Copié !</> : <><Copy className="w-3 h-3" /> Copier</>}
           </button>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          SECTION STORAGE — DIAGNOSTIC PHOTOS
+      ══════════════════════════════════════════════════════════════ */}
+      <div className="flex items-center gap-3 mb-4 mt-4">
+        <div className="p-3 bg-blue-100 rounded-2xl">
+          <HardDrive className="w-6 h-6 text-blue-600" />
+        </div>
+        <div>
+          <h2 className="text-xl font-black text-gray-900">Stockage des photos (Storage)</h2>
+          <p className="text-gray-500 text-sm">Diagnostic du bucket &quot;photos&quot; et des permissions d&apos;upload</p>
+        </div>
+      </div>
+
+      {/* État du bucket */}
+      <div className="bg-white rounded-2xl border shadow-sm mb-4 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b">
+          <h3 className="font-bold text-gray-800 flex items-center gap-2">
+            <ImageIcon className="w-4 h-4 text-blue-500" /> État du bucket &quot;photos&quot;
+          </h3>
+          <button onClick={checkStorage} disabled={checkingStorage}
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-blue-600 transition-colors disabled:opacity-40">
+            <RefreshCw className={`w-4 h-4 ${checkingStorage ? 'animate-spin' : ''}`} /> Tester
+          </button>
+        </div>
+
+        {checkingStorage ? (
+          <div className="p-8 flex items-center justify-center gap-3">
+            <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+            <span className="text-gray-500 text-sm">Diagnostic en cours…</span>
+          </div>
+        ) : storageDiag.bucketExists === null ? (
+          <div className="p-6 text-center text-gray-400 text-sm">Cliquez &quot;Tester&quot; pour lancer le diagnostic</div>
+        ) : (
+          <div className="divide-y">
+            {/* Bucket existe ? */}
+            <div className="flex items-center justify-between px-5 py-3">
+              <span className="text-sm text-gray-700">Bucket &quot;photos&quot; existe</span>
+              {storageDiag.bucketExists
+                ? <span className="flex items-center gap-1 text-emerald-600 font-semibold text-sm"><CheckCircle className="w-4 h-4" /> Oui</span>
+                : <span className="flex items-center gap-1 text-red-500 font-semibold text-sm"><XCircle className="w-4 h-4" /> Non — À créer</span>}
+            </div>
+            {/* Bucket public ? */}
+            <div className="flex items-center justify-between px-5 py-3">
+              <span className="text-sm text-gray-700">Bucket public (URLs accessibles)</span>
+              {storageDiag.bucketPublic === null
+                ? <span className="text-gray-400 text-sm">—</span>
+                : storageDiag.bucketPublic
+                  ? <span className="flex items-center gap-1 text-emerald-600 font-semibold text-sm"><CheckCircle className="w-4 h-4" /> Oui</span>
+                  : <span className="flex items-center gap-1 text-red-500 font-semibold text-sm"><XCircle className="w-4 h-4" /> Non — Photos invisibles !</span>}
+            </div>
+            {/* Lecture */}
+            <div className="flex items-center justify-between px-5 py-3">
+              <span className="text-sm text-gray-700">Lecture des fichiers autorisée</span>
+              {storageDiag.canRead === null
+                ? <span className="text-gray-400 text-sm">—</span>
+                : storageDiag.canRead
+                  ? <span className="flex items-center gap-1 text-emerald-600 font-semibold text-sm"><CheckCircle className="w-4 h-4" /> OK</span>
+                  : <span className="flex items-center gap-1 text-red-500 font-semibold text-sm"><XCircle className="w-4 h-4" /> Bloquée</span>}
+            </div>
+            {/* Upload */}
+            <div className="flex items-center justify-between px-5 py-3">
+              <span className="text-sm text-gray-700">Upload de fichiers autorisé</span>
+              {storageDiag.canUpload === null
+                ? <span className="text-gray-400 text-sm">—</span>
+                : storageDiag.canUpload
+                  ? <span className="flex items-center gap-1 text-emerald-600 font-semibold text-sm"><CheckCircle className="w-4 h-4" /> OK</span>
+                  : <span className="flex items-center gap-1 text-red-500 font-semibold text-sm"><XCircle className="w-4 h-4" /> Bloqué — Policies manquantes !</span>}
+            </div>
+            {/* Erreur détaillée */}
+            {storageDiag.error && (
+              <div className="px-5 py-3 bg-red-50">
+                <p className="text-xs text-red-700 font-mono break-all">⚠️ {storageDiag.error}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Test upload réel */}
+        <div className="px-5 py-4 bg-gray-50 border-t">
+          <p className="text-xs font-bold text-gray-600 mb-2 flex items-center gap-1.5">
+            <Upload className="w-3.5 h-3.5" /> Test d&apos;upload réel (choisissez une image)
+          </p>
+          <div className="flex items-center gap-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={e => e.target.files?.[0] && testRealUpload(e.target.files[0])}
+              className="text-xs text-gray-600 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 cursor-pointer"
+            />
+            {testingUpload && <Loader2 className="w-4 h-4 animate-spin text-blue-500" />}
+          </div>
+          <p className="text-xs text-gray-400 mt-1.5">Ce test uploade et supprime immédiatement un fichier — aucune donnée conservée.</p>
+        </div>
+      </div>
+
+      {/* ─── Statut résumé Storage ─── */}
+      {storageDiag.bucketExists === false && (
+        <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-4 mb-4 flex items-start gap-3">
+          <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold text-red-800 text-sm">🚨 Bucket &quot;photos&quot; manquant — Les photos ne peuvent pas être sauvegardées !</p>
+            <p className="text-red-700 text-xs mt-1">Exécutez le SQL ci-dessous dans Supabase pour créer le bucket et les permissions.</p>
+          </div>
+        </div>
+      )}
+      {storageDiag.canUpload === false && storageDiag.bucketExists === true && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 mb-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold text-amber-800 text-sm">⚠️ Bucket présent mais upload bloqué — Policies RLS manquantes !</p>
+            <p className="text-amber-700 text-xs mt-1">Exécutez le SQL Storage ci-dessous pour ajouter les permissions d&apos;upload.</p>
+          </div>
+        </div>
+      )}
+      {storageDiag.canUpload === true && storageDiag.bucketPublic === true && (
+        <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4 mb-4 flex items-start gap-3">
+          <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold text-emerald-800 text-sm">✅ Storage opérationnel — Les photos peuvent être uploadées et affichées.</p>
+          </div>
+        </div>
+      )}
+
+      {/* ─── SQL Bucket ─── */}
+      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden mb-6">
+        <div className="px-5 py-4 bg-blue-50 border-b border-blue-100 flex items-start gap-3">
+          <Eye className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-blue-800">
+            <strong>SQL Storage — Bucket &quot;photos&quot; + Policies RLS</strong>
+            <p className="text-xs mt-1 text-blue-700">À exécuter <strong>une seule fois</strong> dans <strong>Supabase → SQL Editor</strong> si les photos ne s&apos;affichent pas.</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
+          <p className="text-xs text-gray-500">Crée le bucket public + 4 policies (SELECT, INSERT, UPDATE, DELETE)</p>
+          <button onClick={handleCopyBucket}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow ${
+              copiedBucket ? 'bg-emerald-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}>
+            {copiedBucket
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Storage</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-64">
+          <pre className="text-xs text-cyan-400 font-mono leading-relaxed whitespace-pre-wrap">{BUCKET_SQL}</pre>
         </div>
       </div>
 

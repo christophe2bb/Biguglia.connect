@@ -509,11 +509,17 @@ export default function CollectionneursPage() {
         const { data: up, error: upErr } = await supabase.storage
           .from('photos')
           .upload(fileName, photo, { upsert: true });
-        if (up && !upErr) {
+        if (upErr) {
+          console.error('[storage] collection photo upload error:', upErr.message);
+          toast.error(`Photo ${i+1} non sauvegardée : ${upErr.message}`);
+          continue;
+        }
+        if (up?.path) {
           const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(up.path);
-          await supabase.from('collection_item_photos').insert({
+          const { error: dbErr } = await supabase.from('collection_item_photos').insert({
             item_id: item.id, url: publicUrl, display_order: i,
           });
+          if (dbErr) console.error('[collection_item_photos] insert error:', dbErr.message);
         }
       }
     }
