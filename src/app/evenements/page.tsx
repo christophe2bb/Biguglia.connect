@@ -295,6 +295,9 @@ function CalendarView({
 
   const toISO = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
+  const monthPrefix = `${calYear}-${String(calMonth+1).padStart(2,'0')}`;
+  const eventsThisMonth = events.filter(e => e.event_date.startsWith(monthPrefix));
+
   const selectedEvents = selectedDay ? (eventsByDay[selectedDay] ?? []) : [];
 
   return (
@@ -303,22 +306,25 @@ function CalendarView({
       <div className="flex-1 min-w-0">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           {/* Header navigation */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-            <button onClick={prevMonth} className="p-2 rounded-xl hover:bg-gray-100 transition-all text-gray-500">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-pink-50">
+            <button onClick={prevMonth} className="p-2 rounded-xl hover:bg-white hover:shadow-sm transition-all text-gray-500 border border-transparent hover:border-gray-200">
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <h2 className="text-lg font-black text-gray-900">
-              {MOIS_FR[calMonth]} <span className="text-purple-600">{calYear}</span>
-            </h2>
-            <button onClick={nextMonth} className="p-2 rounded-xl hover:bg-gray-100 transition-all text-gray-500">
+            <div className="text-center">
+              <h2 className="text-xl font-black text-gray-900 tracking-tight">
+                {MOIS_FR[calMonth]} <span className="text-purple-600">{calYear}</span>
+              </h2>
+              <p className="text-xs text-gray-400 mt-0.5">{eventsThisMonth.length} événement{eventsThisMonth.length !== 1 ? 's' : ''} ce mois</p>
+            </div>
+            <button onClick={nextMonth} className="p-2 rounded-xl hover:bg-white hover:shadow-sm transition-all text-gray-500 border border-transparent hover:border-gray-200">
               <ChevronRight className="w-5 h-5" />
             </button>
           </div>
 
           {/* Jours de la semaine */}
-          <div className="grid grid-cols-7 border-b border-gray-100">
-            {JOURS.map(j => (
-              <div key={j} className="py-2 text-center text-xs font-bold text-gray-400 uppercase tracking-wide">
+          <div className="grid grid-cols-7 border-b border-gray-100 bg-gray-50/60">
+            {JOURS.map((j, ji) => (
+              <div key={j} className={`py-3 text-center text-xs font-black text-gray-400 uppercase tracking-widest ${ji < 5 ? '' : 'text-purple-400'}`}>
                 {j}
               </div>
             ))}
@@ -327,38 +333,119 @@ function CalendarView({
           {/* Grille des jours */}
           <div className="grid grid-cols-7">
             {cells.map((date, i) => {
-              if (!date) return <div key={i} className="h-16 sm:h-20 border-b border-r border-gray-50 last:border-r-0 bg-gray-50/30" />;
+              if (!date) return (
+                <div key={i} className={`h-24 sm:h-32 border-b border-gray-100 bg-gray-50/40 ${i % 7 !== 6 ? 'border-r border-gray-100' : ''}`} />
+              );
               const iso = toISO(date);
               const dayEvents = eventsByDay[iso] ?? [];
               const isToday = iso === toISO(today);
               const isPast = date < today;
               const isSelected = selectedDay === iso;
-              const isCurrentMonth = true;
+              const hasEvents = dayEvents.length > 0;
+              const firstEvent = dayEvents[0];
+              const firstCat = firstEvent ? getCat(firstEvent.category) : null;
 
               return (
-                <button key={i} onClick={() => setSelectedDay(isSelected ? null : iso)}
-                  className={`h-16 sm:h-20 border-b border-r border-gray-50 last:border-r-0 p-1 sm:p-1.5 text-left transition-all flex flex-col items-start
-                    ${isSelected ? 'bg-purple-50 border-purple-200' : 'hover:bg-gray-50'}
-                    ${i % 7 === 6 ? 'border-r-0' : ''}
+                <button
+                  key={i}
+                  onClick={() => setSelectedDay(isSelected ? null : iso)}
+                  className={`
+                    relative h-24 sm:h-32 border-b border-gray-100 text-left transition-all duration-200 overflow-hidden group
+                    ${i % 7 !== 6 ? 'border-r border-gray-100' : ''}
+                    ${isSelected ? 'ring-2 ring-inset ring-purple-400 z-10' : ''}
+                    ${hasEvents && !isPast ? 'cursor-pointer' : 'cursor-default'}
                   `}
                 >
-                  <span className={`w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full text-xs sm:text-sm font-bold mb-1 flex-shrink-0
-                    ${isToday ? 'bg-purple-600 text-white shadow-md' : isPast ? 'text-gray-300' : 'text-gray-700'}
-                    ${isSelected && !isToday ? 'ring-2 ring-purple-400' : ''}
-                  `}>
-                    {date.getDate()}
-                  </span>
-                  {/* Points colorés */}
-                  {dayEvents.length > 0 && (
-                    <div className="flex flex-wrap gap-0.5 mt-auto">
-                      {dayEvents.slice(0, 3).map((ev, ei) => {
-                        const c = getCat(ev.category);
-                        return <span key={ei} className={`w-1.5 h-1.5 rounded-full ${c.dot}`} title={ev.title} />;
-                      })}
-                      {dayEvents.length > 3 && (
-                        <span className="text-[10px] text-gray-400 font-bold leading-none mt-px">+{dayEvents.length - 3}</span>
-                      )}
-                    </div>
+                  {/* ── Fond photo si 1 événement avec cover ── */}
+                  {hasEvents && firstEvent?.cover_photo && !isPast && (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={firstEvent.cover_photo}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-cover opacity-30 group-hover:opacity-45 transition-opacity duration-300"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                    </>
+                  )}
+
+                  {/* ── Fond coloré si événements sans photo ── */}
+                  {hasEvents && !firstEvent?.cover_photo && !isPast && firstCat && (
+                    <div className={`absolute inset-0 ${firstCat.bg} opacity-40 group-hover:opacity-60 transition-opacity duration-200`} />
+                  )}
+
+                  {/* ── Contenu ── */}
+                  <div className="relative z-10 h-full flex flex-col p-1.5 sm:p-2">
+                    {/* Numéro du jour */}
+                    <span className={`
+                      w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full text-xs sm:text-sm font-black flex-shrink-0 self-start
+                      ${isToday
+                        ? 'bg-purple-600 text-white shadow-lg'
+                        : isPast
+                          ? 'text-gray-300'
+                          : hasEvents
+                            ? 'text-gray-800'
+                            : 'text-gray-600'}
+                      ${isSelected && !isToday ? 'ring-2 ring-purple-500' : ''}
+                    `}>
+                      {date.getDate()}
+                    </span>
+
+                    {/* ── Pills événements ── */}
+                    {hasEvents && !isPast && (
+                      <div className="mt-1 flex flex-col gap-0.5 flex-1 min-h-0 overflow-hidden">
+                        {/* Premier événement : pill avec titre */}
+                        {(() => {
+                          const ev = firstEvent!;
+                          const c = getCat(ev.category);
+                          return (
+                            <div
+                              key={ev.id}
+                              className={`
+                                flex items-center gap-1 px-1.5 py-0.5 rounded-md text-left
+                                ${ev.cover_photo
+                                  ? 'bg-black/50 backdrop-blur-sm'
+                                  : `${c.bg} border ${c.border}`}
+                              `}
+                              style={{ minWidth: 0 }}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${c.dot}`} />
+                              <span className={`
+                                text-[10px] sm:text-xs font-bold leading-tight truncate
+                                ${ev.cover_photo ? 'text-white' : c.color}
+                              `}>
+                                {ev.title}
+                              </span>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Événements supplémentaires */}
+                        {dayEvents.length === 2 && (() => {
+                          const ev = dayEvents[1];
+                          const c = getCat(ev.category);
+                          return (
+                            <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md ${c.bg} border ${c.border}`} style={{ minWidth: 0 }}>
+                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${c.dot}`} />
+                              <span className={`text-[10px] font-bold leading-tight truncate ${c.color}`}>{ev.title}</span>
+                            </div>
+                          );
+                        })()}
+
+                        {dayEvents.length > 2 && (
+                          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-gray-100 border border-gray-200">
+                            <span className="text-[10px] font-bold text-gray-500 leading-tight">
+                              +{dayEvents.length - 1} événements
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Effet hover glow ── */}
+                  {hasEvents && !isPast && (
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none ring-2 ring-inset ring-purple-300 rounded-sm" />
                   )}
                 </button>
               );
@@ -366,10 +453,11 @@ function CalendarView({
           </div>
 
           {/* Légende */}
-          <div className="px-5 py-3 border-t border-gray-100 flex flex-wrap gap-3">
+          <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50 flex flex-wrap gap-x-4 gap-y-1.5">
             {EVENT_CATEGORIES.map(c => (
-              <span key={c.id} className="flex items-center gap-1 text-xs text-gray-500">
-                <span className={`w-2 h-2 rounded-full ${c.dot}`} /> {c.label.split(' ')[0]}
+              <span key={c.id} className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+                <span className={`w-2.5 h-2.5 rounded-sm ${c.dot} opacity-80`} />
+                {c.label}
               </span>
             ))}
           </div>
