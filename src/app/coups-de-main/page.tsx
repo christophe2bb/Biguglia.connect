@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
 import { formatRelative } from '@/lib/utils';
@@ -167,6 +168,7 @@ function HelpCard({
 }) {
   const supabaseRef = useRef(createClient());
   const supabase = supabaseRef.current;
+  const router = useRouter();
   const [openChat, setOpenChat] = useState(false);
   const [openShare, setOpenShare] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -176,6 +178,28 @@ function HelpCard({
   const [chatCount, setChatCount] = useState(item.comment_count ?? 0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const shareRef = useRef<HTMLDivElement>(null);
+
+  // Ouvrir / créer une conversation privée liée à ce coup de main
+  const handleContact = async () => {
+    if (!userId) { router.push('/connexion'); return; }
+    if (userId === item.author_id) { toast.error('Vous ne pouvez pas vous contacter vous-même'); return; }
+    const { data: myParts } = await supabase.from('conversation_participants').select('conversation_id').eq('user_id', userId);
+    if (myParts && myParts.length > 0) {
+      const myIds = myParts.map((p: { conversation_id: string }) => p.conversation_id);
+      const { data: existing } = await supabase.from('conversations').select('id')
+        .eq('related_type', 'help_request').eq('related_id', item.id).in('id', myIds).maybeSingle();
+      if (existing) { router.push(`/messages/${existing.id}`); return; }
+    }
+    const { data: conv } = await supabase.from('conversations').insert({
+      subject: item.title, related_type: 'help_request', related_id: item.id,
+    }).select().single();
+    if (!conv) { toast.error('Impossible de créer la conversation'); return; }
+    await supabase.from('conversation_participants').upsert(
+      [{ conversation_id: conv.id, user_id: userId }, { conversation_id: conv.id, user_id: item.author_id }],
+      { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
+    );
+    router.push(`/messages/${conv.id}`);
+  };
 
   const typeConf = TYPE_CONFIG[item.help_type];
   const urgConf = URGENCY_CONFIG[item.urgency];
@@ -378,11 +402,11 @@ function HelpCard({
         <div className="flex items-center gap-2 pt-3 border-t border-gray-50">
           {/* Bouton contact */}
           {userId ? (
-            <Link href={`/messages?to=${item.author_id}`}
+            <button type="button" onClick={handleContact}
               className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-all ${typeConf.bg} ${typeConf.color} border ${typeConf.border} hover:shadow-sm`}>
               <Handshake className="w-3.5 h-3.5" />
               {item.help_type === 'demande' ? 'Je peux aider' : item.help_type === 'offre' ? "J'ai besoin" : 'Proposer échange'}
-            </Link>
+            </button>
           ) : (
             <Link href="/connexion"
               className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl ${typeConf.bg} ${typeConf.color} border ${typeConf.border}`}>

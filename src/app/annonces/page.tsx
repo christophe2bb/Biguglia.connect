@@ -13,6 +13,7 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import EmptyState from '@/components/ui/EmptyState';
 import { LISTING_TYPE_LABELS, LISTING_TYPE_COLORS, CONDITION_LABELS, formatPrice, formatRelative } from '@/lib/utils';
+import ReportButton from '@/components/ui/ReportButton';
 
 export default function AnnoncesPage() {
   const { profile } = useAuthStore();
@@ -127,7 +128,7 @@ export default function AnnoncesPage() {
           <p className="text-sm text-gray-500 mb-4">{filtered.length} annonce{filtered.length > 1 ? 's' : ''}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filtered.map(listing => (
-              <ListingCard key={listing.id} listing={listing} />
+              <ListingCard key={listing.id} listing={listing} currentUserId={profile?.id} />
             ))}
           </div>
         </>
@@ -136,7 +137,7 @@ export default function AnnoncesPage() {
   );
 }
 
-function ListingCard({ listing }: { listing: Listing }) {
+function ListingCard({ listing, currentUserId }: { listing: Listing; currentUserId?: string }) {
   const photos = listing.photos as Array<{ url: string }> | undefined;
   const typeColor = LISTING_TYPE_COLORS[listing.listing_type] || 'bg-gray-100 text-gray-700';
 
@@ -179,7 +180,10 @@ function ListingCard({ listing }: { listing: Listing }) {
             <span className="text-base font-bold text-brand-700">
               {listing.listing_type === 'free' ? 'Gratuit' : listing.price ? formatPrice(listing.price) : 'Prix à discuter'}
             </span>
-            <span className="text-xs text-gray-400">{formatRelative(listing.created_at)}</span>
+              <span className="text-xs text-gray-400">{formatRelative(listing.created_at)}</span>
+            {currentUserId && currentUserId !== (listing as Listing & { author_id?: string }).author_id && (
+              <ReportButton targetType="listing" targetId={listing.id} targetTitle={listing.title} variant="icon" />
+            )}
           </div>
 
           {listing.condition && (

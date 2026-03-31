@@ -13,6 +13,7 @@ import Button from '@/components/ui/Button';
 import EmptyState from '@/components/ui/EmptyState';
 import Avatar from '@/components/ui/Avatar';
 import { CONDITION_LABELS, formatPrice } from '@/lib/utils';
+import ReportButton from '@/components/ui/ReportButton';
 
 export default function MaterielPage() {
   const { profile } = useAuthStore();
@@ -101,14 +102,14 @@ export default function MaterielPage() {
           action={profile ? { label: 'Proposer du matériel', onClick: () => router.push('/materiel/nouveau') } : { label: 'S\'inscrire', onClick: () => router.push('/inscription') }} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map(item => <EquipmentCard key={item.id} item={item} />)}
+          {filtered.map(item => <EquipmentCard key={item.id} item={item} currentUserId={profile?.id} />)}
         </div>
       )}
     </div>
   );
 }
 
-function EquipmentCard({ item }: { item: EquipmentItem }) {
+function EquipmentCard({ item, currentUserId }: { item: EquipmentItem; currentUserId?: string }) {
   const photos = item.photos as Array<{ url: string }> | undefined;
   return (
     <Link href={`/materiel/${item.id}`}>
@@ -161,6 +162,9 @@ function EquipmentCard({ item }: { item: EquipmentItem }) {
               </div>
               <div className="text-xs text-gray-400">{CONDITION_LABELS[item.condition]}</div>
             </div>
+            {currentUserId && currentUserId !== (item as EquipmentItem & { owner_id?: string }).owner_id && (
+              <ReportButton targetType="equipment" targetId={item.id} targetTitle={item.title} variant="icon" />
+            )}
           </div>
         </div>
       </div>

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
 import { formatRelative } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 import {
   Tag, MessageSquare, Search, Plus, Eye, ChevronRight,
   Package, ArrowLeftRight, Gem,
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import toast from 'react-hot-toast';
+import ReportButton from '@/components/ui/ReportButton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type CollectionCategory = {
@@ -132,11 +134,34 @@ function ItemCard({
   onEdit: (item: CollectionItem) => void;
   onDelete: (item: CollectionItem) => void;
 }) {
+  const router = useRouter();
+  const supabase = createClient();
   const tc = TYPE_CONFIG[item.item_type];
   const cc = CONDITION_CONFIG[item.condition];
   const catClasses = item.category ? getCatClasses(item.category.color) : COLOR_CLASSES.gray;
   const firstPhoto = item.photos?.[0]?.url;
   const isOwner = currentUserId === item.author_id;
+
+  const handleContact = async () => {
+    if (!currentUserId) { router.push('/connexion'); return; }
+    if (isOwner) return;
+    const { data: myParts } = await supabase.from('conversation_participants').select('conversation_id').eq('user_id', currentUserId);
+    if (myParts && myParts.length > 0) {
+      const myIds = myParts.map((p: { conversation_id: string }) => p.conversation_id);
+      const { data: existing } = await supabase.from('conversations').select('id')
+        .eq('related_type', 'collection_item').eq('related_id', item.id).in('id', myIds).maybeSingle();
+      if (existing) { router.push(`/messages/${existing.id}`); return; }
+    }
+    const { data: conv } = await supabase.from('conversations').insert({
+      subject: item.title, related_type: 'collection_item', related_id: item.id,
+    }).select().single();
+    if (!conv) { toast.error('Impossible de créer la conversation'); return; }
+    await supabase.from('conversation_participants').upsert(
+      [{ conversation_id: conv.id, user_id: currentUserId }, { conversation_id: conv.id, user_id: item.author_id }],
+      { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
+    );
+    router.push(`/messages/${conv.id}`);
+  };
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 overflow-hidden group relative">
@@ -209,10 +234,13 @@ function ItemCard({
               </button>
             </div>
           ) : (
-            <Link href={`/messages?to=${item.author_id}`}
-              className="text-amber-600 font-semibold hover:text-amber-700 flex items-center gap-1 transition-colors flex-shrink-0">
-              Contacter <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={handleContact}
+                className="text-amber-600 font-semibold hover:text-amber-700 flex items-center gap-1 transition-colors flex-shrink-0">
+                Contacter <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+              <ReportButton targetType="collection_item" targetId={item.id} targetTitle={item.title} variant="icon" />
+            </div>
           )}
         </div>
       </div>

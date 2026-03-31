@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
 import { formatRelative } from '@/lib/utils';
+import ReportButton from '@/components/ui/ReportButton';
 import {
   Search, Plus, X, Loader2, AlertCircle, Camera, MapPin, Clock,
   Phone, Mail, Globe, MessageSquare, CheckCircle2, Shield, Users,
@@ -422,6 +423,10 @@ function AssociationCard({
             className={`inline-flex items-center gap-1.5 font-bold px-3 py-2 rounded-xl text-sm border transition-all ${liked ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'}`}>
             <Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />
           </button>
+          {/* Signaler */}
+          {!isAuthor && (
+            <ReportButton targetType="association" targetId={asso.id} targetTitle={asso.name} variant="icon" />
+          )}
         </div>
 
         {/* Mini-forum */}

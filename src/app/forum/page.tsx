@@ -12,6 +12,7 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import EmptyState from '@/components/ui/EmptyState';
 import { formatRelative } from '@/lib/utils';
+import ReportButton from '@/components/ui/ReportButton';
 
 export default function ForumPage() {
   const { profile } = useAuthStore();
@@ -113,7 +114,7 @@ export default function ForumPage() {
           ) : (
             <div className="space-y-3">
               {posts.map(post => (
-                <ForumPostCard key={post.id} post={post} />
+                <ForumPostCard key={post.id} post={post} currentUserId={profile?.id} />
               ))}
             </div>
           )}
@@ -123,7 +124,7 @@ export default function ForumPage() {
   );
 }
 
-function ForumPostCard({ post }: { post: ForumPost }) {
+function ForumPostCard({ post, currentUserId }: { post: ForumPost; currentUserId?: string }) {
   const commentCount = (post as ForumPost & { comment_count?: Array<{ count: number }> }).comment_count;
   const count = Array.isArray(commentCount) ? (commentCount[0] as { count: number })?.count || 0 : 0;
 
@@ -165,6 +166,9 @@ function ForumPostCard({ post }: { post: ForumPost }) {
                 <Eye className="w-3 h-3" />
                 {post.views}
               </div>
+              {currentUserId && currentUserId !== post.author?.id && (
+                <ReportButton targetType="post" targetId={post.id} targetTitle={post.title} variant="icon" />
+              )}
             </div>
           </div>
         </div>

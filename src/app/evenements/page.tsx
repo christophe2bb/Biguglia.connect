@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import toast from 'react-hot-toast';
+import ReportButton from '@/components/ui/ReportButton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LocalEvent = {
@@ -447,6 +448,7 @@ function EventCard({
           <span className={`text-sm font-black ${event.is_free ? 'text-emerald-600' : 'text-purple-600'}`}>
             {event.is_free ? '🎟️ Gratuit' : `${event.price} €`}
           </span>
+          <div className="flex items-center gap-2">
           {userId ? (
             <button onClick={() => onJoin(event.id, !!event.user_joined)} disabled={isFull && !event.user_joined}
               className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-all disabled:opacity-50 ${
@@ -460,6 +462,10 @@ function EventCard({
               <Bell className="w-3.5 h-3.5" /> Participer
             </Link>
           )}
+          {userId && userId !== event.author_id && (
+            <ReportButton targetType="event" targetId={event.id} targetTitle={event.title} variant="icon" />
+          )}
+          </div>
         </div>
       </div>
     </div>

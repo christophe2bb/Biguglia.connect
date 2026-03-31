@@ -662,6 +662,17 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- Étendre le type de related_type pour les nouvelles conversations
+DO $$ BEGIN
+  ALTER TABLE conversations DROP CONSTRAINT IF EXISTS conversations_related_type_check;
+  ALTER TABLE conversations ADD CONSTRAINT conversations_related_type_check
+    CHECK (related_type IN (
+      'service_request','listing','equipment','general',
+      'help_request','lost_found','association','outing','collection_item'
+    ));
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
 -- Recharge le cache PostgREST (OBLIGATOIRE après création de tables)
 NOTIFY pgrst, 'reload schema';`;
 

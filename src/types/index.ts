@@ -109,8 +109,8 @@ export interface Appointment {
 export interface Conversation {
   id: string;
   subject?: string;
-  related_type?: 'service_request' | 'listing' | 'equipment' | 'general';
-  related_id?: string;
+  related_type?: 'service_request' | 'listing' | 'equipment' | 'general' | 'help_request' | 'collection_item' | 'lost_found' | 'association' | 'outing' | null;
+  related_id?: string | null;
   created_at: string;
   updated_at: string;
   last_message?: Message;

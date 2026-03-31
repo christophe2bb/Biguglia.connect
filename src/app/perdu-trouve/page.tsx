@@ -13,6 +13,7 @@ import {
   Shirt, FileText, Bike, Baby, Package, RefreshCw, Send,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ReportButton from '@/components/ui/ReportButton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LostFoundType = 'perdu' | 'trouve';
@@ -340,6 +341,9 @@ function LostFoundCard({
               className="inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-all">
               <CheckCircle2 className="w-4 h-4" /> Marquer résolu
             </button>
+          )}
+          {!isAuthor && (
+            <ReportButton targetType="lost_found" targetId={item.id} targetTitle={item.title} variant="mini" />
           )}
         </div>
 

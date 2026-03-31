@@ -176,7 +176,7 @@ CREATE TRIGGER appointments_updated_at BEFORE UPDATE ON appointments
 CREATE TABLE IF NOT EXISTS conversations (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   subject TEXT,
-  related_type TEXT CHECK (related_type IN ('service_request', 'listing', 'equipment', 'general')),
+  related_type TEXT CHECK (related_type IN ('service_request', 'listing', 'equipment', 'general', 'help_request', 'collection_item', 'lost_found', 'association', 'outing')),
   related_id UUID,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()

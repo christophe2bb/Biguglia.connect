@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, Search } from 'lucide-react';
+import { MessageSquare, Search, RefreshCw, ShoppingBag, HandHeart, Dog, Users, MapPin, Wrench } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { Conversation, Profile } from '@/types';
@@ -10,6 +10,18 @@ import Link from 'next/link';
 import Avatar from '@/components/ui/Avatar';
 import Input from '@/components/ui/Input';
 import EmptyState from '@/components/ui/EmptyState';
+
+// Icônes par type de contenu lié
+const RELATED_ICONS: Record<string, { icon: React.ElementType; color: string; label: string }> = {
+  listing:         { icon: ShoppingBag, color: 'text-blue-500',    label: 'Annonce' },
+  equipment:       { icon: Wrench,      color: 'text-teal-500',    label: 'Matériel' },
+  help_request:    { icon: HandHeart,   color: 'text-orange-500',  label: 'Coup de main' },
+  lost_found:      { icon: Dog,         color: 'text-amber-500',   label: 'Perdu/Trouvé' },
+  association:     { icon: Users,       color: 'text-purple-500',  label: 'Association' },
+  outing:          { icon: MapPin,      color: 'text-emerald-500', label: 'Sortie' },
+  collection_item: { icon: ShoppingBag, color: 'text-rose-500',    label: 'Collectionneur' },
+  service_request: { icon: Wrench,      color: 'text-brand-500',   label: 'Artisan' },
+};
 import { formatRelative } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
@@ -23,86 +35,136 @@ interface ConvWithOther extends Conversation {
 export default function MessagesPage() {
   const { profile } = useAuthStore();
   const router = useRouter();
+  const supabase = createClient();
   const [conversations, setConversations] = useState<ConvWithOther[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  useEffect(() => {
-    if (!profile) { router.push('/connexion'); return; }
+  // ── Chargement des conversations ──────────────────────────────────────────
+  const fetchConversations = useCallback(async () => {
+    if (!profile) return;
 
-    const fetchConversations = async () => {
-      const supabase = createClient();
-
-      // Mes participations avec last_read_at
-      const { data: participations } = await supabase
-        .from('conversation_participants')
-        .select(`
-          conversation_id,
-          last_read_at,
-          conversation:conversations(
-            id, subject, related_type, updated_at,
-            participants:conversation_participants(
-              user_id,
-              profile:profiles(id, full_name, avatar_url)
-            )
+    // Mes participations avec last_read_at
+    const { data: participations } = await supabase
+      .from('conversation_participants')
+      .select(`
+        conversation_id,
+        last_read_at,
+        conversation:conversations(
+          id, subject, related_type, related_id, updated_at,
+          participants:conversation_participants(
+            user_id,
+            profile:profiles(id, full_name, avatar_url)
           )
-        `)
-        .eq('user_id', profile.id)
-        .order('conversation(updated_at)', { ascending: false });
+        )
+      `)
+      .eq('user_id', profile.id)
+      .order('conversation(updated_at)', { ascending: false });
 
-      if (!participations) { setLoading(false); return; }
+    if (!participations) { setLoading(false); return; }
 
-      const convs: ConvWithOther[] = [];
-      for (const p of participations) {
+    // Enrichir chaque conversation en parallèle
+    const convs = await Promise.all(
+      participations.map(async (p) => {
         const conv = p.conversation as unknown as Conversation & {
           participants?: Array<{ user_id: string; profile?: Profile }>;
         };
-        if (!conv) continue;
+        if (!conv) return null;
 
         const other = conv.participants?.find(pp => pp.user_id !== profile.id)?.profile;
 
-        // Dernier message
-        const { data: lastMsg } = await supabase
-          .from('messages')
-          .select('content, created_at')
-          .eq('conversation_id', conv.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+        // Dernier message + compteur non-lus en parallèle
+        const since = p.last_read_at || '1970-01-01T00:00:00Z';
+        const [lastMsgRes, unreadRes] = await Promise.all([
+          supabase
+            .from('messages')
+            .select('content, created_at')
+            .eq('conversation_id', conv.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single(),
+          supabase
+            .from('messages')
+            .select('id', { count: 'exact', head: true })
+            .eq('conversation_id', conv.id)
+            .neq('sender_id', profile.id)
+            .gt('created_at', since),
+        ]);
 
-        // Compter les messages non lus
-        let unreadCount = 0;
-        const lastRead = p.last_read_at;
-        const { count } = await supabase
-          .from('messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('conversation_id', conv.id)
-          .neq('sender_id', profile.id)
-          .gt('created_at', lastRead || '1970-01-01');
-        unreadCount = count || 0;
-
-        convs.push({
+        return {
           ...conv,
           other_user: other,
-          last_message_text: lastMsg?.content,
-          last_message_at: lastMsg?.created_at,
-          unread_count: unreadCount,
-        });
-      }
+          last_message_text: lastMsgRes.data?.content,
+          last_message_at: lastMsgRes.data?.created_at,
+          unread_count: unreadRes.count || 0,
+          related_type: (conv as ConvWithOther & { related_type?: string }).related_type ?? null,
+          related_id: (conv as ConvWithOther & { related_id?: string }).related_id ?? null,
+        } as ConvWithOther;
+      })
+    );
 
-      // Trier par date du dernier message
-      convs.sort((a, b) => {
-        const aDate = a.last_message_at || a.updated_at || '';
-        const bDate = b.last_message_at || b.updated_at || '';
-        return bDate.localeCompare(aDate);
-      });
+    // Filtrer les nulls et trier par date du dernier message
+    const valid = convs.filter(Boolean) as ConvWithOther[];
+    valid.sort((a, b) => {
+      const aDate = a.last_message_at || a.updated_at || '';
+      const bDate = b.last_message_at || b.updated_at || '';
+      return bDate.localeCompare(aDate);
+    });
 
-      setConversations(convs);
-      setLoading(false);
-    };
+    setConversations(valid);
+    setLoading(false);
+  }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!profile) { router.push('/connexion'); return; }
     fetchConversations();
-  }, [profile, router]);
+
+    // ── Realtime : nouveau message → mettre à jour la conversation concernée
+    if (channelRef.current) supabase.removeChannel(channelRef.current);
+
+    const channel = supabase
+      .channel(`messages-list-${profile.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+      }, async (payload) => {
+        const msg = payload.new as { id: string; conversation_id: string; sender_id: string; content: string; created_at: string };
+
+        // Mettre à jour la conversation correspondante
+        setConversations(prev => {
+          const idx = prev.findIndex(c => c.id === msg.conversation_id);
+          if (idx === -1) {
+            // Conversation inconnue → refetch complet
+            fetchConversations();
+            return prev;
+          }
+
+          const updated = [...prev];
+          const conv = { ...updated[idx] };
+          conv.last_message_text = msg.content;
+          conv.last_message_at = msg.created_at;
+
+          // Si c'est un message de l'autre → incrémenter non-lus
+          if (msg.sender_id !== profile.id) {
+            conv.unread_count = (conv.unread_count || 0) + 1;
+          }
+
+          // Remonter la conversation en tête de liste
+          updated.splice(idx, 1);
+          updated.unshift(conv);
+          return updated;
+        });
+      })
+      .subscribe();
+
+    channelRef.current = channel;
+
+    return () => {
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
+    };
+  }, [profile, router, fetchConversations]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = conversations.filter(c =>
     !search ||
@@ -126,6 +188,13 @@ export default function MessagesPage() {
           </h1>
           <p className="text-gray-500 text-sm mt-1">Vos conversations privées</p>
         </div>
+        <button
+          onClick={fetchConversations}
+          title="Actualiser"
+          className="p-2 rounded-xl border border-gray-200 bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all"
+        >
+          <RefreshCw className="w-4 h-4" />
+        </button>
       </div>
 
       <Input
@@ -177,8 +246,18 @@ export default function MessagesPage() {
                     size="md"
                   />
                   {hasUnread && (
-                    <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white" />
+                    <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse" />
                   )}
+                  {/* Badge contexte (annonce, coup de main…) — coin bas droite si pas de badge non-lu */}
+                  {!hasUnread && conv.related_type && RELATED_ICONS[conv.related_type] && (() => {
+                    const ri = RELATED_ICONS[conv.related_type!];
+                    const RIcon = ri.icon;
+                    return (
+                      <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm">
+                        <RIcon className={cn('w-3 h-3', ri.color)} />
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
@@ -202,11 +281,21 @@ export default function MessagesPage() {
                     </div>
                   </div>
                   <p className={cn(
-                    'text-sm truncate',
+                    'text-sm truncate mt-0.5',
                     hasUnread ? 'text-gray-700 font-medium' : 'text-gray-500'
                   )}>
                     {conv.last_message_text || 'Aucun message pour l\'instant'}
                   </p>
+                  {/* Label contexte */}
+                  {conv.related_type && RELATED_ICONS[conv.related_type] && (
+                    <span className={cn(
+                      'inline-flex items-center gap-1 text-xs mt-1',
+                      RELATED_ICONS[conv.related_type].color, 'opacity-70'
+                    )}>
+                      {React.createElement(RELATED_ICONS[conv.related_type].icon, { className: 'w-3 h-3' })}
+                      {RELATED_ICONS[conv.related_type].label}
+                    </span>
+                  )}
                 </div>
               </Link>
             );
