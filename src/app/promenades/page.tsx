@@ -159,7 +159,7 @@ export default function PromenadePage() {
   const supabase = createClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [activeTab, setActiveTab] = useState<'itineraires' | 'forum' | 'agenda'>('itineraires');
+  const [activeTab, setActiveTab] = useState<'forum' | 'agenda'>('forum');
   const [filter, setFilter] = useState<string>('all');
   const [dbReady, setDbReady] = useState(true);
 
@@ -523,14 +523,7 @@ export default function PromenadePage() {
                 ))}
               </div>
             </div>
-            {profile && (
-              <button
-                onClick={() => { setActiveTab('itineraires'); setShowForm(true); }}
-                className="flex-shrink-0 inline-flex items-center gap-2 bg-white text-emerald-700 font-bold px-6 py-3 rounded-2xl hover:bg-emerald-50 transition-all shadow-lg hover:-translate-y-0.5"
-              >
-                <Plus className="w-4 h-4" /> Partager un itinéraire
-              </button>
-            )}
+
           </div>
         </div>
       </div>
@@ -539,9 +532,8 @@ export default function PromenadePage() {
         {/* ── ONGLETS ── */}
         <div className="flex gap-2 mb-8 bg-white rounded-2xl border border-gray-100 p-1.5 w-fit shadow-sm">
           {[
-            { id: 'itineraires', label: 'Itinéraires', icon: Map },
-            { id: 'forum',       label: 'Forum',       icon: MessageSquare },
-            { id: 'agenda',      label: 'Sorties groupées', icon: Users },
+            { id: 'forum',  label: 'Forum',            icon: MessageSquare },
+            { id: 'agenda', label: 'Sorties groupées', icon: Users },
           ].map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -557,200 +549,6 @@ export default function PromenadePage() {
           ))}
         </div>
 
-        {/* ── ITINÉRAIRES ── */}
-        {activeTab === 'itineraires' && (
-          <div>
-            {/* Filtres */}
-            <div className="flex flex-wrap gap-2 mb-6">
-              {[
-                { v: 'all',       label: 'Tous' },
-                { v: 'balade',    label: '🚶 Balades' },
-                { v: 'randonnee', label: '⛰️ Randonnées' },
-                { v: 'velo',      label: '🚴 Vélo' },
-                { v: 'nature',    label: '🌿 Nature' },
-                { v: 'facile',    label: '✅ Facile' },
-                { v: 'difficile', label: '🔴 Difficile' },
-              ].map(({ v, label }) => (
-                <button
-                  key={v}
-                  onClick={() => setFilter(v)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
-                    filter === v
-                      ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-300 hover:text-emerald-700'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-              <button onClick={fetchPromenades} className="p-2 border border-gray-200 rounded-xl bg-white text-gray-400 hover:text-emerald-600 hover:border-emerald-300 transition-all">
-                <RefreshCw className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Formulaire d'ajout */}
-            {showForm && profile && (
-              <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-emerald-200 p-6 mb-6 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-gray-800 text-lg">Partager un itinéraire</h3>
-                  <button type="button" onClick={() => setShowForm(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="grid sm:grid-cols-2 gap-3 mb-3">
-                  <input type="text" placeholder="Titre de l'itinéraire *"
-                    value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                    className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" required
-                  />
-                  <div className="flex gap-2">
-                    <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-                      className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-300">
-                      <option value="balade">🚶 Balade</option>
-                      <option value="randonnee">⛰️ Randonnée</option>
-                      <option value="velo">🚴 Vélo</option>
-                      <option value="plage">🏖️ Plage</option>
-                      <option value="nature">🌿 Nature</option>
-                    </select>
-                    <select value={form.difficulty} onChange={e => setForm(f => ({ ...f, difficulty: e.target.value }))}
-                      className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-300">
-                      <option value="facile">✅ Facile</option>
-                      <option value="moyen">🟡 Moyen</option>
-                      <option value="difficile">🔴 Difficile</option>
-                    </select>
-                  </div>
-                </div>
-
-                <textarea placeholder="Description du parcours : points d'intérêt, conseils, points de départ..."
-                  rows={3} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none mb-3 focus:outline-none focus:ring-2 focus:ring-emerald-300" required
-                />
-
-                <div className="grid sm:grid-cols-3 gap-3 mb-3">
-                  <input type="number" placeholder="Distance (km)" min="0" step="0.1"
-                    value={form.distance_km} onChange={e => setForm(f => ({ ...f, distance_km: e.target.value }))}
-                    className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                  />
-                  <input type="number" placeholder="Durée (min)" min="0"
-                    value={form.duration_min} onChange={e => setForm(f => ({ ...f, duration_min: e.target.value }))}
-                    className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                  />
-                  <input type="text" placeholder="Point de départ"
-                    value={form.start_point} onChange={e => setForm(f => ({ ...f, start_point: e.target.value }))}
-                    className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                  />
-                </div>
-
-                <input type="text" placeholder="Tags (séparés par virgule : mer, famille, nature)"
-                  value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                />
-
-                {/* Photos */}
-                <div className="mb-3">
-                  <button type="button" onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 text-sm text-emerald-600 font-medium border border-dashed border-emerald-300 rounded-xl px-4 py-2.5 hover:bg-emerald-50 transition-all">
-                    <ImageIcon className="w-4 h-4" /> Ajouter des photos (max 5)
-                  </button>
-                  <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden"
-                    onChange={e => {
-                      const files = Array.from(e.target.files || []);
-                      if (photos.length + files.length > 5) { toast.error('Max 5 photos'); return; }
-                      setPhotos(p => [...p, ...files]);
-                    }}
-                  />
-                  {photos.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {photos.map((ph, i) => (
-                        <div key={i} className="relative w-16 h-16 group">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={URL.createObjectURL(ph)} alt="" className="w-full h-full object-cover rounded-xl" />
-                          <button type="button" onClick={() => setPhotos(p => p.filter((_, j) => j !== i))}
-                            className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center shadow">
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex gap-2">
-                  <button type="submit" disabled={submitting}
-                    className="flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 disabled:opacity-50 transition-all">
-                    {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Publication...</> : 'Publier l\'itinéraire'}
-                  </button>
-                  <button type="button" onClick={() => setShowForm(false)}
-                    className="px-5 py-2.5 rounded-xl text-sm text-gray-500 hover:bg-gray-100 transition-all">Annuler</button>
-                </div>
-              </form>
-            )}
-
-            {/* Liste */}
-            {loadingPromenades ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
-              </div>
-            ) : filteredPromenades.length === 0 ? (
-              <div className="text-center py-20">
-                <TreePine className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-                <p className="text-gray-500 font-semibold text-lg">Aucun itinéraire pour l'instant</p>
-                <p className="text-gray-400 text-sm mt-1 mb-6">Soyez le premier à partager une balade autour de Biguglia !</p>
-                {profile && (
-                  <button onClick={() => setShowForm(true)}
-                    className="inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl hover:bg-emerald-600 transition-all">
-                    <Plus className="w-4 h-4" /> Partager un itinéraire
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {filteredPromenades.map(p => (
-                  <PromenadeCard key={p.id} p={p} userId={profile?.id} onLike={handleLike} />
-                ))}
-              </div>
-            )}
-
-            {/* CTA ajouter */}
-            {profile && filteredPromenades.length > 0 && !showForm && (
-              <div className="mt-8 bg-emerald-50 border border-emerald-200 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div>
-                  <p className="font-bold text-emerald-800">Vous connaissez un beau sentier ?</p>
-                  <p className="text-emerald-600 text-sm">Partagez votre itinéraire avec la communauté</p>
-                </div>
-                <button onClick={() => setShowForm(true)}
-                  className="flex-shrink-0 inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl hover:bg-emerald-600 transition-all">
-                  <Plus className="w-4 h-4" /> Ajouter un itinéraire
-                </button>
-              </div>
-            )}
-
-            {!profile && (
-              <div className="mt-8 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex flex-col sm:flex-row items-center gap-4">
-                <div className="flex-1">
-                  <p className="font-bold text-emerald-800">Partagez vos itinéraires</p>
-                  <p className="text-emerald-600 text-sm">Connectez-vous pour ajouter un itinéraire, liker ou rejoindre une sortie groupée.</p>
-                </div>
-                <Link href="/connexion" className="flex-shrink-0 inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-emerald-600 transition-all">
-                  Se connecter
-                </Link>
-              </div>
-            )}
-
-            {/* Info réserve */}
-            <div className="mt-6 bg-sky-50 border border-sky-200 rounded-2xl p-5 flex items-start gap-4">
-              <div className="p-2.5 bg-sky-100 rounded-xl flex-shrink-0">
-                <Compass className="w-5 h-5 text-sky-600" />
-              </div>
-              <div>
-                <p className="font-bold text-sky-800 mb-1">🦩 Réserve naturelle de l'Étang de Biguglia</p>
-                <p className="text-sky-700 text-sm leading-relaxed">
-                  Site classé Natura 2000, l'étang abrite plus de 200 espèces d'oiseaux. Meilleure période : novembre à mars pour les oiseaux migrateurs. Flamants roses visibles toute l'année.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* ── FORUM ── */}
         {activeTab === 'forum' && (
