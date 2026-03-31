@@ -104,30 +104,33 @@ function PromenadeCard({
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 overflow-hidden group">
-      {/* Photo ou header coloré */}
-      {firstPhoto ? (
-        <div className="h-36 overflow-hidden relative">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+      {/* ── Zone photo / header — hauteur fixe 44 ── */}
+      <div className="relative h-44 overflow-hidden">
+        {firstPhoto ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
           <img src={firstPhoto} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-          <span className={`absolute top-3 right-3 text-xs font-bold px-2.5 py-1 rounded-full border ${diff.color}`}>{diff.label}</span>
-        </div>
-      ) : (
-        <div className={`${type.bg} px-5 pt-4 pb-2`}>
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-white rounded-xl shadow-sm">
-                <TypeIcon className={`w-4 h-4 ${type.color}`} />
-              </div>
-              <span className={`text-xs font-bold ${type.color}`}>{type.label}</span>
-            </div>
-            <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${diff.color}`}>{diff.label}</span>
+        ) : (
+          <div className={`w-full h-full ${type.bg} flex items-center justify-center`}>
+            <TypeIcon className={`w-14 h-14 opacity-20 ${type.color}`} />
           </div>
+        )}
+        {/* Overlay gradient bas */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+        {/* Badges haut gauche */}
+        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+          <span className={`inline-flex items-center gap-1 text-xs font-black px-2.5 py-1 rounded-full bg-white/90 shadow ${type.color}`}>
+            <TypeIcon className="w-3 h-3" />{type.label}
+          </span>
         </div>
-      )}
+        {/* Difficulté haut droite */}
+        <span className={`absolute top-3 right-3 text-xs font-bold px-2.5 py-1 rounded-full border ${diff.color} bg-white/90`}>{diff.label}</span>
+        {/* Titre en bas de la photo */}
+        <div className="absolute bottom-3 left-3 right-3">
+          <p className="text-white font-black text-sm leading-tight drop-shadow line-clamp-2">{p.title}</p>
+        </div>
+      </div>
 
       <div className="p-5">
-        <h3 className="font-bold text-gray-900 text-base mb-2 group-hover:text-emerald-700 transition-colors leading-snug line-clamp-2">{p.title}</h3>
         <p className="text-gray-500 text-sm leading-relaxed mb-4 line-clamp-2">{p.description}</p>
 
         {/* Stats */}
@@ -229,51 +232,56 @@ function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit, onDelete }: {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-emerald-100 shadow-sm hover:shadow-md transition-all overflow-hidden">
-      {/* Photo de couverture */}
-      {outing.cover_photo && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={outing.cover_photo} alt={outing.title} className="w-full h-40 object-cover" />
-      )}
-
-      <div className="p-5">
-        {/* Badges haut */}
-        <div className="flex flex-wrap gap-2 mb-3">
-          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1 capitalize">
+    <div className="bg-white rounded-2xl border border-emerald-100 shadow-sm hover:shadow-md transition-all overflow-hidden group">
+      {/* ── Zone photo / header — hauteur fixe 44 ── */}
+      <div className="relative h-44 overflow-hidden">
+        {outing.cover_photo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={outing.cover_photo} alt={outing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center">
+            <Footprints className="w-16 h-16 opacity-15 text-emerald-500" />
+          </div>
+        )}
+        {/* Overlay gradient bas */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+        {/* Badges haut gauche */}
+        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+          <span className="inline-flex items-center gap-1.5 text-xs font-black px-2.5 py-1 rounded-full bg-emerald-500 text-white shadow">
             <Sun className="w-3 h-3" /> {dateLabel} · {outing.outing_time}
           </span>
           {diffConf && (
-            <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${diffConf.color}`}>
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-full bg-white/90 shadow border ${diffConf.color}`}>
               <BarChart3 className="w-3 h-3 inline mr-1" />{diffConf.label}
             </span>
           )}
-          {outing.kids_friendly && (
-            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
-              <Baby className="w-3 h-3 inline mr-1" />Enfants
-            </span>
-          )}
-          {outing.dogs_allowed && (
-            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-              <Dog className="w-3 h-3 inline mr-1" />Chiens
-            </span>
-          )}
         </div>
-
-        {/* Titre + actions */}
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <h3 className="font-bold text-gray-900 text-base leading-snug">{outing.title}</h3>
-          {isOrganizer && (
-            <div className="flex gap-1 flex-shrink-0">
-              <button onClick={() => onEdit(outing)} className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all">
-                <Pencil className="w-3.5 h-3.5" />
-              </button>
-              <button onClick={() => onDelete(outing.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
+        {/* Boutons organisateur haut droite */}
+        {isOrganizer && (
+          <div className="absolute top-3 right-3 flex gap-1">
+            <button type="button" onClick={() => onEdit(outing)} className="p-1.5 bg-white/80 text-gray-600 hover:text-emerald-600 rounded-lg transition-all shadow"><Pencil className="w-3.5 h-3.5" /></button>
+            <button type="button" onClick={() => onDelete(outing.id)} className="p-1.5 bg-white/80 text-gray-600 hover:text-red-600 rounded-lg transition-all shadow"><Trash2 className="w-3.5 h-3.5" /></button>
+          </div>
+        )}
+        {/* Badges enfants/chiens bas gauche, titre bas */}
+        <div className="absolute bottom-3 left-3 right-3">
+          <div className="flex flex-wrap gap-1.5 mb-1">
+            {outing.kids_friendly && (
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-sky-500 text-white shadow">
+                <Baby className="w-3 h-3 inline mr-1" />Enfants
+              </span>
+            )}
+            {outing.dogs_allowed && (
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white shadow">
+                <Dog className="w-3 h-3 inline mr-1" />Chiens
+              </span>
+            )}
+          </div>
+          <p className="text-white font-black text-sm leading-tight drop-shadow line-clamp-2">{outing.title}</p>
         </div>
+      </div>
 
+      <div className="p-5">
         {outing.description && <p className="text-sm text-gray-500 mb-3 leading-relaxed">{outing.description}</p>}
 
         {/* Infos */}

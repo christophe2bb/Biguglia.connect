@@ -200,54 +200,36 @@ function AssociationCard({
   return (
     <div id={asso.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden group">
 
-      {/* Cover photo ou header coloré */}
-      {coverPhoto ? (
-        <div className="h-44 overflow-hidden relative">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+      {/* Cover photo ou header coloré — hauteur fixe 44 */}
+      <div className="relative h-44 overflow-hidden">
+        {coverPhoto ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
           <img src={coverPhoto} alt={asso.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-          {/* Badges flottants */}
-          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-            <span className={`text-xs font-black px-2.5 py-1 rounded-full ${pubConf.color}`}>{pubConf.emoji} {pubConf.label}</span>
-            {asso.urgent_need && <span className="text-xs font-black px-2.5 py-1 rounded-full bg-red-500 text-white animate-pulse">🚨 Urgent</span>}
+        ) : (
+          <div className={`w-full h-full ${cat.bg} flex items-center justify-center`}>
+            <CatIcon className={`w-16 h-16 opacity-15 ${cat.color}`} />
           </div>
-          {isAuthor && (
-            <div className="absolute top-3 right-3 flex gap-1">
-              <button type="button" onClick={() => onEdit(asso)} className="p-1.5 bg-white/80 text-gray-600 hover:text-blue-600 rounded-lg transition-all backdrop-blur-sm"><Pencil className="w-3.5 h-3.5" /></button>
-              <button type="button" onClick={() => onDelete(asso.id)} className="p-1.5 bg-white/80 text-gray-600 hover:text-red-600 rounded-lg transition-all backdrop-blur-sm"><Trash2 className="w-3.5 h-3.5" /></button>
-            </div>
-          )}
-          {/* Nom en bas de la photo */}
-          <div className="absolute bottom-3 left-3 right-3">
-            <p className="text-white font-black text-lg leading-tight drop-shadow">{asso.name}</p>
-            {asso.slogan && <p className="text-white/80 text-xs mt-0.5 line-clamp-1">{asso.slogan}</p>}
-          </div>
+        )}
+        {/* Overlay gradient bas */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+        {/* Badges flottants haut gauche */}
+        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+          <span className={`text-xs font-black px-2.5 py-1 rounded-full shadow ${pubConf.color}`}>{pubConf.emoji} {pubConf.label}</span>
+          {asso.urgent_need && <span className="text-xs font-black px-2.5 py-1 rounded-full bg-red-500 text-white shadow animate-pulse">🚨 Urgent</span>}
         </div>
-      ) : (
-        <div className={`${cat.bg} border-b px-5 pt-5 pb-3`}>
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-white rounded-xl shadow-sm">
-                <CatIcon className={`w-5 h-5 ${cat.color}`} />
-              </div>
-              <div>
-                <p className="font-black text-gray-900 text-base leading-tight">{asso.name}</p>
-                {asso.slogan && <p className="text-gray-500 text-xs mt-0.5 line-clamp-1 italic">{asso.slogan}</p>}
-              </div>
-            </div>
-            {isAuthor && (
-              <div className="flex gap-1 flex-shrink-0">
-                <button type="button" onClick={() => onEdit(asso)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-white rounded-lg transition-all"><Pencil className="w-3.5 h-3.5" /></button>
-                <button type="button" onClick={() => onDelete(asso.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-white rounded-lg transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
-              </div>
-            )}
+        {/* Boutons auteur haut droite */}
+        {isAuthor && (
+          <div className="absolute top-3 right-3 flex gap-1">
+            <button type="button" onClick={() => onEdit(asso)} className="p-1.5 bg-white/80 text-gray-600 hover:text-blue-600 rounded-lg transition-all backdrop-blur-sm shadow"><Pencil className="w-3.5 h-3.5" /></button>
+            <button type="button" onClick={() => onDelete(asso.id)} className="p-1.5 bg-white/80 text-gray-600 hover:text-red-600 rounded-lg transition-all backdrop-blur-sm shadow"><Trash2 className="w-3.5 h-3.5" /></button>
           </div>
-          <div className="flex flex-wrap gap-1.5 mt-3">
-            <span className={`text-xs font-black px-2.5 py-1 rounded-full ${pubConf.color}`}>{pubConf.emoji} {pubConf.label}</span>
-            {asso.urgent_need && <span className="text-xs font-black px-2.5 py-1 rounded-full bg-red-100 text-red-700 animate-pulse">🚨 Urgent</span>}
-          </div>
+        )}
+        {/* Nom + slogan en bas */}
+        <div className="absolute bottom-3 left-3 right-3">
+          <p className="text-white font-black text-base leading-tight drop-shadow">{asso.name}</p>
+          {asso.slogan && <p className="text-white/80 text-xs mt-0.5 line-clamp-1">{asso.slogan}</p>}
         </div>
-      )}
+      </div>
 
       <div className="p-5">
         {/* Badges catégorie + infos rapides */}

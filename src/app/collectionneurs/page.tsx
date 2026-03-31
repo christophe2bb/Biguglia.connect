@@ -140,53 +140,52 @@ function ItemCard({
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 overflow-hidden group relative">
-      {/* Boutons auteur */}
-      {isOwner && (
-        <div className="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={() => onEdit(item)}
-            title="Modifier"
-            className="p-1.5 bg-white rounded-lg shadow border border-gray-200 hover:bg-amber-50 hover:border-amber-300 transition-all"
-          >
-            <Pencil className="w-3.5 h-3.5 text-amber-600" />
-          </button>
-          <button
-            onClick={() => onDelete(item)}
-            title="Supprimer"
-            className="p-1.5 bg-white rounded-lg shadow border border-gray-200 hover:bg-red-50 hover:border-red-300 transition-all"
-          >
-            <Trash2 className="w-3.5 h-3.5 text-red-500" />
-          </button>
-        </div>
-      )}
 
-      {firstPhoto ? (
-        <div className="h-36 overflow-hidden relative bg-gray-50">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+      {/* ── Zone photo / header — hauteur fixe 44 ── */}
+      <div className="relative h-44 overflow-hidden">
+        {firstPhoto ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
           <img src={firstPhoto} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-        </div>
-      ) : (
-        <div className="h-20 bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center">
-          <span className="text-3xl opacity-40">{item.category?.icon ?? '📦'}</span>
-        </div>
-      )}
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-2 mb-3">
-          {item.category && (
-            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${catClasses.bg} ${catClasses.text}`}>
-              <span>{item.category.icon}</span>
-              <span className="hidden sm:inline truncate max-w-[80px]">{item.category.name.split(' ')[0]}</span>
-            </div>
-          )}
-          <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${tc.color} ml-auto flex-shrink-0`}>{tc.label}</span>
-        </div>
-
-        <h3 className="font-bold text-gray-900 text-sm mb-2 leading-snug group-hover:text-amber-700 transition-colors line-clamp-2">{item.title}</h3>
-        <p className="text-gray-500 text-xs leading-relaxed mb-3 line-clamp-3">{item.description}</p>
-
-        {item.price !== null && item.price !== undefined && item.item_type === 'vente' && (
-          <div className="text-xl font-black text-amber-600 mb-3">{item.price} €</div>
+        ) : (
+          <div className={`w-full h-full bg-gradient-to-br ${catClasses.bg} flex items-center justify-center`}>
+            <span className="text-6xl opacity-20">{item.category?.icon ?? '📦'}</span>
+          </div>
         )}
+        {/* Overlay gradient bas */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+        {/* Badges haut gauche */}
+        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+          {item.category && (
+            <span className={`inline-flex items-center gap-1 text-xs font-black px-2.5 py-1 rounded-full bg-white/90 shadow ${catClasses.text}`}>
+              <span>{item.category.icon}</span>
+              <span className="hidden sm:inline">{item.category.name.split(' ')[0]}</span>
+            </span>
+          )}
+          <span className={`text-xs font-black px-2.5 py-1 rounded-full bg-white/90 shadow ${tc.color}`}>{tc.label}</span>
+        </div>
+        {/* Boutons auteur haut droite */}
+        {isOwner && (
+          <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onClick={() => onEdit(item)} title="Modifier"
+              className="p-1.5 bg-white/90 rounded-lg shadow hover:bg-amber-50 hover:border-amber-300 transition-all border border-transparent">
+              <Pencil className="w-3.5 h-3.5 text-amber-600" />
+            </button>
+            <button onClick={() => onDelete(item)} title="Supprimer"
+              className="p-1.5 bg-white/90 rounded-lg shadow hover:bg-red-50 transition-all border border-transparent">
+              <Trash2 className="w-3.5 h-3.5 text-red-500" />
+            </button>
+          </div>
+        )}
+        {/* Titre en bas de la photo */}
+        <div className="absolute bottom-3 left-3 right-3">
+          <p className="text-white font-black text-sm leading-tight drop-shadow line-clamp-2">{item.title}</p>
+          {item.price !== null && item.price !== undefined && item.item_type === 'vente' && (
+            <p className="text-amber-300 font-black text-lg drop-shadow mt-0.5">{item.price} €</p>
+          )}
+        </div>
+      </div>
+      <div className="p-5">
+        <p className="text-gray-500 text-xs leading-relaxed mb-3 line-clamp-3">{item.description}</p>
 
         <div className="flex items-center gap-3 mb-3 text-xs text-gray-400">
           <span className={cc.color + ' font-medium'}>{cc.label}</span>

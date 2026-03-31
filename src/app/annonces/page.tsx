@@ -143,29 +143,38 @@ function ListingCard({ listing }: { listing: Listing }) {
   return (
     <Link href={`/annonces/${listing.id}`}>
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-gray-200 transition-all duration-200 group">
-        {/* Photo */}
-        <div className="h-44 bg-gray-100 overflow-hidden relative">
+        {/* ── Zone photo — hauteur fixe 44 ── */}
+        <div className="relative h-44 overflow-hidden">
           {photos && photos.length > 0 ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={photos[0].url} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <span className="text-4xl">{listing.category?.icon || '📦'}</span>
+            <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+              <span className="text-6xl opacity-25">{listing.category?.icon || '📦'}</span>
             </div>
           )}
+          {/* Overlay gradient bas */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+          {/* Badge type haut gauche */}
           <div className="absolute top-3 left-3">
-            <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${typeColor}`}>
+            <span className={`inline-block px-2.5 py-1 text-xs font-black rounded-full shadow ${typeColor}`}>
               {LISTING_TYPE_LABELS[listing.listing_type]}
             </span>
+          </div>
+          {/* Prix haut droite */}
+          <div className="absolute top-3 right-3">
+            <span className="text-xs font-black bg-white/90 text-gray-800 px-2.5 py-1 rounded-full shadow">
+              {listing.listing_type === 'free' ? '🎁 Gratuit' : listing.price ? formatPrice(listing.price) : 'Prix libre'}
+            </span>
+          </div>
+          {/* Titre en bas */}
+          <div className="absolute bottom-3 left-3 right-3">
+            <p className="text-white font-black text-sm leading-tight drop-shadow line-clamp-2">{listing.title}</p>
+            {listing.category?.name && <p className="text-white/75 text-xs mt-0.5">{listing.category.name}</p>}
           </div>
         </div>
 
         <div className="p-4">
-          <h3 className="font-semibold text-gray-900 truncate mb-1 group-hover:text-brand-600 transition-colors">
-            {listing.title}
-          </h3>
-          <p className="text-sm text-gray-500 truncate mb-3">{listing.category?.name}</p>
-
           <div className="flex items-center justify-between">
             <span className="text-base font-bold text-brand-700">
               {listing.listing_type === 'free' ? 'Gratuit' : listing.price ? formatPrice(listing.price) : 'Prix à discuter'}

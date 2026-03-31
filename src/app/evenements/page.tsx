@@ -348,35 +348,42 @@ function EventCard({
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 overflow-hidden group">
-      {event.cover_photo && (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img src={event.cover_photo} alt={event.title} className="w-full h-36 object-cover" />
-      )}
-      <div className={`${cat.bg} px-5 pt-4 pb-3`}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-white rounded-xl shadow-sm">
-              <CatIcon className={`w-4 h-4 ${cat.color}`} />
-            </div>
-            <span className={`text-xs font-bold ${cat.color}`}>{cat.label}</span>
+      {/* ── Zone photo / header — hauteur fixe 44 ── */}
+      <div className="relative h-44 overflow-hidden">
+        {event.cover_photo ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={event.cover_photo} alt={event.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        ) : (
+          <div className={`w-full h-full ${cat.bg} flex items-center justify-center`}>
+            <CatIcon className={`w-14 h-14 opacity-20 ${cat.color}`} />
           </div>
-          <div className="flex items-center gap-2">
-            {event.is_official && (
-              <span className="text-xs bg-blue-100 text-blue-700 border border-blue-200 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                <CheckCircle className="w-3 h-3" /> Officiel
-              </span>
-            )}
-            {countdown && (
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${countdown.includes('Aujourd') ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
-                {countdown}
-              </span>
-            )}
-          </div>
+        )}
+        {/* Overlay gradient bas */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+        {/* Badges flottants haut gauche */}
+        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+          <span className={`inline-flex items-center gap-1 text-xs font-black px-2.5 py-1 rounded-full shadow ${cat.bg} ${cat.color}`}>
+            <CatIcon className="w-3 h-3" />{cat.label}
+          </span>
+          {event.is_official && (
+            <span className="text-xs bg-blue-500 text-white font-bold px-2.5 py-1 rounded-full shadow flex items-center gap-1">
+              <CheckCircle className="w-3 h-3" /> Officiel
+            </span>
+          )}
+        </div>
+        {/* Countdown haut droite */}
+        {countdown && (
+          <span className={`absolute top-3 right-3 text-xs font-bold px-2.5 py-1 rounded-full shadow ${countdown.includes('Aujourd') ? 'bg-red-500 text-white' : 'bg-white/90 text-gray-700'}`}>
+            {countdown}
+          </span>
+        )}
+        {/* Titre en bas de la photo */}
+        <div className="absolute bottom-3 left-3 right-3">
+          <p className="text-white font-black text-sm leading-tight drop-shadow line-clamp-2">{event.title}</p>
         </div>
       </div>
 
       <div className="p-5">
-        <h3 className="font-bold text-gray-900 text-sm mb-2 leading-snug group-hover:text-purple-700 transition-colors line-clamp-2">{event.title}</h3>
         <p className="text-gray-500 text-xs leading-relaxed mb-4 line-clamp-2">{event.description}</p>
 
         <div className="space-y-1.5 mb-4">

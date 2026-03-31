@@ -176,25 +176,64 @@ function LostFoundCard({
     <div id={item.id} className={`bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all overflow-hidden ${
       isResolved ? 'opacity-60 border-gray-200' : isPerdu ? 'border-orange-200' : 'border-emerald-200'
     }`}>
-      {/* Photo couverture */}
-      {item.photos && item.photos.length > 0 && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={item.photos[0].url} alt={item.title} className="w-full h-44 object-cover" />
-      )}
-
-      <div className="p-5">
-        {/* Badges haut */}
-        <div className="flex flex-wrap gap-2 mb-3">
-          <span className={`inline-flex items-center gap-1.5 text-sm font-black px-3 py-1 rounded-full ${
-            isResolved ? 'bg-gray-100 text-gray-500' :
-            isPerdu ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700'
+      {/* ── Zone photo / header — hauteur fixe 44 ── */}
+      <div className="relative h-44 overflow-hidden">
+        {item.photos && item.photos.length > 0 ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={item.photos[0].url} alt={item.title} className="w-full h-full object-cover" />
+        ) : (
+          <div className={`w-full h-full flex items-center justify-center ${
+            isPerdu ? 'bg-gradient-to-br from-orange-50 to-amber-100' : 'bg-gradient-to-br from-emerald-50 to-teal-100'
+          }`}>
+            <CatIcon className={`w-16 h-16 opacity-15 ${isPerdu ? 'text-orange-400' : 'text-emerald-400'}`} />
+          </div>
+        )}
+        {/* Overlay gradient bas */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+        {/* Badge type haut gauche */}
+        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+          <span className={`inline-flex items-center gap-1.5 text-xs font-black px-3 py-1 rounded-full shadow ${
+            isResolved ? 'bg-gray-500 text-white' :
+            isPerdu ? 'bg-orange-500 text-white' : 'bg-emerald-500 text-white'
           }`}>
             {isResolved ? '✅ Résolu' : isPerdu ? '🔴 PERDU' : '🟢 TROUVÉ'}
           </span>
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-white/90 text-gray-700 shadow">
             <CatIcon className="w-3.5 h-3.5" />
             {CATEGORIES.find(c => c.value === item.category)?.label ?? item.category}
           </span>
+        </div>
+        {/* Boutons auteur haut droite */}
+        {isAuthor && (
+          <div className="absolute top-3 right-3 flex gap-1">
+            {!isResolved && (
+              <button type="button" onClick={() => onResolve(item.id)}
+                className="p-1.5 bg-white/90 text-gray-600 hover:text-emerald-600 rounded-lg transition-all shadow" title="Marquer résolu">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <button type="button" onClick={() => onEdit(item)}
+              className="p-1.5 bg-white/90 text-gray-600 hover:text-blue-600 rounded-lg transition-all shadow">
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button type="button" onClick={() => onDelete(item.id)}
+              className="p-1.5 bg-white/90 text-gray-600 hover:text-red-600 rounded-lg transition-all shadow">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+        {/* Titre en bas */}
+        <div className="absolute bottom-3 left-3 right-3">
+          <p className="text-white font-black text-sm leading-tight drop-shadow line-clamp-2">{item.title}</p>
+          <p className="text-white/75 text-xs mt-0.5 flex items-center gap-1">
+            <MapPin className="w-3 h-3 flex-shrink-0" />{item.location_area} · {dateLabel}
+          </p>
+        </div>
+      </div>
+
+      <div className="p-5">
+        {/* Badges secondaires */}
+        <div className="flex flex-wrap gap-2 mb-3">
           {item.sentimental_value && (
             <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
               💝 Valeur sentimentale
@@ -204,29 +243,6 @@ function LostFoundCard({
             <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
               <EyeOff className="w-3 h-3 inline mr-1" />Infos partielles
             </span>
-          )}
-        </div>
-
-        {/* Titre + actions auteur */}
-        <div className="flex items-start justify-between gap-2 mb-1">
-          <h3 className="font-bold text-gray-900 text-base leading-snug">{item.title}</h3>
-          {isAuthor && (
-            <div className="flex gap-1 flex-shrink-0">
-              {!isResolved && (
-                <button onClick={() => onResolve(item.id)}
-                  className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="Marquer comme résolu">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                </button>
-              )}
-              <button onClick={() => onEdit(item)}
-                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
-                <Pencil className="w-3.5 h-3.5" />
-              </button>
-              <button onClick={() => onDelete(item.id)}
-                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
           )}
         </div>
 
