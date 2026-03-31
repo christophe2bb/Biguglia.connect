@@ -270,6 +270,26 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- ÉVÉNEMENTS — commentaires / mini-forum par événement
+CREATE TABLE IF NOT EXISTS event_comments (
+  id         UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  event_id   UUID REFERENCES local_events(id) ON DELETE CASCADE NOT NULL,
+  author_id  UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  content    TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE event_comments ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='event_comments' AND policyname='event_comments_select') THEN
+    CREATE POLICY "event_comments_select" ON event_comments FOR SELECT USING (true);
+    CREATE POLICY "event_comments_insert" ON event_comments FOR INSERT WITH CHECK (auth.uid() = author_id);
+    CREATE POLICY "event_comments_delete" ON event_comments FOR DELETE USING (
+      auth.uid() = author_id
+      OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+    );
+  END IF;
+END $$;
+
 -- Rendre les demandes lisibles par tous (tableau d'affichage public)
 DROP POLICY IF EXISTS "Voir ses propres demandes" ON service_requests;
 DO $$ BEGIN
@@ -290,6 +310,7 @@ const TABLES_TO_CHECK = [
   { name: 'local_events',          label: 'Événements locaux',       theme: '🎉 Événements' },
   { name: 'event_participations',  label: 'Participations',          theme: '🎉 Événements' },
   { name: 'event_photos',          label: 'Photos événements',       theme: '🎉 Événements' },
+  { name: 'event_comments',        label: 'Commentaires événements', theme: '🎉 Événements' },
   { name: 'request_comments',      label: 'Commentaires demandes',   theme: '🔧 Vie pratique' },
 ];
 
