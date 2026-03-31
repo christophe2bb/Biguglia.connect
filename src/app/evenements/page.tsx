@@ -94,9 +94,13 @@ function EventCard({
   const isFull = event.max_participants !== null && (event.participants_count ?? 0) >= event.max_participants;
 
   if (compact) {
+    const isPastEvent = new Date(event.event_date + 'T23:59:59') < new Date();
+    const participantCount = event.participants_count ?? 0;
+
     return (
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        {event.cover_photo && (
+      <div className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all ${isPastEvent ? 'opacity-50 grayscale border-gray-100' : 'border-gray-100'}`}>
+        {/* Photo — masquée si événement passé */}
+        {event.cover_photo && !isPastEvent && (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img src={event.cover_photo} alt={event.title} className="w-full h-28 object-cover" />
         )}
@@ -104,32 +108,57 @@ function EventCard({
           <div className="flex items-center gap-1.5 mb-1.5">
             <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cat.dot}`} />
             <span className={`text-xs font-bold ${cat.color}`}>{cat.label}</span>
-            {countdown && <span className="ml-auto text-xs text-gray-400 font-medium">{countdown}</span>}
+            {isPastEvent
+              ? <span className="ml-auto text-xs text-gray-400 italic">Terminé</span>
+              : countdown && <span className="ml-auto text-xs text-gray-400 font-medium">{countdown}</span>
+            }
           </div>
           <p className="font-bold text-gray-900 text-sm line-clamp-1 mb-1">{event.title}</p>
-          <div className="flex items-center gap-1 text-xs text-gray-500 mb-1">
+          <div className="flex items-center gap-1 text-xs text-gray-500 mb-2">
             <Clock className="w-3 h-3 flex-shrink-0" />{event.event_time}
             <span className="mx-1">·</span>
             <MapPin className="w-3 h-3 flex-shrink-0" />
             <span className="truncate">{event.location}</span>
           </div>
-          <div className="flex items-center justify-between pt-2 border-t border-gray-50">
-            <span className={`text-xs font-bold ${event.is_free ? 'text-emerald-600' : 'text-purple-600'}`}>
-              {event.is_free ? 'Gratuit' : `${event.price} €`}
-            </span>
-            {userId ? (
-              <button onClick={() => onJoin(event.id, !!event.user_joined)} disabled={isFull && !event.user_joined}
-                className={`text-xs font-bold px-2.5 py-1 rounded-lg transition-all disabled:opacity-50 ${
-                  event.user_joined ? 'bg-gray-100 text-gray-600' : `${cat.bg} ${cat.color} border ${cat.border}`
-                }`}>
-                {event.user_joined ? '✓ Inscrit' : isFull ? 'Complet' : 'Participer'}
-              </button>
-            ) : (
-              <Link href="/connexion" className={`text-xs font-bold px-2.5 py-1 rounded-lg ${cat.bg} ${cat.color} border ${cat.border}`}>
-                Participer
-              </Link>
-            )}
+
+          {/* ── Compteur participants ── */}
+          <div className={`flex items-center gap-1.5 text-xs mb-2 px-2 py-1.5 rounded-lg ${participantCount > 0 ? 'bg-purple-50 text-purple-700' : 'bg-gray-50 text-gray-400'}`}>
+            <Users className="w-3 h-3 flex-shrink-0" />
+            {participantCount > 0
+              ? <span className="font-semibold">{participantCount} participant{participantCount > 1 ? 's' : ''}{event.max_participants ? ` / ${event.max_participants}` : ''}</span>
+              : <span>Soyez le premier à participer</span>
+            }
+            {isFull && <span className="ml-auto font-bold text-red-500">Complet</span>}
           </div>
+          {/* Barre de progression */}
+          {event.max_participants && fillPct !== null && !isPastEvent && (
+            <div className="h-1 bg-gray-100 rounded-full overflow-hidden mb-2">
+              <div
+                className={`h-full rounded-full transition-all ${fillPct > 80 ? 'bg-red-400' : fillPct > 50 ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                style={{ width: `${Math.min(fillPct, 100)}%` }}
+              />
+            </div>
+          )}
+
+          {!isPastEvent && (
+            <div className="flex items-center justify-between pt-2 border-t border-gray-50">
+              <span className={`text-xs font-bold ${event.is_free ? 'text-emerald-600' : 'text-purple-600'}`}>
+                {event.is_free ? 'Gratuit' : `${event.price} €`}
+              </span>
+              {userId ? (
+                <button onClick={() => onJoin(event.id, !!event.user_joined)} disabled={isFull && !event.user_joined}
+                  className={`text-xs font-bold px-2.5 py-1 rounded-lg transition-all disabled:opacity-50 ${
+                    event.user_joined ? 'bg-gray-100 text-gray-600' : `${cat.bg} ${cat.color} border ${cat.border}`
+                  }`}>
+                  {event.user_joined ? '✓ Inscrit' : isFull ? 'Complet' : 'Participer'}
+                </button>
+              ) : (
+                <Link href="/connexion" className={`text-xs font-bold px-2.5 py-1 rounded-lg ${cat.bg} ${cat.color} border ${cat.border}`}>
+                  Participer
+                </Link>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -504,20 +533,30 @@ function CalendarView({
                 {events.slice(0, 6).map(ev => {
                   const cat = getCat(ev.category);
                   const countdown = daysUntil(ev.event_date);
+                  const pcount = ev.participants_count ?? 0;
                   return (
                     <button key={ev.id} onClick={() => setSelectedDay(ev.event_date)}
-                      className="w-full bg-white rounded-xl border border-gray-100 p-3 text-left hover:border-purple-200 hover:shadow-sm transition-all">
+                      className="w-full bg-white rounded-xl border border-gray-100 p-3 text-left hover:border-purple-200 hover:shadow-sm transition-all group/item">
                       <div className="flex items-start gap-2.5">
                         <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1 ${cat.dot}`} />
-                        <div className="min-w-0">
-                          <p className="font-bold text-gray-900 text-sm line-clamp-1">{ev.title}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-gray-900 text-sm line-clamp-1 group-hover/item:text-purple-700 transition-colors">{ev.title}</p>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             <span className="text-xs text-gray-500">{formatEventDate(ev.event_date)}</span>
                             {countdown && (
                               <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${countdown.includes('Aujourd') ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
                                 {countdown}
                               </span>
                             )}
+                          </div>
+                          {/* Compteur participants */}
+                          <div className="flex items-center gap-1 mt-1.5">
+                            <Users className={`w-3 h-3 flex-shrink-0 ${pcount > 0 ? 'text-purple-500' : 'text-gray-300'}`} />
+                            <span className={`text-xs font-semibold ${pcount > 0 ? 'text-purple-600' : 'text-gray-400'}`}>
+                              {pcount > 0
+                                ? `${pcount} participant${pcount > 1 ? 's' : ''}${ev.max_participants ? ` / ${ev.max_participants}` : ''}`
+                                : 'Aucun inscrit'}
+                            </span>
                           </div>
                         </div>
                       </div>
