@@ -98,11 +98,22 @@ function LostFoundCard({
   const supabase = supabaseRef.current;
   const [expanded, setExpanded] = useState(false);
   const [openChat, setOpenChat] = useState(false);
+  const [openShare, setOpenShare] = useState(false);
   const [comments, setComments] = useState<LFComment[]>([]);
   const [chatText, setChatText] = useState('');
   const [sending, setSending] = useState(false);
   const [chatCount, setChatCount] = useState<number>(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const shareRef = useRef<HTMLDivElement>(null);
+
+  // Close share menu on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (shareRef.current && !shareRef.current.contains(e.target as Node)) setOpenShare(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const CatIcon = CATEGORIES.find(c => c.value === item.category)?.icon ?? Package;
   const isPerdu = item.type === 'perdu';
@@ -145,19 +156,20 @@ function LostFoundCard({
     setSending(false);
   };
 
-  const shareItem = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const url = `${window.location.origin}/perdu-trouve#${item.id}`;
-    if (navigator.share) {
-      navigator.share({ title: item.title, url }).catch(() => {
-        navigator.clipboard.writeText(url);
-        toast.success('Lien copié !');
-      });
-    } else {
-      navigator.clipboard.writeText(url);
-      toast.success('Lien copié !');
-    }
+  const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/perdu-trouve#${item.id}`;
+  const shareText = encodeURIComponent(`${item.type === 'perdu' ? '🔴 Objet perdu' : '🟢 Objet trouvé'} : ${item.title} — ${item.location_area}\n${shareUrl}`);
+
+  const handleShareSMS = (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    window.open(`sms:?body=${shareText}`, '_self');
+    setOpenShare(false);
+  };
+
+  const handleShareEmail = (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    const subject = encodeURIComponent(`${item.type === 'perdu' ? 'Objet perdu' : 'Objet trouvé'} : ${item.title}`);
+    window.open(`mailto:?subject=${subject}&body=${shareText}`, '_self');
+    setOpenShare(false);
   };
 
   return (
@@ -284,10 +296,29 @@ function LostFoundCard({
               <span className="bg-blue-100 text-blue-700 text-xs font-black px-1.5 py-0.5 rounded-full">{chatCount}</span>
             )}
           </button>
-          <button type="button" onClick={shareItem}
-            className="inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 transition-all">
-            <Share2 className="w-4 h-4" /> Partager
-          </button>
+          {/* Bouton Partager avec mini-menu */}
+          <div ref={shareRef} className="relative">
+            <button type="button"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenShare(v => !v); }}
+              className={`inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm border transition-all ${
+                openShare ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+              }`}>
+              <Share2 className="w-4 h-4" /> Partager
+            </button>
+            {openShare && (
+              <div className="absolute bottom-full left-0 mb-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden min-w-[160px]">
+                <button type="button" onClick={handleShareSMS}
+                  className="flex items-center gap-2.5 w-full px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+                  <span className="text-lg">💬</span> Par SMS
+                </button>
+                <div className="border-t border-gray-100" />
+                <button type="button" onClick={handleShareEmail}
+                  className="flex items-center gap-2.5 w-full px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+                  <span className="text-lg">📧</span> Par Email
+                </button>
+              </div>
+            )}
+          </div>
           {isAuthor && !isResolved && (
             <button type="button" onClick={() => onResolve(item.id)}
               className="inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-all">
