@@ -212,6 +212,22 @@ CREATE POLICY "event_participations_select" ON event_participations FOR SELECT U
 CREATE POLICY "event_participations_insert" ON event_participations FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "event_participations_delete" ON event_participations FOR DELETE USING (auth.uid() = user_id);
 
+CREATE TABLE IF NOT EXISTS event_photos (
+  id          UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  event_id    UUID REFERENCES local_events(id) ON DELETE CASCADE NOT NULL,
+  url         TEXT NOT NULL,
+  display_order INT NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE event_photos ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "event_photos_select" ON event_photos FOR SELECT USING (true);
+CREATE POLICY "event_photos_insert" ON event_photos FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM local_events WHERE id = event_id AND author_id = auth.uid())
+);
+CREATE POLICY "event_photos_delete" ON event_photos FOR DELETE USING (
+  EXISTS (SELECT 1 FROM local_events WHERE id = event_id AND author_id = auth.uid())
+);
+
 -- ────────────────────────────────────────────────────────────
 -- Catégories forum pour les 3 thèmes
 -- ────────────────────────────────────────────────────────────

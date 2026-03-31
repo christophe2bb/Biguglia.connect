@@ -222,6 +222,27 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- Photos des événements
+CREATE TABLE IF NOT EXISTS event_photos (
+  id            UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  event_id      UUID REFERENCES local_events(id) ON DELETE CASCADE NOT NULL,
+  url           TEXT NOT NULL,
+  display_order INT NOT NULL DEFAULT 0,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE event_photos ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='event_photos' AND policyname='event_photos_select') THEN
+    CREATE POLICY "event_photos_select" ON event_photos FOR SELECT USING (true);
+    CREATE POLICY "event_photos_insert" ON event_photos FOR INSERT WITH CHECK (
+      EXISTS (SELECT 1 FROM local_events WHERE id = event_id AND author_id = auth.uid())
+    );
+    CREATE POLICY "event_photos_delete" ON event_photos FOR DELETE USING (
+      EXISTS (SELECT 1 FROM local_events WHERE id = event_id AND author_id = auth.uid())
+    );
+  END IF;
+END $$;
+
 -- Catégories forum pour les 3 thèmes
 INSERT INTO forum_categories (name, slug, description, icon, display_order) VALUES
   ('🌿 Promenades & Nature', 'promenades',     'Itinéraires, sorties, balades et nature à Biguglia', '🌿', 8),
@@ -268,6 +289,7 @@ const TABLES_TO_CHECK = [
   { name: 'group_outings',         label: 'Sorties groupées',        theme: '🌿 Promenades' },
   { name: 'local_events',          label: 'Événements locaux',       theme: '🎉 Événements' },
   { name: 'event_participations',  label: 'Participations',          theme: '🎉 Événements' },
+  { name: 'event_photos',          label: 'Photos événements',       theme: '🎉 Événements' },
   { name: 'request_comments',      label: 'Commentaires demandes',   theme: '🔧 Vie pratique' },
 ];
 

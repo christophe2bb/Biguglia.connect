@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
@@ -9,7 +9,7 @@ import {
   Calendar, MapPin, Clock, Users, Plus, MessageSquare, ChevronRight,
   Music, Utensils, Dumbbell, Heart, Palette,
   PartyPopper, CheckCircle, Bell, ArrowRight,
-  AlertCircle, Baby, Mic2, X, Loader2, RefreshCw,
+  AlertCircle, Baby, Mic2, X, Loader2, RefreshCw, ImageIcon, Trash2,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import toast from 'react-hot-toast';
@@ -35,6 +35,7 @@ type LocalEvent = {
   participants_count?: number;
   user_joined?: boolean;
   participants_list?: { user_id: string; user?: { full_name: string; avatar_url?: string } }[];
+  cover_photo?: string | null;
 };
 
 type ForumPost = {
@@ -93,6 +94,12 @@ function EventCard({
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 overflow-hidden group">
+      {/* Cover photo */}
+      {event.cover_photo && (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img src={event.cover_photo} alt={event.title}
+          className="w-full h-36 object-cover" />
+      )}
       <div className={`${cat.bg} px-5 pt-4 pb-3`}>
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -237,6 +244,9 @@ export default function EvenementsPage() {
     max_participants: '', is_free: true, price: '',
   });
   const [submittingEvent, setSubmittingEvent] = useState(false);
+  const [eventPhotos, setEventPhotos] = useState<File[]>([]);
+  const [eventPhotoPreviews, setEventPhotoPreviews] = useState<string[]>([]);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   // Forum post form
   const [showPostForm, setShowPostForm] = useState(false);
@@ -286,6 +296,23 @@ export default function EvenementsPage() {
         enriched = enriched.map(e => ({ ...e, user_joined: joinedSet.has(e.id) }));
       }
 
+      // Fetch cover photos
+      if (enriched.length > 0) {
+        const ids = enriched.map(e => e.id);
+        const { data: photos } = await supabase
+          .from('event_photos')
+          .select('event_id, url, display_order')
+          .in('event_id', ids)
+          .order('display_order', { ascending: true });
+        if (photos && photos.length > 0) {
+          const coverMap: Record<string, string> = {};
+          (photos as { event_id: string; url: string; display_order: number }[]).forEach(p => {
+            if (!coverMap[p.event_id]) coverMap[p.event_id] = p.url;
+          });
+          enriched = enriched.map(e => ({ ...e, cover_photo: coverMap[e.id] ?? null }));
+        }
+      }
+
       setEvents(enriched);
     } catch (err) {
       console.error('fetchEvents error:', err);
@@ -330,6 +357,25 @@ export default function EvenementsPage() {
     fetchEvents();
   };
 
+  // ── Photo helpers ──────────────────────────────────────────────────────────
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    const remaining = 5 - eventPhotos.length;
+    const toAdd = files.slice(0, remaining);
+    setEventPhotos(prev => [...prev, ...toAdd]);
+    toAdd.forEach(f => {
+      const reader = new FileReader();
+      reader.onload = ev => setEventPhotoPreviews(prev => [...prev, ev.target?.result as string]);
+      reader.readAsDataURL(f);
+    });
+    if (photoInputRef.current) photoInputRef.current.value = '';
+  };
+
+  const handlePhotoRemove = (idx: number) => {
+    setEventPhotos(prev => prev.filter((_, i) => i !== idx));
+    setEventPhotoPreviews(prev => prev.filter((_, i) => i !== idx));
+  };
+
   // ── Create event ──────────────────────────────────────────────────────────
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -339,7 +385,7 @@ export default function EvenementsPage() {
       return;
     }
     setSubmittingEvent(true);
-    const { error } = await supabase.from('local_events').insert({
+    const { data: inserted, error } = await supabase.from('local_events').insert({
       author_id: profile.id,
       title: newEvent.title.trim(),
       description: newEvent.description.trim(),
@@ -352,14 +398,29 @@ export default function EvenementsPage() {
       is_free: newEvent.is_free,
       price: !newEvent.is_free && newEvent.price ? parseFloat(newEvent.price) : null,
       status: 'active',
-    });
+    }).select('id').single();
 
     if (error) {
       toast.error('Erreur lors de la soumission');
       console.error(error);
     } else {
+      // Upload photos
+      if (eventPhotos.length > 0 && inserted?.id) {
+        for (let i = 0; i < eventPhotos.length; i++) {
+          const file = eventPhotos[i];
+          const ext = file.name.split('.').pop();
+          const path = `events/${inserted.id}/${Date.now()}_${i}.${ext}`;
+          const { data: up } = await supabase.storage.from('photos').upload(path, file, { upsert: true });
+          if (up?.path) {
+            const { data: urlData } = supabase.storage.from('photos').getPublicUrl(up.path);
+            await supabase.from('event_photos').insert({ event_id: inserted.id, url: urlData.publicUrl, display_order: i });
+          }
+        }
+      }
       toast.success('🎉 Événement publié ! Il est maintenant visible dans l\'agenda.', { duration: 4000 });
       setNewEvent({ title: '', description: '', event_date: '', event_time: '18:00', location: '', category: 'culture', organizer_name: '', max_participants: '', is_free: true, price: '' });
+      setEventPhotos([]);
+      setEventPhotoPreviews([]);
       setActiveTab('agenda');
       fetchEvents();
     }
@@ -745,6 +806,35 @@ export default function EvenementsPage() {
                       rows={4} value={newEvent.description} onChange={e => setNewEvent(f => ({ ...f, description: e.target.value }))}
                       className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-300"
                     />
+                  </div>
+                  {/* ── Photos ── */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                      Photos <span className="text-gray-400 font-normal">(optionnel · max 5)</span>
+                    </label>
+                    <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden"
+                      onChange={handlePhotoSelect} />
+                    {eventPhotoPreviews.length > 0 && (
+                      <div className="flex gap-2 flex-wrap mb-2">
+                        {eventPhotoPreviews.map((src, i) => (
+                          <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200 group/img">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={src} alt={`photo ${i+1}`} className="w-full h-full object-cover" />
+                            <button type="button" onClick={() => handlePhotoRemove(i)}
+                              className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5 opacity-0 group-hover/img:opacity-100 transition-opacity">
+                              <X className="w-3 h-3 text-white" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {eventPhotos.length < 5 && (
+                      <button type="button" onClick={() => photoInputRef.current?.click()}
+                        className="flex items-center gap-2 border-2 border-dashed border-purple-200 text-purple-500 hover:border-purple-400 hover:bg-purple-50 rounded-xl px-4 py-3 text-sm font-medium transition-all w-full justify-center">
+                        <ImageIcon className="w-4 h-4" />
+                        {eventPhotos.length === 0 ? 'Ajouter des photos' : `Ajouter une photo (${eventPhotos.length}/5)`}
+                      </button>
+                    )}
                   </div>
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
                     <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
