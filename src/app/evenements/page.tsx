@@ -1383,7 +1383,7 @@ export default function EvenementsPage() {
       {/* Photo de fond nette */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/images/biguglia-village.jpg"
+        src="/images/biguglia-etang.jpg"
         alt=""
         aria-hidden="true"
         style={{
