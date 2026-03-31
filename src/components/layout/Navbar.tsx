@@ -90,14 +90,6 @@ const UNIVERS = [
         iconBg: 'bg-teal-100',
       },
       {
-        href: '/annonces?type=exchange',
-        icon: ArrowRight,
-        label: 'Échanges',
-        desc: 'Troc et dons entre voisins',
-        iconColor: 'text-cyan-500',
-        iconBg: 'bg-cyan-100',
-      },
-      {
         href: '/collectionneurs',
         icon: Gem,
         label: 'Collectionneurs',
