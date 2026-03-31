@@ -34,6 +34,7 @@ type LocalEvent = {
   status: string;
   participants_count?: number;
   user_joined?: boolean;
+  participants_list?: { user_id: string; user?: { full_name: string; avatar_url?: string } }[];
 };
 
 type ForumPost = {
@@ -135,15 +136,55 @@ function EventCard({
           </div>
         </div>
 
-        {event.max_participants !== null && fillPct !== null && (
-          <div className="mb-4">
-            <div className="flex justify-between text-xs text-gray-500 mb-1">
-              <span className="flex items-center gap-1"><Users className="w-3 h-3" />{event.participants_count ?? 0}/{event.max_participants}</span>
-              {isFull && <span className="text-red-500 font-bold">⚠️ Complet</span>}
+        {/* ── Participants ── */}
+        {(event.participants_count ?? 0) > 0 && (
+          <div className="mb-4 bg-gray-50 rounded-xl px-3 py-2.5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-gray-600 flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-purple-500" />
+                {event.participants_count} participant{(event.participants_count ?? 0) > 1 ? 's' : ''}
+                {event.max_participants ? ` / ${event.max_participants}` : ''}
+              </span>
+              {isFull && <span className="text-xs text-red-500 font-bold">⚠️ Complet</span>}
             </div>
-            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full transition-all ${fillPct > 80 ? 'bg-red-400' : fillPct > 50 ? 'bg-amber-400' : 'bg-emerald-400'}`} style={{ width: `${Math.min(fillPct, 100)}%` }} />
-            </div>
+            {/* Avatars des participants */}
+            {event.participants_list && event.participants_list.length > 0 && (
+              <div className="flex items-center gap-1 flex-wrap">
+                {event.participants_list.slice(0, 8).map((p, i) => (
+                  <div key={p.user_id ?? i} title={p.user?.full_name ?? 'Participant'}
+                    className="w-7 h-7 rounded-full border-2 border-white shadow-sm bg-purple-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                    {p.user?.avatar_url
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      ? <img src={p.user.avatar_url} alt={p.user.full_name} className="w-full h-full object-cover" />
+                      : <span className="text-xs font-bold text-purple-600">
+                          {(p.user?.full_name ?? '?').charAt(0).toUpperCase()}
+                        </span>
+                    }
+                  </div>
+                ))}
+                {(event.participants_count ?? 0) > 8 && (
+                  <span className="text-xs text-gray-500 font-semibold ml-1">
+                    +{(event.participants_count ?? 0) - 8} autres
+                  </span>
+                )}
+              </div>
+            )}
+            {event.max_participants && (
+              <div className="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${fillPct! > 80 ? 'bg-red-400' : fillPct! > 50 ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                  style={{ width: `${Math.min(fillPct ?? 0, 100)}%` }}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Compteur à zéro */}
+        {(event.participants_count ?? 0) === 0 && (
+          <div className="mb-4 bg-gray-50 rounded-xl px-3 py-2 text-xs text-gray-400 flex items-center gap-1.5">
+            <Users className="w-3.5 h-3.5" />
+            Soyez le premier à participer !
           </div>
         )}
 
@@ -210,7 +251,7 @@ export default function EvenementsPage() {
       const today = new Date().toISOString().split('T')[0];
       let query = supabase
         .from('local_events')
-        .select(`*, author:profiles!local_events_author_id_fkey(full_name, avatar_url), participants:event_participations(count)`)
+        .select(`*, author:profiles!local_events_author_id_fkey(full_name, avatar_url), participants:event_participations(count), participants_list:event_participations(user_id, user:profiles!event_participations_user_id_fkey(full_name, avatar_url))`)
         .eq('status', 'active')
         .gte('event_date', today)
         .order('event_date', { ascending: true });
@@ -228,9 +269,10 @@ export default function EvenementsPage() {
       }
       setDbReady(true);
 
-      let enriched = (data || []).map((e: LocalEvent & { participants?: { count: number }[] }) => ({
+      let enriched = (data || []).map((e: LocalEvent & { participants?: { count: number }[]; participants_list?: { user_id: string; user?: { full_name: string; avatar_url?: string } }[] }) => ({
         ...e,
         participants_count: e.participants?.[0]?.count ?? 0,
+        participants_list: e.participants_list ?? [],
         user_joined: false,
       }));
 
