@@ -170,13 +170,21 @@ export default function HomePage() {
       {/* ══════════════════════════════════════
           HERO — Vie locale complète
       ══════════════════════════════════════ */}
-      <section className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-violet-50 via-purple-50 via-orange-50 to-amber-50">
-        {/* Orbs décoratifs */}
-        <div className="absolute top-[-100px] left-[-100px] w-[500px] h-[500px] bg-brand-300/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-purple-300/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-emerald-200/10 rounded-full blur-3xl pointer-events-none" />
-        {/* Points décoratifs */}
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #f97316 1px, transparent 1px)', backgroundSize: '30px 30px' }} />
+      <section className="relative min-h-screen flex items-center overflow-hidden">
+        {/* ── Photo de Biguglia en arrière-plan ── */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/biguglia-hero.jpg"
+          alt="Vue de Biguglia"
+          className="absolute inset-0 w-full h-full object-cover object-center"
+          style={{ zIndex: 0 }}
+        />
+        {/* Overlay dégradé pour lisibilité du texte */}
+        <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/20 pointer-events-none" style={{ zIndex: 1 }} />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" style={{ zIndex: 1 }} />
+
+        {/* Points décoratifs subtils */}
+        <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '30px 30px', zIndex: 2 }} />
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 w-full">
           <div className="grid lg:grid-cols-2 gap-14 lg:gap-20 items-center">
@@ -185,71 +193,71 @@ export default function HomePage() {
             <div className={`transition-all duration-700 ${heroLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
 
               {/* Badge localisation */}
-              <div className="inline-flex items-center gap-2.5 bg-white/90 border border-orange-200 rounded-full px-4 py-2 mb-8 shadow-sm">
-                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                <MapPin className="w-3.5 h-3.5 text-brand-500" />
-                <span className="text-sm font-bold text-gray-700">Biguglia · Haute-Corse · 2B</span>
+              <div className="inline-flex items-center gap-2.5 bg-white/20 backdrop-blur-md border border-white/30 rounded-full px-4 py-2 mb-8 shadow-lg">
+                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                <MapPin className="w-3.5 h-3.5 text-white" />
+                <span className="text-sm font-bold text-white">Biguglia · Haute-Corse · 2B</span>
               </div>
 
               {/* Titre */}
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-gray-900 leading-[1.1] mb-4 tracking-tight">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-[1.1] mb-4 tracking-tight drop-shadow-lg">
                 Toute la vie locale
                 <br />
-                <span className="bg-gradient-to-r from-brand-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-orange-300 via-amber-200 to-yellow-300 bg-clip-text text-transparent">
                   de Biguglia
                 </span>
                 <br />
                 au même endroit
               </h1>
 
-              <p className="text-gray-600 text-lg sm:text-xl leading-relaxed mb-8 max-w-lg">
+              <p className="text-white/85 text-lg sm:text-xl leading-relaxed mb-8 max-w-lg drop-shadow">
                 Artisans, événements, promenades, collectionneurs, annonces, forum, matériel partagé… 
-                <strong className="text-gray-800"> Le réseau gratuit des habitants de Biguglia.</strong>
+                <strong className="text-white"> Le réseau gratuit des habitants de Biguglia.</strong>
               </p>
 
               {/* Pills thèmes — 3 univers */}
               <div className={`space-y-2.5 mb-8 transition-all duration-700 delay-200 ${heroLoaded ? 'opacity-100' : 'opacity-0'}`}>
                 {/* Services */}
                 <div className="flex flex-wrap gap-2 items-center">
-                  <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest w-full">Services</span>
+                  <span className="text-[10px] font-black text-orange-300 uppercase tracking-widest w-full drop-shadow">Services</span>
                   {[
-                    { href: '/artisans',         label: '🔧 Artisans',       bg: 'bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200' },
-                    { href: '/artisans/demande',  label: '📋 Poster demande', bg: 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200' },
-                    { href: '/demandes',          label: '👥 Voir demandes',  bg: 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200' },
-                    { href: '/artisans',          label: '💰 Devis',          bg: 'bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-200' },
-                  ].map(({ href, label, bg }) => (
+                    { href: '/artisans',          label: '🔧 Artisans' },
+                    { href: '/artisans/demande',   label: '📋 Poster demande' },
+                    { href: '/demandes',           label: '👥 Voir demandes' },
+                    { href: '/artisans',           label: '💰 Devis' },
+                  ].map(({ href, label }) => (
                     <Link key={label} href={href}
-                      className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm ${bg}`}>
+                      className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border border-white/25 bg-white/15 backdrop-blur-sm text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/25 hover:shadow-md">
                       {label}
                     </Link>
                   ))}
                 </div>
                 {/* Vie pratique */}
                 <div className="flex flex-wrap gap-2 items-center">
-                  <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest w-full">Vie pratique</span>
+                  <span className="text-[10px] font-black text-sky-300 uppercase tracking-widest w-full drop-shadow">Vie pratique</span>
                   {[
-                    { href: '/annonces',          label: '📦 Annonces',        bg: 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200' },
-                    { href: '/materiel',           label: '🛠️ Matériel',        bg: 'bg-teal-100 text-teal-700 border-teal-200 hover:bg-teal-200' },
-                    { href: '/annonces',           label: '🔄 Échanges',        bg: 'bg-cyan-100 text-cyan-700 border-cyan-200 hover:bg-cyan-200' },
-                    { href: '/collectionneurs',    label: '🏆 Collectionneurs', bg: 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200' },
-                  ].map(({ href, label, bg }) => (
+                    { href: '/annonces',        label: '📦 Annonces' },
+                    { href: '/materiel',        label: '🛠️ Matériel' },
+                    { href: '/annonces',        label: '🔄 Échanges' },
+                    { href: '/collectionneurs', label: '🏆 Collectionneurs' },
+                  ].map(({ href, label }) => (
                     <Link key={label} href={href}
-                      className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm ${bg}`}>
+                      className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border border-white/25 bg-white/15 backdrop-blur-sm text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/25 hover:shadow-md">
                       {label}
                     </Link>
                   ))}
                 </div>
                 {/* Vie locale */}
                 <div className="flex flex-wrap gap-2 items-center">
-                  <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest w-full">Vie locale</span>
+                  <span className="text-[10px] font-black text-purple-300 uppercase tracking-widest w-full drop-shadow">Vie locale</span>
                   {[
-                    { href: '/evenements',  label: '🎉 Événements',  bg: 'bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200' },
-                    { href: '/promenades',  label: '🌿 Promenades',  bg: 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200' },
-                    { href: '/forum',       label: '💬 Forum',       bg: 'bg-violet-100 text-violet-700 border-violet-200 hover:bg-violet-200' },
-                    { href: '/forum',       label: '🤝 Communauté',  bg: 'bg-rose-100 text-rose-700 border-rose-200 hover:bg-rose-200' },
-                  ].map(({ href, label, bg }) => (
+                    { href: '/evenements', label: '🎉 Événements' },
+                    { href: '/promenades', label: '🌿 Promenades' },
+                    { href: '/forum',      label: '💬 Forum' },
+                    { href: '/forum',      label: '🤝 Communauté' },
+                  ].map(({ href, label }) => (
                     <Link key={label} href={href}
-                      className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm ${bg}`}>
+                      className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border border-white/25 bg-white/15 backdrop-blur-sm text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/25 hover:shadow-md">
                       {label}
                     </Link>
                   ))}
@@ -266,22 +274,22 @@ export default function HomePage() {
                   <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <Link href="/artisans/demande"
-                  className="group inline-flex items-center justify-center gap-2 bg-white text-gray-700 px-8 py-4 rounded-2xl font-bold text-base border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 shadow-md">
-                  <PenLine className="w-5 h-5 text-brand-500" />
+                  className="group inline-flex items-center justify-center gap-2 bg-white/20 backdrop-blur-md text-white px-8 py-4 rounded-2xl font-bold text-base border border-white/30 hover:bg-white/30 transition-all duration-300 shadow-md">
+                  <PenLine className="w-5 h-5 text-white" />
                   Trouver un artisan
-                  <ChevronRight className="w-4 h-4 text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+                  <ChevronRight className="w-4 h-4 text-white/70 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
               </div>
 
               {/* Preuves sociales */}
               <div className={`flex flex-wrap gap-4 mt-8 transition-all duration-700 delay-500 ${heroLoaded ? 'opacity-100' : 'opacity-0'}`}>
                 {[
-                  { icon: Shield,      text: 'Artisans vérifiés', color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
-                  { icon: CheckCircle, text: '100 % gratuit',      color: 'text-sky-600',     bg: 'bg-sky-50 border-sky-200' },
-                  { icon: Heart,       text: 'Projet citoyen',     color: 'text-rose-600',    bg: 'bg-rose-50 border-rose-200' },
-                ].map(({ icon: I, text, color, bg }) => (
-                  <span key={text} className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border ${bg}`}>
-                    <I className={`w-3.5 h-3.5 ${color}`} /><span className="text-gray-700">{text}</span>
+                  { icon: Shield,      text: 'Artisans vérifiés', color: 'text-emerald-300' },
+                  { icon: CheckCircle, text: '100 % gratuit',      color: 'text-sky-300'     },
+                  { icon: Heart,       text: 'Projet citoyen',     color: 'text-rose-300'    },
+                ].map(({ icon: I, text, color }) => (
+                  <span key={text} className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-sm border border-white/25 text-white">
+                    <I className={`w-3.5 h-3.5 ${color}`} /><span>{text}</span>
                   </span>
                 ))}
               </div>
