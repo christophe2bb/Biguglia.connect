@@ -1194,9 +1194,12 @@ export default function EvenementsPage() {
 
       if (enriched.length > 0) {
         const ids = enriched.map(e => e.id);
-        const { data: photos } = await supabase
+        const { data: photos, error: photoErr } = await supabase
           .from('event_photos').select('event_id, url, display_order')
           .in('event_id', ids).order('display_order', { ascending: true });
+        if (photoErr) {
+          console.error('[event_photos] fetch error:', photoErr.message, photoErr.code);
+        }
         if (photos && photos.length > 0) {
           const coverMap: Record<string, string> = {};
           (photos as { event_id: string; url: string; display_order: number }[]).forEach(p => {
@@ -1298,10 +1301,15 @@ export default function EvenementsPage() {
           const file = eventPhotos[i];
           const ext = file.name.split('.').pop();
           const path = `events/${inserted.id}/${Date.now()}_${i}.${ext}`;
-          const { data: up } = await supabase.storage.from('photos').upload(path, file, { upsert: true });
+          const { data: up, error: upErr } = await supabase.storage.from('photos').upload(path, file, { upsert: true });
+          if (upErr) {
+            console.error('[storage] upload error:', upErr.message);
+          }
           if (up?.path) {
             const { data: urlData } = supabase.storage.from('photos').getPublicUrl(up.path);
-            await supabase.from('event_photos').insert({ event_id: inserted.id, url: urlData.publicUrl, display_order: i });
+            const { error: insErr } = await supabase.from('event_photos').insert({ event_id: inserted.id, url: urlData.publicUrl, display_order: i });
+            if (insErr) console.error('[event_photos] insert error:', insErr.message, insErr.code);
+            else console.log('[event_photos] photo saved:', urlData.publicUrl);
           }
         }
       }
