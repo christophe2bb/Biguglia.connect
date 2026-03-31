@@ -7,7 +7,7 @@ import {
   Menu, X, Bell, MessageSquare, User, LogOut, Shield, Home,
   Wrench, ChevronDown, PenLine, Drill, TreePine, Gem, PartyPopper,
   Package, BookOpen, Users, Calendar, Footprints, ArrowRight,
-  ClipboardList, Star, Clock,
+  ClipboardList,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -55,22 +55,6 @@ const UNIVERS = [
         desc: 'Consulter et répondre aux habitants',
         iconColor: 'text-blue-600',
         iconBg: 'bg-blue-100',
-      },
-      {
-        href: '/artisans',
-        icon: Star,
-        label: 'Devis',
-        desc: 'Comparez et choisissez le meilleur',
-        iconColor: 'text-yellow-500',
-        iconBg: 'bg-yellow-100',
-      },
-      {
-        href: '/artisans',
-        icon: Clock,
-        label: 'Rendez-vous',
-        desc: 'Planifiez une intervention',
-        iconColor: 'text-red-400',
-        iconBg: 'bg-red-50',
       },
     ],
   },
