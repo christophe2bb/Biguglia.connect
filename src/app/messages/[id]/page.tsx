@@ -286,7 +286,7 @@ export default function ConversationPage() {
   const [subject, setSubject]           = useState('');
   const [relatedType, setRelatedType]   = useState<string | null>(null);
   const [relatedId, setRelatedId]       = useState<string | null>(null);
-  const [isOnline, setIsOnline]         = useState(true);
+  const [realtimeOk, setRealtimeOk]     = useState(false); // connexion canal Realtime
 
   const messagesEndRef  = useRef<HTMLDivElement>(null);
   const inputRef        = useRef<HTMLInputElement>(null);
@@ -373,7 +373,7 @@ export default function ConversationPage() {
           scrollToBottom();
         }
       )
-      .subscribe(status => setIsOnline(status === 'SUBSCRIBED'));
+      .subscribe(status => setRealtimeOk(status === 'SUBSCRIBED'));
     channelRef.current = channel;
 
     const handleVis = () => { if (document.visibilityState === 'visible') markAsRead(); };
@@ -427,22 +427,18 @@ export default function ConversationPage() {
         </Link>
         <div className="relative flex-shrink-0">
           <Avatar src={otherUser?.avatar_url} name={otherUser?.full_name || '?'} size="md" />
-          <span className={cn(
-            'absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white',
-            isOnline ? 'bg-emerald-400' : 'bg-gray-300'
-          )} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-gray-900">{otherUser?.full_name || 'Inconnu'}</div>
           <div className="text-xs text-gray-400 truncate">{subject}</div>
         </div>
-        <div className={cn(
-          'flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0',
-          isOnline ? 'text-emerald-600 bg-emerald-50' : 'text-gray-400 bg-gray-100'
-        )}>
-          <span className={cn('w-1.5 h-1.5 rounded-full', isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400')} />
-          {isOnline ? 'En direct' : 'Reconnexion…'}
-        </div>
+        {/* Indicateur connexion Realtime — ne reflète PAS la présence de l'autre user */}
+        {!realtimeOk && (
+          <div className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 text-gray-400 bg-gray-100">
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+            Reconnexion…
+          </div>
+        )}
       </div>
 
       {/* ── Bannière contexte annonce ─────────────────────────────────────────── */}
