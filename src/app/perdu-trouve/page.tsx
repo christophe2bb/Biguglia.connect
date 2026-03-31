@@ -145,10 +145,15 @@ function LostFoundCard({
     setSending(false);
   };
 
-  const shareItem = () => {
+  const shareItem = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     const url = `${window.location.origin}/perdu-trouve#${item.id}`;
     if (navigator.share) {
-      navigator.share({ title: item.title, url });
+      navigator.share({ title: item.title, url }).catch(() => {
+        navigator.clipboard.writeText(url);
+        toast.success('Lien copié !');
+      });
     } else {
       navigator.clipboard.writeText(url);
       toast.success('Lien copié !');
@@ -269,7 +274,7 @@ function LostFoundCard({
         {/* Actions */}
         <div className="flex gap-2 flex-wrap">
           {/* Message button */}
-          <button onClick={handleOpenChat}
+          <button type="button" onClick={handleOpenChat}
             className={`inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm transition-all border ${
               openChat ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
             }`}>
@@ -279,12 +284,12 @@ function LostFoundCard({
               <span className="bg-blue-100 text-blue-700 text-xs font-black px-1.5 py-0.5 rounded-full">{chatCount}</span>
             )}
           </button>
-          <button onClick={shareItem}
+          <button type="button" onClick={shareItem}
             className="inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 transition-all">
             <Share2 className="w-4 h-4" /> Partager
           </button>
           {isAuthor && !isResolved && (
-            <button onClick={() => onResolve(item.id)}
+            <button type="button" onClick={() => onResolve(item.id)}
               className="inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-all">
               <CheckCircle2 className="w-4 h-4" /> Marquer résolu
             </button>
