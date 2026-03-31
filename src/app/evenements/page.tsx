@@ -96,41 +96,63 @@ function EventMiniForum({ eventId, userId, catColor, catBg, catBorder }: {
   catBg: string;
   catBorder: string;
 }) {
-  const supabase = createClient();
+  // Stabiliser le client supabase — ne pas le recréer à chaque render
+  const supabaseRef = useRef(createClient());
+  const supabase = supabaseRef.current;
+
   const [open, setOpen]           = useState(false);
   const [comments, setComments]   = useState<EventComment[]>([]);
   const [loading, setLoading]     = useState(false);
   const [text, setText]           = useState('');
   const [sending, setSending]     = useState(false);
   const [count, setCount]         = useState<number | null>(null);
+  const [tableOk, setTableOk]     = useState<boolean | null>(null); // null = inconnu
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Charger le nombre de commentaires au montage
+  // Vérifier si la table existe + charger le compteur
   useEffect(() => {
+    let cancelled = false;
     supabase
       .from('event_comments')
       .select('id', { count: 'exact', head: true })
       .eq('event_id', eventId)
-      .then(({ count: c }) => setCount(c ?? 0));
-  }, [eventId, supabase]);
+      .then(({ count: c, error }) => {
+        if (cancelled) return;
+        if (error) {
+          // table absente ou erreur RLS → on masque le composant
+          setTableOk(false);
+        } else {
+          setTableOk(true);
+          setCount(c ?? 0);
+        }
+      });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId]);
 
   const fetchComments = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('event_comments')
       .select('id, content, created_at, author:profiles(full_name, avatar_url)')
       .eq('event_id', eventId)
       .order('created_at', { ascending: true })
       .limit(50);
-    setComments((data ?? []) as EventComment[]);
-    setCount((data ?? []).length);
+    if (!error) {
+      setComments((data ?? []) as EventComment[]);
+      setCount((data ?? []).length);
+    }
     setLoading(false);
-  }, [eventId, supabase]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId]);
 
   const handleOpen = () => {
-    if (!open) fetchComments();
-    setOpen(v => !v);
-    setTimeout(() => inputRef.current?.focus(), 150);
+    const willOpen = !open;
+    setOpen(willOpen);
+    if (willOpen) {
+      fetchComments();
+      setTimeout(() => inputRef.current?.focus(), 200);
+    }
   };
 
   const handleSend = async () => {
@@ -146,29 +168,30 @@ function EventMiniForum({ eventId, userId, catColor, catBg, catBorder }: {
     setSending(false);
   };
 
+  // Table pas encore créée → ne pas afficher le composant
+  if (tableOk === false) return null;
+
   return (
-    <div className="border-t border-gray-50 mt-2 pt-2">
+    <div className="border-t border-gray-100 mt-2 pt-2">
       {/* Bouton toggle */}
       <button
         onClick={handleOpen}
         className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg w-full transition-all
-          ${open ? `${catBg} ${catColor} ${catBorder} border` : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+          ${open ? `${catBg} ${catColor} border ${catBorder}` : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
       >
         <MessageSquare className="w-3.5 h-3.5 flex-shrink-0" />
         <span>Discussion</span>
         {count !== null && count > 0 && (
-          <span className={`ml-auto text-xs font-black px-1.5 py-0.5 rounded-full ${open ? 'bg-white/60' : 'bg-gray-200 text-gray-600'}`}>
+          <span className={`text-xs font-black px-1.5 py-0.5 rounded-full ${open ? 'bg-white/70 text-purple-700' : 'bg-gray-200 text-gray-600'}`}>
             {count}
           </span>
         )}
-        <span className="ml-auto text-gray-400" style={{ marginLeft: count !== null && count > 0 ? 4 : 'auto' }}>
-          {open ? '▲' : '▼'}
-        </span>
+        <span className="ml-auto text-gray-400 text-xs">{open ? '▲' : '▼'}</span>
       </button>
 
       {/* Panel commentaires */}
       {open && (
-        <div className="mt-2 flex flex-col gap-1.5">
+        <div className="mt-2 flex flex-col gap-2">
           {loading ? (
             <div className="flex justify-center py-3">
               <Loader2 className="w-4 h-4 animate-spin text-gray-300" />
@@ -178,18 +201,20 @@ function EventMiniForum({ eventId, userId, catColor, catBg, catBorder }: {
               Aucun message — soyez le premier à démarrer la discussion !
             </p>
           ) : (
-            <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-0.5">
+            <div className="flex flex-col gap-2 max-h-52 overflow-y-auto">
               {comments.map(c => (
                 <div key={c.id} className="flex items-start gap-2">
-                  {/* Avatar */}
-                  <div className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-black text-white ${catColor.replace('text-', 'bg-').replace('-700','-500').replace('-600','-500')}`}
-                    style={{ background: 'linear-gradient(135deg,#a855f7,#ec4899)' }}>
+                  {/* Avatar initiale */}
+                  <div
+                    className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-black text-white"
+                    style={{ background: 'linear-gradient(135deg,#a855f7,#ec4899)' }}
+                  >
                     {c.author?.full_name?.[0]?.toUpperCase() ?? '?'}
                   </div>
                   <div className="flex-1 bg-gray-50 rounded-lg px-2 py-1.5">
                     <p className="text-xs font-bold text-gray-700 leading-tight">
                       {c.author?.full_name ?? 'Anonyme'}
-                      <span className="font-normal text-gray-400 ml-1.5">{formatRelative(c.created_at)}</span>
+                      <span className="font-normal text-gray-400 ml-1.5 text-xs">{formatRelative(c.created_at)}</span>
                     </p>
                     <p className="text-xs text-gray-600 mt-0.5 leading-relaxed whitespace-pre-wrap break-words">{c.content}</p>
                   </div>
@@ -200,28 +225,26 @@ function EventMiniForum({ eventId, userId, catColor, catBg, catBorder }: {
 
           {/* Zone de saisie */}
           {userId ? (
-            <div className="flex items-end gap-1.5 mt-1">
+            <div className="flex items-end gap-1.5">
               <textarea
                 ref={inputRef}
                 value={text}
                 onChange={e => setText(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                placeholder="Votre message…"
+                placeholder="Votre message… (Entrée pour envoyer)"
                 rows={2}
-                className={`flex-1 text-xs rounded-lg border px-2 py-1.5 resize-none focus:outline-none focus:ring-1 transition-all
-                  ${catBorder} focus:ring-purple-400 bg-white text-gray-700 placeholder-gray-400`}
+                className={`flex-1 text-xs rounded-lg border px-2 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-purple-300 transition-all bg-white text-gray-700 placeholder-gray-400 ${catBorder}`}
               />
               <button
                 onClick={handleSend}
                 disabled={!text.trim() || sending}
-                className={`p-2 rounded-lg transition-all flex-shrink-0 disabled:opacity-40
-                  ${catBg} ${catColor} border ${catBorder} hover:opacity-80`}
+                className={`p-2 rounded-lg transition-all flex-shrink-0 disabled:opacity-40 ${catBg} ${catColor} border ${catBorder} hover:opacity-80`}
               >
                 {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
               </button>
             </div>
           ) : (
-            <Link href="/connexion" className="text-xs text-center text-purple-600 font-semibold py-1 hover:underline">
+            <Link href="/connexion" className="text-xs text-center text-purple-600 font-semibold py-1 hover:underline block">
               Connectez-vous pour participer →
             </Link>
           )}
