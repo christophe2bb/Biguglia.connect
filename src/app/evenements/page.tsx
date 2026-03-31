@@ -310,15 +310,17 @@ export default function EvenementsPage() {
       max_participants: newEvent.max_participants ? parseInt(newEvent.max_participants) : null,
       is_free: newEvent.is_free,
       price: !newEvent.is_free && newEvent.price ? parseFloat(newEvent.price) : null,
-      status: 'pending', // awaiting moderator approval
+      status: 'active',
     });
 
     if (error) {
       toast.error('Erreur lors de la soumission');
       console.error(error);
     } else {
-      toast.success('Événement soumis ! Il sera visible après validation par un modérateur (sous 24h).');
+      toast.success('🎉 Événement publié ! Il est maintenant visible dans l\'agenda.', { duration: 4000 });
       setNewEvent({ title: '', description: '', event_date: '', event_time: '18:00', location: '', category: 'sport', organizer_name: '', max_participants: '', is_free: true, price: '' });
+      setActiveTab('agenda');
+      fetchEvents();
     }
     setSubmittingEvent(false);
   };
@@ -664,7 +666,7 @@ export default function EvenementsPage() {
           <div className="max-w-2xl">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-2">Proposer un événement</h2>
-              <p className="text-gray-500 text-sm mb-6">Votre événement sera visible après validation par un modérateur (sous 24h).</p>
+              <p className="text-gray-500 text-sm mb-6">Votre événement sera publié immédiatement et visible dans l&apos;agenda.</p>
 
               {!profile ? (
                 <div className="bg-purple-50 border border-purple-200 rounded-2xl p-6 text-center">
