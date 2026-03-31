@@ -526,6 +526,92 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- ============================================================
+-- COUPS DE MAIN ENTRE VOISINS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS help_requests (
+  id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  author_id           uuid REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  help_type           text NOT NULL CHECK (help_type IN ('demande','offre','echange')),
+  status              text NOT NULL DEFAULT 'active' CHECK (status IN ('active','paused','resolved','draft')),
+  title               text NOT NULL,
+  category            text NOT NULL DEFAULT 'autre',
+  description         text NOT NULL,
+  urgency             text NOT NULL DEFAULT 'flexible' CHECK (urgency IN ('flexible','cette_semaine','rapidement','urgent')),
+  help_date           date,
+  help_time           text,
+  location_area       text NOT NULL DEFAULT 'Centre-ville',
+  location_city       text NOT NULL DEFAULT 'Biguglia',
+  location_detail     text,
+  duration            text NOT NULL DEFAULT '1h',
+  persons_needed      int NOT NULL DEFAULT 1,
+  compensation        text NOT NULL DEFAULT 'gratuit',
+  compensation_detail text,
+  equipment           text[] DEFAULT '{}',
+  for_who             text NOT NULL DEFAULT 'Pour moi',
+  conditions          text[] DEFAULT '{}',
+  visibility          text NOT NULL DEFAULT 'public' CHECK (visibility IN ('public','membres')),
+  contact_mode        text NOT NULL DEFAULT 'messagerie',
+  display_name        text NOT NULL DEFAULT 'prenom_initiale',
+  created_at          timestamptz DEFAULT now(),
+  updated_at          timestamptz DEFAULT now()
+);
+
+ALTER TABLE help_requests ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='help_requests' AND policyname='help_requests_select') THEN
+    CREATE POLICY "help_requests_select" ON help_requests FOR SELECT USING (true);
+    CREATE POLICY "help_requests_insert" ON help_requests FOR INSERT WITH CHECK (auth.uid() = author_id);
+    CREATE POLICY "help_requests_update" ON help_requests FOR UPDATE USING (auth.uid() = author_id);
+    CREATE POLICY "help_requests_delete" ON help_requests FOR DELETE USING (auth.uid() = author_id);
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS help_photos (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  help_id       uuid REFERENCES help_requests(id) ON DELETE CASCADE NOT NULL,
+  url           text NOT NULL,
+  display_order int NOT NULL DEFAULT 0,
+  created_at    timestamptz DEFAULT now()
+);
+
+ALTER TABLE help_photos ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='help_photos' AND policyname='help_photos_select') THEN
+    CREATE POLICY "help_photos_select" ON help_photos FOR SELECT USING (true);
+    CREATE POLICY "help_photos_insert" ON help_photos FOR INSERT WITH CHECK (
+      auth.uid() = (SELECT author_id FROM help_requests WHERE id = help_id)
+    );
+    CREATE POLICY "help_photos_delete" ON help_photos FOR DELETE USING (
+      auth.uid() = (SELECT author_id FROM help_requests WHERE id = help_id)
+    );
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS help_comments (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  help_id    uuid REFERENCES help_requests(id) ON DELETE CASCADE NOT NULL,
+  author_id  uuid REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  content    text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE help_comments ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='help_comments' AND policyname='help_comments_select') THEN
+    CREATE POLICY "help_comments_select" ON help_comments FOR SELECT USING (true);
+    CREATE POLICY "help_comments_insert" ON help_comments FOR INSERT WITH CHECK (auth.uid() = author_id);
+    CREATE POLICY "help_comments_delete" ON help_comments FOR DELETE USING (
+      auth.uid() = author_id OR
+      auth.uid() IN (SELECT id FROM profiles WHERE role IN ('admin','moderateur'))
+    );
+  END IF;
+END $$;
+
 -- Recharge le cache PostgREST (OBLIGATOIRE après création de tables)
 NOTIFY pgrst, 'reload schema';`;
 
@@ -604,6 +690,9 @@ const TABLES_TO_CHECK = [
   { name: 'lost_found_items',      label: 'Annonces Perdu/Trouvé',   theme: '🔍 Perdu/Trouvé' },
   { name: 'lf_photos',             label: 'Photos Perdu/Trouvé',     theme: '🔍 Perdu/Trouvé' },
   { name: 'lf_comments',           label: 'Commentaires Perdu/Trouvé', theme: '🔍 Perdu/Trouvé' },
+  { name: 'help_requests',         label: 'Coups de main',            theme: '🤝 Coups de main' },
+  { name: 'help_photos',           label: 'Photos coups de main',     theme: '🤝 Coups de main' },
+  { name: 'help_comments',         label: 'Commentaires coups de main', theme: '🤝 Coups de main' },
 ];
 
 type TableStatus = { name: string; exists: boolean };

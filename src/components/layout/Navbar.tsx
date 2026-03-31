@@ -7,7 +7,7 @@ import {
   Menu, X, Bell, MessageSquare, User, LogOut, Shield, Home,
   Wrench, ChevronDown, PenLine, Drill, TreePine, Gem, PartyPopper,
   Package, BookOpen, Calendar, Footprints, ArrowRight,
-  ClipboardList, Search, Handshake,
+  ClipboardList, Search, Handshake, Heart,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -120,7 +120,7 @@ const UNIVERS = [
     gradFrom: 'from-purple-500',
     gradTo: 'to-pink-500',
     headerBg: 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-100',
-    paths: ['/evenements', '/promenades', '/forum', '/associations'],
+    paths: ['/evenements', '/promenades', '/forum', '/associations', '/coups-de-main'],
     items: [
       {
         href: '/evenements',
@@ -153,6 +153,14 @@ const UNIVERS = [
         desc: 'Découvrez les associations locales',
         iconColor: 'text-purple-500',
         iconBg: 'bg-purple-100',
+      },
+      {
+        href: '/coups-de-main',
+        icon: Heart,
+        label: 'Coups de main',
+        desc: 'Demandez ou proposez de l\'aide',
+        iconColor: 'text-orange-500',
+        iconBg: 'bg-orange-100',
       },
     ],
   },

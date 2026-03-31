@@ -612,10 +612,10 @@ export default function HomePage() {
               </div>
               <div className="p-4 space-y-2">
                 {[
-                  { href: '/evenements',  icon: Calendar,   label: 'Événements',  desc: 'Concerts, matchs, fêtes',          color: 'text-purple-500',  bg: 'bg-purple-50' },
-                  { href: '/promenades',  icon: Footprints, label: 'Promenades',  desc: 'Sentiers et sorties groupées',      color: 'text-emerald-500', bg: 'bg-emerald-50' },
-                  { href: '/forum',       icon: BookOpen,   label: 'Forum',       desc: 'Discussions entre habitants',       color: 'text-violet-500',  bg: 'bg-violet-50' },
-                  { href: '/forum',       icon: Users,      label: 'Communauté',  desc: 'Entraide et vie de quartier',       color: 'text-rose-500',    bg: 'bg-rose-50' },
+                  { href: '/evenements',   icon: Calendar,   label: 'Événements',     desc: 'Concerts, matchs, fêtes',          color: 'text-purple-500',  bg: 'bg-purple-50' },
+                  { href: '/promenades',   icon: Footprints, label: 'Promenades',     desc: 'Sentiers et sorties groupées',      color: 'text-emerald-500', bg: 'bg-emerald-50' },
+                  { href: '/forum',        icon: BookOpen,   label: 'Forum',          desc: 'Discussions entre habitants',       color: 'text-violet-500',  bg: 'bg-violet-50' },
+                  { href: '/coups-de-main',icon: Heart,      label: 'Coups de main',  desc: 'Entraide entre voisins',            color: 'text-orange-500',  bg: 'bg-orange-50' },
                 ].map(({ href, icon: Icon, label, desc, color, bg }) => (
                   <Link key={label} href={href}
                     className="flex items-center gap-3 p-3 rounded-xl hover:bg-purple-50 transition-colors group">
