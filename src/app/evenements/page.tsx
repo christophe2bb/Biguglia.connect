@@ -277,19 +277,19 @@ function EventCard({
   );
 }
 
-// ─── Calendrier moderne animé ─────────────────────────────────────────────────
+// ─── Calendrier clair & animé ───────────────────────────────────────────────
 const JOURS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const MOIS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
-// Gradients par catégorie pour les cases
-const CAT_GRADIENTS: Record<string, string> = {
-  culture:    'from-purple-500 to-violet-600',
-  musique:    'from-pink-500 to-rose-500',
-  repas:      'from-orange-400 to-amber-500',
-  nature:     'from-emerald-400 to-teal-500',
-  famille:    'from-sky-400 to-blue-500',
-  social:     'from-rose-400 to-pink-500',
-  conference: 'from-teal-400 to-cyan-500',
+// Couleur pastel par catégorie (fond clair)
+const CAT_PASTEL: Record<string, { bg: string; ring: string; text: string; emoji: string }> = {
+  culture:    { bg: '#f3e8ff', ring: '#c084fc', text: '#7e22ce', emoji: '🎭' },
+  musique:    { bg: '#fce7f3', ring: '#f472b6', text: '#be185d', emoji: '🎵' },
+  repas:      { bg: '#fff7ed', ring: '#fb923c', text: '#c2410c', emoji: '🍽️' },
+  nature:     { bg: '#ecfdf5', ring: '#34d399', text: '#065f46', emoji: '🌿' },
+  famille:    { bg: '#e0f2fe', ring: '#38bdf8', text: '#0369a1', emoji: '👨‍👩‍👧' },
+  social:     { bg: '#fff1f2', ring: '#fb7185', text: '#be123c', emoji: '🎉' },
+  conference: { bg: '#f0fdfa', ring: '#2dd4bf', text: '#0f766e', emoji: '🎤' },
 };
 
 function AnimatedEventCell({
@@ -303,194 +303,193 @@ function AnimatedEventCell({
   onSelect: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
-  const hasEvents = dayEvents.length > 0 && !isPast;
-  const firstEv = dayEvents[0];
-  const cat = firstEv ? getCat(firstEv.category) : null;
-  const gradient = cat ? (CAT_GRADIENTS[cat.id] ?? 'from-purple-500 to-pink-500') : '';
+  const hasEvents = dayEvents.length > 0;
+  const upcomingEvents = dayEvents.filter(() => !isPast);
+  const firstEv  = upcomingEvents[0] ?? dayEvents[0];
+  const cat      = firstEv ? getCat(firstEv.category) : null;
+  const pastel   = cat ? (CAT_PASTEL[cat.id] ?? CAT_PASTEL.culture) : null;
   const hasCover = !!firstEv?.cover_photo;
+  const showAnim = hasEvents && !isPast;
+  const pc       = firstEv?.participants_count ?? 0;
 
   return (
     <button
       onClick={onSelect}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`
-        relative overflow-hidden text-left
-        border-b border-gray-100
-        transition-all duration-300
-        ${isSelected ? 'z-20' : 'z-0'}
-      `}
+      className={showAnim ? 'cal-cell-event' : ''}
       style={{
-        height: '7rem',
-        borderRight: '1px solid #f3f4f6',
+        position: 'relative',
+        height: '9rem',
+        borderRight: '1px solid #f1f5f9',
+        borderBottom: '1px solid #f1f5f9',
+        overflow: 'hidden',
+        cursor: 'pointer',
+        transition: 'transform 0.22s cubic-bezier(.4,0,.2,1), box-shadow 0.22s ease',
+        background: isSelected
+          ? (pastel?.bg ?? '#faf5ff')
+          : showAnim
+            ? (hovered ? (pastel?.bg ?? '#faf5ff') : 'white')
+            : isPast ? '#fafafa' : 'white',
+        transform: hovered && showAnim ? 'scale(1.04) translateZ(0)' : 'scale(1)',
         boxShadow: isSelected
-          ? '0 0 0 2px #a855f7 inset, 0 8px 30px rgba(168,85,247,0.25)'
-          : hovered && hasEvents
-            ? '0 4px 20px rgba(168,85,247,0.15)'
-            : undefined,
-        transform: hovered && hasEvents ? 'scale(1.02)' : 'scale(1)',
+          ? `0 0 0 2.5px ${pastel?.ring ?? '#a855f7'} inset, 0 6px 24px rgba(0,0,0,0.1)`
+          : hovered && showAnim
+            ? `0 8px 32px rgba(0,0,0,0.12), 0 0 0 1.5px ${pastel?.ring ?? '#a855f7'}40 inset`
+            : 'none',
+        zIndex: hovered || isSelected ? 20 : 1,
       }}
     >
-      {/* ── Fond animé pour cases avec événements ── */}
-      {hasEvents && (
-        <>
-          {hasCover ? (
-            /* Photo de couverture animée */
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={firstEv!.cover_photo!}
-                alt=""
-                className="absolute inset-0 w-full h-full object-cover transition-all duration-700"
-                style={{
-                  opacity: hovered ? 0.65 : 0.38,
-                  transform: hovered ? 'scale(1.12)' : 'scale(1.03)',
-                }}
-              />
-              {/* Dégradé overlay dynamique */}
-              <div
-                className="absolute inset-0 transition-opacity duration-500"
-                style={{
-                  background: hovered
-                    ? 'linear-gradient(135deg, rgba(139,92,246,0.6) 0%, rgba(236,72,153,0.4) 100%)'
-                    : 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.55) 100%)',
-                  opacity: 1,
-                }}
-              />
-            </>
-          ) : (
-            /* Fond dégradé animé */
-            <>
-              <div
-                className={`absolute inset-0 bg-gradient-to-br ${gradient} transition-opacity duration-300`}
-                style={{ opacity: hovered ? 0.85 : 0.55 }}
-              />
-              {/* Cercles décoratifs animés */}
-              <div
-                className="absolute rounded-full transition-all duration-500"
-                style={{
-                  width: '60%', height: '60%',
-                  background: 'rgba(255,255,255,0.15)',
-                  top: hovered ? '-15%' : '-20%',
-                  right: hovered ? '-10%' : '-15%',
-                  transform: hovered ? 'scale(1.2)' : 'scale(1)',
-                  filter: 'blur(8px)',
-                }}
-              />
-              <div
-                className="absolute rounded-full transition-all duration-700"
-                style={{
-                  width: '40%', height: '40%',
-                  background: 'rgba(255,255,255,0.1)',
-                  bottom: hovered ? '-5%' : '-10%',
-                  left: hovered ? '5%' : '0%',
-                  transform: hovered ? 'scale(1.3) rotate(20deg)' : 'scale(1)',
-                  filter: 'blur(6px)',
-                }}
-              />
-            </>
-          )}
+      {/* ── PHOTO de couverture animée ── */}
+      {showAnim && hasCover && (
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={firstEv!.cover_photo!}
+            alt=""
+            style={{
+              position: 'absolute', inset: 0,
+              width: '100%', height: '100%',
+              objectFit: 'cover',
+              opacity: hovered ? 0.3 : 0.15,
+              transform: hovered ? 'scale(1.12)' : 'scale(1.04)',
+              transition: 'all 0.7s cubic-bezier(.4,0,.2,1)',
+            }}
+          />
+          {/* Gradient overlay */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: `linear-gradient(180deg, transparent 30%, ${pastel?.ring ?? '#a855f7'}22 100%)`,
+          }} />
+        </div>
+      )}
 
-          {/* Particules scintillantes au hover */}
+      {/* ── Fond dégradé animé (sans photo) ── */}
+      {showAnim && !hasCover && pastel && (
+        <>
+          {/* Grande orbe principale */}
+          <div
+            className={hovered ? 'orb-hover' : 'orb-idle'}
+            style={{
+              position: 'absolute',
+              width: '85%', height: '85%',
+              borderRadius: '50%',
+              background: `radial-gradient(circle at 60% 40%, ${pastel.ring}28 0%, transparent 70%)`,
+              top: '-20%', right: '-20%',
+              transition: 'transform 0.6s ease, opacity 0.4s ease',
+              transform: hovered ? 'scale(1.4)' : 'scale(1)',
+              opacity: hovered ? 1 : 0.7,
+            }}
+          />
+          {/* Petite orbe secondaire */}
+          <div style={{
+            position: 'absolute',
+            width: '55%', height: '55%',
+            borderRadius: '50%',
+            background: `radial-gradient(circle, ${pastel.ring}18 0%, transparent 70%)`,
+            bottom: hovered ? '0%' : '-10%',
+            left: hovered ? '0%' : '-5%',
+            transition: 'all 0.65s ease',
+            transform: hovered ? 'scale(1.2)' : 'scale(1)',
+          }} />
+          {/* Shimmer bande */}
           {hovered && (
-            <div className="absolute inset-0 pointer-events-none overflow-hidden">
-              {[...Array(5)].map((_, pi) => (
-                <div
-                  key={pi}
-                  className="absolute rounded-full bg-white"
-                  style={{
-                    width: `${3 + pi * 1.5}px`,
-                    height: `${3 + pi * 1.5}px`,
-                    left: `${15 + pi * 17}%`,
-                    top: `${20 + (pi % 3) * 25}%`,
-                    opacity: 0.6 - pi * 0.08,
-                    animation: `pulse ${0.8 + pi * 0.2}s ease-in-out infinite alternate`,
-                  }}
-                />
-              ))}
-            </div>
+            <div
+              className="shimmer-band"
+              style={{
+                position: 'absolute',
+                width: '40%', height: '200%',
+                top: '-50%', left: '-20%',
+                background: `linear-gradient(105deg, transparent, ${pastel.ring}18, transparent)`,
+                transform: 'skewX(-15deg)',
+              }}
+            />
           )}
         </>
       )}
 
-      {/* ── Fond des jours sans événements ── */}
-      {!hasEvents && (
+      {/* ── Anneau pulsant (aujourd'hui ou sélectionné avec événement) ── */}
+      {showAnim && (isToday || isSelected) && pastel && (
         <div
-          className="absolute inset-0 transition-colors duration-200"
-          style={{ background: hovered ? 'rgba(243,244,246,0.8)' : (isPast ? 'rgba(249,250,251,0.5)' : 'white') }}
+          className={isToday ? 'pulse-ring' : ''}
+          style={{
+            position: 'absolute', inset: 0, pointerEvents: 'none',
+            borderRadius: 2,
+            boxShadow: `0 0 0 2.5px ${pastel.ring} inset`,
+          }}
         />
       )}
 
-      {/* ── Contenu ── */}
-      <div className="relative z-10 h-full flex flex-col p-1.5 sm:p-2">
-
+      {/* ── CONTENU ── */}
+      <div style={{
+        position: 'relative', zIndex: 2,
+        height: '100%', display: 'flex', flexDirection: 'column',
+        padding: '6px 7px',
+      }}>
         {/* Numéro du jour */}
-        <div
-          className="flex-shrink-0 self-start transition-all duration-300"
-          style={{ transform: hovered && hasEvents ? 'scale(1.15)' : 'scale(1)' }}
-        >
-          <span
-            className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full text-xs sm:text-sm font-black"
-            style={{
-              background: isToday
-                ? 'linear-gradient(135deg, #7c3aed, #ec4899)'
-                : 'transparent',
-              color: isToday
-                ? 'white'
-                : isPast
-                  ? '#d1d5db'
-                  : hasEvents
-                    ? hasCover ? 'white' : 'white'
-                    : '#374151',
-              boxShadow: isToday ? '0 2px 12px rgba(124,58,237,0.5)' : undefined,
-              textShadow: hasEvents && !isToday ? '0 1px 3px rgba(0,0,0,0.4)' : undefined,
-            }}
-          >
-            {date.getDate()}
-          </span>
+        <div style={{
+          width: 26, height: 26,
+          borderRadius: '50%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 12, fontWeight: 800, flexShrink: 0, alignSelf: 'flex-start',
+          background: isToday
+            ? 'linear-gradient(135deg, #7c3aed, #ec4899)'
+            : 'transparent',
+          color: isToday ? 'white'
+            : isPast ? '#cbd5e1'
+            : showAnim ? (pastel?.text ?? '#374151')
+            : '#64748b',
+          boxShadow: isToday ? '0 2px 10px rgba(124,58,237,0.45)' : undefined,
+          outline: isSelected && !isToday ? `2px solid ${pastel?.ring ?? '#a855f7'}` : undefined,
+          transition: 'transform 0.2s ease',
+          transform: hovered && showAnim ? 'scale(1.15)' : 'scale(1)',
+        }}>
+          {date.getDate()}
         </div>
 
-        {/* ── Labels événements ── */}
-        {hasEvents && (
-          <div className="mt-1 flex flex-col gap-0.5 flex-1 min-h-0 overflow-hidden">
+        {/* ── Bloc événement(s) ── */}
+        {showAnim && firstEv && (
+          <div style={{
+            marginTop: 5, display: 'flex', flexDirection: 'column',
+            gap: 3, flex: 1, minHeight: 0, overflow: 'hidden',
+          }}>
 
-            {/* Premier événement */}
-            <div
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded-md transition-all duration-300"
-              style={{
-                background: hasCover
-                  ? 'rgba(0,0,0,0.45)'
-                  : 'rgba(255,255,255,0.25)',
-                backdropFilter: 'blur(4px)',
-                transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
-              }}
-            >
+            {/* Ligne 1 : emoji + titre */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 3,
+              transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
+              transition: 'transform 0.3s ease',
+            }}>
               <span
-                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                style={{ background: 'rgba(255,255,255,0.9)' }}
-              />
-              <span className="text-[10px] sm:text-xs font-bold truncate text-white leading-tight"
-                style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
-                {firstEv!.title}
+                className={hovered ? 'emoji-bounce' : ''}
+                style={{
+                  fontSize: hasCover ? 13 : 15, lineHeight: 1,
+                  filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))',
+                  display: 'inline-block', flexShrink: 0,
+                  transition: 'transform 0.3s ease',
+                  transform: hovered ? 'scale(1.25) rotate(-8deg)' : 'scale(1)',
+                }}
+              >
+                {pastel?.emoji}
+              </span>
+              <span style={{
+                fontSize: 10.5, fontWeight: 700,
+                color: pastel?.text ?? '#374151',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                flex: 1, lineHeight: 1.3,
+              }}>
+                {firstEv.title}
               </span>
             </div>
 
-            {/* Deuxième événement */}
-            {dayEvents.length >= 2 && (() => {
-              const ev2 = dayEvents[1];
-              const c2 = getCat(ev2.category);
+            {/* Ligne 2 : 2ème événement */}
+            {upcomingEvents.length >= 2 && (() => {
+              const ev2 = upcomingEvents[1];
+              const p2  = CAT_PASTEL[getCat(ev2.category).id] ?? CAT_PASTEL.culture;
               return (
-                <div
-                  className="flex items-center gap-1 px-1.5 py-0.5 rounded-md transition-all duration-300"
-                  style={{
-                    background: 'rgba(255,255,255,0.2)',
-                    backdropFilter: 'blur(4px)',
-                    transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
-                    transitionDelay: '30ms',
-                  }}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${c2.dot}`} />
-                  <span className="text-[10px] font-semibold truncate text-white/90 leading-tight">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 3, opacity: 0.85 }}>
+                  <span style={{ fontSize: 10, flexShrink: 0 }}>{p2.emoji}</span>
+                  <span style={{ fontSize: 9.5, fontWeight: 600, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {ev2.title}
                   </span>
                 </div>
@@ -498,46 +497,60 @@ function AnimatedEventCell({
             })()}
 
             {/* Badge +N */}
-            {dayEvents.length > 2 && (
-              <div
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded-md"
-                style={{ background: 'rgba(255,255,255,0.15)' }}
-              >
-                <span className="text-[10px] font-bold text-white/80">
-                  +{dayEvents.length - 1} événements
-                </span>
-              </div>
+            {upcomingEvents.length > 2 && (
+              <span style={{
+                fontSize: 9.5, fontWeight: 700,
+                color: pastel?.text,
+                background: pastel?.bg,
+                border: `1px solid ${pastel?.ring}44`,
+                borderRadius: 5, padding: '1px 5px',
+                alignSelf: 'flex-start',
+                boxShadow: `0 1px 4px ${pastel?.ring}22`,
+              }}>
+                +{upcomingEvents.length - 1} de plus
+              </span>
             )}
+
+            {/* Bas de cellule : heure + participants */}
+            <div style={{
+              marginTop: 'auto',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              opacity: hovered ? 1 : 0.55,
+              transition: 'opacity 0.25s ease',
+            }}>
+              {firstEv.event_time && (
+                <span style={{
+                  fontSize: 9.5, fontWeight: 700,
+                  color: pastel?.text ?? '#64748b',
+                  display: 'flex', alignItems: 'center', gap: 2,
+                }}>
+                  <Clock style={{ width: 8, height: 8 }} />
+                  {firstEv.event_time.slice(0, 5)}
+                </span>
+              )}
+              {pc > 0 && (
+                <span style={{
+                  fontSize: 9.5, fontWeight: 700,
+                  color: pastel?.text ?? '#64748b',
+                  display: 'flex', alignItems: 'center', gap: 2,
+                }}>
+                  <Users style={{ width: 8, height: 8 }} />
+                  {pc}
+                </span>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Compteur participants (si 1 seul événement avec participants) */}
-        {hasEvents && dayEvents.length === 1 && (firstEv!.participants_count ?? 0) > 0 && (
-          <div
-            className="mt-auto flex items-center gap-1 transition-all duration-300"
-            style={{
-              opacity: hovered ? 1 : 0.7,
-              transform: hovered ? 'translateY(0)' : 'translateY(2px)',
-            }}
-          >
-            <Users className="w-2.5 h-2.5 text-white/80" />
-            <span className="text-[9px] sm:text-[10px] font-semibold text-white/80">
-              {firstEv!.participants_count}
-            </span>
-          </div>
+        {/* Pastille point (événements passés) */}
+        {hasEvents && isPast && (
+          <div style={{
+            marginTop: 6,
+            width: 6, height: 6, borderRadius: '50%',
+            background: '#e2e8f0',
+          }} />
         )}
       </div>
-
-      {/* ── Bordure sélection animée ── */}
-      {isSelected && (
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            boxShadow: '0 0 0 2.5px #a855f7 inset',
-            borderRadius: '2px',
-          }}
-        />
-      )}
     </button>
   );
 }
@@ -546,11 +559,11 @@ function CalendarView({
   events, userId, onJoin,
 }: { events: LocalEvent[]; userId?: string; onJoin: (id: string, joined: boolean) => void }) {
   const today = new Date(); today.setHours(0,0,0,0);
-  const [calYear, setCalYear]   = useState(today.getFullYear());
-  const [calMonth, setCalMonth] = useState(today.getMonth());
+  const [calYear,    setCalYear]    = useState(today.getFullYear());
+  const [calMonth,   setCalMonth]   = useState(today.getMonth());
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
-  const [animDir, setAnimDir]   = useState<'left' | 'right' | null>(null);
-  const [visible, setVisible]   = useState(true);
+  const [slideDir,   setSlideDir]   = useState<'left'|'right'|null>(null);
+  const [gridKey,    setGridKey]    = useState(0);
 
   const firstOfMonth = new Date(calYear, calMonth, 1);
   const lastOfMonth  = new Date(calYear, calMonth + 1, 0);
@@ -573,260 +586,362 @@ function CalendarView({
   const toISO = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
-  const changeMonth = (dir: 'prev' | 'next') => {
-    setAnimDir(dir === 'prev' ? 'right' : 'left');
-    setVisible(false);
+  const changeMonth = (dir: 'prev'|'next') => {
+    setSlideDir(dir === 'prev' ? 'right' : 'left');
     setTimeout(() => {
       if (dir === 'prev') {
-        if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
-        else setCalMonth(m => m - 1);
+        if (calMonth === 0) { setCalYear(y => y-1); setCalMonth(11); }
+        else setCalMonth(m => m-1);
       } else {
-        if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
-        else setCalMonth(m => m + 1);
+        if (calMonth === 11) { setCalYear(y => y+1); setCalMonth(0); }
+        else setCalMonth(m => m+1);
       }
       setSelectedDay(null);
-      setVisible(true);
-      setAnimDir(null);
-    }, 200);
+      setGridKey(k => k+1);
+      setSlideDir(null);
+    }, 220);
   };
 
-  const monthPrefix     = `${calYear}-${String(calMonth+1).padStart(2,'0')}`;
-  const eventsThisMonth = events.filter(e => e.event_date.startsWith(monthPrefix));
+  const monthPfx        = `${calYear}-${String(calMonth+1).padStart(2,'0')}`;
+  const eventsThisMonth = events.filter(e => e.event_date.startsWith(monthPfx));
   const selectedEvents  = selectedDay ? (eventsByDay[selectedDay] ?? []) : [];
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
-      {/* ── GRILLE CALENDRIER ── */}
-      <div className="flex-1 min-w-0">
-        <div
-          className="rounded-3xl overflow-hidden shadow-2xl"
-          style={{
-            background: 'linear-gradient(145deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)',
-            border: '1px solid rgba(255,255,255,0.08)',
-          }}
-        >
-          {/* ── HEADER ── */}
-          <div
-            className="relative px-6 py-5 overflow-hidden"
-            style={{
-              background: 'linear-gradient(135deg, rgba(139,92,246,0.3) 0%, rgba(236,72,153,0.2) 50%, rgba(59,130,246,0.2) 100%)',
-              borderBottom: '1px solid rgba(255,255,255,0.08)',
-            }}
-          >
-            {/* Orbes décoratifs */}
-            <div className="absolute top-0 left-1/4 w-32 h-32 rounded-full opacity-20 blur-2xl"
-              style={{ background: 'radial-gradient(circle, #a855f7, transparent)' }} />
-            <div className="absolute top-0 right-1/4 w-24 h-24 rounded-full opacity-15 blur-xl"
-              style={{ background: 'radial-gradient(circle, #ec4899, transparent)' }} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <style>{`
+        /* ── entrée & slide ── */
+        @keyframes floatIn {
+          from { opacity:0; transform: translateY(14px) scale(0.97); }
+          to   { opacity:1; transform: translateY(0)    scale(1);    }
+        }
+        @keyframes calSlideLeft {
+          from { opacity:0; transform: translateX(32px);  }
+          to   { opacity:1; transform: translateX(0);     }
+        }
+        @keyframes calSlideRight {
+          from { opacity:0; transform: translateX(-32px); }
+          to   { opacity:1; transform: translateX(0);     }
+        }
+        .cal-grid { animation: floatIn 0.32s cubic-bezier(.4,0,.2,1) both; }
+        .cal-grid.slide-left  { animation: calSlideLeft  0.26s cubic-bezier(.4,0,.2,1) both; }
+        .cal-grid.slide-right { animation: calSlideRight 0.26s cubic-bezier(.4,0,.2,1) both; }
 
-            <div className="relative flex items-center justify-between">
+        /* ── shimmer bande ── */
+        @keyframes shimmerSlide {
+          from { left: -40%; }
+          to   { left: 120%;  }
+        }
+        .shimmer-band { animation: shimmerSlide 0.7s cubic-bezier(.4,0,.2,1) both; }
+
+        /* ── emoji bounce ── */
+        @keyframes emojiBounce {
+          0%,100% { transform: scale(1.25) rotate(-8deg) translateY(0); }
+          50%      { transform: scale(1.35) rotate(-12deg) translateY(-3px); }
+        }
+        .emoji-bounce { animation: emojiBounce 0.7s ease infinite; }
+
+        /* ── anneau pulsant sur la cellule d'aujourd'hui ── */
+        @keyframes pulseRing {
+          0%   { box-shadow: 0 0 0 2.5px currentColor inset, 0 0 0 0px rgba(168,85,247,0.4); }
+          50%  { box-shadow: 0 0 0 2.5px currentColor inset, 0 0 0 4px  rgba(168,85,247,0.0); }
+          100% { box-shadow: 0 0 0 2.5px currentColor inset, 0 0 0 0px rgba(168,85,247,0.4); }
+        }
+        .pulse-ring { animation: pulseRing 2s ease infinite; }
+
+        /* ── cellule avec événement : légère animation continue ── */
+        @keyframes cellBreath {
+          0%,100% { background-position: 0% 50%;   }
+          50%      { background-position: 100% 50%; }
+        }
+        .cal-cell-event:not(:hover) {
+          background-size: 200% 200%;
+          transition: background 0.8s ease;
+        }
+      `}</style>
+
+      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+        {/* ── CALENDRIER ── */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 24,
+            boxShadow: '0 4px 40px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05)',
+            overflow: 'hidden',
+            border: '1px solid rgba(0,0,0,0.06)',
+          }}>
+
+            {/* HEADER */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '16px 20px',
+              background: 'linear-gradient(135deg, #faf5ff 0%, #fdf2f8 50%, #f0fdf4 100%)',
+              borderBottom: '1px solid rgba(0,0,0,0.06)',
+            }}>
               <button
                 onClick={() => changeMonth('prev')}
-                className="w-10 h-10 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-110 active:scale-95"
                 style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  color: 'white',
+                  width: 38, height: 38, borderRadius: 12,
+                  border: '1.5px solid rgba(0,0,0,0.08)',
+                  background: 'white', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                  transition: 'all 0.2s ease',
+                  color: '#6b7280',
                 }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1.1)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 3px 12px rgba(0,0,0,0.12)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 1px 4px rgba(0,0,0,0.08)'; }}
               >
-                <ChevronLeft className="w-5 h-5" />
+                <ChevronLeft style={{ width: 18, height: 18 }} />
               </button>
 
-              <div className="text-center">
-                <h2
-                  className="text-2xl font-black tracking-tight"
-                  style={{
-                    background: 'linear-gradient(135deg, #fff 0%, #e9d5ff 50%, #fbcfe8 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                  }}
-                >
+              <div style={{ textAlign: 'center' }}>
+                <div style={{
+                  fontSize: 22, fontWeight: 900, letterSpacing: '-0.5px',
+                  background: 'linear-gradient(135deg, #7c3aed, #ec4899)',
+                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                }}>
                   {MOIS_FR[calMonth]}
-                  <span className="ml-2 text-white/50 font-light text-xl">{calYear}</span>
-                </h2>
-                <div className="flex items-center justify-center gap-2 mt-1">
-                  <span
-                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold"
-                    style={{
-                      background: 'rgba(168,85,247,0.3)',
-                      border: '1px solid rgba(168,85,247,0.5)',
-                      color: '#e9d5ff',
-                    }}
-                  >
-                    <PartyPopper className="w-3 h-3" />
-                    {eventsThisMonth.length} événement{eventsThisMonth.length !== 1 ? 's' : ''}
+                  <span style={{ WebkitTextFillColor: '#94a3b8', fontWeight: 400, fontSize: 18, marginLeft: 8 }}>
+                    {calYear}
                   </span>
                 </div>
+                {eventsThisMonth.length > 0 && (
+                  <div style={{
+                    marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 4,
+                    fontSize: 11, fontWeight: 700,
+                    padding: '2px 10px', borderRadius: 20,
+                    background: 'linear-gradient(135deg, rgba(124,58,237,0.1), rgba(236,72,153,0.1))',
+                    color: '#7c3aed',
+                    border: '1px solid rgba(124,58,237,0.15)',
+                  }}>
+                    <PartyPopper style={{ width: 11, height: 11 }} />
+                    {eventsThisMonth.length} événement{eventsThisMonth.length !== 1 ? 's' : ''}
+                  </div>
+                )}
               </div>
 
               <button
                 onClick={() => changeMonth('next')}
-                className="w-10 h-10 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-110 active:scale-95"
                 style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  color: 'white',
+                  width: 38, height: 38, borderRadius: 12,
+                  border: '1.5px solid rgba(0,0,0,0.08)',
+                  background: 'white', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                  transition: 'all 0.2s ease',
+                  color: '#6b7280',
                 }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1.1)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 3px 12px rgba(0,0,0,0.12)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 1px 4px rgba(0,0,0,0.08)'; }}
               >
-                <ChevronRight className="w-5 h-5" />
+                <ChevronRight style={{ width: 18, height: 18 }} />
               </button>
             </div>
-          </div>
 
-          {/* ── EN-TÊTES JOURS ── */}
-          <div className="grid grid-cols-7" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            {JOURS.map((j, ji) => (
-              <div
-                key={j}
-                className="py-3 text-center text-xs font-black uppercase tracking-widest"
-                style={{ color: ji >= 5 ? 'rgba(216,180,254,0.7)' : 'rgba(255,255,255,0.35)' }}
-              >
-                {j}
-              </div>
-            ))}
-          </div>
+            {/* JOURS DE LA SEMAINE */}
+            <div style={{
+              display: 'grid', gridTemplateColumns: 'repeat(7,1fr)',
+              borderBottom: '1px solid #f1f5f9',
+              background: '#fafafa',
+            }}>
+              {JOURS.map((j, ji) => (
+                <div key={j} style={{
+                  padding: '10px 0',
+                  textAlign: 'center',
+                  fontSize: 11, fontWeight: 800,
+                  textTransform: 'uppercase', letterSpacing: '0.08em',
+                  color: ji >= 5 ? '#a855f7' : '#94a3b8',
+                }}>
+                  {j}
+                </div>
+              ))}
+            </div>
 
-          {/* ── GRILLE DES JOURS ── */}
-          <div
-            className="grid grid-cols-7"
-            style={{
-              opacity: visible ? 1 : 0,
-              transform: visible ? 'translateX(0)' : `translateX(${animDir === 'left' ? '-20px' : '20px'})`,
-              transition: 'opacity 0.2s ease, transform 0.2s ease',
-            }}
-          >
-            {cells.map((date, i) => {
-              if (!date) {
+            {/* GRILLE */}
+            <div
+              key={gridKey}
+              className={`cal-grid${slideDir === 'left' ? ' slide-left' : slideDir === 'right' ? ' slide-right' : ''}`}
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)' }}
+            >
+              {cells.map((date, i) => {
+                if (!date) return (
+                  <div key={i} style={{
+                    height: '9rem',
+                    borderRight: i % 7 !== 6 ? '1px solid #f1f5f9' : undefined,
+                    borderBottom: '1px solid #f1f5f9',
+                    background: '#fafafa',
+                  }} />
+                );
+                const iso        = toISO(date);
+                const dayEvents  = eventsByDay[iso] ?? [];
+                const isToday    = iso === toISO(today);
+                const isPast     = date < today;
+                const isSelected = selectedDay === iso;
                 return (
-                  <div
-                    key={i}
-                    style={{
-                      height: '7rem',
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      borderRight: i % 7 !== 6 ? '1px solid rgba(255,255,255,0.04)' : undefined,
-                      background: 'rgba(0,0,0,0.15)',
-                    }}
+                  <AnimatedEventCell
+                    key={iso}
+                    date={date}
+                    dayEvents={dayEvents}
+                    isToday={isToday}
+                    isPast={isPast}
+                    isSelected={isSelected}
+                    onSelect={() => setSelectedDay(isSelected ? null : iso)}
                   />
                 );
-              }
-              const iso       = toISO(date);
-              const dayEvents = eventsByDay[iso] ?? [];
-              const isToday   = iso === toISO(today);
-              const isPast    = date < today;
-              const isSelected = selectedDay === iso;
+              })}
+            </div>
 
-              return (
-                <AnimatedEventCell
-                  key={iso}
-                  date={date}
-                  dayEvents={dayEvents}
-                  isToday={isToday}
-                  isPast={isPast}
-                  isSelected={isSelected}
-                  onSelect={() => setSelectedDay(isSelected ? null : iso)}
-                />
-              );
-            })}
-          </div>
-
-          {/* ── LÉGENDE ── */}
-          <div
-            className="px-5 py-3 flex flex-wrap gap-x-4 gap-y-1.5"
-            style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
-          >
-            {EVENT_CATEGORIES.map(c => (
-              <span key={c.id} className="flex items-center gap-1.5 text-xs font-medium" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                <span className={`w-2 h-2 rounded-sm ${c.dot}`} style={{ opacity: 0.85 }} />
-                {c.label}
-              </span>
-            ))}
+            {/* LÉGENDE */}
+            <div style={{
+              padding: '10px 16px',
+              borderTop: '1px solid #f1f5f9',
+              background: '#fafafa',
+              display: 'flex', flexWrap: 'wrap', gap: '8px 16px',
+            }}>
+              {EVENT_CATEGORIES.map(c => {
+                const p = CAT_PASTEL[c.id] ?? CAT_PASTEL.culture;
+                return (
+                  <span key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: '#64748b' }}>
+                    <span style={{ fontSize: 13 }}>{p.emoji}</span>
+                    {c.label}
+                  </span>
+                );
+              })}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* ── PANEL LATÉRAL ── */}
-      <div className="lg:w-80 xl:w-96 flex-shrink-0">
-        {selectedDay ? (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-black text-gray-900 text-base">
-                {new Date(selectedDay + 'T00:00:00').toLocaleDateString('fr-FR', {
-                  weekday: 'long', day: 'numeric', month: 'long'
-                }).replace(/^\w/, c => c.toUpperCase())}
-              </h3>
-              <button onClick={() => setSelectedDay(null)} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100">
-                <X className="w-4 h-4" />
-              </button>
+        {/* ── PANEL LATÉRAL ── */}
+        <div style={{ width: 300, flexShrink: 0 }}>
+          {selectedDay ? (
+            <div style={{ animation: 'floatIn 0.25s ease both' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <h3 style={{ fontWeight: 800, fontSize: 15, color: '#1e293b', margin: 0 }}>
+                  {new Date(selectedDay + 'T00:00:00').toLocaleDateString('fr-FR', {
+                    weekday: 'long', day: 'numeric', month: 'long'
+                  }).replace(/^\w/, c => c.toUpperCase())}
+                </h3>
+                <button
+                  onClick={() => setSelectedDay(null)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4, borderRadius: 8 }}
+                >
+                  <X style={{ width: 16, height: 16 }} />
+                </button>
+              </div>
+              {selectedEvents.length === 0 ? (
+                <div style={{
+                  background: 'white', borderRadius: 16,
+                  border: '1px solid #f1f5f9',
+                  padding: 24, textAlign: 'center',
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
+                }}>
+                  <Calendar style={{ width: 32, height: 32, color: '#e2e8f0', margin: '0 auto 8px' }} />
+                  <p style={{ color: '#94a3b8', fontSize: 13, fontWeight: 600, margin: 0 }}>Aucun événement ce jour</p>
+                  <p style={{ color: '#cbd5e1', fontSize: 12, marginTop: 4 }}>Vous pouvez en proposer un !</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {selectedEvents.map(ev => (
+                    <EventCard key={ev.id} event={ev} userId={userId} onJoin={onJoin} compact />
+                  ))}
+                </div>
+              )}
             </div>
-            {selectedEvents.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center">
-                <Calendar className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                <p className="text-gray-500 text-sm font-semibold">Aucun événement ce jour</p>
-                <p className="text-gray-400 text-xs mt-1">Vous pouvez en proposer un !</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {selectedEvents.map(ev => (
-                  <EventCard key={ev.id} event={ev} userId={userId} onJoin={onJoin} compact />
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div>
-            <h3 className="font-black text-gray-900 text-base mb-4">Prochains événements</h3>
-            {events.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center">
-                <Calendar className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                <p className="text-gray-500 text-sm">Aucun événement à venir</p>
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {events.slice(0, 6).map(ev => {
-                  const cat = getCat(ev.category);
-                  const countdown = daysUntil(ev.event_date);
-                  const pcount = ev.participants_count ?? 0;
-                  return (
-                    <button key={ev.id} onClick={() => setSelectedDay(ev.event_date)}
-                      className="w-full bg-white rounded-xl border border-gray-100 p-3 text-left hover:border-purple-200 hover:shadow-sm transition-all group/item">
-                      <div className="flex items-start gap-2.5">
-                        <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1 ${cat.dot}`} />
-                        <div className="min-w-0 flex-1">
-                          <p className="font-bold text-gray-900 text-sm line-clamp-1 group-hover/item:text-purple-700 transition-colors">{ev.title}</p>
-                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                            <span className="text-xs text-gray-500">{formatEventDate(ev.event_date)}</span>
-                            {countdown && (
-                              <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${countdown.includes('Aujourd') ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
-                                {countdown}
+          ) : (
+            <div>
+              <h3 style={{ fontWeight: 800, fontSize: 15, color: '#1e293b', marginBottom: 16 }}>Prochains événements</h3>
+              {events.length === 0 ? (
+                <div style={{
+                  background: 'white', borderRadius: 16,
+                  border: '1px solid #f1f5f9',
+                  padding: 24, textAlign: 'center',
+                }}>
+                  <Calendar style={{ width: 32, height: 32, color: '#e2e8f0', margin: '0 auto 8px' }} />
+                  <p style={{ color: '#94a3b8', fontSize: 13, margin: 0 }}>Aucun événement à venir</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {events.slice(0, 6).map(ev => {
+                    const evCat    = getCat(ev.category);
+                    const evPastel = CAT_PASTEL[evCat.id] ?? CAT_PASTEL.culture;
+                    const evCD     = daysUntil(ev.event_date);
+                    const evPC     = ev.participants_count ?? 0;
+                    return (
+                      <button
+                        key={ev.id}
+                        onClick={() => setSelectedDay(ev.event_date)}
+                        style={{
+                          background: 'white', borderRadius: 14,
+                          border: '1px solid #f1f5f9',
+                          padding: '10px 12px', textAlign: 'left', cursor: 'pointer',
+                          boxShadow: '0 1px 6px rgba(0,0,0,0.04)',
+                          transition: 'all 0.2s ease',
+                          display: 'flex', alignItems: 'flex-start', gap: 10,
+                        }}
+                        onMouseEnter={e => {
+                          (e.currentTarget as HTMLElement).style.borderColor = evPastel.ring + '80';
+                          (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 20px rgba(0,0,0,0.08)';
+                          (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
+                        }}
+                        onMouseLeave={e => {
+                          (e.currentTarget as HTMLElement).style.borderColor = '#f1f5f9';
+                          (e.currentTarget as HTMLElement).style.boxShadow = '0 1px 6px rgba(0,0,0,0.04)';
+                          (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                        }}
+                      >
+                        <span style={{
+                          width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                          background: evPastel.bg,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 18,
+                          border: `1px solid ${evPastel.ring}30`,
+                        }}>
+                          {evPastel.emoji}
+                        </span>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <p style={{ fontWeight: 700, fontSize: 13, color: '#1e293b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {ev.title}
+                          </p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 11, color: '#94a3b8' }}>{formatEventDate(ev.event_date)}</span>
+                            {evCD && (
+                              <span style={{
+                                fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 20,
+                                background: evCD.includes('Aujourd') ? '#fee2e2' : evPastel.bg,
+                                color: evCD.includes('Aujourd') ? '#ef4444' : evPastel.text,
+                              }}>
+                                {evCD}
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-1 mt-1.5">
-                            <Users className={`w-3 h-3 flex-shrink-0 ${pcount > 0 ? 'text-purple-500' : 'text-gray-300'}`} />
-                            <span className={`text-xs font-semibold ${pcount > 0 ? 'text-purple-600' : 'text-gray-400'}`}>
-                              {pcount > 0
-                                ? `${pcount} participant${pcount > 1 ? 's' : ''}${ev.max_participants ? ` / ${ev.max_participants}` : ''}`
-                                : 'Aucun inscrit'}
-                            </span>
-                          </div>
+                          {evPC > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                              <Users style={{ width: 11, height: 11, color: evPastel.ring }} />
+                              <span style={{ fontSize: 11, fontWeight: 600, color: evPastel.text }}>
+                                {evPC} participant{evPC > 1 ? 's' : ''}{ev.max_participants ? ` / ${ev.max_participants}` : ''}
+                              </span>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    </button>
-                  );
-                })}
-                {events.length > 6 && (
-                  <p className="text-xs text-gray-400 text-center pt-1">
-                    + {events.length - 6} autres événements
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+                      </button>
+                    );
+                  })}
+                  {events.length > 6 && (
+                    <p style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', margin: 0 }}>
+                      + {events.length - 6} autres événements
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
+
+
 // ─── Page principale ──────────────────────────────────────────────────────────
 export default function EvenementsPage() {
   const { profile } = useAuthStore();
