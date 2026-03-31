@@ -10,6 +10,7 @@ import {
   Music, Utensils, Dumbbell, Heart, Palette,
   PartyPopper, CheckCircle, Bell, ArrowRight,
   AlertCircle, Baby, Mic2, X, Loader2, RefreshCw, ImageIcon, Trash2,
+  ChevronLeft,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import toast from 'react-hot-toast';
@@ -49,15 +50,15 @@ type ForumPost = {
 };
 
 // ─── Catégories d'événements ──────────────────────────────────────────────────
-type EventCat = { id: string; label: string; icon: React.ElementType; color: string; bg: string; border: string };
+type EventCat = { id: string; label: string; icon: React.ElementType; color: string; bg: string; border: string; dot: string };
 const EVENT_CATEGORIES: EventCat[] = [
-  { id: 'culture',    label: 'Culture & arts',  icon: Palette,     color: 'text-purple-700',  bg: 'bg-purple-50',  border: 'border-purple-200' },
-  { id: 'musique',    label: 'Musique',          icon: Music,       color: 'text-pink-700',    bg: 'bg-pink-50',    border: 'border-pink-200' },
-  { id: 'repas',      label: 'Repas & fête',     icon: Utensils,    color: 'text-orange-700',  bg: 'bg-orange-50',  border: 'border-orange-200' },
-  { id: 'nature',     label: 'Nature & sport',   icon: Dumbbell,    color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200' },
-  { id: 'famille',    label: 'Famille',          icon: Baby,        color: 'text-sky-700',     bg: 'bg-sky-50',     border: 'border-sky-200' },
-  { id: 'social',     label: 'Vie sociale',      icon: Heart,       color: 'text-rose-700',    bg: 'bg-rose-50',    border: 'border-rose-200' },
-  { id: 'conference', label: 'Conférence',       icon: Mic2,        color: 'text-teal-700',    bg: 'bg-teal-50',    border: 'border-teal-200' },
+  { id: 'culture',    label: 'Culture & arts',  icon: Palette,     color: 'text-purple-700',  bg: 'bg-purple-50',  border: 'border-purple-200', dot: 'bg-purple-500' },
+  { id: 'musique',    label: 'Musique',          icon: Music,       color: 'text-pink-700',    bg: 'bg-pink-50',    border: 'border-pink-200',   dot: 'bg-pink-500' },
+  { id: 'repas',      label: 'Repas & fête',     icon: Utensils,    color: 'text-orange-700',  bg: 'bg-orange-50',  border: 'border-orange-200', dot: 'bg-orange-500' },
+  { id: 'nature',     label: 'Nature & sport',   icon: Dumbbell,    color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200',dot: 'bg-emerald-500' },
+  { id: 'famille',    label: 'Famille',          icon: Baby,        color: 'text-sky-700',     bg: 'bg-sky-50',     border: 'border-sky-200',    dot: 'bg-sky-500' },
+  { id: 'social',     label: 'Vie sociale',      icon: Heart,       color: 'text-rose-700',    bg: 'bg-rose-50',    border: 'border-rose-200',   dot: 'bg-rose-500' },
+  { id: 'conference', label: 'Conférence',       icon: Mic2,        color: 'text-teal-700',    bg: 'bg-teal-50',    border: 'border-teal-200',   dot: 'bg-teal-500' },
 ];
 
 function getCat(id: string) {
@@ -65,40 +66,80 @@ function getCat(id: string) {
 }
 
 function formatEventDate(dateStr: string) {
-  const d = new Date(dateStr);
+  const d = new Date(dateStr + 'T00:00:00');
   const day = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
   return day.charAt(0).toUpperCase() + day.slice(1);
 }
 
 function daysUntil(dateStr: string) {
-  const diff = new Date(dateStr).getTime() - Date.now();
-  const days = Math.ceil(diff / 86400000);
-  if (days < 0) return null;
-  if (days === 0) return "Aujourd'hui !";
-  if (days === 1) return 'Demain';
-  return `Dans ${days} j.`;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const d = new Date(dateStr + 'T00:00:00');
+  const diff = Math.ceil((d.getTime() - today.getTime()) / 86400000);
+  if (diff < 0) return null;
+  if (diff === 0) return "Aujourd'hui !";
+  if (diff === 1) return 'Demain';
+  return `Dans ${diff} j.`;
 }
 
-// ─── EventCard ─────────────────────────────────────────────────────────────────
+// ─── EventCard (utilisée dans Proposer + panel jour) ─────────────────────────
 function EventCard({
-  event, userId, onJoin,
-}: { event: LocalEvent; userId?: string; onJoin: (id: string, joined: boolean) => void }) {
+  event, userId, onJoin, compact = false,
+}: { event: LocalEvent; userId?: string; onJoin: (id: string, joined: boolean) => void; compact?: boolean }) {
   const cat = getCat(event.category);
   const CatIcon = cat.icon;
   const dateLabel = formatEventDate(event.event_date);
   const countdown = daysUntil(event.event_date);
   const fillPct = event.max_participants && event.participants_count !== undefined
-    ? Math.round((event.participants_count / event.max_participants) * 100)
-    : null;
+    ? Math.round((event.participants_count / event.max_participants) * 100) : null;
   const isFull = event.max_participants !== null && (event.participants_count ?? 0) >= event.max_participants;
+
+  if (compact) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        {event.cover_photo && (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={event.cover_photo} alt={event.title} className="w-full h-28 object-cover" />
+        )}
+        <div className="p-3">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cat.dot}`} />
+            <span className={`text-xs font-bold ${cat.color}`}>{cat.label}</span>
+            {countdown && <span className="ml-auto text-xs text-gray-400 font-medium">{countdown}</span>}
+          </div>
+          <p className="font-bold text-gray-900 text-sm line-clamp-1 mb-1">{event.title}</p>
+          <div className="flex items-center gap-1 text-xs text-gray-500 mb-1">
+            <Clock className="w-3 h-3 flex-shrink-0" />{event.event_time}
+            <span className="mx-1">·</span>
+            <MapPin className="w-3 h-3 flex-shrink-0" />
+            <span className="truncate">{event.location}</span>
+          </div>
+          <div className="flex items-center justify-between pt-2 border-t border-gray-50">
+            <span className={`text-xs font-bold ${event.is_free ? 'text-emerald-600' : 'text-purple-600'}`}>
+              {event.is_free ? 'Gratuit' : `${event.price} €`}
+            </span>
+            {userId ? (
+              <button onClick={() => onJoin(event.id, !!event.user_joined)} disabled={isFull && !event.user_joined}
+                className={`text-xs font-bold px-2.5 py-1 rounded-lg transition-all disabled:opacity-50 ${
+                  event.user_joined ? 'bg-gray-100 text-gray-600' : `${cat.bg} ${cat.color} border ${cat.border}`
+                }`}>
+                {event.user_joined ? '✓ Inscrit' : isFull ? 'Complet' : 'Participer'}
+              </button>
+            ) : (
+              <Link href="/connexion" className={`text-xs font-bold px-2.5 py-1 rounded-lg ${cat.bg} ${cat.color} border ${cat.border}`}>
+                Participer
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 overflow-hidden group">
-      {/* Cover photo */}
       {event.cover_photo && (
         /* eslint-disable-next-line @next/next/no-img-element */
-        <img src={event.cover_photo} alt={event.title}
-          className="w-full h-36 object-cover" />
+        <img src={event.cover_photo} alt={event.title} className="w-full h-36 object-cover" />
       )}
       <div className={`${cat.bg} px-5 pt-4 pb-3`}>
         <div className="flex items-start justify-between gap-2">
@@ -142,7 +183,6 @@ function EventCard({
           </div>
         </div>
 
-        {/* ── Participants ── */}
         {(event.participants_count ?? 0) > 0 && (
           <div className="mb-4 bg-gray-50 rounded-xl px-3 py-2.5">
             <div className="flex items-center justify-between mb-2">
@@ -153,7 +193,6 @@ function EventCard({
               </span>
               {isFull && <span className="text-xs text-red-500 font-bold">⚠️ Complet</span>}
             </div>
-            {/* Avatars des participants */}
             {event.participants_list && event.participants_list.length > 0 && (
               <div className="flex items-center gap-1 flex-wrap">
                 {event.participants_list.slice(0, 8).map((p, i) => (
@@ -162,35 +201,27 @@ function EventCard({
                     {p.user?.avatar_url
                       /* eslint-disable-next-line @next/next/no-img-element */
                       ? <img src={p.user.avatar_url} alt={p.user.full_name} className="w-full h-full object-cover" />
-                      : <span className="text-xs font-bold text-purple-600">
-                          {(p.user?.full_name ?? '?').charAt(0).toUpperCase()}
-                        </span>
+                      : <span className="text-xs font-bold text-purple-600">{(p.user?.full_name ?? '?').charAt(0).toUpperCase()}</span>
                     }
                   </div>
                 ))}
                 {(event.participants_count ?? 0) > 8 && (
-                  <span className="text-xs text-gray-500 font-semibold ml-1">
-                    +{(event.participants_count ?? 0) - 8} autres
-                  </span>
+                  <span className="text-xs text-gray-500 font-semibold ml-1">+{(event.participants_count ?? 0) - 8} autres</span>
                 )}
               </div>
             )}
             {event.max_participants && (
               <div className="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all ${fillPct! > 80 ? 'bg-red-400' : fillPct! > 50 ? 'bg-amber-400' : 'bg-emerald-400'}`}
-                  style={{ width: `${Math.min(fillPct ?? 0, 100)}%` }}
-                />
+                <div className={`h-full rounded-full transition-all ${fillPct! > 80 ? 'bg-red-400' : fillPct! > 50 ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                  style={{ width: `${Math.min(fillPct ?? 0, 100)}%` }} />
               </div>
             )}
           </div>
         )}
 
-        {/* Compteur à zéro */}
         {(event.participants_count ?? 0) === 0 && (
           <div className="mb-4 bg-gray-50 rounded-xl px-3 py-2 text-xs text-gray-400 flex items-center gap-1.5">
-            <Users className="w-3.5 h-3.5" />
-            Soyez le premier à participer !
+            <Users className="w-3.5 h-3.5" /> Soyez le premier à participer !
           </div>
         )}
 
@@ -199,15 +230,10 @@ function EventCard({
             {event.is_free ? '🎟️ Gratuit' : `${event.price} €`}
           </span>
           {userId ? (
-            <button
-              onClick={() => onJoin(event.id, !!event.user_joined)}
-              disabled={isFull && !event.user_joined}
+            <button onClick={() => onJoin(event.id, !!event.user_joined)} disabled={isFull && !event.user_joined}
               className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-all disabled:opacity-50 ${
-                event.user_joined
-                  ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  : `${cat.bg} ${cat.color} border ${cat.border} hover:shadow-sm`
-              }`}
-            >
+                event.user_joined ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : `${cat.bg} ${cat.color} border ${cat.border} hover:shadow-sm`
+              }`}>
               <Bell className="w-3.5 h-3.5" />
               {event.user_joined ? 'Inscrit ✓' : isFull ? 'Complet' : 'Je participe'}
             </button>
@@ -217,6 +243,208 @@ function EventCard({
             </Link>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Calendrier mensuel style Apple ──────────────────────────────────────────
+const JOURS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const MOIS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+function CalendarView({
+  events, userId, onJoin,
+}: { events: LocalEvent[]; userId?: string; onJoin: (id: string, joined: boolean) => void }) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const [calYear, setCalYear] = useState(today.getFullYear());
+  const [calMonth, setCalMonth] = useState(today.getMonth()); // 0-indexed
+  const [selectedDay, setSelectedDay] = useState<string | null>(null); // 'YYYY-MM-DD'
+
+  // Build days grid (42 cells, Mon-start)
+  const firstOfMonth = new Date(calYear, calMonth, 1);
+  const lastOfMonth = new Date(calYear, calMonth + 1, 0);
+  // Mon=0 ... Sun=6
+  const startDow = (firstOfMonth.getDay() + 6) % 7; // offset to make Mon=0
+  const totalDays = lastOfMonth.getDate();
+  const totalCells = Math.ceil((startDow + totalDays) / 7) * 7;
+
+  // Map date string → events
+  const eventsByDay: Record<string, LocalEvent[]> = {};
+  events.forEach(ev => {
+    if (!eventsByDay[ev.event_date]) eventsByDay[ev.event_date] = [];
+    eventsByDay[ev.event_date].push(ev);
+  });
+
+  const cells: (Date | null)[] = [];
+  for (let i = 0; i < totalCells; i++) {
+    const dayNum = i - startDow + 1;
+    if (dayNum < 1 || dayNum > totalDays) cells.push(null);
+    else cells.push(new Date(calYear, calMonth, dayNum));
+  }
+
+  const prevMonth = () => {
+    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
+    else setCalMonth(m => m - 1);
+    setSelectedDay(null);
+  };
+  const nextMonth = () => {
+    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
+    else setCalMonth(m => m + 1);
+    setSelectedDay(null);
+  };
+
+  const toISO = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  const selectedEvents = selectedDay ? (eventsByDay[selectedDay] ?? []) : [];
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-6">
+      {/* ── Calendrier ── */}
+      <div className="flex-1 min-w-0">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          {/* Header navigation */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <button onClick={prevMonth} className="p-2 rounded-xl hover:bg-gray-100 transition-all text-gray-500">
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <h2 className="text-lg font-black text-gray-900">
+              {MOIS_FR[calMonth]} <span className="text-purple-600">{calYear}</span>
+            </h2>
+            <button onClick={nextMonth} className="p-2 rounded-xl hover:bg-gray-100 transition-all text-gray-500">
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Jours de la semaine */}
+          <div className="grid grid-cols-7 border-b border-gray-100">
+            {JOURS.map(j => (
+              <div key={j} className="py-2 text-center text-xs font-bold text-gray-400 uppercase tracking-wide">
+                {j}
+              </div>
+            ))}
+          </div>
+
+          {/* Grille des jours */}
+          <div className="grid grid-cols-7">
+            {cells.map((date, i) => {
+              if (!date) return <div key={i} className="h-16 sm:h-20 border-b border-r border-gray-50 last:border-r-0 bg-gray-50/30" />;
+              const iso = toISO(date);
+              const dayEvents = eventsByDay[iso] ?? [];
+              const isToday = iso === toISO(today);
+              const isPast = date < today;
+              const isSelected = selectedDay === iso;
+              const isCurrentMonth = true;
+
+              return (
+                <button key={i} onClick={() => setSelectedDay(isSelected ? null : iso)}
+                  className={`h-16 sm:h-20 border-b border-r border-gray-50 last:border-r-0 p-1 sm:p-1.5 text-left transition-all flex flex-col items-start
+                    ${isSelected ? 'bg-purple-50 border-purple-200' : 'hover:bg-gray-50'}
+                    ${i % 7 === 6 ? 'border-r-0' : ''}
+                  `}
+                >
+                  <span className={`w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full text-xs sm:text-sm font-bold mb-1 flex-shrink-0
+                    ${isToday ? 'bg-purple-600 text-white shadow-md' : isPast ? 'text-gray-300' : 'text-gray-700'}
+                    ${isSelected && !isToday ? 'ring-2 ring-purple-400' : ''}
+                  `}>
+                    {date.getDate()}
+                  </span>
+                  {/* Points colorés */}
+                  {dayEvents.length > 0 && (
+                    <div className="flex flex-wrap gap-0.5 mt-auto">
+                      {dayEvents.slice(0, 3).map((ev, ei) => {
+                        const c = getCat(ev.category);
+                        return <span key={ei} className={`w-1.5 h-1.5 rounded-full ${c.dot}`} title={ev.title} />;
+                      })}
+                      {dayEvents.length > 3 && (
+                        <span className="text-[10px] text-gray-400 font-bold leading-none mt-px">+{dayEvents.length - 3}</span>
+                      )}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Légende */}
+          <div className="px-5 py-3 border-t border-gray-100 flex flex-wrap gap-3">
+            {EVENT_CATEGORIES.map(c => (
+              <span key={c.id} className="flex items-center gap-1 text-xs text-gray-500">
+                <span className={`w-2 h-2 rounded-full ${c.dot}`} /> {c.label.split(' ')[0]}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Panel latéral : événements du jour sélectionné ── */}
+      <div className="lg:w-80 xl:w-96 flex-shrink-0">
+        {selectedDay ? (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-black text-gray-900 text-base">
+                {new Date(selectedDay + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^\w/, c => c.toUpperCase())}
+              </h3>
+              <button onClick={() => setSelectedDay(null)} className="text-gray-400 hover:text-gray-600 p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {selectedEvents.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center">
+                <Calendar className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                <p className="text-gray-500 text-sm font-semibold">Aucun événement ce jour</p>
+                <p className="text-gray-400 text-xs mt-1">Vous pouvez en proposer un !</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {selectedEvents.map(ev => (
+                  <EventCard key={ev.id} event={ev} userId={userId} onJoin={onJoin} compact />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          // Prochains événements (liste latérale)
+          <div>
+            <h3 className="font-black text-gray-900 text-base mb-4">Prochains événements</h3>
+            {events.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center">
+                <Calendar className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                <p className="text-gray-500 text-sm">Aucun événement à venir</p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {events.slice(0, 6).map(ev => {
+                  const cat = getCat(ev.category);
+                  const countdown = daysUntil(ev.event_date);
+                  return (
+                    <button key={ev.id} onClick={() => setSelectedDay(ev.event_date)}
+                      className="w-full bg-white rounded-xl border border-gray-100 p-3 text-left hover:border-purple-200 hover:shadow-sm transition-all">
+                      <div className="flex items-start gap-2.5">
+                        <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1 ${cat.dot}`} />
+                        <div className="min-w-0">
+                          <p className="font-bold text-gray-900 text-sm line-clamp-1">{ev.title}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs text-gray-500">{formatEventDate(ev.event_date)}</span>
+                            {countdown && (
+                              <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${countdown.includes('Aujourd') ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
+                                {countdown}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+                {events.length > 6 && (
+                  <p className="text-xs text-gray-400 text-center pt-1">
+                    + {events.length - 6} autres événements ce mois
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -232,7 +460,7 @@ export default function EvenementsPage() {
 
   const [events, setEvents] = useState<LocalEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
-  const [dbReady, setDbReady] = useState(true); // false si tables manquantes
+  const [dbReady, setDbReady] = useState(true);
   const [forumPosts, setForumPosts] = useState<ForumPost[]>([]);
   const [forumCategoryId, setForumCategoryId] = useState<string | null>(null);
   const [loadingForum, setLoadingForum] = useState(false);
@@ -253,23 +481,19 @@ export default function EvenementsPage() {
   const [postForm, setPostForm] = useState({ title: '', content: '' });
   const [submittingPost, setSubmittingPost] = useState(false);
 
-  // ── Fetch events ──────────────────────────────────────────────────────────
+  // ── Fetch all future events (no filter, calendar shows all) ──────────────
   const fetchEvents = useCallback(async () => {
     setLoadingEvents(true);
     try {
       const today = new Date().toISOString().split('T')[0];
-      let query = supabase
+      const { data, error } = await supabase
         .from('local_events')
         .select(`*, author:profiles!local_events_author_id_fkey(full_name, avatar_url), participants:event_participations(count), participants_list:event_participations(user_id, user:profiles!event_participations_user_id_fkey(full_name, avatar_url))`)
         .eq('status', 'active')
         .gte('event_date', today)
         .order('event_date', { ascending: true });
 
-      if (filterCat !== 'all') query = query.eq('category', filterCat);
-
-      const { data, error } = await query;
       if (error) {
-        // Table manquante → code 42P01 ou PGRST116
         if (error.code === '42P01' || error.message?.includes('relation') || error.message?.includes('does not exist')) {
           setDbReady(false);
         }
@@ -278,32 +502,27 @@ export default function EvenementsPage() {
       }
       setDbReady(true);
 
-      let enriched = (data || []).map((e: LocalEvent & { participants?: { count: number }[]; participants_list?: { user_id: string; user?: { full_name: string; avatar_url?: string } }[] }) => ({
+      let enriched = (data || []).map((e: LocalEvent & { participants?: { count: number }[] }) => ({
         ...e,
         participants_count: e.participants?.[0]?.count ?? 0,
-        participants_list: e.participants_list ?? [],
+        participants_list: (e as LocalEvent).participants_list ?? [],
         user_joined: false,
       }));
 
       if (profile && enriched.length > 0) {
         const ids = enriched.map(e => e.id);
         const { data: joins } = await supabase
-          .from('event_participations')
-          .select('event_id')
-          .in('event_id', ids)
-          .eq('user_id', profile.id);
+          .from('event_participations').select('event_id')
+          .in('event_id', ids).eq('user_id', profile.id);
         const joinedSet = new Set((joins || []).map((j: { event_id: string }) => j.event_id));
         enriched = enriched.map(e => ({ ...e, user_joined: joinedSet.has(e.id) }));
       }
 
-      // Fetch cover photos
       if (enriched.length > 0) {
         const ids = enriched.map(e => e.id);
         const { data: photos } = await supabase
-          .from('event_photos')
-          .select('event_id, url, display_order')
-          .in('event_id', ids)
-          .order('display_order', { ascending: true });
+          .from('event_photos').select('event_id, url, display_order')
+          .in('event_id', ids).order('display_order', { ascending: true });
         if (photos && photos.length > 0) {
           const coverMap: Record<string, string> = {};
           (photos as { event_id: string; url: string; display_order: number }[]).forEach(p => {
@@ -319,7 +538,7 @@ export default function EvenementsPage() {
       setDbReady(false);
     }
     setLoadingEvents(false);
-  }, [filterCat, profile]);
+  }, [profile]);
 
   // ── Fetch forum ───────────────────────────────────────────────────────────
   const fetchForum = useCallback(async () => {
@@ -343,7 +562,7 @@ export default function EvenementsPage() {
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
   useEffect(() => { if (activeTab === 'forum') fetchForum(); }, [activeTab, fetchForum]);
 
-  // ── Join / Leave event ────────────────────────────────────────────────────
+  // ── Join / Leave ──────────────────────────────────────────────────────────
   const handleJoin = async (eventId: string, joined: boolean) => {
     if (!profile) { toast.error('Connectez-vous pour participer'); return; }
     if (joined) {
@@ -352,16 +571,15 @@ export default function EvenementsPage() {
     } else {
       const { error } = await supabase.from('event_participations').insert({ event_id: eventId, user_id: profile.id });
       if (error) { toast.error('Erreur lors de l\'inscription'); return; }
-      toast.success('Inscription enregistrée ! Vous serez notifié avant l\'événement.');
+      toast.success('Inscription enregistrée !');
     }
     fetchEvents();
   };
 
-  // ── Photo helpers ──────────────────────────────────────────────────────────
+  // ── Photo helpers ─────────────────────────────────────────────────────────
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
-    const remaining = 5 - eventPhotos.length;
-    const toAdd = files.slice(0, remaining);
+    const toAdd = files.slice(0, 5 - eventPhotos.length);
     setEventPhotos(prev => [...prev, ...toAdd]);
     toAdd.forEach(f => {
       const reader = new FileReader();
@@ -370,7 +588,6 @@ export default function EvenementsPage() {
     });
     if (photoInputRef.current) photoInputRef.current.value = '';
   };
-
   const handlePhotoRemove = (idx: number) => {
     setEventPhotos(prev => prev.filter((_, i) => i !== idx));
     setEventPhotoPreviews(prev => prev.filter((_, i) => i !== idx));
@@ -381,8 +598,7 @@ export default function EvenementsPage() {
     e.preventDefault();
     if (!profile) return;
     if (!newEvent.title.trim() || !newEvent.event_date) {
-      toast.error('Titre et date obligatoires');
-      return;
+      toast.error('Titre et date obligatoires'); return;
     }
     setSubmittingEvent(true);
     const { data: inserted, error } = await supabase.from('local_events').insert({
@@ -401,10 +617,8 @@ export default function EvenementsPage() {
     }).select('id').single();
 
     if (error) {
-      toast.error('Erreur lors de la soumission');
-      console.error(error);
+      toast.error('Erreur lors de la soumission'); console.error(error);
     } else {
-      // Upload photos
       if (eventPhotos.length > 0 && inserted?.id) {
         for (let i = 0; i < eventPhotos.length; i++) {
           const file = eventPhotos[i];
@@ -417,10 +631,9 @@ export default function EvenementsPage() {
           }
         }
       }
-      toast.success('🎉 Événement publié ! Il est maintenant visible dans l\'agenda.', { duration: 4000 });
+      toast.success('🎉 Événement publié ! Visible dans l\'agenda.', { duration: 4000 });
       setNewEvent({ title: '', description: '', event_date: '', event_time: '18:00', location: '', category: 'culture', organizer_name: '', max_participants: '', is_free: true, price: '' });
-      setEventPhotos([]);
-      setEventPhotoPreviews([]);
+      setEventPhotos([]); setEventPhotoPreviews([]);
       setActiveTab('agenda');
       fetchEvents();
     }
@@ -431,26 +644,22 @@ export default function EvenementsPage() {
   const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) { toast.error('Connectez-vous pour poster'); return; }
-    if (!postForm.title.trim() || !postForm.content.trim()) {
-      toast.error('Titre et contenu requis');
-      return;
-    }
+    if (!postForm.title.trim() || !postForm.content.trim()) { toast.error('Titre et contenu requis'); return; }
     setSubmittingPost(true);
     let catId = forumCategoryId;
     if (!catId) {
-      const { data: existing } = await supabase
-        .from('forum_categories').select('id').eq('slug', 'evenements').maybeSingle();
+      const { data: existing } = await supabase.from('forum_categories').select('id').eq('slug', 'evenements').maybeSingle();
       catId = existing?.id ?? null;
       if (catId) setForumCategoryId(catId);
     }
-    if (!catId) { toast.error('Catégorie forum introuvable — la migration SQL doit être exécutée dans Supabase.'); setSubmittingPost(false); return; }
+    if (!catId) { toast.error('Catégorie forum introuvable'); setSubmittingPost(false); return; }
     const { error } = await supabase.from('forum_posts').insert({
       category_id: catId, author_id: profile.id,
       title: postForm.title.trim(), content: postForm.content.trim(),
     });
-    if (error) { console.error(error); toast.error(`Erreur : ${error.message}`); }
+    if (error) { toast.error(`Erreur : ${error.message}`); }
     else {
-      toast.success('🎉 Sujet publié dans le forum des événements !', { duration: 4000 });
+      toast.success('🎉 Sujet publié !', { duration: 4000 });
       setPostForm({ title: '', content: '' });
       setShowPostForm(false);
       fetchForum();
@@ -464,42 +673,38 @@ export default function EvenementsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-white">
 
-      {/* ── BANNER migration DB ── */}
       {!dbReady && (
         <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
           <div className="max-w-7xl mx-auto flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-bold text-amber-800">Tables de base de données manquantes</p>
+              <p className="text-sm font-bold text-amber-800">Tables manquantes</p>
               <p className="text-xs text-amber-700 mt-0.5">
-                Exécutez le fichier <code className="bg-amber-100 px-1 rounded font-mono">src/lib/migration_themes.sql</code> dans votre éditeur SQL Supabase pour activer cette page.
+                Exécutez <code className="bg-amber-100 px-1 rounded font-mono">migration_themes.sql</code> dans Supabase SQL Editor.
               </p>
             </div>
           </div>
         </div>
       )}
+
       {/* ── HERO ── */}
       <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 via-violet-600 to-pink-500 text-white">
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
         <div className="absolute top-0 right-0 w-80 h-80 bg-white/5 rounded-full blur-3xl" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 bg-white/20 rounded-xl">
-                  <PartyPopper className="w-5 h-5" />
-                </div>
+                <div className="p-2 bg-white/20 rounded-xl"><PartyPopper className="w-5 h-5" /></div>
                 <span className="text-purple-100 text-sm font-semibold">Thème · Événements locaux</span>
               </div>
-              <h1 className="text-3xl sm:text-4xl font-black mb-3 leading-tight">
-                🎉 Événements de Biguglia
-              </h1>
-              <p className="text-purple-100 text-base sm:text-lg max-w-xl leading-relaxed">
-                Concerts, matchs, vide-greniers, fêtes de quartier — tout ce qui se passe à Biguglia au même endroit.
+              <h1 className="text-3xl sm:text-4xl font-black mb-2 leading-tight">🎉 Événements de Biguglia</h1>
+              <p className="text-purple-100 text-sm sm:text-base max-w-xl">
+                Concerts, vide-greniers, fêtes de quartier — tout ce qui se passe à Biguglia.
               </p>
-              <div className="flex flex-wrap gap-3 mt-5">
+              <div className="flex flex-wrap gap-3 mt-4">
                 {[
-                  { icon: Calendar, label: `${totalCount} événement${totalCount !== 1 ? 's' : ''}` },
+                  { icon: Calendar, label: `${totalCount} à venir` },
                   { icon: Music,    label: 'Culture & musique' },
                   { icon: Users,    label: 'Fêtes & social' },
                 ].map(({ icon: I, label }) => (
@@ -512,7 +717,7 @@ export default function EvenementsPage() {
             {profile && (
               <button onClick={() => setActiveTab('creer')}
                 className="flex-shrink-0 inline-flex items-center gap-2 bg-white text-purple-700 font-bold px-6 py-3 rounded-2xl hover:bg-purple-50 transition-all shadow-lg hover:-translate-y-0.5">
-                <Plus className="w-4 h-4" /> Créer un événement
+                <Plus className="w-4 h-4" /> Proposer un événement
               </button>
             )}
           </div>
@@ -536,55 +741,15 @@ export default function EvenementsPage() {
           ))}
         </div>
 
-        {/* ── AGENDA ── */}
+        {/* ── AGENDA — Calendrier mensuel ── */}
         {activeTab === 'agenda' && (
           <div>
-            {/* Filtres */}
-            <div className="flex flex-wrap gap-2 mb-6">
-              <button onClick={() => setFilterCat('all')}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${filterCat === 'all' ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-purple-300'}`}>
-                Tout
-              </button>
-              {EVENT_CATEGORIES.map(cat => {
-                const CatIcon = cat.icon;
-                return (
-                  <button key={cat.id} onClick={() => setFilterCat(cat.id)}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
-                      filterCat === cat.id ? `${cat.bg} ${cat.color} ${cat.border} shadow-sm` : 'bg-white text-gray-600 border-gray-200 hover:border-purple-200'
-                    }`}>
-                    <CatIcon className="w-3.5 h-3.5" /> {cat.label.split(' ')[0]}
-                  </button>
-                );
-              })}
-              <button onClick={fetchEvents} className="p-2 border border-gray-200 rounded-xl bg-white text-gray-400 hover:text-purple-600 hover:border-purple-300 transition-all">
-                <RefreshCw className="w-4 h-4" />
-              </button>
-            </div>
-
             {loadingEvents ? (
-              <div className="flex items-center justify-center py-20">
+              <div className="flex items-center justify-center py-24">
                 <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
               </div>
-            ) : filteredEvents.length === 0 ? (
-              <div className="text-center py-20">
-                <Calendar className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-                <p className="text-gray-500 font-semibold text-lg">Aucun événement à venir</p>
-                <p className="text-gray-400 text-sm mt-1 mb-6">
-                  {filterCat !== 'all' ? 'Essayez une autre catégorie ou' : ''} Proposez le premier événement de Biguglia !
-                </p>
-                {profile && (
-                  <button onClick={() => setActiveTab('creer')}
-                    className="inline-flex items-center gap-2 bg-purple-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-purple-700 transition-all">
-                    <Plus className="w-4 h-4" /> Proposer un événement
-                  </button>
-                )}
-              </div>
             ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredEvents.map(event => (
-                  <EventCard key={event.id} event={event} userId={profile?.id} onJoin={handleJoin} />
-                ))}
-              </div>
+              <CalendarView events={events} userId={profile?.id} onJoin={handleJoin} />
             )}
 
             <div className="mt-6 bg-purple-50 border border-purple-200 rounded-2xl p-5 flex items-start gap-4">
@@ -592,15 +757,13 @@ export default function EvenementsPage() {
               <div>
                 <p className="font-bold text-purple-800 mb-1">🔔 Ne ratez aucun événement</p>
                 <p className="text-purple-600 text-sm">
-                  Cliquez sur « Je participe » pour être notifié avant chaque événement.
+                  Cliquez sur un jour puis « Participer » pour être notifié avant l'événement.
                   {!profile && <> <Link href="/inscription" className="underline font-medium">Créez un compte</Link> pour activer les alertes.</>}
                 </p>
               </div>
             </div>
           </div>
         )}
-
-
 
         {/* ── FORUM ── */}
         {activeTab === 'forum' && (
@@ -636,39 +799,28 @@ export default function EvenementsPage() {
                     className="flex items-center gap-2 bg-purple-600 text-white font-bold px-5 py-2 rounded-xl text-sm hover:bg-purple-700 disabled:opacity-50 transition-all">
                     {submittingPost ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Publication...</> : 'Publier'}
                   </button>
-                  <button type="button" onClick={() => setShowPostForm(false)}
-                    className="px-5 py-2 rounded-xl text-sm text-gray-500 hover:bg-gray-100">Annuler</button>
+                  <button type="button" onClick={() => setShowPostForm(false)} className="px-5 py-2 rounded-xl text-sm text-gray-500 hover:bg-gray-100">Annuler</button>
                 </div>
               </form>
             )}
 
             {loadingForum ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-7 h-7 text-purple-400 animate-spin" />
-              </div>
+              <div className="flex items-center justify-center py-12"><Loader2 className="w-7 h-7 text-purple-400 animate-spin" /></div>
             ) : !forumCategoryId && !loadingForum ? (
               <div className="bg-purple-50 border border-purple-200 rounded-2xl p-6 text-center">
                 <AlertCircle className="w-10 h-10 text-purple-300 mx-auto mb-3" />
                 <p className="font-bold text-purple-800 mb-1">Forum temporairement indisponible</p>
-                <p className="text-purple-700 text-sm mb-4">
-                  La catégorie forum &quot;Événements&quot; n&apos;existe pas encore.<br />
-                  Exécutez <code className="bg-purple-100 px-1 rounded font-mono text-xs">migration_themes.sql</code> dans Supabase.
-                </p>
-                {profile && (
-                  <Link href="/forum/nouveau"
-                    className="inline-flex items-center gap-2 bg-purple-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-purple-600 transition-all">
-                    <Plus className="w-4 h-4" /> Poster dans le forum général
-                  </Link>
-                )}
+                <p className="text-purple-700 text-sm">La catégorie forum n&apos;existe pas encore. Exécutez la migration SQL.</p>
               </div>
             ) : forumPosts.length === 0 ? (
-              <div className="text-center py-16">
-                <MessageSquare className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-                <p className="text-gray-500 font-medium">Aucun message pour l'instant</p>
+              <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+                <MessageSquare className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                <p className="font-bold text-gray-500 text-lg">Pas encore de sujets</p>
+                <p className="text-gray-400 text-sm mt-1 mb-4">Lancez la discussion !</p>
                 {profile && (
                   <button onClick={() => setShowPostForm(true)}
-                    className="mt-4 text-purple-600 font-semibold text-sm hover:underline">
-                    Soyez le premier à écrire !
+                    className="inline-flex items-center gap-2 bg-purple-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-purple-700">
+                    <Plus className="w-4 h-4" /> Créer un sujet
                   </button>
                 )}
               </div>
@@ -676,48 +828,42 @@ export default function EvenementsPage() {
               <div className="space-y-3">
                 {forumPosts.map(post => (
                   <Link key={post.id} href={`/forum/${post.id}`}
-                    className="block bg-white rounded-2xl border border-gray-100 p-5 hover:border-purple-200 hover:shadow-sm transition-all">
-                    <h3 className="font-bold text-gray-900 text-sm mb-2 hover:text-purple-700 transition-colors">{post.title}</h3>
-                    <p className="text-gray-500 text-xs mb-3 line-clamp-2">{post.content}</p>
-                    <div className="flex items-center justify-between text-xs text-gray-400">
-                      <span className="flex items-center gap-2">
-                        {post.author && <Avatar src={post.author.avatar_url} name={post.author.full_name} size="xs" />}
-                        {post.author?.full_name ?? 'Membre'} · {formatRelative(post.created_at)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        {(post.comment_count as unknown as { count: number }[])?.[0]?.count ?? 0} réponses
-                      </span>
+                    className="block bg-white rounded-2xl border border-gray-100 p-5 hover:border-purple-200 hover:shadow-sm transition-all group">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-gray-900 text-sm group-hover:text-purple-700 transition-colors line-clamp-1">{post.title}</h3>
+                        <p className="text-gray-500 text-xs mt-1 line-clamp-2">{post.content}</p>
+                        <div className="flex items-center gap-3 mt-2">
+                          <span className="text-xs text-gray-400">
+                            {post.author?.full_name ?? 'Anonyme'} · {formatRelative(post.created_at)}
+                          </span>
+                          {(post.comment_count ?? 0) > 0 && (
+                            <span className="text-xs bg-purple-50 text-purple-600 font-semibold px-2 py-0.5 rounded-full">
+                              {post.comment_count} réponse{(post.comment_count ?? 0) > 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-purple-400 flex-shrink-0 mt-1" />
                     </div>
                   </Link>
                 ))}
               </div>
             )}
-
-            {!profile && (
-              <div className="mt-6 bg-purple-50 border border-purple-200 rounded-2xl p-5 text-center">
-                <p className="text-purple-700 font-medium mb-3">Connectez-vous pour participer aux discussions</p>
-                <Link href="/connexion"
-                  className="inline-flex items-center gap-2 bg-purple-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-purple-700 transition-all">
-                  Se connecter
-                </Link>
-              </div>
-            )}
           </div>
         )}
 
-        {/* ── CRÉER UN ÉVÉNEMENT ── */}
+        {/* ── PROPOSER UN ÉVÉNEMENT ── */}
         {activeTab === 'creer' && (
           <div className="max-w-2xl">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Proposer un événement</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-1">Proposer un événement</h2>
               <p className="text-gray-500 text-sm mb-6">Votre événement sera publié immédiatement et visible dans l&apos;agenda.</p>
 
               {!profile ? (
                 <div className="bg-purple-50 border border-purple-200 rounded-2xl p-6 text-center">
                   <PartyPopper className="w-10 h-10 text-purple-400 mx-auto mb-3" />
                   <p className="text-purple-800 font-bold mb-2">Connectez-vous pour proposer un événement</p>
-                  <p className="text-purple-600 text-sm mb-4">Seuls les membres inscrits peuvent proposer des événements.</p>
                   <Link href="/connexion"
                     className="inline-flex items-center gap-2 bg-purple-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-purple-700 transition-all">
                     Se connecter <ArrowRight className="w-4 h-4" />
@@ -726,7 +872,7 @@ export default function EvenementsPage() {
               ) : (
                 <form onSubmit={handleCreateEvent} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Titre de l'événement *</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Titre *</label>
                     <input type="text" placeholder="Ex: Tournoi de pétanque inter-quartiers" required
                       value={newEvent.title} onChange={e => setNewEvent(f => ({ ...f, title: e.target.value }))}
                       className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
@@ -735,16 +881,14 @@ export default function EvenementsPage() {
                   <div className="grid sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">Date *</label>
-                      <input type="date" required
-                        min={new Date().toISOString().split('T')[0]}
+                      <input type="date" required min={new Date().toISOString().split('T')[0]}
                         value={newEvent.event_date} onChange={e => setNewEvent(f => ({ ...f, event_date: e.target.value }))}
                         className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">Heure</label>
-                      <input type="time"
-                        value={newEvent.event_time} onChange={e => setNewEvent(f => ({ ...f, event_time: e.target.value }))}
+                      <input type="time" value={newEvent.event_time} onChange={e => setNewEvent(f => ({ ...f, event_time: e.target.value }))}
                         className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
                       />
                     </div>
@@ -752,7 +896,7 @@ export default function EvenementsPage() {
                   <div className="grid sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">Lieu</label>
-                      <input type="text" placeholder="Ex: Stade municipal, Place du village..."
+                      <input type="text" placeholder="Ex: Place du village, Stade municipal..."
                         value={newEvent.location} onChange={e => setNewEvent(f => ({ ...f, location: e.target.value }))}
                         className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
                       />
@@ -768,7 +912,7 @@ export default function EvenementsPage() {
                   <div className="grid sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">Organisateur</label>
-                      <input type="text" placeholder="Nom de l'association ou organisateur"
+                      <input type="text" placeholder="Association ou nom de l'organisateur"
                         value={newEvent.organizer_name} onChange={e => setNewEvent(f => ({ ...f, organizer_name: e.target.value }))}
                         className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
                       />
@@ -802,18 +946,18 @@ export default function EvenementsPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">Description</label>
-                    <textarea placeholder="Décrivez l'événement, le programme, les conditions d'inscription..."
+                    <textarea placeholder="Décrivez l'événement, le programme, les conditions d'accès..."
                       rows={4} value={newEvent.description} onChange={e => setNewEvent(f => ({ ...f, description: e.target.value }))}
                       className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-300"
                     />
                   </div>
+
                   {/* ── Photos ── */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                       Photos <span className="text-gray-400 font-normal">(optionnel · max 5)</span>
                     </label>
-                    <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden"
-                      onChange={handlePhotoSelect} />
+                    <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoSelect} />
                     {eventPhotoPreviews.length > 0 && (
                       <div className="flex gap-2 flex-wrap mb-2">
                         {eventPhotoPreviews.map((src, i) => (
@@ -832,19 +976,16 @@ export default function EvenementsPage() {
                       <button type="button" onClick={() => photoInputRef.current?.click()}
                         className="flex items-center gap-2 border-2 border-dashed border-purple-200 text-purple-500 hover:border-purple-400 hover:bg-purple-50 rounded-xl px-4 py-3 text-sm font-medium transition-all w-full justify-center">
                         <ImageIcon className="w-4 h-4" />
-                        {eventPhotos.length === 0 ? 'Ajouter des photos' : `Ajouter une photo (${eventPhotos.length}/5)`}
+                        {eventPhotos.length === 0 ? 'Ajouter des photos' : `Ajouter (${eventPhotos.length}/5)`}
                       </button>
                     )}
                   </div>
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
-                    <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-amber-700">Les événements sont vérifiés par notre équipe avant publication. Merci de ne soumettre que des événements réels à Biguglia ou ses alentours.</p>
-                  </div>
+
                   <button type="submit" disabled={submittingEvent}
                     className="w-full bg-purple-600 text-white font-bold py-3 rounded-xl hover:bg-purple-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
                     {submittingEvent
                       ? <><Loader2 className="w-4 h-4 animate-spin" /> Envoi en cours...</>
-                      : <><PartyPopper className="w-4 h-4" /> Soumettre l'événement</>}
+                      : <><PartyPopper className="w-4 h-4" /> Publier l&apos;événement</>}
                   </button>
                 </form>
               )}
