@@ -101,7 +101,7 @@ const UNIVERS = [
         href: '/perdu-trouve',
         icon: Search,
         label: 'Perdu / Trouvé',
-        desc: 'Retrouvez vos objets perdus',
+        desc: 'Signalez ou retrouvez un objet',
         iconColor: 'text-orange-500',
         iconBg: 'bg-orange-100',
       },
