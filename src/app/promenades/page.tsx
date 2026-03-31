@@ -9,6 +9,7 @@ import {
   MapPin, Clock, Mountain, Camera, MessageSquare, Footprints, TreePine,
   Heart, ChevronRight, Navigation, Compass, Sun, Plus, Users, Eye,
   Map, Leaf, X, Image as ImageIcon, AlertCircle, Loader2, RefreshCw,
+  Send, Pencil, Trash2, Baby, Dog, ParkingSquare, BarChart3,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import toast from 'react-hot-toast';
@@ -50,11 +51,23 @@ type GroupOuting = {
   outing_time: string;
   max_participants: number;
   meeting_point: string | null;
+  parking_info: string | null;
+  difficulty: 'facile' | 'moyen' | 'difficile' | null;
+  kids_friendly: boolean;
+  dogs_allowed: boolean;
   status: string;
   organizer_id: string;
   organizer?: { full_name: string } | null;
   participants_count?: number;
   user_joined?: boolean;
+  cover_photo?: string | null;
+};
+
+type OutingComment = {
+  id: string;
+  content: string;
+  created_at: string;
+  author?: { full_name?: string } | null;
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -153,6 +166,228 @@ function PromenadeCard({
   );
 }
 
+// ─── OutingCard ──────────────────────────────────────────────────────────────
+function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit, onDelete }: {
+  outing: GroupOuting;
+  userId?: string;
+  isOrganizer: boolean;
+  onJoin: (id: string, joined: boolean) => void;
+  onEdit: (o: GroupOuting) => void;
+  onDelete: (id: string) => void;
+}) {
+  const supabaseRef = useRef(createClient());
+  const supabase = supabaseRef.current;
+  const fillPct  = Math.round(((outing.participants_count || 0) / outing.max_participants) * 100);
+  const isFull   = (outing.participants_count || 0) >= outing.max_participants;
+  const dateLabel = new Date(outing.outing_date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+  const diffConf  = outing.difficulty ? DIFF_CONFIG[outing.difficulty] : null;
+
+  const [openChat, setOpenChat]     = useState(false);
+  const [comments, setComments]     = useState<OutingComment[]>([]);
+  const [loadingC, setLoadingC]     = useState(false);
+  const [chatText, setChatText]     = useState('');
+  const [sending,  setSending]      = useState(false);
+  const [chatCount,setChatCount]    = useState<number|null>(null);
+  const [tableOk,  setTableOk]      = useState<boolean|null>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase.from('outing_comments').select('id', { count:'exact', head:true }).eq('outing_id', outing.id)
+      .then(({ count: c, error }) => {
+        if (cancelled) return;
+        if (error) { setTableOk(false); } else { setTableOk(true); setChatCount(c ?? 0); }
+      });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outing.id]);
+
+  const fetchComments = useCallback(async () => {
+    setLoadingC(true);
+    const { data } = await supabase.from('outing_comments')
+      .select('id, content, created_at, author:profiles(full_name)')
+      .eq('outing_id', outing.id).order('created_at', { ascending: true }).limit(50);
+    setComments((data ?? []) as OutingComment[]);
+    setChatCount((data ?? []).length);
+    setLoadingC(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outing.id]);
+
+  const handleOpenChat = () => {
+    const will = !openChat;
+    setOpenChat(will);
+    if (will) { fetchComments(); setTimeout(() => inputRef.current?.focus(), 200); }
+  };
+
+  const handleSend = async () => {
+    if (!chatText.trim() || !userId || sending) return;
+    setSending(true);
+    const { error } = await supabase.from('outing_comments')
+      .insert({ outing_id: outing.id, author_id: userId, content: chatText.trim() });
+    if (!error) { setChatText(''); await fetchComments(); }
+    setSending(false);
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-emerald-100 shadow-sm hover:shadow-md transition-all overflow-hidden">
+      {/* Photo de couverture */}
+      {outing.cover_photo && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={outing.cover_photo} alt={outing.title} className="w-full h-40 object-cover" />
+      )}
+
+      <div className="p-5">
+        {/* Badges haut */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1 capitalize">
+            <Sun className="w-3 h-3" /> {dateLabel} · {outing.outing_time}
+          </span>
+          {diffConf && (
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${diffConf.color}`}>
+              <BarChart3 className="w-3 h-3 inline mr-1" />{diffConf.label}
+            </span>
+          )}
+          {outing.kids_friendly && (
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
+              <Baby className="w-3 h-3 inline mr-1" />Enfants
+            </span>
+          )}
+          {outing.dogs_allowed && (
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+              <Dog className="w-3 h-3 inline mr-1" />Chiens
+            </span>
+          )}
+        </div>
+
+        {/* Titre + actions */}
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h3 className="font-bold text-gray-900 text-base leading-snug">{outing.title}</h3>
+          {isOrganizer && (
+            <div className="flex gap-1 flex-shrink-0">
+              <button onClick={() => onEdit(outing)} className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all">
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+              <button onClick={() => onDelete(outing.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {outing.description && <p className="text-sm text-gray-500 mb-3 leading-relaxed">{outing.description}</p>}
+
+        {/* Infos */}
+        <div className="flex flex-col gap-1 mb-3">
+          {outing.meeting_point && (
+            <p className="text-xs text-gray-500 flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" /> {outing.meeting_point}
+            </p>
+          )}
+          {outing.parking_info && (
+            <p className="text-xs text-gray-500 flex items-center gap-1.5">
+              <ParkingSquare className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" /> {outing.parking_info}
+            </p>
+          )}
+          <p className="text-xs text-gray-400">Organisé par <span className="font-semibold text-gray-600">{outing.organizer?.full_name ?? 'Membre'}</span></p>
+        </div>
+
+        {/* Compteur participants + barre */}
+        <div className="mb-3">
+          <div className="flex items-center justify-between text-xs mb-1">
+            <span className={`font-bold flex items-center gap-1 ${isFull ? 'text-red-500' : 'text-emerald-600'}`}>
+              <Users className="w-3.5 h-3.5" />
+              {outing.participants_count || 0} / {outing.max_participants} participants
+              {isFull && ' · Complet'}
+            </span>
+          </div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full transition-all ${fillPct > 80 ? 'bg-red-400' : fillPct > 50 ? 'bg-amber-400' : 'bg-emerald-400'}`}
+              style={{ width: `${Math.min(fillPct, 100)}%` }} />
+          </div>
+        </div>
+
+        {/* Boutons action */}
+        <div className="flex gap-2 flex-wrap">
+          {userId ? (
+            <button onClick={() => onJoin(outing.id, !!outing.user_joined)}
+              disabled={isFull && !outing.user_joined}
+              className={`inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm transition-all disabled:opacity-50 ${
+                outing.user_joined ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-emerald-500 text-white hover:bg-emerald-600'
+              }`}>
+              <Users className="w-4 h-4" />
+              {outing.user_joined ? '✓ Inscrit — Annuler' : isFull ? 'Complet' : 'Je participe'}
+            </button>
+          ) : (
+            <Link href="/connexion" className="inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm bg-emerald-500 text-white hover:bg-emerald-600 transition-all">
+              <Users className="w-4 h-4" /> Je participe
+            </Link>
+          )}
+
+          {/* Bouton discussion */}
+          {tableOk !== false && (
+            <button onClick={handleOpenChat}
+              className={`inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm transition-all border ${
+                openChat ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+              }`}>
+              <MessageSquare className="w-4 h-4" />
+              Discussion
+              {chatCount !== null && chatCount > 0 && (
+                <span className="bg-emerald-100 text-emerald-700 text-xs font-black px-1.5 py-0.5 rounded-full">{chatCount}</span>
+              )}
+            </button>
+          )}
+        </div>
+
+        {/* Mini-forum */}
+        {openChat && tableOk && (
+          <div className="mt-3 border-t border-gray-100 pt-3 flex flex-col gap-2">
+            {loadingC ? (
+              <div className="flex justify-center py-3"><Loader2 className="w-4 h-4 animate-spin text-gray-300" /></div>
+            ) : comments.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-2 italic">Aucun message — démarrez la discussion !</p>
+            ) : (
+              <div className="flex flex-col gap-2 max-h-52 overflow-y-auto">
+                {comments.map(c => (
+                  <div key={c.id} className="flex items-start gap-2">
+                    <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-black text-white"
+                      style={{ background: 'linear-gradient(135deg,#10b981,#0ea5e9)' }}>
+                      {c.author?.full_name?.[0]?.toUpperCase() ?? '?'}
+                    </div>
+                    <div className="flex-1 bg-gray-50 rounded-lg px-2 py-1.5">
+                      <p className="text-xs font-bold text-gray-700">
+                        {c.author?.full_name ?? 'Anonyme'}
+                        <span className="font-normal text-gray-400 ml-1.5">{formatRelative(c.created_at)}</span>
+                      </p>
+                      <p className="text-xs text-gray-600 mt-0.5 whitespace-pre-wrap break-words">{c.content}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {userId ? (
+              <div className="flex items-end gap-1.5">
+                <textarea ref={inputRef} value={chatText} onChange={e => setChatText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                  placeholder="Votre message… (Entrée pour envoyer)" rows={2}
+                  className="flex-1 text-xs rounded-lg border border-emerald-200 px-2 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-300 bg-white text-gray-700 placeholder-gray-400"
+                />
+                <button onClick={handleSend} disabled={!chatText.trim() || sending}
+                  className="p-2 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-40 transition-all flex-shrink-0">
+                  {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            ) : (
+              <Link href="/connexion" className="text-xs text-center text-emerald-600 font-semibold py-1 hover:underline block">
+                Connectez-vous pour participer →
+              </Link>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Page principale ──────────────────────────────────────────────────────────
 export default function PromenadePage() {
   const { profile } = useAuthStore();
@@ -191,11 +426,17 @@ export default function PromenadePage() {
   const [submittingPost, setSubmittingPost] = useState(false);
 
   // New outing form
-  const [showOutingForm, setShowOutingForm] = useState(false);
+  const [showOutingForm, setShowOutingForm]   = useState(false);
+  const [editingOuting,  setEditingOuting]    = useState<GroupOuting | null>(null);
   const [outingForm, setOutingForm] = useState({
     title: '', description: '', outing_date: '', outing_time: '09:00',
     max_participants: '10', meeting_point: '',
+    parking_info: '', difficulty: 'facile' as 'facile'|'moyen'|'difficile',
+    kids_friendly: false, dogs_allowed: false,
   });
+  const [outingPhotos,   setOutingPhotos]     = useState<File[]>([]);
+  const [outingPreviews, setOutingPreviews]   = useState<string[]>([]);
+  const outingPhotoRef = useRef<HTMLInputElement>(null);
   const [submittingOuting, setSubmittingOuting] = useState(false);
 
   // ── Fetch promenades ──────────────────────────────────────────────────────
@@ -288,20 +529,33 @@ export default function PromenadePage() {
       .in('status', ['open', 'full'])
       .gte('outing_date', new Date().toISOString().split('T')[0])
       .order('outing_date', { ascending: true })
-      .limit(10);
+      .limit(20);
     const enriched = (data || []).map((o: GroupOuting & { participants?: { count: number }[] }) => ({
       ...o,
       participants_count: o.participants?.[0]?.count ?? 0,
       user_joined: false,
     }));
-    // Check joins
+
+    // Load cover photos from outing_photos
+    if (enriched.length > 0) {
+      const ids = enriched.map(o => o.id);
+      const { data: photos } = await supabase
+        .from('outing_photos')
+        .select('outing_id, url, display_order')
+        .in('outing_id', ids)
+        .order('display_order', { ascending: true });
+      const photoMap: Record<string, string> = {};
+      (photos || []).forEach((p: { outing_id: string; url: string }) => {
+        if (!photoMap[p.outing_id]) photoMap[p.outing_id] = p.url;
+      });
+      enriched.forEach(o => { o.cover_photo = photoMap[o.id] ?? null; });
+    }
+
     if (profile && enriched.length > 0) {
       const ids = enriched.map(o => o.id);
       const { data: joins } = await supabase
-        .from('outing_participants')
-        .select('outing_id')
-        .in('outing_id', ids)
-        .eq('user_id', profile.id);
+        .from('outing_participants').select('outing_id')
+        .in('outing_id', ids).eq('user_id', profile.id);
       const joinedSet = new Set((joins || []).map((j: { outing_id: string }) => j.outing_id));
       setOutings(enriched.map(o => ({ ...o, user_joined: joinedSet.has(o.id) })));
     } else {
@@ -427,16 +681,55 @@ export default function PromenadePage() {
     setSubmittingPost(false);
   };
 
+  // ── Helpers photo outing ─────────────────────────────────────────────────
+  const handleOutingPhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const toAdd = files.slice(0, 3 - outingPhotos.length);
+    setOutingPhotos(prev => [...prev, ...toAdd]);
+    toAdd.forEach(f => {
+      const reader = new FileReader();
+      reader.onload = ev => setOutingPreviews(prev => [...prev, ev.target?.result as string]);
+      reader.readAsDataURL(f);
+    });
+  };
+  const removeOutingPhoto = (i: number) => {
+    setOutingPhotos(p => p.filter((_, idx) => idx !== i));
+    setOutingPreviews(p => p.filter((_, idx) => idx !== i));
+  };
+  const resetOutingForm = () => {
+    setOutingForm({ title:'', description:'', outing_date:'', outing_time:'09:00', max_participants:'10', meeting_point:'', parking_info:'', difficulty:'facile', kids_friendly:false, dogs_allowed:false });
+    setOutingPhotos([]); setOutingPreviews([]);
+    setEditingOuting(null); setShowOutingForm(false);
+  };
+  const startEditOuting = (o: GroupOuting) => {
+    setEditingOuting(o);
+    setOutingForm({
+      title: o.title, description: o.description||'', outing_date: o.outing_date,
+      outing_time: o.outing_time, max_participants: String(o.max_participants),
+      meeting_point: o.meeting_point||'', parking_info: o.parking_info||'',
+      difficulty: o.difficulty||'facile', kids_friendly: o.kids_friendly||false,
+      dogs_allowed: o.dogs_allowed||false,
+    });
+    setOutingPhotos([]); setOutingPreviews([]);
+    setShowOutingForm(true);
+    setTimeout(() => window.scrollTo({ top: 0, behavior:'smooth' }), 100);
+  };
+  const handleDeleteOuting = async (id: string) => {
+    if (!confirm('Supprimer cette sortie ?')) return;
+    await supabase.from('group_outings').delete().eq('id', id);
+    toast.success('Sortie supprimée');
+    fetchOutings();
+  };
+
   // ── Submit outing ─────────────────────────────────────────────────────────
   const handleOutingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
     if (!outingForm.title.trim() || !outingForm.outing_date) {
-      toast.error('Titre et date obligatoires');
-      return;
+      toast.error('Titre et date obligatoires'); return;
     }
     setSubmittingOuting(true);
-    const { error } = await supabase.from('group_outings').insert({
+    const payload = {
       organizer_id: profile.id,
       title: outingForm.title.trim(),
       description: outingForm.description.trim() || null,
@@ -444,16 +737,38 @@ export default function PromenadePage() {
       outing_time: outingForm.outing_time,
       max_participants: parseInt(outingForm.max_participants) || 10,
       meeting_point: outingForm.meeting_point.trim() || null,
-    });
-    if (error) {
-      toast.error('Erreur lors de la création');
-      console.error(error);
+      parking_info: outingForm.parking_info.trim() || null,
+      difficulty: outingForm.difficulty,
+      kids_friendly: outingForm.kids_friendly,
+      dogs_allowed: outingForm.dogs_allowed,
+    };
+    let outingId: string | null = null;
+    if (editingOuting) {
+      const { error } = await supabase.from('group_outings').update(payload).eq('id', editingOuting.id);
+      if (error) { toast.error('Erreur modification'); console.error(error); setSubmittingOuting(false); return; }
+      outingId = editingOuting.id;
+      toast.success('Sortie modifiée ✓');
     } else {
+      const { data: inserted, error } = await supabase.from('group_outings').insert(payload).select('id').single();
+      if (error) { toast.error('Erreur création'); console.error(error); setSubmittingOuting(false); return; }
+      outingId = inserted?.id ?? null;
       toast.success('🥾 Sortie créée ! Les participants pourront s\'inscrire.', { duration: 4000 });
-      setOutingForm({ title: '', description: '', outing_date: '', outing_time: '09:00', max_participants: '10', meeting_point: '' });
-      setShowOutingForm(false);
-      fetchOutings();
     }
+    // Upload photos
+    if (outingPhotos.length > 0 && outingId) {
+      for (let i = 0; i < outingPhotos.length; i++) {
+        const file = outingPhotos[i];
+        const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
+        const path = `outings/${outingId}/${Date.now()}_${i}.${ext}`;
+        const { data: up } = await supabase.storage.from('photos').upload(path, file, { upsert: true, contentType: file.type });
+        if (up?.path) {
+          const { data: u } = supabase.storage.from('photos').getPublicUrl(up.path);
+          await supabase.from('outing_photos').insert({ outing_id: outingId, url: u.publicUrl, display_order: i });
+        }
+      }
+    }
+    resetOutingForm();
+    fetchOutings();
     setSubmittingOuting(false);
   };
 
@@ -659,27 +974,27 @@ export default function PromenadePage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-gray-900">Sorties groupées & rendez-vous nature</h2>
               {profile && (
-                <button onClick={() => setShowOutingForm(!showOutingForm)}
+                <button onClick={() => { resetOutingForm(); setShowOutingForm(!showOutingForm); }}
                   className="inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 transition-all">
-                  <Plus className="w-4 h-4" /> Créer une sortie
+                  <Plus className="w-4 h-4" /> {showOutingForm ? 'Annuler' : 'Créer une sortie'}
                 </button>
               )}
             </div>
 
-            {/* Formulaire sortie */}
+            {/* ── Formulaire sortie ── */}
             {showOutingForm && profile && (
               <form onSubmit={handleOutingSubmit} className="bg-white rounded-2xl border border-emerald-200 p-5 mb-6 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-gray-800">Organiser une sortie</h3>
-                  <button type="button" onClick={() => setShowOutingForm(false)} className="text-gray-400 hover:text-gray-600">
-                    <X className="w-4 h-4" />
-                  </button>
+                  <h3 className="font-bold text-gray-800">{editingOuting ? '✏️ Modifier la sortie' : '🥾 Organiser une sortie'}</h3>
+                  <button type="button" onClick={resetOutingForm} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
                 </div>
                 <div className="space-y-3">
+                  {/* Titre */}
                   <input type="text" placeholder="Titre de la sortie *" required
                     value={outingForm.title} onChange={e => setOutingForm(f => ({ ...f, title: e.target.value }))}
                     className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
                   />
+                  {/* Date + Heure */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 mb-1">Date *</label>
@@ -697,36 +1012,100 @@ export default function PromenadePage() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <input type="text" placeholder="Point de rendez-vous"
-                      value={outingForm.meeting_point} onChange={e => setOutingForm(f => ({ ...f, meeting_point: e.target.value }))}
-                      className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                    />
-                    <input type="number" placeholder="Nb max participants" min="2" max="100"
+                  {/* Difficulté */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Niveau de difficulté</label>
+                    <div className="flex gap-2">
+                      {(['facile','moyen','difficile'] as const).map(d => (
+                        <button key={d} type="button"
+                          onClick={() => setOutingForm(f => ({ ...f, difficulty: d }))}
+                          className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${
+                            outingForm.difficulty === d
+                              ? d === 'facile' ? 'bg-emerald-500 text-white border-emerald-500'
+                                : d === 'moyen' ? 'bg-amber-400 text-white border-amber-400'
+                                : 'bg-red-500 text-white border-red-500'
+                              : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                          }`}>
+                          {d === 'facile' ? '🟢 Facile' : d === 'moyen' ? '🟡 Moyen' : '🔴 Difficile'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {/* RDV + Parking */}
+                  <input type="text" placeholder="Point de rendez-vous"
+                    value={outingForm.meeting_point} onChange={e => setOutingForm(f => ({ ...f, meeting_point: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                  />
+                  <input type="text" placeholder="🅿️ Parking / accès (ex: parking gratuit route forestière)"
+                    value={outingForm.parking_info} onChange={e => setOutingForm(f => ({ ...f, parking_info: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                  />
+                  {/* Nb participants */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Nombre max de participants</label>
+                    <input type="number" min="2" max="100"
                       value={outingForm.max_participants} onChange={e => setOutingForm(f => ({ ...f, max_participants: e.target.value }))}
-                      className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
                     />
                   </div>
-                  <textarea placeholder="Description (optionnel)"
-                    rows={2} value={outingForm.description} onChange={e => setOutingForm(f => ({ ...f, description: e.target.value }))}
+                  {/* Options */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-2">Options</label>
+                    <div className="flex gap-3 flex-wrap">
+                      <button type="button"
+                        onClick={() => setOutingForm(f => ({ ...f, kids_friendly: !f.kids_friendly }))}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${outingForm.kids_friendly ? 'bg-sky-100 text-sky-700 border-sky-300' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}>
+                        <Baby className="w-4 h-4" /> Enfants / poussette
+                      </button>
+                      <button type="button"
+                        onClick={() => setOutingForm(f => ({ ...f, dogs_allowed: !f.dogs_allowed }))}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${outingForm.dogs_allowed ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}>
+                        <Dog className="w-4 h-4" /> Chiens acceptés
+                      </button>
+                    </div>
+                  </div>
+                  {/* Description */}
+                  <textarea placeholder="Description (itinéraire, conseils, équipement conseillé…)"
+                    rows={3} value={outingForm.description} onChange={e => setOutingForm(f => ({ ...f, description: e.target.value }))}
                     className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-300"
                   />
+                  {/* Photos */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-2">Photos (max 3)</label>
+                    <div className="flex gap-2 flex-wrap">
+                      {outingPreviews.map((src, i) => (
+                        <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={src} alt="" className="w-full h-full object-cover" />
+                          <button type="button" onClick={() => removeOutingPhoto(i)}
+                            className="absolute top-1 right-1 bg-black/50 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-black/70">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                      {outingPhotos.length < 3 && (
+                        <button type="button" onClick={() => outingPhotoRef.current?.click()}
+                          className="w-20 h-20 rounded-xl border-2 border-dashed border-emerald-300 flex flex-col items-center justify-center text-emerald-400 hover:bg-emerald-50 transition-all">
+                          <Camera className="w-5 h-5" />
+                          <span className="text-xs mt-1">Photo</span>
+                        </button>
+                      )}
+                    </div>
+                    <input ref={outingPhotoRef} type="file" accept="image/*" multiple className="hidden" onChange={handleOutingPhotoSelect} />
+                  </div>
                 </div>
-                <div className="flex gap-2 mt-3">
+                <div className="flex gap-2 mt-4">
                   <button type="submit" disabled={submittingOuting}
                     className="flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 disabled:opacity-50 transition-all">
-                    {submittingOuting ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Création...</> : 'Créer la sortie'}
+                    {submittingOuting ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {editingOuting ? 'Modification...' : 'Création...'}</> : editingOuting ? '✓ Enregistrer' : '🥾 Créer la sortie'}
                   </button>
-                  <button type="button" onClick={() => setShowOutingForm(false)}
-                    className="px-5 py-2.5 rounded-xl text-sm text-gray-500 hover:bg-gray-100">Annuler</button>
+                  <button type="button" onClick={resetOutingForm} className="px-5 py-2.5 rounded-xl text-sm text-gray-500 hover:bg-gray-100">Annuler</button>
                 </div>
               </form>
             )}
 
             {loadingOutings ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-7 h-7 text-emerald-400 animate-spin" />
-              </div>
+              <div className="flex items-center justify-center py-12"><Loader2 className="w-7 h-7 text-emerald-400 animate-spin" /></div>
             ) : outings.length === 0 ? (
               <div className="text-center py-16">
                 <Users className="w-10 h-10 text-gray-200 mx-auto mb-3" />
@@ -744,52 +1123,17 @@ export default function PromenadePage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {outings.map(outing => {
-                  const fillPct = Math.round(((outing.participants_count || 0) / outing.max_participants) * 100);
-                  const isFull = (outing.participants_count || 0) >= outing.max_participants;
-                  const d = new Date(outing.outing_date);
-                  const dateLabel = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-                  return (
-                    <div key={outing.id} className="bg-white rounded-2xl border border-emerald-100 p-5 hover:shadow-md transition-all">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1">
-                          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1 mb-3 capitalize">
-                            <Sun className="w-3 h-3" /> {dateLabel} · {outing.outing_time}
-                          </div>
-                          <h3 className="font-bold text-gray-900 mb-1">{outing.title}</h3>
-                          {outing.description && <p className="text-sm text-gray-500 mb-1">{outing.description}</p>}
-                          {outing.meeting_point && (
-                            <p className="text-xs text-gray-500 flex items-center gap-1">
-                              <MapPin className="w-3 h-3 text-emerald-500" /> {outing.meeting_point}
-                            </p>
-                          )}
-                          <p className="text-sm text-gray-500 mt-1">Organisé par <span className="font-medium text-gray-700">{outing.organizer?.full_name ?? 'Membre'}</span></p>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <div className="text-xs text-gray-500 mb-1">{outing.participants_count || 0}/{outing.max_participants}</div>
-                          <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full ${fillPct > 80 ? 'bg-red-400' : 'bg-emerald-400'}`} style={{ width: `${fillPct}%` }} />
-                          </div>
-                          {isFull && <span className="text-xs text-red-500 font-bold mt-1 block">Complet</span>}
-                        </div>
-                      </div>
-                      {profile && (
-                        <button
-                          onClick={() => handleJoinOuting(outing.id, !!outing.user_joined)}
-                          disabled={isFull && !outing.user_joined}
-                          className={`mt-3 inline-flex items-center gap-2 font-semibold px-4 py-2 rounded-xl text-sm transition-all disabled:opacity-50 ${
-                            outing.user_joined
-                              ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                              : 'bg-emerald-500 text-white hover:bg-emerald-600'
-                          }`}
-                        >
-                          <Users className="w-4 h-4" />
-                          {outing.user_joined ? 'Annuler mon inscription' : isFull ? 'Complet' : 'Je participe'}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
+                {outings.map(outing => (
+                  <OutingCard
+                    key={outing.id}
+                    outing={outing}
+                    userId={profile?.id}
+                    isOrganizer={profile?.id === outing.organizer_id}
+                    onJoin={handleJoinOuting}
+                    onEdit={startEditOuting}
+                    onDelete={handleDeleteOuting}
+                  />
+                ))}
               </div>
             )}
 

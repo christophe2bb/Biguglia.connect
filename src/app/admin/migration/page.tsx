@@ -51,10 +51,57 @@ CREATE TABLE IF NOT EXISTS group_outings (
   outing_time TEXT NOT NULL DEFAULT '09:00',
   max_participants INT NOT NULL DEFAULT 10,
   meeting_point TEXT,
+  parking_info TEXT,
+  difficulty TEXT CHECK (difficulty IN ('facile', 'moyen', 'difficile')),
+  kids_friendly BOOLEAN NOT NULL DEFAULT false,
+  dogs_allowed BOOLEAN NOT NULL DEFAULT false,
   status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'full', 'cancelled', 'done')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Add missing columns if table already exists
+ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS parking_info TEXT;
+ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS difficulty TEXT CHECK (difficulty IN ('facile', 'moyen', 'difficile'));
+ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS kids_friendly BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS dogs_allowed BOOLEAN NOT NULL DEFAULT false;
+
+CREATE TABLE IF NOT EXISTS outing_comments (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  outing_id UUID REFERENCES group_outings(id) ON DELETE CASCADE NOT NULL,
+  author_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE outing_comments ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='outing_comments' AND policyname='outing_comments_select') THEN
+    CREATE POLICY "outing_comments_select" ON outing_comments FOR SELECT USING (true);
+    CREATE POLICY "outing_comments_insert" ON outing_comments FOR INSERT WITH CHECK (auth.uid() = author_id);
+    CREATE POLICY "outing_comments_delete" ON outing_comments FOR DELETE USING (
+      auth.uid() = author_id
+      OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+    );
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS outing_photos (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  outing_id UUID REFERENCES group_outings(id) ON DELETE CASCADE NOT NULL,
+  url TEXT NOT NULL,
+  display_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE outing_photos ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='outing_photos' AND policyname='outing_photos_select') THEN
+    CREATE POLICY "outing_photos_select" ON outing_photos FOR SELECT USING (true);
+    CREATE POLICY "outing_photos_insert" ON outing_photos FOR INSERT WITH CHECK (
+      EXISTS (SELECT 1 FROM group_outings WHERE id = outing_id AND organizer_id = auth.uid()));
+    CREATE POLICY "outing_photos_delete" ON outing_photos FOR DELETE USING (
+      EXISTS (SELECT 1 FROM group_outings WHERE id = outing_id AND organizer_id = auth.uid()));
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS outing_participants (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   outing_id UUID REFERENCES group_outings(id) ON DELETE CASCADE NOT NULL,
@@ -307,6 +354,8 @@ const TABLES_TO_CHECK = [
   { name: 'collection_items',      label: 'Annonces collections',    theme: '🏆 Collectionneurs' },
   { name: 'promenades',            label: 'Promenades',              theme: '🌿 Promenades' },
   { name: 'group_outings',         label: 'Sorties groupées',        theme: '🌿 Promenades' },
+  { name: 'outing_comments',       label: 'Commentaires sorties',    theme: '🌿 Promenades' },
+  { name: 'outing_photos',         label: 'Photos sorties',          theme: '🌿 Promenades' },
   { name: 'local_events',          label: 'Événements locaux',       theme: '🎉 Événements' },
   { name: 'event_participations',  label: 'Participations',          theme: '🎉 Événements' },
   { name: 'event_photos',          label: 'Photos événements',       theme: '🎉 Événements' },
