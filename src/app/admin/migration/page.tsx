@@ -527,6 +527,56 @@ DO $$ BEGIN
 END $$;
 
 -- ============================================================
+-- SYSTÈME DE MODÉRATION — Enrichissement table reports
+-- ============================================================
+
+-- Ajout colonnes enrichies sur reports
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS target_title    text;
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS reviewed_at     timestamptz;
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS reviewed_by     uuid REFERENCES profiles(id);
+
+-- Index pour performance
+CREATE INDEX IF NOT EXISTS reports_status_idx        ON reports(status);
+CREATE INDEX IF NOT EXISTS reports_target_type_idx   ON reports(target_type);
+CREATE INDEX IF NOT EXISTS reports_target_id_idx     ON reports(target_id);
+
+-- Contrainte unicité : 1 signalement par user/contenu
+CREATE UNIQUE INDEX IF NOT EXISTS reports_unique_reporter_target
+  ON reports(reporter_id, target_type, target_id)
+  WHERE status = 'pending';
+
+-- Ajout colonnes sur profiles pour réputation
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS publication_count  int DEFAULT 0;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS reports_received   int DEFAULT 0;
+
+-- File de modération des premiers posts
+CREATE TABLE IF NOT EXISTS moderation_queue (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  author_id    uuid REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  content_type text NOT NULL,   -- 'forum_post', 'listing', 'help_request', etc.
+  content_id   uuid NOT NULL,
+  content_title text,
+  status       text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+  reviewed_by  uuid REFERENCES profiles(id),
+  reviewed_at  timestamptz,
+  reject_reason text,
+  created_at   timestamptz DEFAULT now()
+);
+
+ALTER TABLE moderation_queue ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='moderation_queue' AND policyname='moderation_queue_select') THEN
+    CREATE POLICY "moderation_queue_select" ON moderation_queue FOR SELECT
+      USING (auth.uid() = author_id OR EXISTS(SELECT 1 FROM profiles WHERE id=auth.uid() AND role IN ('admin','moderator')));
+    CREATE POLICY "moderation_queue_insert" ON moderation_queue FOR INSERT
+      WITH CHECK (auth.uid() = author_id);
+    CREATE POLICY "moderation_queue_update" ON moderation_queue FOR UPDATE
+      USING (EXISTS(SELECT 1 FROM profiles WHERE id=auth.uid() AND role IN ('admin','moderator')));
+  END IF;
+END $$;
+
+-- ============================================================
 -- COUPS DE MAIN ENTRE VOISINS
 -- ============================================================
 
@@ -693,6 +743,7 @@ const TABLES_TO_CHECK = [
   { name: 'help_requests',         label: 'Coups de main',            theme: '🤝 Coups de main' },
   { name: 'help_photos',           label: 'Photos coups de main',     theme: '🤝 Coups de main' },
   { name: 'help_comments',         label: 'Commentaires coups de main', theme: '🤝 Coups de main' },
+  { name: 'moderation_queue',      label: 'File de modération',       theme: '🛡️ Modération' },
 ];
 
 type TableStatus = { name: string; exists: boolean };

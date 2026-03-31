@@ -15,6 +15,8 @@ import {
   Pause, Play, Check, Camera,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ReportButton from '@/components/ui/ReportButton';
+import GlobalTrustBadge from '@/components/ui/TrustBadge';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type HelpType = 'demande' | 'offre' | 'echange';
@@ -137,13 +139,18 @@ function getDisplayName(author: HelpRequest['author'], mode: DisplayName): strin
   return author.full_name;
 }
 
-function TrustBadge({ author }: { author: HelpRequest['author'] }) {
-  const isNew = author?.created_at
-    ? (Date.now() - new Date(author.created_at).getTime()) < 30 * 24 * 3600 * 1000
-    : false;
-  return isNew
-    ? <span className="text-xs bg-sky-50 text-sky-600 border border-sky-200 px-2 py-0.5 rounded-full">🌱 Nouveau membre</span>
-    : <span className="text-xs bg-emerald-50 text-emerald-600 border border-emerald-200 px-2 py-0.5 rounded-full">✅ Profil vérifié</span>;
+function LocalTrustBadge({ author }: { author: HelpRequest['author'] }) {
+  if (!author?.created_at) return null;
+  return (
+    <GlobalTrustBadge
+      profile={{
+        created_at: author.created_at,
+        role: 'resident',
+        avatar_url: (author as { full_name: string; avatar_url?: string; created_at?: string }).avatar_url,
+      }}
+      variant="mini"
+    />
+  );
 }
 
 // ─── HelpCard ─────────────────────────────────────────────────────────────────
@@ -293,7 +300,7 @@ function HelpCard({
             {getDisplayName(item.author, item.display_name)[0]?.toUpperCase() ?? '?'}
           </div>
           <span className="text-xs font-semibold text-gray-700">{getDisplayName(item.author, item.display_name)}</span>
-          <TrustBadge author={item.author} />
+          <LocalTrustBadge author={item.author} />
           <span className="ml-auto text-xs text-gray-400">{formatRelative(item.created_at)}</span>
         </div>
 
@@ -393,7 +400,11 @@ function HelpCard({
           </button>
 
           {/* Partager */}
-          <div ref={shareRef} className="relative ml-auto">
+          <div ref={shareRef} className="relative ml-auto flex items-center gap-1">
+            {/* Signaler */}
+            {userId && !isAuthor && (
+              <ReportButton targetType="help_request" targetId={item.id} targetTitle={item.title} variant="mini" />
+            )}
             <button type="button" onClick={() => setOpenShare(!openShare)}
               className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
               <Share2 className="w-4 h-4" />

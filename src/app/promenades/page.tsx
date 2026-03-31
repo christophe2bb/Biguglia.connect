@@ -12,6 +12,7 @@ import {
   Send, Pencil, Trash2, Baby, Dog, ParkingSquare, BarChart3,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
+import ReportButton from '@/components/ui/ReportButton';
 import toast from 'react-hot-toast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -355,6 +356,11 @@ function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit, onDelete }: {
                 <span className="bg-emerald-100 text-emerald-700 text-xs font-black px-1.5 py-0.5 rounded-full">{chatCount}</span>
               )}
             </button>
+          )}
+
+          {/* Bouton signaler */}
+          {userId && !isOrganizer && (
+            <ReportButton targetType="outing" targetId={outing.id} targetTitle={outing.title} variant="mini" />
           )}
         </div>
 
