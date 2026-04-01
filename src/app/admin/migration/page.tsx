@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon } from 'lucide-react';
+import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon, Zap } from 'lucide-react';
 
 // ─── SQL complet à copier-coller dans Supabase SQL Editor ─────────────────────
 const MIGRATION_SQL = `-- ============================================================
@@ -676,6 +676,71 @@ END $$;
 -- Recharge le cache PostgREST (OBLIGATOIRE après création de tables)
 NOTIFY pgrst, 'reload schema';`;
 
+// ─── SQL Realtime instantané ───────────────────────────────────────────────────
+const REALTIME_SQL = `-- ============================================================
+-- BIGUGLIA CONNECT — Activation Realtime instantané (v2)
+-- Coller dans Supabase > SQL Editor > New query > Run
+-- ============================================================
+
+-- 1. REPLICA IDENTITY FULL (pour que UPDATE transmette la ligne complète)
+ALTER TABLE messages                  REPLICA IDENTITY FULL;
+ALTER TABLE notifications             REPLICA IDENTITY FULL;
+ALTER TABLE conversation_participants REPLICA IDENTITY FULL;
+ALTER TABLE conversations             REPLICA IDENTITY FULL;
+
+-- 2. Ajouter les tables à la publication Realtime
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'messages') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'notifications') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'conversation_participants') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE conversation_participants;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'conversations') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE conversations;
+  END IF;
+END $$;
+
+-- 3. Corriger les politiques RLS pour Realtime
+--    Supabase Realtime ne peut pas évaluer les JOIN dans les policies SELECT.
+--    On remplace la policy messages par une version sans JOIN.
+
+-- Supprimer l'ancienne policy messages
+DROP POLICY IF EXISTS "Voir messages de ses conversations" ON messages;
+
+-- Nouvelle policy : utilise sender_id + conversation_id via sous-requête simple
+CREATE POLICY "Voir messages de ses conversations" ON messages
+  FOR SELECT USING (
+    sender_id = auth.uid()
+    OR EXISTS (
+      SELECT 1 FROM conversation_participants cp
+      WHERE cp.conversation_id = messages.conversation_id
+        AND cp.user_id = auth.uid()
+    )
+  );
+
+-- Supprimer et recréer la policy conversation_participants pour Realtime
+DROP POLICY IF EXISTS "Voir participants de ses conversations" ON conversation_participants;
+
+CREATE POLICY "Voir participants de ses conversations" ON conversation_participants
+  FOR SELECT USING (
+    user_id = auth.uid()
+    OR EXISTS (
+      SELECT 1 FROM conversation_participants cp2
+      WHERE cp2.conversation_id = conversation_participants.conversation_id
+        AND cp2.user_id = auth.uid()
+    )
+  );
+
+-- 4. Vérification (doit retourner 4 lignes)
+SELECT tablename FROM pg_publication_tables
+WHERE pubname = 'supabase_realtime'
+  AND tablename IN ('messages','notifications','conversation_participants','conversations')
+ORDER BY tablename;`;
+
 // ─── SQL Bucket Storage (à exécuter dans Supabase SQL Editor) ─────────────────
 const BUCKET_SQL = `-- ============================================================
 -- BIGUGLIA CONNECT — Création bucket Storage "photos"
@@ -773,9 +838,10 @@ export default function MigrationPage() {
 
   const [checking, setChecking]       = useState(true);
   const [tables,   setTables]         = useState<TableStatus[]>([]);
-  const [copied,   setCopied]         = useState(false);
+  const [copied,       setCopied]       = useState(false);
   const [copiedNotify, setCopiedNotify] = useState(false);
   const [copiedBucket, setCopiedBucket] = useState(false);
+  const [copiedRealtime, setCopiedRealtime] = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -921,6 +987,13 @@ export default function MigrationPage() {
     });
   };
 
+  const handleCopyRealtime = () => {
+    navigator.clipboard.writeText(REALTIME_SQL).then(() => {
+      setCopiedRealtime(true);
+      setTimeout(() => setCopiedRealtime(false), 4000);
+    });
+  };
+
   const allOk       = tables.length > 0 && tables.every(t => t.exists);
   const missingCount = tables.filter(t => !t.exists).length;
 
@@ -1063,6 +1136,59 @@ export default function MigrationPage() {
             }`}>
             {copiedNotify ? <><Check className="w-3 h-3" /> Copié !</> : <><Copy className="w-3 h-3" /> Copier</>}
           </button>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          SECTION REALTIME — MESSAGES & NOTIFICATIONS INSTANTANÉS
+      ══════════════════════════════════════════════════════════════ */}
+      <div className="flex items-center gap-3 mb-4 mt-8">
+        <div className="p-3 bg-emerald-100 rounded-2xl">
+          <Zap className="w-6 h-6 text-emerald-600" />
+        </div>
+        <div>
+          <h2 className="text-xl font-black text-gray-900">Realtime — Messages & Notifications</h2>
+          <p className="text-gray-500 text-sm">Active les notifications et messages instantanés</p>
+        </div>
+      </div>
+
+      <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-5 mb-4">
+        <div className="flex items-start gap-3 mb-3">
+          <span className="text-2xl flex-shrink-0">⚡</span>
+          <div>
+            <p className="font-bold text-red-800 text-sm">
+              À exécuter si les messages ou notifications n&apos;arrivent pas en temps réel
+            </p>
+            <p className="text-red-700 text-xs mt-1">
+              Sans cette migration, Supabase ne diffuse pas les nouveaux messages ni les notifications.
+              Les tables doivent être ajoutées à la publication <code className="bg-red-100 px-1 rounded">supabase_realtime</code>.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={handleCopyRealtime}
+          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-all ${
+            copiedRealtime ? 'bg-emerald-500 text-white' : 'bg-red-600 text-white hover:bg-red-700'
+          }`}
+        >
+          {copiedRealtime
+            ? <><Check className="w-4 h-4" /> SQL copié ! Collez dans Supabase SQL Editor</>
+            : <><Copy className="w-4 h-4" /> Copier le SQL Realtime</>
+          }
+        </button>
+        <div className="mt-3 bg-gray-900 rounded-xl p-4 overflow-x-auto">
+          <pre className="text-xs text-green-400 font-mono leading-relaxed whitespace-pre-wrap">{REALTIME_SQL}</pre>
+        </div>
+        <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
+          <p className="text-xs text-amber-800 font-bold">📋 Instructions :</p>
+          <ol className="text-xs text-amber-700 mt-1 space-y-1 list-decimal list-inside">
+            <li>Copiez le SQL ci-dessus</li>
+            <li>Allez sur <strong>supabase.com</strong> → votre projet → <strong>SQL Editor</strong></li>
+            <li>Cliquez <strong>New query</strong>, collez et cliquez <strong>Run</strong></li>
+            <li>La dernière requête doit retourner <strong>4 lignes</strong> (messages, notifications, conversation_participants, conversations)</li>
+            <li>Ce script corrige aussi les policies RLS pour que Realtime fonctionne (suppression des JOIN bloquants)</li>
+            <li>Activez aussi : <strong>Database → Replication → supabase_realtime</strong> → vérifiez que les 4 tables sont cochées</li>
+          </ol>
         </div>
       </div>
 

@@ -292,6 +292,8 @@ export default function ConversationPage() {
   const inputRef        = useRef<HTMLInputElement>(null);
   const profileCacheRef = useRef<Record<string, Profile>>({});
   const channelRef      = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastMsgIdRef    = useRef<string | null>(null); // dernier message connu pour le polling
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior }), 50);
@@ -363,6 +365,7 @@ export default function ConversationPage() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${id}` },
         async (payload) => {
           const newMsg = payload.new as Message;
+          lastMsgIdRef.current = newMsg.id;
           setMessages(prev => prev.find(m => m.id === newMsg.id) ? prev : [...prev, newMsg]);
           if (newMsg.sender_id) {
             getSenderProfile(newMsg.sender_id).then(sender =>
@@ -376,9 +379,58 @@ export default function ConversationPage() {
       .subscribe(status => setRealtimeOk(status === 'SUBSCRIBED'));
     channelRef.current = channel;
 
+    // ── Polling fallback (toutes les 4s si Realtime pas actif) ────────────────
+    // Garantit l'instantané même si supabase_realtime n'est pas configuré
+    const startPolling = () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = setInterval(async () => {
+        if (!profile) return;
+        // Récupère uniquement les messages plus récents que le dernier connu
+        const query = supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', id as string)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        const { data: recent } = await query;
+        if (!recent || recent.length === 0) return;
+
+        setMessages(prev => {
+          const prevIds = new Set(prev.map(m => m.id));
+          const newOnes = recent.filter((m: Message) => !prevIds.has(m.id) && !m.id.startsWith('temp-'));
+          if (newOnes.length === 0) return prev;
+
+          // Enrichir les expéditeurs
+          newOnes.forEach((msg: Message) => {
+            if (msg.sender_id) {
+              getSenderProfile(msg.sender_id).then(sender =>
+                setMessages(p => p.map(m => m.id === msg.id ? { ...m, sender } : m))
+              );
+            }
+          });
+
+          const combined = [...prev, ...newOnes].sort((a, b) =>
+            a.created_at.localeCompare(b.created_at)
+          );
+          // Marquer comme lu si nouveau message de l'autre
+          if (newOnes.some((m: Message) => m.sender_id !== profile.id)) {
+            markAsRead();
+            scrollToBottom();
+          }
+          return combined;
+        });
+      }, 4000);
+    };
+
+    startPolling();
+
     const handleVis = () => { if (document.visibilityState === 'visible') markAsRead(); };
     document.addEventListener('visibilitychange', handleVis);
-    return () => { supabase.removeChannel(channel); document.removeEventListener('visibilitychange', handleVis); };
+    return () => {
+      supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', handleVis);
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    };
   }, [id, profile, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
