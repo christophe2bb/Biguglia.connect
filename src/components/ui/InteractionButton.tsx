@@ -391,11 +391,27 @@ export default function InteractionButton({
 
   // ── Mode compact (juste le bouton CTA ou statut) ──────────────────────────────
   if (compact) {
+    // Non connecté → lien vers connexion (visible et cliquable)
+    if (!userId) {
+      return (
+        <Link
+          href="/connexion"
+          className={cn(
+            'inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all',
+            conf.bg, conf.color, `border ${conf.border}`, 'hover:brightness-95',
+            className
+          )}
+        >
+          <conf.ctaIcon className="w-4 h-4" />
+          {ctaLabel}
+        </Link>
+      );
+    }
     if (!interaction) {
       return (
         <button
           onClick={handleCreate}
-          disabled={acting || !userId}
+          disabled={acting}
           className={cn(
             'flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all',
             conf.bg, conf.color, `border ${conf.border}`,
