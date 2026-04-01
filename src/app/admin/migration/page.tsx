@@ -771,12 +771,18 @@ CREATE INDEX IF NOT EXISTS idx_item_ratings_target ON item_ratings(target_type, 
 CREATE INDEX IF NOT EXISTS idx_item_ratings_author ON item_ratings(author_id);
 CREATE INDEX IF NOT EXISTS idx_item_ratings_user   ON item_ratings(user_id);
 
--- 3. RLS
+-- 3. RLS (DROP + CREATE pour éviter les doublons — IF NOT EXISTS non supporté)
 ALTER TABLE item_ratings ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Notes publiques"    ON item_ratings FOR SELECT USING (true);
-CREATE POLICY IF NOT EXISTS "Noter si connecté"  ON item_ratings FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY IF NOT EXISTS "Modifier sa note"   ON item_ratings FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY IF NOT EXISTS "Supprimer sa note"  ON item_ratings FOR DELETE USING (auth.uid() = user_id OR current_user_role() = 'admin');
+
+DROP POLICY IF EXISTS "Notes publiques"   ON item_ratings;
+DROP POLICY IF EXISTS "Noter si connecté" ON item_ratings;
+DROP POLICY IF EXISTS "Modifier sa note"  ON item_ratings;
+DROP POLICY IF EXISTS "Supprimer sa note" ON item_ratings;
+
+CREATE POLICY "Notes publiques"    ON item_ratings FOR SELECT USING (true);
+CREATE POLICY "Noter si connecté"  ON item_ratings FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Modifier sa note"   ON item_ratings FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Supprimer sa note"  ON item_ratings FOR DELETE USING (auth.uid() = user_id OR current_user_role() = 'admin');
 
 -- 4. Recharge cache
 NOTIFY pgrst, 'reload schema';`;

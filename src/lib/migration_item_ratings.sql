@@ -38,19 +38,24 @@ CREATE TRIGGER trg_item_ratings_updated_at
   BEFORE UPDATE ON item_ratings
   FOR EACH ROW EXECUTE FUNCTION update_item_ratings_updated_at();
 
--- 4. RLS
+-- 4. RLS (DROP + CREATE — IF NOT EXISTS non supporté sur les policies)
 ALTER TABLE item_ratings ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Notes publiques" ON item_ratings
+DROP POLICY IF EXISTS "Notes publiques"   ON item_ratings;
+DROP POLICY IF EXISTS "Noter si connecté" ON item_ratings;
+DROP POLICY IF EXISTS "Modifier sa note"  ON item_ratings;
+DROP POLICY IF EXISTS "Supprimer sa note" ON item_ratings;
+
+CREATE POLICY "Notes publiques"    ON item_ratings
   FOR SELECT USING (true);
 
-CREATE POLICY "Noter si connecté" ON item_ratings
+CREATE POLICY "Noter si connecté"  ON item_ratings
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Modifier sa note" ON item_ratings
+CREATE POLICY "Modifier sa note"   ON item_ratings
   FOR UPDATE USING (auth.uid() = user_id);
 
-CREATE POLICY "Supprimer sa note" ON item_ratings
+CREATE POLICY "Supprimer sa note"  ON item_ratings
   FOR DELETE USING (auth.uid() = user_id OR current_user_role() = 'admin');
 
 -- 5. Recharge cache PostgREST
