@@ -229,9 +229,8 @@ export default function GlobalSearch({
         ] = await Promise.all([
           supabase
             .from('artisan_profiles')
-            .select('id, business_name, city, trade_category:trade_categories(name)')
+            .select('id, business_name, service_area, trade_category:trade_categories(name)')
             .or(`business_name.ilike.${q},description.ilike.${q}`)
-            .eq('is_verified', true)
             .limit(3),
           supabase
             .from('listings')
@@ -241,19 +240,19 @@ export default function GlobalSearch({
             .limit(3),
           supabase
             .from('equipment_items')
-            .select('id, name, description, is_free')
-            .ilike('name', q)
+            .select('id, title, description, is_free, pickup_location')
+            .ilike('title', q)
             .eq('is_available', true)
             .limit(3),
           supabase
             .from('help_requests')
-            .select('id, title, city, help_type')
+            .select('id, title, location_city, help_type')
             .ilike('title', q)
-            .eq('status', 'open')
+            .eq('status', 'active')
             .limit(3),
           supabase
             .from('group_outings')
-            .select('id, title, location, outing_date')
+            .select('id, title, meeting_point, outing_date')
             .ilike('title', q)
             .gte('outing_date', new Date().toISOString().split('T')[0])
             .limit(3),
@@ -270,7 +269,7 @@ export default function GlobalSearch({
             .limit(3),
           supabase
             .from('associations')
-            .select('id, name, city, category')
+            .select('id, name, location, category')
             .ilike('name', q)
             .eq('status', 'active')
             .limit(3),
@@ -282,7 +281,7 @@ export default function GlobalSearch({
           ...(artisans || []).map(a => ({
             id: `artisan-${a.id}`,
             title: a.business_name || 'Artisan',
-            subtitle: (a.trade_category as { name?: string } | null)?.name || a.city,
+            subtitle: (a.trade_category as { name?: string } | null)?.name || a.service_area,
             href: `/artisans/${a.id}`,
             theme: 'artisan',
             themeLabel: THEME_CONFIG.artisan.label,
@@ -303,8 +302,8 @@ export default function GlobalSearch({
           })),
           ...(equipment || []).map(e => ({
             id: `equip-${e.id}`,
-            title: e.name,
-            subtitle: e.is_free ? 'Gratuit' : undefined,
+            title: e.title,
+            subtitle: e.is_free ? 'Gratuit' : e.pickup_location,
             href: `/materiel/${e.id}`,
             theme: 'materiel',
             themeLabel: THEME_CONFIG.materiel.label,
@@ -315,7 +314,7 @@ export default function GlobalSearch({
           ...(helps || []).map(h => ({
             id: `help-${h.id}`,
             title: h.title,
-            subtitle: h.city,
+            subtitle: h.location_city,
             href: `/coups-de-main#${h.id}`,
             theme: 'aide',
             themeLabel: THEME_CONFIG.aide.label,
@@ -326,7 +325,7 @@ export default function GlobalSearch({
           ...(outings || []).map(o => ({
             id: `outing-${o.id}`,
             title: o.title,
-            subtitle: o.location,
+            subtitle: o.meeting_point,
             href: `/promenades`,
             theme: 'promenade',
             themeLabel: THEME_CONFIG.promenade.label,
@@ -359,7 +358,7 @@ export default function GlobalSearch({
           ...(associations || []).map(a => ({
             id: `asso-${a.id}`,
             title: a.name,
-            subtitle: a.city,
+            subtitle: a.location,
             href: `/associations`,
             theme: 'association',
             themeLabel: THEME_CONFIG.association.label,

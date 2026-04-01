@@ -308,9 +308,8 @@ function RechercheContent() {
       ] = await Promise.all([
         supabase
           .from('artisan_profiles')
-          .select('id, business_name, city, description, trade_category:trade_categories(name)')
-          .or(`business_name.ilike.${pattern},description.ilike.${pattern},city.ilike.${pattern}`)
-          .eq('is_verified', true)
+          .select('id, business_name, service_area, description, trade_category:trade_categories(name)')
+          .or(`business_name.ilike.${pattern},description.ilike.${pattern},service_area.ilike.${pattern}`)
           .limit(20),
         supabase
           .from('listings')
@@ -320,19 +319,19 @@ function RechercheContent() {
           .limit(20),
         supabase
           .from('equipment_items')
-          .select('id, name, description, is_free, price_per_day, city, photos:equipment_photos(url)')
-          .or(`name.ilike.${pattern},description.ilike.${pattern}`)
+          .select('id, title, description, is_free, daily_rate, pickup_location, photos:equipment_photos(url)')
+          .or(`title.ilike.${pattern},description.ilike.${pattern}`)
           .eq('is_available', true)
           .limit(20),
         supabase
           .from('help_requests')
-          .select('id, title, description, city, help_type, urgency')
-          .or(`title.ilike.${pattern},description.ilike.${pattern},city.ilike.${pattern}`)
-          .eq('status', 'open')
+          .select('id, title, description, location_city, help_type, urgency')
+          .or(`title.ilike.${pattern},description.ilike.${pattern},location_city.ilike.${pattern}`)
+          .eq('status', 'active')
           .limit(20),
         supabase
           .from('group_outings')
-          .select('id, title, description, location, outing_date, difficulty, photos:outing_photos(url)')
+          .select('id, title, description, meeting_point, outing_date, difficulty, photos:outing_photos(url)')
           .or(`title.ilike.${pattern},description.ilike.${pattern},location.ilike.${pattern}`)
           .gte('outing_date', today)
           .limit(20),
@@ -349,8 +348,8 @@ function RechercheContent() {
           .limit(20),
         supabase
           .from('associations')
-          .select('id, name, description, city, category, logo_url')
-          .or(`name.ilike.${pattern},description.ilike.${pattern},city.ilike.${pattern},category.ilike.${pattern}`)
+          .select('id, name, description_short, location, category, logo_url')
+          .or(`name.ilike.${pattern},description_short.ilike.${pattern},location.ilike.${pattern},category.ilike.${pattern}`)
           .eq('status', 'active')
           .limit(20),
       ]);
@@ -369,7 +368,7 @@ function RechercheContent() {
         themeColor: THEMES.artisan.color,
         themeBg: THEMES.artisan.bg,
         themeIcon: THEMES.artisan.icon,
-        location: a.city,
+        location: a.service_area,
         badge: 'Vérifié ✓',
       }));
 
@@ -401,7 +400,7 @@ function RechercheContent() {
           const photos = (e.photos as { url: string }[] | null);
           return {
             id: `equip-${e.id}`,
-            title: e.name,
+            title: e.title,
             description: e.description,
             href: `/materiel/${e.id}`,
             theme: 'materiel',
@@ -410,9 +409,9 @@ function RechercheContent() {
             themeBg: THEMES.materiel.bg,
             themeIcon: THEMES.materiel.icon,
             image: photos?.[0]?.url,
-            price: e.is_free ? undefined : e.price_per_day,
+            price: e.is_free ? undefined : e.daily_rate,
             isFree: e.is_free,
-            location: e.city,
+            location: e.pickup_location,
           };
         });
 
@@ -426,7 +425,7 @@ function RechercheContent() {
         themeColor: THEMES.aide.color,
         themeBg: THEMES.aide.bg,
         themeIcon: THEMES.aide.icon,
-        location: h.city,
+        location: h.location_city,
         badge: h.urgency === 'urgent' ? '🔴 Urgent' : undefined,
       }));
 
@@ -443,7 +442,7 @@ function RechercheContent() {
           themeBg: THEMES.promenade.bg,
           themeIcon: THEMES.promenade.icon,
           image: photos?.[0]?.url,
-          location: o.location,
+          location: o.meeting_point,
           date: o.outing_date ? new Date(o.outing_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : undefined,
         };
       });
@@ -490,7 +489,7 @@ function RechercheContent() {
       const assoResults: SearchResult[] = (associations || []).map(a => ({
         id: `asso-${a.id}`,
         title: a.name,
-        description: a.description,
+        description: a.description_short,
         href: `/associations`,
         theme: 'association',
         themeLabel: THEMES.association.label,
@@ -498,7 +497,7 @@ function RechercheContent() {
         themeBg: THEMES.association.bg,
         themeIcon: THEMES.association.icon,
         image: a.logo_url,
-        location: a.city,
+        location: a.location,
         subtitle: a.category,
       }));
 
