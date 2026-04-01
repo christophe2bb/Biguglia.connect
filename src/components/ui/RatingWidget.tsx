@@ -377,9 +377,15 @@ export default function RatingWidget({
           </div>
         )}
 
-        {data.count === 0 && (
+        {/* Message "pas encore d'avis" — seulement si des avis existent OU si l'utilisateur est éligible */}
+        {data.count === 0 && eligible && (
           <p className="text-sm text-gray-400 text-center py-2 mb-3">
             Pas encore d&apos;avis — soyez le premier !
+          </p>
+        )}
+        {data.count === 0 && !eligible && userId && !isOwnItem && eligible !== null && (
+          <p className="text-sm text-gray-400 text-center py-2 mb-3">
+            Aucun avis pour le moment.
           </p>
         )}
 
@@ -458,8 +464,8 @@ export default function RatingWidget({
         )}
       </div>
 
-      {/* ── Mini-sondage (uniquement pour les éligibles) ── */}
-      {showPoll && eligible && POLL_CONFIG[targetType] && (() => {
+      {/* ── Mini-sondage : visible UNIQUEMENT si l'utilisateur a déjà noté ── */}
+      {showPoll && eligible && data.myRating && data.myRating >= 1 && POLL_CONFIG[targetType] && (() => {
         const pollConf = POLL_CONFIG[targetType];
         return (
           <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
