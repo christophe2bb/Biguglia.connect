@@ -803,6 +803,11 @@ CREATE TABLE IF NOT EXISTS message_attachments (
   created_at   TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE message_attachments ENABLE ROW LEVEL SECURITY;
+
+-- Supprimer les policies existantes avant recréation (idempotent)
+DROP POLICY IF EXISTS "Participants peuvent voir les pièces jointes" ON message_attachments;
+DROP POLICY IF EXISTS "Participants peuvent ajouter des pièces jointes" ON message_attachments;
+
 CREATE POLICY "Participants peuvent voir les pièces jointes"
   ON message_attachments FOR SELECT
   USING (
