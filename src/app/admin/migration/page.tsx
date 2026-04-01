@@ -1903,7 +1903,7 @@ export default function MigrationPage() {
         </div>
         <div>
           <h2 className="text-xl font-black text-gray-900">Statuts enrichis</h2>
-          <p className="text-gray-500 text-sm">Ajoute status_changed_at, expiration_date et statuts manquants (reserved, returned…)</p>
+          <p className="text-gray-500 text-sm">Ajoute status_changed_at, expiration_date et statuts manquants — compatible ENUM et TEXT CHECK</p>
         </div>
       </div>
 
@@ -1912,61 +1912,106 @@ export default function MigrationPage() {
           <div className="flex items-start gap-3 bg-violet-50 border border-violet-200 rounded-xl p-4 mb-4">
             <Info className="w-4 h-4 text-violet-600 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-violet-800">
-              <p className="font-bold mb-1">Ce SQL enrichit les tables existantes :</p>
+              <p className="font-bold mb-1">Ce SQL enrichit les tables existantes (compatible ENUM et TEXT CHECK) :</p>
               <ul className="list-disc list-inside space-y-0.5 text-xs">
+                <li><strong>Détecte automatiquement</strong> si le statut est un ENUM (ALTER TYPE ADD VALUE) ou un TEXT CHECK</li>
+                <li>Ajoute <code>&apos;reserved&apos;</code> et <code>&apos;expired&apos;</code> aux annonces</li>
                 <li>Ajoute <code>status_changed_at</code>, <code>expiration_date</code> sur listings</li>
-                <li>Ajoute le statut <code>&apos;reserved&apos;</code> aux annonces</li>
-                <li>Ajoute <code>status_changed_at</code> sur equipment_items</li>
-                <li>Ajoute <code>status_changed_at</code> sur help_requests, lost_found_items, associations</li>
-                <li>Crée un trigger auto-update de status_changed_at</li>
+                <li>Ajoute <code>status_changed_at</code> sur equipment_items, help_requests, lost_found_items, associations</li>
+                <li>Ajoute colonne <code>status</code> sur group_outings et local_events si absente</li>
+                <li>Crée les triggers auto-update de <code>status_changed_at</code></li>
               </ul>
             </div>
           </div>
 
           <button
             onClick={() => {
-              const sql = `-- BIGUGLIA CONNECT — Statuts enrichis
--- Ajoute les champs de suivi temporel des changements de statut
+              const sql = `-- BIGUGLIA CONNECT — Statuts enrichis (compatible ENUM + TEXT CHECK)
+-- Détecte automatiquement si le statut est un ENUM ou un CHECK TEXT
 
--- 1. Annonces : ajouter 'reserved' + status_changed_at + expiration_date
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'listings_status_check'
-    AND conrelid = 'listings'::regclass
-  ) THEN NULL; END IF;
+-- ============================================================
+-- 1. Annonces (listings) — ajouter 'reserved' et 'expired'
+-- ============================================================
+DO $$
+DECLARE
+  col_type TEXT;
+  type_name TEXT;
+BEGIN
+  -- Récupère le type de la colonne status
+  SELECT data_type, udt_name
+    INTO col_type, type_name
+    FROM information_schema.columns
+   WHERE table_name = 'listings' AND column_name = 'status'
+   LIMIT 1;
+
+  IF col_type = 'USER-DEFINED' THEN
+    -- C'est un ENUM : on ajoute les valeurs manquantes
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_enum
+       WHERE enumtypid = type_name::regtype
+         AND enumlabel = 'reserved'
+    ) THEN
+      EXECUTE 'ALTER TYPE ' || type_name || ' ADD VALUE ''reserved''';
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_enum
+       WHERE enumtypid = type_name::regtype
+         AND enumlabel = 'expired'
+    ) THEN
+      EXECUTE 'ALTER TYPE ' || type_name || ' ADD VALUE ''expired''';
+    END IF;
+
+  ELSE
+    -- C'est un TEXT avec CHECK : on le remplace
+    EXECUTE 'ALTER TABLE listings DROP CONSTRAINT IF EXISTS listings_status_check';
+    EXECUTE $c$ALTER TABLE listings ADD CONSTRAINT listings_status_check
+      CHECK (status IN (''active'', ''reserved'', ''sold'', ''archived'', ''expired''))$c$;
+  END IF;
 END $$;
 
-ALTER TABLE listings DROP CONSTRAINT IF EXISTS listings_status_check;
-ALTER TABLE listings ADD CONSTRAINT listings_status_check
-  CHECK (status IN ('active', 'reserved', 'sold', 'archived', 'expired'));
-
+-- Nouveaux champs listings
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS expiration_date DATE;
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS auto_expire BOOLEAN DEFAULT false;
 
+-- ============================================================
 -- 2. Equipment items
+-- ============================================================
 ALTER TABLE equipment_items ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
 
--- 3. Help requests  
+-- ============================================================
+-- 3. Help requests
+-- ============================================================
 ALTER TABLE help_requests ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
 
--- 4. Lost & found items
+-- ============================================================
+-- 4. Perdu / Trouvé
+-- ============================================================
 ALTER TABLE lost_found_items ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
 
+-- ============================================================
 -- 5. Associations
+-- ============================================================
 ALTER TABLE associations ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
 
--- 6. Group outings (status + status_changed_at)
-ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active' 
+-- ============================================================
+-- 6. Promenades (group_outings)
+-- ============================================================
+ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active'
   CHECK (status IN ('active', 'cancelled', 'completed'));
 ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
 
--- 7. Local events
+-- ============================================================
+-- 7. Événements (local_events)
+-- ============================================================
 ALTER TABLE local_events ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active'
   CHECK (status IN ('active', 'cancelled', 'completed'));
 ALTER TABLE local_events ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
 
--- 8. Trigger auto-update status_changed_at pour listings
+-- ============================================================
+-- 8. Trigger auto-update status_changed_at (universel)
+-- ============================================================
 CREATE OR REPLACE FUNCTION update_status_changed_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -1979,48 +2024,50 @@ $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS listings_status_changed ON listings;
 CREATE TRIGGER listings_status_changed
-  BEFORE UPDATE ON listings
-  FOR EACH ROW EXECUTE FUNCTION update_status_changed_at();
+  BEFORE UPDATE ON listings FOR EACH ROW
+  EXECUTE FUNCTION update_status_changed_at();
 
 DROP TRIGGER IF EXISTS help_requests_status_changed ON help_requests;
 CREATE TRIGGER help_requests_status_changed
-  BEFORE UPDATE ON help_requests
-  FOR EACH ROW EXECUTE FUNCTION update_status_changed_at();
+  BEFORE UPDATE ON help_requests FOR EACH ROW
+  EXECUTE FUNCTION update_status_changed_at();
 
 DROP TRIGGER IF EXISTS lost_found_status_changed ON lost_found_items;
 CREATE TRIGGER lost_found_status_changed
-  BEFORE UPDATE ON lost_found_items
-  FOR EACH ROW EXECUTE FUNCTION update_status_changed_at();
+  BEFORE UPDATE ON lost_found_items FOR EACH ROW
+  EXECUTE FUNCTION update_status_changed_at();
 
 DROP TRIGGER IF EXISTS associations_status_changed ON associations;
 CREATE TRIGGER associations_status_changed
-  BEFORE UPDATE ON associations
-  FOR EACH ROW EXECUTE FUNCTION update_status_changed_at();
+  BEFORE UPDATE ON associations FOR EACH ROW
+  EXECUTE FUNCTION update_status_changed_at();
 
 DROP TRIGGER IF EXISTS group_outings_status_changed ON group_outings;
 CREATE TRIGGER group_outings_status_changed
-  BEFORE UPDATE ON group_outings
-  FOR EACH ROW EXECUTE FUNCTION update_status_changed_at();
+  BEFORE UPDATE ON group_outings FOR EACH ROW
+  EXECUTE FUNCTION update_status_changed_at();
 
 DROP TRIGGER IF EXISTS local_events_status_changed ON local_events;
 CREATE TRIGGER local_events_status_changed
-  BEFORE UPDATE ON local_events
-  FOR EACH ROW EXECUTE FUNCTION update_status_changed_at();
+  BEFORE UPDATE ON local_events FOR EACH ROW
+  EXECUTE FUNCTION update_status_changed_at();
 
--- 9. Vue annonces expirées (expiration_date dépassée → auto-archivage)
+-- ============================================================
+-- 9. Fonction auto-expiration des annonces périmées
+-- ============================================================
 CREATE OR REPLACE FUNCTION auto_expire_listings()
 RETURNS void AS $$
 BEGIN
   UPDATE listings
-  SET status = 'expired', status_changed_at = NOW()
-  WHERE auto_expire = true
-    AND expiration_date IS NOT NULL
-    AND expiration_date < CURRENT_DATE
-    AND status = 'active';
+     SET status = 'expired'::text, status_changed_at = NOW()
+   WHERE auto_expire = true
+     AND expiration_date IS NOT NULL
+     AND expiration_date < CURRENT_DATE
+     AND status::text = 'active';
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-SELECT 'OK: statuts enrichis appliqués' as result;`;
+SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
               navigator.clipboard.writeText(sql);
               setCopiedStatus(true);
               setTimeout(() => setCopiedStatus(false), 4000);
