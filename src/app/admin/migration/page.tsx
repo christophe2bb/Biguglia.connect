@@ -747,6 +747,12 @@ const RATING_SQL = `-- =========================================================
 -- Coller dans Supabase > SQL Editor > New query > Run
 -- ============================================================
 
+-- 0. Fonction helper (recrée si absente en prod)
+CREATE OR REPLACE FUNCTION current_user_role()
+RETURNS TEXT AS $$
+  SELECT role FROM profiles WHERE id = auth.uid();
+$$ LANGUAGE SQL SECURITY DEFINER STABLE;
+
 -- 1. Créer la table item_ratings
 CREATE TABLE IF NOT EXISTS item_ratings (
   id           UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -771,7 +777,7 @@ CREATE INDEX IF NOT EXISTS idx_item_ratings_target ON item_ratings(target_type, 
 CREATE INDEX IF NOT EXISTS idx_item_ratings_author ON item_ratings(author_id);
 CREATE INDEX IF NOT EXISTS idx_item_ratings_user   ON item_ratings(user_id);
 
--- 3. RLS (DROP + CREATE pour éviter les doublons — IF NOT EXISTS non supporté)
+-- 3. RLS (DROP + CREATE — IF NOT EXISTS non supporté sur les policies)
 ALTER TABLE item_ratings ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Notes publiques"   ON item_ratings;
@@ -779,10 +785,20 @@ DROP POLICY IF EXISTS "Noter si connecté" ON item_ratings;
 DROP POLICY IF EXISTS "Modifier sa note"  ON item_ratings;
 DROP POLICY IF EXISTS "Supprimer sa note" ON item_ratings;
 
-CREATE POLICY "Notes publiques"    ON item_ratings FOR SELECT USING (true);
-CREATE POLICY "Noter si connecté"  ON item_ratings FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Modifier sa note"   ON item_ratings FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Supprimer sa note"  ON item_ratings FOR DELETE USING (auth.uid() = user_id OR current_user_role() = 'admin');
+CREATE POLICY "Notes publiques"    ON item_ratings
+  FOR SELECT USING (true);
+
+CREATE POLICY "Noter si connecté"  ON item_ratings
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Modifier sa note"   ON item_ratings
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Supprimer sa note"  ON item_ratings
+  FOR DELETE USING (
+    auth.uid() = user_id
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+  );
 
 -- 4. Recharge cache
 NOTIFY pgrst, 'reload schema';`;

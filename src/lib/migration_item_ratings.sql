@@ -56,7 +56,10 @@ CREATE POLICY "Modifier sa note"   ON item_ratings
   FOR UPDATE USING (auth.uid() = user_id);
 
 CREATE POLICY "Supprimer sa note"  ON item_ratings
-  FOR DELETE USING (auth.uid() = user_id OR current_user_role() = 'admin');
+  FOR DELETE USING (
+    auth.uid() = user_id
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+  );
 
 -- 5. Recharge cache PostgREST
 NOTIFY pgrst, 'reload schema';
