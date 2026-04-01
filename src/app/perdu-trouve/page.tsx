@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ReportButton from '@/components/ui/ReportButton';
+import RatingWidget, { UserRatingBadge } from '@/components/ui/RatingWidget';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LostFoundType = 'perdu' | 'trouve';
@@ -391,10 +392,23 @@ function LostFoundCard({
           </div>
         )}
 
+        {/* Notation publique (libre pour perdu/trouvé) */}
+        <div className="mt-3">
+          <RatingWidget
+            targetType="lost_found"
+            targetId={item.id}
+            authorId={item.author_id}
+            userId={userId}
+            compact
+          />
+        </div>
+
         {/* Footer */}
-        <p className="text-xs text-gray-400 mt-3 border-t border-gray-50 pt-2">
-          {item.author?.full_name ?? 'Membre'} · {formatRelative(item.created_at)}
-        </p>
+        <div className="flex items-center gap-2 text-xs text-gray-400 mt-3 border-t border-gray-50 pt-2">
+          <span>{item.author?.full_name ?? 'Membre'}</span>
+          <UserRatingBadge userId={item.author_id} />
+          <span>· {formatRelative(item.created_at)}</span>
+        </div>
       </div>
     </div>
   );

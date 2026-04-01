@@ -479,15 +479,26 @@ function AssociationCard({
         <p className="text-xs text-gray-400 mt-3 border-t border-gray-50 pt-2">
           Publié par {asso.author?.full_name ?? 'Membre'} · {formatRelative(asso.created_at)}
         </p>
-        {/* Notation association */}
+        {/* Notation association — compact par défaut, complet si étendu */}
         <div className="mt-3 pt-3 border-t border-gray-50">
-          <RatingWidget
-            targetType="association"
-            targetId={asso.id}
-            authorId={asso.author_id}
-            userId={userId}
-            compact
-          />
+          {expanded ? (
+            <RatingWidget
+              targetType="association"
+              targetId={asso.id}
+              authorId={asso.author_id}
+              userId={userId}
+              compact={false}
+              showPoll
+            />
+          ) : (
+            <RatingWidget
+              targetType="association"
+              targetId={asso.id}
+              authorId={asso.author_id}
+              userId={userId}
+              compact
+            />
+          )}
         </div>
       </div>
     </div>

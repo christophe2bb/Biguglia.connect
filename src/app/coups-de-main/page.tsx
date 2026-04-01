@@ -490,9 +490,18 @@ function HelpCard({
         )}
       </div>
 
-      {/* Notation coup de main (si résolu) */}
-      {item.status === 'resolved' && (
-        <div className="mt-3 px-5 pb-5 border-t border-gray-100 pt-3">
+      {/* Notation coup de main — affichage toujours visible, formulaire uniquement si résolu */}
+      <div className="mt-3 px-5 pb-5 border-t border-gray-100 pt-3">
+        {item.status === 'resolved' ? (
+          <RatingWidget
+            targetType="help_request"
+            targetId={item.id}
+            authorId={item.author_id}
+            userId={userId}
+            compact={false}
+            showPoll
+          />
+        ) : (
           <RatingWidget
             targetType="help_request"
             targetId={item.id}
@@ -500,8 +509,8 @@ function HelpCard({
             userId={userId}
             compact
           />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
