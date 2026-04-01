@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bell, CheckCheck, MessageSquare, Info, AlertCircle, Star } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -19,11 +19,17 @@ function NotifIcon({ type }: { type: string }) {
   return <Info className="w-4 h-4 text-brand-500" />;
 }
 
+const RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000];
+
 export default function NotificationsPage() {
   const { profile } = useAuthStore();
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const channelRef   = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
+  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectIdx = useRef(0);
+  const mountedRef   = useRef(true);
 
   const fetchNotifications = useCallback(async () => {
     if (!profile) return;
@@ -34,36 +40,79 @@ export default function NotificationsPage() {
       .eq('user_id', profile.id)
       .order('created_at', { ascending: false })
       .limit(50);
-    setNotifications((data as Notification[]) || []);
-    setLoading(false);
+    if (mountedRef.current) {
+      setNotifications((data as Notification[]) || []);
+      setLoading(false);
+    }
   }, [profile]);
 
-  useEffect(() => {
-    if (!profile) { router.push('/connexion'); return; }
-    fetchNotifications();
-
-    // Realtime: nouvelles notifications
+  const connectRealtime = useCallback(() => {
+    if (!profile) return;
     const supabase = createClient();
+
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
     const channel = supabase
-      .channel('notifications-page')
+      .channel(`notifications-page-${profile.id}-${Date.now()}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${profile.id}` },
         (payload) => {
+          if (!mountedRef.current) return;
           setNotifications(prev => [payload.new as Notification, ...prev]);
+          // Déclencher un rafraîchissement du compteur global
+          window.dispatchEvent(new Event('new-notification'));
         }
       )
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${profile.id}` },
         (payload) => {
+          if (!mountedRef.current) return;
           setNotifications(prev => prev.map(n => n.id === payload.new.id ? { ...n, ...payload.new } as Notification : n));
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (!mountedRef.current) return;
+        if (status === 'SUBSCRIBED') {
+          reconnectIdx.current = 0;
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          const delay = RECONNECT_DELAYS[Math.min(reconnectIdx.current, RECONNECT_DELAYS.length - 1)];
+          reconnectIdx.current = Math.min(reconnectIdx.current + 1, RECONNECT_DELAYS.length - 1);
+          if (reconnectRef.current) clearTimeout(reconnectRef.current);
+          reconnectRef.current = setTimeout(() => {
+            if (mountedRef.current) connectRealtime();
+          }, delay);
+          // Refetch pour ne pas rater les notifications pendant la déconnexion
+          fetchNotifications();
+        }
+      });
 
-    return () => { supabase.removeChannel(channel); };
-  }, [profile, router, fetchNotifications]);
+    channelRef.current = channel;
+  }, [profile, fetchNotifications]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    if (!profile) { router.push('/connexion'); return; }
+    fetchNotifications();
+    connectRealtime();
+
+    const handleVis = () => {
+      if (document.visibilityState === 'visible') fetchNotifications();
+    };
+    document.addEventListener('visibilitychange', handleVis);
+
+    return () => {
+      mountedRef.current = false;
+      const supabase = createClient();
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
+      if (reconnectRef.current) clearTimeout(reconnectRef.current);
+      document.removeEventListener('visibilitychange', handleVis);
+    };
+  }, [profile, router, fetchNotifications, connectRealtime]);
 
   const markAllRead = async () => {
     if (!profile) return;

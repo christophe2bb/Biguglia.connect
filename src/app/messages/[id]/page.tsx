@@ -24,15 +24,15 @@ const CONTEXT_CONFIG: Record<string, {
   border: string;
   href: (id: string) => string;
 }> = {
-  listing:        { icon: ShoppingBag, label: 'Annonce',          color: 'text-blue-700',   bg: 'bg-blue-50',    border: 'border-blue-200',   href: id => `/annonces/${id}` },
-  equipment:      { icon: Wrench,      label: 'Matériel',         color: 'text-teal-700',   bg: 'bg-teal-50',    border: 'border-teal-200',   href: id => `/materiel/${id}` },
-  help_request:   { icon: HandHeart,   label: 'Coup de main',     color: 'text-orange-700', bg: 'bg-orange-50',  border: 'border-orange-200', href: () => `/coups-de-main` },
-  lost_found:     { icon: Dog,         label: 'Perdu / Trouvé',   color: 'text-amber-700',  bg: 'bg-amber-50',   border: 'border-amber-200',  href: () => `/perdu-trouve` },
-  association:    { icon: Users,       label: 'Association',      color: 'text-purple-700', bg: 'bg-purple-50',  border: 'border-purple-200', href: () => `/associations` },
-  outing:         { icon: MapPin,      label: 'Sortie groupée',   color: 'text-emerald-700',bg: 'bg-emerald-50', border: 'border-emerald-200',href: () => `/promenades` },
-  collection_item:{ icon: ShoppingBag, label: 'Collectionneur',   color: 'text-rose-700',   bg: 'bg-rose-50',    border: 'border-rose-200',   href: () => `/collectionneurs` },
-  service_request:{ icon: Wrench,      label: 'Demande artisan',  color: 'text-brand-700',  bg: 'bg-brand-50',   border: 'border-brand-200',  href: id => `/demandes/${id}` },
-  general:        { icon: MessageSquare, label: 'Conversation',   color: 'text-gray-700',   bg: 'bg-gray-50',    border: 'border-gray-200',   href: () => `/` },
+  listing:        { icon: ShoppingBag,   label: 'Annonce',         color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-200',   href: id => `/annonces/${id}` },
+  equipment:      { icon: Wrench,        label: 'Matériel',        color: 'text-teal-700',    bg: 'bg-teal-50',    border: 'border-teal-200',   href: id => `/materiel/${id}` },
+  help_request:   { icon: HandHeart,     label: 'Coup de main',    color: 'text-orange-700',  bg: 'bg-orange-50',  border: 'border-orange-200', href: () => `/coups-de-main` },
+  lost_found:     { icon: Dog,           label: 'Perdu / Trouvé',  color: 'text-amber-700',   bg: 'bg-amber-50',   border: 'border-amber-200',  href: () => `/perdu-trouve` },
+  association:    { icon: Users,         label: 'Association',     color: 'text-purple-700',  bg: 'bg-purple-50',  border: 'border-purple-200', href: () => `/associations` },
+  outing:         { icon: MapPin,        label: 'Sortie groupée',  color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200',href: () => `/promenades` },
+  collection_item:{ icon: ShoppingBag,   label: 'Collectionneur',  color: 'text-rose-700',    bg: 'bg-rose-50',    border: 'border-rose-200',   href: () => `/collectionneurs` },
+  service_request:{ icon: Wrench,        label: 'Demande artisan', color: 'text-brand-700',   bg: 'bg-brand-50',   border: 'border-brand-200',  href: id => `/demandes/${id}` },
+  general:        { icon: MessageSquare, label: 'Conversation',    color: 'text-gray-700',    bg: 'bg-gray-50',    border: 'border-gray-200',   href: () => `/` },
 };
 
 // ─── Bannière de contexte ──────────────────────────────────────────────────────
@@ -271,6 +271,11 @@ function ContextBanner({
   );
 }
 
+// ─── Délais de reconnexion (ms) ────────────────────────────────────────────────
+const RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000];
+// Intervalle du polling de secours quand Realtime est KO (ms)
+const FALLBACK_POLL_INTERVAL = 5000;
+
 // ─── Page conversation ─────────────────────────────────────────────────────────
 export default function ConversationPage() {
   const { id } = useParams();
@@ -278,22 +283,25 @@ export default function ConversationPage() {
   const { profile } = useAuthStore();
   const supabase = createClient();
 
-  const [messages, setMessages]         = useState<(Message & { sender?: Profile })[]>([]);
-  const [newMessage, setNewMessage]     = useState('');
-  const [loading, setLoading]           = useState(true);
-  const [sending, setSending]           = useState(false);
-  const [otherUser, setOtherUser]       = useState<Profile | null>(null);
-  const [subject, setSubject]           = useState('');
-  const [relatedType, setRelatedType]   = useState<string | null>(null);
-  const [relatedId, setRelatedId]       = useState<string | null>(null);
-  const [realtimeOk, setRealtimeOk]     = useState(false); // connexion canal Realtime
+  const [messages, setMessages]       = useState<(Message & { sender?: Profile })[]>([]);
+  const [newMessage, setNewMessage]   = useState('');
+  const [loading, setLoading]         = useState(true);
+  const [sending, setSending]         = useState(false);
+  const [otherUser, setOtherUser]     = useState<Profile | null>(null);
+  const [subject, setSubject]         = useState('');
+  const [relatedType, setRelatedType] = useState<string | null>(null);
+  const [relatedId, setRelatedId]     = useState<string | null>(null);
+  const [realtimeOk, setRealtimeOk]   = useState(false);
 
   const messagesEndRef  = useRef<HTMLDivElement>(null);
   const inputRef        = useRef<HTMLInputElement>(null);
   const profileCacheRef = useRef<Record<string, Profile>>({});
   const channelRef      = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastMsgIdRef    = useRef<string | null>(null); // dernier message connu pour le polling
+  const reconnectRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectIdx    = useRef(0);
+  const pollRef         = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mountedRef      = useRef(true);
+  const lastMsgIdRef    = useRef<string | null>(null);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior }), 50);
@@ -315,7 +323,131 @@ export default function ConversationPage() {
     window.dispatchEvent(new Event('messages-read'));
   }, [id, profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Polling de secours : récupère les nouveaux messages depuis le dernier connu ──
+  const pollNewMessages = useCallback(async () => {
+    if (!mountedRef.current || !profile) return;
+    try {
+      let query = supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', id as string)
+        .order('created_at', { ascending: true });
+
+      if (lastMsgIdRef.current) {
+        // Récupérer seulement les messages plus récents que le dernier connu
+        const lastMsg = (await supabase
+          .from('messages')
+          .select('created_at')
+          .eq('id', lastMsgIdRef.current)
+          .single()).data;
+        if (lastMsg) {
+          query = query.gt('created_at', lastMsg.created_at);
+        }
+      }
+
+      const { data: newMsgs } = await query;
+      if (!newMsgs || newMsgs.length === 0) return;
+
+      const enriched = await Promise.all(
+        newMsgs.map(async (msg) => {
+          const sender = msg.sender_id ? await getSenderProfile(msg.sender_id) : undefined;
+          return { ...msg, sender } as Message & { sender?: Profile };
+        })
+      );
+
+      if (!mountedRef.current) return;
+      setMessages(prev => {
+        const existingIds = new Set(prev.map(m => m.id));
+        const toAdd = enriched.filter(m => !existingIds.has(m.id));
+        if (toAdd.length === 0) return prev;
+        const updated = [...prev, ...toAdd];
+        lastMsgIdRef.current = updated[updated.length - 1].id;
+        return updated;
+      });
+
+      // Marquer comme lu si nouveaux messages de l'autre
+      if (newMsgs.some(m => m.sender_id !== profile.id)) {
+        await markAsRead();
+        scrollToBottom();
+      }
+    } catch (err) {
+      console.warn('[ConversationPage] pollNewMessages error:', err);
+    }
+  }, [id, profile, getSenderProfile, markAsRead, scrollToBottom]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Connexion Realtime ──────────────────────────────────────────────────────
+  const connectRealtime = useCallback(() => {
+    if (!profile || !id) return;
+
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
+    const channel = supabase
+      .channel(`conv-${id}-${Date.now()}`, { config: { broadcast: { ack: false } } })
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${id}` },
+        async (payload) => {
+          if (!mountedRef.current) return;
+          const newMsg = payload.new as Message;
+
+          setMessages(prev => {
+            if (prev.find(m => m.id === newMsg.id)) return prev;
+            const updated = [...prev, newMsg];
+            lastMsgIdRef.current = newMsg.id;
+            return updated;
+          });
+
+          if (newMsg.sender_id) {
+            getSenderProfile(newMsg.sender_id).then(sender =>
+              setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...m, sender } : m))
+            );
+          }
+
+          if (newMsg.sender_id !== profile.id) {
+            await markAsRead();
+          }
+          scrollToBottom();
+        }
+      )
+      .subscribe((status) => {
+        if (!mountedRef.current) return;
+        const ok = status === 'SUBSCRIBED';
+        setRealtimeOk(ok);
+
+        if (ok) {
+          reconnectIdx.current = 0;
+          // Arrêter le polling de secours
+          if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          setRealtimeOk(false);
+
+          // Démarrer le polling de secours
+          if (!pollRef.current) {
+            pollRef.current = setInterval(pollNewMessages, FALLBACK_POLL_INTERVAL);
+          }
+
+          // Planifier reconnexion
+          const delay = RECONNECT_DELAYS[Math.min(reconnectIdx.current, RECONNECT_DELAYS.length - 1)];
+          reconnectIdx.current = Math.min(reconnectIdx.current + 1, RECONNECT_DELAYS.length - 1);
+
+          if (reconnectRef.current) clearTimeout(reconnectRef.current);
+          reconnectRef.current = setTimeout(() => {
+            if (mountedRef.current) connectRealtime();
+          }, delay);
+        }
+      });
+
+    channelRef.current = channel;
+  }, [id, profile, getSenderProfile, markAsRead, scrollToBottom, pollNewMessages]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
+    mountedRef.current = true;
     if (!profile) { router.push('/connexion'); return; }
 
     const init = async () => {
@@ -350,86 +482,35 @@ export default function ConversationPage() {
           return { ...msg, sender } as Message & { sender?: Profile };
         })
       );
+
+      if (!mountedRef.current) return;
       setMessages(enriched);
+      if (enriched.length > 0) {
+        lastMsgIdRef.current = enriched[enriched.length - 1].id;
+      }
       setLoading(false);
       await markAsRead();
       scrollToBottom('instant' as ScrollBehavior);
     };
 
     init();
+    connectRealtime();
 
-    // Realtime
-    if (channelRef.current) supabase.removeChannel(channelRef.current);
-    const channel = supabase
-      .channel(`conv-${id}`, { config: { broadcast: { ack: false } } })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${id}` },
-        async (payload) => {
-          const newMsg = payload.new as Message;
-          lastMsgIdRef.current = newMsg.id;
-          setMessages(prev => prev.find(m => m.id === newMsg.id) ? prev : [...prev, newMsg]);
-          if (newMsg.sender_id) {
-            getSenderProfile(newMsg.sender_id).then(sender =>
-              setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...m, sender } : m))
-            );
-          }
-          if (newMsg.sender_id !== profile.id) await markAsRead();
-          scrollToBottom();
-        }
-      )
-      .subscribe(status => setRealtimeOk(status === 'SUBSCRIBED'));
-    channelRef.current = channel;
-
-    // ── Polling fallback (toutes les 4s si Realtime pas actif) ────────────────
-    // Garantit l'instantané même si supabase_realtime n'est pas configuré
-    const startPolling = () => {
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = setInterval(async () => {
-        if (!profile) return;
-        // Récupère uniquement les messages plus récents que le dernier connu
-        const query = supabase
-          .from('messages')
-          .select('*')
-          .eq('conversation_id', id as string)
-          .order('created_at', { ascending: false })
-          .limit(10);
-        const { data: recent } = await query;
-        if (!recent || recent.length === 0) return;
-
-        setMessages(prev => {
-          const prevIds = new Set(prev.map(m => m.id));
-          const newOnes = recent.filter((m: Message) => !prevIds.has(m.id) && !m.id.startsWith('temp-'));
-          if (newOnes.length === 0) return prev;
-
-          // Enrichir les expéditeurs
-          newOnes.forEach((msg: Message) => {
-            if (msg.sender_id) {
-              getSenderProfile(msg.sender_id).then(sender =>
-                setMessages(p => p.map(m => m.id === msg.id ? { ...m, sender } : m))
-              );
-            }
-          });
-
-          const combined = [...prev, ...newOnes].sort((a, b) =>
-            a.created_at.localeCompare(b.created_at)
-          );
-          // Marquer comme lu si nouveau message de l'autre
-          if (newOnes.some((m: Message) => m.sender_id !== profile.id)) {
-            markAsRead();
-            scrollToBottom();
-          }
-          return combined;
-        });
-      }, 4000);
+    const handleVis = () => {
+      if (document.visibilityState === 'visible') {
+        markAsRead();
+        // Rafraîchir en cas de messages manqués pendant l'absence
+        pollNewMessages();
+      }
     };
-
-    startPolling();
-
-    const handleVis = () => { if (document.visibilityState === 'visible') markAsRead(); };
     document.addEventListener('visibilitychange', handleVis);
+
     return () => {
-      supabase.removeChannel(channel);
+      mountedRef.current = false;
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
+      if (reconnectRef.current) clearTimeout(reconnectRef.current);
+      if (pollRef.current) clearInterval(pollRef.current);
       document.removeEventListener('visibilitychange', handleVis);
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
   }, [id, profile, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -458,7 +539,10 @@ export default function ConversationPage() {
       setMessages(prev => prev.filter(m => m.id !== tempId));
       setNewMessage(content);
     } else if (savedMsg) {
-      setMessages(prev => prev.map(m => m.id === tempId ? { ...savedMsg, sender: profile as unknown as Profile } : m));
+      setMessages(prev => prev.map(m =>
+        m.id === tempId ? { ...savedMsg, sender: profile as unknown as Profile } : m
+      ));
+      lastMsgIdRef.current = savedMsg.id;
     }
 
     setSending(false);
@@ -484,13 +568,16 @@ export default function ConversationPage() {
           <div className="font-semibold text-gray-900">{otherUser?.full_name || 'Inconnu'}</div>
           <div className="text-xs text-gray-400 truncate">{subject}</div>
         </div>
-        {/* Indicateur connexion Realtime — ne reflète PAS la présence de l'autre user */}
-        {!realtimeOk && (
-          <div className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 text-gray-400 bg-gray-100">
-            <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-            Reconnexion…
-          </div>
-        )}
+        {/* Indicateur état Realtime — connexion au canal, pas présence de l'autre user */}
+        <div className={cn(
+          'flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 transition-all',
+          realtimeOk
+            ? 'text-emerald-600 bg-emerald-50'
+            : 'text-gray-400 bg-gray-100'
+        )}>
+          <span className={cn('w-1.5 h-1.5 rounded-full', realtimeOk ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400')} />
+          {realtimeOk ? 'En ligne' : 'Reconnexion…'}
+        </div>
       </div>
 
       {/* ── Bannière contexte annonce ─────────────────────────────────────────── */}

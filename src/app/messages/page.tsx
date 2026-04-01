@@ -32,6 +32,8 @@ interface ConvWithOther extends Conversation {
   unread_count?: number;
 }
 
+const RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000];
+
 export default function MessagesPage() {
   const { profile } = useAuthStore();
   const router = useRouter();
@@ -39,7 +41,10 @@ export default function MessagesPage() {
   const [conversations, setConversations] = useState<ConvWithOther[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const channelRef      = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const reconnectRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectIdx    = useRef(0);
+  const mountedRef      = useRef(true);
 
   // ── Chargement des conversations ──────────────────────────────────────────
   const fetchConversations = useCallback(async () => {
@@ -116,23 +121,25 @@ export default function MessagesPage() {
     setLoading(false);
   }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (!profile) { router.push('/connexion'); return; }
-    fetchConversations();
+  // ── Connexion Realtime avec reconnexion auto ──────────────────────────────
+  const connectRealtime = useCallback(() => {
+    if (!profile) return;
 
-    // ── Realtime : nouveau message → mettre à jour la conversation concernée
-    if (channelRef.current) supabase.removeChannel(channelRef.current);
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
 
     const channel = supabase
-      .channel(`messages-list-${profile.id}`)
+      .channel(`messages-list-${profile.id}-${Date.now()}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'messages',
       }, async (payload) => {
+        if (!mountedRef.current) return;
         const msg = payload.new as { id: string; conversation_id: string; sender_id: string; content: string; created_at: string };
 
-        // Mettre à jour la conversation correspondante
         setConversations(prev => {
           const idx = prev.findIndex(c => c.id === msg.conversation_id);
           if (idx === -1) {
@@ -146,25 +153,50 @@ export default function MessagesPage() {
           conv.last_message_text = msg.content;
           conv.last_message_at = msg.created_at;
 
-          // Si c'est un message de l'autre → incrémenter non-lus
           if (msg.sender_id !== profile.id) {
             conv.unread_count = (conv.unread_count || 0) + 1;
           }
 
-          // Remonter la conversation en tête de liste
           updated.splice(idx, 1);
           updated.unshift(conv);
           return updated;
         });
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (!mountedRef.current) return;
+        if (status === 'SUBSCRIBED') {
+          reconnectIdx.current = 0;
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          const delay = RECONNECT_DELAYS[Math.min(reconnectIdx.current, RECONNECT_DELAYS.length - 1)];
+          reconnectIdx.current = Math.min(reconnectIdx.current + 1, RECONNECT_DELAYS.length - 1);
+          if (reconnectRef.current) clearTimeout(reconnectRef.current);
+          reconnectRef.current = setTimeout(() => {
+            if (mountedRef.current) connectRealtime();
+          }, delay);
+        }
+      });
 
     channelRef.current = channel;
+  }, [profile, fetchConversations]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    mountedRef.current = true;
+    if (!profile) { router.push('/connexion'); return; }
+    fetchConversations();
+    connectRealtime();
+
+    const handleVis = () => {
+      if (document.visibilityState === 'visible') fetchConversations();
+    };
+    document.addEventListener('visibilitychange', handleVis);
 
     return () => {
+      mountedRef.current = false;
       if (channelRef.current) supabase.removeChannel(channelRef.current);
+      if (reconnectRef.current) clearTimeout(reconnectRef.current);
+      document.removeEventListener('visibilitychange', handleVis);
     };
-  }, [profile, router, fetchConversations]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profile, router, fetchConversations, connectRealtime]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = conversations.filter(c =>
     !search ||
