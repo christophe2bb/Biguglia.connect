@@ -11,8 +11,10 @@
  *   - promenade / lost_found → libre (avis public, comme TripAdvisor)
  *   - service_request → être l'auteur de la demande
  *
- * La MOYENNE et les avis sont TOUJOURS visibles par tous.
- * Seul le formulaire de saisie est conditionné à l'éligibilité.
+ * La MOYENNE, la distribution et les commentaires sont TOUJOURS visibles par tous.
+ * Le bloc "Laisser un avis" (formulaire + sondage) est visible UNIQUEMENT pour les
+ * utilisateurs éligibles (ayant eu une vraie interaction). Les non-éligibles et les
+ * visiteurs non connectés ne voient PAS d'invitation à noter.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -48,20 +50,6 @@ const POLL_CONFIG: Record<RatingTargetType, { question: string; options: PollOpt
   event:           { question: 'L\'événement était ?',            options: [{ label:'Excellent !',  emoji:'🎉' },{ label:'Bien organisé', emoji:'📋'},{ label:'Ambiance top', emoji:'🎶' },{ label:'À améliorer',  emoji:'📝' }] },
   promenade:       { question: 'La promenade était ?',            options: [{ label:'Superbe vue',  emoji:'🌟' },{ label:'Bien balisée',  emoji:'🗺️'},{ label:'Accessible',   emoji:'👣' },{ label:'Difficile',     emoji:'⛰️' }] },
   service_request: { question: 'Prestation réalisée ?',           options: [{ label:'Excellent travail',emoji:'⭐'},{ label:'Dans les délais',emoji:'⏱️'},{ label:'Prix honnête',emoji:'💰' },{ label:'Je recommande',emoji:'👍' }] },
-};
-
-// ─── Message d'éligibilité par type ──────────────────────────────────────────
-const ELIGIBILITY_MSG: Record<RatingTargetType, string> = {
-  listing:         'Vous pourrez noter après avoir échangé un message avec le vendeur.',
-  equipment:       'Vous pourrez noter après avoir contacté le propriétaire.',
-  help_request:    'Vous pourrez noter une fois le coup de main marqué comme résolu.',
-  lost_found:      '', // libre
-  association:     'Vous pourrez noter après avoir contacté cette association.',
-  outing:          'Vous pourrez noter après avoir participé à cette sortie (une fois terminée).',
-  collection_item: 'Vous pourrez noter après avoir contacté le collectionneur.',
-  event:           'Vous pourrez noter après avoir participé à cet événement (une fois terminé).',
-  promenade:       '', // libre
-  service_request: 'Seul le demandeur peut noter cette prestation.',
 };
 
 // ─── Éligibilité : peut-on noter ? ───────────────────────────────────────────
@@ -316,7 +304,6 @@ export default function RatingWidget({
 
   const totalPollVotes = pollVotes.reduce((a,b) => a+b, 0);
   const isOwnItem = userId === authorId;
-  const eligMsg = ELIGIBILITY_MSG[targetType];
 
   // ── Mode compact ─────────────────────────────────────────────────────────────
   if (compact) {
@@ -377,61 +364,68 @@ export default function RatingWidget({
           </div>
         )}
 
-        {/* Message "pas encore d'avis" — seulement si des avis existent OU si l'utilisateur est éligible */}
-        {data.count === 0 && eligible && (
-          <p className="text-sm text-gray-400 text-center py-2 mb-3">
-            Pas encore d&apos;avis — soyez le premier !
-          </p>
-        )}
-        {data.count === 0 && !eligible && userId && !isOwnItem && eligible !== null && (
-          <p className="text-sm text-gray-400 text-center py-2 mb-3">
+        {/* Message neutre si aucun avis ET utilisateur non éligible / non connecté */}
+        {data.count === 0 && !isOwnItem && eligible !== true && eligible !== null && (
+          <p className="text-sm text-gray-400 text-center py-2">
             Aucun avis pour le moment.
           </p>
         )}
 
-        {/* ── Zone notation selon éligibilité ── */}
-        {isOwnItem ? (
-          // Auteur → ne peut pas se noter
+        {/* ── Zone notation : visible UNIQUEMENT pour les utilisateurs éligibles (ou l'auteur) ──
+            Pour les non-éligibles et non-connectés : on n'affiche rien dans ce bloc.
+            Les avis publics (étoiles + distribution + commentaires) restent toujours visibles. */}
+
+        {/* Auteur de sa propre publication */}
+        {isOwnItem && (
           <div className="flex items-center gap-2 py-2 px-3 rounded-xl bg-gray-50 border border-gray-100 text-gray-400 text-xs">
             <Lock className="w-3.5 h-3.5 flex-shrink-0" />
             Vous ne pouvez pas noter votre propre publication.
           </div>
-        ) : !userId ? (
-          // Non connecté
-          <Link href="/connexion"
-            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm font-bold hover:bg-amber-100 transition-colors">
-            <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-            Connectez-vous pour noter
-          </Link>
-        ) : eligible === null ? (
-          // Vérification en cours
+        )}
+
+        {/* Utilisateur connecté, éligibilité en cours de vérification */}
+        {!isOwnItem && userId && eligible === null && (
           <div className="h-10 bg-gray-100 animate-pulse rounded-xl" />
-        ) : !eligible ? (
-          // Non éligible → message explicatif
-          eligMsg ? (
-            <div className="flex items-start gap-2 py-3 px-3 rounded-xl bg-gray-50 border border-gray-100">
-              <Lock className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-gray-500 leading-relaxed">{eligMsg}</p>
-            </div>
-          ) : null
-        ) : data.myRating ? (
-          // Déjà noté
-          <div className="flex items-center gap-2 py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-100">
-            <Stars rating={data.myRating} size="sm" />
-            <span className="text-xs text-emerald-700 font-semibold">Votre note : {data.myRating}/5</span>
-            <button onClick={() => { setOpen(true); setSubmitted(false); }}
-              className="ml-auto text-xs text-gray-400 hover:text-gray-600 underline">
-              Modifier
-            </button>
-          </div>
-        ) : (
-          // Éligible, pas encore noté
-          <button onClick={() => setOpen(v => !v)}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm font-bold hover:bg-amber-100 transition-colors">
-            <Star className="w-4 h-4" />
-            {open ? 'Fermer' : 'Laisser un avis'}
-            {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
+        )}
+
+        {/* Utilisateur éligible */}
+        {!isOwnItem && eligible === true && (
+          <>
+            {data.count === 0 && (
+              <p className="text-sm text-gray-400 text-center py-2 mb-1">
+                Pas encore d&apos;avis — soyez le premier !
+              </p>
+            )}
+            {data.myRating ? (
+              // Déjà noté
+              <div className="flex items-center gap-2 py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-100">
+                <Stars rating={data.myRating} size="sm" />
+                <span className="text-xs text-emerald-700 font-semibold">Votre note : {data.myRating}/5</span>
+                <button onClick={() => { setOpen(true); setSubmitted(false); }}
+                  className="ml-auto text-xs text-gray-400 hover:text-gray-600 underline">
+                  Modifier
+                </button>
+              </div>
+            ) : (
+              // Éligible, pas encore noté
+              <button onClick={() => setOpen(v => !v)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm font-bold hover:bg-amber-100 transition-colors">
+                <Star className="w-4 h-4" />
+                {open ? 'Fermer' : 'Laisser un avis'}
+                {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+            )}
+          </>
+        )}
+
+        {/* Non connecté : petit lien discret uniquement si des avis existent déjà
+            (évite d'inviter à noter quelqu'un qu'on ne connaît pas) */}
+        {!isOwnItem && !userId && data.count > 0 && (
+          <p className="text-xs text-gray-400 text-center pt-1">
+            <Link href="/connexion" className="underline hover:text-amber-600">
+              Connectez-vous
+            </Link>{' '}pour laisser un avis si vous avez échangé.
+          </p>
         )}
 
         {/* Formulaire de notation */}
