@@ -16,6 +16,7 @@ import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';
 import { PhotoViewer } from '@/components/ui/PhotoViewer';
 import InteractionButton from '@/components/ui/InteractionButton';
+import StatusBadge from '@/components/ui/StatusBadge';
 import toast from 'react-hot-toast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -265,6 +266,16 @@ function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit, onDelete }: {
               <BarChart3 className="w-3 h-3 inline mr-1" />{diffConf.label}
             </span>
           )}
+          <StatusBadge
+            status={outing.status || 'active'}
+            contentType="outing"
+            extra={{
+              outingDate: outing.outing_date,
+              isFull,
+              fillPct,
+            }}
+            size="xs" showIcon className="shadow"
+          />
         </div>
         {/* Boutons organisateur haut droite */}
         {isOrganizer && (

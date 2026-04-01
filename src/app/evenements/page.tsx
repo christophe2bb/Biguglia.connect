@@ -18,6 +18,7 @@ import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';
 import { PhotoViewer } from '@/components/ui/PhotoViewer';
 import InteractionButton from '@/components/ui/InteractionButton';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LocalEvent = {
@@ -398,6 +399,15 @@ function EventCard({
               <CheckCircle className="w-3 h-3" /> Officiel
             </span>
           )}
+          <StatusBadge
+            status={event.status || 'active'}
+            contentType="event"
+            extra={{
+              eventDate: event.event_date,
+              isFull,
+            }}
+            size="xs" showIcon className="shadow"
+          />
         </div>
         {/* Countdown haut droite */}
         {countdown && (

@@ -12,6 +12,7 @@ import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
 import EmptyState from '@/components/ui/EmptyState';
 import Avatar from '@/components/ui/Avatar';
+import StatusBadge from '@/components/ui/StatusBadge';
 import { CONDITION_LABELS, formatPrice } from '@/lib/utils';
 import ReportButton from '@/components/ui/ReportButton';
 
@@ -127,15 +128,19 @@ function EquipmentCard({ item, currentUserId }: { item: EquipmentItem; currentUs
           {/* Overlay gradient bas */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
           {/* Badges haut gauche */}
-          <div className="absolute top-3 left-3 flex gap-1.5">
-            {item.category && (
-              <span className="text-xs font-black bg-white/90 text-teal-700 px-2.5 py-1 rounded-full shadow">
-                {item.category.icon} {item.category.name}
-              </span>
-            )}
-            {item.is_free && (
-              <span className="text-xs font-black bg-emerald-500 text-white px-2.5 py-1 rounded-full shadow">Gratuit</span>
-            )}
+          <div className="absolute top-3 left-3 flex flex-col gap-1">
+            <div className="flex gap-1.5">
+              {item.category && (
+                <span className="text-xs font-black bg-white/90 text-teal-700 px-2.5 py-1 rounded-full shadow">
+                  {item.category.icon} {item.category.name}
+                </span>
+              )}
+              {item.is_free && (
+                <span className="text-xs font-black bg-emerald-500 text-white px-2.5 py-1 rounded-full shadow">Gratuit</span>
+              )}
+            </div>
+            {/* Status badge */}
+            <StatusBadge status="available" contentType="equipment" size="xs" showIcon showDot className="shadow-sm" />
           </div>
           {/* Tarif haut droite */}
           {!item.is_free && (

@@ -15,6 +15,7 @@ import Link from 'next/link';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
 import ProtectedPage from '@/components/providers/ProtectedPage';
+import StatusBadge from '@/components/ui/StatusBadge';
 import { STATUS_LABELS, URGENCY_LABELS, formatRelative, cn } from '@/lib/utils';
 
 // ─── Composants ──────────────────────────────────────────────────────────────
@@ -326,28 +327,24 @@ function DashboardContent() {
                 ) : (
                   <div className="space-y-2">
                     {listings.map(listing => (
-                      <Link key={listing.id} href={`/annonces/${listing.id}`}>
-                        <div className="flex items-center justify-between gap-2 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-800 text-sm truncate">{listing.title}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-xs text-gray-400">{listing.category?.name}</span>
-                              {(listing.views || 0) > 0 && (
-                                <span className="text-xs text-gray-400 flex items-center gap-0.5">
-                                  <Eye className="w-3 h-3" />{listing.views}
-                                </span>
-                              )}
-                            </div>
+                      <div key={listing.id} className="flex items-center justify-between gap-2 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                        <Link href={`/annonces/${listing.id}`} className="flex-1 min-w-0">
+                          <p className="font-semibold text-gray-800 text-sm truncate">{listing.title}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs text-gray-400">{listing.category?.name}</span>
+                            {(listing.views || 0) > 0 && (
+                              <span className="text-xs text-gray-400 flex items-center gap-0.5">
+                                <Eye className="w-3 h-3" />{listing.views}
+                              </span>
+                            )}
                           </div>
-                          <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                            <Badge variant={listing.status === 'active' ? 'success' : 'default'} className="text-[10px]">
-                              {listing.status === 'active' ? 'Active' : listing.status === 'sold' ? 'Vendue' : 'Archivée'}
-                            </Badge>
-                            <Link href={`/annonces/${listing.id}/modifier`} onClick={e => e.stopPropagation()}
-                              className="text-[10px] text-brand-600 hover:underline font-semibold">Modifier</Link>
-                          </div>
+                        </Link>
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          <StatusBadge status={listing.status} contentType="listing" size="xs" showIcon />
+                          <Link href={`/annonces/${listing.id}/modifier`}
+                            className="text-[10px] text-brand-600 hover:underline font-semibold">Modifier</Link>
                         </div>
-                      </Link>
+                      </div>
                     ))}
                   </div>
                 )}

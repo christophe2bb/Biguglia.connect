@@ -21,6 +21,7 @@ import RatingWidget from '@/components/ui/RatingWidget';
 import GlobalTrustBadge from '@/components/ui/TrustBadge';
 import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
 import InteractionButton from '@/components/ui/InteractionButton';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type HelpType = 'demande' | 'offre' | 'echange';
@@ -289,8 +290,9 @@ function HelpCard({
           <span className={`text-xs font-bold px-2.5 py-1 rounded-full bg-white/90 shadow ${urgConf.color}`}>
             {urgConf.label}
           </span>
-          {isResolved && <span className="text-xs font-black px-2.5 py-1 rounded-full bg-gray-800 text-white shadow">✅ Résolu</span>}
-          {isPaused   && <span className="text-xs font-black px-2.5 py-1 rounded-full bg-gray-500 text-white shadow">⏸ En pause</span>}
+          {isResolved && <StatusBadge status="resolved" contentType="help_request" size="xs" showIcon className="shadow" />}
+          {isPaused   && <StatusBadge status="paused"   contentType="help_request" size="xs" showIcon className="shadow" />}
+          {!isResolved && !isPaused && <StatusBadge status="open" contentType="help_request" size="xs" showDot showIcon className="shadow" />}
         </div>
 
         {/* Boutons auteur haut droite */}

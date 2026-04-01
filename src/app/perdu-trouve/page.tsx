@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget, { UserRatingBadge } from '@/components/ui/RatingWidget';
 import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LostFoundType = 'perdu' | 'trouve';
@@ -205,12 +206,12 @@ function LostFoundCard({
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
         {/* Badge type haut gauche */}
         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-          <span className={`inline-flex items-center gap-1.5 text-xs font-black px-3 py-1 rounded-full shadow ${
-            isResolved ? 'bg-gray-500 text-white' :
-            isPerdu ? 'bg-orange-500 text-white' : 'bg-emerald-500 text-white'
-          }`}>
-            {isResolved ? '✅ Résolu' : isPerdu ? '🔴 PERDU' : '🟢 TROUVÉ'}
-          </span>
+          <StatusBadge
+            status={item.status}
+            contentType="lost_found"
+            extra={{ lostFoundType: item.type }}
+            size="sm" showIcon showDot={!isResolved} className="shadow font-black"
+          />
           <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-white/90 text-gray-700 shadow">
             <CatIcon className="w-3.5 h-3.5" />
             {CATEGORIES.find(c => c.value === item.category)?.label ?? item.category}

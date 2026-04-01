@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Search, Filter } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Listing, ListingCategory } from '@/types';
 import Link from 'next/link';
@@ -12,6 +12,7 @@ import Select from '@/components/ui/Select';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import EmptyState from '@/components/ui/EmptyState';
+import StatusBadge from '@/components/ui/StatusBadge';
 import { LISTING_TYPE_LABELS, LISTING_TYPE_COLORS, CONDITION_LABELS, formatPrice, formatRelative } from '@/lib/utils';
 import ReportButton from '@/components/ui/ReportButton';
 
@@ -24,6 +25,7 @@ export default function AnnoncesPage() {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedType, setSelectedType] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('active');
   const [sortBy, setSortBy] = useState('recent');
 
   useEffect(() => {
@@ -35,8 +37,12 @@ export default function AnnoncesPage() {
 
       let query = supabase
         .from('listings')
-        .select('*, category:listing_categories(*), photos:listing_photos(*)')
-        .eq('status', 'active');
+        .select('*, category:listing_categories(*), photos:listing_photos(*)');
+
+      if (selectedStatus === 'active') query = query.eq('status', 'active');
+      else if (selectedStatus === 'reserved') query = query.eq('status', 'reserved').neq('status', 'archived');
+      else if (selectedStatus === 'sold') query = query.eq('status', 'sold');
+      else query = query.neq('status', 'archived');
 
       if (selectedCategory) {
         const cat = cats?.find(c => c.slug === selectedCategory);
@@ -53,7 +59,7 @@ export default function AnnoncesPage() {
       setLoading(false);
     };
     fetchData();
-  }, [selectedCategory, selectedType, sortBy]);
+  }, [selectedCategory, selectedType, selectedStatus, sortBy]);
 
   const filtered = listings.filter(l =>
     !search ||
@@ -95,6 +101,12 @@ export default function AnnoncesPage() {
         <Select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="sm:w-48">
           <option value="">Toutes catégories</option>
           {categories.map(c => <option key={c.id} value={c.slug}>{c.icon} {c.name}</option>)}
+        </Select>
+        <Select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} className="sm:w-44">
+          <option value="active">⚡ Disponibles</option>
+          <option value="reserved">🔒 Réservées</option>
+          <option value="sold">✅ Vendues</option>
+          <option value="all">Toutes</option>
         </Select>
         <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="sm:w-44">
           <option value="recent">🕐 Plus récentes</option>
@@ -157,10 +169,13 @@ function ListingCard({ listing, currentUserId }: { listing: Listing; currentUser
           {/* Overlay gradient bas */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
           {/* Badge type haut gauche */}
-          <div className="absolute top-3 left-3">
+          <div className="absolute top-3 left-3 flex flex-col gap-1">
             <span className={`inline-block px-2.5 py-1 text-xs font-black rounded-full shadow ${typeColor}`}>
               {LISTING_TYPE_LABELS[listing.listing_type]}
             </span>
+            {listing.status !== 'active' && (
+              <StatusBadge status={listing.status} contentType="listing" size="xs" showIcon />
+            )}
           </div>
           {/* Prix haut droite */}
           <div className="absolute top-3 right-3">

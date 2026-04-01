@@ -10,6 +10,7 @@ import Link from 'next/link';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
+import StatusBadge from '@/components/ui/StatusBadge';
 import { LISTING_TYPE_LABELS, LISTING_TYPE_COLORS, STATUS_LABELS, formatDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import RatingWidget from '@/components/ui/RatingWidget';
@@ -265,6 +266,7 @@ export default function AnnonceDetailPage() {
               <Badge variant={listing.status === 'active' ? 'success' : 'default'}>
                 {STATUS_LABELS[listing.status]}
               </Badge>
+              <StatusBadge status={listing.status} contentType="listing" size="md" showIcon showDot={listing.status === 'active'} />
               {listing.category && (
                 <span className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">
                   {listing.category.icon} {listing.category.name}

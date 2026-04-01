@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon, Zap, Star, CheckCheck, Activity } from 'lucide-react';
+import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon, Zap, Star, CheckCheck, Activity, Tag, Info } from 'lucide-react';
 
 // ─── SQL complet à copier-coller dans Supabase SQL Editor ─────────────────────
 const MIGRATION_SQL = `-- ============================================================
@@ -1359,6 +1359,7 @@ export default function MigrationPage() {
   const [copiedRating, setCopiedRating] = useState(false);
   const [copiedExchange, setCopiedExchange] = useState(false);
   const [copiedInteraction, setCopiedInteraction] = useState(false);
+  const [copiedStatus, setCopiedStatus] = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -1890,6 +1891,159 @@ export default function MigrationPage() {
             <li>Déblocage automatique des avis quand les 2 parties confirment</li>
             <li>Historique complet de chaque changement de statut</li>
           </ul>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          SECTION STATUTS — CHAMPS ENRICHIS
+      ══════════════════════════════════════════════════════════════ */}
+      <div className="flex items-center gap-3 mb-4 mt-4">
+        <div className="p-3 bg-violet-100 rounded-2xl">
+          <Tag className="w-6 h-6 text-violet-600" />
+        </div>
+        <div>
+          <h2 className="text-xl font-black text-gray-900">Statuts enrichis</h2>
+          <p className="text-gray-500 text-sm">Ajoute status_changed_at, expiration_date et statuts manquants (reserved, returned…)</p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border shadow-sm mb-4 overflow-hidden">
+        <div className="p-5">
+          <div className="flex items-start gap-3 bg-violet-50 border border-violet-200 rounded-xl p-4 mb-4">
+            <Info className="w-4 h-4 text-violet-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-violet-800">
+              <p className="font-bold mb-1">Ce SQL enrichit les tables existantes :</p>
+              <ul className="list-disc list-inside space-y-0.5 text-xs">
+                <li>Ajoute <code>status_changed_at</code>, <code>expiration_date</code> sur listings</li>
+                <li>Ajoute le statut <code>&apos;reserved&apos;</code> aux annonces</li>
+                <li>Ajoute <code>status_changed_at</code> sur equipment_items</li>
+                <li>Ajoute <code>status_changed_at</code> sur help_requests, lost_found_items, associations</li>
+                <li>Crée un trigger auto-update de status_changed_at</li>
+              </ul>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              const sql = `-- BIGUGLIA CONNECT — Statuts enrichis
+-- Ajoute les champs de suivi temporel des changements de statut
+
+-- 1. Annonces : ajouter 'reserved' + status_changed_at + expiration_date
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'listings_status_check'
+    AND conrelid = 'listings'::regclass
+  ) THEN NULL; END IF;
+END $$;
+
+ALTER TABLE listings DROP CONSTRAINT IF EXISTS listings_status_check;
+ALTER TABLE listings ADD CONSTRAINT listings_status_check
+  CHECK (status IN ('active', 'reserved', 'sold', 'archived', 'expired'));
+
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS expiration_date DATE;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS auto_expire BOOLEAN DEFAULT false;
+
+-- 2. Equipment items
+ALTER TABLE equipment_items ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
+
+-- 3. Help requests  
+ALTER TABLE help_requests ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
+
+-- 4. Lost & found items
+ALTER TABLE lost_found_items ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
+
+-- 5. Associations
+ALTER TABLE associations ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
+
+-- 6. Group outings (status + status_changed_at)
+ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active' 
+  CHECK (status IN ('active', 'cancelled', 'completed'));
+ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
+
+-- 7. Local events
+ALTER TABLE local_events ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active'
+  CHECK (status IN ('active', 'cancelled', 'completed'));
+ALTER TABLE local_events ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
+
+-- 8. Trigger auto-update status_changed_at pour listings
+CREATE OR REPLACE FUNCTION update_status_changed_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.status IS DISTINCT FROM OLD.status THEN
+    NEW.status_changed_at = NOW();
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS listings_status_changed ON listings;
+CREATE TRIGGER listings_status_changed
+  BEFORE UPDATE ON listings
+  FOR EACH ROW EXECUTE FUNCTION update_status_changed_at();
+
+DROP TRIGGER IF EXISTS help_requests_status_changed ON help_requests;
+CREATE TRIGGER help_requests_status_changed
+  BEFORE UPDATE ON help_requests
+  FOR EACH ROW EXECUTE FUNCTION update_status_changed_at();
+
+DROP TRIGGER IF EXISTS lost_found_status_changed ON lost_found_items;
+CREATE TRIGGER lost_found_status_changed
+  BEFORE UPDATE ON lost_found_items
+  FOR EACH ROW EXECUTE FUNCTION update_status_changed_at();
+
+DROP TRIGGER IF EXISTS associations_status_changed ON associations;
+CREATE TRIGGER associations_status_changed
+  BEFORE UPDATE ON associations
+  FOR EACH ROW EXECUTE FUNCTION update_status_changed_at();
+
+DROP TRIGGER IF EXISTS group_outings_status_changed ON group_outings;
+CREATE TRIGGER group_outings_status_changed
+  BEFORE UPDATE ON group_outings
+  FOR EACH ROW EXECUTE FUNCTION update_status_changed_at();
+
+DROP TRIGGER IF EXISTS local_events_status_changed ON local_events;
+CREATE TRIGGER local_events_status_changed
+  BEFORE UPDATE ON local_events
+  FOR EACH ROW EXECUTE FUNCTION update_status_changed_at();
+
+-- 9. Vue annonces expirées (expiration_date dépassée → auto-archivage)
+CREATE OR REPLACE FUNCTION auto_expire_listings()
+RETURNS void AS $$
+BEGIN
+  UPDATE listings
+  SET status = 'expired', status_changed_at = NOW()
+  WHERE auto_expire = true
+    AND expiration_date IS NOT NULL
+    AND expiration_date < CURRENT_DATE
+    AND status = 'active';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+SELECT 'OK: statuts enrichis appliqués' as result;`;
+              navigator.clipboard.writeText(sql);
+              setCopiedStatus(true);
+              setTimeout(() => setCopiedStatus(false), 4000);
+            }}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all mb-3 ${
+              copiedStatus
+                ? 'bg-emerald-500 text-white'
+                : 'bg-violet-600 text-white hover:bg-violet-700'
+            }`}
+          >
+            {copiedStatus
+              ? <><Check className="w-4 h-4" /> SQL copié ! Collez dans Supabase SQL Editor</>
+              : <><Copy className="w-4 h-4" /> Copier le SQL Statuts enrichis</>
+            }
+          </button>
+
+          <ol className="list-decimal list-inside text-xs text-gray-600 space-y-1 bg-gray-50 rounded-xl p-3">
+            <li>Copiez le SQL ci-dessus</li>
+            <li>Allez dans Supabase → SQL Editor → New query</li>
+            <li>Collez et exécutez</li>
+            <li>Les statuts <strong>reserved</strong>, <strong>expired</strong> seront disponibles sur les annonces</li>
+            <li>Les champs <strong>status_changed_at</strong> et <strong>expiration_date</strong> seront ajoutés</li>
+          </ol>
         </div>
       </div>
 

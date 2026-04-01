@@ -8,6 +8,7 @@ import { formatRelative } from '@/lib/utils';
 import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';
 import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
+import StatusBadge from '@/components/ui/StatusBadge';
 import {
   Search, Plus, X, Loader2, AlertCircle, Camera, MapPin, Clock,
   Phone, Mail, Globe, MessageSquare, CheckCircle2, Shield, Users,
@@ -229,6 +230,11 @@ function AssociationCard({
         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
           <span className={`text-xs font-black px-2.5 py-1 rounded-full shadow ${pubConf.color}`}>{pubConf.emoji} {pubConf.label}</span>
           {asso.urgent_need && <span className="text-xs font-black px-2.5 py-1 rounded-full bg-red-500 text-white shadow animate-pulse">🚨 Urgent</span>}
+          <StatusBadge
+            status={asso.status || 'active'}
+            contentType="association"
+            size="xs" showIcon showDot={asso.status === 'active'} className="shadow"
+          />
         </div>
         {/* Boutons auteur haut droite */}
         {isAuthor && (
