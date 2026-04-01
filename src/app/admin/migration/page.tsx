@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon, Zap, Star, CheckCheck, Activity, Tag, Info } from 'lucide-react';
+import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon, Zap, Star, CheckCheck, Activity, Tag, Info, Search } from 'lucide-react';
 
 // ─── SQL complet à copier-coller dans Supabase SQL Editor ─────────────────────
 const MIGRATION_SQL = `-- ============================================================
@@ -1360,6 +1360,7 @@ export default function MigrationPage() {
   const [copiedExchange, setCopiedExchange] = useState(false);
   const [copiedInteraction, setCopiedInteraction] = useState(false);
   const [copiedStatus, setCopiedStatus] = useState(false);
+  const [copiedSearch, setCopiedSearch] = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -1502,6 +1503,108 @@ export default function MigrationPage() {
     navigator.clipboard.writeText(BUCKET_SQL).then(() => {
       setCopiedBucket(true);
       setTimeout(() => setCopiedBucket(false), 4000);
+    });
+  };
+
+  const handleCopySearch = () => {
+    const searchSql = `-- BIGUGLIA CONNECT — Recherche globale full-text (optionnel, améliore les perfs)
+-- À exécuter une seule fois dans Supabase → SQL Editor
+-- Ce SQL ajoute des colonnes tsvector et des index GIN pour accélérer la recherche globale.
+
+-- 1. Listings (annonces)
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS search_vector tsvector;
+UPDATE listings SET search_vector = to_tsvector('french', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(location,''));
+CREATE INDEX IF NOT EXISTS listings_search_idx ON listings USING gin(search_vector);
+
+CREATE OR REPLACE FUNCTION listings_search_update() RETURNS trigger AS $$
+BEGIN
+  NEW.search_vector := to_tsvector('french',
+    coalesce(NEW.title,'') || ' ' || coalesce(NEW.description,'') || ' ' || coalesce(NEW.location,'')
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS listings_search_trigger ON listings;
+CREATE TRIGGER listings_search_trigger
+  BEFORE INSERT OR UPDATE ON listings
+  FOR EACH ROW EXECUTE FUNCTION listings_search_update();
+
+-- 2. Equipment items (matériel)
+ALTER TABLE equipment_items ADD COLUMN IF NOT EXISTS search_vector tsvector;
+UPDATE equipment_items SET search_vector = to_tsvector('french', coalesce(name,'') || ' ' || coalesce(description,''));
+CREATE INDEX IF NOT EXISTS equipment_search_idx ON equipment_items USING gin(search_vector);
+
+CREATE OR REPLACE FUNCTION equipment_search_update() RETURNS trigger AS $$
+BEGIN
+  NEW.search_vector := to_tsvector('french', coalesce(NEW.name,'') || ' ' || coalesce(NEW.description,''));
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS equipment_search_trigger ON equipment_items;
+CREATE TRIGGER equipment_search_trigger
+  BEFORE INSERT OR UPDATE ON equipment_items
+  FOR EACH ROW EXECUTE FUNCTION equipment_search_update();
+
+-- 3. Help requests (coups de main)
+ALTER TABLE help_requests ADD COLUMN IF NOT EXISTS search_vector tsvector;
+UPDATE help_requests SET search_vector = to_tsvector('french', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(city,''));
+CREATE INDEX IF NOT EXISTS help_search_idx ON help_requests USING gin(search_vector);
+
+CREATE OR REPLACE FUNCTION help_search_update() RETURNS trigger AS $$
+BEGIN
+  NEW.search_vector := to_tsvector('french',
+    coalesce(NEW.title,'') || ' ' || coalesce(NEW.description,'') || ' ' || coalesce(NEW.city,'')
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS help_search_trigger ON help_requests;
+CREATE TRIGGER help_search_trigger
+  BEFORE INSERT OR UPDATE ON help_requests
+  FOR EACH ROW EXECUTE FUNCTION help_search_update();
+
+-- 4. Forum posts
+ALTER TABLE forum_posts ADD COLUMN IF NOT EXISTS search_vector tsvector;
+UPDATE forum_posts SET search_vector = to_tsvector('french', coalesce(title,'') || ' ' || coalesce(content,''));
+CREATE INDEX IF NOT EXISTS forum_search_idx ON forum_posts USING gin(search_vector);
+
+CREATE OR REPLACE FUNCTION forum_search_update() RETURNS trigger AS $$
+BEGIN
+  NEW.search_vector := to_tsvector('french', coalesce(NEW.title,'') || ' ' || coalesce(NEW.content,''));
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS forum_search_trigger ON forum_posts;
+CREATE TRIGGER forum_search_trigger
+  BEFORE INSERT OR UPDATE ON forum_posts
+  FOR EACH ROW EXECUTE FUNCTION forum_search_update();
+
+-- 5. Local events (événements)
+ALTER TABLE local_events ADD COLUMN IF NOT EXISTS search_vector tsvector;
+UPDATE local_events SET search_vector = to_tsvector('french', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(location,''));
+CREATE INDEX IF NOT EXISTS events_search_idx ON local_events USING gin(search_vector);
+
+-- 6. Group outings (promenades)
+ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS search_vector tsvector;
+UPDATE group_outings SET search_vector = to_tsvector('french', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(location,''));
+CREATE INDEX IF NOT EXISTS outings_search_idx ON group_outings USING gin(search_vector);
+
+-- 7. Artisan profiles
+ALTER TABLE artisan_profiles ADD COLUMN IF NOT EXISTS search_vector tsvector;
+UPDATE artisan_profiles SET search_vector = to_tsvector('french', coalesce(business_name,'') || ' ' || coalesce(description,'') || ' ' || coalesce(city,''));
+CREATE INDEX IF NOT EXISTS artisan_search_idx ON artisan_profiles USING gin(search_vector);
+
+-- 8. Associations
+ALTER TABLE associations ADD COLUMN IF NOT EXISTS search_vector tsvector;
+UPDATE associations SET search_vector = to_tsvector('french', coalesce(name,'') || ' ' || coalesce(description,'') || ' ' || coalesce(city,'') || ' ' || coalesce(category,''));
+CREATE INDEX IF NOT EXISTS asso_search_idx ON associations USING gin(search_vector);
+
+-- Résumé : 8 tables indexées pour la recherche full-text française.
+-- Les indexes GIN accélèrent drastiquement les requêtes ILIKE et les recherches textuelles.
+`;
+    navigator.clipboard.writeText(searchSql).then(() => {
+      setCopiedSearch(true);
+      setTimeout(() => setCopiedSearch(false), 4000);
     });
   };
 
@@ -2092,6 +2195,51 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
             <li>Les champs <strong>status_changed_at</strong> et <strong>expiration_date</strong> seront ajoutés</li>
           </ol>
         </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          SECTION RECHERCHE GLOBALE — INDEX FULL-TEXT
+      ══════════════════════════════════════════════════════════════ */}
+      <div className="flex items-center gap-3 mb-4 mt-4">
+        <div className="p-3 bg-violet-100 rounded-2xl">
+          <Search className="w-6 h-6 text-violet-600" />
+        </div>
+        <div>
+          <h2 className="text-xl font-black text-gray-900">Recherche globale (Full-Text)</h2>
+          <p className="text-gray-500 text-sm">Index GIN pour accélérer la recherche dans toutes les rubriques</p>
+        </div>
+      </div>
+
+      <div className="bg-violet-50 border-2 border-violet-200 rounded-2xl p-5 mb-6">
+        <div className="flex items-start gap-3 mb-3">
+          <span className="text-2xl flex-shrink-0">🔍</span>
+          <div>
+            <p className="font-bold text-violet-800 text-sm">
+              SQL optionnel — Améliore les performances de recherche
+            </p>
+            <p className="text-violet-700 text-xs mt-1">
+              Ajoute des colonnes <code className="bg-violet-100 px-1 rounded">search_vector</code> (tsvector) et des index GIN sur 8 tables.
+              La recherche globale fonctionne sans ce SQL (via ILIKE), mais ce SQL la rend 10× plus rapide sur un grand volume de données.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={handleCopySearch}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow ${
+            copiedSearch ? 'bg-emerald-500 text-white' : 'bg-violet-600 text-white hover:bg-violet-700'
+          }`}
+        >
+          {copiedSearch
+            ? <><Check className="w-4 h-4" /> SQL copié ! Collez dans Supabase SQL Editor</>
+            : <><Copy className="w-4 h-4" /> Copier le SQL Recherche globale</>
+          }
+        </button>
+        <ol className="list-decimal list-inside text-xs text-gray-600 space-y-1 bg-gray-50 rounded-xl p-3 mt-3">
+          <li>Copiez le SQL ci-dessus (optionnel, recommandé en production)</li>
+          <li>Allez dans Supabase → SQL Editor → New query</li>
+          <li>Collez et exécutez</li>
+          <li>Les 8 tables indexées : listings, equipment_items, help_requests, forum_posts, local_events, group_outings, artisan_profiles, associations</li>
+        </ol>
       </div>
 
       {/* ══════════════════════════════════════════════════════════════

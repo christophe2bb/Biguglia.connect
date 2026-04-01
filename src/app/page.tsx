@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
+import GlobalSearch from '@/components/ui/GlobalSearch';
 
 // ─── AnimatedCount ─────────────────────────────────────────────────────────────
 function AnimatedCount({ target, suffix = '', loading = false }: { target: number; suffix?: string; loading?: boolean }) {
@@ -256,6 +257,15 @@ export default function HomePage() {
                   coups de main entre voisins…{' '}
                   <span className="text-gray-900 font-bold">100% gratuit, 100% local.</span>
                 </p>
+              </div>
+
+              {/* Barre de recherche globale */}
+              <div className={`mb-5 transition-all duration-700 delay-100 ${heroLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                <GlobalSearch
+                  size="lg"
+                  placeholder="🔍  Rechercher artisans, annonces, événements…"
+                  className="w-full"
+                />
               </div>
 
               {/* Rubriques condensées */}

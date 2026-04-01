@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -15,6 +15,7 @@ import { useUnreadCounts } from '@/hooks/useUnreadCounts';
 import { cn } from '@/lib/utils';
 import Avatar from '@/components/ui/Avatar';
 import Logo from '@/components/ui/Logo';
+import GlobalSearch from '@/components/ui/GlobalSearch';
 
 // ─── Structure des 3 univers ───────────────────────────────────────────────────
 const UNIVERS = [
@@ -271,6 +272,7 @@ export default function Navbar() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [openUnivers, setOpenUnivers] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   // Mobile accordion
   const [mobileOpen, setMobileOpen] = useState<string | null>(null);
 
@@ -333,6 +335,30 @@ export default function Navbar() {
                 isActive={isUniversActive(univers)}
               />
             ))}
+          </div>
+
+          {/* ── Barre de recherche desktop ── */}
+          <div className="hidden lg:flex flex-1 max-w-xs mx-3">
+            {searchOpen ? (
+              <GlobalSearch
+                size="sm"
+                placeholder="Rechercher…"
+                className="w-full"
+                autoFocus
+                onSearch={(q) => {
+                  setSearchOpen(false);
+                  router.push(`/recherche?q=${encodeURIComponent(q)}`);
+                }}
+              />
+            ) : (
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="flex items-center gap-2 w-full px-3 h-9 rounded-2xl border border-gray-200 bg-gray-50 text-gray-400 text-sm hover:bg-white hover:border-gray-300 hover:text-gray-600 transition-all shadow-sm"
+              >
+                <Search className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">Rechercher…</span>
+              </button>
+            )}
           </div>
 
           {/* ── Actions droite ── */}
@@ -466,6 +492,15 @@ export default function Navbar() {
               </div>
             )}
 
+            {/* Icône recherche mobile */}
+            <Link
+              href="/recherche"
+              className="lg:hidden p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors"
+              title="Rechercher"
+            >
+              <Search className="w-5 h-5" />
+            </Link>
+
             {/* Burger mobile */}
             <button
               className="lg:hidden p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors"
@@ -542,6 +577,10 @@ export default function Navbar() {
             {/* Actions mobile (non connecté) */}
             {!profile && (
               <div className="mt-3 pt-3 border-t border-gray-100 space-y-2 px-1">
+                <Link href="/recherche" onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
+                  <Search className="w-4 h-4 text-gray-400" /> Rechercher
+                </Link>
                 <Link href="/artisans/demande" onClick={() => setMenuOpen(false)}
                   className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-brand-500 to-brand-600">
                   <PenLine className="w-4 h-4" /> Déposer une demande
@@ -565,6 +604,10 @@ export default function Navbar() {
                 <Link href="/dashboard" onClick={() => setMenuOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
                   <Home className="w-4 h-4" /> Tableau de bord
+                </Link>
+                <Link href="/recherche" onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
+                  <Search className="w-4 h-4 text-gray-400" /> Rechercher
                 </Link>
                 <Link href="/mes-echanges" onClick={() => setMenuOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-indigo-700 hover:bg-indigo-50">
