@@ -190,13 +190,22 @@ function ArtisanCard({
               className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100"
             >
               {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              {expanded ? 'Réduire' : 'Détails'}
+              {expanded ? 'Réduire' : 'Dossier complet'}
             </button>
             <Link href={`/artisans/${artisan.id}`} target="_blank">
               <Button size="sm" variant="outline" className="w-full">
-                <Eye className="w-3.5 h-3.5" /> Profil
+                <Eye className="w-3.5 h-3.5" /> Profil public
               </Button>
             </Link>
+            {/* Validation rapide directement visible */}
+            {isPending && (
+              <button
+                onClick={() => onApprove(artisan.user_id)}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-green-600 text-white text-xs font-bold rounded-xl hover:bg-green-700 transition-colors w-full"
+              >
+                <CheckCircle className="w-3.5 h-3.5" /> Valider
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -354,6 +363,7 @@ export default function AdminArtisansPage() {
   const router = useRouter();
   const [artisans, setArtisans] = useState<ArtisanEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'pending' | 'verified' | 'all'>('pending');
 
@@ -366,17 +376,48 @@ export default function AdminArtisansPage() {
   const fetchArtisans = async () => {
     setLoading(true);
     const supabase = createClient();
-    const { data } = await supabase
+
+    // Requête 1 : colonnes de base (toujours présentes)
+    const { data: baseData, error: baseError } = await supabase
       .from('artisan_profiles')
       .select(`
         id, user_id, business_name, description, service_area, years_experience,
-        siret, insurance, artisan_type, doc_kbis_url, doc_insurance_url, doc_id_url, rejection_reason, created_at,
+        siret, insurance, created_at,
         profile:profiles!artisan_profiles_user_id_fkey(id, full_name, email, avatar_url, role, status, created_at),
         trade_category:trade_categories(name, icon)
       `)
       .order('created_at', { ascending: true });
 
-    let list = (data as unknown as ArtisanEntry[]) || [];
+    if (baseError) {
+      console.error('[AdminArtisans] Erreur requête base:', baseError);
+      setLoadError(`Erreur Supabase : ${baseError.message} (code: ${baseError.code})`);
+      toast.error('Erreur de chargement : ' + baseError.message);
+      setLoading(false);
+      return;
+    }
+
+    let list = (baseData as unknown as ArtisanEntry[]) || [];
+
+    // Requête 2 : colonnes optionnelles (ajoutées via migration)
+    // On tente de les récupérer séparément pour ne pas bloquer si elles manquent
+    try {
+      const { data: extData } = await supabase
+        .from('artisan_profiles')
+        .select('id, artisan_type, doc_kbis_url, doc_insurance_url, doc_id_url, rejection_reason');
+
+      if (extData) {
+        const extMap = new Map(
+          ((extData || []) as Record<string, unknown>[])
+            .map(e => [e.id as string, e])
+        );
+        list = list.map(a => ({
+          ...a,
+          ...(extMap.get(a.id) || {}),
+        }));
+      }
+    } catch {
+      // Colonnes pas encore migrées — on continue sans elles
+    }
 
     if (filter === 'pending') list = list.filter(a => a.profile?.role === 'artisan_pending');
     else if (filter === 'verified') list = list.filter(a => a.profile?.role === 'artisan_verified');
@@ -447,6 +488,29 @@ export default function AdminArtisansPage() {
           </div>
         )}
       </div>
+
+      {/* Erreur de chargement */}
+      {loadError && (
+        <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-5 mb-6 flex items-start gap-4">
+          <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h3 className="font-bold text-red-900 mb-1">Erreur de chargement</h3>
+            <p className="text-sm text-red-800 font-mono bg-red-100 rounded p-2 mb-3">{loadError}</p>
+            <p className="text-sm text-red-700 mb-3">
+              Causes possibles : politique RLS trop restrictive, colonnes manquantes, ou problème de connexion Supabase.
+              Vérifiez que votre compte a bien le rôle <strong>admin</strong> dans la table <code>profiles</code>.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={fetchArtisans} className="flex items-center gap-2 bg-red-600 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-red-700 transition-colors">
+                Réessayer
+              </button>
+              <Link href="/admin/migration" className="flex items-center gap-2 bg-amber-600 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-amber-700 transition-colors">
+                Migration DB
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Alerte si colonnes documents manquantes en DB */}
       {missingDocColumns && (
