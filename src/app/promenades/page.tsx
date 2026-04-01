@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import ReportButton from '@/components/ui/ReportButton';
+import RatingWidget from '@/components/ui/RatingWidget';
 import toast from 'react-hot-toast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -410,6 +411,20 @@ function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit, onDelete }: {
           </div>
         )}
       </div>
+
+      {/* Notation sortie (si passée) */}
+      {new Date(outing.outing_date + 'T23:59:59') < new Date() && (
+        <div className="px-4 pb-4">
+          <RatingWidget
+            targetType="outing"
+            targetId={outing.id}
+            authorId={outing.organizer_id}
+            userId={userId}
+            compact={false}
+            showPoll
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -13,6 +13,7 @@ import Badge from '@/components/ui/Badge';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 import { ROLE_LABELS } from '@/lib/utils';
 import Link from 'next/link';
+import { UserRatingBadge } from '@/components/ui/RatingWidget';
 
 function ProfilContent() {
   const { profile, setProfile } = useAuthStore();
@@ -134,6 +135,11 @@ function ProfilContent() {
                 </Badge>
                 {profile.status === 'suspended' && <Badge variant="danger">Suspendu</Badge>}
               </div>
+              {profile.id && (
+                <div className="mt-1">
+                  <UserRatingBadge userId={profile.id} />
+                </div>
+              )}
               <p className="text-xs text-gray-400 mt-1">Cliquez sur l&apos;icône 📷 pour changer la photo</p>
             </div>
           </div>

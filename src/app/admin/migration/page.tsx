@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon, Zap } from 'lucide-react';
+import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon, Zap, Star } from 'lucide-react';
 
 // ─── SQL complet à copier-coller dans Supabase SQL Editor ─────────────────────
 const MIGRATION_SQL = `-- ============================================================
@@ -741,6 +741,46 @@ WHERE pubname = 'supabase_realtime'
   AND tablename IN ('messages','notifications','conversation_participants','conversations')
 ORDER BY tablename;`;
 
+// ─── SQL Notation universelle ──────────────────────────────────────────────────
+const RATING_SQL = `-- ============================================================
+-- BIGUGLIA CONNECT — Table item_ratings (notation universelle)
+-- Coller dans Supabase > SQL Editor > New query > Run
+-- ============================================================
+
+-- 1. Créer la table item_ratings
+CREATE TABLE IF NOT EXISTS item_ratings (
+  id           UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  target_type  TEXT NOT NULL CHECK (target_type IN (
+    'listing','equipment','help_request','lost_found',
+    'association','outing','collection_item','event',
+    'promenade','service_request'
+  )),
+  target_id    UUID NOT NULL,
+  user_id      UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  author_id    UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  rating       INT NOT NULL DEFAULT 0 CHECK (rating >= 0 AND rating <= 5),
+  comment      TEXT,
+  poll_choice  INT CHECK (poll_choice >= 0 AND poll_choice <= 3),
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(target_type, target_id, user_id)
+);
+
+-- 2. Index
+CREATE INDEX IF NOT EXISTS idx_item_ratings_target ON item_ratings(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_item_ratings_author ON item_ratings(author_id);
+CREATE INDEX IF NOT EXISTS idx_item_ratings_user   ON item_ratings(user_id);
+
+-- 3. RLS
+ALTER TABLE item_ratings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS "Notes publiques"    ON item_ratings FOR SELECT USING (true);
+CREATE POLICY IF NOT EXISTS "Noter si connecté"  ON item_ratings FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY IF NOT EXISTS "Modifier sa note"   ON item_ratings FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY IF NOT EXISTS "Supprimer sa note"  ON item_ratings FOR DELETE USING (auth.uid() = user_id OR current_user_role() = 'admin');
+
+-- 4. Recharge cache
+NOTIFY pgrst, 'reload schema';`;
+
 // ─── SQL Bucket Storage (à exécuter dans Supabase SQL Editor) ─────────────────
 const BUCKET_SQL = `-- ============================================================
 -- BIGUGLIA CONNECT — Création bucket Storage "photos"
@@ -820,6 +860,7 @@ const TABLES_TO_CHECK = [
   { name: 'help_photos',           label: 'Photos coups de main',     theme: '🤝 Coups de main' },
   { name: 'help_comments',         label: 'Commentaires coups de main', theme: '🤝 Coups de main' },
   { name: 'moderation_queue',      label: 'File de modération',       theme: '🛡️ Modération' },
+  { name: 'item_ratings',          label: 'Notes & Avis (universel)',  theme: '⭐ Notation' },
 ];
 
 type TableStatus = { name: string; exists: boolean };
@@ -842,6 +883,7 @@ export default function MigrationPage() {
   const [copiedNotify, setCopiedNotify] = useState(false);
   const [copiedBucket, setCopiedBucket] = useState(false);
   const [copiedRealtime, setCopiedRealtime] = useState(false);
+  const [copiedRating, setCopiedRating] = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -991,6 +1033,13 @@ export default function MigrationPage() {
     navigator.clipboard.writeText(REALTIME_SQL).then(() => {
       setCopiedRealtime(true);
       setTimeout(() => setCopiedRealtime(false), 4000);
+    });
+  };
+
+  const handleCopyRating = () => {
+    navigator.clipboard.writeText(RATING_SQL).then(() => {
+      setCopiedRating(true);
+      setTimeout(() => setCopiedRating(false), 4000);
     });
   };
 
@@ -1188,6 +1237,59 @@ export default function MigrationPage() {
             <li>La dernière requête doit retourner <strong>4 lignes</strong> (messages, notifications, conversation_participants, conversations)</li>
             <li>Ce script corrige aussi les policies RLS pour que Realtime fonctionne (suppression des JOIN bloquants)</li>
             <li>Activez aussi : <strong>Database → Replication → supabase_realtime</strong> → vérifiez que les 4 tables sont cochées</li>
+          </ol>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          SECTION NOTATION — AVIS & ÉTOILES UNIVERSEL
+      ══════════════════════════════════════════════════════════════ */}
+      <div className="flex items-center gap-3 mb-4 mt-8">
+        <div className="p-3 bg-amber-100 rounded-2xl">
+          <Star className="w-6 h-6 text-amber-600" />
+        </div>
+        <div>
+          <h2 className="text-xl font-black text-gray-900">Notation universelle — Avis & Étoiles</h2>
+          <p className="text-gray-500 text-sm">Notes 1-5 étoiles + mini-sondages sur toutes les rubriques</p>
+        </div>
+      </div>
+
+      <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 mb-6">
+        <div className="flex items-start gap-3 mb-3">
+          <span className="text-2xl flex-shrink-0">⭐</span>
+          <div>
+            <p className="font-bold text-amber-800 text-sm">
+              À exécuter pour activer les avis sur toutes les rubriques
+            </p>
+            <p className="text-amber-700 text-xs mt-1">
+              Crée la table <code className="bg-amber-100 px-1 rounded">item_ratings</code> permettant de noter
+              annonces, événements, promenades, associations, coups de main, collectionneurs, matériel, etc.
+              Avec mini-sondages contextuels par rubrique.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={handleCopyRating}
+          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-all ${
+            copiedRating ? 'bg-emerald-500 text-white' : 'bg-amber-600 text-white hover:bg-amber-700'
+          }`}
+        >
+          {copiedRating
+            ? <><Check className="w-4 h-4" /> SQL copié ! Collez dans Supabase SQL Editor</>
+            : <><Copy className="w-4 h-4" /> Copier le SQL Notation</>
+          }
+        </button>
+        <div className="mt-3 bg-gray-900 rounded-xl p-4 overflow-x-auto">
+          <pre className="text-xs text-amber-300 font-mono leading-relaxed whitespace-pre-wrap">{RATING_SQL}</pre>
+        </div>
+        <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
+          <p className="text-xs text-amber-800 font-bold">📋 Instructions :</p>
+          <ol className="text-xs text-amber-700 mt-1 space-y-1 list-decimal list-inside">
+            <li>Copiez le SQL ci-dessus</li>
+            <li>Allez sur <strong>supabase.com</strong> → votre projet → <strong>SQL Editor</strong></li>
+            <li>Cliquez <strong>New query</strong>, collez et cliquez <strong>Run</strong></li>
+            <li>La table <code className="bg-amber-100 px-1 rounded">item_ratings</code> sera créée avec RLS</li>
+            <li>Les avis apparaîtront automatiquement sur toutes les rubriques du site</li>
           </ol>
         </div>
       </div>

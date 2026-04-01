@@ -15,6 +15,7 @@ import {
 import Avatar from '@/components/ui/Avatar';
 import toast from 'react-hot-toast';
 import ReportButton from '@/components/ui/ReportButton';
+import RatingWidget from '@/components/ui/RatingWidget';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type CollectionCategory = {
@@ -242,6 +243,16 @@ function ItemCard({
               <ReportButton targetType="collection_item" targetId={item.id} targetTitle={item.title} variant="icon" />
             </div>
           )}
+        </div>
+        {/* Notation article collection */}
+        <div className="mt-3 pt-3 border-t border-gray-50">
+          <RatingWidget
+            targetType="collection_item"
+            targetId={item.id}
+            authorId={item.author_id}
+            userId={currentUserId}
+            compact
+          />
         </div>
       </div>
     </div>

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ReportButton from '@/components/ui/ReportButton';
+import RatingWidget from '@/components/ui/RatingWidget';
 import GlobalTrustBadge from '@/components/ui/TrustBadge';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -488,6 +489,19 @@ function HelpCard({
           </div>
         )}
       </div>
+
+      {/* Notation coup de main (si résolu) */}
+      {item.status === 'resolved' && (
+        <div className="mt-3 px-5 pb-5 border-t border-gray-100 pt-3">
+          <RatingWidget
+            targetType="help_request"
+            targetId={item.id}
+            authorId={item.author_id}
+            userId={userId}
+            compact
+          />
+        </div>
+      )}
     </div>
   );
 }

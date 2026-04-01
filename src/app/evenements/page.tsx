@@ -15,6 +15,7 @@ import {
 import Avatar from '@/components/ui/Avatar';
 import toast from 'react-hot-toast';
 import ReportButton from '@/components/ui/ReportButton';
+import RatingWidget from '@/components/ui/RatingWidget';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LocalEvent = {
@@ -334,6 +335,19 @@ function EventCard({
             </div>
           )}
 
+          {/* ── Note compact ── */}
+          {isPastEvent && (
+            <div className="mt-2 pt-2 border-t border-gray-50">
+              <RatingWidget
+                targetType="event"
+                targetId={event.id}
+                authorId={event.author_id}
+                userId={userId}
+                compact
+              />
+            </div>
+          )}
+
           {/* ── Mini-forum de l'événement ── */}
           <EventMiniForum
             eventId={event.id}
@@ -467,6 +481,20 @@ function EventCard({
           )}
           </div>
         </div>
+
+        {/* ── Notation événement ── */}
+        {new Date(event.event_date + 'T23:59:59') < new Date() && (
+          <div className="px-5 pb-5">
+            <RatingWidget
+              targetType="event"
+              targetId={event.id}
+              authorId={event.author_id}
+              userId={userId}
+              compact={false}
+              showPoll
+            />
+          </div>
+        )}
       </div>
     </div>
   );

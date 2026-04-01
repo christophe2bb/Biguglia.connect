@@ -12,6 +12,7 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import { LISTING_TYPE_LABELS, LISTING_TYPE_COLORS, STATUS_LABELS, formatDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import RatingWidget from '@/components/ui/RatingWidget';
 
 export default function AnnonceDetailPage() {
   const { id } = useParams();
@@ -379,6 +380,15 @@ export default function AnnonceDetailPage() {
               Signaler cette annonce
             </button>
           </div>
+
+          {/* Notation */}
+          <RatingWidget
+            targetType="listing"
+            targetId={listing.id}
+            authorId={listing.user_id}
+            userId={profile?.id}
+            showPoll
+          />
 
           {/* Sécurité */}
           <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">

@@ -12,6 +12,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import EmptyState from '@/components/ui/EmptyState';
 import StarRating from '@/components/ui/StarRating';
+import { UserRatingBadge } from '@/components/ui/RatingWidget';
 
 function ArtisansContent() {
   const searchParams = useSearchParams();
@@ -188,7 +189,7 @@ function ArtisanCard({ artisan }: { artisan: ArtisanProfile & { avg_rating?: num
 
         <div className="p-5">
           {/* Badges */}
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
             {artisan.is_featured && (
               <Badge variant="warning">⭐ À la une</Badge>
             )}
@@ -196,6 +197,15 @@ function ArtisanCard({ artisan }: { artisan: ArtisanProfile & { avg_rating?: num
               <Shield className="w-3 h-3 mr-1" />
               Vérifié
             </Badge>
+            {artisan.artisan_type === 'professionnel' ? (
+              <span className="inline-flex items-center gap-1 text-xs font-black px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+                🏢 PRO
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                👤 Particulier
+              </span>
+            )}
           </div>
 
           {/* Identité */}
@@ -212,6 +222,9 @@ function ArtisanCard({ artisan }: { artisan: ArtisanProfile & { avg_rating?: num
               <div className="flex items-center gap-1 text-sm text-gray-500">
                 <span>{artisan.trade_category?.icon}</span>
                 <span>{artisan.trade_category?.name}</span>
+                {artisan.profile?.id && (
+                  <UserRatingBadge userId={artisan.profile.id} className="ml-1" />
+                )}
               </div>
             </div>
           </div>

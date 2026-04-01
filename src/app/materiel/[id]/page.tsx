@@ -13,6 +13,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { CONDITION_LABELS, formatDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import RatingWidget from '@/components/ui/RatingWidget';
 
 export default function MaterielDetailPage() {
   const { id } = useParams();
@@ -222,6 +223,15 @@ export default function MaterielDetailPage() {
               </div>
             </div>
           )}
+
+          {/* Notation */}
+          <RatingWidget
+            targetType="equipment"
+            targetId={item.id}
+            authorId={item.owner_id}
+            userId={profile?.id}
+            showPoll
+          />
 
           <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-2"><Clock className="w-4 h-4 text-blue-600" /><h4 className="text-sm font-medium text-blue-800">Conseils de prêt</h4></div>

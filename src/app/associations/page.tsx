@@ -6,6 +6,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
 import { formatRelative } from '@/lib/utils';
 import ReportButton from '@/components/ui/ReportButton';
+import RatingWidget from '@/components/ui/RatingWidget';
 import {
   Search, Plus, X, Loader2, AlertCircle, Camera, MapPin, Clock,
   Phone, Mail, Globe, MessageSquare, CheckCircle2, Shield, Users,
@@ -478,6 +479,16 @@ function AssociationCard({
         <p className="text-xs text-gray-400 mt-3 border-t border-gray-50 pt-2">
           Publié par {asso.author?.full_name ?? 'Membre'} · {formatRelative(asso.created_at)}
         </p>
+        {/* Notation association */}
+        <div className="mt-3 pt-3 border-t border-gray-50">
+          <RatingWidget
+            targetType="association"
+            targetId={asso.id}
+            authorId={asso.author_id}
+            userId={userId}
+            compact
+          />
+        </div>
       </div>
     </div>
   );
