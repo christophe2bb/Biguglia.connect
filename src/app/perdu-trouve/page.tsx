@@ -17,6 +17,7 @@ import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget, { UserRatingBadge } from '@/components/ui/RatingWidget';
 import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
 import StatusBadge from '@/components/ui/StatusBadge';
+import InteractionButton from '@/components/ui/InteractionButton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LostFoundType = 'perdu' | 'trouve';
@@ -318,6 +319,17 @@ function LostFoundCard({
 
         {/* Actions */}
         <div className="flex gap-2 flex-wrap">
+          {/* CTA principal via InteractionButton */}
+          {!isAuthor && (
+            <InteractionButton
+              sourceType="lost_found"
+              sourceId={item.id}
+              receiverId={item.author_id}
+              userId={userId}
+              compact
+              ctaOverride={item.type === 'trouve' ? 'C’est le mien' : 'J’ai une info'}
+            />
+          )}
           {/* Message button */}
           <button type="button" onClick={handleOpenChat}
             className={`inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm transition-all border ${

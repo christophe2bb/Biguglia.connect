@@ -144,12 +144,14 @@ interface InteractionButtonProps {
   userId?: string | null;        // utilisateur connecté
   className?: string;
   compact?: boolean;             // mode bouton simple (pas de panneau complet)
+  ctaOverride?: string;          // surcharge du label du bouton CTA
   onInteractionCreated?: (interaction: Interaction) => void;
 }
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 export default function InteractionButton({
   sourceType, sourceId, receiverId, userId, className, compact = false,
+  ctaOverride,
   onInteractionCreated,
 }: InteractionButtonProps) {
   const [interaction, setInteraction] = useState<Interaction | null>(null);
@@ -159,6 +161,7 @@ export default function InteractionButton({
   const [tableExists, setTableExists] = useState(true);
   const supabase = createClient();
   const conf = CONFIG[sourceType];
+  const ctaLabel = ctaOverride || conf.cta;
 
   // ── Charger l'interaction existante ─────────────────────────────────────────
   const load = useCallback(async () => {
@@ -208,7 +211,7 @@ export default function InteractionButton({
       if (!convId) {
         const { data: newConv } = await supabase
           .from('conversations')
-          .insert({ related_type: sourceType, related_id: sourceId, subject: `${conf.cta}` })
+          .insert({ related_type: sourceType, related_id: sourceId, subject: `${ctaLabel}` })
           .select('id').single();
         convId = newConv?.id || null;
         if (convId) {
@@ -220,7 +223,7 @@ export default function InteractionButton({
           // Message initial
           await supabase.from('messages').insert({
             conversation_id: convId, sender_id: userId,
-            content: `👋 ${conf.cta} — je voudrais en savoir plus !`,
+            content: `👋 ${ctaLabel} — je voudrais en savoir plus !`,
           });
         }
       }
@@ -329,7 +332,7 @@ export default function InteractionButton({
           )}
         >
           {acting ? <Loader2 className="w-4 h-4 animate-spin" /> : <conf.ctaIcon className="w-4 h-4" />}
-          {acting ? 'Envoi…' : conf.cta}
+          {acting ? 'Envoi…' : ctaLabel}
         </button>
       );
     }
@@ -349,7 +352,7 @@ export default function InteractionButton({
         <div className="flex items-center gap-2">
           <conf.ctaIcon className={cn('w-4 h-4', conf.color)} />
           <span className={cn('text-sm font-bold', conf.color)}>
-            {interaction ? STATUS_LABELS[interaction.status] : conf.cta}
+            {interaction ? STATUS_LABELS[interaction.status] : ctaLabel}
           </span>
         </div>
         {interaction && (
@@ -377,7 +380,7 @@ export default function InteractionButton({
             {acting
               ? <Loader2 className="w-4 h-4 animate-spin" />
               : <conf.ctaIcon className="w-4 h-4" />}
-            {acting ? 'Envoi en cours…' : conf.cta}
+            {acting ? 'Envoi en cours…' : ctaLabel}
           </button>
         )}
 
@@ -391,7 +394,7 @@ export default function InteractionButton({
             )}
           >
             <conf.ctaIcon className="w-4 h-4" />
-            Connectez-vous pour {conf.cta.toLowerCase()}
+            Connectez-vous pour {ctaLabel.toLowerCase()}
           </Link>
         )}
 

@@ -19,8 +19,10 @@ const RELATED_ICONS: Record<string, { icon: React.ElementType; color: string; la
   lost_found:      { icon: Dog,         color: 'text-amber-500',   label: 'Perdu/Trouvé' },
   association:     { icon: Users,       color: 'text-purple-500',  label: 'Association' },
   outing:          { icon: MapPin,      color: 'text-emerald-500', label: 'Sortie' },
+  event:           { icon: MapPin,      color: 'text-indigo-500',  label: 'Événement' },
   collection_item: { icon: ShoppingBag, color: 'text-rose-500',    label: 'Collectionneur' },
   service_request: { icon: Wrench,      color: 'text-brand-500',   label: 'Artisan' },
+  general:         { icon: MessageSquare, color: 'text-gray-500',  label: 'Message' },
 };
 import { formatRelative } from '@/lib/utils';
 import { cn } from '@/lib/utils';
@@ -198,11 +200,17 @@ export default function MessagesPage() {
     };
   }, [profile, router, fetchConversations, connectRealtime]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const filtered = conversations.filter(c =>
-    !search ||
-    c.other_user?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-    c.subject?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = conversations.filter(c => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    const relatedLabel = c.related_type ? RELATED_ICONS[c.related_type]?.label?.toLowerCase() : '';
+    return (
+      c.other_user?.full_name?.toLowerCase().includes(q) ||
+      c.subject?.toLowerCase().includes(q) ||
+      c.last_message_text?.toLowerCase().includes(q) ||
+      relatedLabel?.includes(q)
+    );
+  });
 
   const totalUnread = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
 
@@ -252,9 +260,13 @@ export default function MessagesPage() {
       ) : filtered.length === 0 ? (
         <EmptyState
           icon="💬"
-          title="Aucune conversation"
-          description="Vos échanges avec les artisans et habitants apparaîtront ici."
-          action={{ label: 'Trouver un artisan', onClick: () => router.push('/artisans') }}
+          title={search ? 'Aucune conversation trouvée' : 'Aucune conversation'}
+          description={
+            search
+              ? `Aucune conversation ne correspond à "${search}".`
+              : 'Retrouvez ici tous vos échanges privés avec les habitants, artisans et associations de Biguglia.'
+          }
+          action={search ? { label: 'Effacer la recherche', onClick: () => setSearch('') } : { label: 'Explorer les annonces', onClick: () => router.push('/annonces') }}
         />
       ) : (
         <div className="space-y-2">

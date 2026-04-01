@@ -9,6 +9,7 @@ import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';
 import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
 import StatusBadge from '@/components/ui/StatusBadge';
+import InteractionButton from '@/components/ui/InteractionButton';
 import {
   Search, Plus, X, Loader2, AlertCircle, Camera, MapPin, Clock,
   Phone, Mail, Globe, MessageSquare, CheckCircle2, Shield, Users,
@@ -390,25 +391,21 @@ function AssociationCard({
 
         {/* Actions */}
         <div className="flex gap-2 flex-wrap">
-          {/* CTA principal selon pub_type */}
-          {userId ? (
-            <button type="button" onClick={handleOpenChat}
-              className="inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm bg-violet-500 text-white hover:bg-violet-600 transition-all">
-              {asso.pub_type === 'benevoles' ? <><Users className="w-4 h-4" />Devenir bénévole</> :
-               asso.pub_type === 'evenement' ? <><Calendar className="w-4 h-4" />Participer</> :
-               asso.pub_type === 'dons' ? <><Heart className="w-4 h-4" />Faire un don</> :
-               asso.pub_type === 'adherents' ? <><Users className="w-4 h-4" />Adhérer</> :
-               <><MessageSquare className="w-4 h-4" />Contacter</>}
-            </button>
-          ) : (
-            <Link href="/connexion" className="inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm bg-violet-500 text-white hover:bg-violet-600 transition-all">
-              <ArrowRight className="w-4 h-4" />
-              {asso.pub_type === 'benevoles' ? 'Devenir bénévole' :
-               asso.pub_type === 'evenement' ? 'Participer' :
-               asso.pub_type === 'dons' ? 'Faire un don' :
-               'Contacter'}
-            </Link>
-          )}
+          {/* CTA principal via InteractionButton */}
+          <InteractionButton
+            sourceType="association"
+            sourceId={asso.id}
+            receiverId={asso.author_id}
+            userId={userId}
+            compact
+            ctaOverride={
+              asso.pub_type === 'benevoles' ? 'Devenir bénévole' :
+              asso.pub_type === 'evenement' ? 'Participer' :
+              asso.pub_type === 'dons' ? 'Faire un don' :
+              asso.pub_type === 'adherents' ? 'Adhérer' :
+              undefined
+            }
+          />
           {/* Discussion */}
           <button type="button" onClick={handleOpenChat}
             className={`inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm transition-all border ${

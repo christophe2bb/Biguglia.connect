@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { MapPin, Clock, Shield, Star, Phone, MessageSquare, Calendar, ChevronLeft, Heart, HardHat, Users, CheckCircle, FileCheck } from 'lucide-react';
+import { MapPin, Clock, Shield, Star, Phone, Calendar, ChevronLeft, Heart, HardHat, Users, CheckCircle, FileCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { ArtisanProfile, Review } from '@/types';
 import { useAuthStore } from '@/lib/auth-store';
@@ -14,6 +14,7 @@ import Button from '@/components/ui/Button';
 import StarRating from '@/components/ui/StarRating';
 import EmptyState from '@/components/ui/EmptyState';
 import { formatRelative } from '@/lib/utils';
+import ContactButton from '@/components/ui/ContactButton';
 
 // Nombre de documents fournis (sans exposer leur contenu)
 function DocBadge({ artisan }: { artisan: ArtisanProfile }) {
@@ -115,25 +116,7 @@ export default function ArtisanDetailPage() {
     }
   };
 
-  const startConversation = async () => {
-    if (!profile) { router.push('/connexion'); return; }
-    const supabase = createClient();
-
-    // Créer conversation
-    const { data: conv } = await supabase
-      .from('conversations')
-      .insert({ subject: `Contact avec ${artisan?.business_name}`, related_type: 'general' })
-      .select()
-      .single();
-
-    if (conv) {
-      await supabase.from('conversation_participants').insert([
-        { conversation_id: conv.id, user_id: profile.id },
-        { conversation_id: conv.id, user_id: artisan!.user_id },
-      ]);
-      router.push(`/messages/${conv.id}`);
-    }
-  };
+  // startConversation replaced by ContactButton component
 
   const avgRating = reviews.length
     ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
@@ -288,10 +271,16 @@ export default function ArtisanDetailPage() {
           {/* Contacter */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-3">
             <h3 className="font-semibold text-gray-900">Contacter {artisan.business_name}</h3>
-            <Button className="w-full" onClick={startConversation}>
-              <MessageSquare className="w-4 h-4" />
-              Envoyer un message
-            </Button>
+            <ContactButton
+              sourceType="artisan"
+              sourceId={artisan.id}
+              sourceTitle={artisan.business_name}
+              ownerId={artisan.user_id}
+              userId={profile?.id}
+              ctaLabel="Envoyer un message"
+              className="w-full justify-center"
+              variant="primary"
+            />
             <Link href={`/artisans/demande?artisan=${artisan.id}`}>
               <Button variant="outline" className="w-full mt-2">
                 <Calendar className="w-4 h-4" />

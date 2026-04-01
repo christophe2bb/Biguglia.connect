@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon, Zap, Star, CheckCheck, Activity, Tag, Info, Search, Wrench } from 'lucide-react';
+import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon, Zap, Star, CheckCheck, Activity, Tag, Info, Search, Wrench, MessageSquare } from 'lucide-react';
 
 // ─── SQL complet à copier-coller dans Supabase SQL Editor ─────────────────────
 const MIGRATION_SQL = `-- ============================================================
@@ -741,6 +741,105 @@ WHERE pubname = 'supabase_realtime'
   AND tablename IN ('messages','notifications','conversation_participants','conversations')
 ORDER BY tablename;`;
 
+// ─── SQL Messagerie universelle — enrichissement des conversations ──────────────
+const MESSAGING_SQL = `-- ============================================================
+-- BIGUGLIA CONNECT - Messagerie universelle (enrichissement)
+-- Copier dans Supabase > SQL Editor > New query > Run
+-- ============================================================
+
+-- 1. Ajouter les colonnes de contexte sur la table conversations
+ALTER TABLE conversations
+  ADD COLUMN IF NOT EXISTS source_title   TEXT,
+  ADD COLUMN IF NOT EXISTS source_image   TEXT,
+  ADD COLUMN IF NOT EXISTS created_by     UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS owner_id       UUID REFERENCES profiles(id) ON DELETE SET NULL;
+
+-- Migrer les données existantes : created_by = premier participant
+UPDATE conversations c
+SET created_by = (
+  SELECT cp.user_id FROM conversation_participants cp
+  WHERE cp.conversation_id = c.id
+  ORDER BY cp.joined_at ASC NULLS LAST, cp.id ASC
+  LIMIT 1
+)
+WHERE c.created_by IS NULL;
+
+-- 2. Enrichir le type ENUM related_type si pas déjà fait
+-- (valeurs déjà présentes : listing, equipment, help_request, lost_found,
+--  association, outing, collection_item, service_request, general)
+-- Aucune migration nécessaire si la colonne est TEXT avec CHECK
+
+-- 3. Ajouter la colonne status aux conversations (si absente)
+ALTER TABLE conversations
+  ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'
+    CHECK (status IN ('active', 'archived', 'blocked'));
+
+-- 4. Index supplémentaires pour les recherches de conversation
+CREATE INDEX IF NOT EXISTS conversations_created_by_idx ON conversations(created_by);
+CREATE INDEX IF NOT EXISTS conversations_owner_id_idx   ON conversations(owner_id);
+CREATE INDEX IF NOT EXISTS conversations_status_idx     ON conversations(status);
+
+-- 5. Colonne message_type sur messages (pour système, pièces jointes, etc.)
+ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS message_type TEXT NOT NULL DEFAULT 'text'
+    CHECK (message_type IN ('text', 'system', 'image', 'file', 'location'));
+ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS attachment_url  TEXT;
+ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS attachment_type TEXT;
+ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS edited_at       TIMESTAMPTZ;
+ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS deleted_at      TIMESTAMPTZ;
+
+-- 6. Table message_attachments (pièces jointes enrichies)
+CREATE TABLE IF NOT EXISTS message_attachments (
+  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  message_id   UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  file_url     TEXT NOT NULL,
+  file_type    TEXT NOT NULL,
+  file_name    TEXT,
+  file_size    INTEGER,
+  created_at   TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE message_attachments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Participants peuvent voir les pièces jointes"
+  ON message_attachments FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM messages m
+      JOIN conversation_participants cp ON cp.conversation_id = m.conversation_id
+      WHERE m.id = message_attachments.message_id
+        AND cp.user_id = auth.uid()
+    )
+  );
+CREATE POLICY "Participants peuvent ajouter des pièces jointes"
+  ON message_attachments FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM messages m
+      JOIN conversation_participants cp ON cp.conversation_id = m.conversation_id
+      WHERE m.id = message_attachments.message_id
+        AND cp.user_id = auth.uid()
+    )
+  );
+CREATE INDEX IF NOT EXISTS message_attachments_message_idx ON message_attachments(message_id);
+
+-- 7. Colonnes anti-spam sur profiles
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS last_conversation_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS conversation_count_today INTEGER NOT NULL DEFAULT 0;
+
+-- 8. Vue helper : dernière activité par conversation pour l'utilisateur connecté
+-- (matérialisée en SELECT depuis l'app, pas besoin de vue serveur)
+
+-- 9. Vérification finale
+SELECT
+  (SELECT count(*) FROM conversations WHERE status IS NOT NULL) AS convs_with_status,
+  (SELECT count(*) FROM messages WHERE message_type IS NOT NULL) AS msgs_with_type,
+  (SELECT count(*) FROM message_attachments) AS attachments_count;
+`;
+
 // ─── SQL Interactions / Suivi des échanges ────────────────────────────────────
 const INTERACTION_SQL = `-- ============================================================
 -- BIGUGLIA CONNECT - Table interactions (cycle de vie complet)
@@ -1448,6 +1547,7 @@ export default function MigrationPage() {
   const [copiedStatus, setCopiedStatus] = useState(false);
   const [copiedSearch, setCopiedSearch] = useState(false);
   const [copiedArtisan, setCopiedArtisan] = useState(false);
+  const [copiedMessaging, setCopiedMessaging] = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -1798,6 +1898,13 @@ CREATE TRIGGER asso_search_trigger
     });
   };
 
+  const handleCopyMessaging = () => {
+    navigator.clipboard.writeText(MESSAGING_SQL).then(() => {
+      setCopiedMessaging(true);
+      setTimeout(() => setCopiedMessaging(false), 4000);
+    });
+  };
+
   const handleCopyInteraction = () => {
     navigator.clipboard.writeText(INTERACTION_SQL).then(() => {
       setCopiedInteraction(true);
@@ -2107,6 +2214,61 @@ CREATE TRIGGER asso_search_trigger
             <li>Cliquez <strong>New query</strong>, collez et cliquez <strong>Run</strong></li>
             <li>Le suivi d&apos;échange sera activé sur toutes les conversations liées</li>
             <li>Les avis n&apos;apparaîtront que si l&apos;échange est confirmé par les 2 parties</li>
+          </ol>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          SECTION MESSAGERIE UNIVERSELLE
+      ══════════════════════════════════════════════════════════════ */}
+      <div className="flex items-center gap-3 mb-4 mt-8">
+        <div className="p-3 bg-blue-100 rounded-2xl">
+          <MessageSquare className="w-6 h-6 text-blue-600" />
+        </div>
+        <div>
+          <h2 className="text-xl font-black text-gray-900">Messagerie universelle — Enrichissement des conversations</h2>
+          <p className="text-gray-500 text-sm">Ajoute les colonnes de contexte, statut, et la table message_attachments</p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-4">
+        <div className="flex items-start gap-4 mb-5">
+          <div className="flex-1">
+            <h3 className="font-bold text-gray-900 mb-1">Colonnes ajoutées</h3>
+            <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
+              <li><code>conversations.source_title</code> — titre du contenu lié</li>
+              <li><code>conversations.source_image</code> — image du contenu</li>
+              <li><code>conversations.created_by</code> — initiateur de la conversation</li>
+              <li><code>conversations.owner_id</code> — propriétaire du contenu</li>
+              <li><code>conversations.status</code> — active / archived / blocked</li>
+              <li><code>messages.message_type</code> — text / system / image / file</li>
+              <li><code>messages.attachment_url / type / edited_at / deleted_at</code></li>
+              <li>Table <code>message_attachments</code> (pièces jointes)</li>
+            </ul>
+          </div>
+        </div>
+        <button
+          onClick={handleCopyMessaging}
+          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-all ${
+            copiedMessaging ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
+        >
+          {copiedMessaging
+            ? <><Check className="w-4 h-4" /> SQL copié ! Collez dans Supabase SQL Editor</>
+            : <><Copy className="w-4 h-4" /> Copier le SQL Messagerie universelle</>
+          }
+        </button>
+        <div className="mt-3 bg-gray-900 rounded-xl p-4 overflow-x-auto">
+          <pre className="text-xs text-blue-300 font-mono leading-relaxed whitespace-pre-wrap">{MESSAGING_SQL}</pre>
+        </div>
+        <div className="mt-3 bg-blue-50 border border-blue-200 rounded-xl p-3">
+          <p className="text-xs text-blue-800 font-bold">📋 Instructions :</p>
+          <ol className="text-xs text-blue-700 mt-1 space-y-1 list-decimal list-inside">
+            <li>Copiez le SQL ci-dessus</li>
+            <li>Allez sur <strong>supabase.com</strong> → votre projet → <strong>SQL Editor</strong></li>
+            <li>Cliquez <strong>New query</strong>, collez et cliquez <strong>Run</strong></li>
+            <li>La messagerie sera enrichie avec le contexte complet (titre, image, statut)</li>
+            <li>Les pièces jointes seront disponibles via la table message_attachments</li>
           </ol>
         </div>
       </div>
