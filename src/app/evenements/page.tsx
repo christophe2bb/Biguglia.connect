@@ -17,6 +17,7 @@ import toast from 'react-hot-toast';
 import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';
 import { PhotoViewer } from '@/components/ui/PhotoViewer';
+import InteractionButton from '@/components/ui/InteractionButton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LocalEvent = {
@@ -490,6 +491,16 @@ function EventCard({
           )}
           {userId && userId !== event.author_id && (
             <ReportButton targetType="event" targetId={event.id} targetTitle={event.title} variant="icon" />
+          )}
+          {/* Suivi interaction événement */}
+          {userId && userId !== event.author_id && (
+            <InteractionButton
+              sourceType="event"
+              sourceId={event.id}
+              receiverId={event.author_id}
+              userId={userId}
+              compact
+            />
           )}
           </div>
         </div>

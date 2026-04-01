@@ -15,6 +15,7 @@ import { CONDITION_LABELS, formatDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import RatingWidget from '@/components/ui/RatingWidget';
 import ExchangePrompt from '@/components/ui/ExchangePrompt';
+import InteractionButton from '@/components/ui/InteractionButton';
 import { PhotoGallery, toPhotoItems } from '@/components/ui/PhotoViewer';
 
 export default function MaterielDetailPage() {
@@ -192,8 +193,15 @@ export default function MaterielDetailPage() {
 
           {!isOwner && item.is_available && (
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
-              <h3 className="font-semibold text-gray-900 mb-4">Demander à emprunter</h3>
-              <div className="space-y-3">
+              <h3 className="font-semibold text-gray-900 mb-3">Demander à emprunter</h3>
+              <InteractionButton
+                sourceType="equipment"
+                sourceId={item.id}
+                receiverId={item.owner_id}
+                userId={profile?.id}
+              />
+              <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+                <p className="text-xs text-gray-500">Précisez vos dates dans la conversation</p>
                 <Input label="Date de début" type="date" value={borrowForm.start_date}
                   onChange={(e) => setBorrowForm(f => ({ ...f, start_date: e.target.value }))}
                   min={new Date().toISOString().split('T')[0]} />
@@ -206,7 +214,7 @@ export default function MaterielDetailPage() {
                     placeholder="Précisez votre usage..." className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none h-20 focus:outline-none focus:ring-2 focus:ring-brand-500" />
                 </div>
                 <Button onClick={handleBorrowRequest} loading={submitting} className="w-full">
-                  <MessageSquare className="w-4 h-4" /> Envoyer la demande
+                  <MessageSquare className="w-4 h-4" /> Détailler ma demande
                 </Button>
               </div>
             </div>

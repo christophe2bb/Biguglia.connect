@@ -14,6 +14,7 @@ import { LISTING_TYPE_LABELS, LISTING_TYPE_COLORS, STATUS_LABELS, formatDate } f
 import toast from 'react-hot-toast';
 import RatingWidget from '@/components/ui/RatingWidget';
 import ExchangePrompt from '@/components/ui/ExchangePrompt';
+import InteractionButton from '@/components/ui/InteractionButton';
 import { PhotoGallery, toPhotoItems } from '@/components/ui/PhotoViewer';
 
 export default function AnnonceDetailPage() {
@@ -324,10 +325,13 @@ export default function AnnonceDetailPage() {
             </div>
 
             {!isOwner && listing.status === 'active' && (
-              <Button onClick={handleContact} className="w-full mb-3">
-                <MessageSquare className="w-4 h-4" />
-                Contacter
-              </Button>
+              <InteractionButton
+                sourceType="listing"
+                sourceId={listing.id}
+                receiverId={listing.user_id}
+                userId={profile?.id}
+                className="mb-3"
+              />
             )}
 
             {isOwner && (

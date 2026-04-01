@@ -20,6 +20,7 @@ import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';
 import GlobalTrustBadge from '@/components/ui/TrustBadge';
 import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
+import InteractionButton from '@/components/ui/InteractionButton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type HelpType = 'demande' | 'offre' | 'echange';
@@ -415,19 +416,15 @@ function HelpCard({
 
         {/* Actions */}
         <div className="flex items-center gap-2 pt-3 border-t border-gray-50">
-          {/* Bouton contact */}
-          {userId ? (
-            <button type="button" onClick={handleContact}
-              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-all ${typeConf.bg} ${typeConf.color} border ${typeConf.border} hover:shadow-sm`}>
-              <Handshake className="w-3.5 h-3.5" />
-              {item.help_type === 'demande' ? 'Je peux aider' : item.help_type === 'offre' ? "J'ai besoin" : 'Proposer échange'}
-            </button>
-          ) : (
-            <Link href="/connexion"
-              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl ${typeConf.bg} ${typeConf.color} border ${typeConf.border}`}>
-              <Handshake className="w-3.5 h-3.5" />
-              {item.help_type === 'demande' ? 'Je peux aider' : "Contacter"}
-            </Link>
+          {/* Bouton contact / suivi interaction */}
+          {!isAuthor && (
+            <InteractionButton
+              sourceType="help_request"
+              sourceId={item.id}
+              receiverId={item.author_id}
+              userId={userId}
+              compact
+            />
           )}
 
           {/* Discussion */}

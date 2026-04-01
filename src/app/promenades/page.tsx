@@ -15,6 +15,7 @@ import Avatar from '@/components/ui/Avatar';
 import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';
 import { PhotoViewer } from '@/components/ui/PhotoViewer';
+import InteractionButton from '@/components/ui/InteractionButton';
 import toast from 'react-hot-toast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -348,6 +349,17 @@ function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit, onDelete }: {
             <Link href="/connexion" className="inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm bg-emerald-500 text-white hover:bg-emerald-600 transition-all">
               <Users className="w-4 h-4" /> Je participe
             </Link>
+          )}
+
+          {/* Suivi interaction promenade */}
+          {userId && !isOrganizer && (
+            <InteractionButton
+              sourceType="outing"
+              sourceId={outing.id}
+              receiverId={outing.organizer_id}
+              userId={userId}
+              compact
+            />
           )}
 
           {/* Bouton discussion */}

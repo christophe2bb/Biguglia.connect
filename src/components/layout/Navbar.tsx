@@ -7,7 +7,7 @@ import {
   Menu, X, Bell, MessageSquare, User, LogOut, Shield, Home,
   Wrench, ChevronDown, PenLine, Drill, TreePine, Gem, PartyPopper,
   Package, BookOpen, Calendar, Footprints, ArrowRight,
-  ClipboardList, Search, Handshake, Heart,
+  ClipboardList, Search, Handshake, Heart, Activity,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -405,6 +405,10 @@ export default function Navbar() {
                             className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                             <User className="w-4 h-4 text-gray-400" /> Mon profil
                           </Link>
+                          <Link href="/mes-echanges" onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors">
+                            <Activity className="w-4 h-4 text-indigo-500" /> Mes échanges
+                          </Link>
                           <Link href="/messages" onClick={() => setUserMenuOpen(false)}
                             className="flex items-center justify-between gap-2.5 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors sm:hidden">
                             <div className="flex items-center gap-2.5"><MessageSquare className="w-4 h-4 text-gray-400" /> Messages</div>
@@ -561,6 +565,10 @@ export default function Navbar() {
                 <Link href="/dashboard" onClick={() => setMenuOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
                   <Home className="w-4 h-4" /> Tableau de bord
+                </Link>
+                <Link href="/mes-echanges" onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-indigo-700 hover:bg-indigo-50">
+                  <Activity className="w-4 h-4 text-indigo-500" /> Mes échanges
                 </Link>
               </div>
             )}

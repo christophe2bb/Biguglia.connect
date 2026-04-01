@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon, Zap, Star, CheckCheck } from 'lucide-react';
+import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon, Zap, Star, CheckCheck, Activity } from 'lucide-react';
 
 // ─── SQL complet à copier-coller dans Supabase SQL Editor ─────────────────────
 const MIGRATION_SQL = `-- ============================================================
@@ -741,6 +741,240 @@ WHERE pubname = 'supabase_realtime'
   AND tablename IN ('messages','notifications','conversation_participants','conversations')
 ORDER BY tablename;`;
 
+// ─── SQL Interactions / Suivi des échanges ────────────────────────────────────
+const INTERACTION_SQL = `-- ============================================================
+-- BIGUGLIA CONNECT - Table interactions (cycle de vie complet)
+-- Copier dans Supabase > SQL Editor > New query > Run
+-- ============================================================
+
+-- 1. Creer la table interactions
+CREATE TABLE IF NOT EXISTS interactions (
+  id              UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+
+  -- Type et cible
+  source_type     TEXT NOT NULL CHECK (source_type IN (
+    'listing', 'equipment', 'help_request', 'association',
+    'collection_item', 'outing', 'event', 'service_request', 'lost_found'
+  )),
+  source_id       UUID NOT NULL,
+
+  -- Participants
+  requester_id    UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  receiver_id     UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+
+  -- Type d interaction
+  interaction_type TEXT NOT NULL CHECK (interaction_type IN (
+    'transaction',       -- annonce : vente/achat
+    'material_request',  -- materiel : demande de pret
+    'help_match',        -- coup de main : aide acceptee
+    'participation',     -- promenade/evenement : inscription
+    'contact',           -- association/collectionneur : prise de contact
+    'service_request'    -- artisan : demande de prestation
+  )),
+
+  -- Cycle de vie
+  status          TEXT NOT NULL DEFAULT 'requested' CHECK (status IN (
+    'requested',    -- demande envoyee
+    'pending',      -- en attente de reponse
+    'accepted',     -- acceptee par le destinataire
+    'rejected',     -- refusee
+    'in_progress',  -- en cours (action en train de se realiser)
+    'done',         -- terminee (les 2 parties confirment)
+    'cancelled',    -- annulee par l un ou l autre
+    'disputed'      -- litige signale
+  )),
+
+  -- Historique des statuts (JSON array)
+  status_history  JSONB NOT NULL DEFAULT '[]'::jsonb,
+
+  -- Conversation liee (cree automatiquement ou manuellement)
+  conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL,
+
+  -- Avis debloque apres confirmation
+  review_unlocked BOOLEAN NOT NULL DEFAULT FALSE,
+  review_requester_done BOOLEAN NOT NULL DEFAULT FALSE,
+  review_receiver_done  BOOLEAN NOT NULL DEFAULT FALSE,
+
+  -- Dates
+  started_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  accepted_at     TIMESTAMPTZ,
+  in_progress_at  TIMESTAMPTZ,
+  completed_at    TIMESTAMPTZ,
+  cancelled_at    TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  -- Une seule interaction active par paire (requester + source)
+  UNIQUE(source_type, source_id, requester_id)
+);
+
+-- 2. Trigger updated_at
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN NEW.updated_at = now(); RETURN NEW; END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS interactions_updated_at ON interactions;
+CREATE TRIGGER interactions_updated_at
+  BEFORE UPDATE ON interactions
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- 3. Index
+CREATE INDEX IF NOT EXISTS idx_interactions_requester ON interactions(requester_id);
+CREATE INDEX IF NOT EXISTS idx_interactions_receiver  ON interactions(receiver_id);
+CREATE INDEX IF NOT EXISTS idx_interactions_source    ON interactions(source_type, source_id);
+CREATE INDEX IF NOT EXISTS idx_interactions_status    ON interactions(status);
+CREATE INDEX IF NOT EXISTS idx_interactions_conv      ON interactions(conversation_id);
+
+-- 4. Fonction : ajouter entree dans status_history
+CREATE OR REPLACE FUNCTION add_interaction_history(
+  p_interaction_id UUID,
+  p_new_status TEXT,
+  p_user_id UUID,
+  p_note TEXT DEFAULT NULL
+) RETURNS VOID AS $$
+BEGIN
+  UPDATE interactions
+  SET
+    status         = p_new_status,
+    status_history = status_history || jsonb_build_object(
+      'status',     p_new_status,
+      'changed_by', p_user_id,
+      'changed_at', now(),
+      'note',       p_note
+    ),
+    accepted_at     = CASE WHEN p_new_status = 'accepted'     THEN now() ELSE accepted_at     END,
+    in_progress_at  = CASE WHEN p_new_status = 'in_progress'  THEN now() ELSE in_progress_at  END,
+    completed_at    = CASE WHEN p_new_status = 'done'         THEN now() ELSE completed_at    END,
+    cancelled_at    = CASE WHEN p_new_status IN ('cancelled','rejected') THEN now() ELSE cancelled_at END
+  WHERE id = p_interaction_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 5. Fonction : confirmer la fin d interaction (les 2 cotes)
+CREATE OR REPLACE FUNCTION confirm_interaction_done(
+  p_interaction_id UUID
+) RETURNS BOOLEAN AS $$
+DECLARE
+  v_uid UUID := auth.uid();
+  v_interaction interactions%ROWTYPE;
+  v_req_done BOOLEAN; v_rec_done BOOLEAN;
+BEGIN
+  SELECT * INTO v_interaction FROM interactions WHERE id = p_interaction_id;
+  IF NOT FOUND THEN RETURN FALSE; END IF;
+  -- Seuls les participants peuvent confirmer
+  IF v_uid <> v_interaction.requester_id AND v_uid <> v_interaction.receiver_id THEN
+    RETURN FALSE;
+  END IF;
+  -- Marquer la confirmation de ce cote
+  IF v_uid = v_interaction.requester_id THEN
+    UPDATE interactions SET review_requester_done = TRUE WHERE id = p_interaction_id;
+  ELSE
+    UPDATE interactions SET review_receiver_done = TRUE WHERE id = p_interaction_id;
+  END IF;
+  -- Verifier si les 2 ont confirme
+  SELECT review_requester_done, review_receiver_done
+  INTO v_req_done, v_rec_done
+  FROM interactions WHERE id = p_interaction_id;
+  -- Si les 2 confirment : passer a done + debloquer avis
+  IF v_req_done AND v_rec_done THEN
+    UPDATE interactions
+    SET status = 'done', review_unlocked = TRUE, completed_at = now()
+    WHERE id = p_interaction_id;
+    -- Sync conversation exchange_status si liee
+    UPDATE conversations
+    SET exchange_status = 'done',
+        exchange_confirmed_at = now()
+    WHERE id = v_interaction.conversation_id;
+    RETURN TRUE;
+  END IF;
+  -- Si une seule partie : passer en pending confirmation
+  UPDATE interactions SET status = 'in_progress' WHERE id = p_interaction_id
+    AND status NOT IN ('done', 'cancelled', 'rejected');
+  RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 6. Mettre a jour can_rate_item pour utiliser interactions.review_unlocked
+CREATE OR REPLACE FUNCTION can_rate_item(p_target_type TEXT, p_target_id UUID)
+RETURNS BOOLEAN AS $$
+DECLARE
+  v_author_id UUID; v_status TEXT; v_date DATE;
+  v_uid UUID := auth.uid();
+BEGIN
+  IF v_uid IS NULL THEN RETURN FALSE; END IF;
+  -- Auteur ne peut pas noter son propre item
+  CASE p_target_type
+    WHEN 'listing'         THEN SELECT user_id      INTO v_author_id FROM listings        WHERE id = p_target_id;
+    WHEN 'equipment'       THEN SELECT owner_id     INTO v_author_id FROM equipment_items WHERE id = p_target_id;
+    WHEN 'help_request'    THEN SELECT author_id    INTO v_author_id FROM help_requests   WHERE id = p_target_id;
+    WHEN 'association'     THEN SELECT author_id    INTO v_author_id FROM associations    WHERE id = p_target_id;
+    WHEN 'collection_item' THEN SELECT author_id    INTO v_author_id FROM collection_items WHERE id = p_target_id;
+    WHEN 'event'           THEN SELECT author_id    INTO v_author_id FROM local_events    WHERE id = p_target_id;
+    WHEN 'outing'          THEN SELECT organizer_id INTO v_author_id FROM group_outings   WHERE id = p_target_id;
+    ELSE v_author_id := NULL;
+  END CASE;
+  IF v_author_id = v_uid THEN RETURN FALSE; END IF;
+  -- Libre : perdu/trouve, promenade
+  IF p_target_type IN ('lost_found', 'promenade') THEN RETURN TRUE; END IF;
+  -- Evenement : inscrit + date passee
+  IF p_target_type = 'event' THEN
+    SELECT event_date INTO v_date FROM local_events WHERE id = p_target_id;
+    IF v_date > CURRENT_DATE THEN RETURN FALSE; END IF;
+    RETURN EXISTS (SELECT 1 FROM event_participations WHERE event_id = p_target_id AND user_id = v_uid);
+  END IF;
+  -- Sortie : inscrit + date passee
+  IF p_target_type = 'outing' THEN
+    SELECT outing_date INTO v_date FROM group_outings WHERE id = p_target_id;
+    IF v_date > CURRENT_DATE THEN RETURN FALSE; END IF;
+    RETURN EXISTS (SELECT 1 FROM outing_participants WHERE outing_id = p_target_id AND user_id = v_uid);
+  END IF;
+  -- Demande artisan
+  IF p_target_type = 'service_request' THEN
+    RETURN EXISTS (SELECT 1 FROM service_requests WHERE id = p_target_id AND resident_id = v_uid);
+  END IF;
+  -- Tous les autres : interaction terminee (review_unlocked = true)
+  -- OU fallback : conversation avec exchange_status=done
+  RETURN EXISTS (
+    SELECT 1 FROM interactions
+    WHERE source_type = p_target_type
+      AND source_id   = p_target_id
+      AND (requester_id = v_uid OR receiver_id = v_uid)
+      AND review_unlocked = TRUE
+  ) OR EXISTS (
+    SELECT 1 FROM conversations c
+    JOIN conversation_participants cp ON cp.conversation_id = c.id
+    WHERE c.related_type    = p_target_type
+      AND c.related_id      = p_target_id
+      AND c.exchange_status = 'done'
+      AND cp.user_id        = v_uid
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+
+-- 7. RLS
+ALTER TABLE interactions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Voir ses interactions"    ON interactions;
+DROP POLICY IF EXISTS "Creer une interaction"    ON interactions;
+DROP POLICY IF EXISTS "Modifier son interaction" ON interactions;
+
+CREATE POLICY "Voir ses interactions" ON interactions
+  FOR SELECT USING (
+    requester_id = auth.uid() OR receiver_id = auth.uid()
+  );
+
+CREATE POLICY "Creer une interaction" ON interactions
+  FOR INSERT WITH CHECK (requester_id = auth.uid());
+
+CREATE POLICY "Modifier son interaction" ON interactions
+  FOR UPDATE USING (
+    requester_id = auth.uid() OR receiver_id = auth.uid()
+  );
+
+-- 8. Recharge schema
+NOTIFY pgrst, 'reload schema';`;
+
 // ─── SQL Notation universelle ──────────────────────────────────────────────────
 const RATING_SQL = `-- ============================================================
 -- BIGUGLIA CONNECT - Table item_ratings (notation avec verification)
@@ -1124,6 +1358,7 @@ export default function MigrationPage() {
   const [copiedRealtime, setCopiedRealtime] = useState(false);
   const [copiedRating, setCopiedRating] = useState(false);
   const [copiedExchange, setCopiedExchange] = useState(false);
+  const [copiedInteraction, setCopiedInteraction] = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -1287,6 +1522,13 @@ export default function MigrationPage() {
     navigator.clipboard.writeText(EXCHANGE_SQL).then(() => {
       setCopiedExchange(true);
       setTimeout(() => setCopiedExchange(false), 4000);
+    });
+  };
+
+  const handleCopyInteraction = () => {
+    navigator.clipboard.writeText(INTERACTION_SQL).then(() => {
+      setCopiedInteraction(true);
+      setTimeout(() => setCopiedInteraction(false), 4000);
     });
   };
 
@@ -1593,6 +1835,61 @@ export default function MigrationPage() {
             <li>Le suivi d&apos;échange sera activé sur toutes les conversations liées</li>
             <li>Les avis n&apos;apparaîtront que si l&apos;échange est confirmé par les 2 parties</li>
           </ol>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          SECTION INTERACTIONS — SUIVI DES ÉCHANGES (NOUVEAU)
+      ══════════════════════════════════════════════════════════════ */}
+      <div className="flex items-center gap-3 mb-4 mt-8">
+        <div className="p-3 bg-indigo-100 rounded-2xl">
+          <Activity className="w-6 h-6 text-indigo-600" />
+        </div>
+        <div>
+          <h2 className="text-xl font-black text-gray-900">Suivi des interactions — Cycle de vie complet</h2>
+          <p className="text-gray-500 text-sm">Table centrale pour tracer chaque échange de la demande à l&apos;avis</p>
+        </div>
+      </div>
+
+      <div className="bg-indigo-50 border-2 border-indigo-300 rounded-2xl p-5 mb-6">
+        <div className="flex items-start gap-3 mb-3">
+          <span className="text-2xl flex-shrink-0">🔄</span>
+          <div>
+            <p className="font-bold text-indigo-800 text-sm">
+              À exécuter pour activer le suivi complet des interactions
+            </p>
+            <p className="text-indigo-700 text-xs mt-1">
+              Crée la table <code className="bg-indigo-100 px-1 rounded">interactions</code> avec cycle de vie complet
+              (requested → accepted → in_progress → done), historique de statuts, déverrouillage des avis,
+              et synchronisation avec les conversations.
+              Inclut les fonctions <code className="bg-indigo-100 px-1 rounded">add_interaction_history</code> et{' '}
+              <code className="bg-indigo-100 px-1 rounded">confirm_interaction_done</code>.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={handleCopyInteraction}
+          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-all ${
+            copiedInteraction ? 'bg-emerald-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+          }`}
+        >
+          {copiedInteraction
+            ? <><Check className="w-4 h-4" /> SQL copié ! Collez dans Supabase SQL Editor</>
+            : <><Copy className="w-4 h-4" /> Copier le SQL Interactions</>
+          }
+        </button>
+        <div className="mt-3 bg-gray-900 rounded-xl p-4 overflow-x-auto">
+          <pre className="text-xs text-indigo-300 font-mono leading-relaxed whitespace-pre-wrap">{INTERACTION_SQL}</pre>
+        </div>
+        <div className="mt-3 bg-indigo-50 border border-indigo-200 rounded-xl p-3">
+          <p className="text-xs text-indigo-800 font-bold">📋 Ce que cela active :</p>
+          <ul className="text-xs text-indigo-700 mt-1 space-y-0.5 list-disc list-inside">
+            <li>Boutons &quot;Je suis intéressé&quot;, &quot;Je peux aider&quot;, &quot;Je réserve&quot; sur toutes les rubriques</li>
+            <li>Centre de suivi &quot;Mes échanges&quot; avec filtres (en attente, en cours, à terminer, à évaluer)</li>
+            <li>Timeline de chaque échange dans la conversation</li>
+            <li>Déblocage automatique des avis quand les 2 parties confirment</li>
+            <li>Historique complet de chaque changement de statut</li>
+          </ul>
         </div>
       </div>
 

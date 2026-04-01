@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   MessageSquare, Clock, Package, BookOpen, Plus, Wrench, Bell,
   Eye, PenLine, Drill, ArrowRight, Star, Calendar, TrendingUp,
-  CheckCircle, AlertCircle, LayoutGrid, Activity,
+  CheckCircle, AlertCircle, LayoutGrid, Activity, HandshakeIcon,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -85,7 +85,7 @@ function DashboardContent() {
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [forumPosts, setForumPosts] = useState<ForumPost[]>([]);
-  const [stats, setStats] = useState({ activeListings: 0, totalViews: 0 });
+  const [stats, setStats] = useState({ activeListings: 0, totalViews: 0, pendingInteractions: 0, activeInteractions: 0 });
   const [dataLoading, setDataLoading] = useState(false);
 
   useEffect(() => {
@@ -98,12 +98,25 @@ function DashboardContent() {
       supabase.from('forum_posts').select('*, category:forum_categories(name, icon)').eq('author_id', profile.id).order('created_at', { ascending: false }).limit(3),
       supabase.from('listings').select('id', { count: 'exact', head: true }).eq('user_id', profile.id).eq('status', 'active'),
       supabase.from('listings').select('views').eq('user_id', profile.id),
-    ]).then(([{ data: reqs }, { data: listedItems }, { data: posts }, { count: activeCount }, { data: viewsData }]) => {
+      // Interactions en attente
+      supabase.from('interactions').select('id', { count: 'exact', head: true })
+        .or(`requester_id.eq.${profile.id},receiver_id.eq.${profile.id}`)
+        .in('status', ['requested', 'pending']),
+      // Interactions actives
+      supabase.from('interactions').select('id', { count: 'exact', head: true })
+        .or(`requester_id.eq.${profile.id},receiver_id.eq.${profile.id}`)
+        .in('status', ['accepted', 'in_progress']),
+    ]).then(([{ data: reqs }, { data: listedItems }, { data: posts }, { count: activeCount }, { data: viewsData }, { count: pendingCount }, { count: activeIntCount }]) => {
       setRequests((reqs as ServiceRequest[]) || []);
       setListings((listedItems as Listing[]) || []);
       setForumPosts((posts as ForumPost[]) || []);
       const totalViews = (viewsData || []).reduce((s, l) => s + (l.views || 0), 0);
-      setStats({ activeListings: activeCount || 0, totalViews });
+      setStats({
+        activeListings: activeCount || 0,
+        totalViews,
+        pendingInteractions: pendingCount || 0,
+        activeInteractions: activeIntCount || 0,
+      });
     }).finally(() => setDataLoading(false));
   }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -191,6 +204,38 @@ function DashboardContent() {
           <QuickStat icon={Package}       label="Annonces actives"   value={dataLoading ? '…' : stats.activeListings} href="/annonces" colorIcon="text-brand-600" colorBg="bg-brand-50" />
           <QuickStat icon={Eye}           label="Vues totales"       value={dataLoading ? '…' : stats.totalViews}     href="/annonces" colorIcon="text-purple-600" colorBg="bg-purple-50" />
         </div>
+
+        {/* ── Mes échanges ─────────────────────────────────── */}
+        {(stats.pendingInteractions > 0 || stats.activeInteractions > 0) && (
+          <div className="bg-gradient-to-r from-indigo-50 to-violet-50 border-2 border-indigo-200 rounded-2xl p-5 mb-8">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Activity className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-indigo-900 text-sm">Mes échanges en cours</h3>
+                  <div className="flex gap-3 mt-0.5">
+                    {stats.pendingInteractions > 0 && (
+                      <span className="text-xs text-amber-700 font-semibold">
+                        {stats.pendingInteractions} en attente de réponse
+                      </span>
+                    )}
+                    {stats.activeInteractions > 0 && (
+                      <span className="text-xs text-indigo-700 font-semibold">
+                        {stats.activeInteractions} actif{stats.activeInteractions > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <Link href="/mes-echanges"
+                className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition-colors whitespace-nowrap flex items-center gap-1.5">
+                <Activity className="w-3.5 h-3.5" /> Voir tout
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* ── Actions rapides ─────────────────────────────── */}
         <div className="mb-10">
@@ -394,11 +439,12 @@ function DashboardContent() {
         </div>
 
         {/* ── Liens rapides en bas ─────────────────────────── */}
-        <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="mt-10 grid grid-cols-1 sm:grid-cols-4 gap-3">
           {[
-            { icon: Wrench, label: 'Trouver un artisan', desc: 'Voir les profils vérifiés', href: '/artisans', color: 'text-brand-600', bg: 'bg-brand-50' },
-            { icon: Drill,  label: 'Matériel disponible', desc: 'Emprunter chez un voisin',  href: '/materiel', color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { icon: AlertCircle, label: 'Centre de confiance', desc: 'Sécurité & vérifications', href: '/confiance', color: 'text-sky-600', bg: 'bg-sky-50' },
+            { icon: Activity,    label: 'Mes échanges',        desc: 'Suivre vos interactions',    href: '/mes-echanges', color: 'text-indigo-600', bg: 'bg-indigo-50' },
+            { icon: Wrench,      label: 'Trouver un artisan',  desc: 'Voir les profils vérifiés',  href: '/artisans',     color: 'text-brand-600',  bg: 'bg-brand-50' },
+            { icon: HandshakeIcon, label: 'Matériel disponible', desc: 'Emprunter chez un voisin',  href: '/materiel',     color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { icon: AlertCircle, label: 'Centre de confiance', desc: 'Sécurité & vérifications',  href: '/confiance',    color: 'text-sky-600',    bg: 'bg-sky-50' },
           ].map(({ icon: Icon, label, desc, href, color, bg }) => (
             <Link key={href} href={href}>
               <div className="flex items-center gap-3 bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-sm hover:border-gray-200 transition-all">
