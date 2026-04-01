@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
   HandHeart, ShoppingCart, Wrench, Users, MapPin, Calendar,
@@ -159,7 +160,9 @@ export default function InteractionButton({
   const [acting, setActing]           = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [tableExists, setTableExists] = useState(true);
+  const [fallbackActing, setFallbackActing] = useState(false);
   const supabase = createClient();
+  const router   = useRouter();
   const conf = CONFIG[sourceType];
   const ctaLabel = ctaOverride || conf.cta;
 
@@ -308,8 +311,77 @@ export default function InteractionButton({
     } finally { setActing(false); }
   };
 
-  // ── Rien à afficher ───────────────────────────────────────────────────────────
-  if (!tableExists) return null;
+  // ── Fallback : table interactions absente → simple ContactButton inline ────────
+  if (!tableExists) {
+    // Pas de contact avec soi-même
+    if (userId === receiverId) return null;
+
+    const handleFallbackContact = async () => {
+      if (fallbackActing) return;
+      if (!userId) { router.push('/connexion'); return; }
+      setFallbackActing(true);
+      try {
+        // Chercher conv existante
+        const { data: myParts } = await supabase
+          .from('conversation_participants').select('conversation_id').eq('user_id', userId);
+        if (myParts && myParts.length > 0) {
+          const myIds = myParts.map((p: { conversation_id: string }) => p.conversation_id);
+          const { data: existing } = await supabase
+            .from('conversations').select('id')
+            .eq('related_type', sourceType).eq('related_id', sourceId)
+            .in('id', myIds).maybeSingle();
+          if (existing) { router.push(`/messages/${existing.id}`); return; }
+        }
+        // Créer nouvelle conv
+        const { data: conv } = await supabase
+          .from('conversations')
+          .insert({ subject: ctaLabel, related_type: sourceType, related_id: sourceId })
+          .select('id').single();
+        if (!conv) return;
+        await supabase.from('conversation_participants').upsert(
+          [{ conversation_id: conv.id, user_id: userId },
+           { conversation_id: conv.id, user_id: receiverId }],
+          { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
+        );
+        await supabase.from('messages').insert({
+          conversation_id: conv.id, sender_id: userId,
+          content: `👋 ${ctaLabel} — je voudrais en savoir plus !`,
+        });
+        router.push(`/messages/${conv.id}`);
+      } finally { setFallbackActing(false); }
+    };
+
+    if (!userId) {
+      return (
+        <Link href="/connexion"
+          className={cn(
+            'inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all',
+            conf.bg, conf.color, `border ${conf.border}`, className
+          )}>
+          <conf.ctaIcon className="w-4 h-4" />
+          {ctaLabel}
+        </Link>
+      );
+    }
+    return (
+      <button
+        type="button"
+        onClick={handleFallbackContact}
+        disabled={fallbackActing}
+        className={cn(
+          'inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all',
+          conf.bg, conf.color, `border ${conf.border}`,
+          'hover:brightness-95 disabled:opacity-50',
+          className
+        )}
+      >
+        {fallbackActing
+          ? <Loader2 className="w-4 h-4 animate-spin" />
+          : <conf.ctaIcon className="w-4 h-4" />}
+        {fallbackActing ? 'Ouverture…' : ctaLabel}
+      </button>
+    );
+  }
   if (loading) return <div className="h-10 w-full bg-gray-100 animate-pulse rounded-xl" />;
   if (userId === receiverId) return null; // pas de bouton pour l'auteur lui-même
 
