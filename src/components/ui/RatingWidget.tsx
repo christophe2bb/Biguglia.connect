@@ -69,11 +69,13 @@ async function checkEligibility(
     case 'lost_found':
       return true;
 
-    // Doit avoir une conversation liée
+    // ÉCHANGE CONFIRMÉ obligatoire (exchange_status = 'done')
+    // pour : annonce, matériel, association, collection, coup de main
     case 'listing':
     case 'equipment':
     case 'association':
     case 'collection_item': {
+      // Chercher une conversation liée avec exchange_status = 'done' ET l'utilisateur participant
       const { data: parts } = await supabase
         .from('conversation_participants')
         .select('conversation_id')
@@ -82,52 +84,60 @@ async function checkEligibility(
       const ids = parts.map((p: { conversation_id: string }) => p.conversation_id);
       const { data: conv } = await supabase
         .from('conversations')
-        .select('id')
+        .select('id, exchange_status')
         .eq('related_type', targetType)
         .eq('related_id', targetId)
         .in('id', ids)
         .maybeSingle();
-      return !!conv;
+      // Échange terminé = 'done', sinon vérification si la colonne existe (ancienne version)
+      if (!conv) return false;
+      // Si la colonne exchange_status existe et vaut 'done' → ok
+      // Si exchange_status est null (migration pas encore appliquée) → fallback sur simple conversation
+      return conv.exchange_status === 'done' || conv.exchange_status === null;
     }
 
-    // Doit avoir une conversation liée OU être l'auteur — ET la demande doit être résolue
+    // Coup de main : échange confirmé OU statut resolved + auteur
     case 'help_request': {
-      // Vérifier d'abord si la demande est résolue (status = 'resolved')
       const { data: req } = await supabase
         .from('help_requests')
         .select('author_id, status')
         .eq('id', targetId)
         .single();
-      // Si non résolu : pas éligible (pas de note avant que l'aide soit terminée)
-      if (!req || req.status !== 'resolved') return false;
-      // L'auteur de la demande peut noter le helper
-      if (req.author_id === userId) return true;
-      // Ou avoir une conversation liée
+      if (!req) return false;
+
+      // Chercher conversation avec échange confirmé
       const { data: parts } = await supabase
         .from('conversation_participants')
         .select('conversation_id')
         .eq('user_id', userId);
-      if (!parts?.length) return false;
-      const ids = parts.map((p: { conversation_id: string }) => p.conversation_id);
-      const { data: conv } = await supabase
-        .from('conversations')
-        .select('id')
-        .eq('related_type', 'help_request')
-        .eq('related_id', targetId)
-        .in('id', ids)
-        .maybeSingle();
-      return !!conv;
+      if (parts?.length) {
+        const ids = parts.map((p: { conversation_id: string }) => p.conversation_id);
+        const { data: conv } = await supabase
+          .from('conversations')
+          .select('id, exchange_status')
+          .eq('related_type', 'help_request')
+          .eq('related_id', targetId)
+          .in('id', ids)
+          .maybeSingle();
+        if (conv && (conv.exchange_status === 'done' || conv.exchange_status === null)) {
+          // Si échange confirmé ou pas encore migré (fallback)
+          if (conv.exchange_status === 'done') return true;
+          // Fallback si pas encore migré : demande résolue requise
+          if (req.status === 'resolved') return true;
+        }
+      }
+      // Fallback auteur : si demande résolue et auteur
+      return req.status === 'resolved' && req.author_id === userId;
     }
 
     // Doit être inscrit à l'événement ET l'événement doit être passé
     case 'event': {
-      // Vérifier la date de l'événement
       const { data: ev } = await supabase
         .from('local_events')
         .select('event_date')
         .eq('id', targetId)
         .single();
-      if (ev?.event_date && new Date(ev.event_date) > new Date()) return false; // futur
+      if (ev?.event_date && new Date(ev.event_date) > new Date()) return false;
       const { data } = await supabase
         .from('event_participations')
         .select('id')
@@ -139,13 +149,12 @@ async function checkEligibility(
 
     // Doit être inscrit à la sortie ET la sortie doit être passée
     case 'outing': {
-      // Vérifier la date de la sortie
       const { data: out } = await supabase
         .from('group_outings')
         .select('outing_date')
         .eq('id', targetId)
         .single();
-      if (out?.outing_date && new Date(out.outing_date) > new Date()) return false; // future
+      if (out?.outing_date && new Date(out.outing_date) > new Date()) return false;
       const { data } = await supabase
         .from('outing_participants')
         .select('id')

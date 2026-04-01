@@ -13,6 +13,7 @@ import Button from '@/components/ui/Button';
 import { LISTING_TYPE_LABELS, LISTING_TYPE_COLORS, STATUS_LABELS, formatDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import RatingWidget from '@/components/ui/RatingWidget';
+import ExchangePrompt from '@/components/ui/ExchangePrompt';
 import { PhotoGallery, toPhotoItems } from '@/components/ui/PhotoViewer';
 
 export default function AnnonceDetailPage() {
@@ -361,7 +362,15 @@ export default function AnnonceDetailPage() {
             </button>
           </div>
 
-          {/* Notation */}
+          {/* Confirmation d'échange → débloque l'avis */}
+          <ExchangePrompt
+            targetType="listing"
+            targetId={listing.id}
+            authorId={listing.user_id}
+            userId={profile?.id}
+          />
+
+          {/* Notation (visible seulement après échange confirmé) */}
           <RatingWidget
             targetType="listing"
             targetId={listing.id}

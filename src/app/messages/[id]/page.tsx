@@ -6,6 +6,7 @@ import {
   Send, ChevronLeft, CheckCheck, ExternalLink,
   ShoppingBag, HandHeart, Dog, Users, MapPin, Wrench,
   HelpCircle, MessageSquare, ChevronDown, ChevronUp,
+  PartyPopper, Star, Clock, ThumbsUp,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -14,6 +15,8 @@ import Link from 'next/link';
 import Avatar from '@/components/ui/Avatar';
 import { cn, formatRelative } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import RatingWidget from '@/components/ui/RatingWidget';
+import type { RatingTargetType } from '@/components/ui/RatingWidget';
 
 // ─── Config contexte par related_type ─────────────────────────────────────────
 const CONTEXT_CONFIG: Record<string, {
@@ -271,6 +274,171 @@ function ContextBanner({
   );
 }
 
+// ─── Types pour le suivi d'échange ────────────────────────────────────────────
+type ExchangeStatus = 'pending_confirmation' | 'done' | null;
+
+interface ExchangeInfo {
+  status: ExchangeStatus;
+  confirmedBy: string[];  // UUIDs des participants ayant confirmé
+  confirmedAt: string | null;
+  relatedType: string | null;
+  relatedId: string | null;
+  otherUserId: string | null;
+}
+
+// ─── Types échangeables (peuvent déclencher un avis) ──────────────────────────
+const EXCHANGEABLE_TYPES: Record<string, { label: string; verb: string; color: string; bg: string; border: string }> = {
+  listing:         { label: 'Annonce',         verb: 'la vente',          color: 'text-blue-700',   bg: 'bg-blue-50',   border: 'border-blue-200'   },
+  equipment:       { label: 'Matériel',         verb: 'le prêt',           color: 'text-teal-700',   bg: 'bg-teal-50',   border: 'border-teal-200'   },
+  help_request:    { label: 'Coup de main',     verb: 'l\'aide',           color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200' },
+  association:     { label: 'Association',      verb: 'le contact',        color: 'text-purple-700', bg: 'bg-purple-50', border: 'border-purple-200' },
+  collection_item: { label: 'Collection',       verb: 'l\'échange',        color: 'text-rose-700',   bg: 'bg-rose-50',   border: 'border-rose-200'   },
+  service_request: { label: 'Demande artisan',  verb: 'la prestation',     color: 'text-brand-700',  bg: 'bg-brand-50',  border: 'border-brand-200'  },
+};
+
+// ─── Panneau de confirmation d'échange ────────────────────────────────────────
+function ExchangePanel({
+  conversationId,
+  userId,
+  exchange,
+  onExchangeUpdated,
+}: {
+  conversationId: string;
+  userId: string;
+  exchange: ExchangeInfo;
+  onExchangeUpdated: (updated: ExchangeInfo) => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const supabase = createClient();
+
+  const conf = exchange.relatedType ? EXCHANGEABLE_TYPES[exchange.relatedType] : null;
+  if (!conf || !exchange.relatedType || !exchange.relatedId) return null;
+
+  const iHaveConfirmed = exchange.confirmedBy.includes(userId);
+  const isDone = exchange.status === 'done';
+  const otherHasConfirmed = exchange.confirmedBy.some(id => id !== userId);
+
+  const handleConfirm = async () => {
+    if (confirming || iHaveConfirmed) return;
+    setConfirming(true);
+    try {
+      const newConfirmedBy = [...exchange.confirmedBy, userId];
+      const bothDone = newConfirmedBy.length >= 2;
+      const { error } = await supabase
+        .from('conversations')
+        .update({
+          exchange_status: bothDone ? 'done' : 'pending_confirmation',
+          exchange_confirmed_by: newConfirmedBy,
+          exchange_confirmed_at: bothDone ? new Date().toISOString() : null,
+        })
+        .eq('id', conversationId);
+
+      if (error) { toast.error('Erreur de confirmation'); return; }
+
+      // Message automatique dans la conversation
+      const msg = bothDone
+        ? `✅ Échange confirmé par les deux parties — les avis sont maintenant débloqués.`
+        : `🤝 J'ai confirmé la fin de ${conf.verb}. En attente de confirmation de l'autre partie.`;
+      await supabase.from('messages').insert({
+        conversation_id: conversationId,
+        sender_id: userId,
+        content: msg,
+      });
+
+      onExchangeUpdated({
+        ...exchange,
+        status: bothDone ? 'done' : 'pending_confirmation',
+        confirmedBy: newConfirmedBy,
+        confirmedAt: bothDone ? new Date().toISOString() : null,
+      });
+
+      if (bothDone) toast.success('Échange confirmé ! Vous pouvez maintenant laisser un avis.');
+      else toast.success('Confirmation envoyée ! En attente de l\'autre partie.');
+    } finally { setConfirming(false); }
+  };
+
+  // Échange terminé → afficher un résumé + lien vers l'avis
+  if (isDone) {
+    return (
+      <div className={cn('rounded-2xl border p-4 mb-3', conf.bg, conf.border)}>
+        <div className="flex items-center gap-2 mb-3">
+          <PartyPopper className={cn('w-5 h-5 flex-shrink-0', conf.color)} />
+          <div>
+            <p className={cn('font-bold text-sm', conf.color)}>Échange terminé ✅</p>
+            {exchange.confirmedAt && (
+              <p className="text-xs text-gray-500">
+                Confirmé le {new Date(exchange.confirmedAt).toLocaleDateString('fr-FR', { day:'numeric', month:'long' })}
+              </p>
+            )}
+          </div>
+        </div>
+        {exchange.relatedType && exchange.relatedId && (
+          <div className="bg-white/70 rounded-xl p-3 flex items-center gap-2">
+            <Star className="w-4 h-4 text-amber-400 fill-amber-400 flex-shrink-0" />
+            <p className="text-xs text-gray-700 flex-1">
+              Votre avis est maintenant <strong>débloqué</strong>.
+            </p>
+            <Link
+              href={`/${exchange.relatedType === 'listing' ? 'annonces' : exchange.relatedType === 'equipment' ? 'materiel' : exchange.relatedType === 'help_request' ? 'coups-de-main' : exchange.relatedType === 'collection_item' ? 'collectionneurs' : exchange.relatedType}/${exchange.relatedId}`}
+              className={cn('text-xs font-bold px-3 py-1.5 rounded-xl border bg-white', conf.color, conf.border)}
+            >
+              Laisser un avis
+            </Link>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // En attente ou pas encore commencé
+  return (
+    <div className={cn('rounded-2xl border p-4 mb-3', conf.bg, conf.border)}>
+      <div className="flex items-start gap-3">
+        <ThumbsUp className={cn('w-5 h-5 flex-shrink-0 mt-0.5', conf.color)} />
+        <div className="flex-1 min-w-0">
+          <p className={cn('font-bold text-sm mb-0.5', conf.color)}>
+            {conf.label} — Confirmer la fin de l&apos;échange
+          </p>
+          <p className="text-xs text-gray-600 leading-relaxed mb-3">
+            {iHaveConfirmed
+              ? `✓ Vous avez confirmé. ${otherHasConfirmed ? 'Les deux parties ont confirmé !' : 'En attente de confirmation de l\'autre partie…'}`
+              : `Avez-vous terminé ${conf.verb} ? Confirmez pour débloquer les avis vérifiés.`
+            }
+          </p>
+          {otherHasConfirmed && !iHaveConfirmed && (
+            <p className="text-xs text-emerald-700 font-semibold mb-2 flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              L&apos;autre partie a déjà confirmé — confirmez pour finaliser !
+            </p>
+          )}
+          {!iHaveConfirmed && (
+            <button
+              onClick={handleConfirm}
+              disabled={confirming}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm text-white transition-all',
+                'bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50'
+              )}
+            >
+              {confirming
+                ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                : <CheckCheck className="w-4 h-4" />
+              }
+              {confirming ? 'Confirmation…' : 'Confirmer la fin de l\'échange'}
+            </button>
+          )}
+          {iHaveConfirmed && (
+            <div className="flex items-center gap-2 text-xs text-emerald-700 font-semibold">
+              <CheckCheck className="w-4 h-4" />
+              Votre confirmation est enregistrée
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Délais de reconnexion (ms) ────────────────────────────────────────────────
 const RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000];
 // Intervalle du polling de secours quand Realtime est KO (ms)
@@ -292,6 +460,10 @@ export default function ConversationPage() {
   const [relatedType, setRelatedType] = useState<string | null>(null);
   const [relatedId, setRelatedId]     = useState<string | null>(null);
   const [realtimeOk, setRealtimeOk]   = useState(false);
+  const [exchange, setExchange]       = useState<ExchangeInfo>({
+    status: null, confirmedBy: [], confirmedAt: null,
+    relatedType: null, relatedId: null, otherUserId: null,
+  });
 
   const messagesEndRef  = useRef<HTMLDivElement>(null);
   const inputRef        = useRef<HTMLInputElement>(null);
@@ -462,15 +634,28 @@ export default function ConversationPage() {
       const other = participants.find(p => p.user_id !== profile.id);
       if (other) { const op = await getSenderProfile(other.user_id); setOtherUser(op || null); }
 
-      // Infos conversation (sujet + contexte)
+      // Infos conversation (sujet + contexte + échange)
       const { data: conv } = await supabase
         .from('conversations')
-        .select('subject, related_type, related_id')
+        .select('subject, related_type, related_id, exchange_status, exchange_confirmed_by, exchange_confirmed_at')
         .eq('id', id as string)
         .single();
       setSubject(conv?.subject || 'Conversation');
       setRelatedType(conv?.related_type || null);
       setRelatedId(conv?.related_id || null);
+
+      // Charger l'état d'échange
+      const otherParticipant = participants.find(p => p.user_id !== profile.id);
+      if (conv?.related_type && EXCHANGEABLE_TYPES[conv.related_type]) {
+        setExchange({
+          status: (conv.exchange_status as ExchangeStatus) || null,
+          confirmedBy: (conv.exchange_confirmed_by as string[]) || [],
+          confirmedAt: conv.exchange_confirmed_at || null,
+          relatedType: conv.related_type,
+          relatedId: conv.related_id,
+          otherUserId: otherParticipant?.user_id || null,
+        });
+      }
 
       // Charger les messages
       const { data: msgs } = await supabase
@@ -588,6 +773,22 @@ export default function ConversationPage() {
           subject={subject}
         />
       )}
+
+      {/* ── Panneau suivi échange + avis ──────────────────────────────────────── */}
+      {!loading && profile && exchange.relatedType && EXCHANGEABLE_TYPES[exchange.relatedType] && (
+        <ExchangePanel
+          conversationId={id as string}
+          userId={profile.id}
+          exchange={exchange}
+          onExchangeUpdated={setExchange}
+        />
+      )}
+
+      {/* ── Avis débloqués (échange terminé) ─────────────────────────────────── */}
+      {!loading && exchange.status === 'done' && exchange.relatedId && exchange.relatedType
+       && (exchange.relatedType as RatingTargetType) in ({} as Record<RatingTargetType, unknown>)
+        ? null /* affiché dans ExchangePanel */ : null
+      }
 
       {/* ── Messages ─────────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto space-y-3 pb-4 pr-1">

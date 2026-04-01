@@ -14,6 +14,7 @@ import Input from '@/components/ui/Input';
 import { CONDITION_LABELS, formatDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import RatingWidget from '@/components/ui/RatingWidget';
+import ExchangePrompt from '@/components/ui/ExchangePrompt';
 import { PhotoGallery, toPhotoItems } from '@/components/ui/PhotoViewer';
 
 export default function MaterielDetailPage() {
@@ -211,7 +212,15 @@ export default function MaterielDetailPage() {
             </div>
           )}
 
-          {/* Notation */}
+          {/* Confirmation d'échange → débloque l'avis */}
+          <ExchangePrompt
+            targetType="equipment"
+            targetId={item.id}
+            authorId={item.owner_id}
+            userId={profile?.id}
+          />
+
+          {/* Notation (visible seulement après échange confirmé) */}
           <RatingWidget
             targetType="equipment"
             targetId={item.id}

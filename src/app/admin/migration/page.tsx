@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon, Zap, Star } from 'lucide-react';
+import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon, Zap, Star, CheckCheck } from 'lucide-react';
 
 // ─── SQL complet à copier-coller dans Supabase SQL Editor ─────────────────────
 const MIGRATION_SQL = `-- ============================================================
@@ -743,18 +743,17 @@ ORDER BY tablename;`;
 
 // ─── SQL Notation universelle ──────────────────────────────────────────────────
 const RATING_SQL = `-- ============================================================
--- BIGUGLIA CONNECT — Table item_ratings (notation crédible)
--- Règle : on ne note QUE si on a eu une interaction réelle
--- Coller dans Supabase > SQL Editor > New query > Run
+-- BIGUGLIA CONNECT - Table item_ratings (notation avec verification)
+-- Copier dans Supabase > SQL Editor > New query > Run
 -- ============================================================
 
--- 0. Fonction helper
+-- 0. Fonction helper role
 CREATE OR REPLACE FUNCTION current_user_role()
 RETURNS TEXT AS $$
   SELECT role FROM profiles WHERE id = auth.uid();
 $$ LANGUAGE SQL SECURITY DEFINER STABLE;
 
--- Fonction : l'utilisateur courant est-il éligible à noter cet item ?
+-- Fonction : verification eligibilite pour noter un item
 CREATE OR REPLACE FUNCTION can_rate_item(p_target_type TEXT, p_target_id UUID)
 RETURNS BOOLEAN AS $$
 DECLARE
@@ -787,17 +786,17 @@ BEGIN
 
   IF v_author_id = v_uid THEN RETURN FALSE; END IF;
 
-  -- Libre (perdu/trouvé, promenade)
+  -- Libre : perdu/trouve, promenade
   IF p_target_type IN ('lost_found', 'promenade') THEN RETURN TRUE; END IF;
 
-  -- Coup de main : doit être résolu + avoir une conversation liée
+  -- Coup de main : doit etre resolu
   IF p_target_type = 'help_request' THEN
     SELECT status INTO v_status FROM help_requests WHERE id = p_target_id;
     IF v_status <> 'resolved' THEN RETURN FALSE; END IF;
     IF v_author_id = v_uid THEN RETURN TRUE; END IF;
   END IF;
 
-  -- Événement : inscrit + date passée
+  -- Evenement : inscrit + date passee
   IF p_target_type = 'event' THEN
     SELECT event_date INTO v_date FROM local_events WHERE id = p_target_id;
     IF v_date > CURRENT_DATE THEN RETURN FALSE; END IF;
@@ -807,7 +806,7 @@ BEGIN
     );
   END IF;
 
-  -- Sortie : inscrit + date passée
+  -- Sortie : inscrit + date passee
   IF p_target_type = 'outing' THEN
     SELECT outing_date INTO v_date FROM group_outings WHERE id = p_target_id;
     IF v_date > CURRENT_DATE THEN RETURN FALSE; END IF;
@@ -824,7 +823,7 @@ BEGIN
     );
   END IF;
 
-  -- listing, equipment, association, collection_item : doit avoir une conversation liée
+  -- listing, equipment, association, collection_item : conversation liee obligatoire
   RETURN EXISTS (
     SELECT 1 FROM conversations c
     JOIN conversation_participants cp ON cp.conversation_id = c.id
@@ -835,7 +834,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
--- 1. Créer la table item_ratings
+-- 1. Creer la table item_ratings
 CREATE TABLE IF NOT EXISTS item_ratings (
   id           UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   target_type  TEXT NOT NULL CHECK (target_type IN (
@@ -862,18 +861,18 @@ CREATE INDEX IF NOT EXISTS idx_item_ratings_user   ON item_ratings(user_id);
 -- 3. RLS stricte
 ALTER TABLE item_ratings ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Notes publiques"             ON item_ratings;
-DROP POLICY IF EXISTS "Noter si connecté"           ON item_ratings;
-DROP POLICY IF EXISTS "Modifier sa note"            ON item_ratings;
-DROP POLICY IF EXISTS "Supprimer sa note"           ON item_ratings;
-DROP POLICY IF EXISTS "Noter après interaction"     ON item_ratings;
+DROP POLICY IF EXISTS "Notes publiques"         ON item_ratings;
+DROP POLICY IF EXISTS "Noter si connecte"        ON item_ratings;
+DROP POLICY IF EXISTS "Modifier sa note"         ON item_ratings;
+DROP POLICY IF EXISTS "Supprimer sa note"        ON item_ratings;
+DROP POLICY IF EXISTS "Noter apres interaction"  ON item_ratings;
 
--- Lecture : toujours publique (les moyennes sont visibles de tous)
+-- Lecture : toujours publique
 CREATE POLICY "Notes publiques" ON item_ratings
   FOR SELECT USING (true);
 
--- Insertion : SEULEMENT si éligible (interaction réelle vérifiée côté DB)
-CREATE POLICY "Noter après interaction" ON item_ratings
+-- Insertion : seulement si eligible (interaction reelle verifiee cote DB)
+CREATE POLICY "Noter apres interaction" ON item_ratings
   FOR INSERT WITH CHECK (
     auth.uid() = user_id
     AND can_rate_item(target_type, target_id)
@@ -883,7 +882,7 @@ CREATE POLICY "Noter après interaction" ON item_ratings
 CREATE POLICY "Modifier sa note" ON item_ratings
   FOR UPDATE USING (auth.uid() = user_id);
 
--- Suppression : soi-même ou admin
+-- Suppression : soi-meme ou admin
 CREATE POLICY "Supprimer sa note" ON item_ratings
   FOR DELETE USING (
     auth.uid() = user_id
@@ -891,6 +890,134 @@ CREATE POLICY "Supprimer sa note" ON item_ratings
   );
 
 -- 4. Recharge cache
+NOTIFY pgrst, 'reload schema';`;
+
+// ─── SQL Échanges confirmés (à exécuter dans Supabase SQL Editor) ────────────
+const EXCHANGE_SQL = `-- ============================================================
+-- BIGUGLIA CONNECT - Echanges confirmes (avis verifie)
+-- Copier dans Supabase > SQL Editor > New query > Run
+-- ============================================================
+
+-- 1. Ajouter les colonnes d echange sur la table conversations
+ALTER TABLE conversations
+  ADD COLUMN IF NOT EXISTS exchange_status TEXT
+    DEFAULT NULL CHECK (exchange_status IN ('pending_confirmation','done')),
+  ADD COLUMN IF NOT EXISTS exchange_confirmed_by UUID[]
+    DEFAULT ARRAY[]::UUID[],
+  ADD COLUMN IF NOT EXISTS exchange_confirmed_at TIMESTAMPTZ
+    DEFAULT NULL;
+
+-- 2. Index pour requetes rapides sur l echange
+CREATE INDEX IF NOT EXISTS idx_conversations_exchange
+  ON conversations(exchange_status)
+  WHERE exchange_status IS NOT NULL;
+
+-- 3. Mettre a jour la fonction can_rate_item pour utiliser exchange_status
+-- Pour listing, equipment, association, collection_item, help_request :
+--   echange confirme (exchange_status = done) obligatoire au lieu de simple conversation
+CREATE OR REPLACE FUNCTION can_rate_item(p_target_type TEXT, p_target_id UUID)
+RETURNS BOOLEAN AS $$
+DECLARE
+  v_author_id UUID;
+  v_status    TEXT;
+  v_date      DATE;
+  v_uid       UUID := auth.uid();
+BEGIN
+  IF v_uid IS NULL THEN RETURN FALSE; END IF;
+
+  -- Ne pas noter son propre item
+  CASE p_target_type
+    WHEN 'listing'         THEN SELECT user_id       INTO v_author_id FROM listings        WHERE id = p_target_id;
+    WHEN 'equipment'       THEN SELECT owner_id      INTO v_author_id FROM equipment_items WHERE id = p_target_id;
+    WHEN 'help_request'    THEN SELECT author_id     INTO v_author_id FROM help_requests   WHERE id = p_target_id;
+    WHEN 'association'     THEN SELECT author_id     INTO v_author_id FROM associations    WHERE id = p_target_id;
+    WHEN 'collection_item' THEN SELECT author_id     INTO v_author_id FROM collection_items WHERE id = p_target_id;
+    WHEN 'event'           THEN SELECT author_id     INTO v_author_id FROM local_events    WHERE id = p_target_id;
+    WHEN 'outing'          THEN SELECT organizer_id  INTO v_author_id FROM group_outings   WHERE id = p_target_id;
+    ELSE v_author_id := NULL;
+  END CASE;
+
+  IF v_author_id = v_uid THEN RETURN FALSE; END IF;
+
+  -- Libre : perdu/trouve, promenade
+  IF p_target_type IN ('lost_found', 'promenade') THEN RETURN TRUE; END IF;
+
+  -- Evenement : inscrit + date passee
+  IF p_target_type = 'event' THEN
+    SELECT event_date INTO v_date FROM local_events WHERE id = p_target_id;
+    IF v_date > CURRENT_DATE THEN RETURN FALSE; END IF;
+    RETURN EXISTS (
+      SELECT 1 FROM event_participations
+      WHERE event_id = p_target_id AND user_id = v_uid
+    );
+  END IF;
+
+  -- Sortie : inscrit + date passee
+  IF p_target_type = 'outing' THEN
+    SELECT outing_date INTO v_date FROM group_outings WHERE id = p_target_id;
+    IF v_date > CURRENT_DATE THEN RETURN FALSE; END IF;
+    RETURN EXISTS (
+      SELECT 1 FROM outing_participants
+      WHERE outing_id = p_target_id AND user_id = v_uid
+    );
+  END IF;
+
+  -- Demande artisan : auteur de la demande
+  IF p_target_type = 'service_request' THEN
+    RETURN EXISTS (
+      SELECT 1 FROM service_requests WHERE id = p_target_id AND resident_id = v_uid
+    );
+  END IF;
+
+  -- Coup de main : echange confirme OU statut resolved + participant conversation
+  IF p_target_type = 'help_request' THEN
+    SELECT status INTO v_status FROM help_requests WHERE id = p_target_id;
+    -- Echange confirme via conversation
+    IF EXISTS (
+      SELECT 1 FROM conversations c
+      JOIN conversation_participants cp ON cp.conversation_id = c.id
+      WHERE c.related_type = 'help_request'
+        AND c.related_id   = p_target_id
+        AND c.exchange_status = 'done'
+        AND cp.user_id     = v_uid
+    ) THEN RETURN TRUE; END IF;
+    -- Fallback : resolu + auteur
+    IF v_status = 'resolved' AND v_author_id = v_uid THEN RETURN TRUE; END IF;
+    RETURN FALSE;
+  END IF;
+
+  -- listing, equipment, association, collection_item :
+  -- ECHANGE CONFIRME obligatoire (exchange_status = done)
+  RETURN EXISTS (
+    SELECT 1 FROM conversations c
+    JOIN conversation_participants cp ON cp.conversation_id = c.id
+    WHERE c.related_type    = p_target_type
+      AND c.related_id      = p_target_id
+      AND c.exchange_status = 'done'
+      AND cp.user_id        = v_uid
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+
+-- 4. RLS sur conversations : permettre la mise a jour de exchange_status
+DROP POLICY IF EXISTS "Participants maj echange"  ON conversations;
+CREATE POLICY "Participants maj echange" ON conversations
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM conversation_participants cp
+      WHERE cp.conversation_id = conversations.id
+        AND cp.user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM conversation_participants cp
+      WHERE cp.conversation_id = conversations.id
+        AND cp.user_id = auth.uid()
+    )
+  );
+
+-- 5. Recharge cache
 NOTIFY pgrst, 'reload schema';`;
 
 // ─── SQL Bucket Storage (à exécuter dans Supabase SQL Editor) ─────────────────
@@ -996,6 +1123,7 @@ export default function MigrationPage() {
   const [copiedBucket, setCopiedBucket] = useState(false);
   const [copiedRealtime, setCopiedRealtime] = useState(false);
   const [copiedRating, setCopiedRating] = useState(false);
+  const [copiedExchange, setCopiedExchange] = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -1152,6 +1280,13 @@ export default function MigrationPage() {
     navigator.clipboard.writeText(RATING_SQL).then(() => {
       setCopiedRating(true);
       setTimeout(() => setCopiedRating(false), 4000);
+    });
+  };
+
+  const handleCopyExchange = () => {
+    navigator.clipboard.writeText(EXCHANGE_SQL).then(() => {
+      setCopiedExchange(true);
+      setTimeout(() => setCopiedExchange(false), 4000);
     });
   };
 
@@ -1402,6 +1537,61 @@ export default function MigrationPage() {
             <li>Cliquez <strong>New query</strong>, collez et cliquez <strong>Run</strong></li>
             <li>La table <code className="bg-amber-100 px-1 rounded">item_ratings</code> sera créée avec RLS</li>
             <li>Les avis apparaîtront automatiquement sur toutes les rubriques du site</li>
+          </ol>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          SECTION ÉCHANGES CONFIRMÉS — AVIS VÉRIFIÉS
+      ══════════════════════════════════════════════════════════════ */}
+      <div className="flex items-center gap-3 mb-4 mt-8">
+        <div className="p-3 bg-emerald-100 rounded-2xl">
+          <CheckCheck className="w-6 h-6 text-emerald-600" />
+        </div>
+        <div>
+          <h2 className="text-xl font-black text-gray-900">Échanges confirmés — Avis vérifiés</h2>
+          <p className="text-gray-500 text-sm">Ajoute le suivi d&apos;échange sur les conversations pour débloquer les avis</p>
+        </div>
+      </div>
+
+      <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-5 mb-6">
+        <div className="flex items-start gap-3 mb-3">
+          <span className="text-2xl flex-shrink-0">🤝</span>
+          <div>
+            <p className="font-bold text-emerald-800 text-sm">
+              À exécuter pour activer les avis vérifiés
+            </p>
+            <p className="text-emerald-700 text-xs mt-1">
+              Ajoute <code className="bg-emerald-100 px-1 rounded">exchange_status</code> sur la table
+              <code className="bg-emerald-100 px-1 rounded ml-1">conversations</code>.
+              Un avis n&apos;est possible que si les 2 parties ont confirmé la fin de l&apos;échange.
+              Met à jour la fonction <code className="bg-emerald-100 px-1 rounded">can_rate_item</code> pour
+              exiger <code className="bg-emerald-100 px-1 rounded">exchange_status = &apos;done&apos;</code>.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={handleCopyExchange}
+          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-all ${
+            copiedExchange ? 'bg-emerald-500 text-white' : 'bg-emerald-600 text-white hover:bg-emerald-700'
+          }`}
+        >
+          {copiedExchange
+            ? <><Check className="w-4 h-4" /> SQL copié ! Collez dans Supabase SQL Editor</>
+            : <><Copy className="w-4 h-4" /> Copier le SQL Échanges confirmés</>
+          }
+        </button>
+        <div className="mt-3 bg-gray-900 rounded-xl p-4 overflow-x-auto">
+          <pre className="text-xs text-emerald-300 font-mono leading-relaxed whitespace-pre-wrap">{EXCHANGE_SQL}</pre>
+        </div>
+        <div className="mt-3 bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+          <p className="text-xs text-emerald-800 font-bold">📋 Instructions :</p>
+          <ol className="text-xs text-emerald-700 mt-1 space-y-1 list-decimal list-inside">
+            <li>Copiez le SQL ci-dessus</li>
+            <li>Allez sur <strong>supabase.com</strong> → votre projet → <strong>SQL Editor</strong></li>
+            <li>Cliquez <strong>New query</strong>, collez et cliquez <strong>Run</strong></li>
+            <li>Le suivi d&apos;échange sera activé sur toutes les conversations liées</li>
+            <li>Les avis n&apos;apparaîtront que si l&apos;échange est confirmé par les 2 parties</li>
           </ol>
         </div>
       </div>
