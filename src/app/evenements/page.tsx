@@ -16,6 +16,7 @@ import Avatar from '@/components/ui/Avatar';
 import toast from 'react-hot-toast';
 import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';
+import { PhotoViewer } from '@/components/ui/PhotoViewer';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LocalEvent = {
@@ -267,6 +268,8 @@ function EventCard({
   const fillPct = event.max_participants && event.participants_count !== undefined
     ? Math.round((event.participants_count / event.max_participants) * 100) : null;
   const isFull = event.max_participants !== null && (event.participants_count ?? 0) >= event.max_participants;
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const photoItems = event.cover_photo ? [{ url: event.cover_photo, isPrimary: true }] : [];
 
   if (compact) {
     const isPastEvent = new Date(event.event_date + 'T23:59:59') < new Date();
@@ -276,8 +279,10 @@ function EventCard({
       <div className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all ${isPastEvent ? 'opacity-50 grayscale border-gray-100' : 'border-gray-100'}`}>
         {/* Photo — masquée si événement passé */}
         {event.cover_photo && !isPastEvent && (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={event.cover_photo} alt={event.title} className="w-full h-28 object-cover" />
+          <div className="cursor-pointer" onClick={() => setLightboxOpen(true)}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={event.cover_photo} alt={event.title} className="w-full h-28 object-cover" />
+          </div>
         )}
         <div className="p-3">
           <div className="flex items-center gap-1.5 mb-1.5">
@@ -357,6 +362,11 @@ function EventCard({
             catBorder={cat.border}
           />
         </div>
+
+        {/* Lightbox compact */}
+        {lightboxOpen && photoItems.length > 0 && (
+          <PhotoViewer photos={photoItems} initialIndex={0} onClose={() => setLightboxOpen(false)} title={event.title} />
+        )}
       </div>
     );
   }
@@ -366,8 +376,10 @@ function EventCard({
       {/* ── Zone photo / header — hauteur fixe 44 ── */}
       <div className="relative h-44 overflow-hidden">
         {event.cover_photo ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={event.cover_photo} alt={event.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <div className="w-full h-full cursor-pointer" onClick={() => setLightboxOpen(true)}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={event.cover_photo} alt={event.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          </div>
         ) : (
           <div className={`w-full h-full ${cat.bg} flex items-center justify-center`}>
             <CatIcon className={`w-14 h-14 opacity-20 ${cat.color}`} />
@@ -496,6 +508,11 @@ function EventCard({
           </div>
         )}
       </div>
+
+      {/* Lightbox */}
+      {lightboxOpen && photoItems.length > 0 && (
+        <PhotoViewer photos={photoItems} initialIndex={0} onClose={() => setLightboxOpen(false)} title={event.title} />
+      )}
     </div>
   );
 }

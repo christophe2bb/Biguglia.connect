@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { formatRelative } from '@/lib/utils';
 import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';
+import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
 import {
   Search, Plus, X, Loader2, AlertCircle, Camera, MapPin, Clock,
   Phone, Mail, Globe, MessageSquare, CheckCircle2, Shield, Users,
@@ -159,6 +160,9 @@ function AssociationCard({
   const CatIcon = cat.icon;
   const pubConf = PUB_TYPE_CONFIG[asso.pub_type];
   const coverPhoto = asso.photos?.[0]?.url;
+  const allPhotos = toPhotoItems(asso.photos ?? []);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState(0);
 
   useEffect(() => {
     supabase.from('asso_comments').select('id', { count: 'exact', head: true })
@@ -205,8 +209,15 @@ function AssociationCard({
       {/* Cover photo ou header coloré — hauteur fixe 44 */}
       <div className="relative h-44 overflow-hidden">
         {coverPhoto ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={coverPhoto} alt={asso.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <div className="w-full h-full cursor-pointer" onClick={() => { setLightboxIdx(0); setLightboxOpen(true); }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={coverPhoto} alt={asso.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            {allPhotos.length > 1 && (
+              <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs font-bold px-2 py-0.5 rounded-full backdrop-blur-sm z-10">
+                +{allPhotos.length - 1} photo{allPhotos.length > 2 ? 's' : ''}
+              </div>
+            )}
+          </div>
         ) : (
           <div className={`w-full h-full ${cat.bg} flex items-center justify-center`}>
             <CatIcon className={`w-16 h-16 opacity-15 ${cat.color}`} />
@@ -358,12 +369,15 @@ function AssociationCard({
           </div>
         )}
 
-        {/* Galerie photos supplémentaires */}
-        {asso.photos && asso.photos.length > 1 && (
+        {/* Galerie photos supplémentaires — miniatures cliquables */}
+        {allPhotos.length > 1 && (
           <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1">
-            {asso.photos.slice(1).map((p, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={i} src={p.url} alt="" className="w-16 h-16 object-cover rounded-lg flex-shrink-0 border border-gray-100" />
+            {allPhotos.slice(1).map((p, i) => (
+              <button key={i} onClick={() => { setLightboxIdx(i + 1); setLightboxOpen(true); }}
+                className="flex-shrink-0 focus:outline-none">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.url} alt="" className="w-16 h-16 object-cover rounded-lg border border-gray-100 hover:border-brand-300 transition-colors" />
+              </button>
             ))}
           </div>
         )}
@@ -501,6 +515,11 @@ function AssociationCard({
           )}
         </div>
       </div>
+
+      {/* Lightbox */}
+      {lightboxOpen && allPhotos.length > 0 && (
+        <PhotoViewer photos={allPhotos} initialIndex={lightboxIdx} onClose={() => setLightboxOpen(false)} title={asso.name} />
+      )}
     </div>
   );
 }

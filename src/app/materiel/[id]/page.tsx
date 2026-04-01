@@ -14,6 +14,7 @@ import Input from '@/components/ui/Input';
 import { CONDITION_LABELS, formatDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import RatingWidget from '@/components/ui/RatingWidget';
+import { PhotoGallery, toPhotoItems } from '@/components/ui/PhotoViewer';
 
 export default function MaterielDetailPage() {
   const { id } = useParams();
@@ -21,7 +22,6 @@ export default function MaterielDetailPage() {
   const { profile } = useAuthStore();
   const [item, setItem] = useState<EquipmentItem | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentPhoto, setCurrentPhoto] = useState(0);
   const [deleting, setDeleting] = useState(false);
   const [borrowForm, setBorrowForm] = useState({ start_date: '', end_date: '', message: '' });
   const [submitting, setSubmitting] = useState(false);
@@ -105,7 +105,8 @@ export default function MaterielDetailPage() {
   );
   if (!item) return null;
 
-  const photos = item.photos as Array<{ id: string; url: string }> | undefined;
+  const rawPhotos = item.photos as Array<{ id: string; url: string; display_order?: number }> | undefined;
+  const photos = toPhotoItems(rawPhotos);
   const isOwner = profile?.id === item.owner_id;
 
   return (
@@ -116,23 +117,9 @@ export default function MaterielDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
-          {photos && photos.length > 0 ? (
+          {photos.length > 0 ? (
             <div className="mb-6">
-              <div className="h-72 rounded-2xl overflow-hidden bg-gray-100 mb-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photos[currentPhoto].url} alt={item.title} className="w-full h-full object-cover" />
-              </div>
-              {photos.length > 1 && (
-                <div className="flex gap-2 overflow-x-auto">
-                  {photos.map((p, i) => (
-                    <button key={p.id} onClick={() => setCurrentPhoto(i)}
-                      className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 ${i === currentPhoto ? 'border-brand-500' : 'border-gray-200'}`}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={p.url} alt="" className="w-full h-full object-cover" />
-                    </button>
-                  ))}
-                </div>
-              )}
+              <PhotoGallery photos={photos} title={item.title} mainHeight="h-72" />
             </div>
           ) : (
             <div className="h-48 bg-gray-100 rounded-2xl flex items-center justify-center mb-6">

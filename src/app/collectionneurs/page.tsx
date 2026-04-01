@@ -16,6 +16,7 @@ import Avatar from '@/components/ui/Avatar';
 import toast from 'react-hot-toast';
 import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';
+import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type CollectionCategory = {
@@ -141,6 +142,9 @@ function ItemCard({
   const cc = CONDITION_CONFIG[item.condition];
   const catClasses = item.category ? getCatClasses(item.category.color) : COLOR_CLASSES.gray;
   const firstPhoto = item.photos?.[0]?.url;
+  const allPhotos = toPhotoItems((item.photos ?? []).map((p, i) => ({ url: p.url, display_order: i })));
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState(0);
   const isOwner = currentUserId === item.author_id;
 
   const handleContact = async () => {
@@ -170,8 +174,15 @@ function ItemCard({
       {/* ── Zone photo / header — hauteur fixe 44 ── */}
       <div className="relative h-44 overflow-hidden">
         {firstPhoto ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={firstPhoto} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <div className="w-full h-full cursor-pointer" onClick={() => { setLightboxIdx(0); setLightboxOpen(true); }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={firstPhoto} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            {allPhotos.length > 1 && (
+              <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs font-bold px-2 py-0.5 rounded-full backdrop-blur-sm z-10">
+                +{allPhotos.length - 1} photo{allPhotos.length > 2 ? 's' : ''}
+              </div>
+            )}
+          </div>
         ) : (
           <div className={`w-full h-full bg-gradient-to-br ${catClasses.bg} flex items-center justify-center`}>
             <span className="text-6xl opacity-20">{item.category?.icon ?? '📦'}</span>
@@ -255,6 +266,11 @@ function ItemCard({
           />
         </div>
       </div>
+
+      {/* Lightbox */}
+      {lightboxOpen && allPhotos.length > 0 && (
+        <PhotoViewer photos={allPhotos} initialIndex={lightboxIdx} onClose={() => setLightboxOpen(false)} title={item.title} />
+      )}
     </div>
   );
 }

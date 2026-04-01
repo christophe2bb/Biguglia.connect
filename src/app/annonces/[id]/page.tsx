@@ -13,6 +13,7 @@ import Button from '@/components/ui/Button';
 import { LISTING_TYPE_LABELS, LISTING_TYPE_COLORS, STATUS_LABELS, formatDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import RatingWidget from '@/components/ui/RatingWidget';
+import { PhotoGallery, toPhotoItems } from '@/components/ui/PhotoViewer';
 
 export default function AnnonceDetailPage() {
   const { id } = useParams();
@@ -21,7 +22,6 @@ export default function AnnonceDetailPage() {
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [currentPhoto, setCurrentPhoto] = useState(0);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
@@ -228,7 +228,8 @@ export default function AnnonceDetailPage() {
     );
   }
 
-  const photos = listing.photos as Array<{ id: string; url: string; display_order: number }> | undefined;
+  const rawPhotos = listing.photos as Array<{ id: string; url: string; display_order: number }> | undefined;
+  const photos = toPhotoItems(rawPhotos);
   const isOwner = profile?.id === listing.user_id;
 
   return (
@@ -242,31 +243,10 @@ export default function AnnonceDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main content */}
         <div className="lg:col-span-2">
-          {/* Photos */}
-          {photos && photos.length > 0 ? (
+          {/* Photos — visionneuse universelle */}
+          {photos.length > 0 ? (
             <div className="mb-6">
-              <div className="h-72 rounded-2xl overflow-hidden bg-gray-100 mb-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photos[currentPhoto].url}
-                  alt={listing.title}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              {photos.length > 1 && (
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {photos.map((p, i) => (
-                    <button
-                      key={p.id}
-                      onClick={() => setCurrentPhoto(i)}
-                      className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-colors ${i === currentPhoto ? 'border-brand-500' : 'border-gray-200'}`}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={p.url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
-                    </button>
-                  ))}
-                </div>
-              )}
+              <PhotoGallery photos={photos} title={listing.title} mainHeight="h-72" />
             </div>
           ) : (
             <div className="h-48 bg-gray-100 rounded-2xl flex items-center justify-center mb-6">

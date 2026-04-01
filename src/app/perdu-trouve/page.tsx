@@ -15,6 +15,7 @@ import {
 import toast from 'react-hot-toast';
 import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget, { UserRatingBadge } from '@/components/ui/RatingWidget';
+import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LostFoundType = 'perdu' | 'trouve';
@@ -120,6 +121,9 @@ function LostFoundCard({
   const CatIcon = CATEGORIES.find(c => c.value === item.category)?.icon ?? Package;
   const isPerdu = item.type === 'perdu';
   const isResolved = item.status === 'resolved';
+  const allPhotos = toPhotoItems(item.photos ?? []);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState(0);
 
   const dateLabel = new Date(item.lost_date + 'T00:00:00').toLocaleDateString('fr-FR', {
     weekday: 'long', day: 'numeric', month: 'long',
@@ -181,8 +185,15 @@ function LostFoundCard({
       {/* ── Zone photo / header — hauteur fixe 44 ── */}
       <div className="relative h-44 overflow-hidden">
         {item.photos && item.photos.length > 0 ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.photos[0].url} alt={item.title} className="w-full h-full object-cover" />
+          <div className="w-full h-full cursor-pointer" onClick={() => { setLightboxIdx(0); setLightboxOpen(true); }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={item.photos[0].url} alt={item.title} className="w-full h-full object-cover" />
+            {allPhotos.length > 1 && (
+              <div className="absolute bottom-2 right-10 bg-black/60 text-white text-xs font-bold px-2 py-0.5 rounded-full backdrop-blur-sm z-10">
+                +{allPhotos.length - 1} photo{allPhotos.length > 2 ? 's' : ''}
+              </div>
+            )}
+          </div>
         ) : (
           <div className={`w-full h-full flex items-center justify-center ${
             isPerdu ? 'bg-gradient-to-br from-orange-50 to-amber-100' : 'bg-gradient-to-br from-emerald-50 to-teal-100'
@@ -291,12 +302,15 @@ function LostFoundCard({
           </div>
         )}
 
-        {/* Photos galerie */}
-        {item.photos && item.photos.length > 1 && (
+        {/* Photos galerie — miniatures cliquables */}
+        {allPhotos.length > 1 && (
           <div className="flex gap-1.5 mb-3 overflow-x-auto">
-            {item.photos.slice(1).map((p, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={i} src={p.url} alt="" className="w-16 h-16 object-cover rounded-lg flex-shrink-0 border border-gray-100" />
+            {allPhotos.slice(1).map((p, i) => (
+              <button key={i} onClick={() => { setLightboxIdx(i + 1); setLightboxOpen(true); }}
+                className="flex-shrink-0 focus:outline-none">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.url} alt="" className="w-16 h-16 object-cover rounded-lg border border-gray-100 hover:border-brand-300 transition-colors" />
+              </button>
             ))}
           </div>
         )}
@@ -410,6 +424,10 @@ function LostFoundCard({
           <span>· {formatRelative(item.created_at)}</span>
         </div>
       </div>
+      {/* Lightbox */}
+      {lightboxOpen && allPhotos.length > 0 && (
+        <PhotoViewer photos={allPhotos} initialIndex={lightboxIdx} onClose={() => setLightboxOpen(false)} title={item.title} />
+      )}
     </div>
   );
 }

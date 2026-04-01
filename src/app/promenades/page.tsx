@@ -14,6 +14,7 @@ import {
 import Avatar from '@/components/ui/Avatar';
 import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';
+import { PhotoViewer } from '@/components/ui/PhotoViewer';
 import toast from 'react-hot-toast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -196,6 +197,8 @@ function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit, onDelete }: {
   const [sending,  setSending]      = useState(false);
   const [chatCount,setChatCount]    = useState<number|null>(null);
   const [tableOk,  setTableOk]      = useState<boolean|null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const photoItems = outing.cover_photo ? [{ url: outing.cover_photo, isPrimary: true }] : [];
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -240,8 +243,10 @@ function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit, onDelete }: {
       {/* ── Zone photo / header — hauteur fixe 44 ── */}
       <div className="relative h-44 overflow-hidden">
         {outing.cover_photo ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={outing.cover_photo} alt={outing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <div className="w-full h-full cursor-pointer" onClick={() => setLightboxOpen(true)}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={outing.cover_photo} alt={outing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          </div>
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center">
             <Footprints className="w-16 h-16 opacity-15 text-emerald-500" />
@@ -424,6 +429,11 @@ function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit, onDelete }: {
             showPoll
           />
         </div>
+      )}
+
+      {/* Lightbox */}
+      {lightboxOpen && photoItems.length > 0 && (
+        <PhotoViewer photos={photoItems} initialIndex={0} onClose={() => setLightboxOpen(false)} title={outing.title} />
       )}
     </div>
   );
