@@ -2188,8 +2188,11 @@ CREATE TRIGGER asso_search_trigger
               <ul className="list-disc list-inside space-y-0.5 text-xs">
                 <li><strong>Détecte automatiquement</strong> si le statut est un ENUM (ALTER TYPE ADD VALUE) ou un TEXT CHECK</li>
                 <li>Ajoute <code>&apos;reserved&apos;</code> et <code>&apos;expired&apos;</code> aux annonces</li>
-                <li>Ajoute <code>status_changed_at</code>, <code>expiration_date</code> sur listings</li>
-                <li>Ajoute <code>status_changed_at</code> sur equipment_items, help_requests, lost_found_items, associations</li>
+                <li>Ajoute colonne <code>status</code> sur equipment_items (<code>available/reserved/borrowed/unavailable</code>)</li>
+                <li>Ajoute <code>&apos;reserved&apos;</code>, <code>&apos;exchanged&apos;</code> aux collections</li>
+                <li>Ajoute <code>&apos;restituted&apos;</code>, <code>&apos;closed&apos;</code> à perdu/trouvé</li>
+                <li>Ajoute <code>&apos;closed&apos;</code> aux associations</li>
+                <li>Ajoute <code>status_changed_at</code>, <code>expiration_date</code> sur toutes les tables</li>
                 <li>Ajoute colonne <code>status</code> sur group_outings et local_events si absente</li>
                 <li>Crée les triggers auto-update de <code>status_changed_at</code></li>
               </ul>
@@ -2248,23 +2251,44 @@ ALTER TABLE listings ADD COLUMN IF NOT EXISTS expiration_date DATE;
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS auto_expire BOOLEAN DEFAULT false;
 
 -- ============================================================
--- 2. Equipment items
+-- 2. Equipment items — add status column
 -- ============================================================
+ALTER TABLE equipment_items ADD COLUMN IF NOT EXISTS status TEXT
+  DEFAULT 'available'
+  CHECK (status IN ('available', 'reserved', 'borrowed', 'unavailable', 'archived'));
 ALTER TABLE equipment_items ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
 
+-- Sync existing is_available with new status
+UPDATE equipment_items SET status = CASE WHEN is_available THEN 'available' ELSE 'unavailable' END
+  WHERE status IS NULL OR status = 'available';
+
 -- ============================================================
--- 3. Help requests
+-- 3. Collection items — add missing statuses
+-- ============================================================
+ALTER TABLE collection_items DROP CONSTRAINT IF EXISTS collection_items_status_check;
+ALTER TABLE collection_items ADD CONSTRAINT collection_items_status_check
+  CHECK (status IN ('active', 'reserved', 'exchanged', 'sold', 'archived', 'draft'));
+ALTER TABLE collection_items ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
+
+-- ============================================================
+-- 4. Help requests
 -- ============================================================
 ALTER TABLE help_requests ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
 
 -- ============================================================
--- 4. Perdu / Trouvé
+-- 5. Perdu / Trouvé — add restituted/closed statuses
 -- ============================================================
+ALTER TABLE lost_found_items DROP CONSTRAINT IF EXISTS lost_found_items_status_check;
+ALTER TABLE lost_found_items ADD CONSTRAINT lost_found_items_status_check
+  CHECK (status IN ('active', 'resolved', 'restituted', 'closed', 'draft'));
 ALTER TABLE lost_found_items ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
 
 -- ============================================================
--- 5. Associations
+-- 6. Associations — add closed status
 -- ============================================================
+ALTER TABLE associations DROP CONSTRAINT IF EXISTS associations_status_check;
+ALTER TABLE associations ADD CONSTRAINT associations_status_check
+  CHECK (status IN ('active', 'inactive', 'closed', 'draft'));
 ALTER TABLE associations ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
 
 -- ============================================================

@@ -8,7 +8,7 @@ import {
   Package, Heart, Footprints, Calendar, BookOpen, Handshake,
   MapPin, Euro, Star, Clock, TrendingUp, ChevronRight,
   Loader2, AlertCircle, LayoutGrid, List, ArrowUpDown,
-  CheckCircle2, Tag,
+  CheckCircle2, Tag, Trophy, HelpCircle,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
@@ -51,14 +51,16 @@ interface ThemeBlock {
 
 // ─── Config thèmes ─────────────────────────────────────────────────────────────
 const THEMES = {
-  artisan:     { label: 'Artisans',     color: 'text-orange-700',  bg: 'bg-orange-50',   border: 'border-orange-200',  icon: <Wrench className="w-4 h-4" />,     activeBg: 'bg-orange-100', activeText: 'text-orange-700' },
-  annonce:     { label: 'Annonces',     color: 'text-blue-700',    bg: 'bg-blue-50',     border: 'border-blue-200',    icon: <ShoppingBag className="w-4 h-4" />, activeBg: 'bg-blue-100',   activeText: 'text-blue-700' },
-  materiel:    { label: 'Matériel',     color: 'text-sky-700',     bg: 'bg-sky-50',      border: 'border-sky-200',     icon: <Package className="w-4 h-4" />,     activeBg: 'bg-sky-100',    activeText: 'text-sky-700' },
-  aide:        { label: 'Entraide',     color: 'text-rose-700',    bg: 'bg-rose-50',     border: 'border-rose-200',    icon: <Heart className="w-4 h-4" />,       activeBg: 'bg-rose-100',   activeText: 'text-rose-700' },
-  promenade:   { label: 'Promenades',   color: 'text-emerald-700', bg: 'bg-emerald-50',  border: 'border-emerald-200', icon: <Footprints className="w-4 h-4" />,  activeBg: 'bg-emerald-100',activeText: 'text-emerald-700' },
-  evenement:   { label: 'Événements',  color: 'text-purple-700',  bg: 'bg-purple-50',   border: 'border-purple-200',  icon: <Calendar className="w-4 h-4" />,    activeBg: 'bg-purple-100', activeText: 'text-purple-700' },
-  forum:       { label: 'Forum',        color: 'text-violet-700',  bg: 'bg-violet-50',   border: 'border-violet-200',  icon: <BookOpen className="w-4 h-4" />,    activeBg: 'bg-violet-100', activeText: 'text-violet-700' },
-  association: { label: 'Associations', color: 'text-teal-700',    bg: 'bg-teal-50',     border: 'border-teal-200',    icon: <Handshake className="w-4 h-4" />,   activeBg: 'bg-teal-100',   activeText: 'text-teal-700' },
+  artisan:        { label: 'Artisans',        color: 'text-orange-700',  bg: 'bg-orange-50',   border: 'border-orange-200',  icon: <Wrench className="w-4 h-4" />,     activeBg: 'bg-orange-100', activeText: 'text-orange-700' },
+  annonce:        { label: 'Annonces',        color: 'text-blue-700',    bg: 'bg-blue-50',     border: 'border-blue-200',    icon: <ShoppingBag className="w-4 h-4" />, activeBg: 'bg-blue-100',   activeText: 'text-blue-700' },
+  materiel:       { label: 'Matériel',        color: 'text-sky-700',     bg: 'bg-sky-50',      border: 'border-sky-200',     icon: <Package className="w-4 h-4" />,     activeBg: 'bg-sky-100',    activeText: 'text-sky-700' },
+  aide:           { label: 'Entraide',        color: 'text-rose-700',    bg: 'bg-rose-50',     border: 'border-rose-200',    icon: <Heart className="w-4 h-4" />,       activeBg: 'bg-rose-100',   activeText: 'text-rose-700' },
+  promenade:      { label: 'Promenades',      color: 'text-emerald-700', bg: 'bg-emerald-50',  border: 'border-emerald-200', icon: <Footprints className="w-4 h-4" />,  activeBg: 'bg-emerald-100',activeText: 'text-emerald-700' },
+  evenement:      { label: 'Événements',      color: 'text-purple-700',  bg: 'bg-purple-50',   border: 'border-purple-200',  icon: <Calendar className="w-4 h-4" />,    activeBg: 'bg-purple-100', activeText: 'text-purple-700' },
+  forum:          { label: 'Forum',           color: 'text-violet-700',  bg: 'bg-violet-50',   border: 'border-violet-200',  icon: <BookOpen className="w-4 h-4" />,    activeBg: 'bg-violet-100', activeText: 'text-violet-700' },
+  association:    { label: 'Associations',    color: 'text-teal-700',    bg: 'bg-teal-50',     border: 'border-teal-200',    icon: <Handshake className="w-4 h-4" />,   activeBg: 'bg-teal-100',   activeText: 'text-teal-700' },
+  collectionneur: { label: 'Collections',     color: 'text-amber-700',   bg: 'bg-amber-50',    border: 'border-amber-200',   icon: <Trophy className="w-4 h-4" />,      activeBg: 'bg-amber-100',  activeText: 'text-amber-700' },
+  perdu_trouve:   { label: 'Perdu/Trouvé',    color: 'text-red-700',     bg: 'bg-red-50',      border: 'border-red-200',     icon: <HelpCircle className="w-4 h-4" />,  activeBg: 'bg-red-100',    activeText: 'text-red-700' },
 } as const;
 
 type ThemeKey = keyof typeof THEMES;
@@ -254,6 +256,8 @@ function getThemeLink(theme: string): string {
     evenement: '/evenements',
     forum: '/forum',
     association: '/associations',
+    collectionneur: '/collectionneurs',
+    perdu_trouve: '/perdu-trouve',
   };
   return map[theme] || '/';
 }
@@ -305,6 +309,8 @@ function RechercheContent() {
         { data: events },
         { data: forum },
         { data: associations },
+        { data: collections },
+        { data: lostFound },
       ] = await Promise.all([
         supabase
           .from('artisan_profiles')
@@ -351,6 +357,21 @@ function RechercheContent() {
           .select('id, name, description_short, location, category, logo_url')
           .or(`name.ilike.${pattern},description_short.ilike.${pattern},location.ilike.${pattern},category.ilike.${pattern}`)
           .eq('status', 'active')
+          .limit(20),
+        // Collectionneurs
+        supabase
+          .from('collection_items')
+          .select('id, title, description, price, location, status, category, photos:collection_item_photos(url)')
+          .or(`title.ilike.${pattern},description.ilike.${pattern},category.ilike.${pattern},location.ilike.${pattern}`)
+          .eq('status', 'active')
+          .limit(20),
+        // Perdu / Trouvé
+        supabase
+          .from('lost_found_items')
+          .select('id, title, description, location_area, type, status, category, created_at')
+          .or(`title.ilike.${pattern},description.ilike.${pattern},location_area.ilike.${pattern},category.ilike.${pattern}`)
+          .neq('status', 'draft')
+          .neq('status', 'resolved')
           .limit(20),
       ]);
 
@@ -501,6 +522,41 @@ function RechercheContent() {
         subtitle: a.category,
       }));
 
+      const collectionResults: SearchResult[] = (collections || []).map((c: Record<string, unknown>) => {
+        const photos = (c.photos as { url: string }[] | null);
+        return {
+          id: `col-${c.id}`,
+          title: c.title as string,
+          description: c.description as string,
+          href: `/collectionneurs`,
+          theme: 'collectionneur',
+          themeLabel: THEMES.collectionneur.label,
+          themeColor: THEMES.collectionneur.color,
+          themeBg: THEMES.collectionneur.bg,
+          themeIcon: THEMES.collectionneur.icon,
+          image: photos?.[0]?.url,
+          price: c.price as number | undefined,
+          location: c.location as string,
+          subtitle: c.category as string,
+        };
+      });
+
+      const lostFoundResults: SearchResult[] = (lostFound || []).map((lf: Record<string, unknown>) => ({
+        id: `lf-${lf.id}`,
+        title: lf.title as string,
+        description: lf.description as string,
+        href: `/perdu-trouve`,
+        theme: 'perdu_trouve',
+        themeLabel: THEMES.perdu_trouve.label,
+        themeColor: THEMES.perdu_trouve.color,
+        themeBg: THEMES.perdu_trouve.bg,
+        themeIcon: THEMES.perdu_trouve.icon,
+        location: lf.location_area as string,
+        subtitle: lf.category as string,
+        date: lf.created_at ? new Date(lf.created_at as string).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : undefined,
+        badge: lf.type === 'perdu' ? '🔴 Perdu' : '🟢 Trouvé',
+      }));
+
       // Construire les blocs en filtrant par thème actif
       const allBlocks: [ThemeKey, SearchResult[]][] = [
         ['artisan', artisanResults],
@@ -511,6 +567,8 @@ function RechercheContent() {
         ['evenement', eventResults],
         ['forum', forumResults],
         ['association', assoResults],
+        ['collectionneur', collectionResults],
+        ['perdu_trouve', lostFoundResults],
       ];
 
       let total = 0;

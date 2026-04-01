@@ -173,6 +173,11 @@ export const STATUS_CONFIG: Record<string, {
     bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200', dot: 'bg-teal-400',
     priority: 3,
   },
+  restituted: {
+    label: 'Restitué', icon: CheckCircle2,
+    bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200', dot: 'bg-teal-400',
+    priority: 3,
+  },
   draft: {
     label: 'Brouillon', icon: EyeOff,
     bg: 'bg-gray-50', text: 'text-gray-400', border: 'border-gray-200', dot: 'bg-gray-300',
@@ -198,6 +203,13 @@ export const STATUS_CONFIG: Record<string, {
   inactive: {
     label: 'Inactif', icon: EyeOff,
     bg: 'bg-gray-50', text: 'text-gray-400', border: 'border-gray-200', dot: 'bg-gray-300',
+    priority: 3,
+  },
+
+  // ── Collections ────────────────────────────────────────────────────────────
+  exchanged: {
+    label: 'Échangé', icon: Recycle,
+    bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200', dot: 'bg-teal-400',
     priority: 3,
   },
 

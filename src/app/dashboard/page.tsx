@@ -8,7 +8,7 @@ import {
   Wrench, Heart, Footprints, BookOpen, Handshake, LayoutGrid,
   RefreshCw, ChevronRight, Zap, Shield, User, TrendingUp,
   BarChart3, Inbox, Send, Award, Edit3,
-  FileText, MapPin,
+  FileText, MapPin, Trophy, HelpCircle, Users, Repeat2,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { useUnreadCounts } from '@/hooks/useUnreadCounts';
@@ -128,6 +128,7 @@ function ContentRow({ item }: { item: {
   const TYPE_ICONS: Record<string, React.ElementType> = {
     listing: Package, equipment: Wrench, help: Heart,
     event: Calendar, outing: Footprints, forum: BookOpen, association: Handshake,
+    collection: Trophy, lost_found: HelpCircle,
   };
   const TypeIcon = TYPE_ICONS[item.type] || FileText;
 
@@ -250,9 +251,9 @@ const QUICK_ACTIONS = [
   { icon: Wrench,    label: 'Prêter matériel',    href: '/materiel/nouveau',  grad: 'from-emerald-500 to-teal-500' },
   { icon: Heart,     label: 'Coup de main',       href: '/coups-de-main',     grad: 'from-rose-500 to-pink-500' },
   { icon: Calendar,  label: 'Créer événement',    href: '/evenements',        grad: 'from-purple-500 to-violet-500' },
-  { icon: BookOpen,  label: 'Sujet forum',        href: '/forum/nouveau',     grad: 'from-violet-500 to-purple-500' },
   { icon: Footprints,label: 'Organiser sortie',   href: '/promenades',        grad: 'from-green-500 to-emerald-500' },
-  { icon: Handshake, label: 'Mon association',    href: '/associations',      grad: 'from-teal-500 to-cyan-500' },
+  { icon: Trophy,    label: 'Collectionner',       href: '/collectionneurs',   grad: 'from-amber-500 to-yellow-500' },
+  { icon: HelpCircle,label: 'Perdu/Trouvé',       href: '/perdu-trouve',      grad: 'from-red-500 to-rose-500' },
 ];
 
 // ─── Contenu principal ────────────────────────────────────────────────────────
@@ -263,7 +264,7 @@ function DashboardContent() {
   const [activeTab, setActiveTab] = useState<'overview' | 'contenus' | 'interactions' | 'messages' | 'avis' | 'historique'>('overview');
 
   const dashData = useDashboardData(profile?.id);
-  const { stats, todos, recentContents, activeInteractions, recentActivity, recentReviews, loading, refresh } = dashData;
+  const { stats, todos, recentContents, activeInteractions, recentActivity, recentReviews, participations, loading, refresh } = dashData;
 
   if (!profile) return null;
 
@@ -411,6 +412,18 @@ function DashboardContent() {
                 color="text-sky-600" bg="bg-sky-50" />
             </div>
 
+            {/* ── BLOC 1c : Participations & nouveaux thèmes ─── */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <StatCard icon={Users} label="Participations" value={stats.eventParticipations + stats.outingParticipations}
+                href="/mes-echanges" color="text-emerald-600" bg="bg-emerald-50" />
+              <StatCard icon={Repeat2} label="Prêts actifs" value={stats.activeLends + stats.activeBorrows}
+                href="/materiel" color="text-sky-700" bg="bg-sky-50" />
+              <StatCard icon={Trophy} label="Collections" value={stats.activeCollections} href="/collectionneurs"
+                color="text-amber-600" bg="bg-amber-50" />
+              <StatCard icon={HelpCircle} label="Perdu/Trouvé" value={stats.activeLostFound} href="/perdu-trouve"
+                color="text-red-600" bg="bg-red-50" />
+            </div>
+
             {/* ── BLOC 2 : Todo list prioritaire ─── */}
             {todos.length > 0 && (
               <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
@@ -486,7 +499,7 @@ function DashboardContent() {
                         <Link key={act.id} href={act.href}>
                           <div className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors">
                             <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 text-sm">
-                              {act.type === 'help' ? '🤝' : act.type === 'event' ? '🎉' : act.type === 'outing' ? '🥾' : '📌'}
+                              {act.type === 'help' ? '🤝' : act.type === 'event' ? '🎉' : act.type === 'outing' ? '🥾' : act.type === 'lost_found' ? '🔍' : '📌'}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-900 truncate">{act.title}</p>
@@ -670,7 +683,9 @@ function DashboardContent() {
                 { icon: Footprints, label: `${stats.upcomingOutings} sortie(s)`, href: '/promenades', color: 'text-emerald-600', bg: 'bg-emerald-50' },
                 { icon: BookOpen, label: `${stats.forumPosts} sujet(s) forum`, href: '/forum', color: 'text-violet-600', bg: 'bg-violet-50' },
                 { icon: Handshake, label: `${stats.associations} association(s)`, href: '/associations', color: 'text-teal-600', bg: 'bg-teal-50' },
-                { icon: MapPin, label: 'Perdu / Trouvé', href: '/perdu-trouve', color: 'text-orange-600', bg: 'bg-orange-50' },
+                { icon: Trophy, label: `${stats.activeCollections} collection(s)`, href: '/collectionneurs', color: 'text-amber-600', bg: 'bg-amber-50' },
+                { icon: HelpCircle, label: `${stats.activeLostFound} perdu/trouvé`, href: '/perdu-trouve', color: 'text-red-600', bg: 'bg-red-50' },
+                { icon: MapPin, label: 'Toutes mes publications', href: '/dashboard/contenus', color: 'text-brand-600', bg: 'bg-brand-50' },
               ].map(item => (
                 <Link key={item.href} href={item.href}>
                   <div className="flex items-center gap-3 bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-sm hover:border-gray-200 transition-all">
@@ -695,7 +710,7 @@ function DashboardContent() {
               href="/dashboard/interactions" linkLabel="Vue détaillée" />
 
             {/* Stats rapides */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">
                 <div className="text-2xl font-black text-amber-700">{stats.pendingInteractions}</div>
                 <div className="text-xs text-amber-600 font-semibold mt-0.5">En attente</div>
@@ -704,11 +719,50 @@ function DashboardContent() {
                 <div className="text-2xl font-black text-blue-700">{stats.activeInteractions}</div>
                 <div className="text-xs text-blue-600 font-semibold mt-0.5">En cours</div>
               </div>
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">
-                <div className="text-2xl font-black text-amber-600">{stats.toReviewInteractions}</div>
-                <div className="text-xs text-amber-600 font-semibold mt-0.5">À évaluer</div>
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">
+                <div className="text-2xl font-black text-emerald-700">{stats.eventParticipations + stats.outingParticipations}</div>
+                <div className="text-xs text-emerald-600 font-semibold mt-0.5">Participations</div>
+              </div>
+              <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4 text-center">
+                <div className="text-2xl font-black text-violet-600">{stats.toReviewInteractions}</div>
+                <div className="text-xs text-violet-600 font-semibold mt-0.5">À évaluer</div>
               </div>
             </div>
+
+            {/* Participations */}
+            {participations.length > 0 && (
+              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
+                  <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-emerald-500" /> Mes participations
+                  </h3>
+                  <Link href="/mes-echanges" className="text-xs text-emerald-600 font-semibold flex items-center gap-1 hover:gap-2 transition-all">
+                    Voir tout <ChevronRight className="w-3 h-3" />
+                  </Link>
+                </div>
+                <div className="p-3 space-y-1">
+                  {participations.slice(0, 5).map(p => (
+                    <Link key={p.id} href={p.href}>
+                      <div className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-base"
+                          style={{ background: p.type === 'event' ? '#f3e8ff' : '#d1fae5' }}>
+                          {p.type === 'event' ? '🎉' : '🥾'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{p.title}</p>
+                          {p.date && <p className="text-xs text-gray-400">{new Date(p.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}</p>}
+                        </div>
+                        <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0',
+                          p.type === 'event' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'
+                        )}>
+                          {p.type === 'event' ? 'Événement' : 'Promenade'}
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Liste échanges */}
             <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
@@ -939,6 +993,10 @@ function DashboardContent() {
                   { label: 'Vues générées', value: stats.totalViews, icon: Eye, color: 'text-purple-600' },
                   { label: 'Avis reçus', value: stats.totalReviewsReceived, icon: Star, color: 'text-amber-600' },
                   { label: 'Sujets forum', value: stats.forumPosts, icon: BookOpen, color: 'text-violet-600' },
+                  { label: 'Participations', value: stats.eventParticipations + stats.outingParticipations, icon: Users, color: 'text-emerald-600' },
+                  { label: 'Prêts actifs', value: stats.activeLends, icon: Repeat2, color: 'text-sky-600' },
+                  { label: 'Collections', value: stats.activeCollections, icon: Trophy, color: 'text-amber-600' },
+                  { label: 'Perdu/Trouvé', value: stats.activeLostFound, icon: HelpCircle, color: 'text-red-600' },
                 ].map(s => (
                   <div key={s.label} className="text-center">
                     <s.icon className={cn('w-6 h-6 mx-auto mb-1', s.color)} />

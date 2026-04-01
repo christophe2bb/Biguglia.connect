@@ -24,6 +24,7 @@ export default function MaterielPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedAvailability, setSelectedAvailability] = useState<'available' | 'all' | 'lent'>('available');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -34,8 +35,11 @@ export default function MaterielPage() {
       let query = supabase
         .from('equipment_items')
         .select('*, owner:profiles!equipment_items_owner_id_fkey(id, full_name, avatar_url), category:equipment_categories(*), photos:equipment_photos(*)')
-        .eq('is_available', true)
         .order('created_at', { ascending: false });
+
+      if (selectedAvailability === 'available') query = query.eq('is_available', true);
+      else if (selectedAvailability === 'lent') query = query.eq('is_available', false);
+      // 'all' shows everything
 
       if (selectedCategory) {
         const cat = cats?.find(c => c.slug === selectedCategory);
@@ -47,7 +51,7 @@ export default function MaterielPage() {
       setLoading(false);
     };
     fetchData();
-  }, [selectedCategory]);
+  }, [selectedCategory, selectedAvailability]);
 
   const filtered = items.filter(i =>
     !search ||
@@ -86,6 +90,11 @@ export default function MaterielPage() {
         <Select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="sm:w-56">
           <option value="">Toutes les catégories</option>
           {categories.map(c => <option key={c.id} value={c.slug}>{c.icon} {c.name}</option>)}
+        </Select>
+        <Select value={selectedAvailability} onChange={(e) => setSelectedAvailability(e.target.value as 'available' | 'all' | 'lent')} className="sm:w-48">
+          <option value="available">✅ Disponible</option>
+          <option value="lent">🔄 En prêt</option>
+          <option value="all">Tout afficher</option>
         </Select>
       </div>
 
@@ -140,7 +149,14 @@ function EquipmentCard({ item, currentUserId }: { item: EquipmentItem; currentUs
               )}
             </div>
             {/* Status badge */}
-            <StatusBadge status="available" contentType="equipment" size="xs" showIcon showDot className="shadow-sm" />
+            <StatusBadge
+              status={item.is_available ? 'available' : 'borrowed'}
+              contentType="equipment"
+              size="xs"
+              showIcon
+              showDot={item.is_available}
+              className="shadow-sm"
+            />
           </div>
           {/* Tarif haut droite */}
           {!item.is_free && (

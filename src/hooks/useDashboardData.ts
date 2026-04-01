@@ -15,6 +15,15 @@ export interface DashboardStats {
   upcomingOutings: number;
   forumPosts: number;
   associations: number;
+  // Nouveaux thèmes
+  activeCollections: number;
+  activeLostFound: number;
+  // Participations
+  eventParticipations: number;
+  outingParticipations: number;
+  // Prêts/emprunts
+  activeBorrows: number;      // items que j'emprunte (approved/borrowed)
+  activeLends: number;        // items que je prête (approved/borrowed)
   // Messages / notifs
   unreadMessages: number;
   unreadNotifications: number;
@@ -45,7 +54,7 @@ export interface TodoItem {
 
 export interface ContentItem {
   id: string;
-  type: 'listing' | 'equipment' | 'help' | 'event' | 'outing' | 'forum' | 'association';
+  type: 'listing' | 'equipment' | 'help' | 'event' | 'outing' | 'forum' | 'association' | 'collection' | 'lost_found';
   title: string;
   status: string;
   createdAt: string;
@@ -92,6 +101,16 @@ export interface ActivityItem {
   badgeColor?: string;
 }
 
+export interface ParticipationItem {
+  id: string;
+  type: 'event' | 'outing' | 'borrow';
+  title: string;
+  date?: string;
+  status: string;
+  href: string;
+  sourceId: string;
+}
+
 export interface DashboardData {
   stats: DashboardStats;
   todos: TodoItem[];
@@ -99,6 +118,7 @@ export interface DashboardData {
   activeInteractions: InteractionItem[];
   recentActivity: ActivityItem[];
   recentReviews: ReviewItem[];
+  participations: ParticipationItem[];
   loading: boolean;
   error: string | null;
   refresh: () => void;
@@ -126,6 +146,9 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
     activeListings: 0, totalListings: 0, activeEquipment: 0,
     openHelps: 0, upcomingEvents: 0, upcomingOutings: 0,
     forumPosts: 0, associations: 0,
+    activeCollections: 0, activeLostFound: 0,
+    eventParticipations: 0, outingParticipations: 0,
+    activeBorrows: 0, activeLends: 0,
     unreadMessages: 0, unreadNotifications: 0,
     pendingInteractions: 0, activeInteractions: 0, toReviewInteractions: 0,
     averageRating: null, totalReviewsReceived: 0, reviewsToGive: 0,
@@ -136,6 +159,7 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
   const [activeInteractions, setActiveInteractions] = useState<InteractionItem[]>([]);
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [recentReviews, setRecentReviews] = useState<ReviewItem[]>([]);
+  const [participations, setParticipations] = useState<ParticipationItem[]>([]);
 
   const fetchData = useCallback(async () => {
     if (!profileId) return;
@@ -147,7 +171,7 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
       const today = new Date().toISOString().split('T')[0];
 
       const [
-        // Contenus
+        // Contenus principaux
         { data: listings, count: listingsCount },
         { count: activeListingsCount },
         { data: equipment, count: equipCount },
@@ -190,7 +214,7 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
         // Unread notifications
         supabase.from('notifications').select('id', { count: 'exact', head: true })
           .eq('user_id', profileId).eq('is_read', false),
-        // Pending interactions (table may not exist)
+        // Pending interactions
         supabase.from('interactions').select('id', { count: 'exact', head: true })
           .or(`requester_id.eq.${profileId},receiver_id.eq.${profileId}`)
           .in('status', ['requested', 'pending']),
@@ -217,6 +241,40 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
         // Profile
         supabase.from('profiles').select('full_name, avatar_url, bio, phone, neighborhood').eq('id', profileId).single(),
       ]);
+
+      // ── Nouveaux thèmes (collectionneurs, perdu/trouvé) ───────────────────
+      const [
+        { count: collectionsCount },
+        { count: lostFoundCount },
+        { count: eventParticipationsCount },
+        { count: outingParticipationsCount },
+      ] = await Promise.all([
+        supabase.from('collection_items').select('id', { count: 'exact', head: true })
+          .eq('author_id', profileId).eq('status', 'active'),
+        supabase.from('lost_found_items').select('id', { count: 'exact', head: true })
+          .eq('author_id', profileId).eq('status', 'active'),
+        supabase.from('event_participations').select('id', { count: 'exact', head: true })
+          .eq('user_id', profileId),
+        supabase.from('outing_participants').select('id', { count: 'exact', head: true })
+          .eq('user_id', profileId),
+      ]);
+
+      // ── Prêts/emprunts ────────────────────────────────────────────────────
+      let activeBorrowsCount = 0;
+      let activeLendsCount = 0;
+      try {
+        const [{ count: borrows }, { count: lends }] = await Promise.all([
+          supabase.from('borrow_requests').select('id', { count: 'exact', head: true })
+            .eq('borrower_id', profileId).in('status', ['approved', 'borrowed']),
+          supabase.from('borrow_requests').select('id', { count: 'exact', head: true })
+            .in('status', ['approved', 'borrowed'])
+            .filter('item_id', 'in', `(SELECT id FROM equipment_items WHERE owner_id = '${profileId}')`),
+        ]);
+        activeBorrowsCount = borrows || 0;
+        activeLendsCount = lends || 0;
+      } catch {
+        // tables may not exist
+      }
 
       // Views total
       const totalViews = (listings || []).reduce((s: number, l: Record<string, unknown>) => s + ((l.views as number) || 0), 0);
@@ -250,6 +308,12 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
         upcomingOutings: upcomingOutingsCount || 0,
         forumPosts: forumCount || 0,
         associations: assoCount || 0,
+        activeCollections: collectionsCount || 0,
+        activeLostFound: lostFoundCount || 0,
+        eventParticipations: eventParticipationsCount || 0,
+        outingParticipations: outingParticipationsCount || 0,
+        activeBorrows: activeBorrowsCount,
+        activeLends: activeLendsCount,
         unreadMessages: unreadMsgs || 0,
         unreadNotifications: unreadNotifs || 0,
         pendingInteractions: pendingIntCount || 0,
@@ -327,6 +391,56 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
       });
       setRecentReviews(mappedReviews);
 
+      // ── Participations ────────────────────────────────────────────────────
+      const participationItems: ParticipationItem[] = [];
+      try {
+        const [{ data: eventParts }, { data: outingParts }] = await Promise.all([
+          supabase.from('event_participations')
+            .select('id, event_id, event:local_events(id, title, event_date, status)')
+            .eq('user_id', profileId)
+            .order('created_at', { ascending: false })
+            .limit(5),
+          supabase.from('outing_participants')
+            .select('id, outing_id, outing:group_outings(id, title, outing_date, status)')
+            .eq('user_id', profileId)
+            .order('created_at', { ascending: false })
+            .limit(5),
+        ]);
+
+        (eventParts || []).forEach((p: Record<string, unknown>) => {
+          const ev = p.event as Record<string, unknown> | null;
+          if (ev) {
+            participationItems.push({
+              id: `ep-${p.id}`,
+              type: 'event',
+              title: ev.title as string,
+              date: ev.event_date as string,
+              status: ev.status as string || 'active',
+              href: `/evenements`,
+              sourceId: p.event_id as string,
+            });
+          }
+        });
+
+        (outingParts || []).forEach((p: Record<string, unknown>) => {
+          const ot = p.outing as Record<string, unknown> | null;
+          if (ot) {
+            participationItems.push({
+              id: `op-${p.id}`,
+              type: 'outing',
+              title: ot.title as string,
+              date: ot.outing_date as string,
+              status: ot.status as string || 'active',
+              href: `/promenades`,
+              sourceId: p.outing_id as string,
+            });
+          }
+        });
+      } catch {
+        // tables may not exist yet
+      }
+      setParticipations(participationItems);
+
       // ── Todo list (tâches prioritaires) ───────────────────────────────────
       const todoItems: TodoItem[] = [];
 
@@ -369,7 +483,20 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
         });
       }
 
-      // 4. Profil incomplet
+      // 4. Prêts/emprunts en attente de confirmation
+      if (activeLendsCount > 0) {
+        todoItems.push({
+          id: 'todo-lends',
+          type: 'interaction',
+          priority: 'normal',
+          title: `${activeLendsCount} prêt${activeLendsCount > 1 ? 's' : ''} en cours`,
+          subtitle: 'Confirmer le retour du matériel',
+          href: '/mes-echanges?filter=active',
+          icon: '🔧',
+        });
+      }
+
+      // 5. Profil incomplet
       if (profileScore < 80) {
         todoItems.push({
           id: 'todo-profile',
@@ -382,7 +509,7 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
         });
       }
 
-      // 5. Annonces expirées/archivées → republier
+      // 6. Annonces expirées/archivées → republier
       const expiredListings = (listings || []).filter((l: Record<string, unknown>) =>
         l.status === 'expired' || l.status === 'archived'
       );
@@ -471,8 +598,31 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
         });
       });
 
+      // Fetch recent lost/found items
+      try {
+        const { data: lfData } = await supabase
+          .from('lost_found_items')
+          .select('id, title, status, type, created_at')
+          .eq('author_id', profileId)
+          .order('created_at', { ascending: false })
+          .limit(2);
+
+        (lfData || []).forEach((lf: Record<string, unknown>) => {
+          activity.push({
+            id: `lf-${lf.id}`,
+            type: 'lost_found',
+            title: lf.title as string,
+            subtitle: lf.type === 'perdu' ? 'Objet perdu' : 'Objet trouvé',
+            href: `/perdu-trouve`,
+            date: lf.created_at as string,
+            badge: lf.status === 'resolved' ? 'Résolu' : (lf.type === 'perdu' ? 'Perdu' : 'Trouvé'),
+            badgeColor: lf.status === 'resolved' ? 'bg-emerald-100 text-emerald-700' : lf.type === 'perdu' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700',
+          });
+        });
+      } catch {}
+
       activity.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      setRecentActivity(activity.slice(0, 6));
+      setRecentActivity(activity.slice(0, 8));
 
     } catch (err) {
       console.error('Dashboard data error:', err);
@@ -493,6 +643,7 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
     activeInteractions,
     recentActivity,
     recentReviews,
+    participations,
     loading,
     error,
     refresh: fetchData,
