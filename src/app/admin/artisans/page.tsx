@@ -426,6 +426,11 @@ export default function AdminArtisansPage() {
 
   if (!profile || !isAdmin()) return null;
 
+  // Détecte si les colonnes docs sont manquantes (tous les artisans sans doc_columns)
+  const missingDocColumns = artisans.length > 0 && artisans.every(
+    a => a.doc_kbis_url === undefined && a.doc_insurance_url === undefined && a.doc_id_url === undefined
+  );
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <div className="flex items-center gap-3 mb-6">
@@ -442,6 +447,23 @@ export default function AdminArtisansPage() {
           </div>
         )}
       </div>
+
+      {/* Alerte si colonnes documents manquantes en DB */}
+      {missingDocColumns && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 mb-6 flex items-start gap-4">
+          <AlertCircle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h3 className="font-bold text-amber-900 mb-1">⚠️ Migration SQL requise</h3>
+            <p className="text-sm text-amber-800 mb-3">
+              Les colonnes de documents artisan (<code className="bg-amber-100 px-1 rounded">doc_kbis_url</code>, <code className="bg-amber-100 px-1 rounded">doc_insurance_url</code>, <code className="bg-amber-100 px-1 rounded">doc_id_url</code>, <code className="bg-amber-100 px-1 rounded">artisan_type</code>) n&apos;existent pas encore dans votre base de données.
+              Exécutez le SQL de migration pour activer la vérification complète des dossiers.
+            </p>
+            <Link href="/admin/migration" className="inline-flex items-center gap-2 bg-amber-600 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-amber-700 transition-colors">
+              <Shield className="w-4 h-4" /> Aller à Admin → Migration DB → SQL Artisans
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Guide de vérification */}
       <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 mb-6">

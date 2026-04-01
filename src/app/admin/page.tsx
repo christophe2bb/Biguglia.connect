@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, CheckCircle, AlertTriangle, MessageSquare, Package, Wrench, Flag, TrendingUp } from 'lucide-react';
+import { Users, CheckCircle, AlertTriangle, MessageSquare, Package, Wrench, Flag, TrendingUp, Eye } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import Link from 'next/link';
@@ -164,41 +164,87 @@ function AdminContent() {
 
       {/* Artisans en attente */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          Artisans en attente de validation
-          {(stats?.pending_artisans ?? 0) > 0 && <Badge variant="warning">{stats?.pending_artisans} en attente</Badge>}
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            Artisans en attente de validation
+            {(stats?.pending_artisans ?? 0) > 0 && (
+              <Badge variant="warning">{stats?.pending_artisans} en attente</Badge>
+            )}
+          </h2>
+          <Link href="/admin/artisans">
+            <Button size="sm" className="gap-1.5">
+              <Wrench className="w-4 h-4" /> Gérer tous les artisans
+            </Button>
+          </Link>
+        </div>
+
+        {/* Bannière urgente si artisans en attente */}
+        {!loading && pendingArtisans.length > 0 && (
+          <Link href="/admin/artisans">
+            <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-300 rounded-2xl p-5 mb-4 flex items-center gap-4 hover:shadow-md transition-all cursor-pointer group">
+              <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                <AlertTriangle className="w-6 h-6 text-orange-600" />
+              </div>
+              <div className="flex-1">
+                <p className="font-bold text-orange-900 text-lg">
+                  {pendingArtisans.length} dossier{pendingArtisans.length > 1 ? 's' : ''} artisan en attente de vérification
+                </p>
+                <p className="text-sm text-orange-700 mt-0.5">
+                  Cliquez pour examiner les documents, valider ou refuser chaque candidature.
+                </p>
+              </div>
+              <div className="flex-shrink-0 bg-orange-600 text-white text-sm font-bold px-4 py-2 rounded-xl group-hover:bg-orange-700 transition-colors flex items-center gap-2">
+                <CheckCircle className="w-4 h-4" /> Traiter maintenant
+              </div>
+            </div>
+          </Link>
+        )}
 
         {loading ? (
           <div className="space-y-3">{[...Array(2)].map((_, i) => <div key={i} className="h-24 bg-gray-100 rounded-2xl animate-pulse" />)}</div>
         ) : pendingArtisans.length === 0 ? (
           <div className="bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
             <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
-            <p className="text-green-700 font-medium">Aucune demande en attente</p>
-            <p className="text-green-600 text-sm">Toutes les inscriptions artisan ont été traitées.</p>
+            <p className="text-green-700 font-medium">Aucune demande en attente ✓</p>
+            <p className="text-green-600 text-sm mt-1">Toutes les inscriptions artisan ont été traitées.</p>
+            <Link href="/admin/artisans" className="inline-flex items-center gap-1.5 mt-3 text-sm font-semibold text-green-700 underline hover:text-green-800">
+              Voir les artisans vérifiés →
+            </Link>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {pendingArtisans.map(artisan => (
-              <div key={artisan.id} className="bg-white rounded-2xl border border-orange-200 p-5">
+              <div key={artisan.id} className="bg-white rounded-2xl border border-orange-200 p-4 hover:shadow-sm transition-all">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <Avatar src={artisan.profile?.avatar_url} name={artisan.profile?.full_name || artisan.business_name} size="lg" />
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <Avatar src={artisan.profile?.avatar_url} name={artisan.profile?.full_name || artisan.business_name} size="md" />
                     <div className="min-w-0">
-                      <div className="font-semibold text-gray-900">{artisan.business_name}</div>
-                      <div className="text-sm text-gray-500">{artisan.profile?.full_name} · {artisan.profile?.email}</div>
+                      <div className="font-bold text-gray-900">{artisan.business_name}</div>
+                      <div className="text-sm text-gray-500 truncate">{artisan.profile?.full_name} · {artisan.profile?.email}</div>
                       <div className="text-xs text-gray-400 mt-0.5">
                         {artisan.trade_category?.icon} {artisan.trade_category?.name} · {formatRelative(artisan.created_at)}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <Button size="sm" variant="danger" onClick={() => rejectArtisan(artisan.user_id)}>Refuser</Button>
-                    <Button size="sm" onClick={() => approveArtisan(artisan.user_id)}>✅ Valider</Button>
+                    <Button size="sm" variant="danger" onClick={() => rejectArtisan(artisan.user_id)}>
+                      Refuser
+                    </Button>
+                    <Button size="sm" onClick={() => approveArtisan(artisan.user_id)}>
+                      ✅ Valider
+                    </Button>
+                    <Link href="/admin/artisans">
+                      <Button size="sm" variant="outline" title="Voir le dossier complet avec documents">
+                        <Eye className="w-4 h-4" /> Dossier
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               </div>
             ))}
+            <Link href="/admin/artisans" className="block text-center text-sm font-semibold text-orange-600 hover:text-orange-700 py-2 border border-dashed border-orange-200 rounded-2xl hover:bg-orange-50 transition-colors">
+              Ouvrir la page complète de gestion artisans →
+            </Link>
           </div>
         )}
       </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon, Zap, Star, CheckCheck, Activity, Tag, Info, Search } from 'lucide-react';
+import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon, Zap, Star, CheckCheck, Activity, Tag, Info, Search, Wrench } from 'lucide-react';
 
 // ─── SQL complet à copier-coller dans Supabase SQL Editor ─────────────────────
 const MIGRATION_SQL = `-- ============================================================
@@ -1337,6 +1337,91 @@ const TABLES_TO_CHECK = [
 ];
 
 type TableStatus = { name: string; exists: boolean };
+const ARTISAN_SQL = `-- ============================================================
+-- BIGUGLIA CONNECT — Artisans : colonnes documents & vérification
+-- Coller dans Supabase > SQL Editor > Run
+-- Ajoute les colonnes nécessaires à la validation des artisans
+-- ============================================================
+
+-- 1. Colonnes manquantes sur artisan_profiles
+ALTER TABLE artisan_profiles
+  ADD COLUMN IF NOT EXISTS artisan_type TEXT DEFAULT 'professionnel'
+    CHECK (artisan_type IN ('professionnel', 'particulier')),
+  ADD COLUMN IF NOT EXISTS doc_kbis_url TEXT,
+  ADD COLUMN IF NOT EXISTS doc_insurance_url TEXT,
+  ADD COLUMN IF NOT EXISTS doc_id_url TEXT,
+  ADD COLUMN IF NOT EXISTS rejection_reason TEXT,
+  ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS verification_notes TEXT;
+
+-- 2. Bucket sécurisé pour les documents justificatifs
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'documents',
+  'documents',
+  false,
+  10485760,  -- 10 MB
+  ARRAY['application/pdf','image/jpeg','image/png','image/webp']
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- 3. Policies RLS sur le bucket documents
+-- Lecture : l'artisan peut voir ses propres docs, l'admin peut tout voir
+CREATE POLICY "Artisan lit ses documents"
+  ON storage.objects FOR SELECT
+  USING (
+    bucket_id = 'documents'
+    AND (
+      auth.uid()::text = (storage.foldername(name))[1]
+      OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+    )
+  );
+
+-- Upload : l'artisan peut uploader dans son dossier
+CREATE POLICY "Artisan uploade ses documents"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'documents'
+    AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- Suppression : l'artisan ou l'admin
+CREATE POLICY "Artisan supprime ses documents"
+  ON storage.objects FOR DELETE
+  USING (
+    bucket_id = 'documents'
+    AND (
+      auth.uid()::text = (storage.foldername(name))[1]
+      OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+    )
+  );
+
+-- 4. RLS policies sur artisan_profiles
+-- L'admin peut tout modifier (pour valider/refuser)
+DROP POLICY IF EXISTS "Admin gère artisan_profiles" ON artisan_profiles;
+CREATE POLICY "Admin gère artisan_profiles"
+  ON artisan_profiles FOR ALL
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
+
+-- L'artisan peut lire et modifier son propre profil
+DROP POLICY IF EXISTS "Artisan gère son profil" ON artisan_profiles;
+CREATE POLICY "Artisan gère son profil"
+  ON artisan_profiles FOR ALL
+  USING (user_id = auth.uid());
+
+-- Tout le monde peut voir les artisans vérifiés
+DROP POLICY IF EXISTS "Artisans vérifiés publics" ON artisan_profiles;
+CREATE POLICY "Artisans vérifiés publics"
+  ON artisan_profiles FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = artisan_profiles.user_id
+      AND profiles.role = 'artisan_verified'
+    )
+  );
+`;
+
 type StorageDiag = {
   bucketExists: boolean | null;
   bucketPublic: boolean | null;
@@ -1361,6 +1446,7 @@ export default function MigrationPage() {
   const [copiedInteraction, setCopiedInteraction] = useState(false);
   const [copiedStatus, setCopiedStatus] = useState(false);
   const [copiedSearch, setCopiedSearch] = useState(false);
+  const [copiedArtisan, setCopiedArtisan] = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -1504,6 +1590,12 @@ export default function MigrationPage() {
       setCopiedBucket(true);
       setTimeout(() => setCopiedBucket(false), 4000);
     });
+  };
+
+  const handleCopyArtisan = () => {
+    navigator.clipboard.writeText(ARTISAN_SQL);
+    setCopiedArtisan(true);
+    setTimeout(() => setCopiedArtisan(false), 4000);
   };
 
   const handleCopySearch = () => {
@@ -2449,6 +2541,31 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
           </div>
         </div>
       )}
+
+      {/* ─── SQL Artisan colonnes manquantes ─── */}
+      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden mb-6">
+        <div className="px-5 py-4 bg-orange-50 border-b border-orange-100 flex items-start gap-3">
+          <Wrench className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-orange-800">
+            <strong>SQL Artisans — Colonnes documents &amp; vérification</strong>
+            <p className="text-xs mt-1 text-orange-700">À exécuter si la page <strong>Admin → Artisans</strong> ne montre pas les documents ni le type d&apos;artisan. Ajoute les colonnes manquantes à <code>artisan_profiles</code>.</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
+          <p className="text-xs text-gray-500">Ajoute : artisan_type, doc_kbis_url, doc_insurance_url, doc_id_url, rejection_reason, is_featured + bucket documents</p>
+          <button onClick={handleCopyArtisan}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow ${
+              copiedArtisan ? 'bg-emerald-500 text-white' : 'bg-orange-600 text-white hover:bg-orange-700'
+            }`}>
+            {copiedArtisan
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Artisans</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-80">
+          <pre className="text-xs text-cyan-400 font-mono leading-relaxed whitespace-pre-wrap">{ARTISAN_SQL}</pre>
+        </div>
+      </div>
 
       {/* ─── SQL Bucket ─── */}
       <div className="bg-white rounded-2xl border shadow-sm overflow-hidden mb-6">
