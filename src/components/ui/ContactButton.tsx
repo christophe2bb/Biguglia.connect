@@ -45,17 +45,17 @@ const SOURCE_CONFIG: Record<ContactSourceType, {
   bg: string;
   border: string;
 }> = {
-  listing:         { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-200'   },
-  equipment:       { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-teal-700',    bg: 'bg-teal-50',    border: 'border-teal-200'   },
-  help_request:    { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-orange-700',  bg: 'bg-orange-50',  border: 'border-orange-200' },
-  association:     { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-purple-700',  bg: 'bg-purple-50',  border: 'border-purple-200' },
-  collection_item: { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-rose-700',    bg: 'bg-rose-50',    border: 'border-rose-200'   },
-  outing:          { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200'},
-  event:           { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-indigo-700',  bg: 'bg-indigo-50',  border: 'border-indigo-200' },
-  service_request: { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-amber-700',   bg: 'bg-amber-50',   border: 'border-amber-200'  },
-  lost_found:      { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-amber-700',   bg: 'bg-amber-50',   border: 'border-amber-200'  },
-  artisan:         { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-200'   },
-  general:         { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-gray-700',    bg: 'bg-gray-50',    border: 'border-gray-200'   },
+  listing:         { defaultLabel: 'Discuter en privé', icon: MessageSquare, color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-200'   },
+  equipment:       { defaultLabel: 'Discuter en privé', icon: MessageSquare, color: 'text-teal-700',    bg: 'bg-teal-50',    border: 'border-teal-200'   },
+  help_request:    { defaultLabel: 'Discuter en privé', icon: MessageSquare, color: 'text-orange-700',  bg: 'bg-orange-50',  border: 'border-orange-200' },
+  association:     { defaultLabel: 'Discuter en privé', icon: MessageSquare, color: 'text-purple-700',  bg: 'bg-purple-50',  border: 'border-purple-200' },
+  collection_item: { defaultLabel: 'Discuter en privé', icon: MessageSquare, color: 'text-rose-700',    bg: 'bg-rose-50',    border: 'border-rose-200'   },
+  outing:          { defaultLabel: 'Discuter en privé', icon: MessageSquare, color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200'},
+  event:           { defaultLabel: 'Discuter en privé', icon: MessageSquare, color: 'text-indigo-700',  bg: 'bg-indigo-50',  border: 'border-indigo-200' },
+  service_request: { defaultLabel: 'Discuter en privé', icon: MessageSquare, color: 'text-amber-700',   bg: 'bg-amber-50',   border: 'border-amber-200'  },
+  lost_found:      { defaultLabel: 'Discuter en privé', icon: MessageSquare, color: 'text-amber-700',   bg: 'bg-amber-50',   border: 'border-amber-200'  },
+  artisan:         { defaultLabel: 'Discuter en privé', icon: MessageSquare, color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-200'   },
+  general:         { defaultLabel: 'Discuter en privé', icon: MessageSquare, color: 'text-gray-700',    bg: 'bg-gray-50',    border: 'border-gray-200'   },
 };
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
@@ -124,6 +124,9 @@ export default function ContactButton({
     secondary: `bg-white ${conf.color} border ${conf.border} hover:${conf.bg}`,
     ghost:     `${conf.color} hover:${conf.bg} border border-transparent`,
   }[variant];
+
+  // ── Pas d'ownerId → ne rien afficher (données manquantes en DB) ─────────────
+  if (!ownerId) return null;
 
   // ── Non connecté → lien connexion ────────────────────────────────────────────
   if (!userId) {
