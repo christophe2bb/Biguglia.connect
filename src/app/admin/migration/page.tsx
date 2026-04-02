@@ -743,50 +743,42 @@ ORDER BY tablename;`;
 
 // ─── SQL Fix rapide conversations (OBLIGATOIRE si messagerie ne fonctionne pas) ──
 const CONVERSATIONS_FIX_SQL = `-- ============================================================
--- BIGUGLIA CONNECT — Fix messagerie universel
--- Erreurs couvertes :
---   22P02 : invalid input value for enum related_type: "help_request"
---   23514 : violates check constraint "conversations_related_type_check"
---   42501 : permission denied (RLS manquant)
---   42703 : column "related_type" does not exist
+-- BIGUGLIA CONNECT — Fix messagerie (related_type ENUM)
+-- Erreur : 22P02 "invalid input value for enum related_type"
+-- related_type est un TYPE ENUM PostgreSQL → on ajoute les valeurs manquantes
 -- Coller dans Supabase > SQL Editor > New query > Run  (bouton ▶ Run)
 -- ============================================================
 
--- ── Étape 1 : S'assurer que les colonnes existent ──────────────────────────────
-ALTER TABLE conversations
-  ADD COLUMN IF NOT EXISTS subject      TEXT,
-  ADD COLUMN IF NOT EXISTS related_type TEXT,
-  ADD COLUMN IF NOT EXISTS related_id   UUID;
+-- ── Étape 1 : Ajouter toutes les valeurs manquantes dans l'ENUM ───────────────
+-- Chaque commande est indépendante : IF NOT EXISTS ignore les valeurs déjà présentes
+ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'listing';
+ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'equipment';
+ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'help_request';
+ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'lost_found';
+ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'association';
+ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'outing';
+ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'collection_item';
+ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'service_request';
+ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'event';
+ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'general';
 
--- ── Étape 2a : Si related_type est un ENUM → ajouter les valeurs manquantes ────
--- (cette commande ne fait rien si ce n'est pas un ENUM)
-DO $$ BEGIN
-  ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'listing';
-  ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'equipment';
-  ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'help_request';
-  ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'lost_found';
-  ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'association';
-  ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'outing';
-  ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'collection_item';
-  ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'service_request';
-  ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'event';
-  ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'general';
-EXCEPTION WHEN undefined_object THEN
-  -- le type related_type n'existe pas en tant qu'ENUM, continuer
-  NULL;
-END $$;
-
--- ── Étape 2b : Si related_type est TEXT avec CHECK → mettre à jour le CHECK ────
+-- ── Étape 2 : Autoriser NULL dans le CHECK (pour les conversations générales) ──
 ALTER TABLE conversations
   DROP CONSTRAINT IF EXISTS conversations_related_type_check;
 
 ALTER TABLE conversations
   ADD CONSTRAINT conversations_related_type_check
-  CHECK (related_type IS NULL OR related_type IN (
-    'service_request', 'listing', 'equipment', 'general',
-    'help_request', 'collection_item', 'lost_found',
-    'association', 'outing', 'event'
-  ));
+  CHECK (related_type IS NULL OR related_type = ANY (ARRAY[
+    'service_request'::related_type, 'listing'::related_type,
+    'equipment'::related_type,       'general'::related_type,
+    'help_request'::related_type,    'collection_item'::related_type,
+    'lost_found'::related_type,      'association'::related_type,
+    'outing'::related_type,          'event'::related_type
+  ]));
+
+-- ── Étape 3 : Définir 'general' comme valeur par défaut ───────────────────────
+ALTER TABLE conversations
+  ALTER COLUMN related_type SET DEFAULT 'general';
 
 -- 3. RLS conversations
 ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
@@ -855,14 +847,12 @@ CREATE POLICY "Envoyer un message" ON messages
 -- 6. Recharge PostgREST
 NOTIFY pgrst, 'reload schema';
 
--- Vérification : doit retourner les 10 valeurs acceptées
-SELECT
-  conname AS contrainte,
-  pg_get_constraintdef(oid) AS definition
-FROM pg_constraint
-WHERE conrelid = 'conversations'::regclass
-  AND contype = 'c'
-  AND conname LIKE '%related_type%';
+-- Vérification finale : doit lister les valeurs de l'ENUM related_type
+SELECT enumlabel AS valeur_enum
+FROM pg_enum e
+JOIN pg_type t ON e.enumtypid = t.oid
+WHERE t.typname = 'related_type'
+ORDER BY e.enumsortorder;
 `;
 
 // ─── SQL Messagerie universelle — enrichissement des conversations ──────────────

@@ -145,58 +145,70 @@ export default function ContactButton({
   // ── Pas de contact avec soi-même ─────────────────────────────────────────────
   if (userId === ownerId) return null;
 
-  // ── Helper: créer conversation avec différentes stratégies ───────────────────
+  // ── Helper: créer conversation avec plusieurs stratégies ────────────────────
   /**
-   * Essaie plusieurs payloads d'INSERT sur `conversations` en ordre :
-   * 1. Avec related_type + related_id
-   * 2. Avec related_type = 'general' + related_id
-   * 3. Sans related_type ni related_id (juste subject)
-   * 4. Avec les colonnes minimales absolues (uniquement subject)
+   * related_type est un ENUM PostgreSQL dans Supabase.
+   * On essaie dans l'ordre :
+   *   S1 — payload complet avec le type exact
+   *   S2 — payload avec related_type = 'general' (valeur de repli sûre)
+   *   S3 — payload sans related_id (cas où sourceId invalide)
+   *   S4 — payload minimal : uniquement subject + related_type='general'
    *
-   * Retourne le nouvel ID ou null si tout échoue.
+   * Si une erreur 42501 (RLS) apparaît à toutes les étapes,
+   * c'est un problème de politique RLS → message d'erreur spécifique.
    */
   const tryCreateConversation = async (subject: string, relatedType: string, relatedId: string | null) => {
-    // Stratégie 1 : payload complet
+    // Stratégie 1 : type exact + related_id
     const { data: d1, error: e1 } = await supabase
       .from('conversations')
       .insert({ subject, related_type: relatedType, related_id: relatedId })
       .select('id')
       .single();
-    if (d1?.id) return { id: d1.id as string, strategy: 1 };
-    console.warn('[ContactButton] Stratégie 1 échouée:', e1?.code, e1?.message);
+    if (d1?.id) return { id: d1.id as string };
+    console.warn('[ContactButton] S1 échoué:', e1?.code, e1?.message, '| payload:', { related_type: relatedType, related_id: relatedId });
 
-    // Stratégie 2 : related_type = 'general'
+    // Si erreur RLS (42501) sur S1 → inutile de continuer avec d'autres payloads
+    // La RLS bloque TOUS les inserts, pas juste celui-là
+    if (e1?.code === '42501') {
+      return { id: null, error: e1 };
+    }
+
+    // Stratégie 2 : related_type = 'general' + related_id
     const { data: d2, error: e2 } = await supabase
       .from('conversations')
       .insert({ subject, related_type: 'general', related_id: relatedId })
       .select('id')
       .single();
-    if (d2?.id) return { id: d2.id as string, strategy: 2 };
-    console.warn('[ContactButton] Stratégie 2 échouée:', e2?.code, e2?.message);
+    if (d2?.id) return { id: d2.id as string };
+    console.warn('[ContactButton] S2 échoué:', e2?.code, e2?.message);
 
-    // Stratégie 3 : sans related_type ni related_id
+    if (e2?.code === '42501') {
+      return { id: null, error: e2 };
+    }
+
+    // Stratégie 3 : related_type = 'general' sans related_id
     const { data: d3, error: e3 } = await supabase
+      .from('conversations')
+      .insert({ subject, related_type: 'general' })
+      .select('id')
+      .single();
+    if (d3?.id) return { id: d3.id as string };
+    console.warn('[ContactButton] S3 échoué:', e3?.code, e3?.message);
+
+    if (e3?.code === '42501') {
+      return { id: null, error: e3 };
+    }
+
+    // Stratégie 4 : uniquement subject (laisse la DB mettre la valeur par défaut)
+    const { data: d4, error: e4 } = await supabase
       .from('conversations')
       .insert({ subject })
       .select('id')
       .single();
-    if (d3?.id) return { id: d3.id as string, strategy: 3 };
-    console.warn('[ContactButton] Stratégie 3 échouée:', e3?.code, e3?.message);
+    if (d4?.id) return { id: d4.id as string };
+    console.error('[ContactButton] S4 échoué:', e4?.code, e4?.message);
 
-    // Stratégie 4 : payload minimal absolu
-    const { data: d4, error: e4 } = await supabase
-      .from('conversations')
-      .insert({})
-      .select('id')
-      .single();
-    if (d4?.id) return { id: d4.id as string, strategy: 4 };
-    console.error('[ContactButton] Toutes les stratégies ont échoué:', e4?.code, e4?.message);
-
-    // Renvoie le dernier code d'erreur pour affichage
-    return {
-      id: null,
-      error: e1 || e2 || e3 || e4,
-    };
+    return { id: null, error: e1 || e2 || e3 || e4 };
   };
 
   // ── Handler principal ────────────────────────────────────────────────────────
