@@ -2741,29 +2741,53 @@ CREATE TRIGGER asso_search_trigger
         </div>
       </div>
 
-      {/* Explication étapes */}
-      <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-4 text-sm text-red-800">
-        <p className="font-bold mb-2">⚠️ 2 étapes obligatoires — dans cet ordre :</p>
-        <ol className="list-decimal list-inside space-y-1 text-xs">
-          <li><strong>BLOC 1</strong> — Ajoute les valeurs dans l&apos;ENUM <code>related_type</code> → à coller seul dans un nouvel onglet SQL Editor puis Run</li>
-          <li><strong>BLOC 2</strong> — Met à jour le CHECK + RLS → à coller dans un autre onglet SQL Editor puis Run</li>
-        </ol>
-        <p className="text-xs mt-2 text-red-600">⚠️ Ne pas coller les deux blocs ensemble : <code>ALTER TYPE ADD VALUE</code> ne peut pas s&apos;exécuter dans une transaction.</p>
+      {/* Explication étapes — bannière bien visible */}
+      <div className="bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-300 rounded-2xl p-5 mb-4">
+        <p className="font-black text-red-900 text-base mb-3 flex items-center gap-2">
+          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+          Si vous voyez « Contrainte related_type — exécutez BLOC 1 » : exécutez les 2 blocs ci-dessous
+        </p>
+        <div className="space-y-2 mb-3">
+          <div className="flex items-start gap-2.5 bg-white/70 rounded-xl p-3">
+            <span className="w-6 h-6 bg-red-600 text-white text-xs font-black rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
+            <div>
+              <p className="text-sm font-bold text-red-900">BLOC 1 — Ajouter les valeurs ENUM <code className="bg-red-100 px-1 rounded">related_type</code></p>
+              <p className="text-xs text-red-700 mt-0.5">Coller <strong>seul</strong> dans un <strong>nouvel onglet</strong> Supabase → SQL Editor → Run</p>
+              <p className="text-xs text-red-600 mt-0.5 font-medium">⚠️ Doit être exécuté SEUL — hors transaction</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-2.5 bg-white/70 rounded-xl p-3">
+            <span className="w-6 h-6 bg-orange-600 text-white text-xs font-black rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+            <div>
+              <p className="text-sm font-bold text-orange-900">BLOC 2 — CHECK constraint + RLS + fonction RPC</p>
+              <p className="text-xs text-orange-700 mt-0.5">Coller dans un <strong>autre onglet</strong> Supabase → SQL Editor → Run (après BLOC 1)</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-amber-100 border border-amber-300 rounded-xl px-3 py-2 text-xs text-amber-800 font-medium">
+          💡 <strong>Pourquoi 2 blocs séparés ?</strong> PostgreSQL interdit <code>ALTER TYPE ADD VALUE</code> dans une transaction.
+          Les blocs 1 et 2 doivent être collés et exécutés dans 2 onglets SQL Editor distincts.
+        </div>
       </div>
 
       {/* BLOC 1 */}
-      <div className="bg-white rounded-2xl border border-red-200 shadow-sm overflow-hidden mb-4">
-        <div className="flex items-center justify-between px-5 py-3 bg-red-50 border-b border-red-200">
-          <div>
-            <p className="text-sm font-bold text-red-900">BLOC 1 — Ajouter les valeurs ENUM</p>
-            <p className="text-xs text-red-700">Coller seul dans Supabase → SQL Editor → New query → Run</p>
+      <div className="bg-white rounded-2xl border-2 border-red-400 shadow-md overflow-hidden mb-4">
+        <div className="px-5 py-4 bg-red-600 flex items-center justify-between gap-3">
+          <div className="text-white">
+            <p className="text-base font-black flex items-center gap-2">
+              <span className="w-7 h-7 bg-white text-red-600 rounded-full flex items-center justify-center text-sm font-black flex-shrink-0">1</span>
+              BLOC 1 — Ajouter les valeurs ENUM <code className="bg-red-500 px-1.5 py-0.5 rounded text-sm">related_type</code>
+            </p>
+            <p className="text-xs text-red-100 mt-1 ml-9">
+              ⚠️ À coller <strong>SEUL</strong> dans un <strong>nouvel onglet</strong> Supabase → SQL Editor → Run
+            </p>
           </div>
           <button onClick={handleCopyConvFix1}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow ${
-              copiedConvFix1 ? 'bg-emerald-500 text-white' : 'bg-red-600 text-white hover:bg-red-700'
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow flex-shrink-0 ${
+              copiedConvFix1 ? 'bg-emerald-400 text-white' : 'bg-white text-red-700 hover:bg-red-50'
             }`}>
             {copiedConvFix1
-              ? <><Check className="w-4 h-4" /> Copié !</>
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier BLOC 1</>}
           </button>
         </div>
@@ -2773,18 +2797,23 @@ CREATE TRIGGER asso_search_trigger
       </div>
 
       {/* BLOC 2 */}
-      <div className="bg-white rounded-2xl border border-orange-200 shadow-sm overflow-hidden mb-6">
-        <div className="flex items-center justify-between px-5 py-3 bg-orange-50 border-b border-orange-200">
-          <div>
-            <p className="text-sm font-bold text-orange-900">BLOC 2 — CHECK + valeur par défaut + RLS</p>
-            <p className="text-xs text-orange-700">Coller dans un nouvel onglet SQL Editor → Run (après le BLOC 1)</p>
+      <div className="bg-white rounded-2xl border-2 border-orange-400 shadow-md overflow-hidden mb-6">
+        <div className="px-5 py-4 bg-orange-500 flex items-center justify-between gap-3">
+          <div className="text-white">
+            <p className="text-base font-black flex items-center gap-2">
+              <span className="w-7 h-7 bg-white text-orange-600 rounded-full flex items-center justify-center text-sm font-black flex-shrink-0">2</span>
+              BLOC 2 — CHECK constraint + RLS + fonction RPC
+            </p>
+            <p className="text-xs text-orange-100 mt-1 ml-9">
+              À coller dans un <strong>autre onglet</strong> SQL Editor → Run — <strong>après le BLOC 1</strong>
+            </p>
           </div>
           <button onClick={handleCopyConvFix2}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow ${
-              copiedConvFix2 ? 'bg-emerald-500 text-white' : 'bg-orange-600 text-white hover:bg-orange-700'
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow flex-shrink-0 ${
+              copiedConvFix2 ? 'bg-emerald-400 text-white' : 'bg-white text-orange-700 hover:bg-orange-50'
             }`}>
             {copiedConvFix2
-              ? <><Check className="w-4 h-4" /> Copié !</>
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier BLOC 2</>}
           </button>
         </div>
