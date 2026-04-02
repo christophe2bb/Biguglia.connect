@@ -38,6 +38,7 @@ function AdminContent() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [pendingArtisans, setPendingArtisans] = useState<PendingArtisan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [confirmedLocal, setConfirmedLocal] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!profile) return;
@@ -74,14 +75,32 @@ function AdminContent() {
         total_messages: totalMsgs || 0,
       });
 
-      const { data: pending } = await supabase
-        .from('artisan_profiles')
-        .select(`id, user_id, business_name, created_at, profile:profiles!artisan_profiles_user_id_fkey(id, full_name, email, avatar_url, role), trade_category:trade_categories(name, icon)`)
+      // Étape 1 : récupérer tous les profils artisan_pending
+      const { data: pendingProfiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, avatar_url, role, phone')
+        .eq('role', 'artisan_pending')
         .order('created_at', { ascending: true });
 
-      const filtered = ((pending as unknown as PendingArtisan[]) || [])
-        .filter(a => a.profile?.role === 'artisan_pending');
-      setPendingArtisans(filtered);
+      // Étape 2 : pour chaque profil, chercher les données artisan_profiles
+      const artisanList: PendingArtisan[] = [];
+      for (const prof of (pendingProfiles || [])) {
+        const { data: artData } = await supabase
+          .from('artisan_profiles')
+          .select('id, user_id, business_name, created_at, trade_category:trade_categories(name, icon)')
+          .eq('user_id', prof.id)
+          .maybeSingle();
+
+        artisanList.push({
+          id: artData?.id ?? prof.id,
+          user_id: prof.id,
+          business_name: artData?.business_name ?? '',
+          created_at: artData?.created_at ?? '',
+          profile: prof as unknown as Profile,
+          trade_category: artData?.trade_category as { name: string; icon: string } | undefined,
+        });
+      }
+      setPendingArtisans(artisanList);
       setLoading(false);
     };
     fetchData();
@@ -219,25 +238,35 @@ function AdminContent() {
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <Avatar src={artisan.profile?.avatar_url} name={artisan.profile?.full_name || artisan.business_name} size="md" />
                     <div className="min-w-0">
-                      <div className="font-bold text-gray-900">{artisan.business_name}</div>
-                      <div className="text-sm text-gray-500 truncate">{artisan.profile?.full_name} · {artisan.profile?.email}</div>
+                      <div className="font-bold text-gray-900">{artisan.profile?.full_name || artisan.business_name || 'Artisan'}</div>
+                      <div className="text-sm text-gray-600">{(artisan.profile as unknown as { phone?: string })?.phone || artisan.profile?.email || 'Téléphone non renseigné'}</div>
                       <div className="text-xs text-gray-400 mt-0.5">
-                        {artisan.trade_category?.icon} {artisan.trade_category?.name} · {formatRelative(artisan.created_at)}
+                        {artisan.trade_category?.icon} {artisan.trade_category?.name || 'Catégorie non renseignée'} · {artisan.created_at ? formatRelative(artisan.created_at) : 'Date inconnue'}
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <Button size="sm" variant="danger" onClick={() => rejectArtisan(artisan.user_id)}>
-                      Refuser
-                    </Button>
-                    <Button size="sm" onClick={() => approveArtisan(artisan.user_id)}>
-                      ✅ Valider
-                    </Button>
-                    <Link href="/admin/artisans">
-                      <Button size="sm" variant="outline" title="Voir le dossier complet avec documents">
-                        <Eye className="w-4 h-4" /> Dossier
+                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 accent-green-600"
+                        checked={!!confirmedLocal[artisan.user_id]}
+                        onChange={e => setConfirmedLocal(prev => ({ ...prev, [artisan.user_id]: e.target.checked }))}
+                      />
+                      <span className="text-xs font-medium text-gray-700">Artisan de Biguglia ✓</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="danger" onClick={() => rejectArtisan(artisan.user_id)}>
+                        Refuser
                       </Button>
-                    </Link>
+                      <Button
+                        size="sm"
+                        onClick={() => approveArtisan(artisan.user_id)}
+                        disabled={!confirmedLocal[artisan.user_id]}
+                      >
+                        ✅ Approuver
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
