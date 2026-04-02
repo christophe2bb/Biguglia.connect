@@ -697,6 +697,18 @@ export default function ConversationPage() {
       if (enriched.length > 0) {
         lastMsgIdRef.current = enriched[enriched.length - 1].id;
       }
+
+      // ── Dernier recours : déduire l'autre utilisateur depuis les messages ──
+      // Fonctionne même si la RPC et les autres fallbacks ont échoué
+      if (!otherUserId && enriched.length > 0) {
+        const otherSenderId = enriched.find(m => m.sender_id !== profile.id)?.sender_id;
+        if (otherSenderId) {
+          const op = await getSenderProfile(otherSenderId);
+          if (op) setOtherUser(op);
+          otherUserId = otherSenderId;
+        }
+      }
+
       setLoading(false);
       await markAsRead();
       scrollToBottom('instant' as ScrollBehavior);
