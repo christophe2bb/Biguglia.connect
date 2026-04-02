@@ -16,7 +16,7 @@ import toast from 'react-hot-toast';
 import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';
 import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
-import InteractionButton from '@/components/ui/InteractionButton';
+import ContactButton from '@/components/ui/ContactButton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type CollectionCategory = {
@@ -224,12 +224,13 @@ function ItemCard({
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <InteractionButton
+              <ContactButton
                 sourceType="collection_item"
                 sourceId={item.id}
-                receiverId={item.author_id}
+                sourceTitle={item.title}
+                ownerId={item.author_id}
                 userId={currentUserId}
-                compact
+                size="sm"
               />
               <ReportButton targetType="collection_item" targetId={item.id} targetTitle={item.title} variant="icon" />
             </div>

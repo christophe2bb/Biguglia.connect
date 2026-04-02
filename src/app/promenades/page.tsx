@@ -15,7 +15,7 @@ import Avatar from '@/components/ui/Avatar';
 import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';
 import { PhotoViewer } from '@/components/ui/PhotoViewer';
-import InteractionButton from '@/components/ui/InteractionButton';
+import ContactButton from '@/components/ui/ContactButton';
 import StatusBadge from '@/components/ui/StatusBadge';
 import toast from 'react-hot-toast';
 
@@ -364,12 +364,13 @@ function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit, onDelete }: {
 
           {/* Suivi interaction promenade */}
           {userId && !isOrganizer && (
-            <InteractionButton
+            <ContactButton
               sourceType="outing"
               sourceId={outing.id}
-              receiverId={outing.organizer_id}
+              sourceTitle={outing.title}
+              ownerId={outing.organizer_id}
               userId={userId}
-              compact
+              size="sm"
             />
           )}
 

@@ -9,7 +9,7 @@ import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';
 import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
 import StatusBadge from '@/components/ui/StatusBadge';
-import InteractionButton from '@/components/ui/InteractionButton';
+import ContactButton from '@/components/ui/ContactButton';
 import {
   Search, Plus, X, Loader2, AlertCircle, Camera, MapPin, Clock,
   Phone, Mail, Globe, MessageSquare, CheckCircle2, Shield, Users,
@@ -391,14 +391,15 @@ function AssociationCard({
 
         {/* Actions */}
         <div className="flex gap-2 flex-wrap">
-          {/* CTA principal via InteractionButton */}
-          <InteractionButton
+          {/* CTA principal via ContactButton */}
+          <ContactButton
             sourceType="association"
             sourceId={asso.id}
-            receiverId={asso.author_id}
+            sourceTitle={asso.name}
+            ownerId={asso.author_id}
             userId={userId}
-            compact
-            ctaOverride={
+            size="sm"
+            ctaLabel={
               asso.pub_type === 'benevoles' ? 'Devenir bénévole' :
               asso.pub_type === 'evenement' ? 'Participer' :
               asso.pub_type === 'dons' ? 'Faire un don' :

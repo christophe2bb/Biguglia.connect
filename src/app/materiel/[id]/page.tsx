@@ -15,7 +15,7 @@ import { CONDITION_LABELS, formatDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import RatingWidget from '@/components/ui/RatingWidget';
 import ExchangePrompt from '@/components/ui/ExchangePrompt';
-import InteractionButton from '@/components/ui/InteractionButton';
+import ContactButton from '@/components/ui/ContactButton';
 import { PhotoGallery, toPhotoItems } from '@/components/ui/PhotoViewer';
 
 export default function MaterielDetailPage() {
@@ -194,11 +194,13 @@ export default function MaterielDetailPage() {
           {!isOwner && item.is_available && (
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
               <h3 className="font-semibold text-gray-900 mb-3">Demander à emprunter</h3>
-              <InteractionButton
+              <ContactButton
                 sourceType="equipment"
                 sourceId={item.id}
-                receiverId={item.owner_id}
+                sourceTitle={item.title}
+                ownerId={item.owner_id}
                 userId={profile?.id}
+                className="w-full mb-3"
               />
               <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
                 <p className="text-xs text-gray-500">Précisez vos dates dans la conversation</p>

@@ -17,7 +17,7 @@ import toast from 'react-hot-toast';
 import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';
 import { PhotoViewer } from '@/components/ui/PhotoViewer';
-import InteractionButton from '@/components/ui/InteractionButton';
+import ContactButton from '@/components/ui/ContactButton';
 import StatusBadge from '@/components/ui/StatusBadge';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -504,12 +504,13 @@ function EventCard({
           )}
           {/* Suivi interaction événement */}
           {userId && userId !== event.author_id && (
-            <InteractionButton
+            <ContactButton
               sourceType="event"
               sourceId={event.id}
-              receiverId={event.author_id}
+              sourceTitle={event.title}
+              ownerId={event.author_id}
               userId={userId}
-              compact
+              size="sm"
             />
           )}
           </div>

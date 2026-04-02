@@ -20,7 +20,7 @@ import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';
 import GlobalTrustBadge from '@/components/ui/TrustBadge';
 import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
-import InteractionButton from '@/components/ui/InteractionButton';
+import ContactButton from '@/components/ui/ContactButton';
 import StatusBadge from '@/components/ui/StatusBadge';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -182,28 +182,6 @@ function HelpCard({
   const [chatCount, setChatCount] = useState(item.comment_count ?? 0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const shareRef = useRef<HTMLDivElement>(null);
-
-  // Ouvrir / créer une conversation privée liée à ce coup de main
-  const handleContact = async () => {
-    if (!userId) { router.push('/connexion'); return; }
-    if (userId === item.author_id) { toast.error('Vous ne pouvez pas vous contacter vous-même'); return; }
-    const { data: myParts } = await supabase.from('conversation_participants').select('conversation_id').eq('user_id', userId);
-    if (myParts && myParts.length > 0) {
-      const myIds = myParts.map((p: { conversation_id: string }) => p.conversation_id);
-      const { data: existing } = await supabase.from('conversations').select('id')
-        .eq('related_type', 'help_request').eq('related_id', item.id).in('id', myIds).maybeSingle();
-      if (existing) { router.push(`/messages/${existing.id}`); return; }
-    }
-    const { data: conv } = await supabase.from('conversations').insert({
-      subject: item.title, related_type: 'help_request', related_id: item.id,
-    }).select().single();
-    if (!conv) { toast.error('Impossible de créer la conversation'); return; }
-    await supabase.from('conversation_participants').upsert(
-      [{ conversation_id: conv.id, user_id: userId }, { conversation_id: conv.id, user_id: item.author_id }],
-      { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
-    );
-    router.push(`/messages/${conv.id}`);
-  };
 
   const typeConf = TYPE_CONFIG[item.help_type];
   const urgConf = URGENCY_CONFIG[item.urgency];
@@ -420,12 +398,13 @@ function HelpCard({
         <div className="flex items-center gap-2 pt-3 border-t border-gray-50">
           {/* Bouton contact / suivi interaction */}
           {!isAuthor && (
-            <InteractionButton
+            <ContactButton
               sourceType="help_request"
               sourceId={item.id}
-              receiverId={item.author_id}
+              sourceTitle={item.title}
+              ownerId={item.author_id}
               userId={userId}
-              compact
+              size="sm"
             />
           )}
 

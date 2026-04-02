@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft, MapPin, Calendar, MessageSquare, Flag, Tag, Pencil, Trash2 } from 'lucide-react';
+import { ChevronLeft, MapPin, Calendar, Flag, Tag, Pencil, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { Listing } from '@/types';
@@ -15,7 +15,7 @@ import { LISTING_TYPE_LABELS, LISTING_TYPE_COLORS, STATUS_LABELS, formatDate } f
 import toast from 'react-hot-toast';
 import RatingWidget from '@/components/ui/RatingWidget';
 import ExchangePrompt from '@/components/ui/ExchangePrompt';
-import InteractionButton from '@/components/ui/InteractionButton';
+import ContactButton from '@/components/ui/ContactButton';
 import { PhotoGallery, toPhotoItems } from '@/components/ui/PhotoViewer';
 
 export default function AnnonceDetailPage() {
@@ -73,80 +73,7 @@ export default function AnnonceDetailPage() {
     fetchListing();
   }, [id]);
 
-  const handleContact = async () => {
-    if (!profile) {
-      router.push('/connexion?redirect=/annonces/' + id);
-      return;
-    }
-    if (!listing) return;
 
-    // Don't contact yourself
-    if (profile.id === listing.user_id) {
-      toast.error('Vous ne pouvez pas vous contacter vous-même');
-      return;
-    }
-
-    const supabase = createClient();
-
-    // Check if a conversation already exists for this listing with the current user
-    // Use maybeSingle() to avoid crash when no row found
-    const { data: myParticipations } = await supabase
-      .from('conversation_participants')
-      .select('conversation_id')
-      .eq('user_id', profile.id);
-
-    if (myParticipations && myParticipations.length > 0) {
-      const myConvIds = myParticipations.map((p: { conversation_id: string }) => p.conversation_id);
-      const { data: existing } = await supabase
-        .from('conversations')
-        .select('id')
-        .eq('related_type', 'listing')
-        .eq('related_id', listing.id)
-        .in('id', myConvIds)
-        .maybeSingle();
-
-      if (existing) {
-        router.push(`/messages/${existing.id}`);
-        return;
-      }
-    }
-
-    // Create new conversation
-    const { data: conv, error: convError } = await supabase
-      .from('conversations')
-      .insert({
-        subject: listing.title,
-        related_type: 'listing',
-        related_id: listing.id,
-      })
-      .select()
-      .single();
-
-    if (convError || !conv) {
-      console.error('Conversation error:', convError);
-      toast.error('Erreur lors de la création de la conversation');
-      return;
-    }
-
-    // Ajouter les participants (ON CONFLICT DO NOTHING pour éviter les doublons)
-    const participants = profile.id === listing.user_id
-      ? [{ conversation_id: conv.id, user_id: profile.id }]
-      : [
-          { conversation_id: conv.id, user_id: profile.id },
-          { conversation_id: conv.id, user_id: listing.user_id },
-        ];
-
-    const { error: partError } = await supabase
-      .from('conversation_participants')
-      .upsert(participants, { onConflict: 'conversation_id,user_id', ignoreDuplicates: true });
-
-    if (partError) {
-      console.error('Participants error:', partError);
-      // On continue quand même — la conversation existe, on peut y aller
-    }
-
-    router.push(`/messages/${conv.id}`);
-  };
 
   const handleDelete = async () => {
     if (!listing || !profile) return;
@@ -327,12 +254,13 @@ export default function AnnonceDetailPage() {
             </div>
 
             {!isOwner && listing.status === 'active' && (
-              <InteractionButton
+              <ContactButton
                 sourceType="listing"
                 sourceId={listing.id}
-                receiverId={listing.user_id}
+                sourceTitle={listing.title}
+                ownerId={listing.user_id}
                 userId={profile?.id}
-                className="mb-3"
+                className="mb-3 w-full"
               />
             )}
 
