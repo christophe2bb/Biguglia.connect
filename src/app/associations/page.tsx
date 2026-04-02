@@ -392,21 +392,25 @@ function AssociationCard({
         {/* Actions */}
         <div className="flex gap-2 flex-wrap">
           {/* CTA principal via ContactButton */}
-          <ContactButton
-            sourceType="association"
-            sourceId={asso.id}
-            sourceTitle={asso.name}
-            ownerId={asso.author_id}
-            userId={userId}
-            size="sm"
-            ctaLabel={
-              asso.pub_type === 'benevoles' ? 'Devenir bénévole' :
-              asso.pub_type === 'evenement' ? 'Participer' :
-              asso.pub_type === 'dons' ? 'Faire un don' :
-              asso.pub_type === 'adherents' ? 'Adhérer' :
-              undefined
-            }
-          />
+          {isAuthor ? (
+            <span className="text-xs text-gray-400 italic">✉️ Les membres vous contacteront ici</span>
+          ) : (
+            <ContactButton
+              sourceType="association"
+              sourceId={asso.id}
+              sourceTitle={asso.name}
+              ownerId={asso.author_id}
+              userId={userId}
+              size="sm"
+              ctaLabel={
+                asso.pub_type === 'benevoles' ? 'Devenir bénévole' :
+                asso.pub_type === 'evenement' ? 'Participer' :
+                asso.pub_type === 'dons' ? 'Faire un don' :
+                asso.pub_type === 'adherents' ? 'Adhérer' :
+                undefined
+              }
+            />
+          )}
           {/* Discussion */}
           <button type="button" onClick={handleOpenChat}
             className={`inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm transition-all border ${

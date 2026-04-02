@@ -397,7 +397,9 @@ function HelpCard({
         {/* Actions */}
         <div className="flex items-center gap-2 pt-3 border-t border-gray-50">
           {/* Bouton contact / suivi interaction */}
-          {!isAuthor && (
+          {isAuthor ? (
+            <span className="text-xs text-gray-400 italic">✉️ Les membres vous contacteront ici</span>
+          ) : (
             <ContactButton
               sourceType="help_request"
               sourceId={item.id}

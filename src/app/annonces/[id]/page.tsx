@@ -253,7 +253,11 @@ export default function AnnonceDetailPage() {
               </div>
             </div>
 
-            {!isOwner && listing.status === 'active' && (
+            {isOwner ? (
+              <div className="mb-3 text-xs text-center text-gray-400 italic py-2 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                ✉️ Les autres membres vous contacteront via ce bouton
+              </div>
+            ) : listing.status === 'active' && (
               <ContactButton
                 sourceType="listing"
                 sourceId={listing.id}

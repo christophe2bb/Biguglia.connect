@@ -191,17 +191,23 @@ export default function MaterielDetailPage() {
             )}
           </div>
 
-          {!isOwner && item.is_available && (
+          {item.is_available && (
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
               <h3 className="font-semibold text-gray-900 mb-3">Demander à emprunter</h3>
-              <ContactButton
-                sourceType="equipment"
-                sourceId={item.id}
-                sourceTitle={item.title}
-                ownerId={item.owner_id}
-                userId={profile?.id}
-                className="w-full mb-3"
-              />
+              {isOwner ? (
+                <div className="text-xs text-center text-gray-400 italic py-2 bg-gray-50 rounded-xl border border-dashed border-gray-200 mb-3">
+                  ✉️ Les membres vous contacteront via ce bouton
+                </div>
+              ) : (
+                <ContactButton
+                  sourceType="equipment"
+                  sourceId={item.id}
+                  sourceTitle={item.title}
+                  ownerId={item.owner_id}
+                  userId={profile?.id}
+                  className="w-full mb-3"
+                />
+              )}
               <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
                 <p className="text-xs text-gray-500">Précisez vos dates dans la conversation</p>
                 <Input label="Date de début" type="date" value={borrowForm.start_date}

@@ -284,8 +284,12 @@ function ItemCard({
 
           {/* Boutons d'action */}
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Bouton message privé — masqué seulement pour l'auteur */}
-            {!isOwner && (
+            {/* Bouton message privé — affiché pour tout le monde sauf l'auteur */}
+            {isOwner ? (
+              <span className="flex-1 text-center text-xs text-gray-400 italic py-1">
+                ✉️ Les membres vous contacteront ici
+              </span>
+            ) : (
               <ContactButton
                 sourceType="collection_item"
                 sourceId={item.id}
@@ -302,8 +306,6 @@ function ItemCard({
               type="button"
               onClick={handleOpenChat}
               className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all ${
-                isOwner ? 'flex-1 justify-center' : ''
-              } ${
                 openChat
                   ? 'bg-rose-50 text-rose-700 border-rose-200'
                   : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'

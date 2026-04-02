@@ -503,7 +503,9 @@ function EventCard({
             <ReportButton targetType="event" targetId={event.id} targetTitle={event.title} variant="icon" />
           )}
           {/* Suivi interaction événement — ContactButton gère lui-même la redirection /connexion */}
-          {userId !== event.author_id && (
+          {userId === event.author_id ? (
+            <span className="text-xs text-gray-400 italic">✉️ Les membres vous contacteront ici</span>
+          ) : (
             <ContactButton
               sourceType="event"
               sourceId={event.id}

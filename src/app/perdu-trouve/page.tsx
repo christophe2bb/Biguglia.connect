@@ -320,7 +320,9 @@ function LostFoundCard({
         {/* Actions */}
         <div className="flex gap-2 flex-wrap">
           {/* CTA principal via ContactButton */}
-          {!isAuthor && (
+          {isAuthor ? (
+            <span className="text-xs text-gray-400 italic">✉️ Les membres vous contacteront ici</span>
+          ) : (
             <ContactButton
               sourceType="lost_found"
               sourceId={item.id}
