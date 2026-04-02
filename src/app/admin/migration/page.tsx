@@ -668,7 +668,7 @@ DO $$ BEGIN
   ALTER TABLE conversations ADD CONSTRAINT conversations_related_type_check
     CHECK (related_type IN (
       'service_request','listing','equipment','general',
-      'help_request','lost_found','association','outing','collection_item'
+      'help_request','lost_found','association','outing','collection_item','event'
     ));
 EXCEPTION WHEN others THEN NULL;
 END $$;
@@ -740,6 +740,99 @@ SELECT tablename FROM pg_publication_tables
 WHERE pubname = 'supabase_realtime'
   AND tablename IN ('messages','notifications','conversation_participants','conversations')
 ORDER BY tablename;`;
+
+// ─── SQL Fix rapide conversations (OBLIGATOIRE si messagerie ne fonctionne pas) ──
+const CONVERSATIONS_FIX_SQL = `-- ============================================================
+-- BIGUGLIA CONNECT — Fix messagerie : CHECK related_type + RLS
+-- À exécuter si le bouton "Message privé" affiche une erreur
+-- Coller dans Supabase > SQL Editor > Run
+-- ============================================================
+
+-- 1. Mettre à jour le CHECK constraint related_type (ajoute 'event')
+ALTER TABLE conversations DROP CONSTRAINT IF EXISTS conversations_related_type_check;
+ALTER TABLE conversations ADD CONSTRAINT conversations_related_type_check
+  CHECK (related_type IN (
+    'service_request','listing','equipment','general',
+    'help_request','lost_found','association','outing','collection_item','event'
+  ));
+
+-- 2. S'assurer que les colonnes de base existent
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS subject TEXT;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS related_type TEXT;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS related_id UUID;
+
+-- 3. RLS : permettre aux utilisateurs connectés de créer une conversation
+ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Créer une conversation" ON conversations;
+CREATE POLICY "Créer une conversation" ON conversations
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "Voir ses conversations" ON conversations;
+CREATE POLICY "Voir ses conversations" ON conversations
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM conversation_participants cp
+      WHERE cp.conversation_id = id AND cp.user_id = auth.uid()
+    )
+  );
+
+DROP POLICY IF EXISTS "Modifier ses conversations" ON conversations;
+CREATE POLICY "Modifier ses conversations" ON conversations
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM conversation_participants cp
+      WHERE cp.conversation_id = id AND cp.user_id = auth.uid()
+    )
+  );
+
+-- 4. RLS sur conversation_participants
+ALTER TABLE conversation_participants ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Ajouter des participants" ON conversation_participants;
+CREATE POLICY "Ajouter des participants" ON conversation_participants
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "Voir participants de ses conversations" ON conversation_participants;
+CREATE POLICY "Voir participants de ses conversations" ON conversation_participants
+  FOR SELECT USING (
+    user_id = auth.uid() OR
+    EXISTS (
+      SELECT 1 FROM conversation_participants cp2
+      WHERE cp2.conversation_id = conversation_id AND cp2.user_id = auth.uid()
+    )
+  );
+
+-- 5. RLS sur messages
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Voir messages de ses conversations" ON messages;
+CREATE POLICY "Voir messages de ses conversations" ON messages
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM conversation_participants cp
+      WHERE cp.conversation_id = messages.conversation_id AND cp.user_id = auth.uid()
+    )
+  );
+
+DROP POLICY IF EXISTS "Envoyer un message" ON messages;
+CREATE POLICY "Envoyer un message" ON messages
+  FOR INSERT WITH CHECK (
+    sender_id = auth.uid() AND
+    EXISTS (
+      SELECT 1 FROM conversation_participants cp
+      WHERE cp.conversation_id = messages.conversation_id AND cp.user_id = auth.uid()
+    )
+  );
+
+-- 6. Recharge du cache PostgREST
+NOTIFY pgrst, 'reload schema';
+
+-- Vérification
+SELECT 'CHECK constraint OK' AS status,
+  (SELECT COUNT(*) FROM conversations) AS nb_conversations,
+  (SELECT COUNT(*) FROM messages) AS nb_messages;
+`;
 
 // ─── SQL Messagerie universelle — enrichissement des conversations ──────────────
 const MESSAGING_SQL = `-- ============================================================
@@ -1600,6 +1693,7 @@ export default function MigrationPage() {
   const [copiedSearch, setCopiedSearch] = useState(false);
   const [copiedArtisan, setCopiedArtisan] = useState(false);
   const [copiedMessaging, setCopiedMessaging] = useState(false);
+  const [copiedConvFix, setCopiedConvFix] = useState(false);
   const [copiedCollectionComments, setCopiedCollectionComments] = useState(false);
 
   // Storage diagnostic
@@ -1964,6 +2058,13 @@ CREATE TRIGGER asso_search_trigger
     });
   };
 
+  const handleCopyConvFix = () => {
+    navigator.clipboard.writeText(CONVERSATIONS_FIX_SQL).then(() => {
+      setCopiedConvFix(true);
+      setTimeout(() => setCopiedConvFix(false), 4000);
+    });
+  };
+
   const handleCopyInteraction = () => {
     navigator.clipboard.writeText(INTERACTION_SQL).then(() => {
       setCopiedInteraction(true);
@@ -2274,6 +2375,46 @@ CREATE TRIGGER asso_search_trigger
             <li>Le suivi d&apos;échange sera activé sur toutes les conversations liées</li>
             <li>Les avis n&apos;apparaîtront que si l&apos;échange est confirmé par les 2 parties</li>
           </ol>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          FIX MESSAGERIE — À EXÉCUTER EN PREMIER SI ERREUR
+      ══════════════════════════════════════════════════════════════ */}
+      <div className="flex items-center gap-3 mb-4 mt-8">
+        <div className="p-3 bg-red-100 rounded-2xl">
+          <AlertTriangle className="w-6 h-6 text-red-600" />
+        </div>
+        <div>
+          <h2 className="text-xl font-black text-gray-900">🔴 Fix messagerie — À exécuter si le bouton &quot;Message privé&quot; affiche une erreur</h2>
+          <p className="text-gray-500 text-sm">Corrige le CHECK constraint sur related_type + RLS conversations/messages/participants</p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-red-200 shadow-sm overflow-hidden mb-6">
+        <div className="px-5 py-4 bg-red-50 border-b border-red-200 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-red-800">
+            <strong>Ce SQL règle &quot;Impossible de créer la conversation&quot;</strong>
+            <p className="text-xs mt-1 text-red-700">
+              Ajoute <code>event</code> dans le CHECK related_type, crée les policies RLS manquantes.
+              À exécuter <strong>une seule fois</strong> dans Supabase → SQL Editor → <strong>Run</strong>.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
+          <p className="text-xs text-gray-500">CHECK related_type + RLS conversations + RLS conversation_participants + RLS messages</p>
+          <button onClick={handleCopyConvFix}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow ${
+              copiedConvFix ? 'bg-emerald-500 text-white' : 'bg-red-600 text-white hover:bg-red-700'
+            }`}>
+            {copiedConvFix
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Fix Messagerie</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-80">
+          <pre className="text-xs text-red-300 font-mono leading-relaxed whitespace-pre-wrap">{CONVERSATIONS_FIX_SQL}</pre>
         </div>
       </div>
 

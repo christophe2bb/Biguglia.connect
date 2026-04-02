@@ -150,37 +150,39 @@ export default function ContactButton({
     if (loading) return;
     setLoading(true);
     try {
+      // Mapper les sourceType vers les related_type acceptés par la DB
+      const VALID_RELATED_TYPES = [
+        'listing','equipment','help_request','lost_found',
+        'association','outing','collection_item','service_request','general',
+        'event', // ajouté dans la migration MESSAGING_SQL
+      ];
+      const relatedType = sourceType === 'artisan'
+        ? 'general'
+        : VALID_RELATED_TYPES.includes(sourceType) ? sourceType : 'general';
+
       // 1. Chercher une conversation existante entre userId et ownerId pour ce contenu
       let existingConvId: string | null = null;
 
-      if (sourceId) {
-        // Trouver toutes les conversations de l'utilisateur
-        const { data: myParts } = await supabase
-          .from('conversation_participants')
-          .select('conversation_id')
-          .eq('user_id', userId);
+      const { data: myParts } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', userId);
 
-        if (myParts && myParts.length > 0) {
-          const myConvIds = myParts.map((p: { conversation_id: string }) => p.conversation_id);
+      if (myParts && myParts.length > 0) {
+        const myConvIds = myParts.map((p: { conversation_id: string }) => p.conversation_id);
+
+        if (sourceId) {
+          // Cherche une conv existante liée à ce contenu précis
           const { data: existingConv } = await supabase
             .from('conversations')
             .select('id')
-            .eq('related_type', sourceType === 'artisan' ? 'service_request' : sourceType)
+            .eq('related_type', relatedType)
             .eq('related_id', sourceId)
             .in('id', myConvIds)
             .maybeSingle();
           existingConvId = existingConv?.id || null;
-        }
-      } else {
-        // Conversation générale : chercher par participants
-        const { data: myParts } = await supabase
-          .from('conversation_participants')
-          .select('conversation_id')
-          .eq('user_id', userId);
-
-        if (myParts && myParts.length > 0) {
-          const myConvIds = myParts.map((p: { conversation_id: string }) => p.conversation_id);
-          // Trouver une conversation commune avec ownerId et related_type=general
+        } else {
+          // Conversation générale entre les deux utilisateurs
           const { data: ownerParts } = await supabase
             .from('conversation_participants')
             .select('conversation_id')
@@ -207,51 +209,77 @@ export default function ContactButton({
       }
 
       // 3. Créer une nouvelle conversation
-      const relatedType = sourceType === 'artisan' ? 'general' : sourceType;
       const subject = sourceTitle
-        ? `${conf.defaultLabel} — ${sourceTitle}`
-        : conf.defaultLabel;
+        ? `${sourceTitle}`
+        : (ctaLabel || conf.defaultLabel);
+
+      // Tentative d'INSERT — on utilise uniquement les colonnes de base
+      // (compatibles avec toutes les versions du schéma)
+      const insertPayload: Record<string, unknown> = {
+        subject,
+        related_type: relatedType,
+        related_id: sourceId || null,
+      };
 
       const { data: newConv, error: convError } = await supabase
         .from('conversations')
-        .insert({
-          subject,
-          related_type: relatedType,
-          related_id: sourceId || null,
-        })
+        .insert(insertPayload)
         .select('id')
         .single();
 
       if (convError || !newConv) {
-        toast.error('Impossible de créer la conversation');
+        console.error('[ContactButton] INSERT conversations error:', JSON.stringify(convError));
+        // Si l'erreur est un CHECK sur related_type, retry avec 'general'
+        if (convError?.code === '23514') {
+          const { data: fallbackConv, error: fbErr } = await supabase
+            .from('conversations')
+            .insert({ subject, related_type: 'general', related_id: sourceId || null })
+            .select('id')
+            .single();
+          if (fbErr || !fallbackConv) {
+            console.error('[ContactButton] Fallback INSERT error:', JSON.stringify(fbErr));
+            toast.error('Impossible de créer la conversation — vérifiez la migration SQL');
+            return;
+          }
+          // Suite avec fallbackConv
+          await addParticipantsAndMessage(fallbackConv.id);
+          return;
+        }
+        toast.error('Impossible de créer la conversation — vérifiez la migration SQL');
         return;
       }
 
-      // 4. Ajouter les deux participants
-      await supabase.from('conversation_participants').upsert(
-        [
-          { conversation_id: newConv.id, user_id: userId },
-          { conversation_id: newConv.id, user_id: ownerId },
-        ],
-        { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
-      );
+      await addParticipantsAndMessage(newConv.id);
 
-      // 5. Message initial pré-rempli
-      const initialMsg = prefillMsg || `👋 Bonjour, ${conf.defaultLabel.toLowerCase()}${sourceTitle ? ` — "${sourceTitle}"` : ''} !`;
-      await supabase.from('messages').insert({
-        conversation_id: newConv.id,
-        sender_id: userId,
-        content: initialMsg,
-      });
-
-      onConversationReady?.(newConv.id);
-      router.push(`/messages/${newConv.id}`);
     } catch (err) {
       console.error('[ContactButton] Error:', err);
       toast.error('Une erreur est survenue');
     } finally {
       setLoading(false);
     }
+  };
+
+  const addParticipantsAndMessage = async (convId: string) => {
+      // 4. Ajouter les deux participants
+      await supabase.from('conversation_participants').upsert(
+        [
+          { conversation_id: convId, user_id: userId },
+          { conversation_id: convId, user_id: ownerId },
+        ],
+        { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
+      );
+
+      // 5. Message initial
+      const initialMsg = prefillMsg
+        || `👋 Bonjour ! Je vous contacte à propos de${sourceTitle ? ` "${sourceTitle}"` : ' votre annonce'}.`;
+      await supabase.from('messages').insert({
+        conversation_id: convId,
+        sender_id: userId,
+        content: initialMsg,
+      });
+
+      onConversationReady?.(convId);
+      router.push(`/messages/${convId}`);
   };
 
   // ── Rendu ─────────────────────────────────────────────────────────────────────
