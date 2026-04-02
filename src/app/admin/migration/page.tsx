@@ -744,13 +744,16 @@ ORDER BY tablename;`;
 // ─── SQL Fix rapide conversations (OBLIGATOIRE si messagerie ne fonctionne pas) ──
 const CONVERSATIONS_FIX_SQL = `-- ============================================================
 -- BIGUGLIA CONNECT — Fix messagerie (related_type ENUM)
--- Erreur : 22P02 "invalid input value for enum related_type"
--- related_type est un TYPE ENUM PostgreSQL → on ajoute les valeurs manquantes
+-- Erreur 22P02 : "invalid input value for enum related_type"
+-- IMPORTANT : exécuter CHAQUE bloc séparément si erreur de transaction
 -- Coller dans Supabase > SQL Editor > New query > Run  (bouton ▶ Run)
 -- ============================================================
 
--- ── Étape 1 : Ajouter toutes les valeurs manquantes dans l'ENUM ───────────────
--- Chaque commande est indépendante : IF NOT EXISTS ignore les valeurs déjà présentes
+-- ══════════════════════════════════════════════════════════════
+-- BLOC 1 : Ajouter les valeurs manquantes dans l'ENUM
+-- (ALTER TYPE ADD VALUE ne peut pas s'exécuter dans une transaction)
+-- Si erreur "cannot be executed from a function", exécutez ce bloc seul
+-- ══════════════════════════════════════════════════════════════
 ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'listing';
 ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'equipment';
 ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'help_request';
@@ -762,21 +765,26 @@ ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'service_request';
 ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'event';
 ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'general';
 
--- ── Étape 2 : Autoriser NULL dans le CHECK (pour les conversations générales) ──
+-- ══════════════════════════════════════════════════════════════
+-- BLOC 2 : Mettre à jour le CHECK + valeur par défaut + RLS
+-- ══════════════════════════════════════════════════════════════
+
+-- Autoriser NULL dans le CHECK (conversations sans contexte)
 ALTER TABLE conversations
   DROP CONSTRAINT IF EXISTS conversations_related_type_check;
 
 ALTER TABLE conversations
   ADD CONSTRAINT conversations_related_type_check
-  CHECK (related_type IS NULL OR related_type = ANY (ARRAY[
-    'service_request'::related_type, 'listing'::related_type,
-    'equipment'::related_type,       'general'::related_type,
-    'help_request'::related_type,    'collection_item'::related_type,
-    'lost_found'::related_type,      'association'::related_type,
-    'outing'::related_type,          'event'::related_type
-  ]));
+  CHECK (
+    related_type IS NULL
+    OR related_type::text IN (
+      'service_request','listing','equipment','general',
+      'help_request','collection_item','lost_found',
+      'association','outing','event'
+    )
+  );
 
--- ── Étape 3 : Définir 'general' comme valeur par défaut ───────────────────────
+-- Valeur par défaut = 'general' (évite NOT NULL sur fallback)
 ALTER TABLE conversations
   ALTER COLUMN related_type SET DEFAULT 'general';
 

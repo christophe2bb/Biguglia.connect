@@ -362,8 +362,8 @@ function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit, onDelete }: {
             </Link>
           )}
 
-          {/* Suivi interaction promenade */}
-          {userId && !isOrganizer && (
+          {/* Suivi interaction promenade — ContactButton gère lui-même la redirection /connexion */}
+          {!isOrganizer && (
             <ContactButton
               sourceType="outing"
               sourceId={outing.id}
