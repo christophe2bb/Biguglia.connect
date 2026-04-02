@@ -741,19 +741,14 @@ WHERE pubname = 'supabase_realtime'
   AND tablename IN ('messages','notifications','conversation_participants','conversations')
 ORDER BY tablename;`;
 
-// ─── SQL Fix rapide conversations (OBLIGATOIRE si messagerie ne fonctionne pas) ──
-const CONVERSATIONS_FIX_SQL = `-- ============================================================
--- BIGUGLIA CONNECT — Fix messagerie (related_type ENUM)
--- Erreur 22P02 : "invalid input value for enum related_type"
--- IMPORTANT : exécuter CHAQUE bloc séparément si erreur de transaction
--- Coller dans Supabase > SQL Editor > New query > Run  (bouton ▶ Run)
+// ─── SQL Fix BLOC 1 : Ajouter valeurs ENUM (exécuter SEUL, hors transaction) ───
+const CONV_FIX_BLOC1 = `-- ============================================================
+-- BIGUGLIA CONNECT — Fix messagerie BLOC 1/2
+-- Ajouter les valeurs manquantes dans l'ENUM related_type
+--
+-- ⚠️  IMPORTANT : coller CE BLOC SEUL dans un nouvel onglet SQL Editor
+--    (ALTER TYPE ADD VALUE ne peut pas s'exécuter dans une transaction)
 -- ============================================================
-
--- ══════════════════════════════════════════════════════════════
--- BLOC 1 : Ajouter les valeurs manquantes dans l'ENUM
--- (ALTER TYPE ADD VALUE ne peut pas s'exécuter dans une transaction)
--- Si erreur "cannot be executed from a function", exécutez ce bloc seul
--- ══════════════════════════════════════════════════════════════
 ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'listing';
 ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'equipment';
 ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'help_request';
@@ -765,11 +760,22 @@ ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'service_request';
 ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'event';
 ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'general';
 
--- ══════════════════════════════════════════════════════════════
--- BLOC 2 : Mettre à jour le CHECK + valeur par défaut + RLS
--- ══════════════════════════════════════════════════════════════
+-- Vérification : doit afficher les 10 valeurs
+SELECT enumlabel AS valeur FROM pg_enum e
+JOIN pg_type t ON e.enumtypid = t.oid
+WHERE t.typname = 'related_type'
+ORDER BY e.enumsortorder;
+`;
 
--- Autoriser NULL dans le CHECK (conversations sans contexte)
+// ─── SQL Fix BLOC 2 : CHECK + RLS (exécuter APRÈS le bloc 1) ─────────────────
+const CONV_FIX_BLOC2 = `-- ============================================================
+-- BIGUGLIA CONNECT — Fix messagerie BLOC 2/2
+-- CHECK constraint + valeur par défaut + RLS policies
+--
+-- Exécuter APRÈS le BLOC 1
+-- ============================================================
+
+-- 1. Mettre à jour le CHECK pour autoriser toutes les valeurs + NULL
 ALTER TABLE conversations
   DROP CONSTRAINT IF EXISTS conversations_related_type_check;
 
@@ -778,13 +784,20 @@ ALTER TABLE conversations
   CHECK (
     related_type IS NULL
     OR related_type::text IN (
-      'service_request','listing','equipment','general',
-      'help_request','collection_item','lost_found',
-      'association','outing','event'
+      'service_request',
+      'listing',
+      'equipment',
+      'general',
+      'help_request',
+      'collection_item',
+      'lost_found',
+      'association',
+      'outing',
+      'event'
     )
   );
 
--- Valeur par défaut = 'general' (évite NOT NULL sur fallback)
+-- 2. Valeur par défaut = 'general'
 ALTER TABLE conversations
   ALTER COLUMN related_type SET DEFAULT 'general';
 
@@ -855,12 +868,7 @@ CREATE POLICY "Envoyer un message" ON messages
 -- 6. Recharge PostgREST
 NOTIFY pgrst, 'reload schema';
 
--- Vérification finale : doit lister les valeurs de l'ENUM related_type
-SELECT enumlabel AS valeur_enum
-FROM pg_enum e
-JOIN pg_type t ON e.enumtypid = t.oid
-WHERE t.typname = 'related_type'
-ORDER BY e.enumsortorder;
+SELECT 'Fix BLOC 2 appliqué avec succès' AS resultat;
 `;
 
 // ─── SQL Messagerie universelle — enrichissement des conversations ──────────────
@@ -1722,7 +1730,8 @@ export default function MigrationPage() {
   const [copiedSearch, setCopiedSearch] = useState(false);
   const [copiedArtisan, setCopiedArtisan] = useState(false);
   const [copiedMessaging, setCopiedMessaging] = useState(false);
-  const [copiedConvFix, setCopiedConvFix] = useState(false);
+  const [copiedConvFix1, setCopiedConvFix1] = useState(false);
+  const [copiedConvFix2, setCopiedConvFix2] = useState(false);
   const [copiedCollectionComments, setCopiedCollectionComments] = useState(false);
 
   // Storage diagnostic
@@ -2087,10 +2096,17 @@ CREATE TRIGGER asso_search_trigger
     });
   };
 
-  const handleCopyConvFix = () => {
-    navigator.clipboard.writeText(CONVERSATIONS_FIX_SQL).then(() => {
-      setCopiedConvFix(true);
-      setTimeout(() => setCopiedConvFix(false), 4000);
+  const handleCopyConvFix1 = () => {
+    navigator.clipboard.writeText(CONV_FIX_BLOC1).then(() => {
+      setCopiedConvFix1(true);
+      setTimeout(() => setCopiedConvFix1(false), 4000);
+    });
+  };
+
+  const handleCopyConvFix2 = () => {
+    navigator.clipboard.writeText(CONV_FIX_BLOC2).then(() => {
+      setCopiedConvFix2(true);
+      setTimeout(() => setCopiedConvFix2(false), 4000);
     });
   };
 
@@ -2420,30 +2436,55 @@ CREATE TRIGGER asso_search_trigger
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-red-200 shadow-sm overflow-hidden mb-6">
-        <div className="px-5 py-4 bg-red-50 border-b border-red-200 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-red-800">
-            <strong>Ce SQL règle &quot;Impossible de créer la conversation&quot;</strong>
-            <p className="text-xs mt-1 text-red-700">
-              Ajoute <code>event</code> dans le CHECK related_type, crée les policies RLS manquantes.
-              À exécuter <strong>une seule fois</strong> dans Supabase → SQL Editor → <strong>Run</strong>.
-            </p>
+      {/* Explication étapes */}
+      <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-4 text-sm text-red-800">
+        <p className="font-bold mb-2">⚠️ 2 étapes obligatoires — dans cet ordre :</p>
+        <ol className="list-decimal list-inside space-y-1 text-xs">
+          <li><strong>BLOC 1</strong> — Ajoute les valeurs dans l&apos;ENUM <code>related_type</code> → à coller seul dans un nouvel onglet SQL Editor puis Run</li>
+          <li><strong>BLOC 2</strong> — Met à jour le CHECK + RLS → à coller dans un autre onglet SQL Editor puis Run</li>
+        </ol>
+        <p className="text-xs mt-2 text-red-600">⚠️ Ne pas coller les deux blocs ensemble : <code>ALTER TYPE ADD VALUE</code> ne peut pas s&apos;exécuter dans une transaction.</p>
+      </div>
+
+      {/* BLOC 1 */}
+      <div className="bg-white rounded-2xl border border-red-200 shadow-sm overflow-hidden mb-4">
+        <div className="flex items-center justify-between px-5 py-3 bg-red-50 border-b border-red-200">
+          <div>
+            <p className="text-sm font-bold text-red-900">BLOC 1 — Ajouter les valeurs ENUM</p>
+            <p className="text-xs text-red-700">Coller seul dans Supabase → SQL Editor → New query → Run</p>
           </div>
-        </div>
-        <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
-          <p className="text-xs text-gray-500">CHECK related_type + RLS conversations + RLS conversation_participants + RLS messages</p>
-          <button onClick={handleCopyConvFix}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow ${
-              copiedConvFix ? 'bg-emerald-500 text-white' : 'bg-red-600 text-white hover:bg-red-700'
+          <button onClick={handleCopyConvFix1}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow ${
+              copiedConvFix1 ? 'bg-emerald-500 text-white' : 'bg-red-600 text-white hover:bg-red-700'
             }`}>
-            {copiedConvFix
-              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
-              : <><Copy className="w-4 h-4" /> Copier SQL Fix Messagerie</>}
+            {copiedConvFix1
+              ? <><Check className="w-4 h-4" /> Copié !</>
+              : <><Copy className="w-4 h-4" /> Copier BLOC 1</>}
           </button>
         </div>
-        <div className="p-4 bg-gray-950 overflow-auto max-h-80">
-          <pre className="text-xs text-red-300 font-mono leading-relaxed whitespace-pre-wrap">{CONVERSATIONS_FIX_SQL}</pre>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-60">
+          <pre className="text-xs text-red-300 font-mono leading-relaxed whitespace-pre-wrap">{CONV_FIX_BLOC1}</pre>
+        </div>
+      </div>
+
+      {/* BLOC 2 */}
+      <div className="bg-white rounded-2xl border border-orange-200 shadow-sm overflow-hidden mb-6">
+        <div className="flex items-center justify-between px-5 py-3 bg-orange-50 border-b border-orange-200">
+          <div>
+            <p className="text-sm font-bold text-orange-900">BLOC 2 — CHECK + valeur par défaut + RLS</p>
+            <p className="text-xs text-orange-700">Coller dans un nouvel onglet SQL Editor → Run (après le BLOC 1)</p>
+          </div>
+          <button onClick={handleCopyConvFix2}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow ${
+              copiedConvFix2 ? 'bg-emerald-500 text-white' : 'bg-orange-600 text-white hover:bg-orange-700'
+            }`}>
+            {copiedConvFix2
+              ? <><Check className="w-4 h-4" /> Copié !</>
+              : <><Copy className="w-4 h-4" /> Copier BLOC 2</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-60">
+          <pre className="text-xs text-orange-200 font-mono leading-relaxed whitespace-pre-wrap">{CONV_FIX_BLOC2}</pre>
         </div>
       </div>
 

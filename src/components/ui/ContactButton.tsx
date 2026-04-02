@@ -147,66 +147,49 @@ export default function ContactButton({
 
   // ── Helper: créer conversation avec plusieurs stratégies ────────────────────
   /**
-   * related_type est un ENUM PostgreSQL dans Supabase.
-   * On essaie dans l'ordre :
-   *   S1 — payload complet avec le type exact
-   *   S2 — payload avec related_type = 'general' (valeur de repli sûre)
-   *   S3 — payload sans related_id (cas où sourceId invalide)
-   *   S4 — payload minimal : uniquement subject + related_type='general'
+   * related_type est un ENUM PostgreSQL. On essaie en cascade :
+   *   S1 — type exact + related_id  (fonctionne si la migration BLOC 1 a été faite)
+   *   S2 — related_type='general' + related_id  (fonctionne si 'general' existe dans l'ENUM)
+   *   S3 — related_type='general' sans related_id
+   *   S4 — sans related_type ni related_id  (laisse la valeur DEFAULT de la DB)
    *
-   * Si une erreur 42501 (RLS) apparaît à toutes les étapes,
-   * c'est un problème de politique RLS → message d'erreur spécifique.
+   * Erreur 42501 (RLS) = migration BLOC 2 manquante → arrêt immédiat.
    */
   const tryCreateConversation = async (subject: string, relatedType: string, relatedId: string | null) => {
-    // Stratégie 1 : type exact + related_id
+    // S1 : type exact + related_id
     const { data: d1, error: e1 } = await supabase
       .from('conversations')
       .insert({ subject, related_type: relatedType, related_id: relatedId })
-      .select('id')
-      .single();
+      .select('id').single();
     if (d1?.id) return { id: d1.id as string };
-    console.warn('[ContactButton] S1 échoué:', e1?.code, e1?.message, '| payload:', { related_type: relatedType, related_id: relatedId });
+    console.warn('[ContactButton] S1:', e1?.code, e1?.message);
+    if (e1?.code === '42501') return { id: null, error: e1 }; // RLS → inutile de continuer
 
-    // Si erreur RLS (42501) sur S1 → inutile de continuer avec d'autres payloads
-    // La RLS bloque TOUS les inserts, pas juste celui-là
-    if (e1?.code === '42501') {
-      return { id: null, error: e1 };
-    }
-
-    // Stratégie 2 : related_type = 'general' + related_id
+    // S2 : related_type='general' + related_id
     const { data: d2, error: e2 } = await supabase
       .from('conversations')
       .insert({ subject, related_type: 'general', related_id: relatedId })
-      .select('id')
-      .single();
+      .select('id').single();
     if (d2?.id) return { id: d2.id as string };
-    console.warn('[ContactButton] S2 échoué:', e2?.code, e2?.message);
+    console.warn('[ContactButton] S2:', e2?.code, e2?.message);
+    if (e2?.code === '42501') return { id: null, error: e2 };
 
-    if (e2?.code === '42501') {
-      return { id: null, error: e2 };
-    }
-
-    // Stratégie 3 : related_type = 'general' sans related_id
+    // S3 : related_type='general' sans related_id
     const { data: d3, error: e3 } = await supabase
       .from('conversations')
       .insert({ subject, related_type: 'general' })
-      .select('id')
-      .single();
+      .select('id').single();
     if (d3?.id) return { id: d3.id as string };
-    console.warn('[ContactButton] S3 échoué:', e3?.code, e3?.message);
+    console.warn('[ContactButton] S3:', e3?.code, e3?.message);
+    if (e3?.code === '42501') return { id: null, error: e3 };
 
-    if (e3?.code === '42501') {
-      return { id: null, error: e3 };
-    }
-
-    // Stratégie 4 : uniquement subject (laisse la DB mettre la valeur par défaut)
+    // S4 : sans related_type (utilise la valeur DEFAULT de la colonne)
     const { data: d4, error: e4 } = await supabase
       .from('conversations')
       .insert({ subject })
-      .select('id')
-      .single();
+      .select('id').single();
     if (d4?.id) return { id: d4.id as string };
-    console.error('[ContactButton] S4 échoué:', e4?.code, e4?.message);
+    console.error('[ContactButton] S4:', e4?.code, e4?.message);
 
     return { id: null, error: e1 || e2 || e3 || e4 };
   };
