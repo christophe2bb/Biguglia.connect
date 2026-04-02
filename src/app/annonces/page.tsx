@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Listing, ListingCategory } from '@/types';
 import Link from 'next/link';
@@ -74,11 +74,19 @@ export default function AnnoncesPage() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Petites annonces</h1>
           <p className="text-gray-500">Achetez, vendez, échangez entre habitants de Biguglia</p>
         </div>
-        {profile && (
-          <Button onClick={() => router.push('/annonces/nouvelle')}>
-            <Plus className="w-4 h-4" /> Publier
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <Link
+            href="/communaute/annonces"
+            className="flex items-center gap-1.5 px-3 py-2 bg-violet-50 text-violet-700 border border-violet-200 rounded-xl text-sm font-semibold hover:bg-violet-100 transition"
+          >
+            <Users className="w-4 h-4" /> Communauté
+          </Link>
+          {profile && (
+            <Button onClick={() => router.push('/annonces/nouvelle')}>
+              <Plus className="w-4 h-4" /> Publier
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filtres */}

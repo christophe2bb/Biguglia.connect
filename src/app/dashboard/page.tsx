@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   MessageSquare, Bell, Package, Eye, PenLine, Star,
@@ -11,6 +11,7 @@ import {
   FileText, MapPin, Trophy, HelpCircle, Users, Repeat2,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
+import { createClient } from '@/lib/supabase/client';
 import { useUnreadCounts } from '@/hooks/useUnreadCounts';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { cn, formatRelative } from '@/lib/utils';
@@ -239,6 +240,109 @@ function ProfileScoreRing({ score }: { score: number }) {
           strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" style={{ transition: 'stroke-dasharray 0.6s ease' }} />
       </svg>
       <span className="absolute inset-0 flex items-center justify-center text-sm font-black text-gray-900">{score}%</span>
+    </div>
+  );
+}
+
+// ─── Mes Communautés ──────────────────────────────────────────────────────────
+
+const COMMUNITY_THEMES: Record<string, { emoji: string; label: string; color: string; bg: string; border: string }> = {
+  collectionneurs: { emoji: '🏆', label: 'Collectionneurs', color: 'text-amber-700', bg: 'bg-amber-50',   border: 'border-amber-200' },
+  promenades:      { emoji: '🥾', label: 'Promenades',      color: 'text-green-700', bg: 'bg-green-50',   border: 'border-green-200' },
+  evenements:      { emoji: '🎉', label: 'Événements',      color: 'text-pink-700',  bg: 'bg-pink-50',    border: 'border-pink-200' },
+  associations:    { emoji: '🤝', label: 'Associations',    color: 'text-blue-700',  bg: 'bg-blue-50',    border: 'border-blue-200' },
+  'coups-de-main': { emoji: '🙌', label: 'Coups de main',   color: 'text-orange-700',bg: 'bg-orange-50',  border: 'border-orange-200' },
+  materiel:        { emoji: '🔧', label: 'Matériel',        color: 'text-teal-700',  bg: 'bg-teal-50',    border: 'border-teal-200' },
+  annonces:        { emoji: '📢', label: 'Annonces',        color: 'text-violet-700',bg: 'bg-violet-50',  border: 'border-violet-200' },
+  'perdu-trouve':  { emoji: '🔍', label: 'Perdu/Trouvé',    color: 'text-red-700',   bg: 'bg-red-50',     border: 'border-red-200' },
+};
+
+function CommunitiesSection({ userId }: { userId: string }) {
+  const supabase = createClient();
+  const [memberships, setMemberships] = useState<Array<{
+    theme_slug: string;
+    joined_at: string;
+    status: string;
+  }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase
+        .from('theme_memberships')
+        .select('theme_slug, joined_at, status')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .order('joined_at', { ascending: false });
+      setMemberships(data ?? []);
+      setLoading(false);
+    };
+    load().catch(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  if (loading) return null;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Users className="w-4 h-4 text-gray-400" />
+          <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Mes communautés</span>
+          {memberships.length > 0 && (
+            <span className="bg-brand-100 text-brand-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+              {memberships.length}
+            </span>
+          )}
+        </div>
+        <Link href="/communaute/collectionneurs" className="text-xs text-brand-600 font-semibold hover:text-brand-700 flex items-center gap-1">
+          Explorer <ChevronRight className="w-3 h-3" />
+        </Link>
+      </div>
+
+      {memberships.length === 0 ? (
+        <div className="bg-gradient-to-r from-brand-50 to-violet-50 border border-brand-100 rounded-2xl p-5 flex items-center gap-4">
+          <div className="w-10 h-10 bg-brand-100 rounded-xl flex items-center justify-center text-xl flex-shrink-0">🏘️</div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-gray-800">Rejoignez des communautés thématiques</p>
+            <p className="text-xs text-gray-500 mt-0.5">Collectionneurs, Promenades, Événements, Associations…</p>
+          </div>
+          <Link
+            href="/communaute/collectionneurs"
+            className="flex-shrink-0 px-3 py-1.5 bg-brand-600 text-white text-xs font-bold rounded-xl hover:bg-brand-700 transition-colors"
+          >
+            Découvrir
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {memberships.map((m) => {
+            const conf = COMMUNITY_THEMES[m.theme_slug];
+            if (!conf) return null;
+            return (
+              <Link key={m.theme_slug} href={`/communaute/${m.theme_slug}`}>
+                <div className={cn(
+                  'flex flex-col items-center gap-1.5 p-3 rounded-2xl border transition-all hover:shadow-md hover:-translate-y-0.5 text-center',
+                  conf.bg, conf.border
+                )}>
+                  <span className="text-2xl">{conf.emoji}</span>
+                  <span className={cn('text-xs font-bold', conf.color)}>{conf.label}</span>
+                  <span className="text-[10px] text-gray-400">
+                    depuis {new Date(m.joined_at).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
+          {/* CTA rejoindre d'autres */}
+          <Link href="/communaute/promenades">
+            <div className="flex flex-col items-center gap-1.5 p-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50 text-center hover:bg-gray-100 transition-colors group">
+              <span className="text-2xl opacity-40 group-hover:opacity-70 transition">+</span>
+              <span className="text-xs font-bold text-gray-400">Rejoindre</span>
+            </div>
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
@@ -538,6 +642,9 @@ function DashboardContent() {
                 ))}
               </div>
             </div>
+
+            {/* ── BLOC 3b : Mes Communautés ─── */}
+            <CommunitiesSection userId={profile.id} />
 
             {/* ── BLOC 4 : Confiance & Profil ─── */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

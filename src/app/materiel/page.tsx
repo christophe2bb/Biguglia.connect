@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Search, Info } from 'lucide-react';
+import { Plus, Search, Info, Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { EquipmentItem, EquipmentCategory } from '@/types';
 import Link from 'next/link';
@@ -66,11 +66,19 @@ export default function MaterielPage() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Prêt de matériel</h1>
           <p className="text-gray-500">Empruntez du matériel entre voisins à Biguglia</p>
         </div>
-        {profile && (
-          <Button onClick={() => router.push('/materiel/nouveau')}>
-            <Plus className="w-4 h-4" /> Proposer du matériel
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <Link
+            href="/communaute/materiel"
+            className="flex items-center gap-1.5 px-3 py-2 bg-teal-50 text-teal-700 border border-teal-200 rounded-xl text-sm font-semibold hover:bg-teal-100 transition"
+          >
+            <Users className="w-4 h-4" /> Communauté
+          </Link>
+          {profile && (
+            <Button onClick={() => router.push('/materiel/nouveau')}>
+              <Plus className="w-4 h-4" /> Proposer du matériel
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Info */}

@@ -1,9 +1,10 @@
 'use client';
 
+import Link from 'next/link';
 import Avatar from '@/components/ui/Avatar';
 import ContactButton from '@/components/ui/ContactButton';
 import { cn } from '@/lib/utils';
-import { MapPin, Calendar, Star } from 'lucide-react';
+import { MapPin, Calendar, Star, ExternalLink } from 'lucide-react';
 
 export interface ThemeMember {
   id: string;            // membership id
@@ -55,9 +56,13 @@ export default function MemberCard({
     )}>
       {/* Header : avatar + nom */}
       <div className="flex items-start gap-3">
-        <Avatar src={profile?.avatar_url} name={name} size="lg" />
+        <Link href={`/communaute/${themeSlug}/membre/${member.user_id}`}>
+          <Avatar src={profile?.avatar_url} name={name} size="lg" className="hover:ring-2 hover:ring-brand-300 transition" />
+        </Link>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-900 truncate">{name}</p>
+          <Link href={`/communaute/${themeSlug}/membre/${member.user_id}`} className="hover:text-brand-700 transition">
+            <p className="font-semibold text-gray-900 truncate hover:text-brand-700">{name}</p>
+          </Link>
           {tp?.level && (
             <p className="text-xs text-purple-600 font-medium flex items-center gap-1 mt-0.5">
               <Star className="w-3 h-3" />
@@ -117,9 +122,18 @@ export default function MemberCard({
         </p>
       )}
 
-      {/* Bouton contacter — conversation isolée par thème via sourceType='community' + sourceId=themeSlug */}
-      {!isMe && (
-        <div className="pt-1 border-t border-gray-50">
+      {/* Actions */}
+      <div className="pt-1 border-t border-gray-50 flex gap-2">
+        {/* Voir le profil */}
+        <Link
+          href={`/communaute/${themeSlug}/membre/${member.user_id}`}
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+          Voir le profil
+        </Link>
+        {/* Contacter — uniquement si ce n'est pas soi-même */}
+        {!isMe && (
           <ContactButton
             sourceType="community"
             sourceId={themeSlug}
@@ -127,12 +141,12 @@ export default function MemberCard({
             ownerId={member.user_id}
             userId={currentUserId ?? undefined}
             size="sm"
-            ctaLabel="Envoyer un message"
+            ctaLabel="Message"
             prefillMsg={`👋 Bonjour ! Je vous contacte depuis la communauté ${themeLabel}.`}
-            className="w-full justify-center"
+            className="flex-1 justify-center"
           />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

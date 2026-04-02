@@ -753,8 +753,9 @@ ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'collection_item';
 ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'service_request';
 ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'event';
 ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'general';
+ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'community';
 
--- Vérification : doit afficher les 10 valeurs
+-- Vérification : doit afficher les 11 valeurs
 SELECT enumlabel AS valeur FROM pg_enum e
 JOIN pg_type t ON e.enumtypid = t.oid
 WHERE t.typname = 'related_type'
@@ -780,7 +781,7 @@ ALTER TABLE conversations
     OR related_type::text IN (
       'service_request', 'listing', 'equipment', 'general',
       'help_request', 'collection_item', 'lost_found',
-      'association', 'outing', 'event'
+      'association', 'outing', 'event', 'community'
     )
   );
 
@@ -793,7 +794,7 @@ ALTER TABLE conversations
 CREATE OR REPLACE FUNCTION create_conversation_with_message(
   p_subject        TEXT,
   p_related_type   TEXT DEFAULT 'general',
-  p_related_id     UUID DEFAULT NULL,
+  p_related_id     TEXT DEFAULT NULL,   -- TEXT pour accepter UUID ou slug (ex: 'collectionneurs')
   p_owner_id       UUID DEFAULT NULL,
   p_initial_msg    TEXT DEFAULT NULL
 )
@@ -803,8 +804,9 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_user_id  UUID := auth.uid();
-  v_conv_id  UUID;
+  v_user_id    UUID := auth.uid();
+  v_conv_id    UUID;
+  v_related_id UUID := NULL;   -- UUID cast (NULL si p_related_id est un slug texte)
 BEGIN
   -- Vérification : utilisateur connecté obligatoire
   IF v_user_id IS NULL THEN
@@ -816,37 +818,60 @@ BEGIN
     RAISE EXCEPTION 'SELF_CONTACT';
   END IF;
 
-  -- Chercher une conversation existante entre les deux utilisateurs pour ce contenu
-  IF p_related_id IS NOT NULL AND p_owner_id IS NOT NULL THEN
-    SELECT c.id INTO v_conv_id
-    FROM conversations c
-    JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = v_user_id
-    JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = p_owner_id
-    WHERE c.related_id = p_related_id
-    LIMIT 1;
+  -- Tenter de caster p_related_id en UUID (échoue silencieusement si c'est un slug texte)
+  BEGIN
+    IF p_related_id IS NOT NULL THEN
+      v_related_id := p_related_id::UUID;
+    END IF;
+  EXCEPTION WHEN invalid_text_representation THEN
+    v_related_id := NULL;  -- slug communauté (ex: 'collectionneurs') → pas d'UUID
+  END;
+
+  -- Chercher conversation existante isolée par (related_type, related_id OU subject)
+  IF p_owner_id IS NOT NULL THEN
+    IF v_related_id IS NOT NULL THEN
+      -- Isolation stricte : même related_type ET même related_id (UUID)
+      SELECT c.id INTO v_conv_id
+      FROM conversations c
+      JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = v_user_id
+      JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = p_owner_id
+      WHERE c.related_type::text = p_related_type
+        AND c.related_id = v_related_id
+      ORDER BY c.updated_at DESC
+      LIMIT 1;
+    ELSIF p_related_id IS NOT NULL THEN
+      -- Slug communauté : isolation par (related_type, subject)
+      SELECT c.id INTO v_conv_id
+      FROM conversations c
+      JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = v_user_id
+      JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = p_owner_id
+      WHERE c.related_type::text = p_related_type
+        AND c.subject = p_subject
+      ORDER BY c.updated_at DESC
+      LIMIT 1;
+    ELSE
+      -- Pas de related_id : cherche conv générale entre les deux (sans related_id)
+      SELECT c.id INTO v_conv_id
+      FROM conversations c
+      JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = v_user_id
+      JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = p_owner_id
+      WHERE c.related_id IS NULL
+      ORDER BY c.updated_at DESC
+      LIMIT 1;
+    END IF;
   END IF;
 
-  -- Si pas trouvé, chercher n'importe quelle conversation entre les deux
-  IF v_conv_id IS NULL AND p_owner_id IS NOT NULL THEN
-    SELECT c.id INTO v_conv_id
-    FROM conversations c
-    JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = v_user_id
-    JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = p_owner_id
-    ORDER BY c.updated_at DESC
-    LIMIT 1;
-  END IF;
-
-  -- Conversation existante → la retourner directement
+  -- Conversation existante → la retourner
   IF v_conv_id IS NOT NULL THEN
     RETURN v_conv_id;
   END IF;
 
-  -- Créer la nouvelle conversation
+  -- Créer la nouvelle conversation (related_id = NULL si slug communauté)
   INSERT INTO conversations (subject, related_type, related_id)
   VALUES (
     p_subject,
     COALESCE(p_related_type, 'general')::related_type,
-    p_related_id
+    v_related_id    -- NULL pour les slugs communauté, UUID pour les vraies ressources
   )
   RETURNING id INTO v_conv_id;
 
@@ -1876,6 +1901,100 @@ SELECT
   (SELECT COUNT(*) FROM theme_profiles)    AS nb_profils_theme;
 `;
 
+// ─── SQL Discussions communautaires ────────────────────────────────────────────
+const DISCUSSIONS_SQL = `-- ============================================================
+-- BIGUGLIA CONNECT — Discussions communautaires (Phase 2)
+-- Coller dans Supabase > SQL Editor > Run
+-- ⚠️  Exécuter APRÈS le SQL Communautés (theme_memberships, theme_profiles)
+-- ============================================================
+
+-- 1. Table des discussions publiques thématiques
+CREATE TABLE IF NOT EXISTS theme_discussions (
+  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  theme_slug   TEXT NOT NULL,
+  author_id    UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  content      TEXT NOT NULL CHECK (char_length(content) BETWEEN 1 AND 500),
+  is_pinned    BOOLEAN NOT NULL DEFAULT false,
+  likes_count  INTEGER NOT NULL DEFAULT 0,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS theme_discussions_theme_idx  ON theme_discussions(theme_slug);
+CREATE INDEX IF NOT EXISTS theme_discussions_author_idx ON theme_discussions(author_id);
+CREATE INDEX IF NOT EXISTS theme_discussions_date_idx   ON theme_discussions(theme_slug, created_at DESC);
+
+ALTER TABLE theme_discussions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Lecture publique discussions" ON theme_discussions;
+CREATE POLICY "Lecture publique discussions"
+  ON theme_discussions FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Membres peuvent publier" ON theme_discussions;
+CREATE POLICY "Membres peuvent publier"
+  ON theme_discussions FOR INSERT
+  WITH CHECK (auth.uid() = author_id);
+
+DROP POLICY IF EXISTS "Auteur peut modifier" ON theme_discussions;
+CREATE POLICY "Auteur peut modifier"
+  ON theme_discussions FOR UPDATE
+  USING (auth.uid() = author_id);
+
+DROP POLICY IF EXISTS "Auteur peut supprimer" ON theme_discussions;
+CREATE POLICY "Auteur peut supprimer"
+  ON theme_discussions FOR DELETE
+  USING (auth.uid() = author_id);
+
+-- 2. Table des likes de discussions
+CREATE TABLE IF NOT EXISTS theme_discussion_likes (
+  discussion_id UUID NOT NULL REFERENCES theme_discussions(id) ON DELETE CASCADE,
+  user_id       UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (discussion_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS theme_discussion_likes_user_idx ON theme_discussion_likes(user_id);
+
+ALTER TABLE theme_discussion_likes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Lecture publique likes" ON theme_discussion_likes;
+CREATE POLICY "Lecture publique likes"
+  ON theme_discussion_likes FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Membres peuvent liker" ON theme_discussion_likes;
+CREATE POLICY "Membres peuvent liker"
+  ON theme_discussion_likes FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Membres peuvent unliker" ON theme_discussion_likes;
+CREATE POLICY "Membres peuvent unliker"
+  ON theme_discussion_likes FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- 3. Fonction trigger pour mettre à jour le compteur de likes
+CREATE OR REPLACE FUNCTION update_discussion_likes_count()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    UPDATE theme_discussions SET likes_count = likes_count + 1 WHERE id = NEW.discussion_id;
+  ELSIF TG_OP = 'DELETE' THEN
+    UPDATE theme_discussions SET likes_count = GREATEST(0, likes_count - 1) WHERE id = OLD.discussion_id;
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS update_likes_count_trigger ON theme_discussion_likes;
+CREATE TRIGGER update_likes_count_trigger
+  AFTER INSERT OR DELETE ON theme_discussion_likes
+  FOR EACH ROW EXECUTE FUNCTION update_discussion_likes_count();
+
+-- 4. Vérification
+SELECT
+  (SELECT COUNT(*) FROM theme_discussions) AS nb_discussions,
+  (SELECT COUNT(*) FROM theme_discussion_likes) AS nb_likes;
+`;
+
 type StorageDiag = {
   bucketExists: boolean | null;
   bucketPublic: boolean | null;
@@ -1906,6 +2025,7 @@ export default function MigrationPage() {
   const [copiedConvFix2, setCopiedConvFix2] = useState(false);
   const [copiedCollectionComments, setCopiedCollectionComments] = useState(false);
   const [copiedCommunity, setCopiedCommunity] = useState(false);
+  const [copiedDiscussions, setCopiedDiscussions] = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -2067,6 +2187,12 @@ export default function MigrationPage() {
     navigator.clipboard.writeText(COMMUNITY_SQL);
     setCopiedCommunity(true);
     setTimeout(() => setCopiedCommunity(false), 4000);
+  };
+
+  const handleCopyDiscussions = () => {
+    navigator.clipboard.writeText(DISCUSSIONS_SQL);
+    setCopiedDiscussions(true);
+    setTimeout(() => setCopiedDiscussions(false), 4000);
   };
 
   const handleCopySearch = () => {
@@ -3256,6 +3382,35 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-80">
           <pre className="text-xs text-violet-300 font-mono leading-relaxed whitespace-pre-wrap">{COMMUNITY_SQL}</pre>
+        </div>
+      </div>
+
+      {/* ─── SQL Discussions communautaires ─── */}
+      <div className="bg-white rounded-2xl border-2 border-indigo-200 shadow-sm overflow-hidden mb-6">
+        <div className="px-5 py-4 bg-indigo-50 border-b border-indigo-100 flex items-start gap-3">
+          <MessageSquare className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-indigo-800">
+            <strong>💬 SQL Discussions communautaires — Forum public thématique</strong>
+            <p className="text-xs mt-1 text-indigo-700">
+              Active l&apos;onglet &quot;Discussions&quot; dans chaque communauté : messages publics, épinglés, likes.
+              Tables <code>theme_discussions</code> + <code>theme_discussion_likes</code> + trigger likes + RLS.
+              <br />⚠️ À exécuter <strong>APRÈS</strong> le SQL Communautés.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
+          <p className="text-xs text-gray-500">2 tables · trigger compteur likes · RLS · index performances · Phase 2 communautés</p>
+          <button onClick={handleCopyDiscussions}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow ${
+              copiedDiscussions ? 'bg-emerald-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+            }`}>
+            {copiedDiscussions
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Discussions</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-80">
+          <pre className="text-xs text-indigo-300 font-mono leading-relaxed whitespace-pre-wrap">{DISCUSSIONS_SQL}</pre>
         </div>
       </div>
 
