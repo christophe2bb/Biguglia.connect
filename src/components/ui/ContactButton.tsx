@@ -229,8 +229,9 @@ export default function ContactButton({
 
       if (convError || !newConv) {
         console.error('[ContactButton] INSERT conversations error:', JSON.stringify(convError));
-        // Si l'erreur est un CHECK sur related_type, retry avec 'general'
-        if (convError?.code === '23514') {
+        // 22P02 = invalid enum value | 23514 = CHECK constraint violation
+        // Dans les deux cas : retry avec related_type = 'general'
+        if (convError?.code === '23514' || convError?.code === '22P02') {
           const { data: fallbackConv, error: fbErr } = await supabase
             .from('conversations')
             .insert({ subject, related_type: 'general', related_id: sourceId || null })

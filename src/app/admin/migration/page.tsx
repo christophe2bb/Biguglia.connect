@@ -743,25 +743,30 @@ ORDER BY tablename;`;
 
 // ─── SQL Fix rapide conversations (OBLIGATOIRE si messagerie ne fonctionne pas) ──
 const CONVERSATIONS_FIX_SQL = `-- ============================================================
--- BIGUGLIA CONNECT — Fix messagerie : CHECK related_type + RLS
--- À exécuter si le bouton "Message privé" affiche une erreur
--- Coller dans Supabase > SQL Editor > Run
+-- BIGUGLIA CONNECT — Fix messagerie : ENUM related_type + RLS
+-- Erreur typique : "invalid input value for enum related_type"
+-- Coller dans Supabase > SQL Editor > New query > Run
 -- ============================================================
 
--- 1. Mettre à jour le CHECK constraint related_type (ajoute 'event')
-ALTER TABLE conversations DROP CONSTRAINT IF EXISTS conversations_related_type_check;
-ALTER TABLE conversations ADD CONSTRAINT conversations_related_type_check
-  CHECK (related_type IN (
-    'service_request','listing','equipment','general',
-    'help_request','lost_found','association','outing','collection_item','event'
-  ));
+-- 1. Ajouter les valeurs manquantes dans l'ENUM related_type
+--    (ALTER TYPE ADD VALUE est idempotent via IF NOT EXISTS)
+DO $$ BEGIN
+  BEGIN ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'listing';        EXCEPTION WHEN others THEN NULL; END;
+  BEGIN ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'equipment';      EXCEPTION WHEN others THEN NULL; END;
+  BEGIN ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'help_request';   EXCEPTION WHEN others THEN NULL; END;
+  BEGIN ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'lost_found';     EXCEPTION WHEN others THEN NULL; END;
+  BEGIN ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'association';    EXCEPTION WHEN others THEN NULL; END;
+  BEGIN ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'outing';         EXCEPTION WHEN others THEN NULL; END;
+  BEGIN ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'collection_item'; EXCEPTION WHEN others THEN NULL; END;
+  BEGIN ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'service_request'; EXCEPTION WHEN others THEN NULL; END;
+  BEGIN ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'event';          EXCEPTION WHEN others THEN NULL; END;
+  BEGIN ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'general';        EXCEPTION WHEN others THEN NULL; END;
+END $$;
 
--- 2. S'assurer que les colonnes de base existent
-ALTER TABLE conversations ADD COLUMN IF NOT EXISTS subject TEXT;
-ALTER TABLE conversations ADD COLUMN IF NOT EXISTS related_type TEXT;
-ALTER TABLE conversations ADD COLUMN IF NOT EXISTS related_id UUID;
+-- 2. Recharge du cache PostgREST (obligatoire après modification d'ENUM)
+NOTIFY pgrst, 'reload schema';
 
--- 3. RLS : permettre aux utilisateurs connectés de créer une conversation
+-- 3. RLS conversations : permettre la création + lecture
 ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Créer une conversation" ON conversations;
@@ -786,7 +791,7 @@ CREATE POLICY "Modifier ses conversations" ON conversations
     )
   );
 
--- 4. RLS sur conversation_participants
+-- 4. RLS conversation_participants
 ALTER TABLE conversation_participants ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Ajouter des participants" ON conversation_participants;
@@ -803,7 +808,7 @@ CREATE POLICY "Voir participants de ses conversations" ON conversation_participa
     )
   );
 
--- 5. RLS sur messages
+-- 5. RLS messages
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Voir messages de ses conversations" ON messages;
@@ -825,13 +830,11 @@ CREATE POLICY "Envoyer un message" ON messages
     )
   );
 
--- 6. Recharge du cache PostgREST
-NOTIFY pgrst, 'reload schema';
-
--- Vérification
-SELECT 'CHECK constraint OK' AS status,
-  (SELECT COUNT(*) FROM conversations) AS nb_conversations,
-  (SELECT COUNT(*) FROM messages) AS nb_messages;
+-- Vérification : liste les valeurs de l'ENUM related_type
+SELECT enumlabel AS valeur_enum
+FROM pg_enum
+WHERE enumtypid = 'related_type'::regtype
+ORDER BY enumsortorder;
 `;
 
 // ─── SQL Messagerie universelle — enrichissement des conversations ──────────────
