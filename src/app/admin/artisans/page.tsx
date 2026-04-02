@@ -6,7 +6,7 @@ import {
   CheckCircle, XCircle, Eye, ChevronLeft, Search,
   FileText, ExternalLink, MessageSquare, AlertCircle,
   Shield, Clock, MapPin, Briefcase, ChevronDown, ChevronUp,
-  HardHat, Users
+  Phone,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -35,55 +35,39 @@ interface ArtisanEntry {
   doc_id_url?: string;
   rejection_reason?: string;
   created_at: string;
-  profile?: Profile & { email: string };
+  profile?: Profile & { email: string; phone?: string };
   trade_category?: { name: string; icon: string };
 }
 
+/* ─── Composant : bouton d'ouverture de document ─── */
 function DocLink({ storagePath, label, icon }: { storagePath?: string; label: string; icon: string }) {
-  const [signedUrl, setSignedUrl] = useState<string | null>(null);
-  const [loadingUrl, setLoadingUrl] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const openDoc = async () => {
     if (!storagePath) return;
-    setLoadingUrl(true);
+    setLoading(true);
     try {
       const supabase = createClient();
-      // Le chemin stocké est "documents/userId/fichier.ext"
-      // On extrait la partie après "documents/"
       const path = storagePath.startsWith('documents/')
         ? storagePath.slice('documents/'.length)
         : storagePath;
-
-      const { data, error } = await supabase.storage
-        .from('documents')
-        .createSignedUrl(path, 60 * 60); // URL valide 1 heure
-
-      if (error || !data?.signedUrl) {
-        // Fallback : peut-être encore dans l'ancien bucket "photos" (migration en cours)
-        const { data: d2 } = await supabase.storage
-          .from('photos')
-          .createSignedUrl(path, 60 * 60);
-        if (d2?.signedUrl) {
-          window.open(d2.signedUrl, '_blank');
-        } else {
-          // Dernier recours : essai URL directe
-          window.open(storagePath, '_blank');
-          toast.error('Impossible de générer une URL sécurisée — le document s\'est ouvert directement.');
-        }
-      } else {
+      const { data } = await supabase.storage.from('documents').createSignedUrl(path, 3600);
+      if (data?.signedUrl) {
         window.open(data.signedUrl, '_blank');
+      } else {
+        window.open(storagePath, '_blank');
+        toast('Ouverture directe — URL sécurisée non disponible', { icon: '⚠️' });
       }
     } catch {
       window.open(storagePath, '_blank');
     } finally {
-      setLoadingUrl(false);
+      setLoading(false);
     }
   };
 
   if (!storagePath) return (
     <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-gray-400 text-xs">
-      <span>{icon}</span>
-      <span className="flex-1">{label}</span>
+      <span>{icon}</span><span className="flex-1">{label}</span>
       <span className="italic text-gray-300">Non fourni</span>
     </div>
   );
@@ -91,19 +75,20 @@ function DocLink({ storagePath, label, icon }: { storagePath?: string; label: st
   return (
     <button
       onClick={openDoc}
-      disabled={loadingUrl}
-      className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-green-50 border border-green-200 text-green-700 text-xs hover:bg-green-100 transition-colors group disabled:opacity-60 text-left"
+      disabled={loading}
+      className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-green-50 border border-green-200 text-green-700 text-xs hover:bg-green-100 transition-colors disabled:opacity-60 text-left"
     >
       <span>{icon}</span>
       <span className="font-medium flex-1">{label}</span>
-      {loadingUrl
+      {loading
         ? <div className="w-3 h-3 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-        : <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100" />
+        : <ExternalLink className="w-3 h-3 opacity-60" />
       }
     </button>
   );
 }
 
+/* ─── Composant : carte artisan ─── */
 function ArtisanCard({
   artisan, onApprove, onReject,
 }: {
@@ -114,15 +99,82 @@ function ArtisanCard({
   const [expanded, setExpanded] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState('');
+  const [confirmedLocal, setConfirmedLocal] = useState(false);
+  const [sendingMsg, setSendingMsg] = useState(false);
 
   const isPending = artisan.profile?.role === 'artisan_pending';
   const isVerified = artisan.profile?.role === 'artisan_verified';
-
   const docCount = [artisan.doc_kbis_url, artisan.doc_insurance_url, artisan.doc_id_url].filter(Boolean).length;
+
+  /* Envoyer un message privé à l'artisan via la messagerie */
+  const handleSendMessage = async () => {
+    if (!artisan.user_id) return;
+    setSendingMsg(true);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error('Non connecté'); return; }
+
+      // Vérifier si une conversation admin ↔ artisan existe déjà
+      const { data: myConvs } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user.id);
+
+      const myConvIds = (myConvs || []).map(c => c.conversation_id);
+      let convId: string | null = null;
+
+      if (myConvIds.length > 0) {
+        const { data: shared } = await supabase
+          .from('conversation_participants')
+          .select('conversation_id')
+          .eq('user_id', artisan.user_id)
+          .in('conversation_id', myConvIds);
+        if (shared && shared.length > 0) convId = shared[0].conversation_id;
+      }
+
+      if (!convId) {
+        // Créer une nouvelle conversation
+        const { data: conv, error: convErr } = await supabase
+          .from('conversations')
+          .insert({ subject: `Dossier artisan — ${artisan.profile?.full_name || artisan.business_name}`, related_type: 'general' })
+          .select('id')
+          .single();
+
+        if (convErr || !conv) {
+          // Essai sans related_type
+          const { data: conv2 } = await supabase
+            .from('conversations')
+            .insert({ subject: `Dossier artisan — ${artisan.profile?.full_name || artisan.business_name}` })
+            .select('id')
+            .single();
+          if (!conv2) { toast.error('Impossible de créer la conversation'); return; }
+          convId = conv2.id;
+        } else {
+          convId = conv.id;
+        }
+
+        // Ajouter les participants
+        await supabase.from('conversation_participants').upsert([
+          { conversation_id: convId, user_id: user.id },
+          { conversation_id: convId, user_id: artisan.user_id },
+        ], { onConflict: 'conversation_id,user_id', ignoreDuplicates: true });
+      }
+
+      // Rediriger vers la messagerie
+      window.location.href = `/messages/${convId}`;
+    } catch (e) {
+      console.error(e);
+      toast.error('Erreur lors de l\'ouverture de la messagerie');
+    } finally {
+      setSendingMsg(false);
+    }
+  };
 
   return (
     <div className={`bg-white rounded-2xl border-2 overflow-hidden transition-all ${isPending ? 'border-orange-200' : isVerified ? 'border-green-200' : 'border-gray-200'}`}>
-      {/* En-tête de la carte */}
+
+      {/* ── En-tête résumé ── */}
       <div className="p-5">
         <div className="flex items-start gap-4">
           <Avatar
@@ -130,22 +182,16 @@ function ArtisanCard({
             name={artisan.profile?.full_name || artisan.business_name}
             size="lg"
           />
+
+          {/* Infos principales */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className="font-bold text-gray-900 text-lg">{artisan.business_name}</span>
+              <span className="font-bold text-gray-900 text-lg">
+                {artisan.profile?.full_name || artisan.business_name || 'Artisan'}
+              </span>
               <Badge variant={isVerified ? 'success' : isPending ? 'warning' : 'default'}>
                 {ROLE_LABELS[artisan.profile?.role || 'artisan_pending']}
               </Badge>
-              {/* Type d'artisan */}
-              {artisan.artisan_type === 'professionnel' ? (
-                <span className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium border border-blue-200">
-                  <HardHat className="w-3 h-3" /> Pro
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium border border-green-200">
-                  <Users className="w-3 h-3" /> Particulier
-                </span>
-              )}
               {docCount > 0 && (
                 <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
                   📎 {docCount} doc{docCount > 1 ? 's' : ''}
@@ -153,23 +199,37 @@ function ArtisanCard({
               )}
             </div>
 
-            <div className="text-sm text-gray-600 mb-2">
-              <span className="font-medium">{artisan.profile?.full_name}</span>
-              {' · '}
-              <a href={`mailto:${artisan.profile?.email}`} className="text-brand-600 hover:underline">
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 mb-1">
+              {/* Téléphone */}
+              {artisan.profile?.phone ? (
+                <span className="flex items-center gap-1 font-medium text-brand-700">
+                  <Phone className="w-3.5 h-3.5" />
+                  <a href={`tel:${artisan.profile.phone}`} className="hover:underline">{artisan.profile.phone}</a>
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-gray-400 italic text-xs">
+                  <Phone className="w-3 h-3" /> Téléphone non renseigné
+                </span>
+              )}
+              {/* Email */}
+              <a href={`mailto:${artisan.profile?.email}`} className="text-brand-600 hover:underline text-xs">
                 {artisan.profile?.email}
               </a>
             </div>
 
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-              <span className="flex items-center gap-1">
-                <Briefcase className="w-3 h-3" />
-                {artisan.trade_category?.icon} {artisan.trade_category?.name}
-              </span>
-              <span className="flex items-center gap-1">
-                <MapPin className="w-3 h-3" /> {artisan.service_area}
-              </span>
-              {artisan.years_experience && (
+              {artisan.trade_category && (
+                <span className="flex items-center gap-1">
+                  <Briefcase className="w-3 h-3" />
+                  {artisan.trade_category.icon} {artisan.trade_category.name}
+                </span>
+              )}
+              {artisan.service_area && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="w-3 h-3" /> {artisan.service_area}
+                </span>
+              )}
+              {artisan.years_experience != null && (
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" /> {artisan.years_experience} ans d&apos;exp.
                 </span>
@@ -183,38 +243,43 @@ function ArtisanCard({
             </div>
           </div>
 
-          {/* Boutons d'action */}
-          <div className="flex flex-col gap-2 flex-shrink-0">
+          {/* Boutons d'action rapide */}
+          <div className="flex flex-col gap-2 flex-shrink-0 items-end">
             <button
               onClick={() => setExpanded(!expanded)}
               className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100"
             >
               {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              {expanded ? 'Réduire' : 'Dossier complet'}
+              {expanded ? 'Réduire' : 'Voir le dossier'}
             </button>
+
+            {/* Bouton messagerie */}
+            <button
+              onClick={handleSendMessage}
+              disabled={sendingMsg}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-brand-700 border border-brand-200 rounded-xl hover:bg-brand-50 transition-colors disabled:opacity-60"
+            >
+              {sendingMsg
+                ? <div className="w-3 h-3 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                : <MessageSquare className="w-3.5 h-3.5" />
+              }
+              Envoyer un message
+            </button>
+
             <Link href={`/artisans/${artisan.id}`} target="_blank">
               <Button size="sm" variant="outline" className="w-full">
                 <Eye className="w-3.5 h-3.5" /> Profil public
               </Button>
             </Link>
-            {/* Validation rapide directement visible */}
-            {isPending && (
-              <button
-                onClick={() => onApprove(artisan.user_id)}
-                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-green-600 text-white text-xs font-bold rounded-xl hover:bg-green-700 transition-colors w-full"
-              >
-                <CheckCircle className="w-3.5 h-3.5" /> Valider
-              </button>
-            )}
           </div>
         </div>
       </div>
 
-      {/* Détails dépliables */}
+      {/* ── Dossier complet dépliable ── */}
       {expanded && (
         <div className="border-t border-gray-100 p-5 space-y-5 bg-gray-50/50">
 
-          {/* Description */}
+          {/* Présentation */}
           {artisan.description && (
             <div>
               <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Présentation</h4>
@@ -222,14 +287,14 @@ function ArtisanCard({
             </div>
           )}
 
-          {/* Infos légales */}
+          {/* Infos légales déclarées */}
           {(artisan.siret || artisan.insurance) && (
             <div>
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Informations légales déclarées</h4>
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Informations légales</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {artisan.siret && (
                   <div className="bg-white rounded-xl border border-gray-200 px-3 py-2 text-sm">
-                    <span className="text-gray-500 text-xs">SIRET</span>
+                    <span className="text-gray-500 text-xs">SIRET déclaré</span>
                     <div className="font-mono font-medium text-gray-900">{artisan.siret}</div>
                   </div>
                 )}
@@ -253,21 +318,35 @@ function ArtisanCard({
               <DocLink storagePath={artisan.doc_kbis_url} label="Kbis / Justificatif d'immatriculation" icon="📋" />
               <DocLink storagePath={artisan.doc_id_url} label="Pièce d'identité" icon="🪪" />
             </div>
-
             {docCount === 0 && (
               <div className="mt-2 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
                 <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-700">
                   Aucun document fourni. Vous pouvez valider si vous avez vérifié l&apos;artisan par un autre moyen,
-                  ou refuser en demandant les documents.
+                  ou utiliser le bouton &ldquo;Envoyer un message&rdquo; pour lui demander ses documents.
                 </p>
               </div>
             )}
           </div>
 
-          {/* Actions de modération */}
+          {/* ── Actions de modération pour artisan en attente ── */}
           {isPending && (
-            <div className="border-t border-gray-200 pt-4">
+            <div className="border-t border-gray-200 pt-4 space-y-4">
+
+              {/* Checkbox obligatoire */}
+              <label className="flex items-center gap-3 cursor-pointer bg-green-50 border border-green-200 rounded-xl p-3 hover:bg-green-100 transition-colors">
+                <input
+                  type="checkbox"
+                  className="w-5 h-5 accent-green-600 flex-shrink-0"
+                  checked={confirmedLocal}
+                  onChange={e => setConfirmedLocal(e.target.checked)}
+                />
+                <div>
+                  <span className="text-sm font-semibold text-green-800">✅ Je confirme que cet artisan est bien de Biguglia</span>
+                  <p className="text-xs text-green-600 mt-0.5">Cochez cette case pour activer le bouton d&apos;approbation</p>
+                </div>
+              </label>
+
               {!rejecting ? (
                 <div className="flex items-center gap-3">
                   <button
@@ -277,10 +356,17 @@ function ArtisanCard({
                     <XCircle className="w-4 h-4" /> Refuser
                   </button>
                   <button
-                    onClick={() => onApprove(artisan.user_id)}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-colors"
+                    onClick={() => {
+                      if (!confirmedLocal) {
+                        toast.error('Cochez d\'abord la case "Artisan de Biguglia"');
+                        return;
+                      }
+                      onApprove(artisan.user_id);
+                    }}
+                    disabled={!confirmedLocal}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    <CheckCircle className="w-4 h-4" /> ✅ Valider le profil artisan
+                    <CheckCircle className="w-4 h-4" /> ✅ Approuver le profil artisan
                   </button>
                 </div>
               ) : (
@@ -298,14 +384,14 @@ function ArtisanCard({
                         'Les documents fournis sont illisibles ou incomplets. Veuillez les renvoyer.',
                         'Votre assurance est expirée. Veuillez fournir une attestation en cours de validité.',
                         'Activité non éligible à la plateforme Biguglia Connect.',
-                      ].map(suggestion => (
+                      ].map(s => (
                         <button
-                          key={suggestion}
+                          key={s}
                           type="button"
-                          onClick={() => setReason(suggestion)}
+                          onClick={() => setReason(s)}
                           className="w-full text-left text-xs px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-brand-300 hover:bg-brand-50 transition-colors"
                         >
-                          {suggestion}
+                          {s}
                         </button>
                       ))}
                     </div>
@@ -324,7 +410,10 @@ function ArtisanCard({
                       Annuler
                     </button>
                     <button
-                      onClick={() => { if (!reason.trim()) { toast.error('Indiquez un motif de refus'); return; } onReject(artisan.user_id, reason); }}
+                      onClick={() => {
+                        if (!reason.trim()) { toast.error('Indiquez un motif de refus'); return; }
+                        onReject(artisan.user_id, reason);
+                      }}
                       className="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition-colors"
                     >
                       Confirmer le refus et notifier l&apos;artisan
@@ -335,6 +424,7 @@ function ArtisanCard({
             </div>
           )}
 
+          {/* Artisan vérifié */}
           {isVerified && (
             <div className="border-t border-gray-200 pt-4 flex items-center justify-between">
               <div className="flex items-center gap-2 text-green-600 text-sm">
@@ -358,6 +448,7 @@ function ArtisanCard({
   );
 }
 
+/* ─── Page principale ─── */
 export default function AdminArtisansPage() {
   const { profile, isAdmin } = useAuthStore();
   const router = useRouter();
@@ -375,52 +466,68 @@ export default function AdminArtisansPage() {
 
   const fetchArtisans = async () => {
     setLoading(true);
+    setLoadError(null);
     const supabase = createClient();
 
-    // Requête 1 : colonnes de base (toujours présentes)
-    const { data: baseData, error: baseError } = await supabase
-      .from('artisan_profiles')
-      .select(`
-        id, user_id, business_name, description, service_area, years_experience,
-        siret, insurance, created_at,
-        profile:profiles!artisan_profiles_user_id_fkey(id, full_name, email, avatar_url, role, status, created_at),
-        trade_category:trade_categories(name, icon)
-      `)
+    // ── Étape 1 : profils selon le filtre ──
+    let profilesQuery = supabase
+      .from('profiles')
+      .select('id, full_name, email, avatar_url, role, status, phone, created_at')
       .order('created_at', { ascending: true });
 
-    if (baseError) {
-      console.error('[AdminArtisans] Erreur requête base:', baseError);
-      setLoadError(`Erreur Supabase : ${baseError.message} (code: ${baseError.code})`);
-      toast.error('Erreur de chargement : ' + baseError.message);
+    if (filter === 'pending') profilesQuery = profilesQuery.eq('role', 'artisan_pending');
+    else if (filter === 'verified') profilesQuery = profilesQuery.eq('role', 'artisan_verified');
+    else profilesQuery = profilesQuery.in('role', ['artisan_pending', 'artisan_verified']);
+
+    const { data: profiles, error: profilesError } = await profilesQuery;
+
+    if (profilesError) {
+      setLoadError(`Erreur profils : ${profilesError.message}`);
       setLoading(false);
       return;
     }
 
-    let list = (baseData as unknown as ArtisanEntry[]) || [];
-
-    // Requête 2 : colonnes optionnelles (ajoutées via migration)
-    // On tente de les récupérer séparément pour ne pas bloquer si elles manquent
-    try {
-      const { data: extData } = await supabase
-        .from('artisan_profiles')
-        .select('id, artisan_type, doc_kbis_url, doc_insurance_url, doc_id_url, rejection_reason');
-
-      if (extData) {
-        const extMap = new Map(
-          ((extData || []) as Record<string, unknown>[])
-            .map(e => [e.id as string, e])
-        );
-        list = list.map(a => ({
-          ...a,
-          ...(extMap.get(a.id) || {}),
-        }));
-      }
-    } catch {
-      // Colonnes pas encore migrées — on continue sans elles
+    if (!profiles || profiles.length === 0) {
+      setArtisans([]);
+      setLoading(false);
+      return;
     }
 
-    if (filter === 'pending') list = list.filter(a => a.profile?.role === 'artisan_pending');
-    else if (filter === 'verified') list = list.filter(a => a.profile?.role === 'artisan_verified');
+    // ── Étape 2 : données artisan_profiles + catégories ──
+    const userIds = profiles.map(p => p.id);
+
+    const { data: artisanData } = await supabase
+      .from('artisan_profiles')
+      .select('id, user_id, business_name, description, service_area, years_experience, siret, insurance, created_at, artisan_type, doc_kbis_url, doc_insurance_url, doc_id_url, rejection_reason, trade_category:trade_categories(name, icon)')
+      .in('user_id', userIds);
+
+    const artisanMap = new Map<string, typeof artisanData extends (infer T)[] | null ? T : never>();
+    for (const a of (artisanData || [])) {
+      artisanMap.set((a as { user_id: string }).user_id, a as typeof artisanData extends (infer T)[] | null ? T : never);
+    }
+
+    // ── Fusion ──
+    const list: ArtisanEntry[] = profiles.map(prof => {
+      const art = artisanMap.get(prof.id) as Record<string, unknown> | undefined;
+      return {
+        id: (art?.id as string) ?? prof.id,
+        user_id: prof.id,
+        business_name: (art?.business_name as string) ?? '',
+        description: (art?.description as string) ?? '',
+        service_area: (art?.service_area as string) ?? '',
+        years_experience: art?.years_experience as number | undefined,
+        siret: art?.siret as string | undefined,
+        insurance: art?.insurance as string | undefined,
+        artisan_type: art?.artisan_type as 'professionnel' | 'particulier' | undefined,
+        doc_kbis_url: art?.doc_kbis_url as string | undefined,
+        doc_insurance_url: art?.doc_insurance_url as string | undefined,
+        doc_id_url: art?.doc_id_url as string | undefined,
+        rejection_reason: art?.rejection_reason as string | undefined,
+        created_at: (art?.created_at as string) ?? (prof.created_at as string) ?? '',
+        trade_category: art?.trade_category as { name: string; icon: string } | undefined,
+        profile: prof as ArtisanEntry['profile'],
+      };
+    });
 
     setArtisans(list);
     setLoading(false);
@@ -437,7 +544,7 @@ export default function AdminArtisansPage() {
       message: 'Félicitations ! Votre profil artisan a été validé. Vous êtes maintenant visible sur la plateforme Biguglia Connect.',
       link: '/dashboard/artisan',
     });
-    toast.success('Artisan validé et notifié !');
+    toast.success('Artisan approuvé et notifié !');
     fetchArtisans();
   };
 
@@ -460,27 +567,25 @@ export default function AdminArtisansPage() {
     !search ||
     a.business_name?.toLowerCase().includes(search.toLowerCase()) ||
     a.profile?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-    a.profile?.email?.toLowerCase().includes(search.toLowerCase())
+    a.profile?.email?.toLowerCase().includes(search.toLowerCase()) ||
+    a.profile?.phone?.toLowerCase().includes(search.toLowerCase())
   );
 
   const pendingCount = artisans.filter(a => a.profile?.role === 'artisan_pending').length;
 
   if (!profile || !isAdmin()) return null;
 
-  // Détecte si les colonnes docs sont manquantes (tous les artisans sans doc_columns)
-  const missingDocColumns = artisans.length > 0 && artisans.every(
-    a => a.doc_kbis_url === undefined && a.doc_insurance_url === undefined && a.doc_id_url === undefined
-  );
-
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+
+      {/* ── En-tête ── */}
       <div className="flex items-center gap-3 mb-6">
         <Link href="/admin" className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
           <ChevronLeft className="w-5 h-5 text-gray-500" />
         </Link>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900">Gestion des artisans</h1>
-          <p className="text-gray-500 text-sm">Examinez les dossiers, vérifiez les documents et validez les profils</p>
+          <p className="text-gray-500 text-sm">Examinez les dossiers, vérifiez les informations et validez les profils</p>
         </div>
         {pendingCount > 0 && (
           <div className="bg-orange-100 text-orange-700 px-4 py-2 rounded-xl text-sm font-bold">
@@ -489,82 +594,38 @@ export default function AdminArtisansPage() {
         )}
       </div>
 
-      {/* Erreur de chargement */}
+      {/* ── Erreur ── */}
       {loadError && (
         <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-5 mb-6 flex items-start gap-4">
           <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
             <h3 className="font-bold text-red-900 mb-1">Erreur de chargement</h3>
             <p className="text-sm text-red-800 font-mono bg-red-100 rounded p-2 mb-3">{loadError}</p>
-            <p className="text-sm text-red-700 mb-3">
-              Causes possibles : politique RLS trop restrictive, colonnes manquantes, ou problème de connexion Supabase.
-              Vérifiez que votre compte a bien le rôle <strong>admin</strong> dans la table <code>profiles</code>.
-            </p>
-            <div className="flex gap-3">
-              <button onClick={fetchArtisans} className="flex items-center gap-2 bg-red-600 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-red-700 transition-colors">
-                Réessayer
-              </button>
-              <Link href="/admin/migration" className="flex items-center gap-2 bg-amber-600 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-amber-700 transition-colors">
-                Migration DB
-              </Link>
-            </div>
+            <button onClick={fetchArtisans} className="bg-red-600 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-red-700 transition-colors">
+              Réessayer
+            </button>
           </div>
         </div>
       )}
 
-      {/* Alerte si colonnes documents manquantes en DB */}
-      {missingDocColumns && (
-        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 mb-6 flex items-start gap-4">
-          <AlertCircle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <h3 className="font-bold text-amber-900 mb-1">⚠️ Migration SQL requise</h3>
-            <p className="text-sm text-amber-800 mb-3">
-              Les colonnes de documents artisan (<code className="bg-amber-100 px-1 rounded">doc_kbis_url</code>, <code className="bg-amber-100 px-1 rounded">doc_insurance_url</code>, <code className="bg-amber-100 px-1 rounded">doc_id_url</code>, <code className="bg-amber-100 px-1 rounded">artisan_type</code>) n&apos;existent pas encore dans votre base de données.
-              Exécutez le SQL de migration pour activer la vérification complète des dossiers.
-            </p>
-            <Link href="/admin/migration" className="inline-flex items-center gap-2 bg-amber-600 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-amber-700 transition-colors">
-              <Shield className="w-4 h-4" /> Aller à Admin → Migration DB → SQL Artisans
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {/* Guide de vérification */}
-      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 mb-6">
-        <h3 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
-          <Shield className="w-4 h-4" /> Checklist de vérification
+      {/* ── Guide ── */}
+      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6">
+        <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2 text-sm">
+          <Shield className="w-4 h-4" /> Comment valider un artisan
         </h3>
-        <div className="grid sm:grid-cols-2 gap-3">
-          {[
-            { icon: '🛡️', title: 'Attestation d\'assurance', desc: 'Vérifier qu\'elle est en cours de validité (date d\'expiration) et couvre bien l\'activité déclarée.' },
-            { icon: '📋', title: 'Kbis ou SIRENE', desc: 'Vérifier que le SIRET déclaré correspond au document, et que l\'activité est bien active.' },
-            { icon: '🪪', title: 'Pièce d\'identité', desc: 'Vérifier que la photo correspond au nom déclaré et que la pièce est en cours de validité.' },
-            { icon: '🔍', title: 'Cohérence globale', desc: 'Le nom sur les documents correspond au nom de l\'entreprise et au compte inscrit.' },
-          ].map(({ icon, title, desc }) => (
-            <div key={title} className="flex items-start gap-2.5 bg-white rounded-xl border border-blue-100 p-3">
-              <span className="text-lg flex-shrink-0">{icon}</span>
-              <div>
-                <div className="text-sm font-semibold text-blue-900">{title}</div>
-                <div className="text-xs text-blue-700 mt-0.5">{desc}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="mt-3 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
-          <MessageSquare className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-amber-700">
-            <strong>En cas de doute :</strong> utilisez le bouton &ldquo;Refuser&rdquo; avec un motif clair.
-            L&apos;artisan recevra une notification et pourra soumettre à nouveau son dossier corrigé.
-            Vous pouvez aussi le contacter directement par email via l&apos;adresse affichée sur sa fiche.
-          </p>
-        </div>
+        <ol className="text-xs text-blue-700 space-y-1 list-decimal list-inside">
+          <li>Cliquez sur <strong>«&nbsp;Voir le dossier&nbsp;»</strong> pour voir les détails complets</li>
+          <li>Vérifiez les informations (nom, téléphone, catégorie, documents éventuels)</li>
+          <li>Utilisez <strong>«&nbsp;Envoyer un message&nbsp;»</strong> pour demander des informations supplémentaires</li>
+          <li>Cochez <strong>«&nbsp;Artisan de Biguglia ✓&nbsp;»</strong> puis cliquez sur <strong>«&nbsp;Approuver&nbsp;»</strong></li>
+        </ol>
       </div>
 
-      {/* Filtres */}
+      {/* ── Filtres ── */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="flex-1">
           <Input
-            placeholder="Rechercher par nom, email..."
+            placeholder="Rechercher par nom, email, téléphone..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             leftIcon={<Search className="w-4 h-4" />}
@@ -577,6 +638,7 @@ export default function AdminArtisansPage() {
         </Select>
       </div>
 
+      {/* ── Liste ── */}
       {loading ? (
         <div className="space-y-4">
           {[...Array(3)].map((_, i) => <div key={i} className="h-32 bg-gray-100 rounded-2xl animate-pulse" />)}
@@ -584,9 +646,11 @@ export default function AdminArtisansPage() {
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 bg-gray-50 rounded-2xl border border-gray-200">
           <CheckCircle className="w-12 h-12 mx-auto mb-3 text-green-400" />
-          <p className="font-semibold text-gray-700">Aucun artisan {filter === 'pending' ? 'en attente' : filter === 'verified' ? 'vérifié' : ''}</p>
+          <p className="font-semibold text-gray-700">
+            {filter === 'pending' ? 'Aucun artisan en attente de validation' : 'Aucun résultat'}
+          </p>
           <p className="text-sm text-gray-400 mt-1">
-            {filter === 'pending' ? 'Toutes les demandes ont été traitées ✓' : 'Aucun résultat pour ces critères.'}
+            {filter === 'pending' ? 'Toutes les demandes ont été traitées ✓' : 'Essayez un autre filtre ou une autre recherche.'}
           </p>
         </div>
       ) : (
