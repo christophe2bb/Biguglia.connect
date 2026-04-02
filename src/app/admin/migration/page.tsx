@@ -723,17 +723,11 @@ CREATE POLICY "Voir messages de ses conversations" ON messages
   );
 
 -- Supprimer et recréer la policy conversation_participants pour Realtime
+-- (simple : pas de sous-requête récursive sur la même table → évite 42P17)
 DROP POLICY IF EXISTS "Voir participants de ses conversations" ON conversation_participants;
 
 CREATE POLICY "Voir participants de ses conversations" ON conversation_participants
-  FOR SELECT USING (
-    user_id = auth.uid()
-    OR EXISTS (
-      SELECT 1 FROM conversation_participants cp2
-      WHERE cp2.conversation_id = conversation_participants.conversation_id
-        AND cp2.user_id = auth.uid()
-    )
-  );
+  FOR SELECT USING (user_id = auth.uid());
 
 -- 4. Vérification (doit retourner 4 lignes)
 SELECT tablename FROM pg_publication_tables
@@ -827,6 +821,7 @@ CREATE POLICY "Modifier ses conversations" ON conversations
   );
 
 -- 4. RLS conversation_participants
+-- NOTE : PAS de sous-requête sur conversation_participants ici (évite 42P17 récursion infinie)
 ALTER TABLE conversation_participants ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Ajouter des participants" ON conversation_participants;
@@ -835,13 +830,11 @@ CREATE POLICY "Ajouter des participants" ON conversation_participants
 
 DROP POLICY IF EXISTS "Voir participants de ses conversations" ON conversation_participants;
 CREATE POLICY "Voir participants de ses conversations" ON conversation_participants
-  FOR SELECT USING (
-    user_id = auth.uid() OR
-    EXISTS (
-      SELECT 1 FROM conversation_participants cp2
-      WHERE cp2.conversation_id = conversation_id AND cp2.user_id = auth.uid()
-    )
-  );
+  FOR SELECT USING (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Supprimer ses participations" ON conversation_participants;
+CREATE POLICY "Supprimer ses participations" ON conversation_participants
+  FOR DELETE USING (user_id = auth.uid());
 
 -- 5. RLS messages
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
