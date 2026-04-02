@@ -24,8 +24,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  MessageSquare, ShoppingBag, Wrench, HandHeart, Users,
-  MapPin, Calendar, Search, Package, Loader2, ArrowRight,
+  MessageSquare, Loader2, ArrowRight,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
@@ -46,17 +45,17 @@ const SOURCE_CONFIG: Record<ContactSourceType, {
   bg: string;
   border: string;
 }> = {
-  listing:         { defaultLabel: 'Je suis intéressé',       icon: ShoppingBag,   color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-200'   },
-  equipment:       { defaultLabel: 'Demander ce prêt',         icon: Wrench,        color: 'text-teal-700',    bg: 'bg-teal-50',    border: 'border-teal-200'   },
-  help_request:    { defaultLabel: 'Je peux aider',            icon: HandHeart,     color: 'text-orange-700',  bg: 'bg-orange-50',  border: 'border-orange-200' },
-  association:     { defaultLabel: 'Contacter l\'association', icon: Users,         color: 'text-purple-700',  bg: 'bg-purple-50',  border: 'border-purple-200' },
-  collection_item: { defaultLabel: 'Je suis intéressé',       icon: Package,       color: 'text-rose-700',    bg: 'bg-rose-50',    border: 'border-rose-200'   },
-  outing:          { defaultLabel: 'Je participe',             icon: MapPin,        color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200'},
-  event:           { defaultLabel: 'Je m\'inscris',            icon: Calendar,      color: 'text-indigo-700',  bg: 'bg-indigo-50',  border: 'border-indigo-200' },
-  service_request: { defaultLabel: 'Contacter l\'artisan',     icon: Wrench,        color: 'text-brand-700',   bg: 'bg-brand-50',   border: 'border-brand-200'  },
-  lost_found:      { defaultLabel: 'Contacter',                icon: Search,        color: 'text-amber-700',   bg: 'bg-amber-50',   border: 'border-amber-200'  },
-  artisan:         { defaultLabel: 'Contacter l\'artisan',     icon: MessageSquare, color: 'text-brand-700',   bg: 'bg-brand-50',   border: 'border-brand-200'  },
-  general:         { defaultLabel: 'Envoyer un message',       icon: MessageSquare, color: 'text-gray-700',    bg: 'bg-gray-50',    border: 'border-gray-200'   },
+  listing:         { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-200'   },
+  equipment:       { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-teal-700',    bg: 'bg-teal-50',    border: 'border-teal-200'   },
+  help_request:    { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-orange-700',  bg: 'bg-orange-50',  border: 'border-orange-200' },
+  association:     { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-purple-700',  bg: 'bg-purple-50',  border: 'border-purple-200' },
+  collection_item: { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-rose-700',    bg: 'bg-rose-50',    border: 'border-rose-200'   },
+  outing:          { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200'},
+  event:           { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-indigo-700',  bg: 'bg-indigo-50',  border: 'border-indigo-200' },
+  service_request: { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-brand-700',   bg: 'bg-brand-50',   border: 'border-brand-200'  },
+  lost_found:      { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-amber-700',   bg: 'bg-amber-50',   border: 'border-amber-200'  },
+  artisan:         { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-brand-700',   bg: 'bg-brand-50',   border: 'border-brand-200'  },
+  general:         { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-gray-700',    bg: 'bg-gray-50',    border: 'border-gray-200'   },
 };
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
@@ -106,10 +105,24 @@ export default function ContactButton({
   const iconSize = { sm: 'w-3.5 h-3.5', md: 'w-4 h-4', lg: 'w-5 h-5' }[size];
 
   // ── Variantes ────────────────────────────────────────────────────────────────
+  // primary = fond coloré vif (bg-color-500 text-white) pour être bien visible
+  const solidBg: Record<ContactSourceType, string> = {
+    listing:         'bg-blue-500 hover:bg-blue-600 text-white border-blue-500',
+    equipment:       'bg-teal-500 hover:bg-teal-600 text-white border-teal-500',
+    help_request:    'bg-orange-500 hover:bg-orange-600 text-white border-orange-500',
+    association:     'bg-purple-500 hover:bg-purple-600 text-white border-purple-500',
+    collection_item: 'bg-rose-500 hover:bg-rose-600 text-white border-rose-500',
+    outing:          'bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-500',
+    event:           'bg-indigo-500 hover:bg-indigo-600 text-white border-indigo-500',
+    service_request: 'bg-brand-500 hover:bg-brand-600 text-white border-brand-500',
+    lost_found:      'bg-amber-500 hover:bg-amber-600 text-white border-amber-500',
+    artisan:         'bg-brand-500 hover:bg-brand-600 text-white border-brand-500',
+    general:         'bg-gray-600 hover:bg-gray-700 text-white border-gray-600',
+  };
   const variantClasses = {
-    primary:   `${conf.bg} ${conf.color} border ${conf.border} hover:brightness-95`,
+    primary:   `${solidBg[sourceType]} border`,
     secondary: `bg-white ${conf.color} border ${conf.border} hover:${conf.bg}`,
-    ghost:     `${conf.color} hover:${conf.bg} border border-transparent hover:border-${conf.border}`,
+    ghost:     `${conf.color} hover:${conf.bg} border border-transparent`,
   }[variant];
 
   // ── Non connecté → lien connexion ────────────────────────────────────────────
