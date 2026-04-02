@@ -26,6 +26,7 @@ export interface ThemeMember {
 interface MemberCardProps {
   member: ThemeMember;
   currentUserId?: string | null;
+  /** themeSlug est utilisé comme sourceId pour isoler les conversations par thème */
   themeSlug: string;
   themeLabel: string;
 }
@@ -52,13 +53,13 @@ export default function MemberCard({
       'hover:shadow-md hover:border-brand-200 transition-all',
       isMe && 'ring-2 ring-brand-300'
     )}>
-      {/* Header: avatar + nom */}
+      {/* Header : avatar + nom */}
       <div className="flex items-start gap-3">
         <Avatar src={profile?.avatar_url} name={name} size="lg" />
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-900 truncate">{name}</p>
           {tp?.level && (
-            <p className="text-xs text-purple-600 font-medium flex items-center gap-1">
+            <p className="text-xs text-purple-600 font-medium flex items-center gap-1 mt-0.5">
               <Star className="w-3 h-3" />
               {tp.level}
             </p>
@@ -77,17 +78,14 @@ export default function MemberCard({
 
       {/* Bio */}
       {tp?.bio && (
-        <p className="text-sm text-gray-600 line-clamp-2 italic">"{tp.bio}"</p>
+        <p className="text-sm text-gray-600 line-clamp-2 italic">&ldquo;{tp.bio}&rdquo;</p>
       )}
 
       {/* Tags */}
       {tp?.tags && tp.tags.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {tp.tags.slice(0, 4).map((tag) => (
-            <span
-              key={tag}
-              className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full"
-            >
+            <span key={tag} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
               #{tag}
             </span>
           ))}
@@ -119,17 +117,18 @@ export default function MemberCard({
         </p>
       )}
 
-      {/* Action: contacter */}
+      {/* Bouton contacter — conversation isolée par thème via sourceType='community' + sourceId=themeSlug */}
       {!isMe && (
         <div className="pt-1 border-t border-gray-50">
           <ContactButton
-            sourceType="general"
-            sourceId={null}
-            sourceTitle={`${themeLabel} — ${name}`}
+            sourceType="community"
+            sourceId={themeSlug}
+            sourceTitle={`Communauté ${themeLabel}`}
             ownerId={member.user_id}
             userId={currentUserId ?? undefined}
             size="sm"
             ctaLabel="Envoyer un message"
+            prefillMsg={`👋 Bonjour ! Je vous contacte depuis la communauté ${themeLabel}.`}
             className="w-full justify-center"
           />
         </div>
