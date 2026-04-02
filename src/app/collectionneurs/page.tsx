@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { formatRelative } from '@/lib/utils';
 import {
   Tag, MessageSquare, Search, Plus, Eye, ChevronRight, Send,
-  Package, ArrowLeftRight, Gem,
+  Package, ArrowLeftRight, Gem, Users,
   BadgeCheck, Layers, X,
   Loader2, RefreshCw, Camera, AlertCircle, Pencil, Trash2,
 } from 'lucide-react';
@@ -1006,6 +1006,10 @@ export default function CollectionneursPage() {
               <Icon className="w-4 h-4" /> {label}
             </button>
           ))}
+          <Link href="/communaute/collectionneurs"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all text-amber-600 hover:bg-amber-50 border border-amber-100">
+            <Users className="w-4 h-4" /> Communauté
+          </Link>
         </div>
 
         {/* ══ TAB : ANNONCES ══ */}

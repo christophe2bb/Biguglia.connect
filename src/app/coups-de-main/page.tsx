@@ -1183,6 +1183,12 @@ export default function CoupsDeMainPage() {
                   💚 {totalActive} annonce{totalActive !== 1 ? 's' : ''} actives
                 </span>
               </div>
+              <div className="mt-4">
+                <Link href="/communaute/coups-de-main"
+                  className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 border border-white/30 text-white rounded-xl px-4 py-2 text-sm font-semibold transition backdrop-blur-sm">
+                  <Users className="w-4 h-4" /> Voir la communauté →
+                </Link>
+              </div>
             </div>
             {profile && (
               <button type="button" onClick={() => { resetForm(); setShowForm(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }}

@@ -963,6 +963,10 @@ export default function PromenadePage() {
               <Icon className="w-4 h-4" /> {label}
             </button>
           ))}
+          <Link href="/communaute/promenades"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all text-emerald-600 hover:bg-emerald-50 border border-emerald-100">
+            <Users className="w-4 h-4" /> Communauté
+          </Link>
         </div>
 
 

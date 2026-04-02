@@ -1207,6 +1207,12 @@ export default function AssociationsPage() {
                   <Users className="w-3.5 h-3.5" /> Bénévoles bienvenus
                 </span>
               </div>
+              <div className="mt-4">
+                <Link href="/communaute/associations"
+                  className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 border border-white/30 text-white rounded-xl px-4 py-2 text-sm font-semibold transition backdrop-blur-sm">
+                  <Users className="w-4 h-4" /> Voir la communauté →
+                </Link>
+              </div>
             </div>
             {profile && (
               <button type="button" onClick={() => { resetForm(); setShowForm(true); }}

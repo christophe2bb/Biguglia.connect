@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon, Zap, Star, CheckCheck, Activity, Tag, Info, Search, Wrench, MessageSquare } from 'lucide-react';
+import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon, Zap, Star, CheckCheck, Activity, Tag, Info, Search, Wrench, MessageSquare, Users } from 'lucide-react';
 
 // ─── SQL complet à copier-coller dans Supabase SQL Editor ─────────────────────
 const MIGRATION_SQL = `-- ============================================================
@@ -1807,6 +1807,75 @@ CREATE POLICY "Auteur peut supprimer son commentaire"
 SELECT COUNT(*) AS nb_commentaires FROM collection_item_comments;
 `;
 
+const COMMUNITY_SQL = `-- ============================================================
+-- BIGUGLIA CONNECT — Communautés thématiques (Phase 1 MVP)
+-- Coller dans Supabase > SQL Editor > Run
+-- ============================================================
+
+-- 1. Table des adhésions aux thèmes
+CREATE TABLE IF NOT EXISTS theme_memberships (
+  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id        UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  theme_slug     TEXT NOT NULL,
+  status         TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','suspended','hidden')),
+  visibility     TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public','members_only','private')),
+  allow_messages BOOLEAN NOT NULL DEFAULT true,
+  joined_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_active_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, theme_slug)
+);
+
+CREATE INDEX IF NOT EXISTS theme_memberships_theme_idx  ON theme_memberships(theme_slug);
+CREATE INDEX IF NOT EXISTS theme_memberships_user_idx   ON theme_memberships(user_id);
+CREATE INDEX IF NOT EXISTS theme_memberships_active_idx ON theme_memberships(theme_slug, status) WHERE status = 'active';
+
+ALTER TABLE theme_memberships ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Lecture publique adhésions" ON theme_memberships;
+CREATE POLICY "Lecture publique adhésions" ON theme_memberships FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Créer sa propre adhésion" ON theme_memberships;
+CREATE POLICY "Créer sa propre adhésion" ON theme_memberships FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Modifier sa propre adhésion" ON theme_memberships;
+CREATE POLICY "Modifier sa propre adhésion" ON theme_memberships FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Supprimer sa propre adhésion" ON theme_memberships;
+CREATE POLICY "Supprimer sa propre adhésion" ON theme_memberships FOR DELETE USING (auth.uid() = user_id);
+
+-- 2. Table des mini-profils thématiques
+CREATE TABLE IF NOT EXISTS theme_profiles (
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id       UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  theme_slug    TEXT NOT NULL,
+  bio           TEXT,
+  interests     TEXT[] DEFAULT '{}',
+  looking_for   TEXT,
+  offering      TEXT,
+  availability  TEXT,
+  level         TEXT,
+  tags          TEXT[] DEFAULT '{}',
+  location_zone TEXT,
+  custom_fields JSONB DEFAULT '{}',
+  updated_at    TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, theme_slug)
+);
+
+CREATE INDEX IF NOT EXISTS theme_profiles_theme_idx ON theme_profiles(theme_slug);
+CREATE INDEX IF NOT EXISTS theme_profiles_user_idx  ON theme_profiles(user_id);
+
+ALTER TABLE theme_profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Lecture publique profils thème" ON theme_profiles;
+CREATE POLICY "Lecture publique profils thème" ON theme_profiles FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Créer son propre profil thème" ON theme_profiles;
+CREATE POLICY "Créer son propre profil thème" ON theme_profiles FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Modifier son propre profil thème" ON theme_profiles;
+CREATE POLICY "Modifier son propre profil thème" ON theme_profiles FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Supprimer son propre profil thème" ON theme_profiles;
+CREATE POLICY "Supprimer son propre profil thème" ON theme_profiles FOR DELETE USING (auth.uid() = user_id);
+
+-- Vérification
+SELECT
+  (SELECT COUNT(*) FROM theme_memberships) AS nb_adhesions,
+  (SELECT COUNT(*) FROM theme_profiles)    AS nb_profils_theme;
+`;
+
 type StorageDiag = {
   bucketExists: boolean | null;
   bucketPublic: boolean | null;
@@ -1836,6 +1905,7 @@ export default function MigrationPage() {
   const [copiedConvFix1, setCopiedConvFix1] = useState(false);
   const [copiedConvFix2, setCopiedConvFix2] = useState(false);
   const [copiedCollectionComments, setCopiedCollectionComments] = useState(false);
+  const [copiedCommunity, setCopiedCommunity] = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -1991,6 +2061,12 @@ export default function MigrationPage() {
     navigator.clipboard.writeText(COLLECTION_COMMENTS_SQL);
     setCopiedCollectionComments(true);
     setTimeout(() => setCopiedCollectionComments(false), 4000);
+  };
+
+  const handleCopyCommunity = () => {
+    navigator.clipboard.writeText(COMMUNITY_SQL);
+    setCopiedCommunity(true);
+    setTimeout(() => setCopiedCommunity(false), 4000);
   };
 
   const handleCopySearch = () => {
@@ -3152,6 +3228,34 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-80">
           <pre className="text-xs text-cyan-400 font-mono leading-relaxed whitespace-pre-wrap">{COLLECTION_COMMENTS_SQL}</pre>
+        </div>
+      </div>
+
+      {/* ─── SQL Communautés thématiques ─── */}
+      <div className="bg-white rounded-2xl border-2 border-violet-200 shadow-sm overflow-hidden mb-6">
+        <div className="px-5 py-4 bg-violet-50 border-b border-violet-100 flex items-start gap-3">
+          <Users className="w-5 h-5 text-violet-600 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-violet-800">
+            <strong>🌐 SQL Communautés thématiques — Adhésions + Mini-profils</strong>
+            <p className="text-xs mt-1 text-violet-700">
+              Active le système de communautés : rejoindre un thème, créer un mini-profil,
+              voir les membres. Tables <code>theme_memberships</code> + <code>theme_profiles</code> + RLS.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
+          <p className="text-xs text-gray-500">2 tables · RLS complète · index performances · Phase 1 MVP communautés</p>
+          <button onClick={handleCopyCommunity}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow ${
+              copiedCommunity ? 'bg-emerald-500 text-white' : 'bg-violet-600 text-white hover:bg-violet-700'
+            }`}>
+            {copiedCommunity
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Communautés</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-80">
+          <pre className="text-xs text-violet-300 font-mono leading-relaxed whitespace-pre-wrap">{COMMUNITY_SQL}</pre>
         </div>
       </div>
 

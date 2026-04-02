@@ -8,7 +8,7 @@ import { formatRelative } from '@/lib/utils';
 import {
   Search, Plus, X, Loader2, AlertCircle, Camera, MapPin, Clock,
   Phone, Mail, MessageSquare, CheckCircle2, Shield, Eye, EyeOff,
-  Pencil, Trash2, Share2, ChevronDown, ChevronUp, Filter,
+  Pencil, Trash2, Share2, ChevronDown, ChevronUp, Filter, Users,
   Dog, Key, CreditCard, Smartphone, Briefcase, Gem, Glasses,
   Shirt, FileText, Bike, Baby, Package, RefreshCw, Send,
 } from 'lucide-react';
@@ -1124,6 +1124,12 @@ export default function PerduTrouvePage() {
                 <span className="inline-flex items-center gap-1.5 bg-white/15 border border-white/25 rounded-full px-3 py-1.5 text-sm font-medium">
                   <RefreshCw className="w-3.5 h-3.5" /> Renouvellement 60 j
                 </span>
+              </div>
+              <div className="mt-4">
+                <Link href="/communaute/perdu-trouve"
+                  className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 border border-white/30 text-white rounded-xl px-4 py-2 text-sm font-semibold transition backdrop-blur-sm">
+                  <Users className="w-4 h-4" /> Voir la communauté →
+                </Link>
               </div>
             </div>
             {profile && (
