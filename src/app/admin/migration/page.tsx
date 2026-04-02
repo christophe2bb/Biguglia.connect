@@ -764,9 +764,9 @@ ORDER BY e.enumsortorder;
 // ─── SQL Fix BLOC 2 : CHECK + RLS (exécuter APRÈS le bloc 1) ─────────────────
 const CONV_FIX_BLOC2 = `-- ============================================================
 -- BIGUGLIA CONNECT — Fix messagerie BLOC 2/2
--- CHECK constraint + valeur par défaut + RLS policies
+-- Fonction SECURITY DEFINER + CHECK + RLS policies
 --
--- Exécuter APRÈS le BLOC 1
+-- Exécuter APRÈS le BLOC 1 (dans un nouvel onglet SQL Editor)
 -- ============================================================
 
 -- 1. Mettre à jour le CHECK pour autoriser toutes les valeurs + NULL
@@ -778,16 +778,9 @@ ALTER TABLE conversations
   CHECK (
     related_type IS NULL
     OR related_type::text IN (
-      'service_request',
-      'listing',
-      'equipment',
-      'general',
-      'help_request',
-      'collection_item',
-      'lost_found',
-      'association',
-      'outing',
-      'event'
+      'service_request', 'listing', 'equipment', 'general',
+      'help_request', 'collection_item', 'lost_found',
+      'association', 'outing', 'event'
     )
   );
 
@@ -795,7 +788,93 @@ ALTER TABLE conversations
 ALTER TABLE conversations
   ALTER COLUMN related_type SET DEFAULT 'general';
 
--- 3. RLS conversations
+-- 3. Fonction SECURITY DEFINER : contourne les RLS pour créer une conversation
+--    Appelée via supabase.rpc('create_conversation_with_message', {...})
+CREATE OR REPLACE FUNCTION create_conversation_with_message(
+  p_subject        TEXT,
+  p_related_type   TEXT DEFAULT 'general',
+  p_related_id     UUID DEFAULT NULL,
+  p_owner_id       UUID DEFAULT NULL,
+  p_initial_msg    TEXT DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user_id  UUID := auth.uid();
+  v_conv_id  UUID;
+BEGIN
+  -- Vérification : utilisateur connecté obligatoire
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'NOT_AUTHENTICATED';
+  END IF;
+
+  -- Vérification : pas de contact avec soi-même
+  IF p_owner_id IS NOT NULL AND v_user_id = p_owner_id THEN
+    RAISE EXCEPTION 'SELF_CONTACT';
+  END IF;
+
+  -- Chercher une conversation existante entre les deux utilisateurs pour ce contenu
+  IF p_related_id IS NOT NULL AND p_owner_id IS NOT NULL THEN
+    SELECT c.id INTO v_conv_id
+    FROM conversations c
+    JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = v_user_id
+    JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = p_owner_id
+    WHERE c.related_id = p_related_id
+    LIMIT 1;
+  END IF;
+
+  -- Si pas trouvé, chercher n'importe quelle conversation entre les deux
+  IF v_conv_id IS NULL AND p_owner_id IS NOT NULL THEN
+    SELECT c.id INTO v_conv_id
+    FROM conversations c
+    JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = v_user_id
+    JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = p_owner_id
+    ORDER BY c.updated_at DESC
+    LIMIT 1;
+  END IF;
+
+  -- Conversation existante → la retourner directement
+  IF v_conv_id IS NOT NULL THEN
+    RETURN v_conv_id;
+  END IF;
+
+  -- Créer la nouvelle conversation
+  INSERT INTO conversations (subject, related_type, related_id)
+  VALUES (
+    p_subject,
+    COALESCE(p_related_type, 'general')::related_type,
+    p_related_id
+  )
+  RETURNING id INTO v_conv_id;
+
+  -- Ajouter les participants
+  INSERT INTO conversation_participants (conversation_id, user_id)
+  VALUES (v_conv_id, v_user_id)
+  ON CONFLICT (conversation_id, user_id) DO NOTHING;
+
+  IF p_owner_id IS NOT NULL AND p_owner_id != v_user_id THEN
+    INSERT INTO conversation_participants (conversation_id, user_id)
+    VALUES (v_conv_id, p_owner_id)
+    ON CONFLICT (conversation_id, user_id) DO NOTHING;
+  END IF;
+
+  -- Insérer le message initial
+  IF p_initial_msg IS NOT NULL AND p_initial_msg != '' THEN
+    INSERT INTO messages (conversation_id, sender_id, content)
+    VALUES (v_conv_id, v_user_id, p_initial_msg);
+  END IF;
+
+  RETURN v_conv_id;
+END;
+$$;
+
+-- Autoriser les utilisateurs authentifiés à appeler cette fonction
+GRANT EXECUTE ON FUNCTION create_conversation_with_message TO authenticated;
+
+-- 4. RLS conversations (pour la lecture/mise à jour)
 ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Créer une conversation" ON conversations;
@@ -820,8 +899,7 @@ CREATE POLICY "Modifier ses conversations" ON conversations
     )
   );
 
--- 4. RLS conversation_participants
--- NOTE : PAS de sous-requête sur conversation_participants ici (évite 42P17 récursion infinie)
+-- 5. RLS conversation_participants (simple, sans récursion)
 ALTER TABLE conversation_participants ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Ajouter des participants" ON conversation_participants;
@@ -836,7 +914,7 @@ DROP POLICY IF EXISTS "Supprimer ses participations" ON conversation_participant
 CREATE POLICY "Supprimer ses participations" ON conversation_participants
   FOR DELETE USING (user_id = auth.uid());
 
--- 5. RLS messages
+-- 6. RLS messages
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Voir messages de ses conversations" ON messages;
@@ -858,10 +936,10 @@ CREATE POLICY "Envoyer un message" ON messages
     )
   );
 
--- 6. Recharge PostgREST
+-- 7. Recharge PostgREST
 NOTIFY pgrst, 'reload schema';
 
-SELECT 'Fix BLOC 2 appliqué avec succès' AS resultat;
+SELECT 'Fix BLOC 2 appliqué avec succès — fonction create_conversation_with_message créée' AS resultat;
 `;
 
 // ─── SQL Messagerie universelle — enrichissement des conversations ──────────────

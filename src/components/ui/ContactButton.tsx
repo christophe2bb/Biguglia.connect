@@ -145,53 +145,65 @@ export default function ContactButton({
   // ── Pas de contact avec soi-même ─────────────────────────────────────────────
   if (userId === ownerId) return null;
 
-  // ── Helper: créer conversation avec plusieurs stratégies ────────────────────
+  // ── Helper: créer conversation via RPC puis INSERT direct en fallback ────────
   /**
-   * related_type est un ENUM PostgreSQL. On essaie en cascade :
-   *   S1 — type exact + related_id  (fonctionne si la migration BLOC 1 a été faite)
-   *   S2 — related_type='general' + related_id  (fonctionne si 'general' existe dans l'ENUM)
-   *   S3 — related_type='general' sans related_id
-   *   S4 — sans related_type ni related_id  (laisse la valeur DEFAULT de la DB)
+   * Stratégie principale : appel RPC create_conversation_with_message (SECURITY DEFINER)
+   *   → contourne les RLS, trouve ou crée la conversation en une seule requête
+   *   → nécessite d'avoir exécuté le BLOC 2 dans Supabase
    *
-   * Erreur 42501 (RLS) = migration BLOC 2 manquante → arrêt immédiat.
+   * Fallback si la fonction RPC n'existe pas encore (code PGRST202 ou 42883) :
+   *   INSERT direct avec 4 tentatives de payload de plus en plus permissives
    */
-  const tryCreateConversation = async (subject: string, relatedType: string, relatedId: string | null) => {
-    // S1 : type exact + related_id
-    const { data: d1, error: e1 } = await supabase
-      .from('conversations')
-      .insert({ subject, related_type: relatedType, related_id: relatedId })
-      .select('id').single();
-    if (d1?.id) return { id: d1.id as string };
-    console.warn('[ContactButton] S1:', e1?.code, e1?.message);
-    if (e1?.code === '42501') return { id: null, error: e1 }; // RLS → inutile de continuer
+  const tryCreateConversation = async (
+    subject: string,
+    relatedType: string,
+    relatedId: string | null,
+    ownerId: string,
+    initialMsg: string,
+  ) => {
+    // ── Voie 1 : RPC SECURITY DEFINER (contourne toutes les RLS) ─────────────
+    const { data: rpcData, error: rpcErr } = await supabase.rpc(
+      'create_conversation_with_message',
+      {
+        p_subject:      subject,
+        p_related_type: relatedType,
+        p_related_id:   relatedId,
+        p_owner_id:     ownerId,
+        p_initial_msg:  initialMsg,
+      }
+    );
+    if (rpcData) {
+      console.info('[ContactButton] RPC OK, conv_id:', rpcData);
+      return { id: rpcData as string, via: 'rpc' };
+    }
+    // Si la fonction n'existe pas encore → tenter l'INSERT direct
+    const rpcNotFound = rpcErr?.code === 'PGRST202' || rpcErr?.code === '42883' || rpcErr?.message?.includes('Could not find');
+    if (!rpcNotFound) {
+      console.error('[ContactButton] RPC erreur:', rpcErr?.code, rpcErr?.message);
+      // RLS ou autre erreur même via RPC → retourner l'erreur directement
+      return { id: null, error: rpcErr };
+    }
+    console.warn('[ContactButton] Fonction RPC absente, tentative INSERT direct (exécutez le BLOC 2)');
 
-    // S2 : related_type='general' + related_id
-    const { data: d2, error: e2 } = await supabase
-      .from('conversations')
-      .insert({ subject, related_type: 'general', related_id: relatedId })
-      .select('id').single();
-    if (d2?.id) return { id: d2.id as string };
-    console.warn('[ContactButton] S2:', e2?.code, e2?.message);
-    if (e2?.code === '42501') return { id: null, error: e2 };
-
-    // S3 : related_type='general' sans related_id
-    const { data: d3, error: e3 } = await supabase
-      .from('conversations')
-      .insert({ subject, related_type: 'general' })
-      .select('id').single();
-    if (d3?.id) return { id: d3.id as string };
-    console.warn('[ContactButton] S3:', e3?.code, e3?.message);
-    if (e3?.code === '42501') return { id: null, error: e3 };
-
-    // S4 : sans related_type (utilise la valeur DEFAULT de la colonne)
-    const { data: d4, error: e4 } = await supabase
-      .from('conversations')
-      .insert({ subject })
-      .select('id').single();
-    if (d4?.id) return { id: d4.id as string };
-    console.error('[ContactButton] S4:', e4?.code, e4?.message);
-
-    return { id: null, error: e1 || e2 || e3 || e4 };
+    // ── Voie 2 : INSERT direct (fallback si BLOC 2 pas encore exécuté) ───────
+    const payloads = [
+      { subject, related_type: relatedType, related_id: relatedId },
+      { subject, related_type: 'general',   related_id: relatedId },
+      { subject, related_type: 'general' },
+      { subject },
+    ];
+    let lastErr = rpcErr;
+    for (let i = 0; i < payloads.length; i++) {
+      const { data, error } = await supabase
+        .from('conversations')
+        .insert(payloads[i])
+        .select('id').single();
+      if (data?.id) return { id: data.id as string, via: `insert-s${i + 1}` };
+      console.warn(`[ContactButton] INSERT S${i + 1}:`, error?.code, error?.message);
+      lastErr = error;
+      if (error?.code === '42501') break; // RLS bloque tout → inutile de continuer
+    }
+    return { id: null, error: lastErr };
   };
 
   // ── Handler principal ────────────────────────────────────────────────────────
@@ -266,23 +278,25 @@ export default function ContactButton({
       }
 
       // ── 3. Créer une nouvelle conversation ─────────────────────────────────
-      const subject = sourceTitle
-        || ctaLabel
-        || conf.defaultLabel
-        || 'Message';
+      const subject = sourceTitle || ctaLabel || conf.defaultLabel || 'Message';
 
-      const result = await tryCreateConversation(subject, relatedType, sourceId || null);
+      const initialMsg = prefillMsg
+        || `👋 Bonjour ! Je vous contacte à propos de${sourceTitle ? ` "${sourceTitle}"` : ' votre annonce'}.`;
+
+      const result = await tryCreateConversation(
+        subject, relatedType, sourceId || null, ownerId, initialMsg
+      );
 
       if (!result.id) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const err = (result as any).error;
         const code = err?.code || '?';
         const hint = code === '42501'
-          ? 'Permission refusée — exécutez le SQL Fix dans Admin → Migration DB'
+          ? 'Permission refusée — exécutez BLOC 2 dans Admin → Migration DB'
           : code === '23514' || code === '22P02'
-          ? 'Contrainte related_type — exécutez le SQL Fix dans Admin → Migration DB'
+          ? 'Contrainte related_type — exécutez BLOC 1 dans Admin → Migration DB'
           : code === '42703'
-          ? 'Colonne manquante — exécutez le SQL Fix dans Admin → Migration DB'
+          ? 'Colonne manquante — exécutez BLOC 2 dans Admin → Migration DB'
           : `Erreur [${code}] — consultez la console`;
         toast.error(hint, { duration: 6000 });
         return;
@@ -290,37 +304,21 @@ export default function ContactButton({
 
       const newConvId = result.id;
 
-      // ── 4. Ajouter les participants ─────────────────────────────────────────
-      const { error: partErr } = await supabase
-        .from('conversation_participants')
-        .upsert(
+      // ── 4 & 5. Participants + message (si INSERT direct, pas via RPC) ───────
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((result as any).via !== 'rpc') {
+        await supabase.from('conversation_participants').upsert(
           [
             { conversation_id: newConvId, user_id: userId },
             { conversation_id: newConvId, user_id: ownerId },
           ],
           { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
         );
-
-      if (partErr) {
-        console.warn('[ContactButton] Participants upsert erreur:', partErr.code, partErr.message);
-        // On continue malgré l'erreur (la conversation est créée)
-      }
-
-      // ── 5. Message initial ─────────────────────────────────────────────────
-      const initialMsg = prefillMsg
-        || `👋 Bonjour ! Je vous contacte à propos de${sourceTitle ? ` "${sourceTitle}"` : ' votre annonce'}.`;
-
-      const { error: msgErr } = await supabase
-        .from('messages')
-        .insert({
+        await supabase.from('messages').insert({
           conversation_id: newConvId,
           sender_id: userId,
           content: initialMsg,
         });
-
-      if (msgErr) {
-        console.warn('[ContactButton] Message insert erreur:', msgErr.code, msgErr.message);
-        // On continue malgré l'erreur (la conversation et les participants sont créés)
       }
 
       // ── 6. Redirection ─────────────────────────────────────────────────────
