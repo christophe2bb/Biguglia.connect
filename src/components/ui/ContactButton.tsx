@@ -45,17 +45,17 @@ const SOURCE_CONFIG: Record<ContactSourceType, {
   bg: string;
   border: string;
 }> = {
-  listing:         { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-200'   },
-  equipment:       { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-teal-700',    bg: 'bg-teal-50',    border: 'border-teal-200'   },
-  help_request:    { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-orange-700',  bg: 'bg-orange-50',  border: 'border-orange-200' },
-  association:     { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-purple-700',  bg: 'bg-purple-50',  border: 'border-purple-200' },
-  collection_item: { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-rose-700',    bg: 'bg-rose-50',    border: 'border-rose-200'   },
-  outing:          { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200'},
-  event:           { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-indigo-700',  bg: 'bg-indigo-50',  border: 'border-indigo-200' },
-  service_request: { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-brand-700',   bg: 'bg-brand-50',   border: 'border-brand-200'  },
-  lost_found:      { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-amber-700',   bg: 'bg-amber-50',   border: 'border-amber-200'  },
-  artisan:         { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-brand-700',   bg: 'bg-brand-50',   border: 'border-brand-200'  },
-  general:         { defaultLabel: 'Message privé',           icon: MessageSquare, color: 'text-gray-700',    bg: 'bg-gray-50',    border: 'border-gray-200'   },
+  listing:         { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-200'   },
+  equipment:       { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-teal-700',    bg: 'bg-teal-50',    border: 'border-teal-200'   },
+  help_request:    { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-orange-700',  bg: 'bg-orange-50',  border: 'border-orange-200' },
+  association:     { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-purple-700',  bg: 'bg-purple-50',  border: 'border-purple-200' },
+  collection_item: { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-rose-700',    bg: 'bg-rose-50',    border: 'border-rose-200'   },
+  outing:          { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200'},
+  event:           { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-indigo-700',  bg: 'bg-indigo-50',  border: 'border-indigo-200' },
+  service_request: { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-amber-700',   bg: 'bg-amber-50',   border: 'border-amber-200'  },
+  lost_found:      { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-amber-700',   bg: 'bg-amber-50',   border: 'border-amber-200'  },
+  artisan:         { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-200'   },
+  general:         { defaultLabel: 'Message privé', icon: MessageSquare, color: 'text-gray-700',    bg: 'bg-gray-50',    border: 'border-gray-200'   },
 };
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
@@ -105,7 +105,7 @@ export default function ContactButton({
   const iconSize = { sm: 'w-3.5 h-3.5', md: 'w-4 h-4', lg: 'w-5 h-5' }[size];
 
   // ── Variantes ────────────────────────────────────────────────────────────────
-  // primary = fond coloré vif (bg-color-500 text-white) pour être bien visible
+  // primary = fond coloré vif pour être bien visible
   const solidBg: Record<ContactSourceType, string> = {
     listing:         'bg-blue-500 hover:bg-blue-600 text-white border-blue-500',
     equipment:       'bg-teal-500 hover:bg-teal-600 text-white border-teal-500',
@@ -114,9 +114,9 @@ export default function ContactButton({
     collection_item: 'bg-rose-500 hover:bg-rose-600 text-white border-rose-500',
     outing:          'bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-500',
     event:           'bg-indigo-500 hover:bg-indigo-600 text-white border-indigo-500',
-    service_request: 'bg-brand-500 hover:bg-brand-600 text-white border-brand-500',
+    service_request: 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500',
     lost_found:      'bg-amber-500 hover:bg-amber-600 text-white border-amber-500',
-    artisan:         'bg-brand-500 hover:bg-brand-600 text-white border-brand-500',
+    artisan:         'bg-blue-500 hover:bg-blue-600 text-white border-blue-500',
     general:         'bg-gray-600 hover:bg-gray-700 text-white border-gray-600',
   };
   const variantClasses = {
@@ -145,22 +145,69 @@ export default function ContactButton({
   // ── Pas de contact avec soi-même ─────────────────────────────────────────────
   if (userId === ownerId) return null;
 
+  // ── Helper: créer conversation avec différentes stratégies ───────────────────
+  /**
+   * Essaie plusieurs payloads d'INSERT sur `conversations` en ordre :
+   * 1. Avec related_type + related_id
+   * 2. Avec related_type = 'general' + related_id
+   * 3. Sans related_type ni related_id (juste subject)
+   * 4. Avec les colonnes minimales absolues (uniquement subject)
+   *
+   * Retourne le nouvel ID ou null si tout échoue.
+   */
+  const tryCreateConversation = async (subject: string, relatedType: string, relatedId: string | null) => {
+    // Stratégie 1 : payload complet
+    const { data: d1, error: e1 } = await supabase
+      .from('conversations')
+      .insert({ subject, related_type: relatedType, related_id: relatedId })
+      .select('id')
+      .single();
+    if (d1?.id) return { id: d1.id as string, strategy: 1 };
+    console.warn('[ContactButton] Stratégie 1 échouée:', e1?.code, e1?.message);
+
+    // Stratégie 2 : related_type = 'general'
+    const { data: d2, error: e2 } = await supabase
+      .from('conversations')
+      .insert({ subject, related_type: 'general', related_id: relatedId })
+      .select('id')
+      .single();
+    if (d2?.id) return { id: d2.id as string, strategy: 2 };
+    console.warn('[ContactButton] Stratégie 2 échouée:', e2?.code, e2?.message);
+
+    // Stratégie 3 : sans related_type ni related_id
+    const { data: d3, error: e3 } = await supabase
+      .from('conversations')
+      .insert({ subject })
+      .select('id')
+      .single();
+    if (d3?.id) return { id: d3.id as string, strategy: 3 };
+    console.warn('[ContactButton] Stratégie 3 échouée:', e3?.code, e3?.message);
+
+    // Stratégie 4 : payload minimal absolu
+    const { data: d4, error: e4 } = await supabase
+      .from('conversations')
+      .insert({})
+      .select('id')
+      .single();
+    if (d4?.id) return { id: d4.id as string, strategy: 4 };
+    console.error('[ContactButton] Toutes les stratégies ont échoué:', e4?.code, e4?.message);
+
+    // Renvoie le dernier code d'erreur pour affichage
+    return {
+      id: null,
+      error: e1 || e2 || e3 || e4,
+    };
+  };
+
   // ── Handler principal ────────────────────────────────────────────────────────
   const handleContact = async () => {
     if (loading) return;
     setLoading(true);
     try {
-      // Mapper les sourceType vers les related_type acceptés par la DB
-      const VALID_RELATED_TYPES = [
-        'listing','equipment','help_request','lost_found',
-        'association','outing','collection_item','service_request','general',
-        'event', // ajouté dans la migration MESSAGING_SQL
-      ];
-      const relatedType = sourceType === 'artisan'
-        ? 'general'
-        : VALID_RELATED_TYPES.includes(sourceType) ? sourceType : 'general';
+      // Mapper sourceType vers related_type pour la DB
+      const relatedType = sourceType === 'artisan' ? 'general' : sourceType;
 
-      // 1. Chercher une conversation existante entre userId et ownerId pour ce contenu
+      // ── 1. Chercher une conversation existante ─────────────────────────────
       let existingConvId: string | null = null;
 
       const { data: myParts } = await supabase
@@ -172,115 +219,125 @@ export default function ContactButton({
         const myConvIds = myParts.map((p: { conversation_id: string }) => p.conversation_id);
 
         if (sourceId) {
-          // Cherche une conv existante liée à ce contenu précis
-          const { data: existingConv } = await supabase
+          // Cherche par related_id d'abord
+          const { data: byRelatedId } = await supabase
             .from('conversations')
             .select('id')
-            .eq('related_type', relatedType)
             .eq('related_id', sourceId)
             .in('id', myConvIds)
             .maybeSingle();
-          existingConvId = existingConv?.id || null;
-        } else {
-          // Conversation générale entre les deux utilisateurs
+          existingConvId = byRelatedId?.id || null;
+        }
+
+        if (!existingConvId) {
+          // Cherche une conversation partagée avec l'owner (tous types)
           const { data: ownerParts } = await supabase
             .from('conversation_participants')
             .select('conversation_id')
             .eq('user_id', ownerId)
             .in('conversation_id', myConvIds);
+
           if (ownerParts && ownerParts.length > 0) {
             const sharedIds = ownerParts.map((p: { conversation_id: string }) => p.conversation_id);
-            const { data: genConv } = await supabase
-              .from('conversations')
-              .select('id')
-              .eq('related_type', 'general')
-              .in('id', sharedIds)
-              .maybeSingle();
-            existingConvId = genConv?.id || null;
+            // Si sourceId, cherche spécifiquement ; sinon prend le plus récent
+            if (sourceId) {
+              const { data: byBoth } = await supabase
+                .from('conversations')
+                .select('id')
+                .eq('related_id', sourceId)
+                .in('id', sharedIds)
+                .maybeSingle();
+              existingConvId = byBoth?.id || null;
+            } else {
+              // Conversation générale entre les deux utilisateurs
+              const { data: genConv } = await supabase
+                .from('conversations')
+                .select('id')
+                .in('id', sharedIds)
+                .order('updated_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              existingConvId = genConv?.id || null;
+            }
           }
         }
       }
 
-      // 2. Conversation existante → ouvrir directement
+      // ── 2. Conversation existante → ouvrir ─────────────────────────────────
       if (existingConvId) {
         onConversationReady?.(existingConvId);
         router.push(`/messages/${existingConvId}`);
         return;
       }
 
-      // 3. Créer une nouvelle conversation
+      // ── 3. Créer une nouvelle conversation ─────────────────────────────────
       const subject = sourceTitle
-        ? `${sourceTitle}`
-        : (ctaLabel || conf.defaultLabel);
+        || ctaLabel
+        || conf.defaultLabel
+        || 'Message';
 
-      // Tentative d'INSERT — on utilise uniquement les colonnes de base
-      // (compatibles avec toutes les versions du schéma)
-      const insertPayload: Record<string, unknown> = {
-        subject,
-        related_type: relatedType,
-        related_id: sourceId || null,
-      };
+      const result = await tryCreateConversation(subject, relatedType, sourceId || null);
 
-      const { data: newConv, error: convError } = await supabase
-        .from('conversations')
-        .insert(insertPayload)
-        .select('id')
-        .single();
-
-      if (convError || !newConv) {
-        console.error('[ContactButton] INSERT conversations error:', JSON.stringify(convError));
-        // 22P02 = invalid enum value | 23514 = CHECK constraint violation
-        // Dans les deux cas : retry avec related_type = 'general'
-        if (convError?.code === '23514' || convError?.code === '22P02') {
-          const { data: fallbackConv, error: fbErr } = await supabase
-            .from('conversations')
-            .insert({ subject, related_type: 'general', related_id: sourceId || null })
-            .select('id')
-            .single();
-          if (fbErr || !fallbackConv) {
-            console.error('[ContactButton] Fallback INSERT error:', JSON.stringify(fbErr));
-            toast.error('Impossible de créer la conversation — vérifiez la migration SQL');
-            return;
-          }
-          // Suite avec fallbackConv
-          await addParticipantsAndMessage(fallbackConv.id);
-          return;
-        }
-        toast.error('Impossible de créer la conversation — vérifiez la migration SQL');
+      if (!result.id) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const err = (result as any).error;
+        const code = err?.code || '?';
+        const hint = code === '42501'
+          ? 'Permission refusée — exécutez le SQL Fix dans Admin → Migration DB'
+          : code === '23514' || code === '22P02'
+          ? 'Contrainte related_type — exécutez le SQL Fix dans Admin → Migration DB'
+          : code === '42703'
+          ? 'Colonne manquante — exécutez le SQL Fix dans Admin → Migration DB'
+          : `Erreur [${code}] — consultez la console`;
+        toast.error(hint, { duration: 6000 });
         return;
       }
 
-      await addParticipantsAndMessage(newConv.id);
+      const newConvId = result.id;
+
+      // ── 4. Ajouter les participants ─────────────────────────────────────────
+      const { error: partErr } = await supabase
+        .from('conversation_participants')
+        .upsert(
+          [
+            { conversation_id: newConvId, user_id: userId },
+            { conversation_id: newConvId, user_id: ownerId },
+          ],
+          { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
+        );
+
+      if (partErr) {
+        console.warn('[ContactButton] Participants upsert erreur:', partErr.code, partErr.message);
+        // On continue malgré l'erreur (la conversation est créée)
+      }
+
+      // ── 5. Message initial ─────────────────────────────────────────────────
+      const initialMsg = prefillMsg
+        || `👋 Bonjour ! Je vous contacte à propos de${sourceTitle ? ` "${sourceTitle}"` : ' votre annonce'}.`;
+
+      const { error: msgErr } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: newConvId,
+          sender_id: userId,
+          content: initialMsg,
+        });
+
+      if (msgErr) {
+        console.warn('[ContactButton] Message insert erreur:', msgErr.code, msgErr.message);
+        // On continue malgré l'erreur (la conversation et les participants sont créés)
+      }
+
+      // ── 6. Redirection ─────────────────────────────────────────────────────
+      onConversationReady?.(newConvId);
+      router.push(`/messages/${newConvId}`);
 
     } catch (err) {
-      console.error('[ContactButton] Error:', err);
-      toast.error('Une erreur est survenue');
+      console.error('[ContactButton] Exception inattendue:', err);
+      toast.error('Erreur inattendue — consultez la console');
     } finally {
       setLoading(false);
     }
-  };
-
-  const addParticipantsAndMessage = async (convId: string) => {
-      // 4. Ajouter les deux participants
-      await supabase.from('conversation_participants').upsert(
-        [
-          { conversation_id: convId, user_id: userId },
-          { conversation_id: convId, user_id: ownerId },
-        ],
-        { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
-      );
-
-      // 5. Message initial
-      const initialMsg = prefillMsg
-        || `👋 Bonjour ! Je vous contacte à propos de${sourceTitle ? ` "${sourceTitle}"` : ' votre annonce'}.`;
-      await supabase.from('messages').insert({
-        conversation_id: convId,
-        sender_id: userId,
-        content: initialMsg,
-      });
-
-      onConversationReady?.(convId);
-      router.push(`/messages/${convId}`);
   };
 
   // ── Rendu ─────────────────────────────────────────────────────────────────────
