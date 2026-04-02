@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -10,6 +11,7 @@ import {
   Gem, Footprints, PartyPopper, HandHeart, Package,
   ShoppingBag, MapPin, BookOpen, Wrench, AlertTriangle,
 } from 'lucide-react';
+// Avatar unused directly — kept via MemberCard
 import Avatar from '@/components/ui/Avatar';
 import CommunityJoinButton from '@/components/ui/CommunityJoinButton';
 import MemberCard, { ThemeMember } from '@/components/ui/MemberCard';
@@ -190,12 +192,9 @@ const BADGES_BY_THEME: Record<string, { icon: string; label: string; color: stri
 };
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-export default function CommunauteThemePage({
-  params,
-}: {
-  params: Promise<{ theme: string }>;
-}) {
-  const { theme: themeSlug } = use(params);
+export default function CommunauteThemePage() {
+  const rawParams = useParams();
+  const themeSlug = (Array.isArray(rawParams?.theme) ? rawParams.theme[0] : rawParams?.theme) ?? '';
   const { profile } = useAuthStore();
   const supabase = createClient();
   const themeConfig = THEME_CONFIG[themeSlug] ?? DEFAULT_THEME;
