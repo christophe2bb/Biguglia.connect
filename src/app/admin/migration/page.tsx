@@ -1527,6 +1527,53 @@ CREATE POLICY "Artisan supprime ses documents" ON storage.objects FOR DELETE
   );
 `;
 
+const COLLECTION_COMMENTS_SQL = `-- ============================================================
+-- BIGUGLIA CONNECT — Discussion sur articles de collection
+-- Coller dans Supabase > SQL Editor > Run
+-- ============================================================
+
+-- Table des commentaires publics sur les articles de collection
+CREATE TABLE IF NOT EXISTS collection_item_comments (
+  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  item_id    UUID NOT NULL REFERENCES collection_items(id) ON DELETE CASCADE,
+  author_id  UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  content    TEXT NOT NULL CHECK (char_length(content) BETWEEN 1 AND 2000),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Index performances
+CREATE INDEX IF NOT EXISTS collection_item_comments_item_idx   ON collection_item_comments(item_id);
+CREATE INDEX IF NOT EXISTS collection_item_comments_author_idx ON collection_item_comments(author_id);
+CREATE INDEX IF NOT EXISTS collection_item_comments_date_idx   ON collection_item_comments(created_at DESC);
+
+-- RLS
+ALTER TABLE collection_item_comments ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Tout le monde peut lire les commentaires collection" ON collection_item_comments;
+CREATE POLICY "Tout le monde peut lire les commentaires collection"
+  ON collection_item_comments FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Membres authentifiés peuvent commenter" ON collection_item_comments;
+CREATE POLICY "Membres authentifiés peuvent commenter"
+  ON collection_item_comments FOR INSERT
+  WITH CHECK (auth.uid() = author_id);
+
+DROP POLICY IF EXISTS "Auteur peut modifier son commentaire" ON collection_item_comments;
+CREATE POLICY "Auteur peut modifier son commentaire"
+  ON collection_item_comments FOR UPDATE
+  USING (auth.uid() = author_id)
+  WITH CHECK (auth.uid() = author_id);
+
+DROP POLICY IF EXISTS "Auteur peut supprimer son commentaire" ON collection_item_comments;
+CREATE POLICY "Auteur peut supprimer son commentaire"
+  ON collection_item_comments FOR DELETE
+  USING (auth.uid() = author_id);
+
+-- Vérification
+SELECT COUNT(*) AS nb_commentaires FROM collection_item_comments;
+`;
+
 type StorageDiag = {
   bucketExists: boolean | null;
   bucketPublic: boolean | null;
@@ -1553,6 +1600,7 @@ export default function MigrationPage() {
   const [copiedSearch, setCopiedSearch] = useState(false);
   const [copiedArtisan, setCopiedArtisan] = useState(false);
   const [copiedMessaging, setCopiedMessaging] = useState(false);
+  const [copiedCollectionComments, setCopiedCollectionComments] = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -1702,6 +1750,12 @@ export default function MigrationPage() {
     navigator.clipboard.writeText(ARTISAN_SQL);
     setCopiedArtisan(true);
     setTimeout(() => setCopiedArtisan(false), 4000);
+  };
+
+  const handleCopyCollectionComments = () => {
+    navigator.clipboard.writeText(COLLECTION_COMMENTS_SQL);
+    setCopiedCollectionComments(true);
+    setTimeout(() => setCopiedCollectionComments(false), 4000);
   };
 
   const handleCopySearch = () => {
@@ -2756,6 +2810,34 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-80">
           <pre className="text-xs text-cyan-400 font-mono leading-relaxed whitespace-pre-wrap">{ARTISAN_SQL}</pre>
+        </div>
+      </div>
+
+      {/* ─── SQL Discussion Collectionneurs ─── */}
+      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden mb-6">
+        <div className="px-5 py-4 bg-rose-50 border-b border-rose-100 flex items-start gap-3">
+          <MessageSquare className="w-5 h-5 text-rose-500 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-rose-800">
+            <strong>SQL Discussion — Commentaires sur articles de collection</strong>
+            <p className="text-xs mt-1 text-rose-700">
+              Active les discussions publiques (mini-forum) sur chaque carte de la page Collectionneurs.
+              Table <code>collection_item_comments</code> + RLS + index.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
+          <p className="text-xs text-gray-500">Table collection_item_comments + policies RLS (SELECT public, INSERT/UPDATE/DELETE authentifié)</p>
+          <button onClick={handleCopyCollectionComments}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow ${
+              copiedCollectionComments ? 'bg-emerald-500 text-white' : 'bg-rose-600 text-white hover:bg-rose-700'
+            }`}>
+            {copiedCollectionComments
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Discussion Collection</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-80">
+          <pre className="text-xs text-cyan-400 font-mono leading-relaxed whitespace-pre-wrap">{COLLECTION_COMMENTS_SQL}</pre>
         </div>
       </div>
 

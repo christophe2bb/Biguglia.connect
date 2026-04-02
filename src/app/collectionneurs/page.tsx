@@ -6,7 +6,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
 import { formatRelative } from '@/lib/utils';
 import {
-  Tag, MessageSquare, Search, Plus, Eye, ChevronRight,
+  Tag, MessageSquare, Search, Plus, Eye, ChevronRight, Send,
   Package, ArrowLeftRight, Gem,
   BadgeCheck, Layers, X,
   Loader2, RefreshCw, Camera, AlertCircle, Pencil, Trash2,
@@ -136,6 +136,7 @@ function ItemCard({
   onEdit: (item: CollectionItem) => void;
   onDelete: (item: CollectionItem) => void;
 }) {
+  const supabase = createClient();
   const tc = TYPE_CONFIG[item.item_type];
   const cc = CONDITION_CONFIG[item.condition];
   const catClasses = item.category ? getCatClasses(item.category.color) : COLOR_CLASSES.gray;
@@ -144,6 +145,55 @@ function ItemCard({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(0);
   const isOwner = currentUserId === item.author_id;
+
+  // ── Discussion (mini-forum public) ────────────────────────────────────────
+  type ItemComment = { id: string; content: string; created_at: string; author?: { full_name?: string } | null };
+  const [openChat, setOpenChat] = useState(false);
+  const [comments, setComments] = useState<ItemComment[]>([]);
+  const [chatText, setChatText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [chatCount, setChatCount] = useState(0);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    supabase.from('collection_item_comments').select('id', { count: 'exact', head: true })
+      .eq('item_id', item.id)
+      .then(({ count }) => setChatCount(count ?? 0));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id]);
+
+  const fetchComments = useCallback(async () => {
+    const { data } = await supabase
+      .from('collection_item_comments')
+      .select('id, content, created_at, author:profiles(full_name)')
+      .eq('item_id', item.id)
+      .order('created_at', { ascending: true })
+      .limit(50);
+    setComments((data ?? []) as ItemComment[]);
+    setChatCount((data ?? []).length);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id]);
+
+  const handleOpenChat = () => {
+    const will = !openChat;
+    setOpenChat(will);
+    if (will) { fetchComments(); setTimeout(() => inputRef.current?.focus(), 200); }
+  };
+
+  const handleSend = async () => {
+    if (!chatText.trim() || !currentUserId || sending) return;
+    setSending(true);
+    const { error } = await supabase.from('collection_item_comments').insert({
+      item_id: item.id,
+      author_id: currentUserId,
+      content: chatText.trim(),
+    });
+    if (!error) {
+      setChatText('');
+      await fetchComments();
+    }
+    setSending(false);
+  };
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 overflow-hidden group relative">
@@ -198,7 +248,8 @@ function ItemCard({
           )}
         </div>
       </div>
-      <div className="p-5">
+
+      <div className="p-4">
         <p className="text-gray-500 text-xs leading-relaxed mb-3 line-clamp-3">{item.description}</p>
 
         <div className="flex items-center gap-3 mb-3 text-xs text-gray-400">
@@ -214,16 +265,27 @@ function ItemCard({
           </div>
         )}
 
-        <div className="flex items-center justify-between pt-3 border-t border-gray-50 text-xs text-gray-400">
-          <span className="truncate max-w-[120px]">{item.author?.full_name ?? 'Membre'} · {formatRelative(item.created_at)}</span>
-          {isOwner ? (
-            <div className="flex items-center gap-2">
-              <button onClick={() => onEdit(item)} className="text-amber-600 font-semibold hover:text-amber-700 flex items-center gap-1 transition-colors">
-                <Pencil className="w-3 h-3" /> Modifier
-              </button>
+        {/* ── Auteur + actions ── */}
+        <div className="pt-3 border-t border-gray-100">
+          {/* Ligne auteur */}
+          <div className="flex items-center justify-between mb-2 text-xs text-gray-400">
+            <span className="truncate max-w-[140px]">{item.author?.full_name ?? 'Membre'} · {formatRelative(item.created_at)}</span>
+            <div className="flex items-center gap-1">
+              {isOwner && (
+                <button onClick={() => onEdit(item)} className="text-amber-600 font-semibold hover:text-amber-700 flex items-center gap-1 transition-colors">
+                  <Pencil className="w-3 h-3" /> Modifier
+                </button>
+              )}
+              {!isOwner && (
+                <ReportButton targetType="collection_item" targetId={item.id} targetTitle={item.title} variant="icon" />
+              )}
             </div>
-          ) : (
-            <div className="flex items-center gap-2">
+          </div>
+
+          {/* Boutons d'action */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Bouton message privé (ContactButton) */}
+            {!isOwner && (
               <ContactButton
                 sourceType="collection_item"
                 sourceId={item.id}
@@ -231,11 +293,83 @@ function ItemCard({
                 ownerId={item.author_id}
                 userId={currentUserId}
                 size="sm"
+                className="flex-1 justify-center"
               />
-              <ReportButton targetType="collection_item" targetId={item.id} targetTitle={item.title} variant="icon" />
+            )}
+
+            {/* Bouton discussion publique */}
+            <button
+              type="button"
+              onClick={handleOpenChat}
+              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all ${
+                openChat
+                  ? 'bg-rose-50 text-rose-700 border-rose-200'
+                  : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+              }`}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              Discussion
+              {chatCount > 0 && (
+                <span className="bg-rose-100 text-rose-700 text-xs font-black px-1.5 py-0.5 rounded-full">{chatCount}</span>
+              )}
+            </button>
+          </div>
+
+          {/* ── Mini-forum ── */}
+          {openChat && (
+            <div className="mt-3 border-t border-gray-100 pt-3 flex flex-col gap-2">
+              {comments.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-2 italic">Aucun message — démarrez la discussion !</p>
+              ) : (
+                <div className="flex flex-col gap-2 max-h-52 overflow-y-auto">
+                  {comments.map(c => (
+                    <div key={c.id} className="flex items-start gap-2">
+                      <div
+                        className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-black text-white"
+                        style={{ background: 'linear-gradient(135deg,#f43f5e,#fb7185)' }}
+                      >
+                        {c.author?.full_name?.[0]?.toUpperCase() ?? '?'}
+                      </div>
+                      <div className="flex-1 bg-gray-50 rounded-lg px-2 py-1.5">
+                        <p className="text-xs font-bold text-gray-700">
+                          {c.author?.full_name ?? 'Anonyme'}
+                          <span className="font-normal text-gray-400 ml-1.5">{formatRelative(c.created_at)}</span>
+                        </p>
+                        <p className="text-xs text-gray-600 mt-0.5 whitespace-pre-wrap break-words">{c.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {currentUserId ? (
+                <div className="flex items-end gap-1.5">
+                  <textarea
+                    ref={inputRef}
+                    value={chatText}
+                    onChange={e => setChatText(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                    placeholder="Votre message… (Entrée pour envoyer)"
+                    rows={2}
+                    className="flex-1 text-xs rounded-lg border border-rose-200 px-2 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-rose-300 bg-white text-gray-700 placeholder-gray-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSend}
+                    disabled={!chatText.trim() || sending}
+                    className="p-2 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 disabled:opacity-40 transition-all flex-shrink-0"
+                  >
+                    {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              ) : (
+                <Link href="/connexion" className="text-xs text-center text-rose-600 font-semibold py-1 hover:underline block">
+                  Connectez-vous pour participer →
+                </Link>
+              )}
             </div>
           )}
         </div>
+
         {/* Notation article collection */}
         <div className="mt-3 pt-3 border-t border-gray-50">
           <RatingWidget
