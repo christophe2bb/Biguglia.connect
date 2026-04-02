@@ -874,6 +874,38 @@ $$;
 -- Autoriser les utilisateurs authentifiés à appeler cette fonction
 GRANT EXECUTE ON FUNCTION create_conversation_with_message TO authenticated;
 
+-- Fonction pour récupérer le profil de l'autre participant (contourne RLS)
+-- Nécessaire car la RLS sur conversation_participants filtre sur user_id = auth.uid()
+CREATE OR REPLACE FUNCTION get_conversation_other_participant(p_conversation_id UUID)
+RETURNS TABLE(user_id UUID, full_name TEXT, avatar_url TEXT)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user_id UUID := auth.uid();
+BEGIN
+  -- Vérifier que l'utilisateur participe à cette conversation
+  IF NOT EXISTS (
+    SELECT 1 FROM conversation_participants
+    WHERE conversation_id = p_conversation_id AND user_id = v_user_id
+  ) THEN
+    RAISE EXCEPTION 'ACCESS_DENIED';
+  END IF;
+
+  -- Retourner le profil de l'autre participant
+  RETURN QUERY
+    SELECT p.id, p.full_name, p.avatar_url
+    FROM conversation_participants cp
+    JOIN profiles p ON p.id = cp.user_id
+    WHERE cp.conversation_id = p_conversation_id
+      AND cp.user_id != v_user_id
+    LIMIT 1;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION get_conversation_other_participant TO authenticated;
+
 -- 4. RLS conversations (pour la lecture/mise à jour)
 ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 

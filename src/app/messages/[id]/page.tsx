@@ -630,22 +630,46 @@ export default function ConversationPage() {
         toast.error('Accès refusé'); router.push('/messages'); return;
       }
 
-      // Profil autre participant
-      const other = participants.find(p => p.user_id !== profile.id);
-      if (other) { const op = await getSenderProfile(other.user_id); setOtherUser(op || null); }
-
-      // Infos conversation (sujet + contexte + échange)
+      // Infos conversation (sujet + contexte + échange + owner_id pour l'autre participant)
       const { data: conv } = await supabase
         .from('conversations')
-        .select('subject, related_type, related_id, exchange_status, exchange_confirmed_by, exchange_confirmed_at')
+        .select('subject, related_type, related_id, exchange_status, exchange_confirmed_by, exchange_confirmed_at, owner_id, created_by')
         .eq('id', id as string)
         .single();
+
+      // Profil autre participant :
+      // 1. Via RPC SECURITY DEFINER (contourne la RLS qui filtre user_id=auth.uid())
+      // 2. Fallback : tableau participants si RLS permissive
+      // 3. Fallback : owner_id / created_by de la conversation
+      const other = participants.find(p => p.user_id !== profile.id);
+      let otherUserId: string | null = null;
+
+      const { data: rpcOther } = await supabase.rpc(
+        'get_conversation_other_participant',
+        { p_conversation_id: id as string }
+      );
+      if (rpcOther && (rpcOther as Array<{user_id:string;full_name:string;avatar_url:string}>).length > 0) {
+        const op = (rpcOther as Array<{user_id:string;full_name:string;avatar_url:string}>)[0];
+        setOtherUser({ id: op.user_id, full_name: op.full_name, avatar_url: op.avatar_url } as Profile);
+        otherUserId = op.user_id;
+      } else if (other) {
+        otherUserId = other.user_id;
+        const op = await getSenderProfile(other.user_id);
+        setOtherUser(op || null);
+      } else if (conv?.owner_id && conv.owner_id !== profile.id) {
+        otherUserId = conv.owner_id as string;
+        const op = await getSenderProfile(otherUserId);
+        setOtherUser(op || null);
+      } else if (conv?.created_by && conv.created_by !== profile.id) {
+        otherUserId = conv.created_by as string;
+        const op = await getSenderProfile(otherUserId);
+        setOtherUser(op || null);
+      }
       setSubject(conv?.subject || 'Conversation');
       setRelatedType(conv?.related_type || null);
       setRelatedId(conv?.related_id || null);
 
-      // Charger l'état d'échange
-      const otherParticipant = participants.find(p => p.user_id !== profile.id);
+      // Charger l'état d'échange (utilise otherUserId déjà résolu ci-dessus)
       if (conv?.related_type && EXCHANGEABLE_TYPES[conv.related_type]) {
         setExchange({
           status: (conv.exchange_status as ExchangeStatus) || null,
@@ -653,7 +677,7 @@ export default function ConversationPage() {
           confirmedAt: conv.exchange_confirmed_at || null,
           relatedType: conv.related_type,
           relatedId: conv.related_id,
-          otherUserId: otherParticipant?.user_id || null,
+          otherUserId: otherUserId || participants.find(p => p.user_id !== profile.id)?.user_id || null,
         });
       }
 
