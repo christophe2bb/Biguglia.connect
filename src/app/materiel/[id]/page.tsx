@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft, MapPin, Calendar, MessageSquare, Flag, Shield, Clock, Pencil, Trash2 } from 'lucide-react';
+import { ChevronLeft, MapPin, Calendar, MessageSquare, Flag, Shield, Clock, Pencil, Trash2, Share2 } from 'lucide-react';
+import StatusManager from '@/components/ui/StatusManager';
+import StatusBadge from '@/components/ui/StatusBadge';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { EquipmentItem } from '@/types';
@@ -25,6 +27,7 @@ export default function MaterielDetailPage() {
   const [item, setItem] = useState<EquipmentItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [equipmentStatus, setEquipmentStatus] = useState<string>('available');
   const [borrowForm, setBorrowForm] = useState({ start_date: '', end_date: '', message: '' });
   const [submitting, setSubmitting] = useState(false);
 
@@ -50,7 +53,9 @@ export default function MaterielDetailPage() {
       const photos = (data.photos || []) as Array<{ id: string; url: string; display_order: number }>;
       photos.sort((a, b) => a.display_order - b.display_order);
 
-      setItem({ ...data, owner: ownerData, photos } as unknown as EquipmentItem);
+      const enriched = { ...data, owner: ownerData, photos } as unknown as EquipmentItem;
+      setItem(enriched);
+      setEquipmentStatus((enriched as { status?: string; is_available?: boolean }).status || (enriched.is_available ? 'available' : 'unavailable'));
       setLoading(false);
     };
     fetchItem();
@@ -132,7 +137,7 @@ export default function MaterielDetailPage() {
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-3 flex-wrap">
               {item.is_free ? <Badge variant="success">Gratuit</Badge> : <Badge variant="default">{item.daily_rate}€/jour</Badge>}
-              <Badge variant={item.is_available ? 'success' : 'danger'}>{item.is_available ? 'Disponible' : 'Indisponible'}</Badge>
+              <StatusBadge status={equipmentStatus} contentType="equipment" size="sm" showIcon showDot={equipmentStatus === 'available'} />
               {item.category && <span className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">{item.category.icon} {item.category.name}</span>}
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">{item.title}</h1>
@@ -179,13 +184,39 @@ export default function MaterielDetailPage() {
             {isOwner && (
               <div className="space-y-2 pt-2 border-t border-gray-100">
                 <div className="text-xs text-center text-brand-600 font-medium py-1 bg-brand-50 rounded-xl">✅ C&apos;est votre matériel</div>
+
+                {/* Status manager */}
+                <div className="bg-gray-50 rounded-xl border border-gray-200 p-3">
+                  <StatusManager
+                    contentType="equipment"
+                    currentStatus={equipmentStatus}
+                    onStatusChange={async (newStatus) => {
+                      const supabase = createClient();
+                      const isAvail = newStatus === 'available';
+                      const { error } = await supabase
+                        .from('equipment_items')
+                        .update({ status: newStatus, is_available: isAvail, updated_at: new Date().toISOString() })
+                        .eq('id', item.id);
+                      if (error) throw error;
+                      setEquipmentStatus(newStatus);
+                      setItem(prev => prev ? { ...prev, is_available: isAvail } : prev);
+                    }}
+                    onDelete={handleDelete}
+                  />
+                </div>
+
                 <Link href={`/materiel/${id}/modifier`}
                   className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-700 transition-colors">
                   <Pencil className="w-4 h-4" /> Modifier
                 </Link>
-                <button onClick={handleDelete} disabled={deleting}
-                  className="flex items-center justify-center gap-2 w-full px-4 py-2.5 border border-red-200 text-red-600 text-sm font-medium rounded-xl hover:bg-red-50 transition-colors disabled:opacity-50">
-                  <Trash2 className="w-4 h-4" />{deleting ? 'Suppression...' : 'Supprimer'}
+                <button
+                  onClick={() => {
+                    if (navigator.share) navigator.share({ title: item.title, url: window.location.href });
+                    else { navigator.clipboard.writeText(window.location.href); toast.success('Lien copié !'); }
+                  }}
+                  className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  <Share2 className="w-3.5 h-3.5" /> Partager
                 </button>
               </div>
             )}

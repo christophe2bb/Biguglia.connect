@@ -40,9 +40,11 @@ export default function AnnoncesPage() {
         .select('*, category:listing_categories(*), photos:listing_photos(*)');
 
       if (selectedStatus === 'active') query = query.eq('status', 'active');
-      else if (selectedStatus === 'reserved') query = query.eq('status', 'reserved').neq('status', 'archived');
+      else if (selectedStatus === 'reserved') query = query.eq('status', 'reserved');
       else if (selectedStatus === 'sold') query = query.eq('status', 'sold');
-      else query = query.neq('status', 'archived');
+      else if (selectedStatus === 'expired') query = query.eq('status', 'expired');
+      else if (selectedStatus === 'archived') query = query.eq('status', 'archived');
+      else query = query.neq('status', 'archived'); // 'all' hides archived by default
 
       if (selectedCategory) {
         const cat = cats?.find(c => c.slug === selectedCategory);
@@ -110,10 +112,12 @@ export default function AnnoncesPage() {
           <option value="">Toutes catégories</option>
           {categories.map(c => <option key={c.id} value={c.slug}>{c.icon} {c.name}</option>)}
         </Select>
-        <Select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} className="sm:w-44">
+        <Select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} className="sm:w-48">
           <option value="active">⚡ Disponibles</option>
           <option value="reserved">🔒 Réservées</option>
           <option value="sold">✅ Vendues</option>
+          <option value="expired">⏱ Expirées</option>
+          <option value="archived">📦 Archivées</option>
           <option value="all">Toutes</option>
         </Select>
         <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="sm:w-44">

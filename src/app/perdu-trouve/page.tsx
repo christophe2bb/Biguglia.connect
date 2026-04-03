@@ -22,7 +22,7 @@ import ContactButton from '@/components/ui/ContactButton';
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LostFoundType = 'perdu' | 'trouve';
 
-type LostFoundStatus = 'active' | 'resolved' | 'draft';
+type LostFoundStatus = 'active' | 'resolved' | 'closed' | 'archived' | 'draft';
 
 type LostFoundItem = {
   id: string;
@@ -90,7 +90,7 @@ const LOCATION_AREAS = [
 
 // ─── LostFoundCard ────────────────────────────────────────────────────────────
 function LostFoundCard({
-  item, userId, isAuthor, onEdit, onDelete, onResolve,
+  item, userId, isAuthor, onEdit, onDelete, onResolve, onStatusChange,
 }: {
   item: LostFoundItem;
   userId?: string;
@@ -98,6 +98,7 @@ function LostFoundCard({
   onEdit: (i: LostFoundItem) => void;
   onDelete: (id: string) => void;
   onResolve: (id: string) => void;
+  onStatusChange?: (id: string, newStatus: string) => void;
 }) {
   const supabaseRef = useRef(createClient());
   const supabase = supabaseRef.current;
@@ -122,7 +123,8 @@ function LostFoundCard({
 
   const CatIcon = CATEGORIES.find(c => c.value === item.category)?.icon ?? Package;
   const isPerdu = item.type === 'perdu';
-  const isResolved = item.status === 'resolved';
+  const [localStatus, setLocalStatus] = useState<LostFoundStatus>(item.status);
+  const isResolved = localStatus === 'resolved';
   const allPhotos = toPhotoItems(item.photos ?? []);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(0);
@@ -208,7 +210,7 @@ function LostFoundCard({
         {/* Badge type haut gauche */}
         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
           <StatusBadge
-            status={item.status}
+            status={localStatus}
             contentType="lost_found"
             extra={{ lostFoundType: item.type }}
             size="sm" showIcon showDot={!isResolved} className="shadow font-black"
@@ -321,7 +323,36 @@ function LostFoundCard({
         <div className="flex gap-2 flex-wrap">
           {/* CTA principal via ContactButton */}
           {isAuthor ? (
-            <span className="text-xs text-gray-400 italic">✉️ Les membres vous contacteront ici</span>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-400 italic">✉️ Les membres vous contacteront ici</span>
+              {onStatusChange && (() => {
+                const s = localStatus;
+                const acts: { label: string; key: string; color: string }[] = [];
+                if (s === 'active') {
+                  acts.push({ label: '✅ Restitué / Clos', key: 'resolved', color: 'text-emerald-600 bg-emerald-50 border-emerald-200' });
+                  acts.push({ label: '✖ Fermer', key: 'closed', color: 'text-gray-500 bg-gray-50 border-gray-200' });
+                } else if (s === 'resolved' || s === 'closed') {
+                  acts.push({ label: '🔄 Réouvrir', key: 'active', color: 'text-brand-600 bg-brand-50 border-brand-200' });
+                  acts.push({ label: '📦 Archiver', key: 'archived', color: 'text-gray-500 bg-gray-50 border-gray-200' });
+                } else if (s === 'archived') {
+                  acts.push({ label: '🔄 Restaurer', key: 'active', color: 'text-brand-600 bg-brand-50 border-brand-200' });
+                }
+                return acts.length > 0 ? (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {acts.map(a => (
+                      <button key={a.key} onClick={() => {
+                        if (window.confirm(a.label + ' cet objet ?')) {
+                          setLocalStatus(a.key as LostFoundStatus);
+                          onStatusChange(item.id, a.key);
+                        }
+                      }} className={'text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors ' + a.color}>
+                        {a.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
+            </div>
           ) : (
             <ContactButton
               sourceType="lost_found"
@@ -489,7 +520,7 @@ export default function PerduTrouvePage() {
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<'all' | 'perdu' | 'trouve'>('all');
   const [filterCat, setFilterCat] = useState('all');
-  const [filterStatus, setFilterStatus] = useState<'active' | 'resolved' | 'all'>('active');
+  const [filterStatus, setFilterStatus] = useState<'active' | 'resolved' | 'closed' | 'archived' | 'all'>('active');
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<LostFoundItem | null>(null);
@@ -693,8 +724,17 @@ export default function PerduTrouvePage() {
   };
 
   const handleResolve = async (id: string) => {
-    await supabase.from('lost_found_items').update({ status: 'resolved' }).eq('id', id);
+    await supabase.from('lost_found_items').update({ status: 'resolved', updated_at: new Date().toISOString() }).eq('id', id);
     toast.success('Annonce marquée comme résolue ✓');
+    fetchItems();
+  };
+
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    await supabase.from('lost_found_items').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', id);
+    const labels: Record<string, string> = {
+      active: 'Actif', resolved: 'Restitué', closed: 'Fermé', archived: 'Archivé',
+    };
+    toast.success(`✅ Statut : ${labels[newStatus] || newStatus}`);
     fetchItems();
   };
 
@@ -1168,9 +1208,9 @@ export default function PerduTrouvePage() {
           </div>
           {/* Status filter */}
           <div className="flex bg-white border border-gray-200 rounded-xl overflow-hidden text-sm font-semibold shadow-sm">
-            {([['active','En cours'],['resolved','Résolus'],['all','Tous']] as const).map(([v,l]) => (
+            {([['active','En cours'],['resolved','Résolus'],['closed','Fermés'],['archived','Archivés'],['all','Tous']] as const).map(([v,l]) => (
               <button key={v} onClick={() => setFilterStatus(v)}
-                className={`px-4 py-2.5 transition-all ${filterStatus === v ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+                className={`px-3 py-2.5 transition-all text-xs ${filterStatus === v ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
                 {l}
               </button>
             ))}
@@ -1216,6 +1256,7 @@ export default function PerduTrouvePage() {
                 onEdit={startEdit}
                 onDelete={handleDelete}
                 onResolve={handleResolve}
+                onStatusChange={handleStatusChange}
               />
             ))}
           </div>

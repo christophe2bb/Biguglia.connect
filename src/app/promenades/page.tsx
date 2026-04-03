@@ -177,13 +177,14 @@ function PromenadeCard({
 }
 
 // ─── OutingCard ──────────────────────────────────────────────────────────────
-function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit, onDelete }: {
+function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit, onDelete, onStatusChange }: {
   outing: GroupOuting;
   userId?: string;
   isOrganizer: boolean;
   onJoin: (id: string, joined: boolean) => void;
   onEdit: (o: GroupOuting) => void;
   onDelete: (id: string) => void;
+  onStatusChange?: (id: string, newStatus: string) => void;
 }) {
   const supabaseRef = useRef(createClient());
   const supabase = supabaseRef.current;
@@ -364,7 +365,33 @@ function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit, onDelete }: {
 
           {/* Suivi interaction promenade — ContactButton gère lui-même la redirection /connexion */}
           {isOrganizer ? (
-            <span className="text-xs text-gray-400 italic">✉️ Les membres vous contacteront ici</span>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-400 italic">✉️ Les membres vous contacteront ici</span>
+              {/* Organizer status actions */}
+              {onStatusChange && (() => {
+                const s = outing.status;
+                const actions: { label: string; key: string; color: string }[] = [];
+                if (s === 'active' || s === 'open') {
+                  actions.push({ label: '✅ Terminer', key: 'completed', color: 'text-emerald-600 bg-emerald-50 border-emerald-200' });
+                  actions.push({ label: '✖ Annuler', key: 'cancelled', color: 'text-red-500 bg-red-50 border-red-200' });
+                } else if (s === 'cancelled') {
+                  actions.push({ label: '🔄 Réactiver', key: 'active', color: 'text-brand-600 bg-brand-50 border-brand-200' });
+                } else if (s === 'completed') {
+                  actions.push({ label: '📦 Archiver', key: 'archived', color: 'text-gray-500 bg-gray-50 border-gray-200' });
+                }
+                return actions.length > 0 ? (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {actions.map(a => (
+                      <button key={a.key} onClick={() => {
+                        if (window.confirm(`${a.label} cette sortie ?`)) onStatusChange(outing.id, a.key);
+                      }} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors ${a.color}`}>
+                        {a.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
+            </div>
           ) : (
             <ContactButton
               sourceType="outing"
@@ -814,6 +841,16 @@ export default function PromenadePage() {
     fetchOutings();
   };
 
+  const handleOutingStatusChange = async (id: string, newStatus: string) => {
+    const supabase = createClient();
+    await supabase.from('group_outings').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', id);
+    const labels: Record<string, string> = {
+      active: 'Ouverte', cancelled: 'Annulée', completed: 'Terminée', archived: 'Archivée',
+    };
+    toast.success(`✅ Statut : ${labels[newStatus] || newStatus}`);
+    fetchOutings();
+  };
+
   // ── Submit outing ─────────────────────────────────────────────────────────
   const handleOutingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1258,6 +1295,7 @@ export default function PromenadePage() {
                     onJoin={handleJoinOuting}
                     onEdit={startEditOuting}
                     onDelete={handleDeleteOuting}
+                    onStatusChange={handleOutingStatusChange}
                   />
                 ))}
               </div>

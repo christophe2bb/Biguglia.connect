@@ -31,7 +31,7 @@ type Compensation = 'gratuit' | 'cafe' | 'echange' | 'frais' | 'discuter';
 type Visibility = 'public' | 'membres';
 type ContactMode = 'messagerie' | 'telephone_apres';
 type DisplayName = 'prenom' | 'prenom_initiale' | 'complet';
-type HelpStatus = 'active' | 'paused' | 'resolved' | 'draft';
+type HelpStatus = 'active' | 'in_progress' | 'paused' | 'resolved' | 'closed' | 'archived' | 'draft';
 
 type HelpRequest = {
   id: string;
@@ -158,9 +158,59 @@ function LocalTrustBadge({ author }: { author: HelpRequest['author'] }) {
   );
 }
 
+// ─── StatusManagerCDM — inline status changer for coups-de-main cards ────────
+function StatusManagerCDM({
+  status, onStatusChange, onResolve, onPause,
+}: {
+  status: string;
+  onStatusChange: (s: string) => void;
+  onResolve: () => void;
+  onPause: () => void;
+}) {
+  const actions: { label: string; statusKey: string; color: string }[] = [];
+  if (status === 'active') {
+    actions.push({ label: '⚡ En cours', statusKey: 'in_progress', color: 'text-indigo-600 bg-indigo-50 border-indigo-200' });
+    actions.push({ label: '⏸ Pause', statusKey: 'paused', color: 'text-amber-600 bg-amber-50 border-amber-200' });
+    actions.push({ label: '✅ Résolu', statusKey: 'resolved', color: 'text-emerald-600 bg-emerald-50 border-emerald-200' });
+    actions.push({ label: '✖ Fermer', statusKey: 'closed', color: 'text-gray-500 bg-gray-50 border-gray-200' });
+  } else if (status === 'in_progress') {
+    actions.push({ label: '⏸ Pause', statusKey: 'paused', color: 'text-amber-600 bg-amber-50 border-amber-200' });
+    actions.push({ label: '✅ Résolu', statusKey: 'resolved', color: 'text-emerald-600 bg-emerald-50 border-emerald-200' });
+    actions.push({ label: '✖ Fermer', statusKey: 'closed', color: 'text-gray-500 bg-gray-50 border-gray-200' });
+  } else if (status === 'paused') {
+    actions.push({ label: '▶️ Réactiver', statusKey: 'active', color: 'text-orange-600 bg-orange-50 border-orange-200' });
+    actions.push({ label: '✅ Résolu', statusKey: 'resolved', color: 'text-emerald-600 bg-emerald-50 border-emerald-200' });
+  } else if (status === 'resolved' || status === 'closed') {
+    actions.push({ label: '🔄 Réouvrir', statusKey: 'active', color: 'text-brand-600 bg-brand-50 border-brand-200' });
+    actions.push({ label: '📦 Archiver', statusKey: 'archived', color: 'text-gray-500 bg-gray-50 border-gray-200' });
+  } else if (status === 'archived') {
+    actions.push({ label: '🔄 Restaurer', statusKey: 'active', color: 'text-brand-600 bg-brand-50 border-brand-200' });
+  }
+
+  if (actions.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1 mt-1">
+      {actions.map(a => (
+        <button
+          key={a.statusKey}
+          onClick={() => {
+            if (a.statusKey === 'resolved') onResolve();
+            else if (a.statusKey === 'paused' || a.statusKey === 'active') onPause();
+            else onStatusChange(a.statusKey);
+          }}
+          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors ${a.color}`}
+        >
+          {a.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ─── HelpCard ─────────────────────────────────────────────────────────────────
 function HelpCard({
-  item, userId, isAuthor, onEdit, onDelete, onResolve, onPause,
+  item, userId, isAuthor, onEdit, onDelete, onResolve, onPause, onStatusChange,
 }: {
   item: HelpRequest;
   userId?: string;
@@ -169,6 +219,7 @@ function HelpCard({
   onDelete: (id: string) => void;
   onResolve: (id: string) => void;
   onPause: (id: string, paused: boolean) => void;
+  onStatusChange: (id: string, newStatus: string) => void;
 }) {
   const supabaseRef = useRef(createClient());
   const supabase = supabaseRef.current;
@@ -191,8 +242,9 @@ function HelpCard({
   const allPhotos = toPhotoItems(item.photos ?? []);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(0);
-  const isPaused = item.status === 'paused';
-  const isResolved = item.status === 'resolved';
+  const [localStatus, setLocalStatus] = useState(item.status);
+  const isPaused = localStatus === 'paused';
+  const isResolved = localStatus === 'resolved';
 
   useEffect(() => {
     supabase.from('help_comments').select('id', { count: 'exact', head: true })
@@ -268,9 +320,12 @@ function HelpCard({
           <span className={`text-xs font-bold px-2.5 py-1 rounded-full bg-white/90 shadow ${urgConf.color}`}>
             {urgConf.label}
           </span>
-          {isResolved && <StatusBadge status="resolved" contentType="help_request" size="xs" showIcon className="shadow" />}
-          {isPaused   && <StatusBadge status="paused"   contentType="help_request" size="xs" showIcon className="shadow" />}
-          {!isResolved && !isPaused && <StatusBadge status="open" contentType="help_request" size="xs" showDot showIcon className="shadow" />}
+          {localStatus === 'resolved'    && <StatusBadge status="resolved"    contentType="help_request" size="xs" showIcon className="shadow" />}
+          {localStatus === 'paused'      && <StatusBadge status="paused"      contentType="help_request" size="xs" showIcon className="shadow" />}
+          {localStatus === 'in_progress' && <StatusBadge status="in_progress" contentType="help_request" size="xs" showIcon className="shadow" />}
+          {localStatus === 'closed'      && <StatusBadge status="closed"      contentType="help_request" size="xs" showIcon className="shadow" />}
+          {localStatus === 'archived'    && <StatusBadge status="archived"    contentType="help_request" size="xs" showIcon className="shadow" />}
+          {localStatus === 'active'      && <StatusBadge status="open"        contentType="help_request" size="xs" showDot showIcon className="shadow" />}
         </div>
 
         {/* Boutons auteur haut droite */}
@@ -398,7 +453,19 @@ function HelpCard({
         <div className="flex items-center gap-2 pt-3 border-t border-gray-50">
           {/* Bouton contact / suivi interaction */}
           {isAuthor ? (
-            <span className="text-xs text-gray-400 italic">✉️ Les membres vous contacteront ici</span>
+            <div className="flex flex-col gap-1 w-full">
+              <span className="text-xs text-gray-400 italic">✉️ Les membres vous contacteront ici</span>
+              {/* Status manager compact */}
+              <StatusManagerCDM
+                status={localStatus}
+                onStatusChange={(newStatus) => {
+                  setLocalStatus(newStatus as HelpStatus);
+                  onStatusChange(item.id, newStatus);
+                }}
+                onResolve={() => { setLocalStatus('resolved'); onResolve(item.id); }}
+                onPause={() => { const wasPaused = localStatus === 'paused'; setLocalStatus(wasPaused ? 'active' : 'paused'); onPause(item.id, wasPaused); }}
+              />
+            </div>
           ) : (
             <ContactButton
               sourceType="help_request"
@@ -675,8 +742,18 @@ export default function CoupsDeMainPage() {
   };
 
   const handlePause = async (id: string, wasPaused: boolean) => {
-    await supabase.from('help_requests').update({ status: wasPaused ? 'active' : 'paused' }).eq('id', id);
+    await supabase.from('help_requests').update({ status: wasPaused ? 'active' : 'paused', updated_at: new Date().toISOString() }).eq('id', id);
     toast.success(wasPaused ? '▶️ Annonce réactivée' : '⏸ Annonce mise en pause');
+    fetchItems();
+  };
+
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    await supabase.from('help_requests').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', id);
+    const labels: Record<string, string> = {
+      active: 'Actif', in_progress: 'En cours', paused: 'En pause',
+      resolved: 'Résolu', closed: 'Fermé', archived: 'Archivé',
+    };
+    toast.success(`✅ Statut : ${labels[newStatus] || newStatus}`);
     fetchItems();
   };
 
@@ -1273,6 +1350,7 @@ export default function CoupsDeMainPage() {
                   onDelete={handleDelete}
                   onResolve={handleResolve}
                   onPause={handlePause}
+                  onStatusChange={handleStatusChange}
                 />
               ))}
             </div>
