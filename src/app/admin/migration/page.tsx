@@ -2436,6 +2436,16 @@ type StorageDiag = {
   error: string | null;
 };
 
+// ─── Composant aperçu SQL modération ─────────────────────────────────────────
+function ModerationSQLPreview() {
+  const [sql, setSql] = useState<string>('');
+  useEffect(() => {
+    import('@/lib/moderation').then(({ MODERATION_SQL }) => setSql(MODERATION_SQL));
+  }, []);
+  if (!sql) return <div className="text-xs text-gray-400 italic">Chargement…</div>;
+  return <pre className="text-xs text-purple-300 font-mono leading-relaxed whitespace-pre-wrap">{sql}</pre>;
+}
+
 export default function MigrationPage() {
   const supabase = createClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -2459,6 +2469,7 @@ export default function MigrationPage() {
   const [copiedCommunity, setCopiedCommunity] = useState(false);
   const [copiedDiscussions, setCopiedDiscussions] = useState(false);
   const [copiedRLS, setCopiedRLS] = useState(false);
+  const [copiedModeration, setCopiedModeration] = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -3963,6 +3974,47 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-64">
           <pre className="text-xs text-cyan-400 font-mono leading-relaxed whitespace-pre-wrap">{BUCKET_SQL}</pre>
+        </div>
+      </div>
+
+      {/* ─── MODÉRATION CENTRALISÉE ─────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-purple-200 overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-purple-900 to-indigo-900">
+          <Shield className="w-5 h-5 text-purple-300" />
+          <div>
+            <h3 className="font-bold text-white">SQL Modération centralisée</h3>
+            <p className="text-xs text-purple-300 mt-0.5">
+              File de modération, historique d&apos;audit, niveaux de confiance, RLS complet.
+              À exécuter UNE FOIS dans Supabase → SQL Editor.
+            </p>
+          </div>
+        </div>
+        <div className="p-4 flex items-center justify-between border-b border-purple-100">
+          <p className="text-sm text-gray-600">
+            Crée <code className="text-xs bg-gray-100 px-1 rounded">moderation_queue</code>,{' '}
+            <code className="text-xs bg-gray-100 px-1 rounded">moderation_history</code>,
+            colonnes <code className="text-xs bg-gray-100 px-1 rounded">trust_level</code> et vue KPI.
+          </p>
+          <button
+            onClick={() => {
+              import('@/lib/moderation').then(({ MODERATION_SQL }) => {
+                navigator.clipboard.writeText(MODERATION_SQL).then(() => {
+                  setCopiedModeration(true);
+                  setTimeout(() => setCopiedModeration(false), 3000);
+                });
+              });
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
+              copiedModeration ? 'bg-emerald-500 text-white' : 'bg-purple-700 text-white hover:bg-purple-800'
+            }`}
+          >
+            {copiedModeration
+              ? <><Check className="w-4 h-4" /> Copié !</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Modération</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-96">
+          <ModerationSQLPreview />
         </div>
       </div>
 

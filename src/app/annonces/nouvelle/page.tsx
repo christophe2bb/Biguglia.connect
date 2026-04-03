@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Camera, X, CheckCircle, ChevronRight } from 'lucide-react';
+import { Camera, X, CheckCircle, ChevronRight, Clock, Info } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { ListingCategory } from '@/types';
@@ -11,7 +11,10 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Select from '@/components/ui/Select';
+import ModerationBadge from '@/components/ui/ModerationBadge';
 import Link from 'next/link';
+import { useModeration } from '@/hooks/useModeration';
+import { type ModerationStatus } from '@/lib/moderation';
 
 export default function NouvelleAnnoncePage() {
   const { profile, loading: authLoading } = useAuthStore();
@@ -21,10 +24,13 @@ export default function NouvelleAnnoncePage() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [publishedId, setPublishedId] = useState<string | null>(null);
+  const [moderationStatus, setModerationStatus] = useState<ModerationStatus | null>(null);
   const [form, setForm] = useState({
     title: '', description: '', category_id: '',
     listing_type: 'sale', price: '', condition: '', location: 'Biguglia',
   });
+
+  const { submitForModeration } = useModeration();
 
   useEffect(() => {
     if (authLoading) return;
@@ -62,6 +68,7 @@ export default function NouvelleAnnoncePage() {
         condition: form.condition || null,
         location: form.location || 'Biguglia',
         status: 'active',
+        moderation_status: 'en_attente_validation',
       })
       .select()
       .single();
@@ -74,6 +81,7 @@ export default function NouvelleAnnoncePage() {
     }
 
     // Upload photos if any
+    const photoUrls: string[] = [];
     if (photos.length > 0 && listing) {
       for (const photo of photos) {
         const ext = photo.name.split('.').pop() || 'jpg';
@@ -84,6 +92,7 @@ export default function NouvelleAnnoncePage() {
 
         if (up && !upError) {
           const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(up.path);
+          photoUrls.push(publicUrl);
           await supabase.from('listing_photos').insert({
             listing_id: listing.id,
             url: publicUrl,
@@ -93,22 +102,67 @@ export default function NouvelleAnnoncePage() {
       }
     }
 
-    // Show success screen
+    // Soumettre à la file de modération
+    const modResult = await submitForModeration({
+      contentType: 'listing',
+      contentId: listing.id,
+      contentTitle: form.title.trim(),
+      contentExcerpt: form.description.trim(),
+      contentPhotos: photoUrls,
+      validationData: {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        category: form.category_id,
+        price: form.listing_type === 'sale' ? form.price : '0',
+      },
+      sourceTable: 'listings',
+      authorColumn: 'user_id',
+    });
+
+    setModerationStatus(modResult?.status || 'en_attente_validation');
     setPublishedId(listing.id);
     setLoading(false);
   };
 
   // --- Success screen ---
   if (publishedId) {
+    const isPending = moderationStatus === 'en_attente_validation';
+    const isPublished = moderationStatus === 'publie';
     return (
       <div className="max-w-lg mx-auto px-4 py-16 text-center">
-        <div className="flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mx-auto mb-6">
-          <CheckCircle className="w-10 h-10 text-green-600" />
+        <div className={`flex items-center justify-center w-20 h-20 rounded-full mx-auto mb-6 ${
+          isPublished ? 'bg-emerald-100' : 'bg-amber-100'
+        }`}>
+          {isPublished
+            ? <CheckCircle className="w-10 h-10 text-emerald-600" />
+            : <Clock className="w-10 h-10 text-amber-600" />
+          }
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Annonce publiée !</h1>
-        <p className="text-gray-500 mb-8">
-          Votre annonce est maintenant visible par tous les habitants de Biguglia.
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          {isPublished ? 'Annonce publiée !' : 'Annonce soumise !'}
+        </h1>
+        <p className="text-gray-500 mb-4">
+          {isPublished
+            ? 'Votre annonce est maintenant visible par tous les habitants de Biguglia.'
+            : 'Votre annonce a été soumise et sera vérifiée par notre équipe sous 24h.'}
         </p>
+        {isPending && (
+          <div className="flex flex-col items-center gap-3 mb-6">
+            <ModerationBadge
+              status="en_attente_validation"
+              size="md"
+              showSublabel
+              showDot
+              className="max-w-xs"
+            />
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100 text-left max-w-sm">
+              <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-blue-700">
+                Vous recevrez une notification dès que votre annonce sera validée. Vous pouvez suivre son statut depuis votre tableau de bord.
+              </p>
+            </div>
+          </div>
+        )}
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link
             href={`/annonces/${publishedId}`}
@@ -118,10 +172,10 @@ export default function NouvelleAnnoncePage() {
             <ChevronRight className="w-4 h-4" />
           </Link>
           <Link
-            href="/annonces"
+            href="/dashboard"
             className="inline-flex items-center justify-center gap-2 bg-gray-100 text-gray-700 px-6 py-3 rounded-xl hover:bg-gray-200 transition-colors font-medium"
           >
-            Toutes les annonces
+            Mon tableau de bord
           </Link>
         </div>
       </div>
@@ -131,7 +185,14 @@ export default function NouvelleAnnoncePage() {
   // --- Form ---
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">Publier une annonce</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">Publier une annonce</h1>
+      {/* Info modération */}
+      <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-100 mb-6">
+        <Clock className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+        <p className="text-xs text-amber-700">
+          Toutes les publications sont vérifiées par notre équipe avant d&apos;être visibles. Traitement généralement sous 24h.
+        </p>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
@@ -170,7 +231,7 @@ export default function NouvelleAnnoncePage() {
             label="Description *"
             value={form.description}
             onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
-            placeholder="Décrivez l'article ou le service en détail..."
+            placeholder="Décrivez l'article ou le service en détail (min 30 caractères)..."
             required
           />
 
@@ -266,7 +327,7 @@ export default function NouvelleAnnoncePage() {
             Annuler
           </Button>
           <Button type="submit" className="flex-2" loading={loading} disabled={loading}>
-            {loading ? 'Publication en cours...' : 'Publier l\'annonce'}
+            {loading ? 'Soumission en cours...' : 'Soumettre pour validation'}
           </Button>
         </div>
       </form>
