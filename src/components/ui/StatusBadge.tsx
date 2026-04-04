@@ -13,7 +13,7 @@ import {
   CheckCircle2, Clock, XCircle, AlertCircle, Package,
   Lock, Zap, Users, CalendarCheck, CalendarX, Eye, EyeOff,
   Star, Recycle, BadgeCheck, Handshake, HandHeart,
-  MapPin, Pause, Play,
+  MapPin, Pause, Play, RefreshCw,
 } from 'lucide-react';
 
 // ─── Config complète ───────────────────────────────────────────────────────────
@@ -183,6 +183,11 @@ export const STATUS_CONFIG: Record<string, {
     bg: 'bg-gray-100', text: 'text-gray-500', border: 'border-gray-200', dot: 'bg-gray-400',
     priority: 3,
   },
+  postponed: {
+    label: 'Reporté', icon: RefreshCw,
+    bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200', dot: 'bg-violet-500',
+    priority: 1,
+  },
 
   // ── Perdu / Trouvé ────────────────────────────────────────────────────────
   lost: {
@@ -316,9 +321,24 @@ export function resolveStatus(
 
   // Événements : statut calculé par date
   if (contentType === 'event') {
+    // Statuts français directs
+    if (['a_venir','complet','reporte','annule','passe','archive'].includes(rawStatus)) {
+      const date = e.eventDate ? new Date(e.eventDate + 'T23:59:59') : null;
+      // Override auto vers 'passe' si date dépassée et statut actif
+      if (date && date < new Date() && ['a_venir','complet'].includes(rawStatus)) return 'passe';
+      // Map vers clés StatusBadge
+      if (rawStatus === 'a_venir') return e.isFull ? 'full' : 'upcoming';
+      if (rawStatus === 'complet') return 'full';
+      if (rawStatus === 'reporte') return 'postponed';
+      if (rawStatus === 'annule') return 'cancelled';
+      if (rawStatus === 'passe') return 'past';
+      if (rawStatus === 'archive') return 'archived';
+    }
+    // Legacy mapping
     const date = e.eventDate ? new Date(e.eventDate + 'T23:59:59') : null;
     if (rawStatus === 'cancelled') return 'cancelled';
-    if (rawStatus === 'cancelled') return 'cancelled';
+    if (rawStatus === 'archived') return 'archived';
+    if (rawStatus === 'postponed') return 'postponed';
     if (e.isFull) return 'full';
     if (date && date < new Date()) return 'past';
     return 'upcoming';

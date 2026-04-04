@@ -2440,6 +2440,8 @@ type StorageDiag = {
 import { EQUIPMENT_LIFECYCLE_SQL } from '@/lib/equipment';
 // ─── SQL Cycle de vie sorties groupées ───────────────────────────────────────
 import { OUTINGS_LIFECYCLE_SQL } from '@/lib/outings';
+// ─── SQL Cycle de vie événements ─────────────────────────────────────────────
+import { EVENT_LIFECYCLE_SQL } from '@/lib/events';
 
 // ─── SQL Correctif moderation_queue (colonnes manquantes) ─────────────────────
 const MODERATION_FIX_SQL = `-- ══════════════════════════════════════════════════════════════
@@ -2749,6 +2751,7 @@ export default function MigrationPage() {
   const [copiedModFix,      setCopiedModFix]      = useState(false);
   const [copiedEquipment,   setCopiedEquipment]   = useState(false);
   const [copiedOutings,     setCopiedOutings]     = useState(false);
+  const [copiedEvents,      setCopiedEvents]      = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -4406,6 +4409,39 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
           <pre className="text-xs text-emerald-300 font-mono leading-relaxed whitespace-pre-wrap">{OUTINGS_LIFECYCLE_SQL}</pre>
+        </div>
+      </div>
+
+      {/* ── Événements lifecycle SQL ── */}
+      <div className="bg-gray-900 rounded-2xl overflow-hidden border border-purple-500/30">
+        <div className="flex items-center justify-between px-5 py-4 bg-purple-900/30">
+          <div>
+            <h3 className="text-white font-bold text-base">🎉 Cycle de vie Événements</h3>
+            <p className="text-purple-300 text-xs mt-0.5">
+              Statuts français · tables enrichies · historique · triggers · RLS · vue organisateur
+            </p>
+            <p className="text-purple-400 text-xs mt-1">
+              6 tables · triggers · RLS complète · vue résumé organisateur · Phase MVP communautés
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(EVENT_LIFECYCLE_SQL).then(() => {
+                setCopiedEvents(true);
+                setTimeout(() => setCopiedEvents(false), 3000);
+              });
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
+              copiedEvents ? 'bg-emerald-500 text-white' : 'bg-purple-700 text-white hover:bg-purple-800'
+            }`}
+          >
+            {copiedEvents
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Événements</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-96">
+          <pre className="text-xs text-purple-300 font-mono leading-relaxed whitespace-pre-wrap">{EVENT_LIFECYCLE_SQL}</pre>
         </div>
       </div>
 

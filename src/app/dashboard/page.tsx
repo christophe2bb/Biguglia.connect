@@ -404,7 +404,7 @@ const QUICK_ACTIONS = [
   { icon: Package,   label: 'Publier annonce',    href: '/annonces/nouvelle', grad: 'from-blue-500 to-indigo-500' },
   { icon: Wrench,    label: 'Prêter matériel',    href: '/materiel/nouveau',  grad: 'from-emerald-500 to-teal-500' },
   { icon: Heart,     label: 'Coup de main',       href: '/coups-de-main',     grad: 'from-rose-500 to-pink-500' },
-  { icon: Calendar,  label: 'Créer événement',    href: '/evenements',        grad: 'from-purple-500 to-violet-500' },
+  { icon: Calendar,  label: 'Créer événement',    href: '/evenements/nouveau', grad: 'from-purple-500 to-violet-500' },
   { icon: Footprints,label: 'Organiser sortie',   href: '/promenades',        grad: 'from-green-500 to-emerald-500' },
   { icon: Trophy,    label: 'Collectionner',       href: '/collectionneurs',   grad: 'from-amber-500 to-yellow-500' },
   { icon: HelpCircle,label: 'Perdu/Trouvé',       href: '/perdu-trouve',      grad: 'from-red-500 to-rose-500' },
@@ -866,7 +866,7 @@ function DashboardContent() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {[
-                { icon: Calendar, label: `${stats.upcomingEvents} événement(s)`, href: '/evenements', color: 'text-purple-600', bg: 'bg-purple-50' },
+                { icon: Calendar, label: `${stats.upcomingEvents} événement(s)`, href: '/dashboard/evenements', color: 'text-purple-600', bg: 'bg-purple-50' },
                 { icon: Footprints, label: `${stats.upcomingOutings} sortie(s)`, href: '/dashboard/promenades', color: 'text-emerald-600', bg: 'bg-emerald-50' },
                 { icon: BookOpen, label: `${stats.forumPosts} sujet(s) forum`, href: '/forum', color: 'text-violet-600', bg: 'bg-violet-50' },
                 { icon: Handshake, label: `${stats.associations} association(s)`, href: '/associations', color: 'text-teal-600', bg: 'bg-teal-50' },
