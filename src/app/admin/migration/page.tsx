@@ -2436,6 +2436,9 @@ type StorageDiag = {
   error: string | null;
 };
 
+// ─── SQL Cycle de vie matériel ────────────────────────────────────────────────
+import { EQUIPMENT_LIFECYCLE_SQL } from '@/lib/equipment';
+
 // ─── SQL Correctif moderation_queue (colonnes manquantes) ─────────────────────
 const MODERATION_FIX_SQL = `-- ══════════════════════════════════════════════════════════════
 -- CORRECTIF URGENT — moderation_queue colonnes manquantes
@@ -2740,8 +2743,9 @@ export default function MigrationPage() {
   const [copiedCommunity, setCopiedCommunity] = useState(false);
   const [copiedDiscussions, setCopiedDiscussions] = useState(false);
   const [copiedRLS, setCopiedRLS] = useState(false);
-  const [copiedModeration, setCopiedModeration] = useState(false);
-  const [copiedModFix,     setCopiedModFix]     = useState(false);
+  const [copiedModeration,  setCopiedModeration]  = useState(false);
+  const [copiedModFix,      setCopiedModFix]      = useState(false);
+  const [copiedEquipment,   setCopiedEquipment]   = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -4322,6 +4326,47 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
           <pre className="text-xs text-purple-300 font-mono leading-relaxed whitespace-pre-wrap">{MODERATION_SQL}</pre>
+        </div>
+      </div>
+
+      {/* ─── CYCLE DE VIE MATÉRIEL ──────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-teal-200 overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-teal-800 to-cyan-800">
+          <span className="text-2xl">🔧</span>
+          <div>
+            <h3 className="font-bold text-white">SQL Cycle de vie du matériel</h3>
+            <p className="text-xs text-teal-200 mt-0.5">
+              Tables <code className="bg-teal-900 px-1 rounded">equipment_requests</code>,{' '}
+              <code className="bg-teal-900 px-1 rounded">equipment_loans</code>,{' '}
+              <code className="bg-teal-900 px-1 rounded">equipment_status_history</code>,
+              vue <code className="bg-teal-900 px-1 rounded">equipment_owner_summary</code>,
+              statuts complets, triggers, RLS.
+            </p>
+          </div>
+        </div>
+        <div className="p-4 flex items-center justify-between border-b border-teal-100">
+          <div className="text-sm text-gray-600 space-y-1">
+            <p>Ajoute le cycle de vie complet : disponible → réservé → prêté → rendu → archivé</p>
+            <p className="text-xs text-gray-400">Nouvelles tables, statuts enrichis, historique, RLS propriétaire/emprunteur</p>
+          </div>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(EQUIPMENT_LIFECYCLE_SQL).then(() => {
+                setCopiedEquipment(true);
+                setTimeout(() => setCopiedEquipment(false), 3000);
+              });
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
+              copiedEquipment ? 'bg-emerald-500 text-white' : 'bg-teal-700 text-white hover:bg-teal-800'
+            }`}
+          >
+            {copiedEquipment
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Matériel</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-96">
+          <pre className="text-xs text-teal-300 font-mono leading-relaxed whitespace-pre-wrap">{EQUIPMENT_LIFECYCLE_SQL}</pre>
         </div>
       </div>
 
