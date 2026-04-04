@@ -40,20 +40,31 @@ export default function MessagesPage() {
   const { profile } = useAuthStore();
   const router = useRouter();
   const supabase = createClient();
+
+  // Fermer la confirmation si clic en dehors
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (!t.closest('[data-conv-menu]')) setConfirmConv(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [conversations, setConversations] = useState<ConvWithOther[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingConv, setDeletingConv] = useState<string | null>(null); // id en cours de suppression
+  const [confirmConv, setConfirmConv]   = useState<string | null>(null); // id en attente de confirmation
   const channelRef      = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const reconnectRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectIdx    = useRef(0);
   const mountedRef      = useRef(true);
 
-  // ── Chargement des conversations ──────────────────────────────────────────
+  // ── Chargement des conversations — 1 requête imbriquée, 0 N+1 ───────────────
   const fetchConversations = useCallback(async () => {
     if (!profile) return;
 
-    // Mes participations avec last_read_at
+    // 1 seule requête : participations + conv + tous les participants + dernier msg
     const { data: participations } = await supabase
       .from('conversation_participants')
       .select(`
@@ -64,7 +75,8 @@ export default function MessagesPage() {
           participants:conversation_participants(
             user_id,
             profile:profiles(id, full_name, avatar_url)
-          )
+          ),
+          last_msg:messages(content, created_at, sender_id)
         )
       `)
       .eq('user_id', profile.id)
@@ -72,47 +84,35 @@ export default function MessagesPage() {
 
     if (!participations) { setLoading(false); return; }
 
-    // Enrichir chaque conversation en parallèle
-    const convs = await Promise.all(
-      participations.map(async (p) => {
-        const conv = p.conversation as unknown as Conversation & {
-          participants?: Array<{ user_id: string; profile?: Profile }>;
-        };
-        if (!conv) return null;
+    const convs = participations.map((p) => {
+      const conv = p.conversation as unknown as Conversation & {
+        participants?: Array<{ user_id: string; profile?: Profile }>;
+        last_msg?: Array<{ content: string; created_at: string; sender_id: string }>;
+      };
+      if (!conv) return null;
 
-        const other = conv.participants?.find(pp => pp.user_id !== profile.id)?.profile;
+      const other = conv.participants?.find(pp => pp.user_id !== profile.id)?.profile;
 
-        // Dernier message + compteur non-lus en parallèle
-        const since = p.last_read_at || '1970-01-01T00:00:00Z';
-        const [lastMsgRes, unreadRes] = await Promise.all([
-          supabase
-            .from('messages')
-            .select('content, created_at')
-            .eq('conversation_id', conv.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single(),
-          supabase
-            .from('messages')
-            .select('id', { count: 'exact', head: true })
-            .eq('conversation_id', conv.id)
-            .neq('sender_id', profile.id)
-            .gt('created_at', since),
-        ]);
+      // Dernier message : trier côté client (PostgREST ne supporte pas ORDER sur embedded)
+      const msgs = conv.last_msg || [];
+      msgs.sort((a, b) => b.created_at.localeCompare(a.created_at));
+      const lastMsg = msgs[0];
 
-        return {
-          ...conv,
-          other_user: other,
-          last_message_text: lastMsgRes.data?.content,
-          last_message_at: lastMsgRes.data?.created_at,
-          unread_count: unreadRes.count || 0,
-          related_type: (conv as ConvWithOther & { related_type?: string }).related_type ?? null,
-          related_id: (conv as ConvWithOther & { related_id?: string }).related_id ?? null,
-        } as ConvWithOther;
-      })
-    );
+      // Comptage non-lus côté client
+      const since = p.last_read_at || '1970-01-01T00:00:00Z';
+      const unread = msgs.filter(m => m.sender_id !== profile.id && m.created_at > since).length;
 
-    // Filtrer les nulls et trier par date du dernier message
+      return {
+        ...conv,
+        other_user: other,
+        last_message_text: lastMsg?.content,
+        last_message_at: lastMsg?.created_at || conv.updated_at,
+        unread_count: unread,
+        related_type: (conv as ConvWithOther & { related_type?: string }).related_type ?? null,
+        related_id: (conv as ConvWithOther & { related_id?: string }).related_id ?? null,
+      } as ConvWithOther;
+    });
+
     const valid = convs.filter(Boolean) as ConvWithOther[];
     valid.sort((a, b) => {
       const aDate = a.last_message_at || a.updated_at || '';
@@ -201,6 +201,29 @@ export default function MessagesPage() {
     };
   }, [profile, router, fetchConversations, connectRealtime]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Supprimer une conversation (quitte les participants + supprime si vide) ──
+  const handleDeleteConversation = async (convId: string) => {
+    setConfirmConv(null);
+    setDeletingConv(convId);
+    // Animation sortie
+    await new Promise(r => setTimeout(r, 280));
+    // 1. Supprimer la participation de l'utilisateur
+    await supabase
+      .from('conversation_participants')
+      .delete()
+      .eq('conversation_id', convId)
+      .eq('user_id', profile!.id);
+    // 2. Supprimer aussi les messages dont l'user est l'expéditeur dans cette conv
+    await supabase
+      .from('messages')
+      .delete()
+      .eq('conversation_id', convId)
+      .eq('sender_id', profile!.id);
+    // 3. Retirer de la liste locale
+    setConversations(prev => prev.filter(c => c.id !== convId));
+    setDeletingConv(null);
+  };
+
   const filtered = conversations.filter(c => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -214,27 +237,6 @@ export default function MessagesPage() {
   });
 
   const totalUnread = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
-
-  const handleDeleteConversation = async (e: React.MouseEvent, convId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!profile) return;
-    if (!confirm('Supprimer cette conversation ? Elle sera retirée de votre liste.')) return;
-    setDeletingId(convId);
-    try {
-      // Supprimer la participation de cet utilisateur
-      await supabase
-        .from('conversation_participants')
-        .delete()
-        .eq('conversation_id', convId)
-        .eq('user_id', profile.id);
-      setConversations(prev => prev.filter(c => c.id !== convId));
-    } catch {
-      // ignore
-    } finally {
-      setDeletingId(null);
-    }
-  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
@@ -293,86 +295,128 @@ export default function MessagesPage() {
       ) : (
         <div className="space-y-2">
           {filtered.map(conv => {
-            const hasUnread = (conv.unread_count || 0) > 0;
+            const hasUnread   = (conv.unread_count || 0) > 0;
+            const isDeleting  = deletingConv === conv.id;
+            const isConfirm   = confirmConv  === conv.id;
+
             return (
-              <div key={conv.id} className="relative group">
-              <Link
-                href={`/messages/${conv.id}`}
+              <div
+                key={conv.id}
                 className={cn(
-                  'flex items-center gap-3 rounded-2xl border p-4 hover:shadow-sm transition-all duration-200',
-                  deletingId === conv.id && 'opacity-40 pointer-events-none',
-                  hasUnread
-                    ? 'bg-brand-50/40 border-brand-200 hover:border-brand-300'
-                    : 'bg-white border-gray-100 hover:border-gray-200'
+                  'transition-all duration-300',
+                  isDeleting && 'opacity-0 scale-95 pointer-events-none'
                 )}
               >
-                <div className="relative flex-shrink-0">
-                  <Avatar
-                    src={conv.other_user?.avatar_url}
-                    name={conv.other_user?.full_name || conv.subject || '?'}
-                    size="md"
-                  />
-                  {hasUnread && (
-                    <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse" />
-                  )}
-                  {/* Badge contexte (annonce, coup de main…) — coin bas droite si pas de badge non-lu */}
-                  {!hasUnread && conv.related_type && RELATED_ICONS[conv.related_type] && (() => {
-                    const ri = RELATED_ICONS[conv.related_type!];
-                    const RIcon = ri.icon;
-                    return (
-                      <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm">
-                        <RIcon className={cn('w-3 h-3', ri.color)} />
-                      </span>
-                    );
-                  })()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className={cn(
-                      'truncate',
-                      hasUnread ? 'font-bold text-gray-900' : 'font-semibold text-gray-800'
-                    )}>
-                      {conv.other_user?.full_name || conv.subject || 'Conversation'}
-                    </span>
-                    <div className="flex items-center gap-2 ml-2 flex-shrink-0">
-                      {conv.last_message_at && (
-                        <span className="text-xs text-gray-400">
-                          {formatRelative(conv.last_message_at)}
-                        </span>
-                      )}
+                {/* Popup de confirmation suppression */}
+                {isConfirm && (
+                  <div data-conv-menu className="mb-1 flex items-center gap-2 bg-white border border-red-200 shadow-lg rounded-2xl px-4 py-3 text-sm">
+                    <Trash2 className="w-4 h-4 text-red-500 flex-shrink-0" />
+                    <span className="flex-1 text-gray-700 font-medium">Supprimer cette conversation ?</span>
+                    <button
+                      onClick={() => handleDeleteConversation(conv.id)}
+                      className="bg-red-500 hover:bg-red-600 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition-colors"
+                    >
+                      Supprimer
+                    </button>
+                    <button
+                      onClick={() => setConfirmConv(null)}
+                      className="text-gray-400 hover:text-gray-600 font-medium text-xs px-2"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                )}
+
+                {/* Ligne conversation */}
+                <div className="flex items-center gap-2">
+                  {/* Lien principal */}
+                  <Link
+                    href={`/messages/${conv.id}`}
+                    className={cn(
+                      'flex-1 flex items-center gap-3 rounded-2xl border p-4 hover:shadow-sm transition-all duration-200 min-w-0',
+                      isConfirm
+                        ? 'bg-red-50 border-red-200'
+                        : hasUnread
+                          ? 'bg-brand-50/40 border-brand-200 hover:border-brand-300'
+                          : 'bg-white border-gray-100 hover:border-gray-200'
+                    )}
+                  >
+                    {/* Avatar */}
+                    <div className="relative flex-shrink-0">
+                      <Avatar
+                        src={conv.other_user?.avatar_url}
+                        name={conv.other_user?.full_name || conv.subject || '?'}
+                        size="md"
+                      />
                       {hasUnread && (
-                        <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">
-                          {conv.unread_count! > 99 ? '99+' : conv.unread_count}
+                        <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+                      )}
+                      {!hasUnread && conv.related_type && RELATED_ICONS[conv.related_type] && (() => {
+                        const ri = RELATED_ICONS[conv.related_type!];
+                        const RIcon = ri.icon;
+                        return (
+                          <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm">
+                            <RIcon className={cn('w-3 h-3', ri.color)} />
+                          </span>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Contenu */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={cn(
+                          'truncate',
+                          hasUnread ? 'font-bold text-gray-900' : 'font-semibold text-gray-800'
+                        )}>
+                          {conv.other_user?.full_name || conv.subject || 'Conversation'}
+                        </span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {conv.last_message_at && (
+                            <span className="text-xs text-gray-400 whitespace-nowrap">
+                              {formatRelative(conv.last_message_at)}
+                            </span>
+                          )}
+                          {hasUnread && (
+                            <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">
+                              {conv.unread_count! > 99 ? '99+' : conv.unread_count}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <p className={cn(
+                        'text-sm truncate mt-0.5',
+                        hasUnread ? 'text-gray-700 font-medium' : 'text-gray-500'
+                      )}>
+                        {conv.last_message_text || 'Aucun message pour l\'instant'}
+                      </p>
+                      {conv.related_type && RELATED_ICONS[conv.related_type] && (
+                        <span className={cn(
+                          'inline-flex items-center gap-1 text-xs mt-1',
+                          RELATED_ICONS[conv.related_type].color, 'opacity-70'
+                        )}>
+                          {React.createElement(RELATED_ICONS[conv.related_type].icon, { className: 'w-3 h-3' })}
+                          {RELATED_ICONS[conv.related_type].label}
                         </span>
                       )}
                     </div>
-                  </div>
-                  <p className={cn(
-                    'text-sm truncate mt-0.5',
-                    hasUnread ? 'text-gray-700 font-medium' : 'text-gray-500'
-                  )}>
-                    {conv.last_message_text || 'Aucun message pour l\'instant'}
-                  </p>
-                  {/* Label contexte */}
-                  {conv.related_type && RELATED_ICONS[conv.related_type] && (
-                    <span className={cn(
-                      'inline-flex items-center gap-1 text-xs mt-1',
-                      RELATED_ICONS[conv.related_type].color, 'opacity-70'
-                    )}>
-                      {React.createElement(RELATED_ICONS[conv.related_type].icon, { className: 'w-3 h-3' })}
-                      {RELATED_ICONS[conv.related_type].label}
-                    </span>
-                  )}
+                  </Link>
+
+                  {/* Bouton 🗑 — toujours visible à droite */}
+                  <button
+                    data-conv-menu
+                    onClick={() => setConfirmConv(isConfirm ? null : conv.id)}
+                    className={cn(
+                      'flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors border',
+                      isConfirm
+                        ? 'bg-red-500 text-white border-red-500'
+                        : 'bg-white text-red-400 border-red-200 hover:bg-red-50 hover:text-red-600'
+                    )}
+                    title="Supprimer la conversation"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
-              </Link>
-              {/* Bouton supprimer — visible au survol */}
-              <button
-                onClick={(e) => handleDeleteConversation(e, conv.id)}
-                className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
-                title="Supprimer cette conversation"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
               </div>
             );
           })}
