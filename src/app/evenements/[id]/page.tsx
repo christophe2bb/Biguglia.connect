@@ -602,7 +602,7 @@ export default function EventDetailPage() {
                   <div>
                     <p className="text-xs text-gray-500">Organisé par</p>
                     <p className="font-bold text-gray-900">{event.organizer_name || event.author?.full_name || 'Organisateur'}</p>
-                    {isAdmin && (
+                    {event.author_id && (
                       <Link href={`/profil/${event.author_id}`} className="text-xs text-purple-600 hover:underline">Voir le profil</Link>
                     )}
                   </div>
