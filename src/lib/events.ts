@@ -475,9 +475,10 @@ export function daysUntilLabel(dateStr: string): string | null {
 // ─── SQL Correctif urgent (à exécuter EN PREMIER si erreur de contrainte) ─────
 
 export const EVENT_FIX_SQL = `-- ============================================================
--- ⚠️  CORRECTIF URGENT — local_events contrainte status
+-- ⚠️  CORRECTIF URGENT — local_events contrainte status + colonnes manquantes
 -- Exécutez CE SCRIPT EN PREMIER si vous obtenez l'erreur :
--- "violates check constraint local_events_status_check"
+--   "violates check constraint local_events_status_check"
+--   "column e.capacity does not exist"
 -- ============================================================
 
 -- 1. Supprimer l'ancienne contrainte restrictive
@@ -489,7 +490,31 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN NULL;
 END$$;
 
--- 2. Migrer les anciens statuts legacy → statuts français
+-- 2. Ajouter les colonnes manquantes sur local_events (idempotent)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='local_events' AND column_name='capacity') THEN
+    ALTER TABLE local_events ADD COLUMN capacity INTEGER;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='local_events' AND column_name='is_unlimited') THEN
+    ALTER TABLE local_events ADD COLUMN is_unlimited BOOLEAN DEFAULT false;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='local_events' AND column_name='registration_open') THEN
+    ALTER TABLE local_events ADD COLUMN registration_open BOOLEAN DEFAULT true;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='local_events' AND column_name='price_type') THEN
+    ALTER TABLE local_events ADD COLUMN price_type TEXT DEFAULT 'gratuit';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='local_events' AND column_name='cancel_reason') THEN
+    ALTER TABLE local_events ADD COLUMN cancel_reason TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='local_events' AND column_name='postpone_reason') THEN
+    ALTER TABLE local_events ADD COLUMN postpone_reason TEXT;
+  END IF;
+EXCEPTION WHEN OTHERS THEN NULL;
+END$$;
+
+-- 3. Migrer les anciens statuts legacy → statuts français
 UPDATE local_events SET status = 'a_venir' WHERE status IN ('active','publie','brouillon','open');
 UPDATE local_events SET status = 'annule'  WHERE status IN ('cancelled','annulee','canceled');
 UPDATE local_events SET status = 'passe'   WHERE status IN ('completed','done','terminee','past');
@@ -499,7 +524,7 @@ UPDATE local_events SET status = 'complet' WHERE status IN ('full','complete');
 UPDATE local_events SET status = 'a_venir'
   WHERE status NOT IN ('a_venir','complet','reporte','annule','passe','archive');
 
--- 3. Remettre une contrainte large qui accepte TOUS les statuts (anciens + nouveaux)
+-- 4. Remettre une contrainte large qui accepte TOUS les statuts (anciens + nouveaux)
 DO $$
 BEGIN
   ALTER TABLE local_events ADD CONSTRAINT local_events_status_check
@@ -615,6 +640,9 @@ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='price_type') THEN
     ALTER TABLE events ADD COLUMN price_type TEXT DEFAULT 'gratuit';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='capacity') THEN
+    ALTER TABLE events ADD COLUMN capacity INTEGER;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='is_unlimited') THEN
     ALTER TABLE events ADD COLUMN is_unlimited BOOLEAN DEFAULT false;
@@ -803,8 +831,23 @@ CREATE TRIGGER trg_log_event_status
   AFTER UPDATE ON events
   FOR EACH ROW EXECUTE FUNCTION log_event_status_change();
 
--- 13. Vue résumé organisateur
-CREATE OR REPLACE VIEW event_organizer_summary AS
+-- 13. S'assurer que capacity et is_unlimited existent avant la vue
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='capacity') THEN
+    ALTER TABLE events ADD COLUMN capacity INTEGER;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='is_unlimited') THEN
+    ALTER TABLE events ADD COLUMN is_unlimited BOOLEAN DEFAULT false;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='registration_open') THEN
+    ALTER TABLE events ADD COLUMN registration_open BOOLEAN DEFAULT true;
+  END IF;
+END$$;
+
+-- 13b. Vue résumé organisateur
+DROP VIEW IF EXISTS event_organizer_summary;
+CREATE VIEW event_organizer_summary AS
 SELECT
   e.id,
   e.title,
