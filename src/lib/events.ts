@@ -895,13 +895,13 @@ CREATE POLICY "events_insert_own" ON events
 CREATE POLICY "events_update_own" ON events
   FOR UPDATE USING (
     auth.uid() = author_id
-    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderateur'))
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
   );
 
 CREATE POLICY "events_delete_own" ON events
   FOR DELETE USING (
     auth.uid() = author_id
-    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderateur'))
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
   );
 
 -- 15. RLS event_participants
@@ -916,7 +916,7 @@ CREATE POLICY "ep_select" ON event_participants
   FOR SELECT USING (
     auth.uid() = user_id
     OR EXISTS (SELECT 1 FROM events WHERE id = event_id AND author_id = auth.uid())
-    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderateur'))
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
   );
 
 CREATE POLICY "ep_insert" ON event_participants
@@ -926,7 +926,7 @@ CREATE POLICY "ep_update" ON event_participants
   FOR UPDATE USING (
     auth.uid() = user_id
     OR EXISTS (SELECT 1 FROM events WHERE id = event_id AND author_id = auth.uid())
-    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderateur'))
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
   );
 
 CREATE POLICY "ep_delete" ON event_participants
@@ -947,7 +947,7 @@ CREATE POLICY "ephoto_insert" ON event_photos FOR INSERT WITH CHECK (
 );
 CREATE POLICY "ephoto_delete" ON event_photos FOR DELETE USING (
   EXISTS (SELECT 1 FROM events WHERE id = event_id AND author_id = auth.uid())
-  OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderateur'))
+  OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
 );
 
 -- 17. RLS event_status_history
@@ -955,7 +955,7 @@ ALTER TABLE event_status_history ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "esh_select" ON event_status_history;
 CREATE POLICY "esh_select" ON event_status_history FOR SELECT USING (
   EXISTS (SELECT 1 FROM events WHERE id = event_id AND author_id = auth.uid())
-  OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderateur'))
+  OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
 );
 
 -- 18. RLS event_date_history
@@ -963,7 +963,7 @@ ALTER TABLE event_date_history ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "edh_select" ON event_date_history;
 CREATE POLICY "edh_select" ON event_date_history FOR SELECT USING (
   EXISTS (SELECT 1 FROM events WHERE id = event_id AND author_id = auth.uid())
-  OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderateur'))
+  OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
 );
 
 -- 19. Index performances
