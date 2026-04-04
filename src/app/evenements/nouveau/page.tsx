@@ -181,9 +181,9 @@ export default function NouvelEvenementPage() {
           const file = photos[i];
           const ext = file.name.split('.').pop() ?? 'jpg';
           const path = `events/${eventId}/${Date.now()}_${i}.${ext}`;
-          const { error: uploadErr } = await supabase.storage.from('images').upload(path, file, { upsert: false });
+          const { error: uploadErr } = await supabase.storage.from('photos').upload(path, file, { upsert: true });
           if (!uploadErr) {
-            const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(path);
+            const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path);
             await supabase.from('event_photos').insert({
               event_id: eventId, url: publicUrl, display_order: i, is_cover: i === 0,
             });
