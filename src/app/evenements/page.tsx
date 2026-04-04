@@ -1242,8 +1242,10 @@ export default function EvenementsPage() {
   const { profile } = useAuthStore();
   const supabase = createClient();
 
-  const [activeTab, setActiveTab] = useState<'agenda' | 'forum' | 'creer'>('agenda');
+  const [activeTab, setActiveTab] = useState<'agenda' | 'liste' | 'forum' | 'creer'>('agenda');
   const [filterCat, setFilterCat] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('a_venir');
+  const [viewMode, setViewMode] = useState<'calendar' | 'grid'>('calendar');
 
   const [events, setEvents] = useState<LocalEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
@@ -1279,8 +1281,7 @@ export default function EvenementsPage() {
       const { data: evData, error: evErr } = await supabase
         .from('events')
         .select(`*, author:profiles(full_name, avatar_url), participants:event_participants(count), participants_list:event_participants(user_id, user:profiles(full_name, avatar_url))`)
-        .in('status', ['a_venir', 'complet', 'reporte'])
-        .gte('event_date', today)
+        .in('status', ['a_venir', 'complet', 'reporte', 'annule', 'passe'])
         .order('event_date', { ascending: true });
       if (!evErr && evData) {
         data = evData.map((e: Record<string, unknown>) => ({ ...e, is_free: e.price_type === 'gratuit', event_time: e.start_time ?? '18:00', max_participants: e.capacity ?? null })) as LocalEvent[];
@@ -1291,8 +1292,7 @@ export default function EvenementsPage() {
         const { data: legData, error: legErr } = await supabase
           .from('local_events')
           .select(`*, author:profiles!local_events_author_id_fkey(full_name, avatar_url), participants:${partTable}(count), participants_list:${partTable}(user_id, user:profiles(full_name, avatar_url))`)
-          .in('status', ['active', 'publie', 'a_venir', 'complet', 'reporte'])
-          .gte('event_date', today)
+          .in('status', ['active', 'publie', 'a_venir', 'complet', 'reporte', 'annule', 'passe'])
           .order('event_date', { ascending: true });
         if (!legErr) {
           data = legData as LocalEvent[] | null;
@@ -1302,8 +1302,7 @@ export default function EvenementsPage() {
           const { data: oldData, error: oldErr } = await supabase
             .from('local_events')
             .select(`*, author:profiles!local_events_author_id_fkey(full_name, avatar_url), participants:event_participations(count), participants_list:event_participations(user_id, user:profiles(full_name, avatar_url))`)
-            .in('status', ['active', 'publie', 'a_venir', 'complet', 'reporte'])
-            .gte('event_date', today)
+            .in('status', ['active', 'publie', 'a_venir', 'complet', 'reporte', 'annule', 'passe'])
             .order('event_date', { ascending: true });
           data = oldData as LocalEvent[] | null;
           error = oldErr;
@@ -1453,20 +1452,49 @@ export default function EvenementsPage() {
       toast.error('Titre et date obligatoires'); return;
     }
     setSubmittingEvent(true);
-    const { data: inserted, error } = await supabase.from('local_events').insert({
+
+    // Try new 'events' table first, fallback to legacy 'local_events'
+    const eventPayloadNew = {
       author_id: profile.id,
       title: newEvent.title.trim(),
       description: newEvent.description.trim(),
       event_date: newEvent.event_date,
-      event_time: newEvent.event_time,
+      start_time: newEvent.event_time,
       location: newEvent.location.trim() || 'Biguglia',
       category: newEvent.category,
       organizer_name: newEvent.organizer_name.trim() || null,
-      max_participants: newEvent.max_participants ? parseInt(newEvent.max_participants) : null,
-      is_free: newEvent.is_free,
-      price: !newEvent.is_free && newEvent.price ? parseFloat(newEvent.price) : null,
+      capacity: newEvent.max_participants ? parseInt(newEvent.max_participants) : null,
+      is_unlimited: !newEvent.max_participants,
+      price_type: newEvent.is_free ? 'gratuit' : 'payant',
+      price_amount: !newEvent.is_free && newEvent.price ? parseFloat(newEvent.price) : null,
       status: 'a_venir',
-    }).select('id').single();
+      registration_open: true,
+    };
+    let inserted: { id: string } | null = null;
+    let error: unknown = null;
+
+    const { data: d1, error: e1 } = await supabase.from('events').insert(eventPayloadNew).select('id').single();
+    if (!e1 && d1) {
+      inserted = d1;
+    } else {
+      // Fallback to local_events
+      const { data: d2, error: e2 } = await supabase.from('local_events').insert({
+        author_id: profile.id,
+        title: newEvent.title.trim(),
+        description: newEvent.description.trim(),
+        event_date: newEvent.event_date,
+        event_time: newEvent.event_time,
+        location: newEvent.location.trim() || 'Biguglia',
+        category: newEvent.category,
+        organizer_name: newEvent.organizer_name.trim() || null,
+        max_participants: newEvent.max_participants ? parseInt(newEvent.max_participants) : null,
+        is_free: newEvent.is_free,
+        price: !newEvent.is_free && newEvent.price ? parseFloat(newEvent.price) : null,
+        status: 'a_venir',
+      }).select('id').single();
+      inserted = d2;
+      error = e2;
+    }
 
     if (error) {
       toast.error('Erreur lors de la soumission'); console.error(error);
@@ -1550,8 +1578,17 @@ export default function EvenementsPage() {
     setSubmittingPost(false);
   };
 
-  const filteredEvents = filterCat === 'all' ? events : events.filter(e => e.category === filterCat);
-  const totalCount = events.length;
+  const today = new Date().toISOString().split('T')[0];
+  const upcomingEvents = events.filter(e => e.event_date >= today && ['a_venir','complet','reporte','active','publie'].includes(e.status));
+  const filteredByStatus = filterStatus === 'all'
+    ? events
+    : filterStatus === 'a_venir'
+    ? events.filter(e => ['a_venir','active','publie'].includes(e.status) && e.event_date >= today)
+    : filterStatus === 'passe'
+    ? events.filter(e => e.status === 'passe' || (e.event_date < today && !['annule','reporte'].includes(e.status)))
+    : events.filter(e => e.status === filterStatus);
+  const filteredEvents = filterCat === 'all' ? filteredByStatus : filteredByStatus.filter(e => e.category === filterCat);
+  const totalCount = upcomingEvents.length;
 
   return (
     <div className="min-h-screen relative">
@@ -1629,11 +1666,12 @@ export default function EvenementsPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* ── ONGLETS ── */}
-        <div className="flex flex-wrap gap-2 mb-8 bg-white rounded-2xl border border-gray-100 p-1.5 w-fit shadow-sm">
+        <div className="flex flex-wrap gap-2 mb-6 bg-white rounded-2xl border border-gray-100 p-1.5 w-fit shadow-sm">
           {[
-            { id: 'agenda', label: 'Agenda',                icon: Calendar },
-            { id: 'forum',  label: 'Forum',                 icon: MessageSquare },
-            { id: 'creer',  label: 'Proposer un événement', icon: Plus },
+            { id: 'agenda', label: 'Calendrier', icon: Calendar },
+            { id: 'liste',  label: 'Liste',       icon: ChevronRight },
+            { id: 'forum',  label: 'Forum',        icon: MessageSquare },
+            { id: 'creer',  label: 'Créer',        icon: Plus },
           ].map(({ id, label, icon: Icon }) => (
             <button key={id} onClick={() => setActiveTab(id as typeof activeTab)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
@@ -1669,6 +1707,81 @@ export default function EvenementsPage() {
                 </p>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── LISTE ── */}
+        {activeTab === 'liste' && (
+          <div>
+            {/* Filters */}
+            <div className="mb-5 space-y-3">
+              {/* Status filter */}
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: 'all',    label: 'Tous', bg: 'bg-gray-100', text: 'text-gray-700' },
+                  { id: 'a_venir', label: '🟢 À venir', bg: 'bg-emerald-100', text: 'text-emerald-800' },
+                  { id: 'complet', label: '🟡 Complet',  bg: 'bg-amber-100',   text: 'text-amber-800' },
+                  { id: 'reporte', label: '🔵 Reporté',  bg: 'bg-violet-100',  text: 'text-violet-800' },
+                  { id: 'annule',  label: '🔴 Annulé',   bg: 'bg-red-100',     text: 'text-red-800' },
+                  { id: 'passe',   label: '⚪ Passé',    bg: 'bg-slate-100',   text: 'text-slate-700' },
+                ].map(s => (
+                  <button key={s.id}
+                    onClick={() => setFilterStatus(s.id)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                      filterStatus === s.id ? `${s.bg} ${s.text} ring-2 ring-offset-1 ring-purple-300` : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'
+                    }`}>
+                    {s.label}
+                    <span className="ml-1 opacity-60">
+                      ({s.id === 'all'
+                        ? filteredEvents.length
+                        : s.id === 'a_venir'
+                        ? events.filter(e => ['a_venir','active','publie'].includes(e.status) && e.event_date >= today).length
+                        : s.id === 'passe'
+                        ? events.filter(e => e.status === 'passe' || (e.event_date < today && !['annule','reporte'].includes(e.status))).length
+                        : events.filter(e => e.status === s.id).length
+                      })
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {/* Category filter */}
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => setFilterCat('all')} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${filterCat === 'all' ? 'bg-purple-600 text-white' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}>
+                  Toutes catégories
+                </button>
+                {EVENT_CATEGORIES.map(c => (
+                  <button key={c.id} onClick={() => setFilterCat(c.id)}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${filterCat === c.id ? `${c.bg} ${c.color} border ${c.border}` : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}>
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Grid */}
+            {loadingEvents ? (
+              <div className="flex items-center justify-center py-24">
+                <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+              </div>
+            ) : filteredEvents.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+                <Calendar className="w-14 h-14 text-gray-200 mx-auto mb-3" />
+                <p className="font-bold text-gray-500 text-lg">Aucun événement</p>
+                <p className="text-gray-400 text-sm mt-1">Essayez un autre filtre ou proposez un événement !</p>
+                {profile && (
+                  <Link href="/evenements/nouveau"
+                    className="mt-4 inline-flex items-center gap-2 bg-purple-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-purple-700">
+                    <Plus className="w-4 h-4" /> Créer un événement
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredEvents.map(ev => (
+                  <EventCard key={ev.id} event={ev} userId={profile?.id} onJoin={handleJoin} onStatusChange={handleEventStatusChange} />
+                ))}
+              </div>
+            )}
           </div>
         )}
 

@@ -472,6 +472,46 @@ export function daysUntilLabel(dateStr: string): string | null {
   return null;
 }
 
+// ─── SQL Correctif enum user_role ────────────────────────────────────────────
+
+export const USER_ROLE_FIX_SQL = `-- ============================================================
+-- 🔧 CORRECTIF ENUM user_role — moderateur → moderator
+-- Exécutez ce script si vous obtenez l'erreur :
+--   "invalid input value for enum user_role: moderateur"
+-- ============================================================
+
+-- 1. Vérifier les valeurs actuelles de l'enum
+SELECT enumlabel FROM pg_enum
+  WHERE enumtypid = 'user_role'::regtype
+  ORDER BY enumsortorder;
+
+-- 2. Ajouter 'moderator' si absent (HORS transaction car ADD VALUE ne peut pas être rollbacké)
+-- Exécutez d'abord cette ligne séparément si l'étape 3 échoue :
+-- ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'moderator';
+
+-- 3. Migrer les lignes avec l'ancienne valeur 'moderateur'
+DO $$
+BEGIN
+  -- Essai cast direct : si user_role est un ENUM
+  BEGIN
+    EXECUTE $q$ UPDATE profiles SET role = 'moderator'::user_role WHERE role::text = 'moderateur' $q$;
+  EXCEPTION WHEN OTHERS THEN
+    -- Si role est TEXT
+    UPDATE profiles SET role = 'moderator' WHERE role = 'moderateur';
+  END;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Migration moderateur→moderator ignorée : %', SQLERRM;
+END$$;
+
+-- 4. Recréer current_user_role() pour accepter les deux valeurs
+CREATE OR REPLACE FUNCTION current_user_role()
+RETURNS TEXT LANGUAGE sql STABLE SECURITY DEFINER AS $$
+  SELECT role::text FROM profiles WHERE id = auth.uid() LIMIT 1;
+$$;
+
+-- ✅ Enum user_role corrigé
+`;
+
 // ─── SQL Correctif urgent (à exécuter EN PREMIER si erreur de contrainte) ─────
 
 export const EVENT_FIX_SQL = `-- ============================================================
@@ -997,7 +1037,30 @@ CREATE POLICY "edh_select" ON event_date_history FOR SELECT USING (
   OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
 );
 
--- 19. Index performances
+-- 19. Table event_comments (mini-forum par événement)
+CREATE TABLE IF NOT EXISTS event_comments (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id    UUID REFERENCES events(id) ON DELETE CASCADE NOT NULL,
+  author_id   UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  content     TEXT NOT NULL,
+  created_at  TIMESTAMPTZ DEFAULT now(),
+  updated_at  TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE event_comments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "ec_select" ON event_comments;
+DROP POLICY IF EXISTS "ec_insert" ON event_comments;
+DROP POLICY IF EXISTS "ec_delete" ON event_comments;
+
+CREATE POLICY "ec_select" ON event_comments FOR SELECT USING (true);
+CREATE POLICY "ec_insert" ON event_comments FOR INSERT WITH CHECK (auth.uid() = author_id);
+CREATE POLICY "ec_delete" ON event_comments FOR DELETE USING (
+  auth.uid() = author_id
+  OR EXISTS (SELECT 1 FROM events WHERE id = event_id AND author_id = auth.uid())
+  OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+);
+
+-- 20. Index performances
 CREATE INDEX IF NOT EXISTS idx_events_date         ON events(event_date);
 CREATE INDEX IF NOT EXISTS idx_events_status        ON events(status);
 CREATE INDEX IF NOT EXISTS idx_events_author        ON events(author_id);
@@ -1006,6 +1069,7 @@ CREATE INDEX IF NOT EXISTS idx_ep_event_id          ON event_participants(event_
 CREATE INDEX IF NOT EXISTS idx_ep_user_id           ON event_participants(user_id);
 CREATE INDEX IF NOT EXISTS idx_esh_event_id         ON event_status_history(event_id);
 CREATE INDEX IF NOT EXISTS idx_edh_event_id         ON event_date_history(event_id);
+CREATE INDEX IF NOT EXISTS idx_ec_event_id          ON event_comments(event_id);
 
--- ✅ Migration terminée — 8 tables, triggers, RLS, vue organisateur
+-- ✅ Migration terminée — 9 tables, triggers, RLS, vue organisateur, mini-forum
 `;
