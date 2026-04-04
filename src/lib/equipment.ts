@@ -257,29 +257,41 @@ export const EQUIPMENT_LIFECYCLE_SQL = `-- ════════════�
 -- Script idempotent — peut être relancé sans danger
 -- ════════════════════════════════════════════════════════════════════════════
 
--- ── ÉTAPE 1 : Nouveaux statuts sur equipment_items ────────────────────────
+-- ── ÉTAPE 1 : Nouvelles colonnes sur equipment_items ──────────────────────
 ALTER TABLE equipment_items
-  ADD COLUMN IF NOT EXISTS status            TEXT DEFAULT 'disponible',
-  ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS archived_at       TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS status             TEXT DEFAULT 'disponible',
+  ADD COLUMN IF NOT EXISTS status_changed_at  TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS archived_at        TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS availability_notes TEXT,
-  ADD COLUMN IF NOT EXISTS location_area     TEXT;
+  ADD COLUMN IF NOT EXISTS location_area      TEXT;
 
--- Contrainte statuts valides
+-- ── ÉTAPE 1b : Supprimer l'ancienne contrainte si elle existe ─────────────
 ALTER TABLE equipment_items
   DROP CONSTRAINT IF EXISTS equipment_status_check;
+
+-- ── ÉTAPE 1c : Migrer les données AVANT d'ajouter la contrainte ───────────
+-- Convertit les anciens statuts anglais (available/borrowed/reserved/unavailable)
+-- et toute valeur invalide vers les nouveaux statuts français
+UPDATE equipment_items
+SET status = CASE
+  WHEN status = 'available'    THEN 'disponible'
+  WHEN status = 'reserved'     THEN 'reserve'
+  WHEN status = 'borrowed'     THEN 'prete'
+  WHEN status = 'returned'     THEN 'rendu'
+  WHEN status = 'unavailable'  THEN 'indisponible'
+  WHEN status = 'archived'     THEN 'archive'
+  WHEN status IN ('disponible','reserve','prete','rendu','indisponible','archive') THEN status
+  -- Fallback sur is_available si statut inconnu ou NULL
+  WHEN is_available = true     THEN 'disponible'
+  ELSE 'indisponible'
+END
+WHERE status IS NULL
+   OR status NOT IN ('disponible','reserve','prete','rendu','indisponible','archive');
+
+-- ── ÉTAPE 1d : Ajouter la contrainte APRÈS migration des données ──────────
 ALTER TABLE equipment_items
   ADD CONSTRAINT equipment_status_check
   CHECK (status IN ('disponible','reserve','prete','rendu','indisponible','archive'));
-
--- Migration données existantes
-UPDATE equipment_items
-SET status = CASE
-  WHEN is_available = true  THEN 'disponible'
-  WHEN is_available = false THEN 'indisponible'
-  ELSE 'disponible'
-END
-WHERE status IS NULL OR status NOT IN ('disponible','reserve','prete','rendu','indisponible','archive');
 
 -- ── ÉTAPE 2 : Table equipment_requests (demandes d'emprunt) ───────────────
 CREATE TABLE IF NOT EXISTS equipment_requests (
