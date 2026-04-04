@@ -2438,6 +2438,8 @@ type StorageDiag = {
 
 // ─── SQL Cycle de vie matériel ────────────────────────────────────────────────
 import { EQUIPMENT_LIFECYCLE_SQL } from '@/lib/equipment';
+// ─── SQL Cycle de vie sorties groupées ───────────────────────────────────────
+import { OUTINGS_LIFECYCLE_SQL } from '@/lib/outings';
 
 // ─── SQL Correctif moderation_queue (colonnes manquantes) ─────────────────────
 const MODERATION_FIX_SQL = `-- ══════════════════════════════════════════════════════════════
@@ -2746,6 +2748,7 @@ export default function MigrationPage() {
   const [copiedModeration,  setCopiedModeration]  = useState(false);
   const [copiedModFix,      setCopiedModFix]      = useState(false);
   const [copiedEquipment,   setCopiedEquipment]   = useState(false);
+  const [copiedOutings,     setCopiedOutings]     = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -4367,6 +4370,42 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
           <pre className="text-xs text-teal-300 font-mono leading-relaxed whitespace-pre-wrap">{EQUIPMENT_LIFECYCLE_SQL}</pre>
+        </div>
+      </div>
+
+      {/* ── SQL Sorties groupées ── */}
+      <div className="rounded-2xl border border-emerald-200 overflow-hidden">
+        <div className="bg-emerald-700 text-white p-4 flex items-center justify-between">
+          <div>
+            <h3 className="font-bold flex items-center gap-2">
+              🥾 SQL Cycle de vie Sorties groupées
+            </h3>
+            <p className="text-xs text-emerald-200 mt-0.5">Statuts français · outing_status_history · participants enrichis · RLS · triggers</p>
+          </div>
+        </div>
+        <div className="p-4 flex items-center justify-between border-b border-emerald-100">
+          <div className="text-sm text-gray-600 space-y-1">
+            <p>Migre les statuts vers le français : ouverte, complete, terminee, annulee, archivee</p>
+            <p className="text-xs text-gray-400">Nouveaux champs, historique statuts, participation enrichie, vue organisateur</p>
+          </div>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(OUTINGS_LIFECYCLE_SQL).then(() => {
+                setCopiedOutings(true);
+                setTimeout(() => setCopiedOutings(false), 3000);
+              });
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
+              copiedOutings ? 'bg-emerald-500 text-white' : 'bg-emerald-700 text-white hover:bg-emerald-800'
+            }`}
+          >
+            {copiedOutings
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Sorties</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-96">
+          <pre className="text-xs text-emerald-300 font-mono leading-relaxed whitespace-pre-wrap">{OUTINGS_LIFECYCLE_SQL}</pre>
         </div>
       </div>
 

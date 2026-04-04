@@ -118,7 +118,7 @@ export const STATUS_CONFIG: Record<string, {
     priority: 3,
   },
 
-  // ── Promenades ────────────────────────────────────────────────────────────
+  // ── Promenades (anciens statuts anglais conservés) ───────────────────────
   registration_open: {
     label: 'Inscriptions ouvertes', icon: Play,
     bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500',
@@ -142,6 +142,33 @@ export const STATUS_CONFIG: Record<string, {
   cancelled: {
     label: 'Annulé', icon: XCircle,
     bg: 'bg-red-50', text: 'text-red-500', border: 'border-red-200', dot: 'bg-red-400',
+    priority: 3,
+  },
+
+  // ── Promenades (nouveaux statuts français) ────────────────────────────────
+  ouverte: {
+    label: 'Ouverte', icon: Play,
+    bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500',
+    priority: 0,
+  },
+  complete: {
+    label: 'Complète', icon: Users,
+    bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500',
+    priority: 2,
+  },
+  terminee: {
+    label: 'Terminée', icon: CheckCircle2,
+    bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200', dot: 'bg-blue-400',
+    priority: 3,
+  },
+  annulee: {
+    label: 'Annulée', icon: XCircle,
+    bg: 'bg-red-50', text: 'text-red-500', border: 'border-red-200', dot: 'bg-red-400',
+    priority: 3,
+  },
+  archivee: {
+    label: 'Archivée', icon: Package,
+    bg: 'bg-gray-50', text: 'text-gray-400', border: 'border-gray-200', dot: 'bg-gray-300',
     priority: 3,
   },
 
@@ -269,12 +296,22 @@ export function resolveStatus(
 
   // Promenades : statut calculé par date + remplissage
   if (contentType === 'outing') {
+    // Nouveaux statuts français — retourner directement
+    if (['ouverte', 'complete', 'terminee', 'annulee', 'archivee'].includes(rawStatus)) {
+      const date = e.outingDate ? new Date(e.outingDate + 'T23:59:59') : null;
+      // Si date passée et encore "ouverte" ou "complete", afficher terminee
+      if (date && date < new Date() && ['ouverte', 'complete'].includes(rawStatus)) return 'terminee';
+      return rawStatus;
+    }
+    // Anciens statuts anglais — compatibilité
     const date = e.outingDate ? new Date(e.outingDate + 'T23:59:59') : null;
-    if (date && date < new Date()) return 'completed';
-    if (rawStatus === 'cancelled') return 'cancelled';
-    if (e.isFull) return 'full';
+    if (date && date < new Date()) return 'terminee';
+    if (rawStatus === 'cancelled' || rawStatus === 'annulee') return 'annulee';
+    if (rawStatus === 'done' || rawStatus === 'completed' || rawStatus === 'terminee') return 'terminee';
+    if (rawStatus === 'archived' || rawStatus === 'archivee') return 'archivee';
+    if (e.isFull || rawStatus === 'full' || rawStatus === 'complete') return 'complete';
     if (e.fillPct !== undefined && e.fillPct >= 70) return 'almost_full';
-    return 'registration_open';
+    return 'ouverte';
   }
 
   // Événements : statut calculé par date
