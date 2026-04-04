@@ -812,9 +812,14 @@ function DashboardContent() {
             <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
               <div className="flex items-center justify-between px-5 py-3 border-b border-gray-50 bg-sky-50/50">
                 <span className="text-sm font-bold text-sky-700 flex items-center gap-2"><Wrench className="w-4 h-4" /> Matériel ({stats.activeEquipment})</span>
-                <Link href="/materiel/nouveau" className="flex items-center gap-1 text-xs font-bold text-sky-600 hover:text-sky-700">
-                  <Plus className="w-3 h-3" /> Ajouter
-                </Link>
+                <div className="flex items-center gap-2">
+                  <Link href="/dashboard/materiel" className="text-xs font-bold text-sky-600 hover:text-sky-700">
+                    Gérer →
+                  </Link>
+                  <Link href="/materiel/nouveau" className="flex items-center gap-1 text-xs font-bold text-sky-600 hover:text-sky-700">
+                    <Plus className="w-3 h-3" /> Ajouter
+                  </Link>
+                </div>
               </div>
               <StatusBreakdown counts={stats.equipmentByStatus} type="equipment" />
               <div className="p-3">

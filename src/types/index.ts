@@ -184,13 +184,18 @@ export interface EquipmentItem {
   category_id: string;
   title: string;
   description: string;
-  condition: 'excellent' | 'bon' | 'usage';
+  condition: 'neuf' | 'tres_bon' | 'excellent' | 'bon' | 'usage';
   deposit_amount?: number;
   is_free: boolean;
   daily_rate?: number;
   pickup_location: string;
+  location_area?: string;
   rules?: string;
+  availability_notes?: string;
   is_available: boolean;
+  status?: string; // disponible | reserve | prete | rendu | indisponible | archive
+  status_changed_at?: string;
+  archived_at?: string;
   created_at: string;
   updated_at: string;
   owner?: Profile;
