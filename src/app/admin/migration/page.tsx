@@ -2443,6 +2443,67 @@ import { OUTINGS_LIFECYCLE_SQL } from '@/lib/outings';
 // ─── SQL Cycle de vie événements ─────────────────────────────────────────────
 import { EVENT_LIFECYCLE_SQL, EVENT_FIX_SQL } from '@/lib/events';
 
+// ─── SQL Correctif enum user_role ─────────────────────────────────────────────
+const USER_ROLE_FIX_SQL = `-- ============================================================
+-- 🔧 CORRECTIF — enum user_role : valeur "moderateur" invalide
+-- Exécutez CE SCRIPT si vous obtenez l'erreur :
+--   invalid input value for enum user_role: "moderateur"
+--
+-- POURQUOI : L'enum user_role de la BD utilise 'moderateur' (FR)
+-- mais nos politiques RLS comparent à 'moderator' (EN), ou
+-- inversement un ancien trigger/fonction stocke 'moderateur'
+-- alors que l'enum a été mis à jour vers 'moderator'.
+-- Ce script harmonise les deux en ajoutant la valeur manquante
+-- et en convertissant toutes les lignes existantes.
+-- ============================================================
+
+-- ÉTAPE 1 : Ajouter 'moderator' à l'enum si absent
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_enum
+    WHERE enumtypid = 'user_role'::regtype AND enumlabel = 'moderator'
+  ) THEN
+    ALTER TYPE user_role ADD VALUE 'moderator';
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  -- user_role n'est peut-être pas un enum, ignorer
+  NULL;
+END$$;
+
+-- NOTE : ALTER TYPE ADD VALUE ne peut pas s'exécuter dans un bloc DO
+-- si une transaction est déjà ouverte. Si l'étape 1 échoue, commitez
+-- d'abord puis exécutez uniquement :
+--   ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'moderator';
+
+-- ÉTAPE 2 : Migrer toutes les lignes 'moderateur' → 'moderator'
+-- (nécessite que 'moderator' existe déjà dans l'enum)
+UPDATE profiles
+  SET role = 'moderator'::user_role
+  WHERE role::text = 'moderateur';
+
+-- ÉTAPE 3 : Si user_role est TEXT (pas un enum), mettre à jour directement
+-- (cette requête ne fait rien si role est un enum, sans erreur)
+DO $$
+BEGIN
+  UPDATE profiles SET role = 'moderator' WHERE role::text = 'moderateur';
+EXCEPTION WHEN OTHERS THEN NULL;
+END$$;
+
+-- ÉTAPE 4 : Recréer les fonctions qui référençaient 'moderateur'
+-- Remplace current_user_role() avec une version robuste TEXT
+CREATE OR REPLACE FUNCTION current_user_role()
+RETURNS TEXT AS $$
+  SELECT role::text FROM profiles WHERE id = auth.uid();
+$$ LANGUAGE SQL SECURITY DEFINER STABLE;
+
+-- ÉTAPE 5 : Vérification
+SELECT id, role::text FROM profiles WHERE role::text IN ('moderateur','moderator','admin') LIMIT 10;
+
+-- ✅ Correctif appliqué
+-- Rechargez la page et réessayez la migration
+`;
+
 // ─── SQL Correctif moderation_queue (colonnes manquantes) ─────────────────────
 const MODERATION_FIX_SQL = `-- ══════════════════════════════════════════════════════════════
 -- CORRECTIF URGENT — moderation_queue colonnes manquantes
@@ -2753,6 +2814,7 @@ export default function MigrationPage() {
   const [copiedOutings,     setCopiedOutings]     = useState(false);
   const [copiedEvents,      setCopiedEvents]      = useState(false);
   const [copiedEventFix,    setCopiedEventFix]    = useState(false);
+  const [copiedRoleFix,     setCopiedRoleFix]     = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -4410,6 +4472,42 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
           <pre className="text-xs text-emerald-300 font-mono leading-relaxed whitespace-pre-wrap">{OUTINGS_LIFECYCLE_SQL}</pre>
+        </div>
+      </div>
+
+      {/* ── user_role enum FIX SQL (à exécuter EN PREMIER si erreur enum) ── */}
+      <div className="bg-gray-900 rounded-2xl overflow-hidden border border-orange-500/50">
+        <div className="flex items-center justify-between px-5 py-4 bg-orange-900/30">
+          <div>
+            <h3 className="text-white font-bold text-base">🔧 Correctif Enum user_role — &quot;moderateur&quot; invalide</h3>
+            <p className="text-orange-300 text-xs mt-0.5 font-semibold">
+              Exécutez CE SCRIPT EN PREMIER si vous obtenez l&apos;erreur :
+            </p>
+            <p className="text-orange-200 text-xs font-mono mt-0.5 bg-orange-900/40 px-2 py-0.5 rounded">
+              invalid input value for enum user_role: &quot;moderateur&quot;
+            </p>
+            <p className="text-orange-400 text-xs mt-1">
+              Ajoute &apos;moderator&apos; à l&apos;enum, migre les lignes &apos;moderateur&apos; → &apos;moderator&apos;
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(USER_ROLE_FIX_SQL).then(() => {
+                setCopiedRoleFix(true);
+                setTimeout(() => setCopiedRoleFix(false), 3000);
+              });
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
+              copiedRoleFix ? 'bg-emerald-500 text-white' : 'bg-orange-600 text-white hover:bg-orange-700'
+            }`}
+          >
+            {copiedRoleFix
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Correctif</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-72">
+          <pre className="text-xs text-orange-300 font-mono leading-relaxed whitespace-pre-wrap">{USER_ROLE_FIX_SQL}</pre>
         </div>
       </div>
 
