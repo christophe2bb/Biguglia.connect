@@ -18,6 +18,7 @@ import { PhotoViewer } from '@/components/ui/PhotoViewer';
 import ContactButton from '@/components/ui/ContactButton';
 import StatusBadge from '@/components/ui/StatusBadge';
 import toast from 'react-hot-toast';
+import { legacyToFrenchStatus, computeDisplayStatus, OUTING_STATUS_CONFIG } from '@/lib/outings';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Promenade = {
@@ -367,27 +368,33 @@ function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit, onDelete, onS
           {isOrganizer ? (
             <div className="flex flex-col gap-1">
               <span className="text-xs text-gray-400 italic">✉️ Les membres vous contacteront ici</span>
-              {/* Organizer status actions */}
+              {/* Organizer status actions using French statuses */}
               {onStatusChange && (() => {
-                const s = outing.status;
-                const actions: { label: string; key: string; color: string }[] = [];
-                if (s === 'active' || s === 'open') {
-                  actions.push({ label: '✅ Terminer', key: 'completed', color: 'text-emerald-600 bg-emerald-50 border-emerald-200' });
-                  actions.push({ label: '✖ Annuler', key: 'cancelled', color: 'text-red-500 bg-red-50 border-red-200' });
-                } else if (s === 'cancelled') {
-                  actions.push({ label: '🔄 Réactiver', key: 'active', color: 'text-brand-600 bg-brand-50 border-brand-200' });
-                } else if (s === 'completed') {
-                  actions.push({ label: '📦 Archiver', key: 'archived', color: 'text-gray-500 bg-gray-50 border-gray-200' });
+                const fr = legacyToFrenchStatus(outing.status);
+                const displayed = computeDisplayStatus(fr, outing.participants_count || 0, outing.max_participants, outing.outing_date);
+                const actions: { label: string; key: string; cfg: ReturnType<typeof legacyToFrenchStatus> }[] = [];
+                if (displayed === 'ouverte') {
+                  actions.push({ label: '👥 Marquer complète', key: 'complete', cfg: 'complete' as ReturnType<typeof legacyToFrenchStatus> });
+                  actions.push({ label: '✅ Terminer', key: 'terminee', cfg: 'terminee' as ReturnType<typeof legacyToFrenchStatus> });
+                  actions.push({ label: '✖ Annuler', key: 'annulee', cfg: 'annulee' as ReturnType<typeof legacyToFrenchStatus> });
+                } else if (displayed === 'complete') {
+                  actions.push({ label: '🔓 Rouvrir', key: 'ouverte', cfg: 'ouverte' as ReturnType<typeof legacyToFrenchStatus> });
+                  actions.push({ label: '✅ Terminer', key: 'terminee', cfg: 'terminee' as ReturnType<typeof legacyToFrenchStatus> });
+                } else if (displayed === 'terminee' || displayed === 'annulee') {
+                  actions.push({ label: '📦 Archiver', key: 'archivee', cfg: 'archivee' as ReturnType<typeof legacyToFrenchStatus> });
                 }
                 return actions.length > 0 ? (
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {actions.map(a => (
-                      <button key={a.key} onClick={() => {
-                        if (window.confirm(`${a.label} cette sortie ?`)) onStatusChange(outing.id, a.key);
-                      }} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors ${a.color}`}>
-                        {a.label}
-                      </button>
-                    ))}
+                    {actions.map(a => {
+                      const aCfg = OUTING_STATUS_CONFIG[a.cfg];
+                      return (
+                        <button key={a.key} onClick={() => {
+                          if (window.confirm(`${a.label} cette sortie ?`)) onStatusChange(outing.id, a.key);
+                        }} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors ${aCfg.bg} ${aCfg.color} ${aCfg.border}`}>
+                          {a.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : null;
               })()}
@@ -416,6 +423,13 @@ function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit, onDelete, onS
               )}
             </button>
           )}
+
+          {/* Lien vers la page détail */}
+          <Link href={`/promenades/sorties/${outing.id}`}
+            className="inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm transition-all border bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100">
+            <Eye className="w-4 h-4" />
+            Voir
+          </Link>
 
           {/* Bouton signaler */}
           {userId && !isOrganizer && (
@@ -639,7 +653,7 @@ export default function PromenadePage() {
     const { data } = await supabase
       .from('group_outings')
       .select(`*, organizer:profiles!group_outings_organizer_id_fkey(full_name), participants:outing_participants(count)`)
-      .in('status', ['open', 'full'])
+      .in('status', ['open', 'full', 'ouverte', 'complete', 'active'])
       .gte('outing_date', new Date().toISOString().split('T')[0])
       .order('outing_date', { ascending: true })
       .limit(20);
@@ -843,11 +857,15 @@ export default function PromenadePage() {
 
   const handleOutingStatusChange = async (id: string, newStatus: string) => {
     const supabase = createClient();
-    await supabase.from('group_outings').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', id);
-    const labels: Record<string, string> = {
-      active: 'Ouverte', cancelled: 'Annulée', completed: 'Terminée', archived: 'Archivée',
+    // Map legacy to French statuses
+    const frenchMap: Record<string, string> = {
+      active: 'ouverte', open: 'ouverte', full: 'complete',
+      completed: 'terminee', cancelled: 'annulee', archived: 'archivee',
     };
-    toast.success(`✅ Statut : ${labels[newStatus] || newStatus}`);
+    const frStatus = frenchMap[newStatus] || newStatus;
+    await supabase.from('group_outings').update({ status: frStatus, updated_at: new Date().toISOString() }).eq('id', id);
+    const cfg = OUTING_STATUS_CONFIG[legacyToFrenchStatus(frStatus)];
+    toast.success(`${cfg?.icon || '✅'} Statut : ${cfg?.label || frStatus}`);
     fetchOutings();
   };
 

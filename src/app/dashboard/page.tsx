@@ -867,7 +867,7 @@ function DashboardContent() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {[
                 { icon: Calendar, label: `${stats.upcomingEvents} événement(s)`, href: '/evenements', color: 'text-purple-600', bg: 'bg-purple-50' },
-                { icon: Footprints, label: `${stats.upcomingOutings} sortie(s)`, href: '/promenades', color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                { icon: Footprints, label: `${stats.upcomingOutings} sortie(s)`, href: '/dashboard/promenades', color: 'text-emerald-600', bg: 'bg-emerald-50' },
                 { icon: BookOpen, label: `${stats.forumPosts} sujet(s) forum`, href: '/forum', color: 'text-violet-600', bg: 'bg-violet-50' },
                 { icon: Handshake, label: `${stats.associations} association(s)`, href: '/associations', color: 'text-teal-600', bg: 'bg-teal-50' },
                 { icon: Trophy, label: `${stats.activeCollections} collection(s)`, href: '/collectionneurs', color: 'text-amber-600', bg: 'bg-amber-50' },
