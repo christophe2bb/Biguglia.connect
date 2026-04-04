@@ -475,69 +475,100 @@ export function daysUntilLabel(dateStr: string): string | null {
 // ─── SQL Correctif urgent (à exécuter EN PREMIER si erreur de contrainte) ─────
 
 export const EVENT_FIX_SQL = `-- ============================================================
--- ⚠️  CORRECTIF URGENT — local_events contrainte status + colonnes manquantes
+-- ⚠️  CORRECTIF URGENT — statuts + colonnes manquantes
+-- Fonctionne que la table s'appelle local_events OU events
 -- Exécutez CE SCRIPT EN PREMIER si vous obtenez l'erreur :
 --   "violates check constraint local_events_status_check"
 --   "column e.capacity does not exist"
+--   "relation local_events does not exist"
 -- ============================================================
 
--- 1. Supprimer l'ancienne contrainte restrictive
+-- 1. Corrections sur local_events (seulement si elle existe encore)
 DO $$
 BEGIN
-  -- Toutes les variantes possibles du nom de la contrainte
-  ALTER TABLE local_events DROP CONSTRAINT IF EXISTS local_events_status_check;
-  ALTER TABLE local_events DROP CONSTRAINT IF EXISTS events_status_check;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'local_events') THEN
+    -- Supprimer les anciennes contraintes
+    ALTER TABLE local_events DROP CONSTRAINT IF EXISTS local_events_status_check;
+    ALTER TABLE local_events DROP CONSTRAINT IF EXISTS events_status_check;
+    -- Ajouter les colonnes manquantes
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='local_events' AND column_name='capacity') THEN
+      ALTER TABLE local_events ADD COLUMN capacity INTEGER;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='local_events' AND column_name='is_unlimited') THEN
+      ALTER TABLE local_events ADD COLUMN is_unlimited BOOLEAN DEFAULT false;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='local_events' AND column_name='registration_open') THEN
+      ALTER TABLE local_events ADD COLUMN registration_open BOOLEAN DEFAULT true;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='local_events' AND column_name='price_type') THEN
+      ALTER TABLE local_events ADD COLUMN price_type TEXT DEFAULT 'gratuit';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='local_events' AND column_name='cancel_reason') THEN
+      ALTER TABLE local_events ADD COLUMN cancel_reason TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='local_events' AND column_name='postpone_reason') THEN
+      ALTER TABLE local_events ADD COLUMN postpone_reason TEXT;
+    END IF;
+    -- Migrer les statuts legacy → français
+    UPDATE local_events SET status = 'a_venir' WHERE status IN ('active','publie','brouillon','open');
+    UPDATE local_events SET status = 'annule'  WHERE status IN ('cancelled','annulee','canceled');
+    UPDATE local_events SET status = 'passe'   WHERE status IN ('completed','done','terminee','past');
+    UPDATE local_events SET status = 'archive' WHERE status IN ('archived','archivee');
+    UPDATE local_events SET status = 'complet' WHERE status IN ('full','complete');
+    UPDATE local_events SET status = 'a_venir'
+      WHERE status NOT IN ('a_venir','complet','reporte','annule','passe','archive');
+    -- Remettre une contrainte large
+    ALTER TABLE local_events DROP CONSTRAINT IF EXISTS local_events_status_check;
+    ALTER TABLE local_events ADD CONSTRAINT local_events_status_check
+      CHECK (status IN (
+        'active','cancelled','completed','done','archived','full',
+        'a_venir','complet','reporte','annule','passe','archive',
+        'publie','brouillon'
+      ));
+  END IF;
 EXCEPTION WHEN OTHERS THEN NULL;
 END$$;
 
--- 2. Ajouter les colonnes manquantes sur local_events (idempotent)
+-- 2. Corrections sur events (si local_events a déjà été renommée)
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='local_events' AND column_name='capacity') THEN
-    ALTER TABLE local_events ADD COLUMN capacity INTEGER;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='local_events' AND column_name='is_unlimited') THEN
-    ALTER TABLE local_events ADD COLUMN is_unlimited BOOLEAN DEFAULT false;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='local_events' AND column_name='registration_open') THEN
-    ALTER TABLE local_events ADD COLUMN registration_open BOOLEAN DEFAULT true;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='local_events' AND column_name='price_type') THEN
-    ALTER TABLE local_events ADD COLUMN price_type TEXT DEFAULT 'gratuit';
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='local_events' AND column_name='cancel_reason') THEN
-    ALTER TABLE local_events ADD COLUMN cancel_reason TEXT;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='local_events' AND column_name='postpone_reason') THEN
-    ALTER TABLE local_events ADD COLUMN postpone_reason TEXT;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'events') THEN
+    -- Ajouter les colonnes manquantes
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='capacity') THEN
+      ALTER TABLE events ADD COLUMN capacity INTEGER;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='is_unlimited') THEN
+      ALTER TABLE events ADD COLUMN is_unlimited BOOLEAN DEFAULT false;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='registration_open') THEN
+      ALTER TABLE events ADD COLUMN registration_open BOOLEAN DEFAULT true;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='price_type') THEN
+      ALTER TABLE events ADD COLUMN price_type TEXT DEFAULT 'gratuit';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='cancel_reason') THEN
+      ALTER TABLE events ADD COLUMN cancel_reason TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='postpone_reason') THEN
+      ALTER TABLE events ADD COLUMN postpone_reason TEXT;
+    END IF;
+    -- Migrer les statuts legacy → français
+    UPDATE events SET status = 'a_venir' WHERE status IN ('active','publie','brouillon','open');
+    UPDATE events SET status = 'annule'  WHERE status IN ('cancelled','annulee','canceled');
+    UPDATE events SET status = 'passe'   WHERE status IN ('completed','done','terminee','past');
+    UPDATE events SET status = 'archive' WHERE status IN ('archived','archivee');
+    UPDATE events SET status = 'complet' WHERE status IN ('full','complete');
+    UPDATE events SET status = 'a_venir'
+      WHERE status NOT IN ('a_venir','complet','reporte','annule','passe','archive');
+    -- Contrainte CHECK sur events
+    ALTER TABLE events DROP CONSTRAINT IF EXISTS events_status_check;
+    ALTER TABLE events ADD CONSTRAINT events_status_check
+      CHECK (status IN ('a_venir','complet','reporte','annule','passe','archive'));
   END IF;
 EXCEPTION WHEN OTHERS THEN NULL;
 END$$;
 
--- 3. Migrer les anciens statuts legacy → statuts français
-UPDATE local_events SET status = 'a_venir' WHERE status IN ('active','publie','brouillon','open');
-UPDATE local_events SET status = 'annule'  WHERE status IN ('cancelled','annulee','canceled');
-UPDATE local_events SET status = 'passe'   WHERE status IN ('completed','done','terminee','past');
-UPDATE local_events SET status = 'archive' WHERE status IN ('archived','archivee');
-UPDATE local_events SET status = 'complet' WHERE status IN ('full','complete');
--- Tout statut non reconnu → a_venir
-UPDATE local_events SET status = 'a_venir'
-  WHERE status NOT IN ('a_venir','complet','reporte','annule','passe','archive');
-
--- 4. Remettre une contrainte large qui accepte TOUS les statuts (anciens + nouveaux)
-DO $$
-BEGIN
-  ALTER TABLE local_events ADD CONSTRAINT local_events_status_check
-    CHECK (status IN (
-      'active','cancelled','completed','done','archived','full',
-      'a_venir','complet','reporte','annule','passe','archive',
-      'publie','brouillon'
-    ));
-EXCEPTION WHEN OTHERS THEN NULL;
-END$$;
-
--- ✅ Correctif appliqué — vous pouvez maintenant créer des événements
--- et exécuter le script de migration complet (EVENT_LIFECYCLE_SQL)
+-- ✅ Correctif appliqué — vous pouvez maintenant exécuter EVENT_LIFECYCLE_SQL
 `;
 
 // ─── SQL Migration complète ───────────────────────────────────────────────────
@@ -549,23 +580,23 @@ export const EVENT_LIFECYCLE_SQL = `-- =========================================
 -- exécutez d'abord le script CORRECTIF (bloc rouge ci-dessus).
 -- ============================================================
 
--- 0. Correctif préventif : supprimer toutes les anciennes contraintes status
+-- 0. Correctif préventif sur local_events (seulement si elle existe encore)
 DO $$
 BEGIN
-  ALTER TABLE local_events DROP CONSTRAINT IF EXISTS local_events_status_check;
-  ALTER TABLE local_events DROP CONSTRAINT IF EXISTS events_status_check;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'local_events') THEN
+    ALTER TABLE local_events DROP CONSTRAINT IF EXISTS local_events_status_check;
+    ALTER TABLE local_events DROP CONSTRAINT IF EXISTS events_status_check;
+    -- 0b. Migrer les statuts legacy AVANT le renommage
+    UPDATE local_events SET status = 'a_venir' WHERE status IN ('active','publie','brouillon','open');
+    UPDATE local_events SET status = 'annule'  WHERE status IN ('cancelled','annulee','canceled');
+    UPDATE local_events SET status = 'passe'   WHERE status IN ('completed','done','terminee','past');
+    UPDATE local_events SET status = 'archive' WHERE status IN ('archived','archivee','archive');
+    UPDATE local_events SET status = 'complet' WHERE status IN ('full','complete');
+    UPDATE local_events SET status = 'a_venir'
+      WHERE status NOT IN ('a_venir','complet','reporte','annule','passe','archive');
+  END IF;
 EXCEPTION WHEN OTHERS THEN NULL;
 END$$;
-
--- 0b. Migrer les statuts legacy AVANT le renommage (idempotent)
-UPDATE local_events SET status = 'a_venir' WHERE status IN ('active','publie','brouillon','open');
-UPDATE local_events SET status = 'annule'  WHERE status IN ('cancelled','annulee','canceled');
-UPDATE local_events SET status = 'passe'   WHERE status IN ('completed','done','terminee','past');
-UPDATE local_events SET status = 'archive' WHERE status IN ('archived','archivee','archive');
-UPDATE local_events SET status = 'complet' WHERE status IN ('full','complete');
--- Tout statut non reconnu → a_venir par défaut
-UPDATE local_events SET status = 'a_venir' 
-  WHERE status NOT IN ('a_venir','complet','reporte','annule','passe','archive');
 
 -- 1. Renommer local_events → events (ou créer si inexistant)
 DO $$
