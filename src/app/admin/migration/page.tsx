@@ -2436,6 +2436,56 @@ type StorageDiag = {
   error: string | null;
 };
 
+// ─── SQL Correctif moderation_queue (colonnes manquantes) ─────────────────────
+const MODERATION_FIX_SQL = `-- ══════════════════════════════════════════════════════════════
+-- CORRECTIF URGENT — moderation_queue colonnes manquantes
+-- Exécutez CE script EN PREMIER si vous avez l'erreur :
+-- "column submitted_at does not exist"
+-- ══════════════════════════════════════════════════════════════
+
+-- Supprime la vue KPI qui bloque (dépendante des colonnes)
+DROP VIEW IF EXISTS moderation_kpi;
+
+-- Ajoute toutes les colonnes potentiellement manquantes
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS submitted_at      TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS updated_at        TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS risk_score        INT DEFAULT 0;
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS risk_level        TEXT DEFAULT 'low';
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS completeness      INT DEFAULT 100;
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS validation_errors JSONB DEFAULT '[]';
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS author_trust      TEXT DEFAULT 'nouveau';
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS content_title     TEXT;
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS content_excerpt   TEXT;
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS content_photos    TEXT[];
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS resubmit_count    INT DEFAULT 0;
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS moderator_note    TEXT;
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS correction_reason TEXT;
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS refusal_reason    TEXT;
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS decision          TEXT;
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS reviewed_at       TIMESTAMPTZ;
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS reviewed_by       UUID;
+
+-- Recrée la vue KPI avec les colonnes maintenant présentes
+CREATE VIEW moderation_kpi AS
+SELECT
+  COUNT(*)                                                              AS total,
+  COUNT(*) FILTER (WHERE status = 'en_attente_validation')             AS pending,
+  COUNT(*) FILTER (WHERE status = 'publie')                            AS published,
+  COUNT(*) FILTER (WHERE status = 'refuse')                            AS refused,
+  COUNT(*) FILTER (WHERE status = 'a_corriger')                        AS correction,
+  COUNT(*) FILTER (WHERE status = 'archive')                           AS archived,
+  AVG(EXTRACT(EPOCH FROM (reviewed_at - submitted_at)) / 3600)
+    FILTER (WHERE reviewed_at IS NOT NULL AND submitted_at IS NOT NULL) AS avg_review_hours,
+  COUNT(*) FILTER (WHERE risk_level IN ('high','critical'))             AS high_risk,
+  COUNT(*) FILTER (WHERE author_trust = 'nouveau')                     AS new_authors,
+  COUNT(*) FILTER (WHERE submitted_at >= NOW() - INTERVAL '24 hours')  AS last_24h
+FROM moderation_queue;
+
+GRANT SELECT ON moderation_kpi TO authenticated;
+
+-- ✅ Correctif appliqué — la modération est opérationnelle
+`;
+
 // ─── SQL Modération centralisée ───────────────────────────────────────────────
 const MODERATION_SQL = `-- ═══════════════════════════════════════════════════════════════════════════
 -- SYSTÈME DE MODÉRATION CENTRALISÉ — Biguglia Connect
@@ -2691,6 +2741,7 @@ export default function MigrationPage() {
   const [copiedDiscussions, setCopiedDiscussions] = useState(false);
   const [copiedRLS, setCopiedRLS] = useState(false);
   const [copiedModeration, setCopiedModeration] = useState(false);
+  const [copiedModFix,     setCopiedModFix]     = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -4195,6 +4246,43 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-64">
           <pre className="text-xs text-cyan-400 font-mono leading-relaxed whitespace-pre-wrap">{BUCKET_SQL}</pre>
+        </div>
+      </div>
+
+      {/* ─── CORRECTIF URGENT moderation_queue ──────────────────────── */}
+      <div className="bg-white rounded-2xl border border-red-300 overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-red-700 to-orange-700">
+          <Shield className="w-5 h-5 text-red-200" />
+          <div>
+            <h3 className="font-bold text-white">⚠️ CORRECTIF — Erreur &quot;submitted_at&quot;</h3>
+            <p className="text-xs text-red-200 mt-0.5">
+              Si vous avez eu l&apos;erreur <code className="bg-red-900 px-1 rounded">column &quot;submitted_at&quot; does not exist</code>,
+              exécutez CE script EN PREMIER dans Supabase, puis le script complet ci-dessous.
+            </p>
+          </div>
+        </div>
+        <div className="p-4 flex items-center justify-between border-b border-red-100">
+          <p className="text-sm text-gray-600">
+            Corrige les colonnes manquantes sur <code className="text-xs bg-gray-100 px-1 rounded">moderation_queue</code> et recrée la vue KPI.
+          </p>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(MODERATION_FIX_SQL).then(() => {
+                setCopiedModFix(true);
+                setTimeout(() => setCopiedModFix(false), 3000);
+              });
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
+              copiedModFix ? 'bg-emerald-500 text-white' : 'bg-red-600 text-white hover:bg-red-700'
+            }`}
+          >
+            {copiedModFix
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Correctif</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-64">
+          <pre className="text-xs text-red-300 font-mono leading-relaxed whitespace-pre-wrap">{MODERATION_FIX_SQL}</pre>
         </div>
       </div>
 
