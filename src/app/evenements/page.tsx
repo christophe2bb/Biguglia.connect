@@ -417,7 +417,9 @@ function EventCard({
         )}
         {/* Titre en bas de la photo */}
         <div className="absolute bottom-3 left-3 right-3">
-          <p className="text-white font-black text-sm leading-tight drop-shadow line-clamp-2">{event.title}</p>
+          <Link href={`/evenements/${event.id}`} className="block hover:underline">
+            <p className="text-white font-black text-sm leading-tight drop-shadow line-clamp-2">{event.title}</p>
+          </Link>
         </div>
       </div>
 
@@ -486,6 +488,10 @@ function EventCard({
             {event.is_free ? '🎟️ Gratuit' : `${event.price} €`}
           </span>
           <div className="flex items-center gap-2">
+          <Link href={`/evenements/${event.id}`}
+            className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-600 transition-all">
+            <ArrowRight className="w-3 h-3" /> Voir
+          </Link>
           {userId ? (
             <button onClick={() => onJoin(event.id, !!event.user_joined)} disabled={isFull && !event.user_joined}
               className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-all disabled:opacity-50 ${
@@ -1267,15 +1273,33 @@ export default function EvenementsPage() {
     setLoadingEvents(true);
     try {
       const today = new Date().toISOString().split('T')[0];
-      const { data, error } = await supabase
-        .from('local_events')
-        .select(`*, author:profiles!local_events_author_id_fkey(full_name, avatar_url), participants:event_participations(count), participants_list:event_participations(user_id, user:profiles!event_participations_user_id_fkey(full_name, avatar_url))`)
-        .eq('status', 'active')
+      // Try new 'events' table first
+      let data: LocalEvent[] | null = null;
+      let error: unknown = null;
+      const { data: evData, error: evErr } = await supabase
+        .from('events')
+        .select(`*, author:profiles(full_name, avatar_url)`)
+        .in('status', ['a_venir', 'complet', 'reporte'])
         .gte('event_date', today)
         .order('event_date', { ascending: true });
+      if (!evErr && evData) {
+        data = evData.map((e: Record<string, unknown>) => ({ ...e, is_free: e.price_type === 'gratuit', event_time: e.start_time ?? '18:00', max_participants: e.capacity ?? null })) as LocalEvent[];
+        error = null;
+      } else {
+        // Fallback to local_events with French + legacy statuses
+        const { data: legData, error: legErr } = await supabase
+          .from('local_events')
+          .select(`*, author:profiles!local_events_author_id_fkey(full_name, avatar_url), participants:event_participations(count), participants_list:event_participations(user_id, user:profiles!event_participations_user_id_fkey(full_name, avatar_url))`)
+          .in('status', ['active', 'a_venir', 'complet'])
+          .gte('event_date', today)
+          .order('event_date', { ascending: true });
+        data = legData as LocalEvent[] | null;
+        error = legErr;
+      }
 
       if (error) {
-        if (error.code === '42P01' || error.message?.includes('relation') || error.message?.includes('does not exist')) {
+        const err = error as { code?: string; message?: string };
+        if (err.code === '42P01' || err.message?.includes('relation') || err.message?.includes('does not exist')) {
           setDbReady(false);
         }
         setLoadingEvents(false);
@@ -1363,8 +1387,11 @@ export default function EvenementsPage() {
   // ── Event status change (creator only) ───────────────────────────────────
   const handleEventStatusChange = async (eventId: string, newStatus: string) => {
     const supabase = createClient();
-    await supabase.from('local_events').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', eventId);
+    // Try events table first, fallback to local_events
+    const { error: e1 } = await supabase.from('events').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', eventId);
+    if (e1) await supabase.from('local_events').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', eventId);
     const labels: Record<string, string> = {
+      a_venir: 'À venir', complet: 'Complet', reporte: 'Reporté', annule: 'Annulé', passe: 'Passé', archive: 'Archivé',
       active: 'À venir', cancelled: 'Annulé', completed: 'Terminé', archived: 'Archivé',
     };
     toast.success(`✅ Statut : ${labels[newStatus] || newStatus}`);
@@ -1408,7 +1435,7 @@ export default function EvenementsPage() {
       max_participants: newEvent.max_participants ? parseInt(newEvent.max_participants) : null,
       is_free: newEvent.is_free,
       price: !newEvent.is_free && newEvent.price ? parseFloat(newEvent.price) : null,
-      status: 'active',
+      status: 'a_venir',
     }).select('id').single();
 
     if (error) {
@@ -1561,10 +1588,10 @@ export default function EvenementsPage() {
               </div>
             </div>
             {profile && (
-              <button onClick={() => setActiveTab('creer')}
+              <Link href="/evenements/nouveau"
                 className="flex-shrink-0 inline-flex items-center gap-2 bg-white text-purple-700 font-bold px-6 py-3 rounded-2xl hover:bg-purple-50 transition-all shadow-lg hover:-translate-y-0.5">
                 <Plus className="w-4 h-4" /> Proposer un événement
-              </button>
+              </Link>
             )}
           </div>
         </div>
