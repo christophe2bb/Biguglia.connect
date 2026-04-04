@@ -391,14 +391,15 @@ export function resolveEventStatus(
     return status as EventStatus;
   }
 
-  // Legacy mapping
-  if (status === 'active') return 'a_venir';
-  if (status === 'cancelled') return 'annule';
-  if (status === 'completed' || status === 'done') return 'passe';
-  if (status === 'archived') return 'archive';
-  if (status === 'full') return 'complet';
+  // Legacy mapping (ancien schéma)
+  if (status === 'active' || status === 'publie' || status === 'brouillon' || status === 'open') return 'a_venir';
+  if (status === 'cancelled' || status === 'annulee' || status === 'canceled') return 'annule';
+  if (status === 'completed' || status === 'done' || status === 'terminee') return 'passe';
+  if (status === 'archived' || status === 'archivee') return 'archive';
+  if (status === 'full' || status === 'complete') return 'complet';
   if (status === 'postponed') return 'reporte';
 
+  // Fallback sécurisé
   return 'a_venir';
 }
 
@@ -471,12 +472,75 @@ export function daysUntilLabel(dateStr: string): string | null {
   return null;
 }
 
+// ─── SQL Correctif urgent (à exécuter EN PREMIER si erreur de contrainte) ─────
+
+export const EVENT_FIX_SQL = `-- ============================================================
+-- ⚠️  CORRECTIF URGENT — local_events contrainte status
+-- Exécutez CE SCRIPT EN PREMIER si vous obtenez l'erreur :
+-- "violates check constraint local_events_status_check"
+-- ============================================================
+
+-- 1. Supprimer l'ancienne contrainte restrictive
+DO $$
+BEGIN
+  -- Toutes les variantes possibles du nom de la contrainte
+  ALTER TABLE local_events DROP CONSTRAINT IF EXISTS local_events_status_check;
+  ALTER TABLE local_events DROP CONSTRAINT IF EXISTS events_status_check;
+EXCEPTION WHEN OTHERS THEN NULL;
+END$$;
+
+-- 2. Migrer les anciens statuts legacy → statuts français
+UPDATE local_events SET status = 'a_venir' WHERE status IN ('active','publie','brouillon','open');
+UPDATE local_events SET status = 'annule'  WHERE status IN ('cancelled','annulee','canceled');
+UPDATE local_events SET status = 'passe'   WHERE status IN ('completed','done','terminee','past');
+UPDATE local_events SET status = 'archive' WHERE status IN ('archived','archivee');
+UPDATE local_events SET status = 'complet' WHERE status IN ('full','complete');
+-- Tout statut non reconnu → a_venir
+UPDATE local_events SET status = 'a_venir'
+  WHERE status NOT IN ('a_venir','complet','reporte','annule','passe','archive');
+
+-- 3. Remettre une contrainte large qui accepte TOUS les statuts (anciens + nouveaux)
+DO $$
+BEGIN
+  ALTER TABLE local_events ADD CONSTRAINT local_events_status_check
+    CHECK (status IN (
+      'active','cancelled','completed','done','archived','full',
+      'a_venir','complet','reporte','annule','passe','archive',
+      'publie','brouillon'
+    ));
+EXCEPTION WHEN OTHERS THEN NULL;
+END$$;
+
+-- ✅ Correctif appliqué — vous pouvez maintenant créer des événements
+-- et exécuter le script de migration complet (EVENT_LIFECYCLE_SQL)
+`;
+
 // ─── SQL Migration complète ───────────────────────────────────────────────────
 
 export const EVENT_LIFECYCLE_SQL = `-- ============================================================
 -- ÉVÉNEMENTS — Migration cycle de vie complet
 -- Biguglia Connect — À exécuter dans Supabase SQL Editor
+-- IMPORTANT : Si vous avez l'erreur "local_events_status_check",
+-- exécutez d'abord le script CORRECTIF (bloc rouge ci-dessus).
 -- ============================================================
+
+-- 0. Correctif préventif : supprimer toutes les anciennes contraintes status
+DO $$
+BEGIN
+  ALTER TABLE local_events DROP CONSTRAINT IF EXISTS local_events_status_check;
+  ALTER TABLE local_events DROP CONSTRAINT IF EXISTS events_status_check;
+EXCEPTION WHEN OTHERS THEN NULL;
+END$$;
+
+-- 0b. Migrer les statuts legacy AVANT le renommage (idempotent)
+UPDATE local_events SET status = 'a_venir' WHERE status IN ('active','publie','brouillon','open');
+UPDATE local_events SET status = 'annule'  WHERE status IN ('cancelled','annulee','canceled');
+UPDATE local_events SET status = 'passe'   WHERE status IN ('completed','done','terminee','past');
+UPDATE local_events SET status = 'archive' WHERE status IN ('archived','archivee','archive');
+UPDATE local_events SET status = 'complet' WHERE status IN ('full','complete');
+-- Tout statut non reconnu → a_venir par défaut
+UPDATE local_events SET status = 'a_venir' 
+  WHERE status NOT IN ('a_venir','complet','reporte','annule','passe','archive');
 
 -- 1. Renommer local_events → events (ou créer si inexistant)
 DO $$
@@ -592,11 +656,14 @@ BEGIN
 END$$;
 
 -- 3. Migrer les anciens statuts vers les statuts français
-UPDATE events SET status = 'a_venir'  WHERE status = 'active'    AND status != 'a_venir';
-UPDATE events SET status = 'annule'   WHERE status = 'cancelled' AND status != 'annule';
-UPDATE events SET status = 'passe'    WHERE status = 'completed' AND status != 'passe';
-UPDATE events SET status = 'archive'  WHERE status = 'archived'  AND status != 'archive';
-UPDATE events SET status = 'complet'  WHERE status = 'full'      AND status != 'complet';
+UPDATE events SET status = 'a_venir' WHERE status IN ('active','publie','brouillon','open');
+UPDATE events SET status = 'annule'  WHERE status IN ('cancelled','annulee','canceled');
+UPDATE events SET status = 'passe'   WHERE status IN ('completed','done','terminee','past');
+UPDATE events SET status = 'archive' WHERE status IN ('archived','archivee');
+UPDATE events SET status = 'complet' WHERE status IN ('full','complete');
+-- Tout statut non reconnu → a_venir
+UPDATE events SET status = 'a_venir'
+  WHERE status NOT IN ('a_venir','complet','reporte','annule','passe','archive');
 
 -- 4. Contrainte CHECK sur status (idempotent)
 DO $$
