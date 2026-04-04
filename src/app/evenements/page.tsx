@@ -1290,7 +1290,7 @@ export default function EvenementsPage() {
         const { data: legData, error: legErr } = await supabase
           .from('local_events')
           .select(`*, author:profiles!local_events_author_id_fkey(full_name, avatar_url), participants:event_participations(count), participants_list:event_participations(user_id, user:profiles!event_participations_user_id_fkey(full_name, avatar_url))`)
-          .in('status', ['active', 'a_venir', 'complet'])
+          .in('status', ['active', 'publie', 'a_venir', 'complet', 'reporte'])
           .gte('event_date', today)
           .order('event_date', { ascending: true });
         data = legData as LocalEvent[] | null;

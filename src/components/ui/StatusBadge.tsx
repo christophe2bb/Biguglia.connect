@@ -334,13 +334,15 @@ export function resolveStatus(
       if (rawStatus === 'passe') return 'past';
       if (rawStatus === 'archive') return 'archived';
     }
-    // Legacy mapping
+    // Legacy mapping (ancien schéma : active, publie, cancelled, archived…)
     const date = e.eventDate ? new Date(e.eventDate + 'T23:59:59') : null;
-    if (rawStatus === 'cancelled') return 'cancelled';
-    if (rawStatus === 'archived') return 'archived';
+    if (rawStatus === 'cancelled' || rawStatus === 'annulee') return 'cancelled';
+    if (rawStatus === 'archived' || rawStatus === 'archivee') return 'archived';
     if (rawStatus === 'postponed') return 'postponed';
-    if (e.isFull) return 'full';
+    if (rawStatus === 'completed' || rawStatus === 'done' || rawStatus === 'terminee') return 'past';
+    if (e.isFull || rawStatus === 'full') return 'full';
     if (date && date < new Date()) return 'past';
+    // active / publie / brouillon / open / unknown → upcoming
     return 'upcoming';
   }
 
