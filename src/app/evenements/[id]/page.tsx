@@ -83,6 +83,7 @@ interface Participant {
 
 interface Comment {
   id: string;
+  author_id: string;
   content: string;
   created_at: string;
   author?: { full_name?: string; avatar_url?: string | null } | null;
@@ -214,7 +215,7 @@ export default function EventDetailPage() {
     // Try event_comments first
     const { data: c1 } = await supabase
       .from('event_comments')
-      .select('id, content, created_at, author:profiles(full_name, avatar_url)')
+      .select('id, author_id, content, created_at, author:profiles(full_name, avatar_url)')
       .eq('event_id', id)
       .order('created_at');
     if (c1 && c1.length >= 0) { setComments(c1 as Comment[]); return; }
@@ -331,6 +332,20 @@ export default function EventDetailPage() {
     } finally {
       setCommenting(false);
     }
+  };
+
+  const handleDeleteComment = async (commentId: string, commentAuthorId: string) => {
+    if (!profile || !event) return;
+    const canDel = profile.id === commentAuthorId
+      || profile.role === 'admin'
+      || profile.role === 'moderator'
+      || profile.id === event.author_id;
+    if (!canDel) { toast.error('Non autorisé'); return; }
+    try {
+      await supabase.from('event_comments').delete().eq('id', commentId);
+      toast.success('Commentaire supprimé');
+      await fetchComments();
+    } catch { toast.error('Erreur suppression'); }
   };
 
   const handleMarkAttendance = async (userId: string, status: 'present' | 'absent') => {
@@ -747,18 +762,35 @@ export default function EventDetailPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {comments.map(c => (
-                      <div key={c.id} className="flex gap-3 p-3 bg-gray-50 rounded-xl">
-                        <Avatar name={c.author?.full_name ?? 'Anonyme'} src={c.author?.avatar_url} size="sm" />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-gray-900">{c.author?.full_name ?? 'Anonyme'}</span>
-                            <span className="text-xs text-gray-400">{formatRelative(c.created_at)}</span>
+                    {comments.map(c => {
+                      const canDelComment = !!profile && (
+                        profile.id === c.author_id
+                        || profile.role === 'admin'
+                        || profile.role === 'moderator'
+                        || profile.id === event.author_id
+                      );
+                      return (
+                        <div key={c.id} className="flex gap-3 p-3 bg-gray-50 rounded-xl">
+                          <Avatar name={c.author?.full_name ?? 'Anonyme'} src={c.author?.avatar_url} size="sm" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-gray-900">{c.author?.full_name ?? 'Anonyme'}</span>
+                              <span className="text-xs text-gray-400">{formatRelative(c.created_at)}</span>
+                              {canDelComment && (
+                                <button
+                                  onClick={() => handleDeleteComment(c.id, c.author_id)}
+                                  className="ml-auto p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                  title="Supprimer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-700 mt-0.5">{c.content}</p>
                           </div>
-                          <p className="text-sm text-gray-700 mt-0.5">{c.content}</p>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

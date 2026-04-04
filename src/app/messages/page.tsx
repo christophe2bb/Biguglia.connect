@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, Search, RefreshCw, ShoppingBag, HandHeart, Dog, Users, MapPin, Wrench } from 'lucide-react';
+import { MessageSquare, Search, RefreshCw, ShoppingBag, HandHeart, Dog, Users, MapPin, Wrench, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { Conversation, Profile } from '@/types';
@@ -43,6 +43,7 @@ export default function MessagesPage() {
   const [conversations, setConversations] = useState<ConvWithOther[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const channelRef      = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const reconnectRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectIdx    = useRef(0);
@@ -214,6 +215,27 @@ export default function MessagesPage() {
 
   const totalUnread = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
 
+  const handleDeleteConversation = async (e: React.MouseEvent, convId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!profile) return;
+    if (!confirm('Supprimer cette conversation ? Elle sera retirée de votre liste.')) return;
+    setDeletingId(convId);
+    try {
+      // Supprimer la participation de cet utilisateur
+      await supabase
+        .from('conversation_participants')
+        .delete()
+        .eq('conversation_id', convId)
+        .eq('user_id', profile.id);
+      setConversations(prev => prev.filter(c => c.id !== convId));
+    } catch {
+      // ignore
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
       <div className="mb-8 flex items-center justify-between">
@@ -273,11 +295,12 @@ export default function MessagesPage() {
           {filtered.map(conv => {
             const hasUnread = (conv.unread_count || 0) > 0;
             return (
+              <div key={conv.id} className="relative group">
               <Link
-                key={conv.id}
                 href={`/messages/${conv.id}`}
                 className={cn(
                   'flex items-center gap-3 rounded-2xl border p-4 hover:shadow-sm transition-all duration-200',
+                  deletingId === conv.id && 'opacity-40 pointer-events-none',
                   hasUnread
                     ? 'bg-brand-50/40 border-brand-200 hover:border-brand-300'
                     : 'bg-white border-gray-100 hover:border-gray-200'
@@ -342,6 +365,15 @@ export default function MessagesPage() {
                   )}
                 </div>
               </Link>
+              {/* Bouton supprimer — visible au survol */}
+              <button
+                onClick={(e) => handleDeleteConversation(e, conv.id)}
+                className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+                title="Supprimer cette conversation"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+              </div>
             );
           })}
         </div>
