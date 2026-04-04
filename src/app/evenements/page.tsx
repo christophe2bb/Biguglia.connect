@@ -1278,7 +1278,7 @@ export default function EvenementsPage() {
       let error: unknown = null;
       const { data: evData, error: evErr } = await supabase
         .from('events')
-        .select(`*, author:profiles(full_name, avatar_url)`)
+        .select(`*, author:profiles(full_name, avatar_url), participants:event_participants(count), participants_list:event_participants(user_id, user:profiles(full_name, avatar_url))`)
         .in('status', ['a_venir', 'complet', 'reporte'])
         .gte('event_date', today)
         .order('event_date', { ascending: true });
@@ -1286,15 +1286,28 @@ export default function EvenementsPage() {
         data = evData.map((e: Record<string, unknown>) => ({ ...e, is_free: e.price_type === 'gratuit', event_time: e.start_time ?? '18:00', max_participants: e.capacity ?? null })) as LocalEvent[];
         error = null;
       } else {
-        // Fallback to local_events with French + legacy statuses
+        // Fallback to local_events — try event_participants then event_participations
+        const partTable = 'event_participants';
         const { data: legData, error: legErr } = await supabase
           .from('local_events')
-          .select(`*, author:profiles!local_events_author_id_fkey(full_name, avatar_url), participants:event_participations(count), participants_list:event_participations(user_id, user:profiles!event_participations_user_id_fkey(full_name, avatar_url))`)
+          .select(`*, author:profiles!local_events_author_id_fkey(full_name, avatar_url), participants:${partTable}(count), participants_list:${partTable}(user_id, user:profiles(full_name, avatar_url))`)
           .in('status', ['active', 'publie', 'a_venir', 'complet', 'reporte'])
           .gte('event_date', today)
           .order('event_date', { ascending: true });
-        data = legData as LocalEvent[] | null;
-        error = legErr;
+        if (!legErr) {
+          data = legData as LocalEvent[] | null;
+          error = null;
+        } else {
+          // Last resort: old table name
+          const { data: oldData, error: oldErr } = await supabase
+            .from('local_events')
+            .select(`*, author:profiles!local_events_author_id_fkey(full_name, avatar_url), participants:event_participations(count), participants_list:event_participations(user_id, user:profiles(full_name, avatar_url))`)
+            .in('status', ['active', 'publie', 'a_venir', 'complet', 'reporte'])
+            .gte('event_date', today)
+            .order('event_date', { ascending: true });
+          data = oldData as LocalEvent[] | null;
+          error = oldErr;
+        }
       }
 
       if (error) {
@@ -1316,9 +1329,19 @@ export default function EvenementsPage() {
 
       if (profile && enriched.length > 0) {
         const ids = enriched.map(e => e.id);
-        const { data: joins } = await supabase
-          .from('event_participations').select('event_id')
+        // Try new table name first, fallback to old
+        let joins: { event_id: string }[] | null = null;
+        const { data: j1 } = await supabase
+          .from('event_participants').select('event_id')
           .in('event_id', ids).eq('user_id', profile.id);
+        if (j1) {
+          joins = j1;
+        } else {
+          const { data: j2 } = await supabase
+            .from('event_participations').select('event_id')
+            .in('event_id', ids).eq('user_id', profile.id);
+          joins = j2;
+        }
         const joinedSet = new Set((joins || []).map((j: { event_id: string }) => j.event_id));
         enriched = enriched.map(e => ({ ...e, user_joined: joinedSet.has(e.id) }));
       }
@@ -1374,11 +1397,18 @@ export default function EvenementsPage() {
   const handleJoin = async (eventId: string, joined: boolean) => {
     if (!profile) { toast.error('Connectez-vous pour participer'); return; }
     if (joined) {
-      await supabase.from('event_participations').delete().eq('event_id', eventId).eq('user_id', profile.id);
+      // Try new table first, then old
+      const { error: e1 } = await supabase.from('event_participants').delete().eq('event_id', eventId).eq('user_id', profile.id);
+      if (e1) await supabase.from('event_participations').delete().eq('event_id', eventId).eq('user_id', profile.id);
       toast.success('Inscription annulée');
     } else {
-      const { error } = await supabase.from('event_participations').insert({ event_id: eventId, user_id: profile.id });
-      if (error) { toast.error('Erreur lors de l\'inscription'); return; }
+      // Try new table first
+      const { error: e1 } = await supabase.from('event_participants').insert({ event_id: eventId, user_id: profile.id, status: 'inscrit' });
+      if (e1) {
+        // Fallback to old table
+        const { error: e2 } = await supabase.from('event_participations').insert({ event_id: eventId, user_id: profile.id });
+        if (e2) { toast.error('Erreur lors de l\'inscription'); console.error('[join]', e2); return; }
+      }
       toast.success('Inscription enregistrée !');
     }
     fetchEvents();
