@@ -265,9 +265,10 @@ ALTER TABLE equipment_items
   ADD COLUMN IF NOT EXISTS availability_notes TEXT,
   ADD COLUMN IF NOT EXISTS location_area      TEXT;
 
--- ── ÉTAPE 1b : Supprimer l'ancienne contrainte si elle existe ─────────────
-ALTER TABLE equipment_items
-  DROP CONSTRAINT IF EXISTS equipment_status_check;
+-- ── ÉTAPE 1b : Supprimer TOUTES les contraintes status existantes ────────
+-- (deux noms possibles selon la version de la base)
+ALTER TABLE equipment_items DROP CONSTRAINT IF EXISTS equipment_status_check;
+ALTER TABLE equipment_items DROP CONSTRAINT IF EXISTS equipment_items_status_check;
 
 -- ── ÉTAPE 1c : Migrer les données AVANT d'ajouter la contrainte ───────────
 -- Convertit les anciens statuts anglais (available/borrowed/reserved/unavailable)
