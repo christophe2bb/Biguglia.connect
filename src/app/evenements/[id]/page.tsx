@@ -352,7 +352,7 @@ export default function EventDetailPage() {
   if (!event) return null;
 
   const isAuthor = profile?.id === event.author_id;
-  const isAdmin = profile?.role === 'admin' || profile?.role === 'moderator' || (profile?.role as string) === 'moderateur';
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'moderator';
   const canManage = isAuthor || isAdmin;
 
   const resolvedStatus = resolveEventStatus(
