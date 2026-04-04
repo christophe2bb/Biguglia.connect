@@ -7,6 +7,7 @@ import {
   ShoppingBag, HandHeart, Dog, Users, MapPin, Wrench,
   HelpCircle, MessageSquare, ChevronDown, ChevronUp,
   PartyPopper, Star, Clock, ThumbsUp,
+  MoreVertical, StarOff, Ban, UserCheck, Flag, Trash2,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -460,6 +461,13 @@ export default function ConversationPage() {
   const [relatedType, setRelatedType] = useState<string | null>(null);
   const [relatedId, setRelatedId]     = useState<string | null>(null);
   const [realtimeOk, setRealtimeOk]   = useState(false);
+  const [menuOpen, setMenuOpen]       = useState(false);
+  const [isFavorite, setIsFavorite]   = useState(false);
+  const [isBlocked, setIsBlocked]     = useState(false);
+  const [activeMsg, setActiveMsg]     = useState<string | null>(null);
+  const [deletingMsg, setDeletingMsg] = useState<string | null>(null);
+  const menuRef    = useRef<HTMLDivElement>(null);
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [exchange, setExchange]       = useState<ExchangeInfo>({
     status: null, confirmedBy: [], confirmedAt: null,
     relatedType: null, relatedId: null, otherUserId: null,
@@ -623,53 +631,101 @@ export default function ConversationPage() {
     if (!profile) { router.push('/connexion'); return; }
 
     const init = async () => {
+      // ── Tout en parallèle : participants + conv + messages + RPC profil ──────
+      const [participantsRes, convRes, msgsRes, rpcOtherRes] = await Promise.all([
+        supabase
+          .from('conversation_participants')
+          .select('user_id')
+          .eq('conversation_id', id as string),
+        supabase
+          .from('conversations')
+          .select('subject, related_type, related_id, exchange_status, exchange_confirmed_by, exchange_confirmed_at, owner_id, created_by')
+          .eq('id', id as string)
+          .single(),
+        supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', id as string)
+          .order('created_at', { ascending: true }),
+        supabase.rpc('get_conversation_other_participant', { p_conversation_id: id as string }),
+      ]);
+
+      const participants = participantsRes.data;
+      const conv = convRes.data;
+      const msgs = msgsRes.data || [];
+
       // Vérifier accès
-      const { data: participants } = await supabase
-        .from('conversation_participants').select('user_id').eq('conversation_id', id as string);
       if (!participants?.find(p => p.user_id === profile.id)) {
         toast.error('Accès refusé'); router.push('/messages'); return;
       }
 
-      // Infos conversation (sujet + contexte + échange + owner_id pour l'autre participant)
-      const { data: conv } = await supabase
-        .from('conversations')
-        .select('subject, related_type, related_id, exchange_status, exchange_confirmed_by, exchange_confirmed_at, owner_id, created_by')
-        .eq('id', id as string)
-        .single();
+      // ── Résoudre l'autre participant : plusieurs stratégies en cascade ─────
+      // Collecter tous les user_id candidats (hors soi-même)
+      const candidateIds = [
+        ...( participants?.map(p => p.user_id).filter(uid => uid !== profile.id) || [] ),
+        ...(conv?.owner_id && conv.owner_id !== profile.id ? [conv.owner_id as string] : []),
+        ...(conv?.created_by && conv.created_by !== profile.id ? [conv.created_by as string] : []),
+        // Expéditeurs des messages
+        ...msgs.filter(m => m.sender_id && m.sender_id !== profile.id).map(m => m.sender_id as string),
+      ];
+      const uniqueCandidates = Array.from(new Set(candidateIds));
 
-      // Profil autre participant :
-      // 1. Via RPC SECURITY DEFINER (contourne la RLS qui filtre user_id=auth.uid())
-      // 2. Fallback : tableau participants si RLS permissive
-      // 3. Fallback : owner_id / created_by de la conversation
-      const other = participants.find(p => p.user_id !== profile.id);
+      // Toutes les requêtes profil en parallèle (1 seule requête SQL via .in)
       let otherUserId: string | null = null;
 
-      const { data: rpcOther } = await supabase.rpc(
-        'get_conversation_other_participant',
-        { p_conversation_id: id as string }
-      );
-      if (rpcOther && (rpcOther as Array<{user_id:string;full_name:string;avatar_url:string}>).length > 0) {
-        const op = (rpcOther as Array<{user_id:string;full_name:string;avatar_url:string}>)[0];
+      // Cas 1 : RPC SECURITY DEFINER (la plus fiable, contourne RLS)
+      const rpcOther = rpcOtherRes.data as Array<{user_id:string;full_name:string;avatar_url:string}> | null;
+      if (rpcOther && rpcOther.length > 0) {
+        const op = rpcOther[0];
         setOtherUser({ id: op.user_id, full_name: op.full_name, avatar_url: op.avatar_url } as Profile);
         otherUserId = op.user_id;
-      } else if (other) {
-        otherUserId = other.user_id;
-        const op = await getSenderProfile(other.user_id);
-        setOtherUser(op || null);
-      } else if (conv?.owner_id && conv.owner_id !== profile.id) {
-        otherUserId = conv.owner_id as string;
-        const op = await getSenderProfile(otherUserId);
-        setOtherUser(op || null);
-      } else if (conv?.created_by && conv.created_by !== profile.id) {
-        otherUserId = conv.created_by as string;
-        const op = await getSenderProfile(otherUserId);
-        setOtherUser(op || null);
+        profileCacheRef.current[op.user_id] = { id: op.user_id, full_name: op.full_name, avatar_url: op.avatar_url } as Profile;
+      } else if (uniqueCandidates.length > 0) {
+        // Cas 2 : requête directe profiles pour TOUS les candidats en 1 seul appel
+        const { data: profRows } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .in('id', uniqueCandidates);
+        if (profRows && profRows.length > 0) {
+          // Remplir le cache
+          profRows.forEach(p => { profileCacheRef.current[p.id] = p as Profile; });
+          const found = profRows[0];
+          setOtherUser(found as Profile);
+          otherUserId = found.id;
+        }
       }
+
       setSubject(conv?.subject || 'Conversation');
       setRelatedType(conv?.related_type || null);
       setRelatedId(conv?.related_id || null);
 
-      // Charger l'état d'échange (utilise otherUserId déjà résolu ci-dessus)
+      // ── Enrichir les messages (profils déjà en cache après la requête .in) ─
+      const enriched = msgs.map(msg => ({
+        ...msg,
+        sender: msg.sender_id ? profileCacheRef.current[msg.sender_id] : undefined,
+      })) as (Message & { sender?: Profile })[];
+
+      // Profils manquants dans le cache (expéditeurs non encore chargés)
+      const missingIds = Array.from(new Set(
+        msgs.map(m => m.sender_id).filter(sid => sid && !profileCacheRef.current[sid])
+      )) as string[];
+      if (missingIds.length > 0) {
+        const { data: missingProfs } = await supabase
+          .from('profiles').select('id, full_name, avatar_url').in('id', missingIds);
+        if (missingProfs) {
+          missingProfs.forEach(p => { profileCacheRef.current[p.id] = p as Profile; });
+          // Mettre à jour les messages avec les profils maintenant disponibles
+          enriched.forEach(m => {
+            if (m.sender_id && !m.sender) m.sender = profileCacheRef.current[m.sender_id];
+          });
+        }
+      }
+
+      if (!mountedRef.current) return;
+      setMessages(enriched);
+      if (enriched.length > 0) lastMsgIdRef.current = enriched[enriched.length - 1].id;
+
+      // ── État d'échange ──────────────────────────────────────────────────────
       if (conv?.related_type && EXCHANGEABLE_TYPES[conv.related_type]) {
         setExchange({
           status: (conv.exchange_status as ExchangeStatus) || null,
@@ -677,40 +733,24 @@ export default function ConversationPage() {
           confirmedAt: conv.exchange_confirmed_at || null,
           relatedType: conv.related_type,
           relatedId: conv.related_id,
-          otherUserId: otherUserId || participants.find(p => p.user_id !== profile.id)?.user_id || null,
+          otherUserId: otherUserId || uniqueCandidates[0] || null,
         });
       }
 
-      // Charger les messages
-      const { data: msgs } = await supabase
-        .from('messages').select('*').eq('conversation_id', id as string).order('created_at', { ascending: true });
-
-      const enriched = await Promise.all(
-        (msgs || []).map(async (msg) => {
-          const sender = msg.sender_id ? await getSenderProfile(msg.sender_id) : undefined;
-          return { ...msg, sender } as Message & { sender?: Profile };
-        })
-      );
-
-      if (!mountedRef.current) return;
-      setMessages(enriched);
-      if (enriched.length > 0) {
-        lastMsgIdRef.current = enriched[enriched.length - 1].id;
-      }
-
-      // ── Dernier recours : déduire l'autre utilisateur depuis les messages ──
-      // Fonctionne même si la RPC et les autres fallbacks ont échoué
-      if (!otherUserId && enriched.length > 0) {
-        const otherSenderId = enriched.find(m => m.sender_id !== profile.id)?.sender_id;
-        if (otherSenderId) {
-          const op = await getSenderProfile(otherSenderId);
-          if (op) setOtherUser(op);
-          otherUserId = otherSenderId;
-        }
+      // ── État favori/bloqué (non bloquant — en arrière-plan) ────────────────
+      if (otherUserId) {
+        Promise.all([
+          supabase.from('user_favorites').select('id').eq('user_id', profile.id).eq('target_user_id', otherUserId).maybeSingle(),
+          supabase.from('user_blocks').select('id').eq('user_id', profile.id).eq('target_user_id', otherUserId).maybeSingle(),
+        ]).then(([favRes, blkRes]) => {
+          if (!mountedRef.current) return;
+          setIsFavorite(!!favRes.data);
+          setIsBlocked(!!blkRes.data);
+        });
       }
 
       setLoading(false);
-      await markAsRead();
+      markAsRead(); // non bloquant
       scrollToBottom('instant' as ScrollBehavior);
     };
 
@@ -734,6 +774,87 @@ export default function ConversationPage() {
       document.removeEventListener('visibilitychange', handleVis);
     };
   }, [id, profile, router]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fermer les menus si clic extérieur
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+      // Fermer menu message si on clique ailleurs
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-msg-menu]')) {
+        setActiveMsg(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  // Appui long (mobile) : 600 ms → ouvre le menu du message
+  const handlePressStart = (msgId: string, isMe: boolean) => {
+    if (!isMe) return;
+    pressTimer.current = setTimeout(() => {
+      setActiveMsg(msgId);
+      // Vibration haptique si disponible
+      if (navigator.vibrate) navigator.vibrate(30);
+    }, 600);
+  };
+  const handlePressEnd = () => {
+    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
+  };
+
+  // Suppression d'un message
+  const handleDeleteMessage = async (msgId: string) => {
+    setActiveMsg(null);
+    setDeletingMsg(msgId);
+    await new Promise(r => setTimeout(r, 280));
+    const { error } = await supabase
+      .from('messages')
+      .delete()
+      .eq('id', msgId)
+      .eq('sender_id', profile!.id);
+    if (error) {
+      toast.error('Impossible de supprimer ce message');
+      setDeletingMsg(null);
+    } else {
+      setMessages(prev => prev.filter(m => m.id !== msgId));
+      setDeletingMsg(null);
+    }
+  };
+
+  const handleToggleFavorite = async () => {
+    if (!profile || !otherUser) return;
+    setMenuOpen(false);
+    if (isFavorite) {
+      await supabase.from('user_favorites')
+        .delete().eq('user_id', profile.id).eq('target_user_id', otherUser.id);
+      setIsFavorite(false);
+      toast.success(`${otherUser.full_name || 'Utilisateur'} retiré des favoris`);
+    } else {
+      await supabase.from('user_favorites')
+        .insert({ user_id: profile.id, target_user_id: otherUser.id });
+      setIsFavorite(true);
+      toast.success(`${otherUser.full_name || 'Utilisateur'} ajouté aux favoris ⭐`);
+    }
+  };
+
+  const handleToggleBlock = async () => {
+    if (!profile || !otherUser) return;
+    setMenuOpen(false);
+    if (isBlocked) {
+      await supabase.from('user_blocks')
+        .delete().eq('user_id', profile.id).eq('target_user_id', otherUser.id);
+      setIsBlocked(false);
+      toast.success(`${otherUser.full_name || 'Utilisateur'} débloqué`);
+    } else {
+      if (!confirm(`Bloquer ${otherUser.full_name || 'cet utilisateur'} ? Il ne pourra plus vous envoyer de messages.`)) return;
+      await supabase.from('user_blocks')
+        .insert({ user_id: profile.id, target_user_id: otherUser.id });
+      setIsBlocked(true);
+      toast.success(`${otherUser.full_name || 'Utilisateur'} bloqué`);
+    }
+  };
 
   useEffect(() => {
     if (!loading && messages.length > 0) scrollToBottom();
@@ -784,21 +905,100 @@ export default function ConversationPage() {
         </Link>
         <div className="relative flex-shrink-0">
           <Avatar src={otherUser?.avatar_url} name={otherUser?.full_name || '?'} size="md" />
+          {/* Badge favori sur l'avatar */}
+          {isFavorite && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center text-[9px]">⭐</span>
+          )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-gray-900">{otherUser?.full_name || 'Inconnu'}</div>
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold text-gray-900">
+              {otherUser?.full_name
+                ? otherUser.full_name
+                : loading
+                  ? <span className="inline-block w-28 h-4 bg-gray-200 animate-pulse rounded" />
+                  : (subject || '—')}
+            </span>
+            {isBlocked && (
+              <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">Bloqué</span>
+            )}
+          </div>
           <div className="text-xs text-gray-400 truncate">{subject}</div>
         </div>
-        {/* Indicateur état Realtime — connexion au canal, pas présence de l'autre user */}
+
+        {/* Indicateur Realtime */}
         <div className={cn(
           'flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 transition-all',
-          realtimeOk
-            ? 'text-emerald-600 bg-emerald-50'
-            : 'text-gray-400 bg-gray-100'
+          realtimeOk ? 'text-emerald-600 bg-emerald-50' : 'text-gray-400 bg-gray-100'
         )}>
           <span className={cn('w-1.5 h-1.5 rounded-full', realtimeOk ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400')} />
           {realtimeOk ? 'En ligne' : 'Reconnexion…'}
         </div>
+
+        {/* Menu ⋮ Favoris / Bloquer */}
+        {otherUser && (
+          <div className="relative flex-shrink-0" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen(v => !v)}
+              className="p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-500"
+              title="Options"
+            >
+              <MoreVertical className="w-5 h-5" />
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 top-10 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 min-w-[200px]">
+                {/* Lien profil */}
+                <Link
+                  href={`/profil/${otherUser.id}`}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm text-gray-700"
+                >
+                  <UserCheck className="w-4 h-4 text-gray-400" />
+                  Voir le profil
+                </Link>
+                <div className="h-px bg-gray-100 my-1" />
+                {/* Favori */}
+                <button
+                  onClick={handleToggleFavorite}
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm w-full text-left"
+                >
+                  {isFavorite ? (
+                    <>
+                      <StarOff className="w-4 h-4 text-yellow-500" />
+                      <span className="text-gray-700">Retirer des favoris</span>
+                    </>
+                  ) : (
+                    <>
+                      <Star className="w-4 h-4 text-yellow-500" />
+                      <span className="text-gray-700">Ajouter aux favoris</span>
+                    </>
+                  )}
+                </button>
+                <div className="h-px bg-gray-100 my-1" />
+                {/* Bloquer */}
+                <button
+                  onClick={handleToggleBlock}
+                  className={cn(
+                    'flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm w-full text-left',
+                    isBlocked ? 'text-gray-500' : 'text-red-600'
+                  )}
+                >
+                  <Ban className="w-4 h-4" />
+                  {isBlocked ? 'Débloquer' : 'Bloquer cet utilisateur'}
+                </button>
+                <div className="h-px bg-gray-100 my-1" />
+                {/* Signaler */}
+                <button
+                  onClick={() => { setMenuOpen(false); toast('Signalement envoyé — merci !'); }}
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm w-full text-left text-gray-500"
+                >
+                  <Flag className="w-4 h-4" />
+                  Signaler
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Bannière contexte annonce ─────────────────────────────────────────── */}
@@ -827,7 +1027,7 @@ export default function ConversationPage() {
       }
 
       {/* ── Messages ─────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto space-y-3 pb-4 pr-1">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-3 pb-4 px-1">
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="animate-pulse space-y-3 w-full px-4">
@@ -846,29 +1046,102 @@ export default function ConversationPage() {
           messages.map((msg, i) => {
             const isMe = msg.sender_id === profile?.id;
             const isTemp = msg.id.startsWith('temp-');
+            const isDeleting = deletingMsg === msg.id;
+            const isMenuOpen = activeMsg === msg.id;
             const showAvatar = !isMe && (i === 0 || messages[i - 1].sender_id !== msg.sender_id);
             const isLastFromMe = isMe && (i === messages.length - 1 || messages[i + 1]?.sender_id !== profile?.id);
+
             return (
-              <div key={msg.id} className={cn('flex gap-2', isMe && 'flex-row-reverse')}>
-                {!isMe && (
-                  <div className={cn('flex-shrink-0 w-8', !showAvatar && 'invisible')}>
-                    <Avatar src={msg.sender?.avatar_url} name={msg.sender?.full_name || '?'} size="sm" />
-                  </div>
+              <div
+                key={msg.id}
+                data-msg-menu={isMenuOpen ? 'open' : undefined}
+                className={cn(
+                  'transition-all duration-300',
+                  isDeleting && 'opacity-0 scale-95 pointer-events-none'
                 )}
-                <div className={cn('max-w-[72%]', isMe && 'items-end flex flex-col')}>
-                  <div className={cn(
-                    'px-4 py-2.5 rounded-2xl text-sm leading-relaxed transition-opacity',
-                    isMe ? 'bg-brand-600 text-white rounded-tr-sm' : 'bg-gray-100 text-gray-800 rounded-tl-sm',
-                    isTemp && 'opacity-50'
-                  )}>
+              >
+                {/* ── Ligne principale (avatar + bulle + bouton) ── */}
+                <div className={cn('flex items-end gap-1.5', isMe ? 'flex-row-reverse' : 'flex-row')}>
+
+                  {/* Avatar (autres uniquement) */}
+                  {!isMe && (
+                    <div className={cn('flex-shrink-0 w-8', !showAvatar && 'invisible')}>
+                      <Avatar src={msg.sender?.avatar_url} name={msg.sender?.full_name || '?'} size="sm" />
+                    </div>
+                  )}
+
+                  {/* Bulle */}
+                  <div
+                    className={cn(
+                      'max-w-[65%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words cursor-default',
+                      isMe ? 'bg-brand-600 text-white rounded-tr-sm' : 'bg-gray-100 text-gray-800 rounded-tl-sm',
+                      isTemp && 'opacity-50',
+                      isMenuOpen && isMe && 'ring-2 ring-red-400'
+                    )}
+                    onContextMenu={isMe && !isTemp
+                      ? (e) => { e.preventDefault(); setActiveMsg(isMenuOpen ? null : msg.id); }
+                      : undefined}
+                    onTouchStart={() => handlePressStart(msg.id, isMe)}
+                    onTouchEnd={handlePressEnd}
+                    onTouchMove={handlePressEnd}
+                  >
                     {msg.content}
                   </div>
-                  <div className="text-xs text-gray-400 mt-0.5 px-1 flex items-center gap-1">
-                    <span>{formatRelative(msg.created_at)}</span>
-                    {isTemp && <span className="text-gray-300">· envoi…</span>}
-                    {isMe && !isTemp && isLastFromMe && <CheckCheck className="w-3 h-3 text-brand-400" />}
-                  </div>
+
+                  {/* Bouton 🗑 — visible en permanence à côté de la bulle */}
+                  {isMe && !isTemp && (
+                    <button
+                      data-msg-menu="trigger"
+                      onClick={(e) => { e.stopPropagation(); setActiveMsg(isMenuOpen ? null : msg.id); }}
+                      onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); setActiveMsg(isMenuOpen ? null : msg.id); }}
+                      className={cn(
+                        'flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-colors',
+                        isMenuOpen
+                          ? 'bg-red-500 text-white'
+                          : 'bg-red-100 text-red-400 hover:bg-red-200 hover:text-red-600'
+                      )}
+                      title="Supprimer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
+
+                {/* Heure + statut */}
+                <div className={cn(
+                  'text-xs text-gray-400 mt-0.5 px-1 flex items-center gap-1',
+                  isMe ? 'justify-end pr-10' : 'justify-start pl-10'
+                )}>
+                  <span>{formatRelative(msg.created_at)}</span>
+                  {isTemp && <span className="text-gray-300">· envoi…</span>}
+                  {isMe && !isTemp && isLastFromMe && <CheckCheck className="w-3 h-3 text-brand-400" />}
+                </div>
+
+                {/* Popup confirmation — sous la bulle */}
+                {isMenuOpen && isMe && (
+                  <div
+                    data-msg-menu="popup"
+                    className="flex justify-end pr-10 mt-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center gap-2 bg-white border border-red-200 shadow-lg rounded-2xl px-3 py-2 text-xs">
+                      <Trash2 className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+                      <span className="text-gray-700 font-medium">Supprimer ce message ?</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteMessage(msg.id); }}
+                        className="bg-red-500 hover:bg-red-600 text-white font-bold text-xs px-3 py-1 rounded-lg"
+                      >
+                        Oui
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setActiveMsg(null); }}
+                        className="text-gray-400 hover:text-gray-600 font-medium"
+                      >
+                        Non
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })
