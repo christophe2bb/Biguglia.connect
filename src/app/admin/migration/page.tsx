@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon, Zap, Star, CheckCheck, Activity, Tag, Info, Search, Wrench, MessageSquare, Users } from 'lucide-react';
+import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle, Upload, HardDrive, Eye, ImageIcon, Zap, Star, CheckCheck, Activity, Tag, Info, Search, Wrench, MessageSquare, Users, Shield } from 'lucide-react';
 
 // ─── SQL complet à copier-coller dans Supabase SQL Editor ─────────────────────
 const MIGRATION_SQL = `-- ============================================================
@@ -1995,6 +1995,438 @@ SELECT
   (SELECT COUNT(*) FROM theme_discussion_likes) AS nb_likes;
 `;
 
+// ─── RLS + SECURITY DEFINER pour le système de statuts ───────────────────────
+const RLS_STATUS_SQL = `-- ============================================================
+-- BIGUGLIA CONNECT — RLS Statuts & Fonctions SECURITY DEFINER
+-- Protège les changements de statut : seul le créateur/modérateur/admin peut agir
+-- À exécuter APRÈS le SQL "Statuts enrichis"
+-- ============================================================
+
+-- ============================================================
+-- 1. Fonction SECURITY DEFINER : changer le statut d'une annonce
+-- ============================================================
+CREATE OR REPLACE FUNCTION change_listing_status(
+  p_listing_id UUID,
+  p_new_status TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user_id UUID := auth.uid();
+  v_owner_id UUID;
+  v_current_status TEXT;
+  v_role TEXT;
+  v_allowed_transitions TEXT[];
+BEGIN
+  -- Récupère le propriétaire et le statut actuel
+  SELECT user_id, status INTO v_owner_id, v_current_status
+    FROM listings WHERE id = p_listing_id;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Annonce introuvable');
+  END IF;
+
+  -- Récupère le rôle de l'appelant
+  SELECT role INTO v_role FROM profiles WHERE id = v_user_id;
+
+  -- Admin : accès total
+  IF v_role IN ('admin', 'moderator') THEN
+    UPDATE listings
+      SET status = p_new_status,
+          status_changed_at = NOW(),
+          updated_at = NOW()
+    WHERE id = p_listing_id;
+    RETURN jsonb_build_object('ok', true);
+  END IF;
+
+  -- Propriétaire : transitions autorisées
+  IF v_user_id = v_owner_id THEN
+    v_allowed_transitions := CASE v_current_status
+      WHEN 'active'   THEN ARRAY['reserved','sold','archived','expired']
+      WHEN 'reserved' THEN ARRAY['active','sold','archived']
+      WHEN 'sold'     THEN ARRAY['active','archived']
+      WHEN 'expired'  THEN ARRAY['active','archived']
+      WHEN 'archived' THEN ARRAY['active']
+      ELSE ARRAY[]::TEXT[]
+    END;
+
+    IF p_new_status = ANY(v_allowed_transitions) THEN
+      UPDATE listings
+        SET status = p_new_status,
+            status_changed_at = NOW(),
+            updated_at = NOW()
+      WHERE id = p_listing_id;
+      RETURN jsonb_build_object('ok', true);
+    ELSE
+      RETURN jsonb_build_object('ok', false, 'error', 'Transition non autorisée : ' || v_current_status || ' → ' || p_new_status);
+    END IF;
+  END IF;
+
+  RETURN jsonb_build_object('ok', false, 'error', 'Accès refusé');
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION change_listing_status(UUID, TEXT) TO authenticated;
+
+-- ============================================================
+-- 2. Fonction SECURITY DEFINER : changer le statut d'un équipement
+-- ============================================================
+CREATE OR REPLACE FUNCTION change_equipment_status(
+  p_item_id UUID,
+  p_new_status TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user_id UUID := auth.uid();
+  v_owner_id UUID;
+  v_current_status TEXT;
+  v_role TEXT;
+  v_allowed_transitions TEXT[];
+BEGIN
+  SELECT owner_id, COALESCE(status, CASE WHEN is_available THEN 'available' ELSE 'unavailable' END)
+    INTO v_owner_id, v_current_status
+    FROM equipment_items WHERE id = p_item_id;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Matériel introuvable');
+  END IF;
+
+  SELECT role INTO v_role FROM profiles WHERE id = v_user_id;
+
+  IF v_role IN ('admin', 'moderator') THEN
+    UPDATE equipment_items
+      SET status = p_new_status,
+          is_available = (p_new_status = 'available'),
+          status_changed_at = NOW(),
+          updated_at = NOW()
+    WHERE id = p_item_id;
+    RETURN jsonb_build_object('ok', true);
+  END IF;
+
+  IF v_user_id = v_owner_id THEN
+    v_allowed_transitions := CASE v_current_status
+      WHEN 'available'   THEN ARRAY['reserved','unavailable','archived']
+      WHEN 'reserved'    THEN ARRAY['available','borrowed','archived']
+      WHEN 'borrowed'    THEN ARRAY['available']
+      WHEN 'unavailable' THEN ARRAY['available','archived']
+      WHEN 'archived'    THEN ARRAY['available']
+      ELSE ARRAY[]::TEXT[]
+    END;
+
+    IF p_new_status = ANY(v_allowed_transitions) THEN
+      UPDATE equipment_items
+        SET status = p_new_status,
+            is_available = (p_new_status = 'available'),
+            status_changed_at = NOW(),
+            updated_at = NOW()
+      WHERE id = p_item_id;
+      RETURN jsonb_build_object('ok', true);
+    ELSE
+      RETURN jsonb_build_object('ok', false, 'error', 'Transition non autorisée');
+    END IF;
+  END IF;
+
+  RETURN jsonb_build_object('ok', false, 'error', 'Accès refusé');
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION change_equipment_status(UUID, TEXT) TO authenticated;
+
+-- ============================================================
+-- 3. Fonction SECURITY DEFINER : changer le statut d'une aide
+-- ============================================================
+CREATE OR REPLACE FUNCTION change_help_request_status(
+  p_request_id UUID,
+  p_new_status TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user_id UUID := auth.uid();
+  v_author_id UUID;
+  v_current_status TEXT;
+  v_role TEXT;
+  v_allowed_transitions TEXT[];
+BEGIN
+  SELECT author_id, status INTO v_author_id, v_current_status
+    FROM help_requests WHERE id = p_request_id;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Demande introuvable');
+  END IF;
+
+  SELECT role INTO v_role FROM profiles WHERE id = v_user_id;
+
+  IF v_role IN ('admin', 'moderator') THEN
+    UPDATE help_requests
+      SET status = p_new_status, status_changed_at = NOW(), updated_at = NOW(),
+          resolved_at = CASE WHEN p_new_status = 'resolved' THEN NOW() ELSE resolved_at END,
+          archived_at = CASE WHEN p_new_status = 'archived' THEN NOW() ELSE archived_at END
+    WHERE id = p_request_id;
+    RETURN jsonb_build_object('ok', true);
+  END IF;
+
+  IF v_user_id = v_author_id THEN
+    v_allowed_transitions := CASE v_current_status
+      WHEN 'active'      THEN ARRAY['in_progress','paused','resolved','closed']
+      WHEN 'in_progress' THEN ARRAY['resolved','paused','closed']
+      WHEN 'paused'      THEN ARRAY['active','resolved','closed']
+      WHEN 'resolved'    THEN ARRAY['active','archived']
+      WHEN 'closed'      THEN ARRAY['active','archived']
+      WHEN 'archived'    THEN ARRAY['active']
+      ELSE ARRAY[]::TEXT[]
+    END;
+
+    IF p_new_status = ANY(v_allowed_transitions) THEN
+      UPDATE help_requests
+        SET status = p_new_status, status_changed_at = NOW(), updated_at = NOW(),
+            resolved_at = CASE WHEN p_new_status = 'resolved' THEN NOW() ELSE resolved_at END,
+            archived_at = CASE WHEN p_new_status = 'archived' THEN NOW() ELSE archived_at END
+      WHERE id = p_request_id;
+      RETURN jsonb_build_object('ok', true);
+    ELSE
+      RETURN jsonb_build_object('ok', false, 'error', 'Transition non autorisée');
+    END IF;
+  END IF;
+
+  RETURN jsonb_build_object('ok', false, 'error', 'Accès refusé');
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION change_help_request_status(UUID, TEXT) TO authenticated;
+
+-- ============================================================
+-- 4. Fonction SECURITY DEFINER : changer statut perdu/trouvé
+-- ============================================================
+CREATE OR REPLACE FUNCTION change_lost_found_status(
+  p_item_id UUID,
+  p_new_status TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user_id UUID := auth.uid();
+  v_author_id UUID;
+  v_current_status TEXT;
+  v_role TEXT;
+  v_allowed_transitions TEXT[];
+BEGIN
+  SELECT author_id, status INTO v_author_id, v_current_status
+    FROM lost_found_items WHERE id = p_item_id;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Objet introuvable');
+  END IF;
+
+  SELECT role INTO v_role FROM profiles WHERE id = v_user_id;
+
+  IF v_role IN ('admin', 'moderator') THEN
+    UPDATE lost_found_items
+      SET status = p_new_status, status_changed_at = NOW(), updated_at = NOW(),
+          resolved_at = CASE WHEN p_new_status IN ('resolved','restituted') THEN NOW() ELSE resolved_at END,
+          archived_at = CASE WHEN p_new_status = 'archived' THEN NOW() ELSE archived_at END
+    WHERE id = p_item_id;
+    RETURN jsonb_build_object('ok', true);
+  END IF;
+
+  IF v_user_id = v_author_id THEN
+    v_allowed_transitions := CASE v_current_status
+      WHEN 'active'    THEN ARRAY['resolved','restituted','closed','archived']
+      WHEN 'resolved'  THEN ARRAY['active','archived']
+      WHEN 'restituted'THEN ARRAY['active','archived']
+      WHEN 'closed'    THEN ARRAY['active','archived']
+      WHEN 'archived'  THEN ARRAY['active']
+      ELSE ARRAY[]::TEXT[]
+    END;
+
+    IF p_new_status = ANY(v_allowed_transitions) THEN
+      UPDATE lost_found_items
+        SET status = p_new_status, status_changed_at = NOW(), updated_at = NOW(),
+            resolved_at = CASE WHEN p_new_status IN ('resolved','restituted') THEN NOW() ELSE resolved_at END,
+            archived_at = CASE WHEN p_new_status = 'archived' THEN NOW() ELSE archived_at END
+      WHERE id = p_item_id;
+      RETURN jsonb_build_object('ok', true);
+    ELSE
+      RETURN jsonb_build_object('ok', false, 'error', 'Transition non autorisée');
+    END IF;
+  END IF;
+
+  RETURN jsonb_build_object('ok', false, 'error', 'Accès refusé');
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION change_lost_found_status(UUID, TEXT) TO authenticated;
+
+-- ============================================================
+-- 5. Politique RLS renforcée : seul créateur/modo/admin peut UPDATE le statut
+-- ============================================================
+
+-- Listings
+DROP POLICY IF EXISTS "listings_status_update" ON listings;
+CREATE POLICY "listings_status_update" ON listings
+  FOR UPDATE USING (
+    auth.uid() = user_id
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+  )
+  WITH CHECK (
+    auth.uid() = user_id
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+  );
+
+-- Equipment items
+DROP POLICY IF EXISTS "equipment_status_update" ON equipment_items;
+CREATE POLICY "equipment_status_update" ON equipment_items
+  FOR UPDATE USING (
+    auth.uid() = owner_id
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+  )
+  WITH CHECK (
+    auth.uid() = owner_id
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+  );
+
+-- Help requests
+DROP POLICY IF EXISTS "help_requests_status_update" ON help_requests;
+CREATE POLICY "help_requests_status_update" ON help_requests
+  FOR UPDATE USING (
+    auth.uid() = author_id
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+  )
+  WITH CHECK (
+    auth.uid() = author_id
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+  );
+
+-- Lost & found items
+DROP POLICY IF EXISTS "lost_found_status_update" ON lost_found_items;
+CREATE POLICY "lost_found_status_update" ON lost_found_items
+  FOR UPDATE USING (
+    auth.uid() = author_id
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+  )
+  WITH CHECK (
+    auth.uid() = author_id
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+  );
+
+-- Group outings
+DROP POLICY IF EXISTS "group_outings_status_update" ON group_outings;
+CREATE POLICY "group_outings_status_update" ON group_outings
+  FOR UPDATE USING (
+    auth.uid() = organizer_id
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+  )
+  WITH CHECK (
+    auth.uid() = organizer_id
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+  );
+
+-- Local events
+DROP POLICY IF EXISTS "local_events_status_update" ON local_events;
+CREATE POLICY "local_events_status_update" ON local_events
+  FOR UPDATE USING (
+    auth.uid() = author_id
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+  )
+  WITH CHECK (
+    auth.uid() = author_id
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+  );
+
+-- ============================================================
+-- 6. Table d'historique des changements de statut
+-- ============================================================
+CREATE TABLE IF NOT EXISTS status_history (
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  table_name    TEXT NOT NULL,           -- 'listings', 'help_requests', etc.
+  record_id     UUID NOT NULL,
+  old_status    TEXT,
+  new_status    TEXT NOT NULL,
+  changed_by    UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  changed_at    TIMESTAMPTZ DEFAULT NOW(),
+  note          TEXT                     -- optionnel : raison du changement
+);
+
+CREATE INDEX IF NOT EXISTS status_history_record ON status_history(table_name, record_id);
+CREATE INDEX IF NOT EXISTS status_history_user ON status_history(changed_by);
+CREATE INDEX IF NOT EXISTS status_history_date ON status_history(changed_at DESC);
+
+ALTER TABLE status_history ENABLE ROW LEVEL SECURITY;
+
+-- Lecture : créateur ou admin
+DROP POLICY IF EXISTS "status_history_read" ON status_history;
+CREATE POLICY "status_history_read" ON status_history
+  FOR SELECT USING (
+    changed_by = auth.uid()
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+  );
+
+-- Insertion : authentifié (via SECURITY DEFINER functions)
+DROP POLICY IF EXISTS "status_history_insert" ON status_history;
+CREATE POLICY "status_history_insert" ON status_history
+  FOR INSERT WITH CHECK (changed_by = auth.uid());
+
+-- ============================================================
+-- 7. Trigger générique : enregistrer chaque changement de statut
+-- ============================================================
+CREATE OR REPLACE FUNCTION log_status_change()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.status IS DISTINCT FROM OLD.status THEN
+    INSERT INTO status_history(table_name, record_id, old_status, new_status, changed_by)
+    VALUES (TG_TABLE_NAME, NEW.id, OLD.status, NEW.status, auth.uid());
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Attache le trigger à chaque table concernée
+DROP TRIGGER IF EXISTS log_listings_status ON listings;
+CREATE TRIGGER log_listings_status
+  AFTER UPDATE ON listings FOR EACH ROW
+  EXECUTE FUNCTION log_status_change();
+
+DROP TRIGGER IF EXISTS log_equipment_status ON equipment_items;
+CREATE TRIGGER log_equipment_status
+  AFTER UPDATE ON equipment_items FOR EACH ROW
+  EXECUTE FUNCTION log_status_change();
+
+DROP TRIGGER IF EXISTS log_help_status ON help_requests;
+CREATE TRIGGER log_help_status
+  AFTER UPDATE ON help_requests FOR EACH ROW
+  EXECUTE FUNCTION log_status_change();
+
+DROP TRIGGER IF EXISTS log_lost_found_status ON lost_found_items;
+CREATE TRIGGER log_lost_found_status
+  AFTER UPDATE ON lost_found_items FOR EACH ROW
+  EXECUTE FUNCTION log_status_change();
+
+DROP TRIGGER IF EXISTS log_outings_status ON group_outings;
+CREATE TRIGGER log_outings_status
+  AFTER UPDATE ON group_outings FOR EACH ROW
+  EXECUTE FUNCTION log_status_change();
+
+DROP TRIGGER IF EXISTS log_events_status ON local_events;
+CREATE TRIGGER log_events_status
+  AFTER UPDATE ON local_events FOR EACH ROW
+  EXECUTE FUNCTION log_status_change();
+
+SELECT 'OK: RLS statuts + SECURITY DEFINER + historique appliqués avec succès' AS result;
+`;
+
 type StorageDiag = {
   bucketExists: boolean | null;
   bucketPublic: boolean | null;
@@ -2003,6 +2435,200 @@ type StorageDiag = {
   testFileUrl: string | null;
   error: string | null;
 };
+
+// ─── SQL Modération centralisée ───────────────────────────────────────────────
+const MODERATION_SQL = `-- ═══════════════════════════════════════════════════════════════════════════
+-- SYSTÈME DE MODÉRATION CENTRALISÉ — Biguglia Connect
+-- À exécuter UNE SEULE FOIS dans Supabase → SQL Editor
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- 1. Colonnes trust_level, publication_count, reports_received sur profiles
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS trust_level TEXT DEFAULT 'nouveau'
+    CHECK (trust_level IN ('nouveau','surveille','fiable','de_confiance')),
+  ADD COLUMN IF NOT EXISTS publication_count INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS reports_received  INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS moderation_note   TEXT;
+
+-- 2. Table principale de file de modération
+CREATE TABLE IF NOT EXISTS moderation_queue (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  content_type      TEXT NOT NULL
+    CHECK (content_type IN ('listing','equipment','help_request','outing','event',
+                            'lost_found','collection_item','association','forum_post')),
+  content_id        UUID NOT NULL,
+  content_title     TEXT,
+  content_excerpt   TEXT,
+  content_photos    TEXT[],
+  author_id         UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  author_trust      TEXT DEFAULT 'nouveau',
+  status            TEXT NOT NULL DEFAULT 'en_attente_validation'
+    CHECK (status IN ('brouillon','en_attente_validation','a_corriger',
+                      'refuse','publie','archive','supprime_moderation')),
+  risk_score        INT DEFAULT 0,
+  risk_level        TEXT DEFAULT 'low'
+    CHECK (risk_level IN ('low','medium','high','critical')),
+  completeness      INT DEFAULT 100,
+  validation_errors JSONB DEFAULT '[]',
+  reviewed_by       UUID REFERENCES profiles(id),
+  reviewed_at       TIMESTAMPTZ,
+  decision          TEXT CHECK (decision IN ('accepter','refuser','demander_correction')),
+  refusal_reason    TEXT,
+  correction_reason TEXT,
+  moderator_note    TEXT,
+  resubmit_count    INT DEFAULT 0,
+  submitted_at      TIMESTAMPTZ DEFAULT NOW(),
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 3. Table d'historique d'audit (traçabilité complète)
+CREATE TABLE IF NOT EXISTS moderation_history (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  queue_id         UUID NOT NULL REFERENCES moderation_queue(id) ON DELETE CASCADE,
+  content_type     TEXT NOT NULL,
+  content_id       UUID NOT NULL,
+  author_id        UUID NOT NULL REFERENCES profiles(id),
+  action           TEXT NOT NULL,
+  old_status       TEXT,
+  new_status       TEXT,
+  decision         TEXT,
+  reason           TEXT,
+  moderator_id     UUID REFERENCES profiles(id),
+  moderator_note   TEXT,
+  created_at       TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 4. Index de performance
+CREATE INDEX IF NOT EXISTS idx_modqueue_status    ON moderation_queue(status);
+CREATE INDEX IF NOT EXISTS idx_modqueue_type      ON moderation_queue(content_type);
+CREATE INDEX IF NOT EXISTS idx_modqueue_author    ON moderation_queue(author_id);
+CREATE INDEX IF NOT EXISTS idx_modqueue_submitted ON moderation_queue(submitted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_modqueue_risk      ON moderation_queue(risk_score DESC);
+CREATE INDEX IF NOT EXISTS idx_modhist_queue      ON moderation_history(queue_id);
+CREATE INDEX IF NOT EXISTS idx_modhist_content    ON moderation_history(content_id);
+
+-- 5. Trigger updated_at sur moderation_queue
+CREATE OR REPLACE FUNCTION update_modqueue_updated_at()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN NEW.updated_at = NOW(); RETURN NEW; END; $$;
+
+DROP TRIGGER IF EXISTS trg_modqueue_updated_at ON moderation_queue;
+CREATE TRIGGER trg_modqueue_updated_at
+  BEFORE UPDATE ON moderation_queue
+  FOR EACH ROW EXECUTE FUNCTION update_modqueue_updated_at();
+
+-- 6. Trigger audit automatique dans moderation_history
+CREATE OR REPLACE FUNCTION log_moderation_history()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  IF OLD.status IS DISTINCT FROM NEW.status THEN
+    INSERT INTO moderation_history(queue_id, content_type, content_id, author_id,
+      action, old_status, new_status, decision, reason, moderator_id, moderator_note)
+    VALUES (NEW.id, NEW.content_type, NEW.content_id, NEW.author_id,
+      'status_change', OLD.status, NEW.status, NEW.decision,
+      COALESCE(NEW.refusal_reason, NEW.correction_reason), NEW.reviewed_by, NEW.moderator_note);
+  END IF;
+  RETURN NEW;
+END; $$;
+
+DROP TRIGGER IF EXISTS trg_log_moderation ON moderation_queue;
+CREATE TRIGGER trg_log_moderation
+  AFTER UPDATE ON moderation_queue
+  FOR EACH ROW EXECUTE FUNCTION log_moderation_history();
+
+-- 7. Trigger : incrémente publication_count sur profiles à chaque publication validée
+CREATE OR REPLACE FUNCTION increment_publication_count()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.status = 'publie' AND (OLD.status IS NULL OR OLD.status != 'publie') THEN
+    UPDATE profiles SET publication_count = COALESCE(publication_count, 0) + 1
+    WHERE id = NEW.author_id;
+  END IF;
+  RETURN NEW;
+END; $$;
+
+DROP TRIGGER IF EXISTS trg_increment_pub_count ON moderation_queue;
+CREATE TRIGGER trg_increment_pub_count
+  AFTER INSERT OR UPDATE ON moderation_queue
+  FOR EACH ROW EXECUTE FUNCTION increment_publication_count();
+
+-- 8. Colonne moderation_status sur chaque table de contenu public
+ALTER TABLE listings         ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie';
+ALTER TABLE equipment_items  ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie';
+ALTER TABLE help_requests    ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie';
+ALTER TABLE group_outings    ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie';
+ALTER TABLE local_events     ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie';
+ALTER TABLE lost_found_items ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie';
+ALTER TABLE forum_posts      ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie';
+
+-- 9. RLS sur moderation_queue
+ALTER TABLE moderation_queue ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "modq_author_select" ON moderation_queue;
+CREATE POLICY "modq_author_select" ON moderation_queue
+  FOR SELECT USING (author_id = auth.uid());
+
+DROP POLICY IF EXISTS "modq_staff_select" ON moderation_queue;
+CREATE POLICY "modq_staff_select" ON moderation_queue
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+  );
+
+DROP POLICY IF EXISTS "modq_author_insert" ON moderation_queue;
+CREATE POLICY "modq_author_insert" ON moderation_queue
+  FOR INSERT WITH CHECK (author_id = auth.uid());
+
+DROP POLICY IF EXISTS "modq_staff_update" ON moderation_queue;
+CREATE POLICY "modq_staff_update" ON moderation_queue
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+  );
+
+DROP POLICY IF EXISTS "modq_author_update_draft" ON moderation_queue;
+CREATE POLICY "modq_author_update_draft" ON moderation_queue
+  FOR UPDATE USING (
+    author_id = auth.uid()
+    AND status IN ('brouillon','a_corriger')
+  );
+
+-- 10. RLS sur moderation_history
+ALTER TABLE moderation_history ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "modhist_staff_select" ON moderation_history;
+CREATE POLICY "modhist_staff_select" ON moderation_history
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+    OR author_id = auth.uid()
+  );
+
+DROP POLICY IF EXISTS "modhist_staff_insert" ON moderation_history;
+CREATE POLICY "modhist_staff_insert" ON moderation_history
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+  );
+
+-- 11. Vue KPI modération (utilisée par /admin/moderation et /admin/moderation/stats)
+CREATE OR REPLACE VIEW moderation_kpi AS
+SELECT
+  COUNT(*)                                                 AS total,
+  COUNT(*) FILTER (WHERE status = 'en_attente_validation') AS pending,
+  COUNT(*) FILTER (WHERE status = 'publie')                AS published,
+  COUNT(*) FILTER (WHERE status = 'refuse')                AS refused,
+  COUNT(*) FILTER (WHERE status = 'a_corriger')            AS correction,
+  COUNT(*) FILTER (WHERE status = 'archive')               AS archived,
+  AVG(EXTRACT(EPOCH FROM (reviewed_at - submitted_at))/3600)
+    FILTER (WHERE reviewed_at IS NOT NULL)                 AS avg_review_hours,
+  COUNT(*) FILTER (WHERE risk_level IN ('high','critical')) AS high_risk,
+  COUNT(*) FILTER (WHERE author_trust = 'nouveau')         AS new_authors,
+  COUNT(*) FILTER (WHERE submitted_at >= NOW() - INTERVAL '24 hours') AS last_24h
+FROM moderation_queue;
+
+GRANT SELECT ON moderation_kpi TO authenticated;
+
+COMMENT ON TABLE moderation_queue IS 'File de modération centralisée — toutes publications Biguglia Connect';
+COMMENT ON TABLE moderation_history IS 'Audit trail complet des décisions de modération';
+`;
 
 export default function MigrationPage() {
   const supabase = createClient();
@@ -2026,6 +2652,8 @@ export default function MigrationPage() {
   const [copiedCollectionComments, setCopiedCollectionComments] = useState(false);
   const [copiedCommunity, setCopiedCommunity] = useState(false);
   const [copiedDiscussions, setCopiedDiscussions] = useState(false);
+  const [copiedRLS, setCopiedRLS] = useState(false);
+  const [copiedModeration, setCopiedModeration] = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -2193,6 +2821,12 @@ export default function MigrationPage() {
     navigator.clipboard.writeText(DISCUSSIONS_SQL);
     setCopiedDiscussions(true);
     setTimeout(() => setCopiedDiscussions(false), 4000);
+  };
+
+  const handleCopyRLS = () => {
+    navigator.clipboard.writeText(RLS_STATUS_SQL);
+    setCopiedRLS(true);
+    setTimeout(() => setCopiedRLS(false), 4000);
   };
 
   const handleCopySearch = () => {
@@ -3037,17 +3671,39 @@ ALTER TABLE collection_items ADD CONSTRAINT collection_items_status_check
 ALTER TABLE collection_items ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
 
 -- ============================================================
--- 4. Help requests
+-- 4. Help requests — add in_progress, closed, archived
 -- ============================================================
+-- help_requests.status is typically TEXT — drop & recreate CHECK
+ALTER TABLE help_requests DROP CONSTRAINT IF EXISTS help_requests_status_check;
+ALTER TABLE help_requests ADD CONSTRAINT help_requests_status_check
+  CHECK (status IN ('active', 'in_progress', 'paused', 'resolved', 'closed', 'archived', 'draft'));
 ALTER TABLE help_requests ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
+ALTER TABLE help_requests ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ;
+ALTER TABLE help_requests ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
+-- Trigger: set resolved_at when resolved
+CREATE OR REPLACE FUNCTION set_help_resolved_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.status = 'resolved' AND (OLD.status IS DISTINCT FROM 'resolved') THEN
+    NEW.resolved_at = NOW();
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS help_requests_resolved ON help_requests;
+CREATE TRIGGER help_requests_resolved
+  BEFORE UPDATE ON help_requests FOR EACH ROW
+  EXECUTE FUNCTION set_help_resolved_at();
 
 -- ============================================================
--- 5. Perdu / Trouvé — add restituted/closed statuses
+-- 5. Perdu / Trouvé — add restituted/closed/archived statuses
 -- ============================================================
 ALTER TABLE lost_found_items DROP CONSTRAINT IF EXISTS lost_found_items_status_check;
 ALTER TABLE lost_found_items ADD CONSTRAINT lost_found_items_status_check
-  CHECK (status IN ('active', 'resolved', 'restituted', 'closed', 'draft'));
+  CHECK (status IN ('active', 'resolved', 'restituted', 'closed', 'archived', 'draft'));
 ALTER TABLE lost_found_items ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
+ALTER TABLE lost_found_items ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ;
+ALTER TABLE lost_found_items ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
 
 -- ============================================================
 -- 6. Associations — add closed status
@@ -3058,17 +3714,23 @@ ALTER TABLE associations ADD CONSTRAINT associations_status_check
 ALTER TABLE associations ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
 
 -- ============================================================
--- 6. Promenades (group_outings)
+-- 6b. Promenades (group_outings) — add archived status
 -- ============================================================
-ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active'
-  CHECK (status IN ('active', 'cancelled', 'completed'));
+ALTER TABLE group_outings DROP CONSTRAINT IF EXISTS group_outings_status_check;
+ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+UPDATE group_outings SET status = 'active' WHERE status IS NULL;
+ALTER TABLE group_outings ADD CONSTRAINT group_outings_status_check
+  CHECK (status IN ('active', 'cancelled', 'completed', 'archived'));
 ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
 
 -- ============================================================
--- 7. Événements (local_events)
+-- 7. Événements (local_events) — add archived + cancelled statuses
 -- ============================================================
-ALTER TABLE local_events ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active'
-  CHECK (status IN ('active', 'cancelled', 'completed'));
+ALTER TABLE local_events DROP CONSTRAINT IF EXISTS local_events_status_check;
+ALTER TABLE local_events ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+UPDATE local_events SET status = 'active' WHERE status IS NULL;
+ALTER TABLE local_events ADD CONSTRAINT local_events_status_check
+  CHECK (status IN ('active', 'cancelled', 'completed', 'archived'));
 ALTER TABLE local_events ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;
 
 -- ============================================================
@@ -3443,6 +4105,37 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
         </div>
       </div>
 
+      {/* ─── SQL RLS Statuts ─── */}
+      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden mb-6">
+        <div className="px-5 py-4 bg-purple-50 border-b border-purple-100 flex items-start gap-3">
+          <Shield className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-purple-900">
+            <strong>🔐 RLS Statuts — Politiques + SECURITY DEFINER + Historique</strong>
+            <p className="text-xs mt-1 text-purple-700">
+              À exécuter <strong>après</strong> le SQL &quot;Statuts enrichis&quot;. Ajoute :<br/>
+              • Fonctions <code>change_*_status()</code> SECURITY DEFINER pour chaque type de contenu<br/>
+              • Politiques RLS UPDATE restreintes au créateur / modérateur / admin<br/>
+              • Table <code>status_history</code> + triggers d&apos;audit complets<br/>
+              • Transitions de statuts validées côté base (rejet si non autorisé)
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
+          <p className="text-xs text-gray-500">4 fonctions SECURITY DEFINER · 6 politiques RLS · table status_history · 6 triggers audit</p>
+          <button onClick={handleCopyRLS}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow ${
+              copiedRLS ? 'bg-emerald-500 text-white' : 'bg-purple-600 text-white hover:bg-purple-700'
+            }`}>
+            {copiedRLS
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL RLS Statuts</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-72">
+          <pre className="text-xs text-purple-300 font-mono leading-relaxed whitespace-pre-wrap">{RLS_STATUS_SQL}</pre>
+        </div>
+      </div>
+
       {/* ─── SQL Bucket ─── */}
       <div className="bg-white rounded-2xl border shadow-sm overflow-hidden mb-6">
         <div className="px-5 py-4 bg-blue-50 border-b border-blue-100 flex items-start gap-3">
@@ -3465,6 +4158,45 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-64">
           <pre className="text-xs text-cyan-400 font-mono leading-relaxed whitespace-pre-wrap">{BUCKET_SQL}</pre>
+        </div>
+      </div>
+
+      {/* ─── MODÉRATION CENTRALISÉE ─────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-purple-200 overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-purple-900 to-indigo-900">
+          <Shield className="w-5 h-5 text-purple-300" />
+          <div>
+            <h3 className="font-bold text-white">SQL Modération centralisée</h3>
+            <p className="text-xs text-purple-300 mt-0.5">
+              File de modération, historique d&apos;audit, niveaux de confiance, RLS complet.
+              À exécuter UNE FOIS dans Supabase → SQL Editor.
+            </p>
+          </div>
+        </div>
+        <div className="p-4 flex items-center justify-between border-b border-purple-100">
+          <p className="text-sm text-gray-600">
+            Crée <code className="text-xs bg-gray-100 px-1 rounded">moderation_queue</code>,{' '}
+            <code className="text-xs bg-gray-100 px-1 rounded">moderation_history</code>,
+            colonnes <code className="text-xs bg-gray-100 px-1 rounded">trust_level</code> et vue KPI.
+          </p>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(MODERATION_SQL).then(() => {
+                setCopiedModeration(true);
+                setTimeout(() => setCopiedModeration(false), 3000);
+              });
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
+              copiedModeration ? 'bg-emerald-500 text-white' : 'bg-purple-700 text-white hover:bg-purple-800'
+            }`}
+          >
+            {copiedModeration
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Modération</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-96">
+          <pre className="text-xs text-purple-300 font-mono leading-relaxed whitespace-pre-wrap">{MODERATION_SQL}</pre>
         </div>
       </div>
 

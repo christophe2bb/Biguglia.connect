@@ -5,6 +5,15 @@ import { createClient } from '@/lib/supabase/client';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
+export interface StatusCounts {
+  active: number;
+  reserved: number;
+  sold: number;
+  expired: number;
+  archived: number;
+  [key: string]: number;
+}
+
 export interface DashboardStats {
   // Contenus
   activeListings: number;
@@ -39,6 +48,11 @@ export interface DashboardStats {
   totalViews: number;
   // Profile completeness
   profileScore: number;
+  // Par statut (pour dashboard "Mes contenus")
+  listingsByStatus: StatusCounts;
+  equipmentByStatus: StatusCounts;
+  helpsByStatus: StatusCounts;
+  lostFoundByStatus: StatusCounts;
 }
 
 export interface TodoItem {
@@ -142,6 +156,13 @@ function computeProfileScore(profile: Record<string, unknown>): number {
 export function useDashboardData(profileId: string | undefined): DashboardData {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const emptyStatusCounts = (): StatusCounts => ({
+    active: 0, reserved: 0, sold: 0, expired: 0, archived: 0,
+    available: 0, borrowed: 0, unavailable: 0,
+    in_progress: 0, paused: 0, resolved: 0, closed: 0, draft: 0,
+    cancelled: 0, completed: 0,
+  });
+
   const [stats, setStats] = useState<DashboardStats>({
     activeListings: 0, totalListings: 0, activeEquipment: 0,
     openHelps: 0, upcomingEvents: 0, upcomingOutings: 0,
@@ -153,6 +174,10 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
     pendingInteractions: 0, activeInteractions: 0, toReviewInteractions: 0,
     averageRating: null, totalReviewsReceived: 0, reviewsToGive: 0,
     totalViews: 0, profileScore: 0,
+    listingsByStatus: emptyStatusCounts(),
+    equipmentByStatus: emptyStatusCounts(),
+    helpsByStatus: emptyStatusCounts(),
+    lostFoundByStatus: emptyStatusCounts(),
   });
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [recentContents, setRecentContents] = useState<ContentItem[]>([]);
@@ -299,6 +324,56 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
         toReviewCount = count || 0;
       } catch {}
 
+      // ── Par-statut counts (pour dashboard "Mes contenus") ────────────────────
+      const listingsByStatus = emptyStatusCounts();
+      const equipmentByStatus = emptyStatusCounts();
+      const helpsByStatus = emptyStatusCounts();
+      const lostFoundByStatus = emptyStatusCounts();
+
+      try {
+        // Annonces par statut
+        const { data: listingStatuses } = await supabase
+          .from('listings')
+          .select('status')
+          .eq('user_id', profileId);
+        (listingStatuses || []).forEach((r: Record<string, unknown>) => {
+          const s = (r.status as string) || 'active';
+          listingsByStatus[s] = (listingsByStatus[s] || 0) + 1;
+        });
+
+        // Matériel par statut
+        const { data: equipStatuses } = await supabase
+          .from('equipment_items')
+          .select('status, is_available')
+          .eq('owner_id', profileId);
+        (equipStatuses || []).forEach((r: Record<string, unknown>) => {
+          const s = (r.status as string) || ((r.is_available) ? 'available' : 'unavailable');
+          equipmentByStatus[s] = (equipmentByStatus[s] || 0) + 1;
+        });
+
+        // Coups de main par statut
+        const { data: helpStatuses } = await supabase
+          .from('help_requests')
+          .select('status')
+          .eq('author_id', profileId);
+        (helpStatuses || []).forEach((r: Record<string, unknown>) => {
+          const s = (r.status as string) || 'active';
+          helpsByStatus[s] = (helpsByStatus[s] || 0) + 1;
+        });
+
+        // Perdu/Trouvé par statut
+        const { data: lfStatuses } = await supabase
+          .from('lost_found_items')
+          .select('status')
+          .eq('author_id', profileId);
+        (lfStatuses || []).forEach((r: Record<string, unknown>) => {
+          const s = (r.status as string) || 'active';
+          lostFoundByStatus[s] = (lostFoundByStatus[s] || 0) + 1;
+        });
+      } catch {
+        // ignore if tables not ready
+      }
+
       setStats({
         activeListings: activeListingsCount || 0,
         totalListings: listingsCount || 0,
@@ -324,6 +399,10 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
         reviewsToGive: toReviewCount || 0,
         totalViews,
         profileScore,
+        listingsByStatus,
+        equipmentByStatus,
+        helpsByStatus,
+        lostFoundByStatus,
       });
 
       // ── Recent contents ───────────────────────────────────────────────────

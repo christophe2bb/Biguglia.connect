@@ -24,7 +24,7 @@ export default function MaterielPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedAvailability, setSelectedAvailability] = useState<'available' | 'all' | 'lent'>('available');
+  const [selectedStatus, setSelectedStatus] = useState<'available' | 'all' | 'borrowed' | 'reserved' | 'unavailable'>('available');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -37,9 +37,15 @@ export default function MaterielPage() {
         .select('*, owner:profiles!equipment_items_owner_id_fkey(id, full_name, avatar_url), category:equipment_categories(*), photos:equipment_photos(*)')
         .order('created_at', { ascending: false });
 
-      if (selectedAvailability === 'available') query = query.eq('is_available', true);
-      else if (selectedAvailability === 'lent') query = query.eq('is_available', false);
-      // 'all' shows everything
+      // Use status column if available, otherwise fallback to is_available
+      if (selectedStatus === 'available') {
+        query = query.or('status.eq.available,and(status.is.null,is_available.eq.true)');
+      } else if (selectedStatus === 'borrowed') {
+        query = query.or('status.eq.borrowed,status.eq.reserved');
+      } else if (selectedStatus === 'unavailable') {
+        query = query.or('status.eq.unavailable,and(status.is.null,is_available.eq.false)');
+      }
+      // 'all' shows everything (excluding archived)
 
       if (selectedCategory) {
         const cat = cats?.find(c => c.slug === selectedCategory);
@@ -51,7 +57,7 @@ export default function MaterielPage() {
       setLoading(false);
     };
     fetchData();
-  }, [selectedCategory, selectedAvailability]);
+  }, [selectedCategory, selectedStatus]);
 
   const filtered = items.filter(i =>
     !search ||
@@ -99,9 +105,10 @@ export default function MaterielPage() {
           <option value="">Toutes les catégories</option>
           {categories.map(c => <option key={c.id} value={c.slug}>{c.icon} {c.name}</option>)}
         </Select>
-        <Select value={selectedAvailability} onChange={(e) => setSelectedAvailability(e.target.value as 'available' | 'all' | 'lent')} className="sm:w-48">
+        <Select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value as 'available' | 'all' | 'borrowed' | 'reserved' | 'unavailable')} className="sm:w-52">
           <option value="available">✅ Disponible</option>
-          <option value="lent">🔄 En prêt</option>
+          <option value="borrowed">🔄 Prêté / Réservé</option>
+          <option value="unavailable">⛔ Indisponible</option>
           <option value="all">Tout afficher</option>
         </Select>
       </div>
@@ -158,11 +165,11 @@ function EquipmentCard({ item, currentUserId }: { item: EquipmentItem; currentUs
             </div>
             {/* Status badge */}
             <StatusBadge
-              status={item.is_available ? 'available' : 'borrowed'}
+              status={(item as EquipmentItem & { status?: string }).status || (item.is_available ? 'available' : 'borrowed')}
               contentType="equipment"
               size="xs"
               showIcon
-              showDot={item.is_available}
+              showDot={(item as EquipmentItem & { status?: string }).status === 'available' || (!((item as EquipmentItem & { status?: string }).status) && item.is_available)}
               className="shadow-sm"
             />
           </div>

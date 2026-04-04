@@ -83,6 +83,56 @@ function StatCard({ icon: Icon, label, value, href, color, bg, badge, accent }: 
   );
 }
 
+// ─── StatusBreakdown — Mini-chips de décompte par statut ─────────────────────
+
+type StatusChip = { key: string; label: string; color: string; dot: string };
+const STATUS_CHIPS: Record<string, StatusChip[]> = {
+  listing: [
+    { key: 'active',   label: 'Actif',    color: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
+    { key: 'reserved', label: 'Réservé',  color: 'bg-amber-100 text-amber-700',     dot: 'bg-amber-500' },
+    { key: 'sold',     label: 'Vendu',    color: 'bg-gray-100 text-gray-600',       dot: 'bg-gray-400' },
+    { key: 'expired',  label: 'Expiré',   color: 'bg-red-100 text-red-600',         dot: 'bg-red-400' },
+    { key: 'archived', label: 'Archivé',  color: 'bg-gray-100 text-gray-500',       dot: 'bg-gray-300' },
+  ],
+  equipment: [
+    { key: 'available',   label: 'Disponible',    color: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
+    { key: 'reserved',    label: 'Réservé',        color: 'bg-amber-100 text-amber-700',     dot: 'bg-amber-500' },
+    { key: 'borrowed',    label: 'Prêté',          color: 'bg-blue-100 text-blue-700',       dot: 'bg-blue-500' },
+    { key: 'unavailable', label: 'Indisponible',   color: 'bg-gray-100 text-gray-600',       dot: 'bg-gray-400' },
+    { key: 'archived',    label: 'Archivé',        color: 'bg-gray-100 text-gray-500',       dot: 'bg-gray-300' },
+  ],
+  help: [
+    { key: 'active',      label: 'Actif',     color: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
+    { key: 'in_progress', label: 'En cours',  color: 'bg-blue-100 text-blue-700',       dot: 'bg-blue-500' },
+    { key: 'paused',      label: 'En pause',  color: 'bg-orange-100 text-orange-700',   dot: 'bg-orange-400' },
+    { key: 'resolved',    label: 'Résolu',    color: 'bg-teal-100 text-teal-700',       dot: 'bg-teal-500' },
+    { key: 'closed',      label: 'Fermé',     color: 'bg-gray-100 text-gray-600',       dot: 'bg-gray-400' },
+    { key: 'archived',    label: 'Archivé',   color: 'bg-gray-100 text-gray-500',       dot: 'bg-gray-300' },
+  ],
+  lost_found: [
+    { key: 'active',     label: 'En cours',   color: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
+    { key: 'resolved',   label: 'Résolu',     color: 'bg-teal-100 text-teal-700',       dot: 'bg-teal-500' },
+    { key: 'closed',     label: 'Fermé',      color: 'bg-gray-100 text-gray-600',       dot: 'bg-gray-400' },
+    { key: 'archived',   label: 'Archivé',    color: 'bg-gray-100 text-gray-500',       dot: 'bg-gray-300' },
+  ],
+};
+
+function StatusBreakdown({ counts, type }: { counts: Record<string, number>; type: keyof typeof STATUS_CHIPS }) {
+  const chips = STATUS_CHIPS[type] || [];
+  const relevant = chips.filter(c => (counts[c.key] || 0) > 0);
+  if (relevant.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5 px-3 py-2 border-b border-gray-50 bg-gray-50/50">
+      {relevant.map(chip => (
+        <span key={chip.key} className={cn('inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full', chip.color)}>
+          <span className={cn('w-1.5 h-1.5 rounded-full', chip.dot)} />
+          {counts[chip.key]} {chip.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function TodoCard({ item }: { item: { id: string; priority: string; icon: string; title: string; subtitle?: string; href: string } }) {
   const borderColor = item.priority === 'urgent' ? 'border-l-red-400' : item.priority === 'normal' ? 'border-l-amber-400' : 'border-l-gray-300';
   const bg = item.priority === 'urgent' ? 'bg-red-50 hover:bg-red-100' : item.priority === 'normal' ? 'bg-amber-50 hover:bg-amber-100' : 'bg-gray-50 hover:bg-gray-100';
@@ -728,6 +778,7 @@ function DashboardContent() {
                   <Plus className="w-3 h-3" /> Nouvelle
                 </Link>
               </div>
+              <StatusBreakdown counts={stats.listingsByStatus} type="listing" />
               <div className="p-3">
                 {loading ? (
                   <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-12 bg-gray-50 rounded-xl animate-pulse" />)}</div>
@@ -765,6 +816,7 @@ function DashboardContent() {
                   <Plus className="w-3 h-3" /> Ajouter
                 </Link>
               </div>
+              <StatusBreakdown counts={stats.equipmentByStatus} type="equipment" />
               <div className="p-3">
                 {loading ? (
                   <div className="space-y-2">{[...Array(2)].map((_, i) => <div key={i} className="h-12 bg-gray-50 rounded-xl animate-pulse" />)}</div>
@@ -783,15 +835,37 @@ function DashboardContent() {
             </div>
 
             {/* Liens rapides vers autres contenus */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Coups de main avec statuts */}
+              <Link href="/coups-de-main">
+                <div className="bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-sm hover:border-gray-200 transition-all">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-rose-50"><Heart className="w-4 h-4 text-rose-600" /></div>
+                    <span className="text-sm font-semibold text-gray-700">Coups de main ({Object.values(stats.helpsByStatus).reduce((s, v) => s + v, 0)})</span>
+                    <ChevronRight className="w-4 h-4 text-gray-300 ml-auto" />
+                  </div>
+                  <StatusBreakdown counts={stats.helpsByStatus} type="help" />
+                </div>
+              </Link>
+              {/* Perdu / Trouvé avec statuts */}
+              <Link href="/perdu-trouve">
+                <div className="bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-sm hover:border-gray-200 transition-all">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-red-50"><HelpCircle className="w-4 h-4 text-red-600" /></div>
+                    <span className="text-sm font-semibold text-gray-700">Perdu/Trouvé ({Object.values(stats.lostFoundByStatus).reduce((s, v) => s + v, 0)})</span>
+                    <ChevronRight className="w-4 h-4 text-gray-300 ml-auto" />
+                  </div>
+                  <StatusBreakdown counts={stats.lostFoundByStatus} type="lost_found" />
+                </div>
+              </Link>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {[
-                { icon: Heart, label: `${stats.openHelps} coup(s) de main`, href: '/coups-de-main', color: 'text-rose-600', bg: 'bg-rose-50' },
                 { icon: Calendar, label: `${stats.upcomingEvents} événement(s)`, href: '/evenements', color: 'text-purple-600', bg: 'bg-purple-50' },
                 { icon: Footprints, label: `${stats.upcomingOutings} sortie(s)`, href: '/promenades', color: 'text-emerald-600', bg: 'bg-emerald-50' },
                 { icon: BookOpen, label: `${stats.forumPosts} sujet(s) forum`, href: '/forum', color: 'text-violet-600', bg: 'bg-violet-50' },
                 { icon: Handshake, label: `${stats.associations} association(s)`, href: '/associations', color: 'text-teal-600', bg: 'bg-teal-50' },
                 { icon: Trophy, label: `${stats.activeCollections} collection(s)`, href: '/collectionneurs', color: 'text-amber-600', bg: 'bg-amber-50' },
-                { icon: HelpCircle, label: `${stats.activeLostFound} perdu/trouvé`, href: '/perdu-trouve', color: 'text-red-600', bg: 'bg-red-50' },
                 { icon: MapPin, label: 'Toutes mes publications', href: '/dashboard/contenus', color: 'text-brand-600', bg: 'bg-brand-50' },
               ].map(item => (
                 <Link key={item.href} href={item.href}>

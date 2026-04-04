@@ -11,15 +11,33 @@ interface TrustBadgeProps {
     phone?: string | null;
     publication_count?: number;
     reports_received?: number;
+    trust_level?: string;
   };
   /** 'badge' = badge compact, 'card' = carte détaillée */
   variant?: 'badge' | 'card' | 'mini';
   showDetails?: boolean;
 }
 
+// Mapping des niveaux de confiance → couleurs CSS
+const LEVEL_STROKE: Record<string, string> = {
+  de_confiance: '#7c3aed',
+  fiable:       '#10b981',
+  nouveau:      '#9ca3af',
+  surveille:    '#f97316',
+};
+
+const LEVEL_BAR: Record<string, string> = {
+  de_confiance: 'bg-purple-500',
+  fiable:       'bg-emerald-500',
+  nouveau:      'bg-gray-400',
+  surveille:    'bg-orange-500',
+};
+
 export default function TrustBadge({ profile, variant = 'badge', showDetails = false }: TrustBadgeProps) {
   const trust = computeTrustScore(profile);
   const [open, setOpen] = useState(false);
+  const strokeColor = LEVEL_STROKE[trust.level] || '#9ca3af';
+  const barColor = LEVEL_BAR[trust.level] || 'bg-gray-400';
 
   if (variant === 'mini') {
     return (
@@ -40,12 +58,12 @@ export default function TrustBadge({ profile, variant = 'badge', showDetails = f
               <p className="text-xs text-gray-500">Score de confiance : {trust.score}/100</p>
             </div>
           </div>
-          {/* Barre de score */}
+          {/* Barre circulaire */}
           <div className="w-16 h-16 relative flex items-center justify-center">
             <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
               <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e5e7eb" strokeWidth="3" />
               <circle cx="18" cy="18" r="15.9" fill="none"
-                stroke={trust.level === 'verified' ? '#7c3aed' : trust.level === 'trusted' ? '#10b981' : trust.level === 'member' ? '#3b82f6' : '#9ca3af'}
+                stroke={strokeColor}
                 strokeWidth="3"
                 strokeDasharray={`${trust.score} 100`}
                 strokeLinecap="round"
@@ -88,11 +106,7 @@ export default function TrustBadge({ profile, variant = 'badge', showDetails = f
           <div className="flex items-center gap-2 mb-3">
             <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all ${
-                  trust.level === 'verified' ? 'bg-purple-500' :
-                  trust.level === 'trusted' ? 'bg-emerald-500' :
-                  trust.level === 'member' ? 'bg-blue-500' : 'bg-gray-400'
-                }`}
+                className={`h-full rounded-full transition-all ${barColor}`}
                 style={{ width: `${trust.score}%` }}
               />
             </div>

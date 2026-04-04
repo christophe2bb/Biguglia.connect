@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, CheckCircle, AlertTriangle, MessageSquare, Package, Wrench, Flag, TrendingUp } from 'lucide-react';
+import { Users, CheckCircle, AlertTriangle, MessageSquare, Package, Wrench, Flag, TrendingUp, Shield } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import Link from 'next/link';
@@ -16,6 +16,7 @@ interface AdminStats {
   pending_reports: number;
   total_equipment: number;
   total_messages: number;
+  pending_moderation: number;
 }
 
 
@@ -37,6 +38,7 @@ function AdminContent() {
         { count: pendingReports },
         { count: totalEquip },
         { count: totalMsgs },
+        { count: pendingMod },
       ] = await Promise.all([
         supabase.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'artisan_pending'),
@@ -46,6 +48,7 @@ function AdminContent() {
         supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('equipment_items').select('*', { count: 'exact', head: true }).eq('is_available', true),
         supabase.from('messages').select('*', { count: 'exact', head: true }),
+        supabase.from('moderation_queue').select('*', { count: 'exact', head: true }).eq('status', 'en_attente_validation'),
       ]);
 
       setStats({
@@ -57,6 +60,7 @@ function AdminContent() {
         pending_reports: pendingReports || 0,
         total_equipment: totalEquip || 0,
         total_messages: totalMsgs || 0,
+        pending_moderation: pendingMod || 0,
       });
 
       setLoading(false);
@@ -71,6 +75,7 @@ function AdminContent() {
     { icon: Package, label: 'Annonces actives', value: stats?.total_listings ?? 0, color: 'text-purple-600', bg: 'bg-purple-50' },
     { icon: MessageSquare, label: 'Messages', value: stats?.total_messages ?? 0, color: 'text-brand-600', bg: 'bg-brand-50' },
     { icon: Flag, label: 'Signalements', value: stats?.pending_reports ?? 0, color: 'text-red-600', bg: 'bg-red-50', highlight: (stats?.pending_reports ?? 0) > 0 },
+    { icon: Shield, label: 'En modération', value: stats?.pending_moderation ?? 0, color: 'text-amber-600', bg: 'bg-amber-50', highlight: (stats?.pending_moderation ?? 0) > 0 },
     { icon: TrendingUp, label: 'Posts forum', value: stats?.total_forum_posts ?? 0, color: 'text-teal-600', bg: 'bg-teal-50' },
     { icon: CheckCircle, label: 'Matériel dispo', value: stats?.total_equipment ?? 0, color: 'text-indigo-600', bg: 'bg-indigo-50' },
   ];
@@ -105,12 +110,18 @@ function AdminContent() {
           { href: '/admin/artisans', label: 'Gestion artisans', desc: 'Valider, refuser, suspendre', icon: '⚒️' },
           { href: '/admin/utilisateurs', label: 'Utilisateurs', desc: 'Gérer les comptes', icon: '👥' },
           { href: '/admin/contenu', label: 'Contenu', desc: 'Annonces, forum, avis, matériel', icon: '📋' },
+          { href: '/admin/moderation', label: 'Modération', desc: 'File de validation des publications', icon: '🛡️', highlight: (stats?.pending_moderation ?? 0) > 0, badge: stats?.pending_moderation },
           { href: '/admin/signalements', label: 'Signalements', desc: 'Modérer le contenu', icon: '🚩' },
           { href: '/admin/migration', label: 'Migration DB', desc: 'Tables thèmes (collectionneurs, promenades, événements)', icon: '🗄️', highlight: false },
           { href: '/admin/securite', label: 'Sécurité & Cloudflare', desc: 'Guide Cloudflare WAF, anti-DDoS, headers', icon: '🛡️', highlight: false },
-        ].map(({ href, label, desc, icon, highlight }) => (
+        ].map(({ href, label, desc, icon, highlight, badge }) => (
           <Link key={href} href={href}>
-            <div className={`bg-white rounded-2xl border p-5 hover:shadow-sm transition-all cursor-pointer ${highlight ? 'border-brand-300 bg-brand-50/30' : 'border-gray-100 hover:border-gray-200'}`}>
+            <div className={`relative bg-white rounded-2xl border p-5 hover:shadow-sm transition-all cursor-pointer ${highlight ? 'border-brand-300 bg-brand-50/30' : 'border-gray-100 hover:border-gray-200'}`}>
+              {badge !== undefined && badge > 0 && (
+                <span className="absolute -top-2 -right-2 min-w-[1.4rem] h-6 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center animate-pulse shadow">
+                  {badge > 99 ? '99+' : badge}
+                </span>
+              )}
               <div className="text-2xl mb-2">{icon}</div>
               <div className={`font-semibold ${highlight ? 'text-brand-700' : 'text-gray-900'}`}>{label}</div>
               <div className="text-sm text-gray-500">{desc}</div>

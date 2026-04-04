@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft, MapPin, Calendar, Flag, Tag, Pencil, Trash2 } from 'lucide-react';
+import { ChevronLeft, MapPin, Calendar, Flag, Tag, Pencil, Trash2, Share2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { Listing } from '@/types';
@@ -12,6 +12,7 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { LISTING_TYPE_LABELS, LISTING_TYPE_COLORS, STATUS_LABELS, formatDate } from '@/lib/utils';
+import StatusManager from '@/components/ui/StatusManager';
 import toast from 'react-hot-toast';
 import RatingWidget from '@/components/ui/RatingWidget';
 import ExchangePrompt from '@/components/ui/ExchangePrompt';
@@ -26,6 +27,7 @@ export default function AnnonceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<string>('');
 
   useEffect(() => {
     if (!id) return;
@@ -66,7 +68,9 @@ export default function AnnonceDetailPage() {
         data.photos.sort((a: { display_order: number }, b: { display_order: number }) => a.display_order - b.display_order);
       }
 
-      setListing({ ...data, user: userData } as unknown as Listing);
+      const enriched = { ...data, user: userData } as unknown as Listing;
+      setListing(enriched);
+      setCurrentStatus((enriched as { status?: string }).status || 'active');
       setLoading(false);
     };
 
@@ -273,6 +277,26 @@ export default function AnnonceDetailPage() {
                 <div className="text-xs text-center text-brand-600 font-medium py-1.5 bg-brand-50 rounded-xl">
                   ✅ C&apos;est votre annonce
                 </div>
+
+                {/* Status manager */}
+                <div className="bg-gray-50 rounded-xl border border-gray-200 p-3">
+                  <StatusManager
+                    contentType="listing"
+                    currentStatus={currentStatus}
+                    onStatusChange={async (newStatus) => {
+                      const supabase = createClient();
+                      const { error } = await supabase
+                        .from('listings')
+                        .update({ status: newStatus, updated_at: new Date().toISOString() })
+                        .eq('id', listing.id);
+                      if (error) throw error;
+                      setCurrentStatus(newStatus);
+                      setListing(prev => prev ? { ...prev, status: newStatus as Listing['status'] } : prev);
+                    }}
+                    onDelete={handleDelete}
+                  />
+                </div>
+
                 <Link
                   href={`/annonces/${listing.id}/modifier`}
                   className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-700 transition-colors"
@@ -281,12 +305,18 @@ export default function AnnonceDetailPage() {
                   Modifier l&apos;annonce
                 </Link>
                 <button
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="flex items-center justify-center gap-2 w-full px-4 py-2.5 border border-red-200 text-red-600 text-sm font-medium rounded-xl hover:bg-red-50 transition-colors disabled:opacity-50"
+                  onClick={() => {
+                    if (navigator.share) {
+                      navigator.share({ title: listing.title, url: window.location.href });
+                    } else {
+                      navigator.clipboard.writeText(window.location.href);
+                      toast.success('Lien copié !');
+                    }
+                  }}
+                  className="flex items-center justify-center gap-2 w-full px-4 py-2 text-xs text-gray-500 hover:text-gray-700 transition-colors"
                 >
-                  <Trash2 className="w-4 h-4" />
-                  {deleting ? 'Suppression...' : 'Supprimer l\'annonce'}
+                  <Share2 className="w-3.5 h-3.5" />
+                  Partager
                 </button>
               </div>
             )}

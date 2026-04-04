@@ -261,8 +261,8 @@ function EventMiniForum({ eventId, userId, catColor, catBg, catBorder }: {
 
 // ─── EventCard (utilisée dans Proposer + panel jour) ─────────────────────────
 function EventCard({
-  event, userId, onJoin, compact = false,
-}: { event: LocalEvent; userId?: string; onJoin: (id: string, joined: boolean) => void; compact?: boolean }) {
+  event, userId, onJoin, compact = false, onStatusChange,
+}: { event: LocalEvent; userId?: string; onJoin: (id: string, joined: boolean) => void; compact?: boolean; onStatusChange?: (id: string, newStatus: string) => void }) {
   const cat = getCat(event.category);
   const CatIcon = cat.icon;
   const dateLabel = formatEventDate(event.event_date);
@@ -504,7 +504,32 @@ function EventCard({
           )}
           {/* Suivi interaction événement — ContactButton gère lui-même la redirection /connexion */}
           {userId === event.author_id ? (
-            <span className="text-xs text-gray-400 italic">✉️ Les membres vous contacteront ici</span>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-400 italic">✉️ Les membres vous contacteront ici</span>
+              {onStatusChange && (() => {
+                const s = event.status || 'active';
+                const isPast = new Date(event.event_date + 'T23:59:59') < new Date();
+                const acts: { label: string; key: string; color: string }[] = [];
+                if (s === 'active' && !isPast) {
+                  acts.push({ label: '✖ Annuler', key: 'cancelled', color: 'text-red-500 bg-red-50 border-red-200' });
+                } else if (s === 'cancelled') {
+                  acts.push({ label: '🔄 Réactiver', key: 'active', color: 'text-brand-600 bg-brand-50 border-brand-200' });
+                } else if (isPast || s === 'completed') {
+                  acts.push({ label: '📦 Archiver', key: 'archived', color: 'text-gray-500 bg-gray-50 border-gray-200' });
+                }
+                return acts.length > 0 ? (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {acts.map(a => (
+                      <button key={a.key} onClick={() => {
+                        if (window.confirm(`${a.label} cet événement ?`)) onStatusChange(event.id, a.key);
+                      }} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors ${a.color}`}>
+                        {a.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
+            </div>
           ) : (
             <ContactButton
               sourceType="event"
@@ -820,8 +845,8 @@ function AnimatedEventCell({
 }
 
 function CalendarView({
-  events, userId, onJoin,
-}: { events: LocalEvent[]; userId?: string; onJoin: (id: string, joined: boolean) => void }) {
+  events, userId, onJoin, onStatusChange,
+}: { events: LocalEvent[]; userId?: string; onJoin: (id: string, joined: boolean) => void; onStatusChange?: (id: string, newStatus: string) => void }) {
   const today = new Date(); today.setHours(0,0,0,0);
   const [calYear,    setCalYear]    = useState(today.getFullYear());
   const [calMonth,   setCalMonth]   = useState(today.getMonth());
@@ -1106,7 +1131,7 @@ function CalendarView({
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {selectedEvents.map(ev => (
-                    <EventCard key={ev.id} event={ev} userId={userId} onJoin={onJoin} compact />
+                    <EventCard key={ev.id} event={ev} userId={userId} onJoin={onJoin} onStatusChange={onStatusChange} compact />
                   ))}
                 </div>
               )}
@@ -1332,6 +1357,17 @@ export default function EvenementsPage() {
       if (error) { toast.error('Erreur lors de l\'inscription'); return; }
       toast.success('Inscription enregistrée !');
     }
+    fetchEvents();
+  };
+
+  // ── Event status change (creator only) ───────────────────────────────────
+  const handleEventStatusChange = async (eventId: string, newStatus: string) => {
+    const supabase = createClient();
+    await supabase.from('local_events').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', eventId);
+    const labels: Record<string, string> = {
+      active: 'À venir', cancelled: 'Annulé', completed: 'Terminé', archived: 'Archivé',
+    };
+    toast.success(`✅ Statut : ${labels[newStatus] || newStatus}`);
     fetchEvents();
   };
 
@@ -1563,7 +1599,7 @@ export default function EvenementsPage() {
                 <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
               </div>
             ) : (
-              <CalendarView events={events} userId={profile?.id} onJoin={handleJoin} />
+              <CalendarView events={events} userId={profile?.id} onJoin={handleJoin} onStatusChange={handleEventStatusChange} />
             )}
 
             <div className="mt-6 bg-purple-50 border border-purple-200 rounded-2xl p-5 flex items-start gap-4">
