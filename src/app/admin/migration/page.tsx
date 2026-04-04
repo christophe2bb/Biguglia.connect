@@ -2439,10 +2439,13 @@ type StorageDiag = {
 // ─── SQL Modération centralisée ───────────────────────────────────────────────
 const MODERATION_SQL = `-- ═══════════════════════════════════════════════════════════════════════════
 -- SYSTÈME DE MODÉRATION CENTRALISÉ — Biguglia Connect
--- À exécuter UNE SEULE FOIS dans Supabase → SQL Editor
+-- ═══════════════════════════════════════════════════════════════════════════
+-- IMPORTANT : Ce script est idempotent (peut être relancé sans danger).
+-- Si vous obtenez "column submitted_at does not exist" sur une ancienne
+-- installation, ce script corrige automatiquement le schéma.
 -- ═══════════════════════════════════════════════════════════════════════════
 
--- 1. Colonnes trust_level, publication_count, reports_received sur profiles
+-- ── ÉTAPE 1 : Colonnes sur profiles ──────────────────────────────────────
 ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS trust_level TEXT DEFAULT 'nouveau'
     CHECK (trust_level IN ('nouveau','surveille','fiable','de_confiance')),
@@ -2450,7 +2453,7 @@ ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS reports_received  INT DEFAULT 0,
   ADD COLUMN IF NOT EXISTS moderation_note   TEXT;
 
--- 2. Table principale de file de modération
+-- ── ÉTAPE 2 : Création table moderation_queue ────────────────────────────
 CREATE TABLE IF NOT EXISTS moderation_queue (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   content_type      TEXT NOT NULL
@@ -2482,7 +2485,27 @@ CREATE TABLE IF NOT EXISTS moderation_queue (
   updated_at        TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Table d'historique d'audit (traçabilité complète)
+-- ── ÉTAPE 3 : Ajout des colonnes manquantes (correctif si table existante) ─
+-- Ces ALTER sont sans danger si les colonnes existent déjà.
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS submitted_at      TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS updated_at        TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS risk_score        INT DEFAULT 0;
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS risk_level        TEXT DEFAULT 'low';
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS completeness      INT DEFAULT 100;
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS validation_errors JSONB DEFAULT '[]';
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS author_trust      TEXT DEFAULT 'nouveau';
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS content_title     TEXT;
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS content_excerpt   TEXT;
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS content_photos    TEXT[];
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS resubmit_count    INT DEFAULT 0;
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS moderator_note    TEXT;
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS correction_reason TEXT;
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS refusal_reason    TEXT;
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS decision          TEXT;
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS reviewed_at       TIMESTAMPTZ;
+ALTER TABLE moderation_queue ADD COLUMN IF NOT EXISTS reviewed_by       UUID REFERENCES profiles(id);
+
+-- ── ÉTAPE 4 : Table historique d'audit ───────────────────────────────────
 CREATE TABLE IF NOT EXISTS moderation_history (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   queue_id         UUID NOT NULL REFERENCES moderation_queue(id) ON DELETE CASCADE,
@@ -2499,7 +2522,7 @@ CREATE TABLE IF NOT EXISTS moderation_history (
   created_at       TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Index de performance
+-- ── ÉTAPE 5 : Index de performance ───────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_modqueue_status    ON moderation_queue(status);
 CREATE INDEX IF NOT EXISTS idx_modqueue_type      ON moderation_queue(content_type);
 CREATE INDEX IF NOT EXISTS idx_modqueue_author    ON moderation_queue(author_id);
@@ -2508,7 +2531,7 @@ CREATE INDEX IF NOT EXISTS idx_modqueue_risk      ON moderation_queue(risk_score
 CREATE INDEX IF NOT EXISTS idx_modhist_queue      ON moderation_history(queue_id);
 CREATE INDEX IF NOT EXISTS idx_modhist_content    ON moderation_history(content_id);
 
--- 5. Trigger updated_at sur moderation_queue
+-- ── ÉTAPE 6 : Trigger updated_at ─────────────────────────────────────────
 CREATE OR REPLACE FUNCTION update_modqueue_updated_at()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN NEW.updated_at = NOW(); RETURN NEW; END; $$;
@@ -2518,7 +2541,7 @@ CREATE TRIGGER trg_modqueue_updated_at
   BEFORE UPDATE ON moderation_queue
   FOR EACH ROW EXECUTE FUNCTION update_modqueue_updated_at();
 
--- 6. Trigger audit automatique dans moderation_history
+-- ── ÉTAPE 7 : Trigger audit automatique ──────────────────────────────────
 CREATE OR REPLACE FUNCTION log_moderation_history()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
@@ -2537,7 +2560,7 @@ CREATE TRIGGER trg_log_moderation
   AFTER UPDATE ON moderation_queue
   FOR EACH ROW EXECUTE FUNCTION log_moderation_history();
 
--- 7. Trigger : incrémente publication_count sur profiles à chaque publication validée
+-- ── ÉTAPE 8 : Trigger compteur publications ───────────────────────────────
 CREATE OR REPLACE FUNCTION increment_publication_count()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
@@ -2553,7 +2576,7 @@ CREATE TRIGGER trg_increment_pub_count
   AFTER INSERT OR UPDATE ON moderation_queue
   FOR EACH ROW EXECUTE FUNCTION increment_publication_count();
 
--- 8. Colonne moderation_status sur chaque table de contenu public
+-- ── ÉTAPE 9 : Colonne moderation_status sur les tables de contenu ─────────
 ALTER TABLE listings         ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie';
 ALTER TABLE equipment_items  ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie';
 ALTER TABLE help_requests    ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie';
@@ -2562,7 +2585,7 @@ ALTER TABLE local_events     ADD COLUMN IF NOT EXISTS moderation_status TEXT DEF
 ALTER TABLE lost_found_items ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie';
 ALTER TABLE forum_posts      ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie';
 
--- 9. RLS sur moderation_queue
+-- ── ÉTAPE 10 : RLS sur moderation_queue ──────────────────────────────────
 ALTER TABLE moderation_queue ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "modq_author_select" ON moderation_queue;
@@ -2592,7 +2615,7 @@ CREATE POLICY "modq_author_update_draft" ON moderation_queue
     AND status IN ('brouillon','a_corriger')
   );
 
--- 10. RLS sur moderation_history
+-- ── ÉTAPE 11 : RLS sur moderation_history ────────────────────────────────
 ALTER TABLE moderation_history ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "modhist_staff_select" ON moderation_history;
@@ -2608,26 +2631,40 @@ CREATE POLICY "modhist_staff_insert" ON moderation_history
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
   );
 
--- 11. Vue KPI modération (utilisée par /admin/moderation et /admin/moderation/stats)
-CREATE OR REPLACE VIEW moderation_kpi AS
+-- ── ÉTAPE 12 : Vue KPI (DROP + CREATE pour éviter toute erreur de schéma) ─
+DROP VIEW IF EXISTS moderation_kpi;
+
+CREATE VIEW moderation_kpi AS
 SELECT
-  COUNT(*)                                                 AS total,
-  COUNT(*) FILTER (WHERE status = 'en_attente_validation') AS pending,
-  COUNT(*) FILTER (WHERE status = 'publie')                AS published,
-  COUNT(*) FILTER (WHERE status = 'refuse')                AS refused,
-  COUNT(*) FILTER (WHERE status = 'a_corriger')            AS correction,
-  COUNT(*) FILTER (WHERE status = 'archive')               AS archived,
-  AVG(EXTRACT(EPOCH FROM (reviewed_at - submitted_at))/3600)
-    FILTER (WHERE reviewed_at IS NOT NULL)                 AS avg_review_hours,
-  COUNT(*) FILTER (WHERE risk_level IN ('high','critical')) AS high_risk,
-  COUNT(*) FILTER (WHERE author_trust = 'nouveau')         AS new_authors,
-  COUNT(*) FILTER (WHERE submitted_at >= NOW() - INTERVAL '24 hours') AS last_24h
+  COUNT(*)                                                              AS total,
+  COUNT(*) FILTER (WHERE status = 'en_attente_validation')             AS pending,
+  COUNT(*) FILTER (WHERE status = 'publie')                            AS published,
+  COUNT(*) FILTER (WHERE status = 'refuse')                            AS refused,
+  COUNT(*) FILTER (WHERE status = 'a_corriger')                        AS correction,
+  COUNT(*) FILTER (WHERE status = 'archive')                           AS archived,
+  AVG(
+    EXTRACT(EPOCH FROM (reviewed_at - submitted_at)) / 3600
+  ) FILTER (WHERE reviewed_at IS NOT NULL AND submitted_at IS NOT NULL) AS avg_review_hours,
+  COUNT(*) FILTER (WHERE risk_level IN ('high','critical'))             AS high_risk,
+  COUNT(*) FILTER (WHERE author_trust = 'nouveau')                     AS new_authors,
+  COUNT(*) FILTER (
+    WHERE submitted_at IS NOT NULL
+      AND submitted_at >= NOW() - INTERVAL '24 hours'
+  )                                                                     AS last_24h
 FROM moderation_queue;
 
 GRANT SELECT ON moderation_kpi TO authenticated;
 
-COMMENT ON TABLE moderation_queue IS 'File de modération centralisée — toutes publications Biguglia Connect';
+-- ── ÉTAPE 13 : Commentaires ───────────────────────────────────────────────
+COMMENT ON TABLE moderation_queue   IS 'File de modération centralisée — toutes publications Biguglia Connect';
 COMMENT ON TABLE moderation_history IS 'Audit trail complet des décisions de modération';
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- ✅ Modération centralisée opérationnelle !
+-- Tables : moderation_queue, moderation_history
+-- Vue    : moderation_kpi
+-- Admin  : /admin/moderation  |  Stats : /admin/moderation/stats
+-- ═══════════════════════════════════════════════════════════════════════════
 `;
 
 export default function MigrationPage() {
