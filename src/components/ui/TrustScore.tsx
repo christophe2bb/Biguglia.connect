@@ -55,6 +55,7 @@ interface TrustProfile {
   role: string;
   avatar_url?: string | null;
   phone?: string | null;
+  full_name?: string | null;
 }
 
 interface TrustScoreMiniProps {

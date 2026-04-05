@@ -14,8 +14,7 @@ import StatusBadge from '@/components/ui/StatusBadge';
 import { LISTING_TYPE_LABELS, LISTING_TYPE_COLORS, STATUS_LABELS, formatDate } from '@/lib/utils';
 import StatusManager from '@/components/ui/StatusManager';
 import toast from 'react-hot-toast';
-import RatingWidget from '@/components/ui/RatingWidget';
-import ExchangePrompt from '@/components/ui/ExchangePrompt';
+import { TrustScoreFull } from '@/components/ui/TrustScore';
 import ContactButton from '@/components/ui/ContactButton';
 import { PhotoGallery, toPhotoItems } from '@/components/ui/PhotoViewer';
 
@@ -330,22 +329,34 @@ export default function AnnonceDetailPage() {
             </button>
           </div>
 
-          {/* Confirmation d'échange → débloque l'avis */}
-          <ExchangePrompt
-            targetType="listing"
-            targetId={listing.id}
-            authorId={listing.user_id}
-            userId={profile?.id}
-          />
-
-          {/* Notation (visible seulement après échange confirmé) */}
-          <RatingWidget
-            targetType="listing"
-            targetId={listing.id}
-            authorId={listing.user_id}
-            userId={profile?.id}
-            showPoll
-          />
+          {/* ── Réputation du vendeur ── */}
+          {listing.user && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-4 pt-4 pb-2 border-b border-gray-50">
+                <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                  ⭐ Réputation du vendeur
+                </h3>
+              </div>
+              <div className="p-4">
+                <TrustScoreFull
+                  profile={{
+                    id: listing.user_id,
+                    created_at: (listing.user as { created_at?: string }).created_at ?? new Date().toISOString(),
+                    role: (listing.user as { role?: string }).role ?? 'resident',
+                    avatar_url: listing.user.avatar_url ?? null,
+                    phone: null,
+                    full_name: (listing.user as { full_name?: string }).full_name ?? null,
+                  }}
+                />
+                <Link
+                  href={`/profil/${listing.user_id}`}
+                  className="mt-3 flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-xl hover:bg-amber-100 transition-colors"
+                >
+                  Voir le profil complet →
+                </Link>
+              </div>
+            </div>
+          )}
 
           {/* Sécurité */}
           <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
