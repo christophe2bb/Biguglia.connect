@@ -11,6 +11,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import Avatar from '@/components/ui/Avatar';
+import ContactButton from '@/components/ui/ContactButton';
 import { UserRatingBadge } from '@/components/ui/RatingWidget';
 import { TrustScoreFull, TrustScoreMini, useTrustData } from '@/components/ui/TrustScore';
 import { ROLE_LABELS } from '@/lib/utils';
@@ -278,12 +279,16 @@ export default function PublicProfilePage() {
 
             {/* Action — si ce n'est pas moi */}
             {!isMe && me && (
-              <Link
-                href={`/messages?to=${userId}`}
-                className="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-semibold transition-colors"
-              >
-                <MessageCircle className="w-4 h-4" /> Message
-              </Link>
+              <ContactButton
+                sourceType="general"
+                sourceId={userId as string}
+                sourceTitle={`Profil de ${publicProfile?.full_name ?? 'ce membre'}`}
+                ownerId={userId as string}
+                userId={me.id}
+                ctaLabel="Message"
+                prefillMsg={`👋 Bonjour ! Je vous contacte depuis votre profil sur Biguglia Connect.`}
+                className="shrink-0"
+              />
             )}
             {isMe && (
               <Link
@@ -410,12 +415,16 @@ export default function PublicProfilePage() {
                   <ExternalLink className="w-3 h-3 opacity-60" />
                 </Link>
                 {!isMe && me && (
-                  <Link
-                    href={`/messages?to=${userId}`}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-700 rounded-lg text-xs font-semibold hover:bg-purple-100 transition-colors"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" /> Envoyer un message
-                  </Link>
+                  <ContactButton
+                    sourceType="general"
+                    sourceId={userId as string}
+                    sourceTitle={`Profil de ${publicProfile?.full_name ?? 'ce membre'}`}
+                    ownerId={userId as string}
+                    userId={me.id}
+                    ctaLabel="Envoyer un message"
+                    prefillMsg={`👋 Bonjour ! Je vous contacte depuis votre profil sur Biguglia Connect.`}
+                    size="sm"
+                  />
                 )}
               </div>
             </div>
