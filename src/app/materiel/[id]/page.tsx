@@ -18,6 +18,8 @@ import { CONDITION_LABELS, formatDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import ContactButton from '@/components/ui/ContactButton';
 import { PhotoGallery, toPhotoItems } from '@/components/ui/PhotoViewer';
+import RatingWidget from '@/components/ui/RatingWidget';
+import ExchangePrompt from '@/components/ui/ExchangePrompt';
 import {
   EQUIPMENT_STATUS_CONFIG, LOAN_REQUEST_STATUS_CONFIG,
   getAllowedTransitions, getTransitionLabel, canDelete, isRequestable,
@@ -578,6 +580,23 @@ export default function MaterielDetailPage() {
               </div>
             );
           })()}
+
+          {/* Confirmation de fin de prêt → débloque l'avis */}
+          <ExchangePrompt
+            targetType="equipment"
+            targetId={item.id}
+            authorId={item.owner_id}
+            userId={profile?.id}
+          />
+
+          {/* Notation (après prêt confirmé) */}
+          <RatingWidget
+            targetType="equipment"
+            targetId={item.id}
+            authorId={item.owner_id}
+            userId={profile?.id}
+            showPoll
+          />
 
           {/* Conseils */}
           <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">

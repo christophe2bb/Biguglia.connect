@@ -13,6 +13,8 @@ import Link from 'next/link';
 import Avatar from '@/components/ui/Avatar';
 import { cn, formatRelative } from '@/lib/utils';
 import ProtectedPage from '@/components/providers/ProtectedPage';
+import { ReviewPromptBanner } from '@/components/ui/ReviewForm';
+import type { InteractionSourceType } from '@/lib/trust';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type InteractionStatus = 'requested' | 'pending' | 'accepted' | 'rejected' | 'in_progress' | 'done' | 'cancelled' | 'disputed';
@@ -195,9 +197,9 @@ function InteractionCard({ row, userId, onStatusChange }: {
               </button>
             )}
 
-            {/* Avis débloqué */}
-            {row.review_unlocked && row.status === 'done' && (
-              <Link href={srcConf.href(row.source_id)}
+            {/* Avis débloqué — lien vers dashboard/avis */}
+            {row.review_unlocked && row.status === 'done' && !myDone && (
+              <Link href="/dashboard/avis?tab=pending"
                 className="px-3 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold hover:bg-amber-100 flex items-center gap-1">
                 <Star className="w-3 h-3" />
                 Laisser un avis

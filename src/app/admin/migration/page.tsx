@@ -2815,6 +2815,8 @@ export default function MigrationPage() {
   const [copiedEvents,      setCopiedEvents]      = useState(false);
   const [copiedEventFix,    setCopiedEventFix]    = useState(false);
   const [copiedRoleFix,     setCopiedRoleFix]     = useState(false);
+  const [copiedTrust,       setCopiedTrust]       = useState(false);
+  const [copiedCollectV2,   setCopiedCollectV2]   = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -4547,6 +4549,46 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
         </div>
       </div>
 
+      {/* ── Système de confiance & réputation v2.0 SQL ── */}
+      <div className="bg-gray-900 rounded-2xl overflow-hidden border border-amber-500/30">
+        <div className="flex items-center justify-between px-5 py-4 bg-amber-900/20">
+          <div>
+            <h3 className="text-white font-bold text-base">⭐ Confiance & Réputation v2.0</h3>
+            <p className="text-amber-300 text-xs mt-0.5">
+              trust_interactions · reviews · review_tags · trust_profile_stats · profile_badges
+            </p>
+            <p className="text-amber-400 text-xs mt-1">
+              5 tables · 8 triggers · RLS complète · Anti-abus (no self-review) · Stats auto-calculées
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              const sql = `-- ============================================================\n-- BIGUGLIA CONNECT — Système de confiance & réputation unifié\n-- Version 2.0\n-- Coller dans Supabase > SQL Editor > New query > Run\n-- ============================================================\n\nCREATE EXTENSION IF NOT EXISTS "uuid-ossp";\n\nCREATE TABLE IF NOT EXISTS trust_interactions (\n  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,\n  source_type TEXT NOT NULL CHECK (source_type IN ('listing','equipment','help_request','lost_found','association','outing','collection_item','event','promenade','service_request')),\n  source_id UUID NOT NULL,\n  requester_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,\n  receiver_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,\n  interaction_type TEXT NOT NULL CHECK (interaction_type IN ('transaction','material_request','help_match','participation','contact','service_request')),\n  status TEXT NOT NULL DEFAULT 'requested' CHECK (status IN ('requested','pending','accepted','rejected','in_progress','done','cancelled','disputed')),\n  review_unlocked BOOLEAN NOT NULL DEFAULT false,\n  review_requester_done BOOLEAN NOT NULL DEFAULT false,\n  review_receiver_done BOOLEAN NOT NULL DEFAULT false,\n  conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL,\n  status_history JSONB NOT NULL DEFAULT '[]',\n  started_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  accepted_at TIMESTAMPTZ,\n  completed_at TIMESTAMPTZ,\n  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  CONSTRAINT uq_trust_interaction UNIQUE (source_type, source_id, requester_id)\n);\n\nCREATE TABLE IF NOT EXISTS reviews (\n  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,\n  interaction_id UUID REFERENCES trust_interactions(id) ON DELETE CASCADE,\n  source_type TEXT NOT NULL,\n  source_id UUID NOT NULL,\n  author_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,\n  target_user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,\n  rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),\n  dim_communication INT CHECK (dim_communication >= 1 AND dim_communication <= 5),\n  dim_reliability INT CHECK (dim_reliability >= 1 AND dim_reliability <= 5),\n  dim_punctuality INT CHECK (dim_punctuality >= 1 AND dim_punctuality <= 5),\n  dim_quality INT CHECK (dim_quality >= 1 AND dim_quality <= 5),\n  comment TEXT CHECK (char_length(comment) <= 1000),\n  would_recommend BOOLEAN,\n  moderation_status TEXT NOT NULL DEFAULT 'visible' CHECK (moderation_status IN ('visible','reported','hidden','deleted')),\n  moderation_note TEXT,\n  moderated_by UUID REFERENCES profiles(id) ON DELETE SET NULL,\n  moderated_at TIMESTAMPTZ,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  CONSTRAINT uq_review_per_interaction UNIQUE (interaction_id, author_id),\n  CONSTRAINT no_self_review CHECK (author_id <> target_user_id)\n);\n\nCREATE TABLE IF NOT EXISTS review_tags (id UUID DEFAULT uuid_generate_v4() PRIMARY KEY, review_id UUID REFERENCES reviews(id) ON DELETE CASCADE NOT NULL, tag TEXT NOT NULL CHECK (char_length(tag) <= 50), UNIQUE(review_id, tag));\n\nCREATE TABLE IF NOT EXISTS trust_profile_stats (\n  profile_id UUID REFERENCES profiles(id) ON DELETE CASCADE PRIMARY KEY,\n  interactions_total INT NOT NULL DEFAULT 0, interactions_done INT NOT NULL DEFAULT 0,\n  reviews_received INT NOT NULL DEFAULT 0, avg_rating NUMERIC(3,2) NOT NULL DEFAULT 0,\n  avg_communication NUMERIC(3,2), avg_reliability NUMERIC(3,2), avg_punctuality NUMERIC(3,2), avg_quality NUMERIC(3,2),\n  recommend_pct INT, dist_1 INT NOT NULL DEFAULT 0, dist_2 INT NOT NULL DEFAULT 0,\n  dist_3 INT NOT NULL DEFAULT 0, dist_4 INT NOT NULL DEFAULT 0, dist_5 INT NOT NULL DEFAULT 0,\n  trust_score INT NOT NULL DEFAULT 0, last_computed_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS profile_badges (\n  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,\n  profile_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,\n  badge_code TEXT NOT NULL CHECK (badge_code IN ('new_member','profile_complete','email_verified','phone_verified','active_member','fast_responder','reliable_organizer','reliable_vendor','reliable_helper','reliable_borrower','trusted_member','top_rated','veteran','admin_validated')),\n  awarded_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  awarded_by TEXT NOT NULL DEFAULT 'system' CHECK (awarded_by IN ('system','admin')),\n  UNIQUE(profile_id, badge_code)\n);\n\n-- Indexes\nCREATE INDEX IF NOT EXISTS idx_ti_requester ON trust_interactions(requester_id);\nCREATE INDEX IF NOT EXISTS idx_ti_receiver ON trust_interactions(receiver_id);\nCREATE INDEX IF NOT EXISTS idx_reviews_target ON reviews(target_user_id);\nCREATE INDEX IF NOT EXISTS idx_reviews_author ON reviews(author_id);\nCREATE INDEX IF NOT EXISTS idx_pbadges_profile ON profile_badges(profile_id);\n\n-- Trigger updated_at\nCREATE OR REPLACE FUNCTION update_trust_updated_at() RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = now(); RETURN NEW; END; $$ LANGUAGE plpgsql;\nDROP TRIGGER IF EXISTS trg_ti_updated_at ON trust_interactions;\nCREATE TRIGGER trg_ti_updated_at BEFORE UPDATE ON trust_interactions FOR EACH ROW EXECUTE FUNCTION update_trust_updated_at();\nDROP TRIGGER IF EXISTS trg_reviews_updated_at ON reviews;\nCREATE TRIGGER trg_reviews_updated_at BEFORE UPDATE ON reviews FOR EACH ROW EXECUTE FUNCTION update_trust_updated_at();\n\n-- Trigger unlock review on done\nCREATE OR REPLACE FUNCTION unlock_review_on_done() RETURNS TRIGGER AS $$ BEGIN IF NEW.status = 'done' AND OLD.status <> 'done' THEN NEW.review_unlocked := true; NEW.completed_at := COALESCE(NEW.completed_at, now()); END IF; RETURN NEW; END; $$ LANGUAGE plpgsql;\nDROP TRIGGER IF EXISTS trg_unlock_review ON trust_interactions;\nCREATE TRIGGER trg_unlock_review BEFORE UPDATE ON trust_interactions FOR EACH ROW EXECUTE FUNCTION unlock_review_on_done();\n\n-- RLS\nALTER TABLE trust_interactions ENABLE ROW LEVEL SECURITY;\nALTER TABLE reviews ENABLE ROW LEVEL SECURITY;\nALTER TABLE review_tags ENABLE ROW LEVEL SECURITY;\nALTER TABLE trust_profile_stats ENABLE ROW LEVEL SECURITY;\nALTER TABLE profile_badges ENABLE ROW LEVEL SECURITY;\n\nDROP POLICY IF EXISTS "TI lecture participants" ON trust_interactions;\nCREATE POLICY "TI lecture participants" ON trust_interactions FOR SELECT USING (auth.uid() = requester_id OR auth.uid() = receiver_id OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator')));\nDROP POLICY IF EXISTS "TI cr\u00e9er si connect\u00e9" ON trust_interactions;\nCREATE POLICY "TI cr\u00e9er si connect\u00e9" ON trust_interactions FOR INSERT WITH CHECK (auth.uid() = requester_id);\nDROP POLICY IF EXISTS "TI modifier si participant" ON trust_interactions;\nCREATE POLICY "TI modifier si participant" ON trust_interactions FOR UPDATE USING (auth.uid() = requester_id OR auth.uid() = receiver_id OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));\n\nDROP POLICY IF EXISTS "Avis publics visibles" ON reviews;\nCREATE POLICY "Avis publics visibles" ON reviews FOR SELECT USING (moderation_status = 'visible');\nDROP POLICY IF EXISTS "Avis re\u00e7us par la cible" ON reviews;\nCREATE POLICY "Avis re\u00e7us par la cible" ON reviews FOR SELECT USING (auth.uid() = target_user_id OR auth.uid() = author_id);\nDROP POLICY IF EXISTS "Cr\u00e9er avis si interaction" ON reviews;\nCREATE POLICY "Cr\u00e9er avis si interaction" ON reviews FOR INSERT WITH CHECK (auth.uid() = author_id AND author_id <> target_user_id AND EXISTS (SELECT 1 FROM trust_interactions WHERE id = interaction_id AND review_unlocked = true AND (requester_id = auth.uid() OR receiver_id = auth.uid())));\nDROP POLICY IF EXISTS "Mod\u00e9rer avis admin" ON reviews;\nCREATE POLICY "Mod\u00e9rer avis admin" ON reviews FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator')));\n\nDROP POLICY IF EXISTS "Tags publics" ON review_tags;\nCREATE POLICY "Tags publics" ON review_tags FOR SELECT USING (true);\nDROP POLICY IF EXISTS "Stats publiques" ON trust_profile_stats;\nCREATE POLICY "Stats publiques" ON trust_profile_stats FOR SELECT USING (true);\nDROP POLICY IF EXISTS "Badges publics" ON profile_badges;\nCREATE POLICY "Badges publics" ON profile_badges FOR SELECT USING (true);\nDROP POLICY IF EXISTS "Badges admin" ON profile_badges;\nCREATE POLICY "Badges admin" ON profile_badges FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));\n\nNOTIFY pgrst, 'reload schema';\n-- ✅ 5 tables, 8 triggers, RLS complet`;
+              navigator.clipboard.writeText(sql).then(() => {
+                setCopiedTrust(true);
+                setTimeout(() => setCopiedTrust(false), 3000);
+              });
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
+              copiedTrust ? 'bg-emerald-500 text-white' : 'bg-amber-600 text-white hover:bg-amber-700'
+            }`}
+          >
+            {copiedTrust
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Confiance</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950">
+          <p className="text-amber-200 text-xs font-mono">
+            ★ Tables créées : trust_interactions, reviews, review_tags, trust_profile_stats, profile_badges<br/>
+            ★ Triggers : unlock review quand status=done, recalcul auto des stats<br/>
+            ★ Anti-abus : pas d&apos;auto-évaluation (no_self_review), unique par interaction<br/>
+            ★ RLS : avis publics visibles, création conditionnée, moderation admin<br/>
+            ⚠️ Exécuter après la migration Moderation et la migration principale
+          </p>
+        </div>
+      </div>
+
       {/* ── Événements lifecycle SQL ── */}
       <div className="bg-gray-900 rounded-2xl overflow-hidden border border-purple-500/30">
         <div className="flex items-center justify-between px-5 py-4 bg-purple-900/30">
@@ -4577,6 +4619,159 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
           <pre className="text-xs text-purple-300 font-mono leading-relaxed whitespace-pre-wrap">{EVENT_LIFECYCLE_SQL}</pre>
+        </div>
+      </div>
+
+      {/* ── Collectionneurs v2.0 Premium SQL ── */}
+      <div className="bg-gray-900 rounded-2xl overflow-hidden border border-amber-500/30">
+        <div className="flex items-center justify-between px-5 py-4 bg-amber-900/20">
+          <div>
+            <h3 className="text-white font-bold text-base">🏆 Collectionneurs v2.0 Premium</h3>
+            <p className="text-amber-300 text-xs mt-0.5">
+              Nouveaux champs · statuts métier complets · favoris · offres · modération · indexes
+            </p>
+            <p className="text-amber-400 text-xs mt-1">
+              ALTER TABLE idempotent · 20+ colonnes · indexes perf · RLS enrichie
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              const sql = `-- ============================================================
+-- BIGUGLIA CONNECT — Module Collectionneurs v2.0 PREMIUM
+-- Idempotent — coller dans Supabase > SQL Editor > Run
+-- ============================================================
+
+ALTER TABLE collection_items
+  ADD COLUMN IF NOT EXISTS mode TEXT DEFAULT 'vente'
+    CHECK (mode IN ('vente','echange','don','recherche')),
+  ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'actif'
+    CHECK (status IN ('actif','reserve','vendu','echange','donne','trouve','retire','archive','brouillon','en_attente_validation','signale','masque','supprime_admin')),
+  ADD COLUMN IF NOT EXISTS rarity_level TEXT DEFAULT 'commun'
+    CHECK (rarity_level IN ('commun','peu_commun','rare','tres_rare','unique')),
+  ADD COLUMN IF NOT EXISTS year_period TEXT,
+  ADD COLUMN IF NOT EXISTS brand TEXT,
+  ADD COLUMN IF NOT EXISTS series_name TEXT,
+  ADD COLUMN IF NOT EXISTS authenticity_declared BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS provenance TEXT,
+  ADD COLUMN IF NOT EXISTS defects_noted TEXT,
+  ADD COLUMN IF NOT EXISTS dimensions TEXT,
+  ADD COLUMN IF NOT EXISTS material TEXT,
+  ADD COLUMN IF NOT EXISTS exchange_expected TEXT,
+  ADD COLUMN IF NOT EXISTS shipping_available BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS local_meetup_available BOOLEAN DEFAULT true,
+  ADD COLUMN IF NOT EXISTS city TEXT,
+  ADD COLUMN IF NOT EXISTS postal_code TEXT,
+  ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS featured_until TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS boost_count INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS views_count INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS favorites_count INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS messages_count INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS offers_count INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS reserved_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie'
+    CHECK (moderation_status IN ('brouillon','en_attente_validation','publie','signale','masque','supprime_admin')),
+  ADD COLUMN IF NOT EXISTS moderation_note TEXT,
+  ADD COLUMN IF NOT EXISTS moderated_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS subcategory TEXT;
+
+UPDATE collection_items SET mode = CASE WHEN item_type = 'troc' THEN 'echange' ELSE COALESCE(item_type,'vente') END WHERE mode IS NULL OR mode = 'vente';
+UPDATE collection_items SET status = 'actif' WHERE status IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_ci_mode     ON collection_items(mode);
+CREATE INDEX IF NOT EXISTS idx_ci_status   ON collection_items(status);
+CREATE INDEX IF NOT EXISTS idx_ci_rarity   ON collection_items(rarity_level);
+CREATE INDEX IF NOT EXISTS idx_ci_city     ON collection_items(city);
+CREATE INDEX IF NOT EXISTS idx_ci_shipping ON collection_items(shipping_available);
+CREATE INDEX IF NOT EXISTS idx_ci_featured ON collection_items(is_featured) WHERE is_featured = true;
+CREATE INDEX IF NOT EXISTS idx_ci_author_status ON collection_items(author_id, status);
+CREATE INDEX IF NOT EXISTS idx_ci_modstatus ON collection_items(moderation_status);
+
+-- Table favoris collectionneurs
+CREATE TABLE IF NOT EXISTS collection_favorites (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  item_id UUID REFERENCES collection_items(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, item_id)
+);
+CREATE INDEX IF NOT EXISTS idx_cfav_user ON collection_favorites(user_id);
+CREATE INDEX IF NOT EXISTS idx_cfav_item ON collection_favorites(item_id);
+ALTER TABLE collection_favorites ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Favoris visibles par propriétaire" ON collection_favorites;
+CREATE POLICY "Favoris visibles par propriétaire" ON collection_favorites FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Créer favori si connecté" ON collection_favorites;
+CREATE POLICY "Créer favori si connecté" ON collection_favorites FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Supprimer favori si propriétaire" ON collection_favorites;
+CREATE POLICY "Supprimer favori si propriétaire" ON collection_favorites FOR DELETE USING (auth.uid() = user_id);
+
+-- Table offres
+CREATE TABLE IF NOT EXISTS collection_offers (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  item_id UUID REFERENCES collection_items(id) ON DELETE CASCADE NOT NULL,
+  buyer_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  seller_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  offer_type TEXT NOT NULL DEFAULT 'price' CHECK (offer_type IN ('price','exchange','both')),
+  offered_price NUMERIC(10,2),
+  offered_item_description TEXT,
+  message TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','refused','cancelled','expired')),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE collection_offers ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Offres visibles par participants" ON collection_offers;
+CREATE POLICY "Offres visibles par participants" ON collection_offers FOR SELECT USING (auth.uid() = buyer_id OR auth.uid() = seller_id);
+DROP POLICY IF EXISTS "Créer offre si connecté" ON collection_offers;
+CREATE POLICY "Créer offre si connecté" ON collection_offers FOR INSERT WITH CHECK (auth.uid() = buyer_id);
+DROP POLICY IF EXISTS "Modifier offre si participant" ON collection_offers;
+CREATE POLICY "Modifier offre si participant" ON collection_offers FOR UPDATE USING (auth.uid() = buyer_id OR auth.uid() = seller_id);
+
+-- Trigger views_count
+CREATE OR REPLACE FUNCTION increment_collection_views(item_uuid UUID) RETURNS void AS $$
+BEGIN UPDATE collection_items SET views_count = COALESCE(views_count,0) + 1 WHERE id = item_uuid; END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger favorites_count sync
+CREATE OR REPLACE FUNCTION sync_collection_favorites_count() RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    UPDATE collection_items SET favorites_count = COALESCE(favorites_count,0) + 1 WHERE id = NEW.item_id;
+  ELSIF TG_OP = 'DELETE' THEN
+    UPDATE collection_items SET favorites_count = GREATEST(COALESCE(favorites_count,1) - 1, 0) WHERE id = OLD.item_id;
+  END IF;
+  RETURN NULL;
+END; $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_sync_cfav_count ON collection_favorites;
+CREATE TRIGGER trg_sync_cfav_count AFTER INSERT OR DELETE ON collection_favorites FOR EACH ROW EXECUTE FUNCTION sync_collection_favorites_count();
+
+NOTIFY pgrst, 'reload schema';
+-- ✅ Collectionneurs v2.0 : 20+ colonnes, 2 nouvelles tables, triggers, RLS`;
+              navigator.clipboard.writeText(sql).then(() => {
+                setCopiedCollectV2(true);
+                setTimeout(() => setCopiedCollectV2(false), 3000);
+              });
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
+              copiedCollectV2 ? 'bg-emerald-500 text-white' : 'bg-amber-600 text-white hover:bg-amber-700'
+            }`}
+          >
+            {copiedCollectV2
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Collectionneurs v2</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950">
+          <p className="text-amber-200 text-xs font-mono">
+            ★ ALTER TABLE idempotent : 20+ nouvelles colonnes (mode, status, rarity, brand, city…)<br/>
+            ★ Tables : collection_favorites, collection_offers avec RLS<br/>
+            ★ Triggers : sync favorites_count automatique, increment_views function<br/>
+            ★ Indexes : mode, status, rarity, city, author+status, moderation_status<br/>
+            ⚠️ Exécuter après la migration principale (collection_items doit exister)
+          </p>
         </div>
       </div>
 

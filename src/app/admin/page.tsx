@@ -112,6 +112,7 @@ function AdminContent() {
           { href: '/admin/contenu', label: 'Contenu', desc: 'Annonces, forum, avis, matériel', icon: '📋' },
           { href: '/admin/moderation', label: 'Modération', desc: 'File de validation des publications', icon: '🛡️', highlight: (stats?.pending_moderation ?? 0) > 0, badge: stats?.pending_moderation },
           { href: '/admin/signalements', label: 'Signalements', desc: 'Modérer le contenu', icon: '🚩' },
+          { href: '/admin/confiance', label: 'Confiance & Réputation', desc: 'Modérer les avis, membres à risque, badges', icon: '🛡️', highlight: false },
           { href: '/admin/migration', label: 'Migration DB', desc: 'Tables thèmes (collectionneurs, promenades, événements)', icon: '🗄️', highlight: false },
           { href: '/admin/securite', label: 'Sécurité & Cloudflare', desc: 'Guide Cloudflare WAF, anti-DDoS, headers', icon: '🛡️', highlight: false },
         ].map(({ href, label, desc, icon, highlight, badge }) => (
