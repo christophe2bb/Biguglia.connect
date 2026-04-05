@@ -2453,6 +2453,176 @@ import { OUTINGS_LIFECYCLE_SQL } from '@/lib/outings';
 // ─── SQL Cycle de vie événements ─────────────────────────────────────────────
 import { EVENT_LIFECYCLE_SQL, EVENT_FIX_SQL } from '@/lib/events';
 
+// ─── SQL Fix rapide : trust_profile_stats + profile_badges ──────────────────
+const TRUST_STATS_FIX_SQL = `-- ============================================================
+-- BIGUGLIA CONNECT — Correctif rapide : trust_profile_stats + profile_badges
+-- À exécuter si ces tables restent "Manquante" après le script Confiance v2.0.
+-- Cause probable : trust_interactions référençait conversations(id) qui n'existait
+-- pas encore → la création de toutes les tables suivantes échouait silencieusement.
+-- ============================================================
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- ── 1. Créer trust_interactions sans FK conversations (si elle manque) ────────
+CREATE TABLE IF NOT EXISTS trust_interactions (
+  id               UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  source_type      TEXT NOT NULL CHECK (source_type IN (
+    'listing','equipment','help_request','lost_found',
+    'association','outing','collection_item','event',
+    'promenade','service_request'
+  )),
+  source_id        UUID NOT NULL,
+  requester_id     UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  receiver_id      UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  interaction_type TEXT NOT NULL CHECK (interaction_type IN (
+    'transaction','material_request','help_match',
+    'participation','contact','service_request'
+  )),
+  status           TEXT NOT NULL DEFAULT 'requested' CHECK (status IN (
+    'requested','pending','accepted','rejected',
+    'in_progress','done','cancelled','disputed'
+  )),
+  review_unlocked          BOOLEAN NOT NULL DEFAULT false,
+  review_requester_done    BOOLEAN NOT NULL DEFAULT false,
+  review_receiver_done     BOOLEAN NOT NULL DEFAULT false,
+  conversation_id  UUID,
+  status_history   JSONB NOT NULL DEFAULT '[]',
+  started_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  accepted_at      TIMESTAMPTZ,
+  completed_at     TIMESTAMPTZ,
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT uq_trust_interaction UNIQUE (source_type, source_id, requester_id)
+);
+
+-- FK optionnelle vers conversations (seulement si la table existe)
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='conversations' AND table_schema='public') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.table_constraints
+      WHERE constraint_name='trust_interactions_conversation_id_fkey'
+    ) THEN
+      ALTER TABLE trust_interactions
+        ADD CONSTRAINT trust_interactions_conversation_id_fkey
+        FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE SET NULL;
+    END IF;
+  END IF;
+EXCEPTION WHEN OTHERS THEN NULL;
+END$$;
+
+CREATE INDEX IF NOT EXISTS idx_ti_requester ON trust_interactions(requester_id);
+CREATE INDEX IF NOT EXISTS idx_ti_receiver  ON trust_interactions(receiver_id);
+CREATE INDEX IF NOT EXISTS idx_ti_source    ON trust_interactions(source_type, source_id);
+CREATE INDEX IF NOT EXISTS idx_ti_status    ON trust_interactions(status);
+
+-- ── 2. Créer reviews (minimal + colonnes) ────────────────────────────────────
+CREATE TABLE IF NOT EXISTS reviews (
+  id         UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE reviews
+  ADD COLUMN IF NOT EXISTS author_id        UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS target_user_id   UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS rating           INT NOT NULL DEFAULT 5,
+  ADD COLUMN IF NOT EXISTS interaction_id   UUID REFERENCES trust_interactions(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS source_type      TEXT,
+  ADD COLUMN IF NOT EXISTS source_id        UUID,
+  ADD COLUMN IF NOT EXISTS dim_communication  INT,
+  ADD COLUMN IF NOT EXISTS dim_reliability    INT,
+  ADD COLUMN IF NOT EXISTS dim_punctuality    INT,
+  ADD COLUMN IF NOT EXISTS dim_quality        INT,
+  ADD COLUMN IF NOT EXISTS comment          TEXT,
+  ADD COLUMN IF NOT EXISTS would_recommend  BOOLEAN,
+  ADD COLUMN IF NOT EXISTS moderation_status TEXT NOT NULL DEFAULT 'visible',
+  ADD COLUMN IF NOT EXISTS moderation_note  TEXT,
+  ADD COLUMN IF NOT EXISTS moderated_by     UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS moderated_at     TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS updated_at       TIMESTAMPTZ NOT NULL DEFAULT now();
+
+DO $$ BEGIN ALTER TABLE reviews ALTER COLUMN rating SET DEFAULT 5; EXCEPTION WHEN OTHERS THEN NULL; END$$;
+UPDATE reviews SET rating = 5 WHERE rating IS NULL;
+DO $$ BEGIN ALTER TABLE reviews ALTER COLUMN moderation_status SET DEFAULT 'visible'; EXCEPTION WHEN OTHERS THEN NULL; END$$;
+UPDATE reviews SET moderation_status = 'visible' WHERE moderation_status IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_reviews_target    ON reviews(target_user_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_author    ON reviews(author_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_modstatus ON reviews(moderation_status);
+
+-- ── 3. trust_profile_stats ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS trust_profile_stats (
+  profile_id             UUID REFERENCES profiles(id) ON DELETE CASCADE PRIMARY KEY,
+  interactions_total     INT NOT NULL DEFAULT 0,
+  interactions_done      INT NOT NULL DEFAULT 0,
+  interactions_cancelled INT NOT NULL DEFAULT 0,
+  interactions_disputed  INT NOT NULL DEFAULT 0,
+  reviews_received       INT NOT NULL DEFAULT 0,
+  avg_rating             NUMERIC(3,2) NOT NULL DEFAULT 0,
+  avg_communication      NUMERIC(3,2),
+  avg_reliability        NUMERIC(3,2),
+  avg_punctuality        NUMERIC(3,2),
+  avg_quality            NUMERIC(3,2),
+  recommend_pct          INT,
+  dist_1 INT NOT NULL DEFAULT 0, dist_2 INT NOT NULL DEFAULT 0,
+  dist_3 INT NOT NULL DEFAULT 0, dist_4 INT NOT NULL DEFAULT 0,
+  dist_5 INT NOT NULL DEFAULT 0,
+  trust_score            INT NOT NULL DEFAULT 0,
+  last_computed_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at             TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ── 4. profile_badges ────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS profile_badges (
+  id           UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  profile_id   UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  badge_code   TEXT NOT NULL CHECK (badge_code IN (
+    'new_member','profile_complete','email_verified','phone_verified',
+    'active_member','fast_responder','reliable_organizer','reliable_vendor',
+    'reliable_helper','reliable_borrower','trusted_member','top_rated',
+    'veteran','admin_validated'
+  )),
+  awarded_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  awarded_by   TEXT NOT NULL DEFAULT 'system' CHECK (awarded_by IN ('system','admin')),
+  UNIQUE(profile_id, badge_code)
+);
+CREATE INDEX IF NOT EXISTS idx_pbadges_profile ON profile_badges(profile_id);
+
+-- ── 5. review_tags ───────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS review_tags (
+  id         UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  review_id  UUID REFERENCES reviews(id) ON DELETE CASCADE NOT NULL,
+  tag        TEXT NOT NULL CHECK (char_length(tag) <= 50),
+  UNIQUE(review_id, tag)
+);
+
+-- ── 6. RLS ───────────────────────────────────────────────────────────────────
+ALTER TABLE trust_interactions  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reviews             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trust_profile_stats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profile_badges      ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "TI lecture participants"    ON trust_interactions;
+DROP POLICY IF EXISTS "TI créer si connecté"       ON trust_interactions;
+DROP POLICY IF EXISTS "TI modifier si participant" ON trust_interactions;
+CREATE POLICY "TI lecture participants"    ON trust_interactions FOR SELECT USING (auth.uid()=requester_id OR auth.uid()=receiver_id OR EXISTS (SELECT 1 FROM profiles WHERE id=auth.uid() AND role IN ('admin','moderator')));
+CREATE POLICY "TI créer si connecté"       ON trust_interactions FOR INSERT WITH CHECK (auth.uid()=requester_id);
+CREATE POLICY "TI modifier si participant" ON trust_interactions FOR UPDATE USING (auth.uid()=requester_id OR auth.uid()=receiver_id);
+
+DROP POLICY IF EXISTS "Avis publics visibles" ON reviews;
+DROP POLICY IF EXISTS "Avis reçus par la cible" ON reviews;
+CREATE POLICY "Avis publics visibles"   ON reviews FOR SELECT USING (moderation_status='visible');
+CREATE POLICY "Avis reçus par la cible" ON reviews FOR SELECT USING (auth.uid()=target_user_id OR auth.uid()=author_id);
+
+DROP POLICY IF EXISTS "Stats publiques" ON trust_profile_stats;
+CREATE POLICY "Stats publiques" ON trust_profile_stats FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Badges publics" ON profile_badges;
+DROP POLICY IF EXISTS "Badges admin"   ON profile_badges;
+CREATE POLICY "Badges publics" ON profile_badges FOR SELECT USING (true);
+CREATE POLICY "Badges admin"   ON profile_badges FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id=auth.uid() AND role='admin'));
+
+NOTIFY pgrst, 'reload schema';
+-- ✅ trust_interactions, reviews, trust_profile_stats, profile_badges créées
+`;
+
 // ─── SQL Confiance & Réputation v2.0 (idempotent) ────────────────────────────
 const TRUST_SQL = `-- ============================================================
 -- BIGUGLIA CONNECT — Système de confiance & réputation unifié v2.0
@@ -2483,7 +2653,7 @@ CREATE TABLE IF NOT EXISTS trust_interactions (
   review_unlocked          BOOLEAN NOT NULL DEFAULT false,
   review_requester_done    BOOLEAN NOT NULL DEFAULT false,
   review_receiver_done     BOOLEAN NOT NULL DEFAULT false,
-  conversation_id  UUID REFERENCES conversations(id) ON DELETE SET NULL,
+  conversation_id  UUID,
   status_history   JSONB NOT NULL DEFAULT '[]',
   started_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   accepted_at      TIMESTAMPTZ,
@@ -2491,6 +2661,21 @@ CREATE TABLE IF NOT EXISTS trust_interactions (
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT uq_trust_interaction UNIQUE (source_type, source_id, requester_id)
 );
+
+-- Ajouter la FK conversation_id → conversations seulement si la table existe
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='conversations' AND table_schema='public') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.table_constraints
+      WHERE constraint_name='trust_interactions_conversation_id_fkey'
+    ) THEN
+      ALTER TABLE trust_interactions
+        ADD CONSTRAINT trust_interactions_conversation_id_fkey
+        FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE SET NULL;
+    END IF;
+  END IF;
+EXCEPTION WHEN OTHERS THEN NULL;
+END$$;
 
 CREATE INDEX IF NOT EXISTS idx_ti_requester  ON trust_interactions(requester_id);
 CREATE INDEX IF NOT EXISTS idx_ti_receiver   ON trust_interactions(receiver_id);
@@ -3482,6 +3667,7 @@ export default function MigrationPage() {
   const [copiedEvents,      setCopiedEvents]      = useState(false);
   const [copiedEventFix,    setCopiedEventFix]    = useState(false);
   const [copiedRoleFix,     setCopiedRoleFix]     = useState(false);
+  const [copiedTrustFix,    setCopiedTrustFix]    = useState(false);
   const [copiedTrust,       setCopiedTrust]       = useState(false);
   const [copiedCollectV2,   setCopiedCollectV2]   = useState(false);
 
@@ -5186,80 +5372,62 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
         </div>
       </div>
 
-      {/* ── Événements BASE SQL (tables events + event_participants) ── */}
-      <div className="bg-gray-900 rounded-2xl overflow-hidden border border-emerald-500/50">
-        <div className="flex items-center justify-between px-5 py-4 bg-emerald-900/30">
+      {/* ══════════════════════════════════════════════════
+          ⭐ SECTION CONFIANCE & RÉPUTATION
+          ══════════════════════════════════════════════════ */}
+      <div className="flex items-center gap-3 pt-2">
+        <div className="flex-1 h-px bg-yellow-500/40" />
+        <span className="text-yellow-400 font-black text-sm tracking-widest uppercase px-2">⭐ Confiance &amp; Réputation</span>
+        <div className="flex-1 h-px bg-yellow-500/40" />
+      </div>
+
+      {/* ── ⚡ ÉTAPE 1 CONFIANCE : Correctif trust_profile_stats + profile_badges ── */}
+      <div className="bg-gray-900 rounded-2xl overflow-hidden border-2 border-yellow-400">
+        <div className="flex items-center justify-between px-5 py-4 bg-yellow-900/40">
           <div>
-            <h3 className="text-white font-bold text-base">🎉 Événements — Tables de base (events + event_participants)</h3>
-            <p className="text-emerald-300 text-xs mt-0.5 font-semibold">
-              Exécutez CE SCRIPT si &quot;Événements locaux&quot; ou &quot;Participants&quot; restent en rouge
+            <div className="inline-flex items-center gap-1.5 bg-yellow-400 text-gray-900 text-xs font-black px-2 py-0.5 rounded-full mb-1.5">
+              ÉTAPE 1 — À EXÉCUTER EN PREMIER
+            </div>
+            <h3 className="text-white font-bold text-base">⚡ Correctif Confiance — trust_profile_stats &amp; profile_badges</h3>
+            <p className="text-yellow-300 text-xs mt-0.5 font-semibold">
+              Si &quot;Stats de confiance&quot; ou &quot;Badges profil&quot; sont rouges dans le diagnostic → exécutez CE script
             </p>
-            <p className="text-emerald-400 text-xs mt-1">
-              Crée events, event_participants, event_status_history — idempotent (sûr à relancer)
+            <p className="text-yellow-200 text-xs font-mono mt-0.5 bg-yellow-900/40 px-2 py-0.5 rounded">
+              Cause : l&apos;ancien script échouait car conversations(id) n&apos;existait pas encore
+            </p>
+            <p className="text-yellow-400 text-xs mt-1">
+              Crée trust_interactions · reviews · trust_profile_stats · profile_badges · Idempotent
             </p>
           </div>
           <button
             onClick={() => {
-              navigator.clipboard.writeText(EVENTS_BASE_SQL).then(() => {
-                setCopiedEventsBase(true);
-                setTimeout(() => setCopiedEventsBase(false), 3000);
+              navigator.clipboard.writeText(TRUST_STATS_FIX_SQL).then(() => {
+                setCopiedTrustFix(true);
+                setTimeout(() => setCopiedTrustFix(false), 3000);
               });
             }}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
-              copiedEventsBase ? 'bg-emerald-500 text-white' : 'bg-emerald-700 text-white hover:bg-emerald-800'
+              copiedTrustFix ? 'bg-emerald-500 text-white' : 'bg-yellow-500 text-gray-900 hover:bg-yellow-400'
             }`}
           >
-            {copiedEventsBase
+            {copiedTrustFix
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
-              : <><Copy className="w-4 h-4" /> Copier SQL Événements Base</>}
+              : <><Copy className="w-4 h-4" /> Copier SQL Correctif Confiance</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
-          <pre className="text-xs text-emerald-300 font-mono leading-relaxed whitespace-pre-wrap">{EVENTS_BASE_SQL}</pre>
+          <pre className="text-xs text-yellow-200 font-mono leading-relaxed whitespace-pre-wrap">{TRUST_STATS_FIX_SQL}</pre>
         </div>
       </div>
 
-      {/* ── Événements FIX SQL (à exécuter EN PREMIER si erreur contrainte) ── */}
-      <div className="bg-gray-900 rounded-2xl overflow-hidden border border-red-500/50">
-        <div className="flex items-center justify-between px-5 py-4 bg-red-900/30">
-          <div>
-            <h3 className="text-white font-bold text-base">🚨 Correctif Événements — Contrainte status</h3>
-            <p className="text-red-300 text-xs mt-0.5 font-semibold">
-              Exécutez CE SCRIPT EN PREMIER si vous obtenez l&apos;erreur :
-            </p>
-            <p className="text-red-200 text-xs font-mono mt-0.5 bg-red-900/40 px-2 py-0.5 rounded">
-              violates check constraint &quot;local_events_status_check&quot;
-            </p>
-            <p className="text-red-400 text-xs mt-1">
-              Supprime l&apos;ancienne contrainte, migre les statuts legacy → français
-            </p>
-          </div>
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(EVENT_FIX_SQL).then(() => {
-                setCopiedEventFix(true);
-                setTimeout(() => setCopiedEventFix(false), 3000);
-              });
-            }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
-              copiedEventFix ? 'bg-emerald-500 text-white' : 'bg-red-700 text-white hover:bg-red-800'
-            }`}
-          >
-            {copiedEventFix
-              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
-              : <><Copy className="w-4 h-4" /> Copier SQL Correctif</>}
-          </button>
-        </div>
-        <div className="p-4 bg-gray-950 overflow-auto max-h-72">
-          <pre className="text-xs text-red-300 font-mono leading-relaxed whitespace-pre-wrap">{EVENT_FIX_SQL}</pre>
-        </div>
-      </div>
-
-      {/* ── Système de confiance & réputation v2.0 SQL ── */}
+      {/* ── ⭐ ÉTAPE 2 CONFIANCE : Script complet Confiance v2.0 ── */}
       <div className="bg-gray-900 rounded-2xl overflow-hidden border border-amber-500/30">
         <div className="flex items-center justify-between px-5 py-4 bg-amber-900/20">
           <div>
-            <h3 className="text-white font-bold text-base">⭐ Confiance & Réputation v2.0</h3>
+            <div className="inline-flex items-center gap-1.5 bg-amber-700 text-amber-200 text-xs font-bold px-2 py-0.5 rounded-full mb-1.5">
+              ÉTAPE 2 — Script complet (optionnel si étape 1 suffit)
+            </div>
+            <h3 className="text-white font-bold text-base">⭐ Confiance &amp; Réputation v2.0 — Script complet</h3>
             <p className="text-amber-300 text-xs mt-0.5">
               trust_interactions · reviews · review_tags · trust_profile_stats · profile_badges
             </p>
@@ -5288,10 +5456,58 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
         </div>
       </div>
 
-      {/* ── Événements lifecycle SQL ── */}
+      {/* ══════════════════════════════════════════════════
+          🎉 SECTION ÉVÉNEMENTS
+          ══════════════════════════════════════════════════ */}
+      <div className="flex items-center gap-3 pt-2">
+        <div className="flex-1 h-px bg-emerald-500/40" />
+        <span className="text-emerald-400 font-black text-sm tracking-widest uppercase px-2">🎉 Événements</span>
+        <div className="flex-1 h-px bg-emerald-500/40" />
+      </div>
+
+      {/* ── 🎉 ÉTAPE 1 ÉVÉNEMENTS : Tables de base ── */}
+      <div className="bg-gray-900 rounded-2xl overflow-hidden border-2 border-emerald-400">
+        <div className="flex items-center justify-between px-5 py-4 bg-emerald-900/40">
+          <div>
+            <div className="inline-flex items-center gap-1.5 bg-emerald-400 text-gray-900 text-xs font-black px-2 py-0.5 rounded-full mb-1.5">
+              ÉTAPE 1 — À EXÉCUTER EN PREMIER
+            </div>
+            <h3 className="text-white font-bold text-base">🎉 Événements — Tables de base (events + event_participants)</h3>
+            <p className="text-emerald-300 text-xs mt-0.5 font-semibold">
+              Si &quot;Événements locaux&quot; ou &quot;Participations&quot; sont rouges → exécutez CE script
+            </p>
+            <p className="text-emerald-400 text-xs mt-1">
+              Crée events, event_participants, event_status_history — idempotent (sûr à relancer)
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(EVENTS_BASE_SQL).then(() => {
+                setCopiedEventsBase(true);
+                setTimeout(() => setCopiedEventsBase(false), 3000);
+              });
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
+              copiedEventsBase ? 'bg-emerald-500 text-white' : 'bg-emerald-500 text-gray-900 hover:bg-emerald-400'
+            }`}
+          >
+            {copiedEventsBase
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Événements Base</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-96">
+          <pre className="text-xs text-emerald-300 font-mono leading-relaxed whitespace-pre-wrap">{EVENTS_BASE_SQL}</pre>
+        </div>
+      </div>
+
+      {/* ── 🎉 ÉTAPE 2 ÉVÉNEMENTS : Cycle de vie ── */}
       <div className="bg-gray-900 rounded-2xl overflow-hidden border border-purple-500/30">
         <div className="flex items-center justify-between px-5 py-4 bg-purple-900/30">
           <div>
+            <div className="inline-flex items-center gap-1.5 bg-purple-700 text-purple-200 text-xs font-bold px-2 py-0.5 rounded-full mb-1.5">
+              ÉTAPE 2 — Script cycle de vie enrichi (optionnel)
+            </div>
             <h3 className="text-white font-bold text-base">🎉 Cycle de vie Événements</h3>
             <p className="text-purple-300 text-xs mt-0.5">
               Statuts français · tables enrichies · historique · triggers · RLS · vue organisateur
@@ -5313,11 +5529,50 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
           >
             {copiedEvents
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
-              : <><Copy className="w-4 h-4" /> Copier SQL Événements</>}
+              : <><Copy className="w-4 h-4" /> Copier SQL Cycle de vie</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
           <pre className="text-xs text-purple-300 font-mono leading-relaxed whitespace-pre-wrap">{EVENT_LIFECYCLE_SQL}</pre>
+        </div>
+      </div>
+
+      {/* ── 🚨 Correctif Événements — Contrainte status (si erreur spécifique) ── */}
+      <div className="bg-gray-900 rounded-2xl overflow-hidden border border-red-500/50">
+        <div className="flex items-center justify-between px-5 py-4 bg-red-900/30">
+          <div>
+            <div className="inline-flex items-center gap-1.5 bg-red-700 text-red-200 text-xs font-bold px-2 py-0.5 rounded-full mb-1.5">
+              CORRECTIF SPÉCIFIQUE — Seulement si l&apos;erreur ci-dessous apparaît
+            </div>
+            <h3 className="text-white font-bold text-base">🚨 Correctif Événements — Contrainte status</h3>
+            <p className="text-red-300 text-xs mt-0.5 font-semibold">
+              Exécutez CE SCRIPT seulement si vous obtenez l&apos;erreur :
+            </p>
+            <p className="text-red-200 text-xs font-mono mt-0.5 bg-red-900/40 px-2 py-0.5 rounded">
+              violates check constraint &quot;local_events_status_check&quot;
+            </p>
+            <p className="text-red-400 text-xs mt-1">
+              Supprime l&apos;ancienne contrainte, migre les statuts legacy → français
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(EVENT_FIX_SQL).then(() => {
+                setCopiedEventFix(true);
+                setTimeout(() => setCopiedEventFix(false), 3000);
+              });
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
+              copiedEventFix ? 'bg-emerald-500 text-white' : 'bg-red-700 text-white hover:bg-red-800'
+            }`}
+          >
+            {copiedEventFix
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Correctif Contrainte</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-72">
+          <pre className="text-xs text-red-300 font-mono leading-relaxed whitespace-pre-wrap">{EVENT_FIX_SQL}</pre>
         </div>
       </div>
 
