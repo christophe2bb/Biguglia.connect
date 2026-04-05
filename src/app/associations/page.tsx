@@ -19,6 +19,7 @@ import {
   Building2, ArrowRight, Eye,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import SectorFilter, { SectorBadge } from '@/components/ui/SectorFilter';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type AssoCategory =
@@ -260,6 +261,9 @@ function AssociationCard({
           <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
             <MapPin className="w-3 h-3 text-gray-400" />{asso.location}
           </span>
+          {(asso as Association & { sector_id?: string }).sector_id && (
+            <SectorBadge sectorId={(asso as Association & { sector_id?: string }).sector_id} size="xs" />
+          )}
           {asso.declared && (
             <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
               <CheckCircle2 className="w-3 h-3" />Déclarée
@@ -575,6 +579,7 @@ const EMPTY_FORM = {
   registration_required: false,
   places_limited: false,
   urgent_need: false,
+  sector_id: '',
 };
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -587,6 +592,7 @@ export default function AssociationsPage() {
   const [loading, setLoading] = useState(true);
   const [filterCat, setFilterCat] = useState<AssoCategory | 'all'>('all');
   const [filterType, setFilterType] = useState<PubType | 'all'>('all');
+  const [filterSector, setFilterSector] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingAsso, setEditingAsso] = useState<Association | null>(null);
@@ -610,6 +616,9 @@ export default function AssociationsPage() {
 
     if (filterCat !== 'all') query = query.eq('category', filterCat);
     if (filterType !== 'all') query = query.eq('pub_type', filterType);
+    if (filterSector) {
+      try { query = query.eq('sector_id', filterSector); } catch { /* colonne optionnelle */ }
+    }
 
     const { data, error } = await query;
     if (error) {
@@ -634,7 +643,7 @@ export default function AssociationsPage() {
 
     setAssos(filtered as Association[]);
     setLoading(false);
-  }, [filterCat, filterType, search]);
+  }, [filterCat, filterType, filterSector, search]);
 
   useEffect(() => { fetchAssos(); }, [fetchAssos]);
 
@@ -694,6 +703,7 @@ export default function AssociationsPage() {
       animals_ok: a.animals_ok, indoor: a.indoor, parking_nearby: a.parking_nearby,
       material_provided: a.material_provided, registration_required: a.registration_required,
       places_limited: a.places_limited, urgent_need: a.urgent_need,
+      sector_id: (a as Association & { sector_id?: string }).sector_id ?? '',
     });
     setPhotos([]); setPreviews([]);
     setShowForm(true); setStep(1);
@@ -751,6 +761,7 @@ export default function AssociationsPage() {
       registration_required: form.registration_required,
       places_limited: form.places_limited,
       urgent_need: form.urgent_need,
+      sector_id: form.sector_id || null,
     };
 
     let assoId: string | null = null;
@@ -894,6 +905,15 @@ export default function AssociationsPage() {
             <input type="text" placeholder="Adresse / lieu principal"
               value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
               className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 mt-5"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Secteur principal <span className="font-normal text-gray-400">(recommandé)</span></label>
+            <SectorFilter
+              value={form.sector_id || null}
+              onChange={id => setForm(f => ({ ...f, sector_id: id || '' }))}
+              allowCitywide
+              compact
             />
           </div>
           <div className="flex justify-between">
@@ -1246,6 +1266,15 @@ export default function AssociationsPage() {
             ))}
           </select>
         </div>
+
+        {/* Filtre secteur */}
+        <SectorFilter
+          value={filterSector}
+          onChange={setFilterSector}
+          compact
+          label="Secteur"
+          className="mb-4"
+        />
 
         {/* Filtre catégories — pills horizontales */}
         <div className="flex gap-2 flex-wrap mb-6">

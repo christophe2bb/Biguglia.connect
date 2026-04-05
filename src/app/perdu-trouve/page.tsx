@@ -18,6 +18,8 @@ import ReportButton from '@/components/ui/ReportButton';
 import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
 import ContactButton from '@/components/ui/ContactButton';
 import { TrustScoreMini } from '@/components/ui/TrustScore';
+import SectorFilter, { SectorBadge } from '@/components/ui/SectorFilter';
+import { SECTORS } from '@/lib/sectors';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LFType = 'perdu' | 'trouve';
@@ -349,6 +351,10 @@ function LostFoundCard({
 
         {/* Badges secondaires */}
         <div className="flex flex-wrap gap-1.5 mb-3">
+          {/* Badge secteur */}
+          {(item as LFItem & { sector_id?: string }).sector_id && (
+            <SectorBadge sectorId={(item as LFItem & { sector_id?: string }).sector_id} size="xs" />
+          )}
           {item.sentimental_value && (
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
               💝 Valeur sentimentale
@@ -658,6 +664,7 @@ const EMPTY_FORM = {
   confirm_true: false,
   confirm_public: false,
   confirm_intermediary: false,
+  sector_id: '',   // secteur obligatoire
 };
 
 // ─── Page principale ──────────────────────────────────────────────────────────
@@ -672,6 +679,9 @@ export default function PerduTrouvePage() {
   const [filterType, setFilterType] = useState<'all' | 'perdu' | 'trouve'>('all');
   const [filterCat, setFilterCat] = useState('all');
   const [filterStatus, setFilterStatus] = useState<LFStatus | 'all'>('all');
+  const [filterSector, setFilterSector] = useState<string | null>(
+    typeof window !== 'undefined' && profile?.home_sector_id ? profile.home_sector_id : null
+  );
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<LFItem | null>(null);
@@ -705,6 +715,10 @@ export default function PerduTrouvePage() {
     if (filterType !== 'all') query = query.eq('type', filterType);
     if (filterCat !== 'all') query = query.eq('category', filterCat);
     if (filterStatus !== 'all') query = query.eq('status', filterStatus);
+    // Filtre secteur (côté DB si la colonne existe, sinon côté client)
+    if (filterSector) {
+      try { query = query.eq('sector_id', filterSector); } catch { /* colonne optionnelle */ }
+    }
 
     const { data, error } = await query;
     if (error) {
@@ -736,7 +750,7 @@ export default function PerduTrouvePage() {
     setItems(filtered as LFItem[]);
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flux, filterType, filterCat, filterStatus, search]);
+  }, [flux, filterType, filterCat, filterStatus, filterSector, search]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
@@ -802,6 +816,7 @@ export default function PerduTrouvePage() {
       need_community_help: item.need_community_help, deposited: !!item.deposited_at,
       deposited_at: item.deposited_at ?? '', proof_required: item.proof_required,
       confirm_true: true, confirm_public: true, confirm_intermediary: true,
+      sector_id: (item as LFItem & { sector_id?: string }).sector_id ?? '',
     });
     setPhotos([]); setPreviews([]);
     setShowForm(true); setStep(1);
@@ -840,6 +855,7 @@ export default function PerduTrouvePage() {
       is_sensitive: form.is_sensitive || isSensitiveCat,
       lost_date: form.lost_date,
       lost_time: form.lost_time || null,
+      sector_id: form.sector_id || null,
       location_area: form.location_area,
       location_detail: form.location_detail.trim() || null,
       contact_name: form.contact_name.trim() || profile.full_name || 'Anonyme',
@@ -1015,8 +1031,30 @@ export default function PerduTrouvePage() {
                 ? '🔐 Décrivez précisément l\'objet et l\'endroit où vous pensez l\'avoir perdu. Gardez un détail secret si vous le souhaitez.'
                 : '🔐 Indiquez où et quand vous l\'avez trouvé, sans révéler d\'informations sensibles permettant une fausse réclamation.'}
             </div>
+            {/* Secteur obligatoire dès l'étape 1 */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-2">
+                📍 Secteur <span className="text-red-500">*</span>
+                <span className="text-gray-400 font-normal ml-1">(où avez-vous perdu/trouvé l&apos;objet ?)</span>
+              </label>
+              <SectorFilter
+                value={form.sector_id || null}
+                onChange={id => setForm(f => ({ ...f, sector_id: id || '' }))}
+                showAll={false}
+                compact={true}
+                required={true}
+                className="w-full"
+              />
+            </div>
+
             <div className="flex justify-end">
-              <button onClick={() => setStep(2)} className={`px-6 py-2.5 rounded-xl font-bold text-white text-sm ${accentOn}`}>Suivant →</button>
+              <button
+                onClick={() => setStep(2)}
+                disabled={!form.sector_id}
+                className={`px-6 py-2.5 rounded-xl font-bold text-white text-sm transition-opacity ${accentOn} disabled:opacity-40 disabled:cursor-not-allowed`}
+              >
+                Suivant →
+              </button>
             </div>
           </div>
         )}
@@ -1418,6 +1456,16 @@ export default function PerduTrouvePage() {
             )}
           </button>
         </div>
+
+        {/* ── Filtre secteur (obligatoire — affichage, pas blocage) ── */}
+        <SectorFilter
+          value={filterSector}
+          onChange={setFilterSector}
+          showAll={true}
+          compact={true}
+          label="Secteur"
+          className="mb-4"
+        />
 
         {/* ── Filtres ── */}
         <div className="flex flex-wrap gap-3 mb-6">

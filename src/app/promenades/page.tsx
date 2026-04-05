@@ -17,6 +17,7 @@ import RatingWidget from '@/components/ui/RatingWidget';
 import { PhotoViewer } from '@/components/ui/PhotoViewer';
 import ContactButton from '@/components/ui/ContactButton';
 import StatusBadge from '@/components/ui/StatusBadge';
+import SectorFilter, { SectorBadge } from '@/components/ui/SectorFilter';
 import toast from 'react-hot-toast';
 import { legacyToFrenchStatus, computeDisplayStatus, OUTING_STATUS_CONFIG } from '@/lib/outings';
 
@@ -522,6 +523,7 @@ export default function PromenadePage() {
     }
   }, []);
   const [filter, setFilter] = useState<string>('all');
+  const [filterSector, setFilterSector] = useState<string | null>(null);
   const [dbReady, setDbReady] = useState(true);
 
   // Promenades state
@@ -942,8 +944,10 @@ export default function PromenadePage() {
     fetchOutings();
   };
 
-  const filteredPromenades = promenades;
-  const totalCount = promenades.length;
+  const filteredPromenades = filterSector
+    ? promenades.filter(p => (p as Promenade & { sector_id?: string }).sector_id === filterSector)
+    : promenades;
+  const totalCount = filteredPromenades.length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-white">
@@ -1000,6 +1004,17 @@ export default function PromenadePage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        {/* ── Filtre secteur (recommandé) ── */}
+        <SectorFilter
+          value={filterSector}
+          onChange={setFilterSector}
+          showAll={true}
+          compact={true}
+          label="Secteur"
+          className="mb-6"
+        />
+
         {/* ── ONGLETS ── */}
         <div className="flex gap-2 mb-8 bg-white rounded-2xl border border-gray-100 p-1.5 w-fit shadow-sm">
           {[

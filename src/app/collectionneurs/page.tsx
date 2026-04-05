@@ -25,6 +25,7 @@ import toast from 'react-hot-toast';
 import ReportButton from '@/components/ui/ReportButton';
 import ContactButton from '@/components/ui/ContactButton';
 import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
+import SectorFilter, { SectorBadge } from '@/components/ui/SectorFilter';
 import {
   MODE_CONFIG, STATUS_CONFIG, RARITY_CONFIG, CONDITION_CONFIG,
   type CollectionMode, type CollectionStatus, type RarityLevel, type ConditionLevel,
@@ -168,6 +169,9 @@ function ItemCard({
                   <span className={condCfg.color}>{condCfg.label}</span>
                   {item.city && <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3" />{item.city}</span>}
                   {item.shipping_available && <span className="flex items-center gap-0.5 text-blue-500"><Truck className="w-3 h-3" />Expédition</span>}
+                  {(item as CollectionItem & { sector_id?: string }).sector_id && (
+                    <SectorBadge sectorId={(item as CollectionItem & { sector_id?: string }).sector_id} size="xs" />
+                  )}
                 </div>
               </div>
               <div className="text-right flex-shrink-0">
@@ -433,6 +437,7 @@ export default function CollectionneursPage() {
   const [priceMin,       setPriceMin]       = useState('');
   const [priceMax,       setPriceMax]       = useState('');
   const [sortBy,         setSortBy]         = useState<'recent' | 'price_asc' | 'price_desc' | 'views' | 'featured'>('featured');
+  const [filterSector,   setFilterSector]   = useState<string | null>(null);
   const [showFilters,    setShowFilters]    = useState(false);
   const [page,           setPage]           = useState(0);
   const PAGE_SIZE = 24;
@@ -512,6 +517,11 @@ export default function CollectionneursPage() {
 
       // Filtre rareté
       if (selectedRarity !== 'all') query = query.eq('rarity_level', selectedRarity);
+
+      // Filtre secteur
+      if (filterSector) {
+        try { query = query.eq('sector_id', filterSector); } catch { /* colonne optionnelle */ }
+      }
 
       // Filtres transaction
       if (shippingOnly) query = query.eq('shipping_available', true);
@@ -605,13 +615,13 @@ export default function CollectionneursPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedStatus, selectedMode, selectedCat, selectedCond, selectedRarity, shippingOnly, localOnly, priceMin, priceMax, search, sortBy, page, favorites]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedStatus, selectedMode, selectedCat, selectedCond, selectedRarity, shippingOnly, localOnly, priceMin, priceMax, search, sortBy, page, favorites, filterSector]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setItems([]);  // Clear items immediately when filter changes to avoid stale display
     setPage(0);
     fetchItems(true);
-  }, [selectedStatus, selectedMode, selectedCat, selectedCond, selectedRarity, shippingOnly, localOnly, priceMin, priceMax, sortBy]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedStatus, selectedMode, selectedCat, selectedCond, selectedRarity, shippingOnly, localOnly, priceMin, priceMax, sortBy, filterSector]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounce search
   useEffect(() => {
@@ -647,7 +657,7 @@ export default function CollectionneursPage() {
   const resetFilters = () => {
     setSelectedMode('all'); setSelectedCond('all'); setSelectedRarity('all');
     setShippingOnly(false); setLocalOnly(false); setPriceMin(''); setPriceMax('');
-    setSearch(''); setSelectedCat('all'); setSelectedStatus('actif');
+    setSearch(''); setSelectedCat('all'); setSelectedStatus('actif'); setFilterSector(null);
   };
 
   // ── Fetch forum ──────────────────────────────────────────────────────────────
@@ -1117,6 +1127,18 @@ export default function CollectionneursPage() {
           </div>
         </div>
       )}
+
+      {/* ── Filtre secteur ─────────────────────────────────────────────────── */}
+      <div className="border-b border-gray-100 bg-white">
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          <SectorFilter
+            value={filterSector}
+            onChange={setFilterSector}
+            compact
+            label="Secteur"
+          />
+        </div>
+      </div>
 
       <div className="max-w-6xl mx-auto px-4 py-6">
         <div className="flex gap-6">

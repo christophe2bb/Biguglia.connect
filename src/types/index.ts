@@ -13,6 +13,8 @@ export interface Profile {
   updated_at: string;
   legal_consent: boolean;
   legal_consent_at?: string;
+  // ── Couche territoriale transversale ──────────────────────────────────────
+  home_sector_id?: string | null;  // secteur de résidence/référence de l'utilisateur
 }
 
 export type ArtisanType = 'professionnel' | 'particulier';
@@ -154,6 +156,7 @@ export interface Listing {
   price?: number;
   condition?: 'neuf' | 'tres_bon' | 'bon' | 'usage';
   location: string;
+  sector_id?: string | null;        // couche territoriale (recommandé)
   status: 'active' | 'sold' | 'archived';
   views?: number;
   created_at: string;
@@ -190,6 +193,7 @@ export interface EquipmentItem {
   daily_rate?: number;
   pickup_location: string;
   location_area?: string;
+  sector_id?: string | null;        // couche territoriale (recommandé)
   rules?: string;
   availability_notes?: string;
   is_available: boolean;
@@ -233,6 +237,7 @@ export interface GroupOuting {
   id: string;
   organizer_id: string;
   promenade_id?: string | null;
+  sector_id?: string | null;        // couche territoriale (recommandé)
   title: string;
   description: string | null;
   outing_date: string;
@@ -491,6 +496,8 @@ export interface Event {
   subtitle: string;
   description: string;
   category: string;
+  sector_id?: string | null;        // couche territoriale (facultatif / multi possible)
+  is_citywide?: boolean;            // true = concerne toute la ville
   event_date: string;
   event_end_date?: string | null;
   start_time: string;
@@ -580,4 +587,114 @@ export interface EventDateHistory {
   reason: string | null;
   created_at: string;
   changed_by_profile?: { full_name: string; avatar_url?: string | null } | null;
+}
+
+// ── Couche territoriale transversale ─────────────────────────────────────────
+
+/** Secteur de Biguglia — miroir du type Sector de lib/sectors.ts */
+export interface Sector {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string;
+  color: string;
+  display_order: number;
+  description?: string;
+  is_active?: boolean;
+}
+
+// ── Module Perdu/Trouvé ───────────────────────────────────────────────────────
+export interface LostFoundItem {
+  id: string;
+  author_id: string;
+  type: 'perdu' | 'trouve';
+  status: 'active' | 'resolved' | 'draft';
+  title: string;
+  category: string;
+  description: string;
+  sector_id: string;              // obligatoire
+  location_area?: string;
+  location_detail?: string;
+  lost_date: string;
+  created_at: string;
+  updated_at: string;
+  author?: { id: string; full_name: string; avatar_url?: string | null };
+  photos?: { url: string; display_order: number }[];
+}
+
+// ── Module Coups de main ──────────────────────────────────────────────────────
+export interface HelpRequest {
+  id: string;
+  author_id: string;
+  help_type: 'demande' | 'offre' | 'echange';
+  status: 'active' | 'paused' | 'resolved' | 'draft';
+  title: string;
+  category: string;
+  description: string;
+  sector_id: string;              // obligatoire
+  urgency: 'flexible' | 'cette_semaine' | 'rapidement' | 'urgent';
+  location_area?: string;
+  created_at: string;
+  updated_at: string;
+  author?: { id: string; full_name: string; avatar_url?: string | null };
+}
+
+// ── Module Promenades ─────────────────────────────────────────────────────────
+export interface Promenade {
+  id: string;
+  author_id: string;
+  title: string;
+  description: string;
+  distance_km?: number;
+  duration_min?: number;
+  difficulty: 'facile' | 'moyen' | 'difficile';
+  type: 'balade' | 'randonnee' | 'velo' | 'plage' | 'nature';
+  tags: string[];
+  start_point?: string;
+  sector_id?: string | null;      // fortement recommandé
+  status: 'active' | 'archived';
+  views: number;
+  created_at: string;
+  updated_at: string;
+  author?: { id: string; full_name: string; avatar_url?: string | null };
+  photos?: { url: string; display_order: number }[];
+  likes_count?: number;
+}
+
+// ── Module Associations ───────────────────────────────────────────────────────
+export interface Association {
+  id: string;
+  author_id: string;
+  name: string;
+  category: string;
+  description_short: string;
+  description_full?: string;
+  location: string;
+  sector_id?: string | null;      // fortement recommandé
+  is_citywide?: boolean;
+  status: 'active' | 'inactive' | 'draft';
+  created_at: string;
+  updated_at: string;
+  author?: { id: string; full_name: string; avatar_url?: string | null };
+  photos?: { url: string; display_order: number }[];
+}
+
+// ── Module Collectionneurs ────────────────────────────────────────────────────
+export interface CollectionItem {
+  id: string;
+  author_id: string;
+  category_id?: string;
+  title: string;
+  description: string;
+  item_type: 'vente' | 'troc' | 'don' | 'recherche';
+  price?: number;
+  condition: 'neuf' | 'excellent' | 'bon' | 'passable';
+  tags: string[];
+  sector_id?: string | null;      // fortement recommandé
+  status: 'active' | 'sold' | 'archived';
+  views: number;
+  created_at: string;
+  updated_at: string;
+  author?: { id: string; full_name: string; avatar_url?: string | null };
+  photos?: { url: string; display_order: number }[];
 }
