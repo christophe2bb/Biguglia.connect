@@ -20,6 +20,7 @@ import Textarea from '@/components/ui/Textarea';
 import EmptyState from '@/components/ui/EmptyState';
 import { formatRelative } from '@/lib/utils';
 import ReportButton from '@/components/ui/ReportButton';
+import ContactButton from '@/components/ui/ContactButton';
 
 // ─── Secteurs couleurs ────────────────────────────────────────────────────────
 const SECTOR_COLORS: Record<string, string> = {
@@ -886,7 +887,20 @@ export default function ForumTopicPage() {
               {copied ? 'Copié !' : 'Partager'}
             </button>
             {profile && profile.id !== topic.author_id && (
-              <ReportButton targetType="post" targetId={topic.id} targetTitle={topic.title} variant="icon" />
+              <>
+                <ContactButton
+                  sourceType="general"
+                  sourceId={topic.id}
+                  sourceTitle={topic.title}
+                  ownerId={topic.author_id}
+                  userId={profile.id}
+                  ctaLabel="Message privé"
+                  prefillMsg={`Bonjour, je vous contacte suite à votre sujet « ${topic.title} ».`}
+                  size="sm"
+                  variant="ghost"
+                />
+                <ReportButton targetType="post" targetId={topic.id} targetTitle={topic.title} variant="icon" />
+              </>
             )}
           </div>
         </div>
