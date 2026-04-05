@@ -3693,13 +3693,16 @@ export default function MigrationPage() {
       const namesToTry = [t.name, ...(t.aliases ?? [])];
       let exists = false;
       for (const name of namesToTry) {
-        const { error } = await supabase.from(name).select('id').limit(1);
+        // Utiliser count plutôt que select('id') — certaines tables n'ont pas de colonne 'id'
+        // (ex: trust_profile_stats dont la PK est profile_id)
+        const { error } = await supabase.from(name).select('*', { count: 'exact', head: true });
         const missing = !!error && (
           error.code === '42P01' ||
+          error.code === 'PGRST116' ||
           error.code === 'PGRST205' ||
           (error.message ?? '').includes('schema cache') ||
-          (error.message ?? '').includes('Could not find') ||
-          (error.message ?? '').includes('does not exist')
+          (error.message ?? '').includes('Could not find relation') ||
+          (error.message ?? '').includes('relation') && (error.message ?? '').includes('does not exist')
         );
         if (!missing) { exists = true; break; }
       }
