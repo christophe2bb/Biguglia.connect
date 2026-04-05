@@ -2495,36 +2495,70 @@ CREATE INDEX IF NOT EXISTS idx_ti_source     ON trust_interactions(source_type, 
 CREATE INDEX IF NOT EXISTS idx_ti_status     ON trust_interactions(status);
 CREATE INDEX IF NOT EXISTS idx_ti_review     ON trust_interactions(review_unlocked) WHERE review_unlocked = true;
 
--- ─── 2. reviews (idempotent : CREATE minimal + ALTER colonnes manquantes) ─────
+-- ─── 2. reviews (idempotent : CREATE minimal + ALTER TOUTES colonnes) ──────────
+-- Stratégie robuste :
+--   a) CREATE TABLE IF NOT EXISTS avec seulement id + created_at (colonnes sûres)
+--   b) ALTER TABLE ADD COLUMN IF NOT EXISTS pour CHAQUE colonne (y compris author_id)
+--   c) Contraintes CHECK via DO blocks APRÈS que toutes les colonnes existent
+
 CREATE TABLE IF NOT EXISTS reviews (
   id         UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  rating     INT NOT NULL DEFAULT 5 CHECK (rating >= 1 AND rating <= 5),
-  author_id  UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Ajout de TOUTES les colonnes de manière idempotente (ADD COLUMN IF NOT EXISTS)
+-- Ordre important : author_id et target_user_id avant les contraintes qui les référencent
 ALTER TABLE reviews
+  ADD COLUMN IF NOT EXISTS author_id        UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS target_user_id   UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS rating           INT NOT NULL DEFAULT 5,
   ADD COLUMN IF NOT EXISTS interaction_id   UUID REFERENCES trust_interactions(id) ON DELETE CASCADE,
   ADD COLUMN IF NOT EXISTS source_type      TEXT,
   ADD COLUMN IF NOT EXISTS source_id        UUID,
-  ADD COLUMN IF NOT EXISTS target_user_id   UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  ADD COLUMN IF NOT EXISTS dim_communication  INT CHECK (dim_communication  BETWEEN 1 AND 5),
-  ADD COLUMN IF NOT EXISTS dim_reliability    INT CHECK (dim_reliability    BETWEEN 1 AND 5),
-  ADD COLUMN IF NOT EXISTS dim_punctuality    INT CHECK (dim_punctuality    BETWEEN 1 AND 5),
-  ADD COLUMN IF NOT EXISTS dim_quality        INT CHECK (dim_quality        BETWEEN 1 AND 5),
+  ADD COLUMN IF NOT EXISTS dim_communication  INT,
+  ADD COLUMN IF NOT EXISTS dim_reliability    INT,
+  ADD COLUMN IF NOT EXISTS dim_punctuality    INT,
+  ADD COLUMN IF NOT EXISTS dim_quality        INT,
   ADD COLUMN IF NOT EXISTS comment          TEXT,
   ADD COLUMN IF NOT EXISTS would_recommend  BOOLEAN,
   ADD COLUMN IF NOT EXISTS moderation_status TEXT NOT NULL DEFAULT 'visible',
   ADD COLUMN IF NOT EXISTS moderation_note  TEXT,
   ADD COLUMN IF NOT EXISTS moderated_by     UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  ADD COLUMN IF NOT EXISTS moderated_at     TIMESTAMPTZ;
+  ADD COLUMN IF NOT EXISTS moderated_at     TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS updated_at       TIMESTAMPTZ NOT NULL DEFAULT now();
+
+-- Contraintes CHECK via DO blocks (ignorées si elles existent déjà)
+DO $$ BEGIN
+  ALTER TABLE reviews ADD CONSTRAINT reviews_rating_check
+    CHECK (rating >= 1 AND rating <= 5);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE reviews ADD CONSTRAINT reviews_dim_comm_check
+    CHECK (dim_communication BETWEEN 1 AND 5);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE reviews ADD CONSTRAINT reviews_dim_rel_check
+    CHECK (dim_reliability BETWEEN 1 AND 5);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE reviews ADD CONSTRAINT reviews_dim_punc_check
+    CHECK (dim_punctuality BETWEEN 1 AND 5);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE reviews ADD CONSTRAINT reviews_dim_qual_check
+    CHECK (dim_quality BETWEEN 1 AND 5);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
   ALTER TABLE reviews ADD CONSTRAINT reviews_modstatus_check
     CHECK (moderation_status IN ('visible','reported','hidden','deleted'));
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+-- Ces deux contraintes nécessitent que author_id ET target_user_id existent (garantis ci-dessus)
 DO $$ BEGIN
   ALTER TABLE reviews ADD CONSTRAINT no_self_review
     CHECK (author_id <> target_user_id);
