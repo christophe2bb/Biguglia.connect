@@ -1674,9 +1674,16 @@ SELECT policyname, cmd FROM pg_policies WHERE schemaname = 'storage' AND tablena
 
 // ─── Tables à vérifier via REST direct ───────────────────────────────────────
 const TABLES_TO_CHECK = [
-  { name: 'collection_categories', label: 'Catégories collections',  theme: '🏆 Collectionneurs' },
-  { name: 'collection_items',      label: 'Annonces collections',    theme: '🏆 Collectionneurs' },
-  { name: 'promenades',            label: 'Promenades',              theme: '🌿 Promenades' },
+  { name: 'collection_categories',  label: 'Catégories collections',    theme: '🏆 Collectionneurs' },
+  { name: 'collection_items',       label: 'Annonces collections',      theme: '🏆 Collectionneurs' },
+  { name: 'collection_item_photos', label: 'Photos collections',        theme: '🏆 Collectionneurs' },
+  { name: 'collection_favorites',   label: 'Favoris collections',       theme: '🏆 Collectionneurs' },
+  { name: 'collection_offers',      label: 'Offres collections',        theme: '🏆 Collectionneurs' },
+  { name: 'trust_interactions',     label: 'Interactions (confiance)',  theme: '⭐ Confiance' },
+  { name: 'reviews',                label: 'Avis & notes',              theme: '⭐ Confiance' },
+  { name: 'trust_profile_stats',    label: 'Stats de confiance',        theme: '⭐ Confiance' },
+  { name: 'profile_badges',         label: 'Badges profil',             theme: '⭐ Confiance' },
+  { name: 'promenades',             label: 'Promenades',                theme: '🌿 Promenades' },
   { name: 'group_outings',         label: 'Sorties groupées',        theme: '🌿 Promenades' },
   { name: 'outing_comments',       label: 'Commentaires sorties',    theme: '🌿 Promenades' },
   { name: 'outing_photos',         label: 'Photos sorties',          theme: '🌿 Promenades' },
@@ -2442,6 +2449,422 @@ import { EQUIPMENT_LIFECYCLE_SQL } from '@/lib/equipment';
 import { OUTINGS_LIFECYCLE_SQL } from '@/lib/outings';
 // ─── SQL Cycle de vie événements ─────────────────────────────────────────────
 import { EVENT_LIFECYCLE_SQL, EVENT_FIX_SQL } from '@/lib/events';
+
+// ─── SQL Confiance & Réputation v2.0 (idempotent) ────────────────────────────
+const TRUST_SQL = `-- ============================================================
+-- BIGUGLIA CONNECT — Système de confiance & réputation unifié v2.0
+-- IDEMPOTENT — coller dans Supabase > SQL Editor > New query > Run
+-- ============================================================
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- ─── 1. trust_interactions ────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS trust_interactions (
+  id               UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  source_type      TEXT NOT NULL CHECK (source_type IN (
+    'listing','equipment','help_request','lost_found',
+    'association','outing','collection_item','event',
+    'promenade','service_request'
+  )),
+  source_id        UUID NOT NULL,
+  requester_id     UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  receiver_id      UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  interaction_type TEXT NOT NULL CHECK (interaction_type IN (
+    'transaction','material_request','help_match',
+    'participation','contact','service_request'
+  )),
+  status           TEXT NOT NULL DEFAULT 'requested' CHECK (status IN (
+    'requested','pending','accepted','rejected',
+    'in_progress','done','cancelled','disputed'
+  )),
+  review_unlocked          BOOLEAN NOT NULL DEFAULT false,
+  review_requester_done    BOOLEAN NOT NULL DEFAULT false,
+  review_receiver_done     BOOLEAN NOT NULL DEFAULT false,
+  conversation_id  UUID REFERENCES conversations(id) ON DELETE SET NULL,
+  status_history   JSONB NOT NULL DEFAULT '[]',
+  started_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  accepted_at      TIMESTAMPTZ,
+  completed_at     TIMESTAMPTZ,
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT uq_trust_interaction UNIQUE (source_type, source_id, requester_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ti_requester  ON trust_interactions(requester_id);
+CREATE INDEX IF NOT EXISTS idx_ti_receiver   ON trust_interactions(receiver_id);
+CREATE INDEX IF NOT EXISTS idx_ti_source     ON trust_interactions(source_type, source_id);
+CREATE INDEX IF NOT EXISTS idx_ti_status     ON trust_interactions(status);
+CREATE INDEX IF NOT EXISTS idx_ti_review     ON trust_interactions(review_unlocked) WHERE review_unlocked = true;
+
+-- ─── 2. reviews (idempotent : CREATE minimal + ALTER colonnes manquantes) ─────
+CREATE TABLE IF NOT EXISTS reviews (
+  id         UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  rating     INT NOT NULL DEFAULT 5 CHECK (rating >= 1 AND rating <= 5),
+  author_id  UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE reviews
+  ADD COLUMN IF NOT EXISTS interaction_id   UUID REFERENCES trust_interactions(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS source_type      TEXT,
+  ADD COLUMN IF NOT EXISTS source_id        UUID,
+  ADD COLUMN IF NOT EXISTS target_user_id   UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS dim_communication  INT CHECK (dim_communication  BETWEEN 1 AND 5),
+  ADD COLUMN IF NOT EXISTS dim_reliability    INT CHECK (dim_reliability    BETWEEN 1 AND 5),
+  ADD COLUMN IF NOT EXISTS dim_punctuality    INT CHECK (dim_punctuality    BETWEEN 1 AND 5),
+  ADD COLUMN IF NOT EXISTS dim_quality        INT CHECK (dim_quality        BETWEEN 1 AND 5),
+  ADD COLUMN IF NOT EXISTS comment          TEXT,
+  ADD COLUMN IF NOT EXISTS would_recommend  BOOLEAN,
+  ADD COLUMN IF NOT EXISTS moderation_status TEXT NOT NULL DEFAULT 'visible',
+  ADD COLUMN IF NOT EXISTS moderation_note  TEXT,
+  ADD COLUMN IF NOT EXISTS moderated_by     UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS moderated_at     TIMESTAMPTZ;
+
+DO $$ BEGIN
+  ALTER TABLE reviews ADD CONSTRAINT reviews_modstatus_check
+    CHECK (moderation_status IN ('visible','reported','hidden','deleted'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE reviews ADD CONSTRAINT no_self_review
+    CHECK (author_id <> target_user_id);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE reviews ADD CONSTRAINT uq_review_per_interaction
+    UNIQUE (interaction_id, author_id);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+CREATE INDEX IF NOT EXISTS idx_reviews_target    ON reviews(target_user_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_author    ON reviews(author_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_source    ON reviews(source_type, source_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_modstatus ON reviews(moderation_status);
+
+-- ─── 3. review_tags ──────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS review_tags (
+  id         UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  review_id  UUID REFERENCES reviews(id) ON DELETE CASCADE NOT NULL,
+  tag        TEXT NOT NULL CHECK (char_length(tag) <= 50),
+  UNIQUE(review_id, tag)
+);
+CREATE INDEX IF NOT EXISTS idx_rtags_review ON review_tags(review_id);
+
+-- ─── 4. trust_profile_stats ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS trust_profile_stats (
+  profile_id             UUID REFERENCES profiles(id) ON DELETE CASCADE PRIMARY KEY,
+  interactions_total     INT NOT NULL DEFAULT 0,
+  interactions_done      INT NOT NULL DEFAULT 0,
+  interactions_cancelled INT NOT NULL DEFAULT 0,
+  interactions_disputed  INT NOT NULL DEFAULT 0,
+  reviews_received       INT NOT NULL DEFAULT 0,
+  avg_rating             NUMERIC(3,2) NOT NULL DEFAULT 0,
+  avg_communication      NUMERIC(3,2),
+  avg_reliability        NUMERIC(3,2),
+  avg_punctuality        NUMERIC(3,2),
+  avg_quality            NUMERIC(3,2),
+  recommend_pct          INT,
+  dist_1 INT NOT NULL DEFAULT 0, dist_2 INT NOT NULL DEFAULT 0,
+  dist_3 INT NOT NULL DEFAULT 0, dist_4 INT NOT NULL DEFAULT 0,
+  dist_5 INT NOT NULL DEFAULT 0,
+  trust_score            INT NOT NULL DEFAULT 0,
+  last_computed_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at             TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ─── 5. profile_badges ────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS profile_badges (
+  id           UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  profile_id   UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  badge_code   TEXT NOT NULL CHECK (badge_code IN (
+    'new_member','profile_complete','email_verified','phone_verified',
+    'active_member','fast_responder','reliable_organizer','reliable_vendor',
+    'reliable_helper','reliable_borrower','trusted_member','top_rated',
+    'veteran','admin_validated'
+  )),
+  awarded_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  awarded_by   TEXT NOT NULL DEFAULT 'system' CHECK (awarded_by IN ('system','admin')),
+  UNIQUE(profile_id, badge_code)
+);
+CREATE INDEX IF NOT EXISTS idx_pbadges_profile ON profile_badges(profile_id);
+
+-- ─── 6. Triggers ─────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION update_trust_updated_at()
+RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = now(); RETURN NEW; END; $$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_ti_updated_at  ON trust_interactions;
+CREATE TRIGGER trg_ti_updated_at  BEFORE UPDATE ON trust_interactions  FOR EACH ROW EXECUTE FUNCTION update_trust_updated_at();
+DROP TRIGGER IF EXISTS trg_reviews_updated_at ON reviews;
+CREATE TRIGGER trg_reviews_updated_at BEFORE UPDATE ON reviews FOR EACH ROW EXECUTE FUNCTION update_trust_updated_at();
+DROP TRIGGER IF EXISTS trg_tps_updated_at ON trust_profile_stats;
+CREATE TRIGGER trg_tps_updated_at BEFORE UPDATE ON trust_profile_stats FOR EACH ROW EXECUTE FUNCTION update_trust_updated_at();
+
+CREATE OR REPLACE FUNCTION unlock_review_on_done()
+RETURNS TRIGGER AS $$ BEGIN
+  IF NEW.status = 'done' AND OLD.status <> 'done' THEN
+    NEW.review_unlocked := true;
+    NEW.completed_at    := COALESCE(NEW.completed_at, now());
+  END IF;
+  RETURN NEW;
+END; $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_unlock_review ON trust_interactions;
+CREATE TRIGGER trg_unlock_review BEFORE UPDATE ON trust_interactions FOR EACH ROW EXECUTE FUNCTION unlock_review_on_done();
+
+CREATE OR REPLACE FUNCTION recalc_trust_stats()
+RETURNS TRIGGER AS $$
+DECLARE v_profile_id UUID;
+BEGIN
+  IF TG_OP = 'DELETE' THEN v_profile_id := OLD.target_user_id;
+  ELSE v_profile_id := NEW.target_user_id; END IF;
+  INSERT INTO trust_profile_stats (
+    profile_id, reviews_received, avg_rating,
+    avg_communication, avg_reliability, avg_punctuality, avg_quality,
+    recommend_pct, dist_1, dist_2, dist_3, dist_4, dist_5, trust_score, last_computed_at
+  )
+  SELECT v_profile_id, COUNT(*), ROUND(AVG(rating)::NUMERIC,2),
+    ROUND(AVG(dim_communication)::NUMERIC,2), ROUND(AVG(dim_reliability)::NUMERIC,2),
+    ROUND(AVG(dim_punctuality)::NUMERIC,2),   ROUND(AVG(dim_quality)::NUMERIC,2),
+    CASE WHEN COUNT(*)>0 THEN ROUND(100.0*SUM(CASE WHEN would_recommend THEN 1 ELSE 0 END)/COUNT(*))::INT ELSE NULL END,
+    SUM(CASE WHEN rating=1 THEN 1 ELSE 0 END), SUM(CASE WHEN rating=2 THEN 1 ELSE 0 END),
+    SUM(CASE WHEN rating=3 THEN 1 ELSE 0 END), SUM(CASE WHEN rating=4 THEN 1 ELSE 0 END),
+    SUM(CASE WHEN rating=5 THEN 1 ELSE 0 END),
+    LEAST(100, 20 + LEAST(30, COUNT(*)*3) + CASE WHEN AVG(rating)>=4.5 THEN 30 WHEN AVG(rating)>=4.0 THEN 20 WHEN AVG(rating)>=3.0 THEN 10 ELSE 0 END)::INT,
+    now()
+  FROM reviews WHERE target_user_id = v_profile_id AND moderation_status = 'visible'
+  ON CONFLICT (profile_id) DO UPDATE SET
+    reviews_received=EXCLUDED.reviews_received, avg_rating=EXCLUDED.avg_rating,
+    avg_communication=EXCLUDED.avg_communication, avg_reliability=EXCLUDED.avg_reliability,
+    avg_punctuality=EXCLUDED.avg_punctuality, avg_quality=EXCLUDED.avg_quality,
+    recommend_pct=EXCLUDED.recommend_pct,
+    dist_1=EXCLUDED.dist_1, dist_2=EXCLUDED.dist_2, dist_3=EXCLUDED.dist_3,
+    dist_4=EXCLUDED.dist_4, dist_5=EXCLUDED.dist_5,
+    trust_score=EXCLUDED.trust_score, last_computed_at=EXCLUDED.last_computed_at, updated_at=now();
+  RETURN COALESCE(NEW, OLD);
+END; $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_recalc_trust ON reviews;
+CREATE TRIGGER trg_recalc_trust AFTER INSERT OR UPDATE OR DELETE ON reviews FOR EACH ROW EXECUTE FUNCTION recalc_trust_stats();
+
+-- ─── 7. RLS ───────────────────────────────────────────────────────────────────
+ALTER TABLE trust_interactions  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reviews             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE review_tags         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trust_profile_stats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profile_badges      ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "TI lecture participants"    ON trust_interactions;
+DROP POLICY IF EXISTS "TI créer si connecté"       ON trust_interactions;
+DROP POLICY IF EXISTS "TI modifier si participant" ON trust_interactions;
+DROP POLICY IF EXISTS "TI admin tout"              ON trust_interactions;
+CREATE POLICY "TI lecture participants"    ON trust_interactions FOR SELECT USING (auth.uid()=requester_id OR auth.uid()=receiver_id OR EXISTS (SELECT 1 FROM profiles WHERE id=auth.uid() AND role IN ('admin','moderator')));
+CREATE POLICY "TI créer si connecté"       ON trust_interactions FOR INSERT WITH CHECK (auth.uid()=requester_id);
+CREATE POLICY "TI modifier si participant" ON trust_interactions FOR UPDATE USING (auth.uid()=requester_id OR auth.uid()=receiver_id OR EXISTS (SELECT 1 FROM profiles WHERE id=auth.uid() AND role='admin'));
+CREATE POLICY "TI admin tout"              ON trust_interactions FOR DELETE USING (EXISTS (SELECT 1 FROM profiles WHERE id=auth.uid() AND role='admin'));
+
+DROP POLICY IF EXISTS "Avis publics visibles"     ON reviews;
+DROP POLICY IF EXISTS "Avis reçus par la cible"   ON reviews;
+DROP POLICY IF EXISTS "Créer avis si interaction" ON reviews;
+DROP POLICY IF EXISTS "Modérer avis admin"         ON reviews;
+CREATE POLICY "Avis publics visibles"     ON reviews FOR SELECT USING (moderation_status='visible');
+CREATE POLICY "Avis reçus par la cible"   ON reviews FOR SELECT USING (auth.uid()=target_user_id OR auth.uid()=author_id);
+CREATE POLICY "Créer avis si interaction" ON reviews FOR INSERT WITH CHECK (auth.uid()=author_id AND author_id<>target_user_id AND EXISTS (SELECT 1 FROM trust_interactions WHERE id=interaction_id AND review_unlocked=true AND (requester_id=auth.uid() OR receiver_id=auth.uid())));
+CREATE POLICY "Modérer avis admin"         ON reviews FOR ALL   USING (EXISTS (SELECT 1 FROM profiles WHERE id=auth.uid() AND role IN ('admin','moderator')));
+
+DROP POLICY IF EXISTS "Tags publics"      ON review_tags;
+DROP POLICY IF EXISTS "Tags créer auteur" ON review_tags;
+CREATE POLICY "Tags publics"      ON review_tags FOR SELECT USING (true);
+CREATE POLICY "Tags créer auteur" ON review_tags FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM reviews WHERE id=review_id AND author_id=auth.uid()));
+
+DROP POLICY IF EXISTS "Stats publiques" ON trust_profile_stats;
+CREATE POLICY "Stats publiques" ON trust_profile_stats FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Badges publics" ON profile_badges;
+DROP POLICY IF EXISTS "Badges admin"   ON profile_badges;
+CREATE POLICY "Badges publics" ON profile_badges FOR SELECT USING (true);
+CREATE POLICY "Badges admin"   ON profile_badges FOR ALL   USING (EXISTS (SELECT 1 FROM profiles WHERE id=auth.uid() AND role='admin'));
+
+NOTIFY pgrst, 'reload schema';
+-- ✅ 5 tables, 8 triggers, RLS complet`;
+
+// ─── SQL Collectionneurs v2.0 (idempotent) ────────────────────────────────────
+const COLLECTIONNEURS_V2_SQL = `-- ============================================================
+-- BIGUGLIA CONNECT — Module Collectionneurs v2.0 PREMIUM
+-- IDEMPOTENT — coller dans Supabase > SQL Editor > Run
+-- ============================================================
+
+-- ─── 1. Enrichissement collection_items ───────────────────────────────────────
+ALTER TABLE collection_items
+  ADD COLUMN IF NOT EXISTS mode TEXT DEFAULT 'vente'
+    CHECK (mode IN ('vente','echange','don','recherche')),
+  ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'actif'
+    CHECK (status IN ('actif','reserve','vendu','echange','donne','trouve','retire','archive','brouillon','en_attente_validation','signale','masque','supprime_admin')),
+  ADD COLUMN IF NOT EXISTS rarity_level TEXT DEFAULT 'commun'
+    CHECK (rarity_level IN ('commun','peu_commun','rare','tres_rare','unique')),
+  ADD COLUMN IF NOT EXISTS year_period TEXT,
+  ADD COLUMN IF NOT EXISTS brand TEXT,
+  ADD COLUMN IF NOT EXISTS series_name TEXT,
+  ADD COLUMN IF NOT EXISTS authenticity_declared BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS provenance TEXT,
+  ADD COLUMN IF NOT EXISTS defects_noted TEXT,
+  ADD COLUMN IF NOT EXISTS dimensions TEXT,
+  ADD COLUMN IF NOT EXISTS material TEXT,
+  ADD COLUMN IF NOT EXISTS exchange_expected TEXT,
+  ADD COLUMN IF NOT EXISTS shipping_available BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS local_meetup_available BOOLEAN DEFAULT true,
+  ADD COLUMN IF NOT EXISTS city TEXT,
+  ADD COLUMN IF NOT EXISTS postal_code TEXT,
+  ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS featured_until TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS boost_count INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS views_count INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS favorites_count INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS messages_count INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS offers_count INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS reserved_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie'
+    CHECK (moderation_status IN ('brouillon','en_attente_validation','publie','signale','masque','supprime_admin')),
+  ADD COLUMN IF NOT EXISTS moderation_note TEXT,
+  ADD COLUMN IF NOT EXISTS moderated_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS subcategory TEXT;
+
+UPDATE collection_items SET mode = CASE WHEN item_type = 'troc' THEN 'echange' ELSE COALESCE(item_type,'vente') END WHERE mode IS NULL OR mode = 'vente';
+UPDATE collection_items SET status = 'actif' WHERE status IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_ci_mode        ON collection_items(mode);
+CREATE INDEX IF NOT EXISTS idx_ci_status      ON collection_items(status);
+CREATE INDEX IF NOT EXISTS idx_ci_rarity      ON collection_items(rarity_level);
+CREATE INDEX IF NOT EXISTS idx_ci_city        ON collection_items(city);
+CREATE INDEX IF NOT EXISTS idx_ci_shipping    ON collection_items(shipping_available);
+CREATE INDEX IF NOT EXISTS idx_ci_featured    ON collection_items(is_featured) WHERE is_featured = true;
+CREATE INDEX IF NOT EXISTS idx_ci_author_stat ON collection_items(author_id, status);
+CREATE INDEX IF NOT EXISTS idx_ci_modstatus   ON collection_items(moderation_status);
+
+-- ─── 2. Photos enrichies (is_cover, sort_order) ───────────────────────────────
+ALTER TABLE collection_item_photos
+  ADD COLUMN IF NOT EXISTS is_cover   BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS alt_text   TEXT;
+
+-- ─── 3. Table favoris collectionneurs ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS collection_favorites (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  item_id UUID REFERENCES collection_items(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, item_id)
+);
+CREATE INDEX IF NOT EXISTS idx_cfav_user ON collection_favorites(user_id);
+CREATE INDEX IF NOT EXISTS idx_cfav_item ON collection_favorites(item_id);
+ALTER TABLE collection_favorites ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Favoris visibles par propriétaire" ON collection_favorites;
+CREATE POLICY "Favoris visibles par propriétaire" ON collection_favorites FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Créer favori si connecté" ON collection_favorites;
+CREATE POLICY "Créer favori si connecté" ON collection_favorites FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Supprimer favori si propriétaire" ON collection_favorites;
+CREATE POLICY "Supprimer favori si propriétaire" ON collection_favorites FOR DELETE USING (auth.uid() = user_id);
+
+-- ─── 4. Table offres/propositions ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS collection_offers (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  item_id UUID REFERENCES collection_items(id) ON DELETE CASCADE NOT NULL,
+  buyer_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  seller_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  offer_type TEXT NOT NULL DEFAULT 'price' CHECK (offer_type IN ('price','exchange','both')),
+  offered_price NUMERIC(10,2),
+  offered_item_description TEXT,
+  message TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','refused','cancelled','expired')),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  CONSTRAINT no_self_offer CHECK (buyer_id <> seller_id)
+);
+CREATE INDEX IF NOT EXISTS idx_coffer_item   ON collection_offers(item_id);
+CREATE INDEX IF NOT EXISTS idx_coffer_buyer  ON collection_offers(buyer_id);
+CREATE INDEX IF NOT EXISTS idx_coffer_seller ON collection_offers(seller_id);
+ALTER TABLE collection_offers ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Offres visibles par participants" ON collection_offers;
+CREATE POLICY "Offres visibles par participants" ON collection_offers FOR SELECT USING (auth.uid() = buyer_id OR auth.uid() = seller_id);
+DROP POLICY IF EXISTS "Créer offre si connecté" ON collection_offers;
+CREATE POLICY "Créer offre si connecté" ON collection_offers FOR INSERT WITH CHECK (auth.uid() = buyer_id);
+DROP POLICY IF EXISTS "Modifier offre si participant" ON collection_offers;
+CREATE POLICY "Modifier offre si participant" ON collection_offers FOR UPDATE USING (auth.uid() = buyer_id OR auth.uid() = seller_id);
+
+-- ─── 5. Table vues analytics ──────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS collection_views (
+  id        UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  item_id   UUID REFERENCES collection_items(id) ON DELETE CASCADE NOT NULL,
+  viewer_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  viewed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_cview_item ON collection_views(item_id);
+ALTER TABLE collection_views ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Vues insert" ON collection_views;
+CREATE POLICY "Vues insert" ON collection_views FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Vues lecture auteur" ON collection_views;
+CREATE POLICY "Vues lecture auteur" ON collection_views FOR SELECT USING (
+  EXISTS (SELECT 1 FROM collection_items WHERE id = item_id AND author_id = auth.uid())
+);
+
+-- ─── 6. Triggers ──────────────────────────────────────────────────────────────
+-- Incrémenter views_count
+CREATE OR REPLACE FUNCTION increment_collection_views_trigger()
+RETURNS TRIGGER AS $$
+BEGIN UPDATE collection_items SET views_count = COALESCE(views_count,0) + 1 WHERE id = NEW.item_id; RETURN NEW; END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_inc_collection_views ON collection_views;
+CREATE TRIGGER trg_inc_collection_views AFTER INSERT ON collection_views FOR EACH ROW EXECUTE FUNCTION increment_collection_views_trigger();
+
+-- Sync favorites_count
+CREATE OR REPLACE FUNCTION sync_collection_favorites_count() RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    UPDATE collection_items SET favorites_count = COALESCE(favorites_count,0) + 1 WHERE id = NEW.item_id;
+  ELSIF TG_OP = 'DELETE' THEN
+    UPDATE collection_items SET favorites_count = GREATEST(COALESCE(favorites_count,1) - 1, 0) WHERE id = OLD.item_id;
+  END IF; RETURN NULL;
+END; $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_sync_cfav_count ON collection_favorites;
+CREATE TRIGGER trg_sync_cfav_count AFTER INSERT OR DELETE ON collection_favorites FOR EACH ROW EXECUTE FUNCTION sync_collection_favorites_count();
+
+-- ─── 7. RLS améliorée collection_items ────────────────────────────────────────
+ALTER TABLE collection_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "collection_items_select" ON collection_items;
+DROP POLICY IF EXISTS "CI select public"         ON collection_items;
+DROP POLICY IF EXISTS "CI select owner"          ON collection_items;
+DROP POLICY IF EXISTS "CI admin"                 ON collection_items;
+CREATE POLICY "CI select public" ON collection_items FOR SELECT USING (
+  status IN ('actif','reserve','vendu','echange','donne','trouve')
+  AND moderation_status IN ('publie','signale')
+);
+CREATE POLICY "CI select owner" ON collection_items FOR SELECT USING (auth.uid() = author_id);
+CREATE POLICY "CI admin"        ON collection_items FOR SELECT USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+);
+DROP POLICY IF EXISTS "collection_items_insert" ON collection_items;
+CREATE POLICY "CI insert" ON collection_items FOR INSERT WITH CHECK (auth.uid() = author_id);
+DROP POLICY IF EXISTS "collection_items_update" ON collection_items;
+CREATE POLICY "CI update owner" ON collection_items FOR UPDATE USING (
+  auth.uid() = author_id OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+);
+DROP POLICY IF EXISTS "collection_items_delete" ON collection_items;
+CREATE POLICY "CI delete owner" ON collection_items FOR DELETE USING (
+  auth.uid() = author_id OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+);
+
+-- ─── 8. Catégories supplémentaires ────────────────────────────────────────────
+INSERT INTO collection_categories (name, slug, icon, color, display_order)
+SELECT * FROM (VALUES
+  ('Cartes Pokémon / TCG',   'tcg-cards',   '🃏', 'red',    13),
+  ('BD & Mangas collector',   'bd-manga',    '📖', 'indigo', 14),
+  ('Jeux vidéo rétro',        'retro-gaming','🕹️', 'violet', 15),
+  ('Montres & horlogerie',    'montres',     '⌚', 'gray',   16),
+  ('Militaria & uniformes',   'militaria',   '🎖️', 'stone',  17)
+) AS v(name, slug, icon, color, display_order)
+WHERE NOT EXISTS (SELECT 1 FROM collection_categories WHERE slug = v.slug);
+
+NOTIFY pgrst, 'reload schema';
+-- ✅ Collectionneurs v2.0 : 20+ colonnes, photos enrichies, 3 nouvelles tables, triggers, RLS`;
 
 // ─── SQL Correctif enum user_role ─────────────────────────────────────────────
 const USER_ROLE_FIX_SQL = `-- ============================================================
@@ -4563,8 +4986,7 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
           </div>
           <button
             onClick={() => {
-              const sql = `-- ============================================================\n-- BIGUGLIA CONNECT — Système de confiance & réputation unifié\n-- Version 2.0\n-- Coller dans Supabase > SQL Editor > New query > Run\n-- ============================================================\n\nCREATE EXTENSION IF NOT EXISTS "uuid-ossp";\n\nCREATE TABLE IF NOT EXISTS trust_interactions (\n  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,\n  source_type TEXT NOT NULL CHECK (source_type IN ('listing','equipment','help_request','lost_found','association','outing','collection_item','event','promenade','service_request')),\n  source_id UUID NOT NULL,\n  requester_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,\n  receiver_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,\n  interaction_type TEXT NOT NULL CHECK (interaction_type IN ('transaction','material_request','help_match','participation','contact','service_request')),\n  status TEXT NOT NULL DEFAULT 'requested' CHECK (status IN ('requested','pending','accepted','rejected','in_progress','done','cancelled','disputed')),\n  review_unlocked BOOLEAN NOT NULL DEFAULT false,\n  review_requester_done BOOLEAN NOT NULL DEFAULT false,\n  review_receiver_done BOOLEAN NOT NULL DEFAULT false,\n  conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL,\n  status_history JSONB NOT NULL DEFAULT '[]',\n  started_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  accepted_at TIMESTAMPTZ,\n  completed_at TIMESTAMPTZ,\n  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  CONSTRAINT uq_trust_interaction UNIQUE (source_type, source_id, requester_id)\n);\n\nCREATE TABLE IF NOT EXISTS reviews (\n  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,\n  interaction_id UUID REFERENCES trust_interactions(id) ON DELETE CASCADE,\n  source_type TEXT NOT NULL,\n  source_id UUID NOT NULL,\n  author_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,\n  target_user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,\n  rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),\n  dim_communication INT CHECK (dim_communication >= 1 AND dim_communication <= 5),\n  dim_reliability INT CHECK (dim_reliability >= 1 AND dim_reliability <= 5),\n  dim_punctuality INT CHECK (dim_punctuality >= 1 AND dim_punctuality <= 5),\n  dim_quality INT CHECK (dim_quality >= 1 AND dim_quality <= 5),\n  comment TEXT CHECK (char_length(comment) <= 1000),\n  would_recommend BOOLEAN,\n  moderation_status TEXT NOT NULL DEFAULT 'visible' CHECK (moderation_status IN ('visible','reported','hidden','deleted')),\n  moderation_note TEXT,\n  moderated_by UUID REFERENCES profiles(id) ON DELETE SET NULL,\n  moderated_at TIMESTAMPTZ,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  CONSTRAINT uq_review_per_interaction UNIQUE (interaction_id, author_id),\n  CONSTRAINT no_self_review CHECK (author_id <> target_user_id)\n);\n\nCREATE TABLE IF NOT EXISTS review_tags (id UUID DEFAULT uuid_generate_v4() PRIMARY KEY, review_id UUID REFERENCES reviews(id) ON DELETE CASCADE NOT NULL, tag TEXT NOT NULL CHECK (char_length(tag) <= 50), UNIQUE(review_id, tag));\n\nCREATE TABLE IF NOT EXISTS trust_profile_stats (\n  profile_id UUID REFERENCES profiles(id) ON DELETE CASCADE PRIMARY KEY,\n  interactions_total INT NOT NULL DEFAULT 0, interactions_done INT NOT NULL DEFAULT 0,\n  reviews_received INT NOT NULL DEFAULT 0, avg_rating NUMERIC(3,2) NOT NULL DEFAULT 0,\n  avg_communication NUMERIC(3,2), avg_reliability NUMERIC(3,2), avg_punctuality NUMERIC(3,2), avg_quality NUMERIC(3,2),\n  recommend_pct INT, dist_1 INT NOT NULL DEFAULT 0, dist_2 INT NOT NULL DEFAULT 0,\n  dist_3 INT NOT NULL DEFAULT 0, dist_4 INT NOT NULL DEFAULT 0, dist_5 INT NOT NULL DEFAULT 0,\n  trust_score INT NOT NULL DEFAULT 0, last_computed_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS profile_badges (\n  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,\n  profile_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,\n  badge_code TEXT NOT NULL CHECK (badge_code IN ('new_member','profile_complete','email_verified','phone_verified','active_member','fast_responder','reliable_organizer','reliable_vendor','reliable_helper','reliable_borrower','trusted_member','top_rated','veteran','admin_validated')),\n  awarded_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  awarded_by TEXT NOT NULL DEFAULT 'system' CHECK (awarded_by IN ('system','admin')),\n  UNIQUE(profile_id, badge_code)\n);\n\n-- Indexes\nCREATE INDEX IF NOT EXISTS idx_ti_requester ON trust_interactions(requester_id);\nCREATE INDEX IF NOT EXISTS idx_ti_receiver ON trust_interactions(receiver_id);\nCREATE INDEX IF NOT EXISTS idx_reviews_target ON reviews(target_user_id);\nCREATE INDEX IF NOT EXISTS idx_reviews_author ON reviews(author_id);\nCREATE INDEX IF NOT EXISTS idx_pbadges_profile ON profile_badges(profile_id);\n\n-- Trigger updated_at\nCREATE OR REPLACE FUNCTION update_trust_updated_at() RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = now(); RETURN NEW; END; $$ LANGUAGE plpgsql;\nDROP TRIGGER IF EXISTS trg_ti_updated_at ON trust_interactions;\nCREATE TRIGGER trg_ti_updated_at BEFORE UPDATE ON trust_interactions FOR EACH ROW EXECUTE FUNCTION update_trust_updated_at();\nDROP TRIGGER IF EXISTS trg_reviews_updated_at ON reviews;\nCREATE TRIGGER trg_reviews_updated_at BEFORE UPDATE ON reviews FOR EACH ROW EXECUTE FUNCTION update_trust_updated_at();\n\n-- Trigger unlock review on done\nCREATE OR REPLACE FUNCTION unlock_review_on_done() RETURNS TRIGGER AS $$ BEGIN IF NEW.status = 'done' AND OLD.status <> 'done' THEN NEW.review_unlocked := true; NEW.completed_at := COALESCE(NEW.completed_at, now()); END IF; RETURN NEW; END; $$ LANGUAGE plpgsql;\nDROP TRIGGER IF EXISTS trg_unlock_review ON trust_interactions;\nCREATE TRIGGER trg_unlock_review BEFORE UPDATE ON trust_interactions FOR EACH ROW EXECUTE FUNCTION unlock_review_on_done();\n\n-- RLS\nALTER TABLE trust_interactions ENABLE ROW LEVEL SECURITY;\nALTER TABLE reviews ENABLE ROW LEVEL SECURITY;\nALTER TABLE review_tags ENABLE ROW LEVEL SECURITY;\nALTER TABLE trust_profile_stats ENABLE ROW LEVEL SECURITY;\nALTER TABLE profile_badges ENABLE ROW LEVEL SECURITY;\n\nDROP POLICY IF EXISTS "TI lecture participants" ON trust_interactions;\nCREATE POLICY "TI lecture participants" ON trust_interactions FOR SELECT USING (auth.uid() = requester_id OR auth.uid() = receiver_id OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator')));\nDROP POLICY IF EXISTS "TI cr\u00e9er si connect\u00e9" ON trust_interactions;\nCREATE POLICY "TI cr\u00e9er si connect\u00e9" ON trust_interactions FOR INSERT WITH CHECK (auth.uid() = requester_id);\nDROP POLICY IF EXISTS "TI modifier si participant" ON trust_interactions;\nCREATE POLICY "TI modifier si participant" ON trust_interactions FOR UPDATE USING (auth.uid() = requester_id OR auth.uid() = receiver_id OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));\n\nDROP POLICY IF EXISTS "Avis publics visibles" ON reviews;\nCREATE POLICY "Avis publics visibles" ON reviews FOR SELECT USING (moderation_status = 'visible');\nDROP POLICY IF EXISTS "Avis re\u00e7us par la cible" ON reviews;\nCREATE POLICY "Avis re\u00e7us par la cible" ON reviews FOR SELECT USING (auth.uid() = target_user_id OR auth.uid() = author_id);\nDROP POLICY IF EXISTS "Cr\u00e9er avis si interaction" ON reviews;\nCREATE POLICY "Cr\u00e9er avis si interaction" ON reviews FOR INSERT WITH CHECK (auth.uid() = author_id AND author_id <> target_user_id AND EXISTS (SELECT 1 FROM trust_interactions WHERE id = interaction_id AND review_unlocked = true AND (requester_id = auth.uid() OR receiver_id = auth.uid())));\nDROP POLICY IF EXISTS "Mod\u00e9rer avis admin" ON reviews;\nCREATE POLICY "Mod\u00e9rer avis admin" ON reviews FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator')));\n\nDROP POLICY IF EXISTS "Tags publics" ON review_tags;\nCREATE POLICY "Tags publics" ON review_tags FOR SELECT USING (true);\nDROP POLICY IF EXISTS "Stats publiques" ON trust_profile_stats;\nCREATE POLICY "Stats publiques" ON trust_profile_stats FOR SELECT USING (true);\nDROP POLICY IF EXISTS "Badges publics" ON profile_badges;\nCREATE POLICY "Badges publics" ON profile_badges FOR SELECT USING (true);\nDROP POLICY IF EXISTS "Badges admin" ON profile_badges;\nCREATE POLICY "Badges admin" ON profile_badges FOR ALL USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));\n\nNOTIFY pgrst, 'reload schema';\n-- ✅ 5 tables, 8 triggers, RLS complet`;
-              navigator.clipboard.writeText(sql).then(() => {
+              navigator.clipboard.writeText(TRUST_SQL).then(() => {
                 setCopiedTrust(true);
                 setTimeout(() => setCopiedTrust(false), 3000);
               });
@@ -4578,14 +5000,8 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
               : <><Copy className="w-4 h-4" /> Copier SQL Confiance</>}
           </button>
         </div>
-        <div className="p-4 bg-gray-950">
-          <p className="text-amber-200 text-xs font-mono">
-            ★ Tables créées : trust_interactions, reviews, review_tags, trust_profile_stats, profile_badges<br/>
-            ★ Triggers : unlock review quand status=done, recalcul auto des stats<br/>
-            ★ Anti-abus : pas d&apos;auto-évaluation (no_self_review), unique par interaction<br/>
-            ★ RLS : avis publics visibles, création conditionnée, moderation admin<br/>
-            ⚠️ Exécuter après la migration Moderation et la migration principale
-          </p>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-96">
+          <pre className="text-xs text-amber-200 font-mono leading-relaxed whitespace-pre-wrap">{TRUST_SQL}</pre>
         </div>
       </div>
 
@@ -4628,129 +5044,15 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
           <div>
             <h3 className="text-white font-bold text-base">🏆 Collectionneurs v2.0 Premium</h3>
             <p className="text-amber-300 text-xs mt-0.5">
-              Nouveaux champs · statuts métier complets · favoris · offres · modération · indexes
+              collection_items enrichi · photos (is_cover, sort_order) · favoris · offres · vues · RLS
             </p>
             <p className="text-amber-400 text-xs mt-1">
-              ALTER TABLE idempotent · 20+ colonnes · indexes perf · RLS enrichie
+              ALTER TABLE idempotent · 20+ colonnes · photos v2 · 3 nouvelles tables · triggers · indexes
             </p>
           </div>
           <button
             onClick={() => {
-              const sql = `-- ============================================================
--- BIGUGLIA CONNECT — Module Collectionneurs v2.0 PREMIUM
--- Idempotent — coller dans Supabase > SQL Editor > Run
--- ============================================================
-
-ALTER TABLE collection_items
-  ADD COLUMN IF NOT EXISTS mode TEXT DEFAULT 'vente'
-    CHECK (mode IN ('vente','echange','don','recherche')),
-  ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'actif'
-    CHECK (status IN ('actif','reserve','vendu','echange','donne','trouve','retire','archive','brouillon','en_attente_validation','signale','masque','supprime_admin')),
-  ADD COLUMN IF NOT EXISTS rarity_level TEXT DEFAULT 'commun'
-    CHECK (rarity_level IN ('commun','peu_commun','rare','tres_rare','unique')),
-  ADD COLUMN IF NOT EXISTS year_period TEXT,
-  ADD COLUMN IF NOT EXISTS brand TEXT,
-  ADD COLUMN IF NOT EXISTS series_name TEXT,
-  ADD COLUMN IF NOT EXISTS authenticity_declared BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS provenance TEXT,
-  ADD COLUMN IF NOT EXISTS defects_noted TEXT,
-  ADD COLUMN IF NOT EXISTS dimensions TEXT,
-  ADD COLUMN IF NOT EXISTS material TEXT,
-  ADD COLUMN IF NOT EXISTS exchange_expected TEXT,
-  ADD COLUMN IF NOT EXISTS shipping_available BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS local_meetup_available BOOLEAN DEFAULT true,
-  ADD COLUMN IF NOT EXISTS city TEXT,
-  ADD COLUMN IF NOT EXISTS postal_code TEXT,
-  ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS featured_until TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS boost_count INT DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS views_count INT DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS favorites_count INT DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS messages_count INT DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS offers_count INT DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ DEFAULT now(),
-  ADD COLUMN IF NOT EXISTS reserved_at TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie'
-    CHECK (moderation_status IN ('brouillon','en_attente_validation','publie','signale','masque','supprime_admin')),
-  ADD COLUMN IF NOT EXISTS moderation_note TEXT,
-  ADD COLUMN IF NOT EXISTS moderated_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  ADD COLUMN IF NOT EXISTS subcategory TEXT;
-
-UPDATE collection_items SET mode = CASE WHEN item_type = 'troc' THEN 'echange' ELSE COALESCE(item_type,'vente') END WHERE mode IS NULL OR mode = 'vente';
-UPDATE collection_items SET status = 'actif' WHERE status IS NULL;
-
-CREATE INDEX IF NOT EXISTS idx_ci_mode     ON collection_items(mode);
-CREATE INDEX IF NOT EXISTS idx_ci_status   ON collection_items(status);
-CREATE INDEX IF NOT EXISTS idx_ci_rarity   ON collection_items(rarity_level);
-CREATE INDEX IF NOT EXISTS idx_ci_city     ON collection_items(city);
-CREATE INDEX IF NOT EXISTS idx_ci_shipping ON collection_items(shipping_available);
-CREATE INDEX IF NOT EXISTS idx_ci_featured ON collection_items(is_featured) WHERE is_featured = true;
-CREATE INDEX IF NOT EXISTS idx_ci_author_status ON collection_items(author_id, status);
-CREATE INDEX IF NOT EXISTS idx_ci_modstatus ON collection_items(moderation_status);
-
--- Table favoris collectionneurs
-CREATE TABLE IF NOT EXISTS collection_favorites (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  item_id UUID REFERENCES collection_items(id) ON DELETE CASCADE NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(user_id, item_id)
-);
-CREATE INDEX IF NOT EXISTS idx_cfav_user ON collection_favorites(user_id);
-CREATE INDEX IF NOT EXISTS idx_cfav_item ON collection_favorites(item_id);
-ALTER TABLE collection_favorites ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Favoris visibles par propriétaire" ON collection_favorites;
-CREATE POLICY "Favoris visibles par propriétaire" ON collection_favorites FOR SELECT USING (auth.uid() = user_id);
-DROP POLICY IF EXISTS "Créer favori si connecté" ON collection_favorites;
-CREATE POLICY "Créer favori si connecté" ON collection_favorites FOR INSERT WITH CHECK (auth.uid() = user_id);
-DROP POLICY IF EXISTS "Supprimer favori si propriétaire" ON collection_favorites;
-CREATE POLICY "Supprimer favori si propriétaire" ON collection_favorites FOR DELETE USING (auth.uid() = user_id);
-
--- Table offres
-CREATE TABLE IF NOT EXISTS collection_offers (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  item_id UUID REFERENCES collection_items(id) ON DELETE CASCADE NOT NULL,
-  buyer_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  seller_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  offer_type TEXT NOT NULL DEFAULT 'price' CHECK (offer_type IN ('price','exchange','both')),
-  offered_price NUMERIC(10,2),
-  offered_item_description TEXT,
-  message TEXT,
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','refused','cancelled','expired')),
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE collection_offers ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Offres visibles par participants" ON collection_offers;
-CREATE POLICY "Offres visibles par participants" ON collection_offers FOR SELECT USING (auth.uid() = buyer_id OR auth.uid() = seller_id);
-DROP POLICY IF EXISTS "Créer offre si connecté" ON collection_offers;
-CREATE POLICY "Créer offre si connecté" ON collection_offers FOR INSERT WITH CHECK (auth.uid() = buyer_id);
-DROP POLICY IF EXISTS "Modifier offre si participant" ON collection_offers;
-CREATE POLICY "Modifier offre si participant" ON collection_offers FOR UPDATE USING (auth.uid() = buyer_id OR auth.uid() = seller_id);
-
--- Trigger views_count
-CREATE OR REPLACE FUNCTION increment_collection_views(item_uuid UUID) RETURNS void AS $$
-BEGIN UPDATE collection_items SET views_count = COALESCE(views_count,0) + 1 WHERE id = item_uuid; END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Trigger favorites_count sync
-CREATE OR REPLACE FUNCTION sync_collection_favorites_count() RETURNS TRIGGER AS $$
-BEGIN
-  IF TG_OP = 'INSERT' THEN
-    UPDATE collection_items SET favorites_count = COALESCE(favorites_count,0) + 1 WHERE id = NEW.item_id;
-  ELSIF TG_OP = 'DELETE' THEN
-    UPDATE collection_items SET favorites_count = GREATEST(COALESCE(favorites_count,1) - 1, 0) WHERE id = OLD.item_id;
-  END IF;
-  RETURN NULL;
-END; $$ LANGUAGE plpgsql;
-DROP TRIGGER IF EXISTS trg_sync_cfav_count ON collection_favorites;
-CREATE TRIGGER trg_sync_cfav_count AFTER INSERT OR DELETE ON collection_favorites FOR EACH ROW EXECUTE FUNCTION sync_collection_favorites_count();
-
-NOTIFY pgrst, 'reload schema';
--- ✅ Collectionneurs v2.0 : 20+ colonnes, 2 nouvelles tables, triggers, RLS`;
-              navigator.clipboard.writeText(sql).then(() => {
+              navigator.clipboard.writeText(COLLECTIONNEURS_V2_SQL).then(() => {
                 setCopiedCollectV2(true);
                 setTimeout(() => setCopiedCollectV2(false), 3000);
               });
@@ -4764,14 +5066,8 @@ NOTIFY pgrst, 'reload schema';
               : <><Copy className="w-4 h-4" /> Copier SQL Collectionneurs v2</>}
           </button>
         </div>
-        <div className="p-4 bg-gray-950">
-          <p className="text-amber-200 text-xs font-mono">
-            ★ ALTER TABLE idempotent : 20+ nouvelles colonnes (mode, status, rarity, brand, city…)<br/>
-            ★ Tables : collection_favorites, collection_offers avec RLS<br/>
-            ★ Triggers : sync favorites_count automatique, increment_views function<br/>
-            ★ Indexes : mode, status, rarity, city, author+status, moderation_status<br/>
-            ⚠️ Exécuter après la migration principale (collection_items doit exister)
-          </p>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-96">
+          <pre className="text-xs text-amber-200 font-mono leading-relaxed whitespace-pre-wrap">{COLLECTIONNEURS_V2_SQL}</pre>
         </div>
       </div>
 
