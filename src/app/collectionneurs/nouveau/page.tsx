@@ -17,6 +17,7 @@ import {
   Package, Info, AlertCircle, Plus, X, Upload, Sparkles,
   ArrowLeft, CheckCircle2, Pencil, Image as ImageIcon,
 } from 'lucide-react';
+import SectorFilter, { SectorBadge } from '@/components/ui/SectorFilter';
 import toast from 'react-hot-toast';
 import {
   MODE_CONFIG, RARITY_CONFIG, CONDITION_CONFIG,
@@ -51,6 +52,7 @@ interface FormData {
   local_meetup_available: boolean;
   city: string;
   postal_code: string;
+  sector_id: string;
   tags: string[];
   // Étape 4 — Photos
   photos: PhotoItem[];
@@ -96,6 +98,7 @@ const EMPTY_FORM: FormData = {
   local_meetup_available: true,
   city: '',
   postal_code: '',
+  sector_id: '',
   tags: [],
   photos: [],
 };
@@ -119,6 +122,13 @@ export default function NouvelleAnnoncePage() {
   const [createdId, setCreatedId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Pré-remplir secteur depuis le profil
+  useEffect(() => {
+    if (profile?.home_sector_id) {
+      setForm(prev => ({ ...prev, sector_id: profile.home_sector_id ?? '' }));
+    }
+  }, [profile?.home_sector_id]);
 
   // Charger catégories
   useEffect(() => {
@@ -276,6 +286,7 @@ export default function NouvelleAnnoncePage() {
         local_meetup_available: form.local_meetup_available,
         city: form.city.trim() || null,
         postal_code: form.postal_code.trim() || null,
+        sector_id: form.sector_id || null,
         tags: form.tags,
         views_count: 0,
         favorites_count: 0,
@@ -660,6 +671,18 @@ export default function NouvelleAnnoncePage() {
                     placeholder="Ex: 20620" className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm" />
                 </div>
               </div>
+              {/* Secteur territorial */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Secteur <span className="text-gray-400">(fortement recommandé)</span>
+                </label>
+                <SectorFilter
+                  value={form.sector_id || null}
+                  onChange={id => update('sector_id', id || '')}
+                  compact
+                />
+              </div>
+
               <div className="flex flex-col gap-2">
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input type="checkbox" checked={form.local_meetup_available}
@@ -907,6 +930,7 @@ export default function NouvelleAnnoncePage() {
                   {form.city && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{form.city}</span>}
                   {form.condition && <span className={cn('px-2 py-0.5 rounded text-xs font-medium', CONDITION_CONFIG[form.condition]?.color)}>{CONDITION_CONFIG[form.condition]?.label}</span>}
                   {form.shipping_available && <span className="flex items-center gap-1"><Truck className="w-3.5 h-3.5" /> Envoi possible</span>}
+                  {form.sector_id && form.sector_id !== 'ville' && <SectorBadge sectorId={form.sector_id} />}
                 </div>
 
                 {form.tags.length > 0 && (

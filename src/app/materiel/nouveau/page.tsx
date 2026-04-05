@@ -12,6 +12,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Textarea from '@/components/ui/Textarea';
 import toast from 'react-hot-toast';
+import SectorFilter from '@/components/ui/SectorFilter';
 
 export default function NouveauMaterielPage() {
   const router = useRouter();
@@ -31,10 +32,13 @@ export default function NouveauMaterielPage() {
     deposit_amount: '',
     pickup_location: 'Biguglia',
     rules: '',
+    sector_id: '',
   });
 
   useEffect(() => {
     if (!profile) { router.push('/connexion?redirect=/materiel/nouveau'); return; }
+    // Pré-remplir secteur depuis le profil
+    if (profile.home_sector_id) setForm(f => ({ ...f, sector_id: profile.home_sector_id ?? '' }));
     const fetchCats = async () => {
       const supabase = createClient();
       const { data } = await supabase.from('equipment_categories').select('*').order('display_order');
@@ -77,6 +81,7 @@ export default function NouveauMaterielPage() {
         deposit_amount: Number(form.deposit_amount) || null,
         pickup_location: form.pickup_location,
         rules: form.rules || null,
+        sector_id: form.sector_id || null,
         is_available: true,
       })
       .select()
@@ -204,6 +209,18 @@ export default function NouveauMaterielPage() {
             value={form.pickup_location}
             onChange={(e) => setForm(f => ({ ...f, pickup_location: e.target.value }))}
           />
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Secteur
+              <span className="ml-1 text-xs font-normal text-gray-400">(fortement recommandé — aide les voisins du même secteur à vous trouver)</span>
+            </label>
+            <SectorFilter
+              value={form.sector_id || null}
+              onChange={id => setForm(f => ({ ...f, sector_id: id || '' }))}
+              compact
+            />
+          </div>
 
           <Textarea
             label="Règles d'utilisation (optionnel)"
