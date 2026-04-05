@@ -17,6 +17,7 @@ import Avatar from '@/components/ui/Avatar';
 import toast from 'react-hot-toast';
 import ReportButton from '@/components/ui/ReportButton';
 import StatusBadge from '@/components/ui/StatusBadge';
+import ContactButton from '@/components/ui/ContactButton';
 import {
   EVENT_STATUS_CONFIG,
   EVENT_PARTICIPANT_STATUS_CONFIG,
@@ -811,15 +812,29 @@ export default function EventDetailPage() {
                   </div>
                 )}
                 {/* Organizer */}
-                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl">
+                <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-2xl">
                   <Avatar name={event.author?.full_name ?? 'Organisateur'} src={event.author?.avatar_url} size="md" />
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs text-gray-500">Organisé par</p>
                     <p className="font-bold text-gray-900">{event.organizer_name || event.author?.full_name || 'Organisateur'}</p>
                     {event.author_id && (
                       <Link href={`/profil/${event.author_id}`} className="text-xs text-purple-600 hover:underline">Voir le profil</Link>
                     )}
                   </div>
+                  {/* Message privé à l'organisateur */}
+                  {profile && profile.id !== event.author_id && event.author_id && (
+                    <ContactButton
+                      sourceType="event"
+                      sourceId={event.id}
+                      sourceTitle={event.title}
+                      ownerId={event.author_id}
+                      userId={profile.id}
+                      ctaLabel="Contacter l'organisateur"
+                      prefillMsg={`Bonjour, j'ai une question concernant votre événement « ${event.title} ».`}
+                      size="sm"
+                      variant="secondary"
+                    />
+                  )}
                 </div>
                 {/* Additional info */}
                 <div className="grid sm:grid-cols-2 gap-3">
