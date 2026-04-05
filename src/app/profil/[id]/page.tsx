@@ -12,6 +12,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import Avatar from '@/components/ui/Avatar';
 import { UserRatingBadge } from '@/components/ui/RatingWidget';
+import { TrustScoreFull, TrustScoreMini, useTrustData } from '@/components/ui/TrustScore';
 import { ROLE_LABELS } from '@/lib/utils';
 import { EVENT_STATUS_CONFIG } from '@/lib/events';
 
@@ -73,7 +74,8 @@ export default function PublicProfilePage() {
   const [notFound, setNotFound] = useState(false);
   const [publicProfile, setPublicProfile] = useState<PublicProfile | null>(null);
   const [events, setEvents] = useState<EventItem[]>([]);
-  const [activeTab, setActiveTab] = useState<'info' | 'events'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'events' | 'trust'>('info');
+  const { stats: trustStats, badges: trustBadges } = useTrustData(publicProfile?.id ?? null);
 
   const isMe = me?.id === userId;
 
@@ -262,8 +264,14 @@ export default function PublicProfilePage() {
                 )}
               </div>
               {publicProfile.id && (
-                <div className="mt-2">
+                <div className="mt-2 flex flex-wrap gap-2 items-center">
                   <UserRatingBadge userId={publicProfile.id} />
+                  <TrustScoreMini
+                    profile={publicProfile}
+                    stats={trustStats}
+                    badges={trustBadges}
+                    className="text-white/90 bg-white/10"
+                  />
                 </div>
               )}
             </div>
@@ -297,10 +305,11 @@ export default function PublicProfilePage() {
           {[
             { key: 'info', label: 'Informations', icon: <Users className="w-4 h-4" /> },
             { key: 'events', label: `Événements (${events.length})`, icon: <PartyPopper className="w-4 h-4" /> },
+            { key: 'trust', label: 'Confiance', icon: <Shield className="w-4 h-4" /> },
           ].map(tab => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key as 'info' | 'events')}
+              onClick={() => setActiveTab(tab.key as 'info' | 'events' | 'trust')}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-all ${
                 activeTab === tab.key
                   ? 'bg-purple-600 text-white shadow'
@@ -411,6 +420,11 @@ export default function PublicProfilePage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ── Tab Trust ── */}
+        {activeTab === 'trust' && publicProfile && (
+          <TrustScoreFull profile={publicProfile} />
         )}
 
         {/* ── Tab Events ── */}

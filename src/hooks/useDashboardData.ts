@@ -258,9 +258,10 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
           .not('status', 'in', '(cancelled,done)')
           .order('started_at', { ascending: false })
           .limit(6),
-        // Reviews received
-        supabase.from('reviews').select('id, rating, comment, target_type, target_id, created_at, author:profiles(full_name, avatar_url)')
+        // Reviews received — schéma unifié (author_id + target_user_id + source_type)
+        supabase.from('reviews').select('id, rating, comment, source_type, source_id, created_at, author:profiles!reviews_author_id_fkey(full_name, avatar_url)')
           .eq('target_user_id', profileId)
+          .eq('moderation_status', 'visible')
           .order('created_at', { ascending: false })
           .limit(5),
         // Profile
@@ -313,16 +314,26 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
         ? Math.round((ratingValues.reduce((a: number, b: number) => a + b, 0) / ratingValues.length) * 10) / 10
         : null;
 
-      // Reviews to give (completed interactions with review unlocked)
+      // Reviews to give — trust_interactions (schéma unifié) avec fallback sur interactions
       let toReviewCount = 0;
       try {
-        const { count } = await supabase.from('interactions')
+        const { count } = await supabase.from('trust_interactions')
           .select('id', { count: 'exact', head: true })
           .or(`requester_id.eq.${profileId},receiver_id.eq.${profileId}`)
           .eq('status', 'done')
           .eq('review_unlocked', true);
         toReviewCount = count || 0;
-      } catch {}
+      } catch {
+        // Fallback sur l'ancienne table interactions si trust_interactions n'existe pas encore
+        try {
+          const { count } = await supabase.from('interactions')
+            .select('id', { count: 'exact', head: true })
+            .or(`requester_id.eq.${profileId},receiver_id.eq.${profileId}`)
+            .eq('status', 'done')
+            .eq('review_unlocked', true);
+          toReviewCount = count || 0;
+        } catch {}
+      }
 
       // ── Par-statut counts (pour dashboard "Mes contenus") ────────────────────
       const listingsByStatus = emptyStatusCounts();
@@ -460,8 +471,8 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
           id: r.id as string,
           rating: r.rating as number,
           comment: r.comment as string | undefined,
-          targetType: r.target_type as string,
-          targetId: r.target_id as string,
+          targetType: (r.source_type as string) || '',
+          targetId: (r.source_id as string) || '',
           authorName: (author?.full_name as string) || 'Anonyme',
           authorAvatar: author?.avatar_url as string | undefined,
           createdAt: r.created_at as string,

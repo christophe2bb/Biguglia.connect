@@ -17,6 +17,7 @@ import { useDashboardData } from '@/hooks/useDashboardData';
 import { cn, formatRelative } from '@/lib/utils';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 import Avatar from '@/components/ui/Avatar';
+import { TrustScoreCard, useTrustData } from '@/components/ui/TrustScore';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -419,6 +420,7 @@ function DashboardContent() {
 
   const dashData = useDashboardData(profile?.id);
   const { stats, todos, recentContents, activeInteractions, recentActivity, recentReviews, participations, loading, refresh } = dashData;
+  const { stats: trustStats, badges: trustBadges } = useTrustData(profile?.id ?? null);
 
   if (!profile) return null;
 
@@ -721,41 +723,27 @@ function DashboardContent() {
                 </div>
               </div>
 
-              {/* Note & avis */}
-              <div className="bg-white rounded-2xl border border-gray-100 p-5">
-                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <Award className="w-4 h-4 text-amber-500" /> Ma réputation
-                </h3>
-                {stats.totalReviewsReceived === 0 ? (
-                  <div className="text-center py-2">
-                    <Star className="w-8 h-8 mx-auto mb-2 text-gray-200" />
-                    <p className="text-sm text-gray-500">Pas encore d'avis reçus</p>
-                    <p className="text-xs text-gray-400 mt-1">Complétez vos premiers échanges pour recevoir des avis</p>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="flex items-end gap-2 mb-2">
-                      <span className="text-3xl font-black text-gray-900">{stats.averageRating}</span>
-                      <span className="text-gray-400 text-sm mb-1">/5</span>
+              {/* Score de confiance unifié */}
+              <div className="space-y-3">
+                <TrustScoreCard
+                  profile={{ id: profile.id, created_at: profile.created_at, role: profile.role, avatar_url: profile.avatar_url, phone: (profile as unknown as { phone?: string }).phone }}
+                  stats={trustStats}
+                  badges={trustBadges}
+                />
+                {stats.reviewsToGive > 0 && (
+                  <Link href="/dashboard/avis?tab=pending"
+                    className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-2xl p-3 hover:bg-amber-100 transition-colors">
+                    <Star className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-amber-800">{stats.reviewsToGive} avis à laisser</p>
+                      <p className="text-xs text-amber-600">Échanges terminés en attente d'évaluation</p>
                     </div>
-                    <StarRow rating={Math.round(stats.averageRating || 0)} count={stats.totalReviewsReceived} />
-                    {recentReviews.slice(0, 2).map(r => (
-                      <div key={r.id} className="mt-3 p-3 bg-gray-50 rounded-xl">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Avatar src={r.authorAvatar} name={r.authorName} size="xs" />
-                          <span className="text-xs font-semibold text-gray-700">{r.authorName}</span>
-                          <div className="flex ml-auto">
-                            {[1,2,3,4,5].map(s => <Star key={s} className={cn('w-3 h-3', s <= r.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-200')} />)}
-                          </div>
-                        </div>
-                        {r.comment && <p className="text-xs text-gray-600 line-clamp-2">{r.comment}</p>}
-                      </div>
-                    ))}
-                    <Link href="/dashboard/avis" className="text-xs font-semibold text-amber-600 hover:text-amber-700 mt-2 block">
-                      Voir tous mes avis →
-                    </Link>
-                  </div>
+                    <ChevronRight className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                  </Link>
                 )}
+                <Link href="/dashboard/avis" className="text-xs font-semibold text-amber-600 hover:text-amber-700 block text-right">
+                  Voir mes avis & score →
+                </Link>
               </div>
             </div>
 
