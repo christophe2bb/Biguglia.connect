@@ -329,11 +329,11 @@ export default function PublicProfilePage() {
               <ContactButton
                 sourceType="general"
                 sourceId={userId as string}
-                sourceTitle={`Profil de ${publicProfile?.full_name ?? 'ce membre'}`}
+                sourceTitle={publicProfile?.full_name ?? 'Membre'}
                 ownerId={userId as string}
                 userId={me.id}
                 ctaLabel="Message"
-                prefillMsg={`👋 Bonjour ! Je vous contacte depuis votre profil sur Biguglia Connect.`}
+                prefillMsg={`Bonjour ${publicProfile?.full_name?.split(' ')[0] ?? ''}, je vous contacte via Biguglia Connect.`}
                 className="shrink-0"
               />
             )}
@@ -465,11 +465,11 @@ export default function PublicProfilePage() {
                   <ContactButton
                     sourceType="general"
                     sourceId={userId as string}
-                    sourceTitle={`Profil de ${publicProfile?.full_name ?? 'ce membre'}`}
+                    sourceTitle={publicProfile?.full_name ?? 'Membre'}
                     ownerId={userId as string}
                     userId={me.id}
                     ctaLabel="Envoyer un message"
-                    prefillMsg={`👋 Bonjour ! Je vous contacte depuis votre profil sur Biguglia Connect.`}
+                    prefillMsg={`Bonjour ${publicProfile?.full_name?.split(' ')[0] ?? ''}, je vous contacte via Biguglia Connect.`}
                     size="sm"
                   />
                 )}
