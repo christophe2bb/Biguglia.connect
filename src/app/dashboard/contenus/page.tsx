@@ -150,7 +150,7 @@ function MesContenusContent() {
         supabase.from('listings').select('id, title, description, status, views, created_at, location, photos:listing_photos(url)').eq('user_id', profile.id).order('created_at', { ascending: false }),
         supabase.from('equipment_items').select('id, title, description, is_available, pickup_location, created_at, photos:equipment_photos(url)').eq('owner_id', profile.id).order('created_at', { ascending: false }),
         supabase.from('help_requests').select('id, title, description, status, location_city, created_at').eq('author_id', profile.id).order('created_at', { ascending: false }),
-        supabase.from('local_events').select('id, title, description, status, location, event_date, created_at, photos:event_photos(url)').eq('author_id', profile.id).order('created_at', { ascending: false }),
+        supabase.from('events').select('id, title, description, status, location, event_date, created_at, photos:event_photos(url)').eq('author_id', profile.id).order('created_at', { ascending: false }),
         supabase.from('group_outings').select('id, title, description, status, meeting_point, outing_date, created_at, photos:outing_photos(url)').eq('organizer_id', profile.id).order('created_at', { ascending: false }),
         supabase.from('forum_posts').select('id, title, content, views, created_at').eq('author_id', profile.id).order('created_at', { ascending: false }),
         supabase.from('associations').select('id, name, description_short, status, location, created_at, logo_url').eq('author_id', profile.id).order('created_at', { ascending: false }),

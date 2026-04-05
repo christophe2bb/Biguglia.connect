@@ -34,7 +34,7 @@ export const CONTENT_TYPE_LABELS: Record<ContentType, { label: string; emoji: st
   equipment:       { label: 'Matériel',          emoji: '🔧', table: 'equipment_items' },
   help_request:    { label: 'Coup de main',      emoji: '🤝', table: 'help_requests' },
   outing:          { label: 'Promenade',         emoji: '🚶', table: 'group_outings' },
-  event:           { label: 'Événement',         emoji: '📅', table: 'local_events' },
+  event:           { label: 'Événement',         emoji: '📅', table: 'events' },
   lost_found:      { label: 'Perdu / Trouvé',   emoji: '🔍', table: 'lost_found_items' },
   collection_item: { label: 'Collectionneur',    emoji: '🏺', table: 'collection_items' },
   association:     { label: 'Association',       emoji: '🏛️', table: 'associations' },
@@ -626,7 +626,7 @@ ALTER TABLE listings         ADD COLUMN IF NOT EXISTS moderation_status TEXT DEF
 ALTER TABLE equipment_items  ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie';
 ALTER TABLE help_requests    ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie';
 ALTER TABLE group_outings    ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie';
-ALTER TABLE local_events     ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie';
+ALTER TABLE events     ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie';
 ALTER TABLE lost_found_items ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie';
 ALTER TABLE forum_posts      ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'publie';
 

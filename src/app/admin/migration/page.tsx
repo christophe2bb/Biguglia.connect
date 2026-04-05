@@ -1673,12 +1673,14 @@ SELECT id, name, public, file_size_limit FROM storage.buckets WHERE id = 'photos
 SELECT policyname, cmd FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname LIKE 'photos%';`;
 
 // ─── Tables à vérifier via REST direct ───────────────────────────────────────
-const TABLES_TO_CHECK = [
+type TableCheck = { name: string; label: string; theme: string; aliases?: string[] };
+const TABLES_TO_CHECK: TableCheck[] = [
   { name: 'collection_categories',  label: 'Catégories collections',    theme: '🏆 Collectionneurs' },
   { name: 'collection_items',       label: 'Annonces collections',      theme: '🏆 Collectionneurs' },
   { name: 'collection_item_photos', label: 'Photos collections',        theme: '🏆 Collectionneurs' },
   { name: 'collection_favorites',   label: 'Favoris collections',       theme: '🏆 Collectionneurs' },
   { name: 'collection_offers',      label: 'Offres collections',        theme: '🏆 Collectionneurs' },
+  { name: 'collection_views',       label: 'Vues collections',          theme: '🏆 Collectionneurs' },
   { name: 'trust_interactions',     label: 'Interactions (confiance)',  theme: '⭐ Confiance' },
   { name: 'reviews',                label: 'Avis & notes',              theme: '⭐ Confiance' },
   { name: 'trust_profile_stats',    label: 'Stats de confiance',        theme: '⭐ Confiance' },
@@ -1687,10 +1689,11 @@ const TABLES_TO_CHECK = [
   { name: 'group_outings',         label: 'Sorties groupées',        theme: '🌿 Promenades' },
   { name: 'outing_comments',       label: 'Commentaires sorties',    theme: '🌿 Promenades' },
   { name: 'outing_photos',         label: 'Photos sorties',          theme: '🌿 Promenades' },
-  { name: 'local_events',          label: 'Événements locaux',       theme: '🎉 Événements' },
-  { name: 'event_participations',  label: 'Participations',          theme: '🎉 Événements' },
+  { name: 'events',                label: 'Événements locaux',       theme: '🎉 Événements', aliases: ['local_events'] },
+  { name: 'event_participants',    label: 'Participations',          theme: '🎉 Événements', aliases: ['event_participations'] },
   { name: 'event_photos',          label: 'Photos événements',       theme: '🎉 Événements' },
   { name: 'event_comments',        label: 'Commentaires événements', theme: '🎉 Événements' },
+  { name: 'event_status_history',  label: 'Historique statuts events', theme: '🎉 Événements' },
   { name: 'request_comments',      label: 'Commentaires demandes',   theme: '🔧 Vie pratique' },
   { name: 'associations',           label: 'Associations',            theme: '🏛️ Associations' },
   { name: 'asso_photos',            label: 'Photos associations',     theme: '🏛️ Associations' },
@@ -2527,6 +2530,18 @@ ALTER TABLE reviews
   ADD COLUMN IF NOT EXISTS moderated_at     TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS updated_at       TIMESTAMPTZ NOT NULL DEFAULT now();
 
+-- Garantir que rating a une valeur par défaut et n'est pas NULL (si la colonne existait déjà sans DEFAULT)
+DO $$ BEGIN
+  ALTER TABLE reviews ALTER COLUMN rating SET DEFAULT 5;
+EXCEPTION WHEN OTHERS THEN NULL; END $$;
+UPDATE reviews SET rating = 5 WHERE rating IS NULL;
+
+-- Garantir que moderation_status a une valeur par défaut
+DO $$ BEGIN
+  ALTER TABLE reviews ALTER COLUMN moderation_status SET DEFAULT 'visible';
+EXCEPTION WHEN OTHERS THEN NULL; END $$;
+UPDATE reviews SET moderation_status = 'visible' WHERE moderation_status IS NULL;
+
 -- Contraintes CHECK via DO blocks (ignorées si elles existent déjà)
 DO $$ BEGIN
   ALTER TABLE reviews ADD CONSTRAINT reviews_rating_check
@@ -3011,6 +3026,200 @@ GRANT SELECT ON moderation_kpi TO authenticated;
 -- ✅ Correctif appliqué — la modération est opérationnelle
 `;
 
+// ─── SQL Événements — tables de base (idempotent) ────────────────────────────
+const EVENTS_BASE_SQL = `-- ============================================================
+-- BIGUGLIA CONNECT — Événements : tables de base idempotentes
+-- À exécuter si "Événements locaux" et "Participations" restent en rouge
+-- dans le diagnostic, même après EVENT_LIFECYCLE_SQL.
+-- Ce script crée les tables sous leurs NOUVEAUX noms (events, event_participants)
+-- sans passer par le renommage (plus sûr si local_events a déjà été renommée).
+-- ============================================================
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- ── 1. Table events (anciennement local_events) ────────────────────────────
+DO $$
+BEGIN
+  -- Si local_events existe encore, la renommer
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'local_events' AND table_schema = 'public')
+     AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'events' AND table_schema = 'public') THEN
+    ALTER TABLE local_events RENAME TO events;
+  END IF;
+  -- Si ni l'une ni l'autre n'existe, créer events
+  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'events' AND table_schema = 'public') THEN
+    CREATE TABLE events (
+      id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      author_id        UUID REFERENCES profiles(id) ON DELETE CASCADE,
+      title            TEXT NOT NULL,
+      description      TEXT NOT NULL DEFAULT '',
+      event_date       DATE NOT NULL,
+      event_end_date   DATE,
+      start_time       TEXT DEFAULT '18:00',
+      end_time         TEXT,
+      location         TEXT DEFAULT 'Biguglia',
+      location_city    TEXT DEFAULT 'Biguglia',
+      category         TEXT DEFAULT 'social',
+      organizer_name   TEXT,
+      price_type       TEXT DEFAULT 'gratuit' CHECK (price_type IN ('gratuit','payant','libre')),
+      price_amount     NUMERIC(10,2),
+      capacity         INTEGER,
+      is_unlimited     BOOLEAN DEFAULT false,
+      registration_open BOOLEAN DEFAULT true,
+      cover_photo_url  TEXT,
+      tags             TEXT[] DEFAULT '{}',
+      is_official      BOOLEAN DEFAULT false,
+      status           TEXT DEFAULT 'a_venir' CHECK (status IN ('a_venir','complet','reporte','annule','passe','archive')),
+      cancel_reason    TEXT,
+      postpone_reason  TEXT,
+      created_at       TIMESTAMPTZ DEFAULT now(),
+      updated_at       TIMESTAMPTZ DEFAULT now()
+    );
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'events table: %', SQLERRM;
+END$$;
+
+-- Ajouter colonnes manquantes sur events
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='subtitle') THEN
+    ALTER TABLE events ADD COLUMN subtitle TEXT DEFAULT '';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='event_end_date') THEN
+    ALTER TABLE events ADD COLUMN event_end_date DATE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='price_type') THEN
+    ALTER TABLE events ADD COLUMN price_type TEXT DEFAULT 'gratuit';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='capacity') THEN
+    ALTER TABLE events ADD COLUMN capacity INTEGER;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='registration_open') THEN
+    ALTER TABLE events ADD COLUMN registration_open BOOLEAN DEFAULT true;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='cover_photo_url') THEN
+    ALTER TABLE events ADD COLUMN cover_photo_url TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='cancel_reason') THEN
+    ALTER TABLE events ADD COLUMN cancel_reason TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='postpone_reason') THEN
+    ALTER TABLE events ADD COLUMN postpone_reason TEXT;
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'events columns: %', SQLERRM;
+END$$;
+
+-- Mettre à jour les statuts legacy si besoin
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='events' AND table_schema='public') THEN
+    UPDATE events SET status = 'a_venir' WHERE status IN ('active','publie','brouillon','open','pending');
+    UPDATE events SET status = 'annule'  WHERE status IN ('cancelled','annulee','canceled');
+    UPDATE events SET status = 'passe'   WHERE status IN ('completed','done','terminee','past');
+    UPDATE events SET status = 'archive' WHERE status IN ('archived','archivee');
+    UPDATE events SET status = 'a_venir' WHERE status NOT IN ('a_venir','complet','reporte','annule','passe','archive');
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'events status update: %', SQLERRM;
+END$$;
+
+-- Contrainte statut (idempotente)
+DO $$ BEGIN
+  ALTER TABLE events DROP CONSTRAINT IF EXISTS events_status_check;
+  ALTER TABLE events ADD CONSTRAINT events_status_check
+    CHECK (status IN ('a_venir','complet','reporte','annule','passe','archive'));
+EXCEPTION WHEN OTHERS THEN NULL; END$$;
+
+-- RLS events
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "events_select"         ON events;
+DROP POLICY IF EXISTS "events_select_all"     ON events;
+DROP POLICY IF EXISTS "events_insert"         ON events;
+DROP POLICY IF EXISTS "events_update_own"     ON events;
+DROP POLICY IF EXISTS "events_update_admin"   ON events;
+CREATE POLICY "events_select_all"   ON events FOR SELECT USING (true);
+CREATE POLICY "events_insert"       ON events FOR INSERT WITH CHECK (auth.uid() = author_id);
+CREATE POLICY "events_update_own"   ON events FOR UPDATE USING (auth.uid() = author_id);
+CREATE POLICY "events_update_admin" ON events FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+);
+
+-- ── 2. Table event_participants (anciennement event_participations) ─────────
+DO $$
+BEGIN
+  -- Si event_participations existe encore, la renommer
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'event_participations' AND table_schema = 'public')
+     AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'event_participants' AND table_schema = 'public') THEN
+    ALTER TABLE event_participations RENAME TO event_participants;
+  END IF;
+  -- Si ni l'une ni l'autre n'existe, créer event_participants
+  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'event_participants' AND table_schema = 'public') THEN
+    CREATE TABLE event_participants (
+      id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      event_id     UUID REFERENCES events(id) ON DELETE CASCADE NOT NULL,
+      user_id      UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+      status       TEXT DEFAULT 'inscrit' CHECK (status IN ('inscrit','confirme','annule','present','absent','liste_attente')),
+      joined_at    TIMESTAMPTZ DEFAULT now(),
+      created_at   TIMESTAMPTZ DEFAULT now(),
+      updated_at   TIMESTAMPTZ DEFAULT now(),
+      UNIQUE(event_id, user_id)
+    );
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'event_participants table: %', SQLERRM;
+END$$;
+
+-- Ajouter colonnes manquantes
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='event_participants' AND column_name='status') THEN
+    ALTER TABLE event_participants ADD COLUMN status TEXT DEFAULT 'inscrit';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='event_participants' AND column_name='joined_at') THEN
+    ALTER TABLE event_participants ADD COLUMN joined_at TIMESTAMPTZ DEFAULT now();
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='event_participants' AND column_name='updated_at') THEN
+    ALTER TABLE event_participants ADD COLUMN updated_at TIMESTAMPTZ DEFAULT now();
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'event_participants columns: %', SQLERRM;
+END$$;
+
+-- RLS event_participants
+ALTER TABLE event_participants ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "ep_select" ON event_participants;
+DROP POLICY IF EXISTS "ep_insert" ON event_participants;
+DROP POLICY IF EXISTS "ep_delete" ON event_participants;
+CREATE POLICY "ep_select" ON event_participants FOR SELECT USING (true);
+CREATE POLICY "ep_insert" ON event_participants FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "ep_delete" ON event_participants FOR DELETE USING (auth.uid() = user_id);
+
+-- ── 3. event_status_history ──────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS event_status_history (
+  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  event_id   UUID REFERENCES events(id) ON DELETE CASCADE NOT NULL,
+  old_status TEXT,
+  new_status TEXT NOT NULL,
+  changed_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  reason     TEXT,
+  changed_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE event_status_history ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "esh_select" ON event_status_history;
+CREATE POLICY "esh_select" ON event_status_history FOR SELECT USING (true);
+
+-- Index utiles
+CREATE INDEX IF NOT EXISTS idx_events_date       ON events(event_date);
+CREATE INDEX IF NOT EXISTS idx_events_status     ON events(status);
+CREATE INDEX IF NOT EXISTS idx_events_author     ON events(author_id);
+CREATE INDEX IF NOT EXISTS idx_ep_event          ON event_participants(event_id);
+CREATE INDEX IF NOT EXISTS idx_ep_user           ON event_participants(user_id);
+
+NOTIFY pgrst, 'reload schema';
+-- ✅ Tables events, event_participants, event_status_history créées/migrées
+`;
+
 // ─── SQL Modération centralisée ───────────────────────────────────────────────
 const MODERATION_SQL = `-- ═══════════════════════════════════════════════════════════════════════════
 -- SYSTÈME DE MODÉRATION CENTRALISÉ — Biguglia Connect
@@ -3269,6 +3478,7 @@ export default function MigrationPage() {
   const [copiedModFix,      setCopiedModFix]      = useState(false);
   const [copiedEquipment,   setCopiedEquipment]   = useState(false);
   const [copiedOutings,     setCopiedOutings]     = useState(false);
+  const [copiedEventsBase,  setCopiedEventsBase]  = useState(false);
   const [copiedEvents,      setCopiedEvents]      = useState(false);
   const [copiedEventFix,    setCopiedEventFix]    = useState(false);
   const [copiedRoleFix,     setCopiedRoleFix]     = useState(false);
@@ -3293,15 +3503,21 @@ export default function MigrationPage() {
     setChecking(true);
     const results: TableStatus[] = [];
     for (const t of TABLES_TO_CHECK) {
-      const { error } = await supabase.from(t.name).select('id').limit(1);
-      // Absent si : 42P01 (PostgreSQL), PGRST205 (PostgREST schema cache), ou message "schema cache"
-      const missing = !!error && (
-        error.code === '42P01' ||
-        error.code === 'PGRST205' ||
-        (error.message ?? '').includes('schema cache') ||
-        (error.message ?? '').includes('Could not find')
-      );
-      results.push({ name: t.name, exists: !missing });
+      // Vérifier la table principale ET ses aliases (ex: local_events = ancien nom de events)
+      const namesToTry = [t.name, ...(t.aliases ?? [])];
+      let exists = false;
+      for (const name of namesToTry) {
+        const { error } = await supabase.from(name).select('id').limit(1);
+        const missing = !!error && (
+          error.code === '42P01' ||
+          error.code === 'PGRST205' ||
+          (error.message ?? '').includes('schema cache') ||
+          (error.message ?? '').includes('Could not find') ||
+          (error.message ?? '').includes('does not exist')
+        );
+        if (!missing) { exists = true; break; }
+      }
+      results.push({ name: t.name, exists });
     }
     setTables(results);
     setChecking(false);
@@ -4967,6 +5183,39 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-72">
           <pre className="text-xs text-orange-300 font-mono leading-relaxed whitespace-pre-wrap">{USER_ROLE_FIX_SQL}</pre>
+        </div>
+      </div>
+
+      {/* ── Événements BASE SQL (tables events + event_participants) ── */}
+      <div className="bg-gray-900 rounded-2xl overflow-hidden border border-emerald-500/50">
+        <div className="flex items-center justify-between px-5 py-4 bg-emerald-900/30">
+          <div>
+            <h3 className="text-white font-bold text-base">🎉 Événements — Tables de base (events + event_participants)</h3>
+            <p className="text-emerald-300 text-xs mt-0.5 font-semibold">
+              Exécutez CE SCRIPT si &quot;Événements locaux&quot; ou &quot;Participants&quot; restent en rouge
+            </p>
+            <p className="text-emerald-400 text-xs mt-1">
+              Crée events, event_participants, event_status_history — idempotent (sûr à relancer)
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(EVENTS_BASE_SQL).then(() => {
+                setCopiedEventsBase(true);
+                setTimeout(() => setCopiedEventsBase(false), 3000);
+              });
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
+              copiedEventsBase ? 'bg-emerald-500 text-white' : 'bg-emerald-700 text-white hover:bg-emerald-800'
+            }`}
+          >
+            {copiedEventsBase
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Événements Base</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-96">
+          <pre className="text-xs text-emerald-300 font-mono leading-relaxed whitespace-pre-wrap">{EVENTS_BASE_SQL}</pre>
         </div>
       </div>
 

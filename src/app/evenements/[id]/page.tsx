@@ -163,7 +163,7 @@ export default function EventDetailPage() {
 
       if (error || !data) {
         ({ data, error } = await supabase
-          .from('local_events')
+          .from('events')
           .select('*, author:profiles(full_name, avatar_url)')
           .eq('id', id)
           .single());
@@ -440,7 +440,7 @@ export default function EventDetailPage() {
       const { error } = await supabase.from(tableName).update(updates).eq('id', id);
       if (error) {
         // Try local_events fallback
-        await supabase.from('local_events').update(updates).eq('id', id);
+        await supabase.from('events').update(updates).eq('id', id);
       }
       toast.success(`Statut mis à jour : ${EVENT_STATUS_CONFIG[pendingTransition.to]?.label}`);
       // Notifier les participants
@@ -463,7 +463,7 @@ export default function EventDetailPage() {
     if (cnt > 0) { toast.error('Impossible : des participants sont inscrits'); return; }
     try {
       await supabase.from('events').delete().eq('id', id);
-      await supabase.from('local_events').delete().eq('id', id);
+      await supabase.from('events').delete().eq('id', id);
       toast.success('Événement supprimé');
       router.push('/evenements');
     } catch {

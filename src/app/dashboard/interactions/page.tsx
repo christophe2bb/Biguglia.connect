@@ -169,7 +169,7 @@ function MesInteractionsContent() {
           const tableMap: Record<string, string> = {
             listing: 'listings', equipment: 'equipment_items',
             help_request: 'help_requests', association: 'associations',
-            outing: 'group_outings', event: 'local_events',
+            outing: 'group_outings', event: 'events',
             service_request: 'service_requests',
           };
           const tbl = tableMap[row.source_type as string];

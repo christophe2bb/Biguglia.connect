@@ -12,10 +12,10 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { formatRelative, cn } from '@/lib/utils';
 import {
-  ChevronLeft, Heart, Share2, Flag, MapPin, Truck, Package,
+  ChevronLeft, ChevronRight, Heart, Share2, Flag, MapPin, Truck, Package,
   MessageSquare, ArrowLeftRight, Gift, Search, Star, Shield,
   BadgeCheck, Phone, Clock, Eye, CheckCircle2, AlertTriangle,
-  Pencil, Trash2, Loader2, ChevronLeft as Left, ChevronRight as Right,
+  Pencil, Trash2, Loader2,
   Gem, Tag, Calendar, Ruler, Palette, Layers, Info,
   ThumbsUp, ArrowRight, Zap,
 } from 'lucide-react';
@@ -108,13 +108,13 @@ function ImmersiveGallery({ photos, title }: { photos: { url: string; is_cover?:
               onClick={e => { e.stopPropagation(); setActiveIdx(i => (i - 1 + photos.length) % photos.length); }}
               className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white transition-all opacity-0 group-hover:opacity-100"
             >
-              <Left className="w-5 h-5 text-gray-700" />
+              <ChevronLeft className="w-5 h-5 text-gray-700" />
             </button>
             <button
               onClick={e => { e.stopPropagation(); setActiveIdx(i => (i + 1) % photos.length); }}
               className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white transition-all opacity-0 group-hover:opacity-100"
             >
-              <Right className="w-5 h-5 text-gray-700" />
+              <ChevronRight className="w-5 h-5 text-gray-700" />
             </button>
           </>
         )}

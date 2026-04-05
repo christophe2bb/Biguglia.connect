@@ -6,7 +6,7 @@
  * RÈGLE : on ne peut noter que si on a eu une interaction réelle :
  *   - listing / equipment / help_request / association / collection_item
  *       → avoir une conversation liée (related_type + related_id)
- *   - event  → être dans event_participations
+ *   - event  → être dans event_participants
  *   - outing → être dans outing_participants
  *   - promenade / lost_found → libre (avis public, comme TripAdvisor)
  *   - service_request → être l'auteur de la demande
@@ -133,13 +133,13 @@ async function checkEligibility(
     // Doit être inscrit à l'événement ET l'événement doit être passé
     case 'event': {
       const { data: ev } = await supabase
-        .from('local_events')
+        .from('events')
         .select('event_date')
         .eq('id', targetId)
         .single();
       if (ev?.event_date && new Date(ev.event_date) > new Date()) return false;
       const { data } = await supabase
-        .from('event_participations')
+        .from('event_participants')
         .select('id')
         .eq('event_id', targetId)
         .eq('user_id', userId)

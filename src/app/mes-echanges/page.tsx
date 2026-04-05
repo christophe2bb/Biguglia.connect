@@ -269,7 +269,7 @@ function MesEchangesContent() {
             listing: 'listings', equipment: 'equipment_items',
             help_request: 'help_requests', association: 'associations',
             collection_item: 'collection_items', outing: 'group_outings',
-            event: 'local_events', service_request: 'service_requests',
+            event: 'events', service_request: 'service_requests',
             lost_found: 'lost_found_items',
           };
           const tableName = tableMap[row.source_type];

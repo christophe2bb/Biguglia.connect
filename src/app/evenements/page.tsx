@@ -1288,10 +1288,10 @@ export default function EvenementsPage() {
         data = evData.map((e: Record<string, unknown>) => ({ ...e, is_free: e.price_type === 'gratuit', event_time: e.start_time ?? '18:00', max_participants: e.capacity ?? null })) as LocalEvent[];
         error = null;
       } else {
-        // Fallback to local_events — try event_participants then event_participations
+        // Fallback to events — try event_participants then event_participants
         const partTable = 'event_participants';
         const { data: legData, error: legErr } = await supabase
-          .from('local_events')
+          .from('events')
           .select(`*, author:profiles!local_events_author_id_fkey(full_name, avatar_url), participants:${partTable}(count), participants_list:${partTable}(user_id, user:profiles(full_name, avatar_url))`)
           .in('status', ['active', 'publie', 'a_venir', 'complet', 'reporte', 'annule', 'passe'])
           .order('event_date', { ascending: true });
@@ -1301,8 +1301,8 @@ export default function EvenementsPage() {
         } else {
           // Last resort: old table name
           const { data: oldData, error: oldErr } = await supabase
-            .from('local_events')
-            .select(`*, author:profiles!local_events_author_id_fkey(full_name, avatar_url), participants:event_participations(count), participants_list:event_participations(user_id, user:profiles(full_name, avatar_url))`)
+            .from('events')
+            .select(`*, author:profiles!local_events_author_id_fkey(full_name, avatar_url), participants:event_participants(count), participants_list:event_participants(user_id, user:profiles(full_name, avatar_url))`)
             .in('status', ['active', 'publie', 'a_venir', 'complet', 'reporte', 'annule', 'passe'])
             .order('event_date', { ascending: true });
           data = oldData as LocalEvent[] | null;
@@ -1338,7 +1338,7 @@ export default function EvenementsPage() {
           joins = j1;
         } else {
           const { data: j2 } = await supabase
-            .from('event_participations').select('event_id')
+            .from('event_participants').select('event_id')
             .in('event_id', ids).eq('user_id', profile.id);
           joins = j2;
         }
@@ -1399,14 +1399,14 @@ export default function EvenementsPage() {
     if (joined) {
       // Try new table first, then old
       const { error: e1 } = await supabase.from('event_participants').delete().eq('event_id', eventId).eq('user_id', profile.id);
-      if (e1) await supabase.from('event_participations').delete().eq('event_id', eventId).eq('user_id', profile.id);
+      if (e1) await supabase.from('event_participants').delete().eq('event_id', eventId).eq('user_id', profile.id);
       toast.success('Inscription annulée');
     } else {
       // Try new table first
       const { error: e1 } = await supabase.from('event_participants').insert({ event_id: eventId, user_id: profile.id, status: 'inscrit' });
       if (e1) {
         // Fallback to old table
-        const { error: e2 } = await supabase.from('event_participations').insert({ event_id: eventId, user_id: profile.id });
+        const { error: e2 } = await supabase.from('event_participants').insert({ event_id: eventId, user_id: profile.id });
         if (e2) { toast.error('Erreur lors de l\'inscription'); console.error('[join]', e2); return; }
       }
       toast.success('Inscription enregistrée !');
@@ -1417,9 +1417,9 @@ export default function EvenementsPage() {
   // ── Event status change (creator only) ───────────────────────────────────
   const handleEventStatusChange = async (eventId: string, newStatus: string) => {
     const supabase = createClient();
-    // Try events table first, fallback to local_events
+    // Try events table first, fallback to events
     const { error: e1 } = await supabase.from('events').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', eventId);
-    if (e1) await supabase.from('local_events').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', eventId);
+    if (e1) await supabase.from('events').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', eventId);
     const labels: Record<string, string> = {
       a_venir: 'À venir', complet: 'Complet', reporte: 'Reporté', annule: 'Annulé', passe: 'Passé', archive: 'Archivé',
       active: 'À venir', cancelled: 'Annulé', completed: 'Terminé', archived: 'Archivé',
@@ -1454,7 +1454,7 @@ export default function EvenementsPage() {
     }
     setSubmittingEvent(true);
 
-    // Try new 'events' table first, fallback to legacy 'local_events'
+    // Try new 'events' table first, fallback to legacy 'events'
     const eventPayloadNew = {
       author_id: profile.id,
       title: newEvent.title.trim(),
@@ -1478,8 +1478,8 @@ export default function EvenementsPage() {
     if (!e1 && d1) {
       inserted = d1;
     } else {
-      // Fallback to local_events
-      const { data: d2, error: e2 } = await supabase.from('local_events').insert({
+      // Fallback to events
+      const { data: d2, error: e2 } = await supabase.from('events').insert({
         author_id: profile.id,
         title: newEvent.title.trim(),
         description: newEvent.description.trim(),

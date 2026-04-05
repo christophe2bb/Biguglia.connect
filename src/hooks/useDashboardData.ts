@@ -225,7 +225,7 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
           .eq('owner_id', profileId).order('created_at', { ascending: false }).limit(6),
         supabase.from('help_requests').select('id', { count: 'exact', head: true })
           .eq('author_id', profileId).eq('status', 'active'),
-        supabase.from('local_events').select('id', { count: 'exact', head: true })
+        supabase.from('events').select('id', { count: 'exact', head: true })
           .eq('author_id', profileId).gte('event_date', today),
         supabase.from('group_outings').select('id', { count: 'exact', head: true })
           .eq('organizer_id', profileId).gte('outing_date', today),
@@ -279,7 +279,7 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
           .eq('author_id', profileId).eq('status', 'active'),
         supabase.from('lost_found_items').select('id', { count: 'exact', head: true })
           .eq('author_id', profileId).eq('status', 'active'),
-        supabase.from('event_participations').select('id', { count: 'exact', head: true })
+        supabase.from('event_participants').select('id', { count: 'exact', head: true })
           .eq('user_id', profileId),
         supabase.from('outing_participants').select('id', { count: 'exact', head: true })
           .eq('user_id', profileId),
@@ -485,8 +485,8 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
       const participationItems: ParticipationItem[] = [];
       try {
         const [{ data: eventParts }, { data: outingParts }] = await Promise.all([
-          supabase.from('event_participations')
-            .select('id, event_id, event:local_events(id, title, event_date, status)')
+          supabase.from('event_participants')
+            .select('id, event_id, event:events(id, title, event_date, status)')
             .eq('user_id', profileId)
             .order('created_at', { ascending: false })
             .limit(5),
@@ -646,7 +646,7 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
 
       // Fetch upcoming events created by user
       const { data: eventsData } = await supabase
-        .from('local_events')
+        .from('events')
         .select('id, title, event_date, status')
         .eq('author_id', profileId)
         .gte('event_date', today)

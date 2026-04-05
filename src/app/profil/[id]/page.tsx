@@ -116,7 +116,7 @@ export default function PublicProfilePage() {
           .limit(1)
           .maybeSingle();
         const { data: evCheck2 } = !evCheck ? await supabase
-          .from('local_events')
+          .from('events')
           .select('author_id, organizer_name')
           .eq('author_id', userId)
           .limit(1)
@@ -158,7 +158,7 @@ export default function PublicProfilePage() {
       } catch {
         try {
           const { data } = await supabase
-            .from('local_events')
+            .from('events')
             .select('id, title, event_date, start_time, location, status, category, cover_photo_url')
             .eq('author_id', userId)
             .order('event_date', { ascending: false })

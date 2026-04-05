@@ -88,6 +88,18 @@ ALTER TABLE reviews
   ADD COLUMN IF NOT EXISTS moderated_at       TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS updated_at         TIMESTAMPTZ NOT NULL DEFAULT now();
 
+-- Garantir que rating a une valeur par défaut et n'est pas NULL (si la colonne existait déjà sans DEFAULT)
+DO $$ BEGIN
+  ALTER TABLE reviews ALTER COLUMN rating SET DEFAULT 5;
+EXCEPTION WHEN OTHERS THEN NULL; END $$;
+UPDATE reviews SET rating = 5 WHERE rating IS NULL;
+
+-- Garantir que moderation_status a une valeur par défaut
+DO $$ BEGIN
+  ALTER TABLE reviews ALTER COLUMN moderation_status SET DEFAULT 'visible';
+EXCEPTION WHEN OTHERS THEN NULL; END $$;
+UPDATE reviews SET moderation_status = 'visible' WHERE moderation_status IS NULL;
+
 -- Contraintes CHECK via DO blocks (ignorées si déjà présentes)
 DO $$ BEGIN
   ALTER TABLE reviews ADD CONSTRAINT reviews_rating_check CHECK (rating >= 1 AND rating <= 5);
