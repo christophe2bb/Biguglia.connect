@@ -420,7 +420,8 @@ export default function SpecPage() {
               { href: '/admin/signalements', label: 'Admin Signalements', icon: AlertCircle },
               { href: '/messages', label: 'Messagerie', icon: MessageSquare },
               { href: '/admin/spec/materiel', label: 'Spec Matériel (100%)', icon: Settings },
-              { href: '/admin/spec/perdu-trouve', label: 'Spec Perdu/Trouvé', icon: Search },
+              { href: '/admin/spec/perdu-trouve', label: 'Spec Perdu/Trouvé (83%)', icon: Search },
+              { href: '/admin/spec/forum', label: 'Spec Forum local v2', icon: MessageSquare },
             ].map(p => {
               const Icon = p.icon;
               return (
