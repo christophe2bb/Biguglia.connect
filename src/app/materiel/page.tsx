@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, Search, Filter, Package, Users, Wrench, Gift } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
@@ -23,50 +23,86 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: 'indisponible', label: '⛔ Indisponible' },
 ];
 
+const PAGE_SIZE = 12;
+
 export default function MaterielPage() {
   const { profile } = useAuthStore();
   const router = useRouter();
   const [items, setItems] = useState<EquipmentItemFull[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string; icon: string; slug: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('disponible');
   const [onlyFree, setOnlyFree] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+
+  const catsRef = useRef<{ id: string; name: string; icon: string; slug: string }[]>([]);
+
+  const fetchData = async (pageIndex: number, replace: boolean, catsOverride?: typeof catsRef.current) => {
+    if (pageIndex === 0) setLoading(true); else setLoadingMore(true);
+    const supabase = createClient();
+
+    let currentCats = catsOverride ?? catsRef.current;
+
+    // Fetch categories once (on first load)
+    if (pageIndex === 0) {
+      const { data: cats } = await supabase.from('equipment_categories').select('*').order('display_order');
+      currentCats = (cats || []) as typeof catsRef.current;
+      catsRef.current = currentCats;
+      setCategories(currentCats);
+    }
+
+    let query = supabase
+      .from('equipment_items')
+      .select('*, owner:profiles!equipment_items_owner_id_fkey(id, full_name, avatar_url), category:equipment_categories(*), photos:equipment_photos(*)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(pageIndex * PAGE_SIZE, (pageIndex + 1) * PAGE_SIZE - 1);
+
+    if (selectedStatus !== 'all') {
+      query = query.eq('status', selectedStatus);
+    } else {
+      query = query.neq('status', 'archive');
+    }
+
+    if (selectedCategory) {
+      const cat = currentCats.find((c) => c.slug === selectedCategory);
+      if (cat) query = query.eq('category_id', cat.id);
+    }
+
+    if (onlyFree) query = query.eq('is_free', true);
+
+    const { data, count } = await query;
+    const newItems = (data as EquipmentItemFull[]) || [];
+
+    if (replace) {
+      setItems(newItems);
+    } else {
+      setItems(prev => [...prev, ...newItems]);
+    }
+
+    const total = count || 0;
+    setTotalCount(total);
+    setHasMore((pageIndex + 1) * PAGE_SIZE < total);
+
+    if (pageIndex === 0) setLoading(false); else setLoadingMore(false);
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      const supabase = createClient();
-      const { data: cats } = await supabase.from('equipment_categories').select('*').order('display_order');
-      setCategories(cats || []);
-
-      let query = supabase
-        .from('equipment_items')
-        .select('*, owner:profiles!equipment_items_owner_id_fkey(id, full_name, avatar_url), category:equipment_categories(*), photos:equipment_photos(*)')
-        .order('created_at', { ascending: false });
-
-      if (selectedStatus !== 'all') {
-        query = query.eq('status', selectedStatus);
-      } else {
-        // Tout sauf archivé
-        query = query.neq('status', 'archive');
-      }
-
-      if (selectedCategory) {
-        const cat = cats?.find((c: { slug: string }) => c.slug === selectedCategory);
-        if (cat) query = query.eq('category_id', (cat as { id: string }).id);
-      }
-
-      if (onlyFree) query = query.eq('is_free', true);
-
-      const { data } = await query;
-      setItems((data as EquipmentItemFull[]) || []);
-      setLoading(false);
-    };
-    fetchData();
+    setPage(0);
+    fetchData(0, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCategory, selectedStatus, onlyFree]);
+
+  const handleLoadMore = async () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    await fetchData(nextPage, false);
+  };
 
   const filtered = items.filter(i =>
     !search ||
@@ -184,10 +220,38 @@ export default function MaterielPage() {
         />
       ) : (
         <>
-          <p className="text-sm text-gray-500 mb-4">{filtered.length} matériel{filtered.length > 1 ? 's' : ''}</p>
+          <p className="text-sm text-gray-500 mb-4">
+            {search ? `${filtered.length} résultat${filtered.length > 1 ? 's' : ''} pour « ${search} »` : `${totalCount} matériel${totalCount > 1 ? 's' : ''}`}
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map(item => <EquipmentCard key={item.id} item={item} currentUserId={profile?.id} />)}
           </div>
+
+          {/* Pagination — Charger plus */}
+          {!search && hasMore && (
+            <div className="mt-8 flex justify-center">
+              <button
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-2xl font-medium hover:bg-gray-50 hover:border-gray-300 transition disabled:opacity-50"
+              >
+                {loadingMore ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Chargement...
+                  </>
+                ) : (
+                  <>Charger plus <span className="text-xs text-gray-400">({items.length}/{totalCount})</span></>
+                )}
+              </button>
+            </div>
+          )}
+          {!search && !hasMore && items.length > PAGE_SIZE && (
+            <p className="mt-6 text-center text-xs text-gray-400">Tous les {totalCount} matériels sont affichés</p>
+          )}
         </>
       )}
     </div>
