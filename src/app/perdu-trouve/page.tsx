@@ -1429,25 +1429,31 @@ export default function PerduTrouvePage() {
             />
           </div>
 
+          {/* Filtre statut (remplace le double filtre type + statut) */}
           <div className="flex bg-white border border-gray-200 rounded-xl overflow-hidden text-sm font-semibold shadow-sm">
-            {([['all','Tous'],['perdu','🔴 Perdu'],['trouve','🟢 Trouvé']] as const).map(([v,l]) => (
-              <button key={v} onClick={() => setFilterType(v)}
-                className={`px-3 py-2.5 transition-all ${filterType === v ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
-                {l}
-              </button>
-            ))}
-          </div>
-
-          {/* Filtre statut selon le flux */}
-          <div className="flex bg-white border border-gray-200 rounded-xl overflow-hidden text-sm font-semibold shadow-sm">
-            <button onClick={() => setFilterStatus('all')} className={`px-3 py-2.5 text-xs transition-all ${filterStatus === 'all' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+            <button onClick={() => { setFilterStatus('all'); setFilterType('all'); }}
+              className={`px-3 py-2.5 text-xs transition-all ${filterStatus === 'all' && filterType === 'all' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
               Tous
             </button>
             {(flux === 'actif' ? ACTIVE_STATUSES : HISTORY_STATUSES).map(s => {
               const cfg = STATUS_CONFIG[s];
+              // Pour perdu/trouvé on filtre par type, pour les autres par statut
+              const isTypeFilter = s === 'perdu' || s === 'trouve';
+              const isActive = isTypeFilter
+                ? filterType === s
+                : filterStatus === s;
               return (
-                <button key={s} onClick={() => setFilterStatus(s)}
-                  className={`px-3 py-2.5 text-xs transition-all ${filterStatus === s ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+                <button key={s}
+                  onClick={() => {
+                    if (isTypeFilter) {
+                      setFilterType(s as 'perdu' | 'trouve');
+                      setFilterStatus('all');
+                    } else {
+                      setFilterStatus(s);
+                      setFilterType('all');
+                    }
+                  }}
+                  className={`px-3 py-2.5 text-xs transition-all ${isActive ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
                   {cfg.icon} {cfg.label}
                 </button>
               );
