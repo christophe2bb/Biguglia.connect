@@ -6,7 +6,7 @@
  * UX haut de gamme, confiance, filtres avancés, galerie immersive
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
@@ -18,7 +18,7 @@ import {
   SlidersHorizontal, TrendingUp, Clock, CheckCircle2, Shield,
   BadgeCheck, Sparkles, ChevronDown, ChevronUp, Loader2,
   Zap, Tag, Camera, Bell, LayoutGrid, List, RefreshCw,
-  AlertTriangle, Share2, Bookmark
+  AlertTriangle, Share2, Bookmark, Layers, Pencil, Trash2, AlertCircle
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import toast from 'react-hot-toast';
@@ -371,12 +371,27 @@ function ItemCard({
   );
 }
 
+// ─── Type Forum ───────────────────────────────────────────────────────────────
+
+type ForumPost = {
+  id: string;
+  title: string;
+  content: string;
+  author_id: string;
+  created_at: string;
+  author?: { full_name: string; avatar_url?: string } | null;
+  comment_count?: { count: number }[];
+};
+
 // ─── Composant principal ──────────────────────────────────────────────────────
 
 export default function CollectionneursPage() {
   const { profile } = useAuthStore();
   const router      = useRouter();
   const supabase    = createClient();
+
+  // Onglets
+  const [activeTab, setActiveTab] = useState<'annonces' | 'forum'>('annonces');
 
   // État principal
   const [items,      setItems]      = useState<CollectionItem[]>([]);
@@ -403,6 +418,17 @@ export default function CollectionneursPage() {
 
   // Favoris
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+
+  // Forum
+  const [forumPosts,       setForumPosts]       = useState<ForumPost[]>([]);
+  const [forumCategoryId,  setForumCategoryId]  = useState<string | null>(null);
+  const [loadingForum,     setLoadingForum]     = useState(false);
+  const [showPostForm,     setShowPostForm]     = useState(false);
+  const [postForm,         setPostForm]         = useState({ title: '', content: '' });
+  const [submittingPost,   setSubmittingPost]   = useState(false);
+  const [editPost,         setEditPost]         = useState<ForumPost | null>(null);
+  const [editPostForm,     setEditPostForm]     = useState({ title: '', content: '' });
+  const [savingPost,       setSavingPost]       = useState(false);
 
   // ── Fetch catégories ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -603,6 +629,78 @@ export default function CollectionneursPage() {
     setSearch(''); setSelectedCat('all'); setSelectedStatus('actif');
   };
 
+  // ── Fetch forum ──────────────────────────────────────────────────────────────
+  const fetchForum = useCallback(async () => {
+    setLoadingForum(true);
+    try {
+      const { data: catData } = await supabase
+        .from('forum_categories').select('id').eq('slug', 'collectionneurs').maybeSingle();
+      const catId = catData?.id ?? null;
+      setForumCategoryId(catId);
+      if (!catId) { setLoadingForum(false); return; }
+      const { data } = await supabase
+        .from('forum_posts')
+        .select(`*, author:profiles!forum_posts_author_id_fkey(full_name, avatar_url), comment_count:forum_comments(count)`)
+        .eq('category_id', catId)
+        .order('created_at', { ascending: false })
+        .limit(30);
+      setForumPosts((data as unknown as ForumPost[]) || []);
+    } catch (err) { console.error('fetchForum error:', err); }
+    setLoadingForum(false);
+  }, [supabase]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { if (activeTab === 'forum') fetchForum(); }, [activeTab, fetchForum]);
+
+  // ── Publier un sujet forum ───────────────────────────────────────────────────
+  const handlePostSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile) { toast.error('Connectez-vous pour poster'); return; }
+    if (!postForm.title.trim() || !postForm.content.trim()) { toast.error('Remplissez le titre et le contenu'); return; }
+    setSubmittingPost(true);
+    let catId = forumCategoryId;
+    if (!catId) {
+      const { data: existing } = await supabase.from('forum_categories').select('id').eq('slug', 'collectionneurs').maybeSingle();
+      catId = existing?.id ?? null;
+      if (catId) setForumCategoryId(catId);
+    }
+    if (!catId) {
+      toast.error('Catégorie forum introuvable — la migration SQL doit être exécutée dans Supabase.');
+      setSubmittingPost(false); return;
+    }
+    const { error } = await supabase.from('forum_posts').insert({
+      category_id: catId, author_id: profile.id,
+      title: postForm.title.trim(), content: postForm.content.trim(),
+    });
+    if (error) { toast.error(`Erreur publication : ${error.message}`); }
+    else { toast.success('🎉 Sujet publié !', { duration: 4000 }); setPostForm({ title: '', content: '' }); setShowPostForm(false); fetchForum(); }
+    setSubmittingPost(false);
+  };
+
+  // ── Modifier un sujet forum ──────────────────────────────────────────────────
+  const openEditPost = (post: ForumPost) => { setEditPost(post); setEditPostForm({ title: post.title, content: post.content }); };
+
+  const handleUpdatePost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editPost || !profile) return;
+    if (!editPostForm.title.trim() || !editPostForm.content.trim()) { toast.error('Titre et contenu obligatoires'); return; }
+    setSavingPost(true);
+    const { error } = await supabase.from('forum_posts')
+      .update({ title: editPostForm.title.trim(), content: editPostForm.content.trim() })
+      .eq('id', editPost.id).eq('author_id', profile.id);
+    if (error) { toast.error(`Erreur : ${error.message}`); }
+    else { toast.success('✅ Sujet modifié !', { duration: 3000 }); setEditPost(null); fetchForum(); }
+    setSavingPost(false);
+  };
+
+  // ── Supprimer un sujet forum ─────────────────────────────────────────────────
+  const handleDeletePost = async (post: ForumPost) => {
+    if (!profile || profile.id !== post.author_id) return;
+    if (!confirm(`Supprimer le sujet "${post.title}" ? Action irréversible.`)) return;
+    const { error } = await supabase.from('forum_posts').delete().eq('id', post.id).eq('author_id', profile.id);
+    if (error) { toast.error(`Erreur suppression : ${error.message}`); }
+    else { toast.success('🗑️ Sujet supprimé', { duration: 3000 }); fetchForum(); }
+  };
+
   // ── Items enrichis avec favoris ──────────────────────────────────────────────
   const enrichedItems = items.map(it => ({ ...it, isFavorited: favorites.has(it.id) }));
 
@@ -655,6 +753,182 @@ export default function CollectionneursPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Onglets Annonces / Forum ─────────────────────────────────────── */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="flex items-center gap-1">
+            {([
+              { id: 'annonces', label: 'Annonces & troc', icon: Tag },
+              { id: 'forum',    label: 'Forum communauté', icon: MessageSquare },
+            ] as { id: 'annonces' | 'forum'; label: string; icon: React.ElementType }[]).map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={cn(
+                  'flex items-center gap-2 px-5 py-3.5 text-sm font-semibold border-b-2 transition-all',
+                  activeTab === id
+                    ? 'border-amber-500 text-amber-700'
+                    : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
+                )}
+              >
+                <Icon className="w-4 h-4" /> {label}
+                {id === 'forum' && forumPosts.length > 0 && (
+                  <span className="bg-amber-100 text-amber-700 text-xs font-bold px-1.5 py-0.5 rounded-full">{forumPosts.length}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ══ TAB FORUM ═════════════════════════════════════════════════════ */}
+      {activeTab === 'forum' && (
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <div className="max-w-3xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Forum des collectionneurs</h2>
+              {profile && (
+                <button onClick={() => setShowPostForm(!showPostForm)}
+                  className="inline-flex items-center gap-2 bg-amber-500 text-white font-bold px-5 py-2.5 rounded-xl hover:bg-amber-600 transition-all text-sm">
+                  <Plus className="w-4 h-4" /> Nouveau sujet
+                </button>
+              )}
+            </div>
+
+            {/* Formulaire nouveau sujet */}
+            {showPostForm && profile && (
+              <form onSubmit={handlePostSubmit} className="bg-white rounded-2xl border border-amber-200 p-5 mb-6 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-gray-800">Nouveau sujet</h3>
+                  <button type="button" onClick={() => setShowPostForm(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+                </div>
+                <input type="text" placeholder="Titre du sujet..." required
+                  value={postForm.title} onChange={e => setPostForm(f => ({ ...f, title: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                <textarea placeholder="Votre question, conseil, ou annonce de bourse..." required
+                  rows={4} value={postForm.content} onChange={e => setPostForm(f => ({ ...f, content: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none mb-3 focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                <div className="flex gap-2">
+                  <button type="submit" disabled={submittingPost}
+                    className="flex items-center gap-2 bg-amber-500 text-white font-bold px-5 py-2 rounded-xl text-sm hover:bg-amber-600 disabled:opacity-50 transition-all">
+                    {submittingPost ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Publication...</> : 'Publier'}
+                  </button>
+                  <button type="button" onClick={() => setShowPostForm(false)} className="px-5 py-2 rounded-xl text-sm text-gray-500 hover:bg-gray-100">Annuler</button>
+                </div>
+              </form>
+            )}
+
+            {/* Formulaire édition */}
+            {editPost && profile && (
+              <form onSubmit={handleUpdatePost} className="bg-white rounded-2xl border border-blue-200 p-5 mb-6 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-gray-800">Modifier le sujet</h3>
+                  <button type="button" onClick={() => setEditPost(null)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+                </div>
+                <input type="text" placeholder="Titre du sujet..." required
+                  value={editPostForm.title} onChange={e => setEditPostForm(f => ({ ...f, title: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                <textarea placeholder="Contenu..." required rows={4}
+                  value={editPostForm.content} onChange={e => setEditPostForm(f => ({ ...f, content: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none mb-3 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                <div className="flex gap-2">
+                  <button type="submit" disabled={savingPost}
+                    className="flex items-center gap-2 bg-blue-600 text-white font-bold px-5 py-2 rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50 transition-all">
+                    {savingPost ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sauvegarde...</> : 'Sauvegarder'}
+                  </button>
+                  <button type="button" onClick={() => setEditPost(null)} className="px-5 py-2 rounded-xl text-sm text-gray-500 hover:bg-gray-100">Annuler</button>
+                </div>
+              </form>
+            )}
+
+            {loadingForum ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-7 h-7 text-amber-400 animate-spin" />
+              </div>
+            ) : !forumCategoryId && !loadingForum ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center">
+                <AlertCircle className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+                <p className="font-bold text-amber-800 mb-1">Forum temporairement indisponible</p>
+                <p className="text-amber-700 text-sm mb-4">
+                  La catégorie forum &quot;Collectionneurs&quot; n&apos;existe pas encore.<br />
+                  Exécutez <code className="bg-amber-100 px-1 rounded font-mono text-xs">migration_themes.sql</code> dans Supabase.
+                </p>
+                {profile && (
+                  <Link href="/forum/nouveau"
+                    className="inline-flex items-center gap-2 bg-amber-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-amber-600 transition-all">
+                    <Plus className="w-4 h-4" /> Poster dans le forum général
+                  </Link>
+                )}
+              </div>
+            ) : forumPosts.length === 0 ? (
+              <div className="text-center py-16">
+                <MessageSquare className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                <p className="text-gray-500 font-medium">Aucun sujet pour l&apos;instant</p>
+                {profile && (
+                  <button onClick={() => setShowPostForm(true)} className="mt-4 text-amber-600 font-semibold text-sm hover:underline">
+                    Soyez le premier à poster !
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {forumPosts.map(post => {
+                  const isPostOwner = profile?.id === post.author_id;
+                  return (
+                    <div key={post.id} className="bg-white rounded-2xl border border-gray-100 p-5 hover:border-amber-200 hover:shadow-sm transition-all group">
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <Link href={`/forum/${post.id}`} className="flex-1 min-w-0">
+                          <h3 className="font-bold text-gray-900 text-sm hover:text-amber-700 transition-colors leading-snug">{post.title}</h3>
+                        </Link>
+                        {isPostOwner && (
+                          <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => openEditPost(post)} title="Modifier"
+                              className="p-1.5 bg-gray-50 rounded-lg border border-gray-200 hover:bg-amber-50 hover:border-amber-300 transition-all">
+                              <Pencil className="w-3.5 h-3.5 text-amber-600" />
+                            </button>
+                            <button onClick={() => handleDeletePost(post)} title="Supprimer"
+                              className="p-1.5 bg-gray-50 rounded-lg border border-gray-200 hover:bg-red-50 hover:border-red-300 transition-all">
+                              <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <Link href={`/forum/${post.id}`} className="block">
+                        <p className="text-gray-500 text-xs mb-3 line-clamp-2">{post.content}</p>
+                        <div className="flex items-center justify-between text-xs text-gray-400">
+                          <span className="flex items-center gap-2">
+                            {post.author && <Avatar src={post.author.avatar_url} name={post.author.full_name} size="xs" />}
+                            {post.author?.full_name ?? 'Membre'} · {formatRelative(post.created_at)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            {(post.comment_count as unknown as { count: number }[])?.[0]?.count ?? 0} réponses
+                          </span>
+                        </div>
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {!profile && (
+              <div className="mt-6 bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center">
+                <p className="text-amber-700 font-medium mb-3">Connectez-vous pour participer aux discussions</p>
+                <Link href="/connexion"
+                  className="inline-flex items-center gap-2 bg-amber-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-amber-600 transition-all">
+                  Se connecter
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ══ TAB ANNONCES ══════════════════════════════════════════════════ */}
+      {activeTab === 'annonces' && (
+      <>
 
       {/* ── Modes rapides ───────────────────────────────────────────────── */}
       <div className="bg-white border-b border-gray-100 sticky top-0 z-30 shadow-sm">
@@ -988,6 +1262,9 @@ export default function CollectionneursPage() {
           </div>
         </div>
       </div>
+
+      </> /* fin TAB ANNONCES */
+      )}
     </div>
   );
 }
