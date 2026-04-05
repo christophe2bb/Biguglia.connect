@@ -90,9 +90,11 @@ function ItemCard({
   const condCfg   = CONDITION_CONFIG[item.condition];
   const catClasses = item.category ? getCatClasses(item.category.color) : COLOR_MAP.gray;
 
-  const coverPhoto = item.photos?.find(p => p.is_cover) || item.photos?.[0];
-  const photoCount = item.photos?.length || 0;
-  const allPhotos  = toPhotoItems((item.photos ?? []).map((p, i) => ({ url: p.url || p.image_url || p.preview || '', display_order: p.sort_order ?? i })));
+  const getPhotoUrl = (p: NonNullable<CollectionItem['photos']>[number]) => p.url || p.image_url || p.preview || '';
+  const coverPhoto = item.photos?.find(p => p.is_cover && getPhotoUrl(p)) || item.photos?.find(p => getPhotoUrl(p));
+  const coverUrl   = coverPhoto ? getPhotoUrl(coverPhoto) : '';
+  const photoCount = item.photos?.filter(p => getPhotoUrl(p)).length || 0;
+  const allPhotos  = toPhotoItems((item.photos ?? []).map((p, i) => ({ url: getPhotoUrl(p), display_order: p.sort_order ?? i })).filter(p => p.url));
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIdx,  setLightboxIdx]  = useState(0);
@@ -121,8 +123,8 @@ function ItemCard({
           {/* Photo */}
           <div className="relative w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100 cursor-pointer"
                onClick={() => { if (coverPhoto) { setLightboxIdx(0); setLightboxOpen(true); } }}>
-            {coverPhoto ? (
-              <img src={coverPhoto.url} alt={item.title}
+            {coverUrl ? (
+              <img src={coverUrl} alt={item.title}
                    className="w-full h-full object-cover" loading="lazy" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-2xl">
@@ -201,9 +203,9 @@ function ItemCard({
       {/* Photo principale */}
       <div className="relative aspect-square bg-gray-50 overflow-hidden cursor-pointer"
            onClick={() => { if (coverPhoto) { setLightboxIdx(0); setLightboxOpen(true); } }}>
-        {coverPhoto ? (
+        {coverUrl ? (
           <>
-            <img src={coverPhoto.url} alt={item.title}
+            <img src={coverUrl} alt={item.title}
                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                  loading="lazy" />
             {photoCount > 1 && (
@@ -493,19 +495,53 @@ export default function CollectionneursPage() {
 
       const { data, count, error } = await query;
       if (error) {
-        // Fallback: table sans les colonnes v2
-        const { data: fallback } = await supabase
+        // Fallback: table sans les colonnes v2 — applique tous les filtres disponibles
+        let fbQuery = supabase
           .from('collection_items')
-          .select(`id, title, description, category_id, item_type, condition, price, tags, author_id, views, created_at, author:profiles!collection_items_author_id_fkey(id, full_name, avatar_url), category:collection_categories(id, name, slug, icon, color), photos:collection_item_photos(url)`)
-          .eq('status', 'active')
+          .select(`
+            id, title, description, category_id, item_type, condition, price, tags,
+            author_id, views, created_at,
+            author:profiles!collection_items_author_id_fkey(id, full_name, avatar_url),
+            category:collection_categories(id, name, slug, icon, color),
+            photos:collection_item_photos(url, is_cover, sort_order)
+          `);
+
+        // Filtre statut de base
+        if (selectedStatus === 'actif') {
+          fbQuery = fbQuery.in('status', ['active','actif']);
+        }
+
+        // Filtre catégorie
+        if (selectedCat !== 'all') fbQuery = fbQuery.eq('category_id', selectedCat);
+
+        // Filtre mode → item_type
+        if (selectedMode !== 'all') {
+          const ftypes = selectedMode === 'echange' ? ['troc', 'echange'] : [selectedMode];
+          fbQuery = fbQuery.in('item_type', ftypes);
+        }
+
+        // Filtre état
+        if (selectedCond !== 'all') fbQuery = fbQuery.eq('condition', selectedCond);
+
+        // Recherche texte
+        if (search.trim()) {
+          fbQuery = fbQuery.or(
+            `title.ilike.%${search.trim()}%,description.ilike.%${search.trim()}%`
+          );
+        }
+
+        const { data: fallback } = await fbQuery
           .order('created_at', { ascending: false })
           .limit(PAGE_SIZE);
+
         const mapped: CollectionItem[] = (fallback || []).map((d: Record<string, unknown>) => ({
           ...(d as unknown as CollectionItem),
           mode: (d.item_type === 'troc' ? 'echange' : d.item_type) as CollectionMode || 'vente',
           status: 'actif' as CollectionStatus,
+          isFavorited: favorites.has(d.id as string),
         }));
-        setItems(mapped);
+        if (reset || page === 0) setItems(mapped);
+        else setItems(prev => [...prev, ...mapped]);
         setTotal(mapped.length);
         return;
       }
@@ -524,11 +560,15 @@ export default function CollectionneursPage() {
     }
   }, [selectedStatus, selectedMode, selectedCat, selectedCond, selectedRarity, shippingOnly, localOnly, priceMin, priceMax, search, sortBy, page, favorites]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { setPage(0); fetchItems(true); }, [selectedStatus, selectedMode, selectedCat, selectedCond, selectedRarity, shippingOnly, localOnly, priceMin, priceMax, sortBy]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    setItems([]);  // Clear items immediately when filter changes to avoid stale display
+    setPage(0);
+    fetchItems(true);
+  }, [selectedStatus, selectedMode, selectedCat, selectedCond, selectedRarity, shippingOnly, localOnly, priceMin, priceMax, sortBy]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounce search
   useEffect(() => {
-    const t = setTimeout(() => { setPage(0); fetchItems(true); }, 400);
+    const t = setTimeout(() => { setItems([]); setPage(0); fetchItems(true); }, 400);
     return () => clearTimeout(t);
   }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
 

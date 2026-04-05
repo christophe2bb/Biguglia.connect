@@ -57,44 +57,52 @@ CREATE INDEX IF NOT EXISTS idx_ti_status     ON trust_interactions(status);
 CREATE INDEX IF NOT EXISTS idx_ti_review     ON trust_interactions(review_unlocked) WHERE review_unlocked = true;
 
 -- ─── 2. reviews ───────────────────────────────────────────────────────────────
--- Avis laissé par un membre après une interaction completed.
--- Cible une PERSONNE (target_user_id), pas un contenu brut.
+-- La table reviews peut déjà exister (ancienne version).
+-- On l'enrichit de manière idempotente avec ALTER TABLE + CREATE TABLE IF NOT EXISTS.
+
+-- Créer si elle n'existe pas encore
 CREATE TABLE IF NOT EXISTS reviews (
   id               UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  -- Interaction source (garantie de véracité)
-  interaction_id   UUID REFERENCES trust_interactions(id) ON DELETE CASCADE,
-  -- Thème (pour filtrage et affichage)
-  source_type      TEXT NOT NULL,
-  source_id        UUID NOT NULL,
-  -- Qui évalue qui
-  author_id        UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  target_user_id   UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  -- Note globale
-  rating           INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
-  -- Dimensions détaillées (communication, fiabilité, ponctualité…)
-  dim_communication  INT CHECK (dim_communication >= 1 AND dim_communication <= 5),
-  dim_reliability    INT CHECK (dim_reliability >= 1 AND dim_reliability <= 5),
-  dim_punctuality    INT CHECK (dim_punctuality >= 1 AND dim_punctuality <= 5),
-  dim_quality        INT CHECK (dim_quality >= 1 AND dim_quality <= 5),
-  -- Commentaire libre
-  comment          TEXT CHECK (char_length(comment) <= 1000),
-  -- Recommandation (oui / neutre / non)
-  would_recommend  BOOLEAN,
-  -- Modération
-  moderation_status TEXT NOT NULL DEFAULT 'visible' CHECK (moderation_status IN (
-    'visible','reported','hidden','deleted'
-  )),
-  moderation_note  TEXT,
-  moderated_by     UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  moderated_at     TIMESTAMPTZ,
-  -- Timestamps
+  rating           INT NOT NULL DEFAULT 5 CHECK (rating >= 1 AND rating <= 5),
+  author_id        UUID REFERENCES profiles(id) ON DELETE CASCADE,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-  -- Un seul avis par interaction par auteur (reviewer ≠ reviewed enforced by CHECK)
-  CONSTRAINT uq_review_per_interaction UNIQUE (interaction_id, author_id),
-  CONSTRAINT no_self_review CHECK (author_id <> target_user_id)
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Enrichissement idempotent des colonnes manquantes
+ALTER TABLE reviews
+  ADD COLUMN IF NOT EXISTS interaction_id   UUID REFERENCES trust_interactions(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS source_type      TEXT,
+  ADD COLUMN IF NOT EXISTS source_id        UUID,
+  ADD COLUMN IF NOT EXISTS target_user_id   UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS dim_communication  INT CHECK (dim_communication >= 1 AND dim_communication <= 5),
+  ADD COLUMN IF NOT EXISTS dim_reliability    INT CHECK (dim_reliability >= 1 AND dim_reliability <= 5),
+  ADD COLUMN IF NOT EXISTS dim_punctuality    INT CHECK (dim_punctuality >= 1 AND dim_punctuality <= 5),
+  ADD COLUMN IF NOT EXISTS dim_quality        INT CHECK (dim_quality >= 1 AND dim_quality <= 5),
+  ADD COLUMN IF NOT EXISTS comment          TEXT,
+  ADD COLUMN IF NOT EXISTS would_recommend  BOOLEAN,
+  ADD COLUMN IF NOT EXISTS moderation_status TEXT NOT NULL DEFAULT 'visible',
+  ADD COLUMN IF NOT EXISTS moderation_note  TEXT,
+  ADD COLUMN IF NOT EXISTS moderated_by     UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS moderated_at     TIMESTAMPTZ;
+
+-- Contrainte moderation_status (idempotente via DO block)
+DO $$ BEGIN
+  ALTER TABLE reviews ADD CONSTRAINT reviews_modstatus_check
+    CHECK (moderation_status IN ('visible','reported','hidden','deleted'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- Contrainte no_self_review (idempotente)
+DO $$ BEGIN
+  ALTER TABLE reviews ADD CONSTRAINT no_self_review
+    CHECK (author_id <> target_user_id);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- Contrainte unique par interaction (idempotente)
+DO $$ BEGIN
+  ALTER TABLE reviews ADD CONSTRAINT uq_review_per_interaction
+    UNIQUE (interaction_id, author_id);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 CREATE INDEX IF NOT EXISTS idx_reviews_target   ON reviews(target_user_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_author   ON reviews(author_id);
