@@ -267,6 +267,8 @@ export default function AnnonceDetailPage() {
                 sourceTitle={listing.title}
                 ownerId={listing.user_id}
                 userId={profile?.id}
+                ctaLabel="Discuter en privé"
+                prefillMsg={`Bonjour, je suis intéressé(e) par votre annonce "${listing.title}"${listing.price ? ` à ${listing.price} €` : ''} — est-elle toujours disponible ?`}
                 className="mb-3 w-full"
               />
             )}
