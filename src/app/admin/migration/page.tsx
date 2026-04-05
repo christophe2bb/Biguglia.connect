@@ -4225,9 +4225,9 @@ CREATE INDEX IF NOT EXISTS lfi_sector_idx ON lost_found_items(sector_id);
 ALTER TABLE help_requests ADD COLUMN IF NOT EXISTS sector_id TEXT REFERENCES sectors(id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS help_sector_idx ON help_requests(sector_id);
 
--- Événements
-ALTER TABLE local_events ADD COLUMN IF NOT EXISTS sector_id TEXT REFERENCES sectors(id) ON DELETE SET NULL;
-CREATE INDEX IF NOT EXISTS events_sector_idx ON local_events(sector_id);
+-- Événements (table = events)
+ALTER TABLE events ADD COLUMN IF NOT EXISTS sector_id TEXT REFERENCES sectors(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS events_sector_idx ON events(sector_id);
 
 -- Promenades
 ALTER TABLE promenades ADD COLUMN IF NOT EXISTS sector_id TEXT REFERENCES sectors(id) ON DELETE SET NULL;
@@ -4258,10 +4258,10 @@ SELECT
   s.icon,
   s.color,
   s.display_order,
-  (SELECT COUNT(*) FROM lost_found_items lfi WHERE lfi.sector_id = s.id AND lfi.status NOT IN ('rendu','archive'))  AS lf_count,
+  (SELECT COUNT(*) FROM lost_found_items lfi WHERE lfi.sector_id = s.id AND lfi.status NOT IN ('restitue','clos','archive')) AS lf_count,
   (SELECT COUNT(*) FROM help_requests hr WHERE hr.sector_id = s.id AND hr.status = 'active')                        AS help_count,
-  (SELECT COUNT(*) FROM local_events le WHERE le.sector_id = s.id AND le.status = 'active')                         AS events_count,
-  (SELECT COUNT(*) FROM promenades p WHERE p.sector_id = s.id AND p.status = 'published')                           AS promenades_count,
+  (SELECT COUNT(*) FROM events le WHERE le.sector_id = s.id AND le.status IN ('a_venir','complet'))                AS events_count,
+  (SELECT COUNT(*) FROM promenades p WHERE p.sector_id = s.id AND p.status = 'active')                             AS promenades_count,
   (SELECT COUNT(*) FROM associations a WHERE a.sector_id = s.id AND a.status = 'active')                            AS asso_count,
   (SELECT COUNT(*) FROM collection_items ci WHERE ci.sector_id = s.id AND ci.status = 'actif')                      AS collect_count,
   (SELECT COUNT(*) FROM equipment_items ei WHERE ei.sector_id = s.id AND ei.status = 'disponible')                  AS equip_count,
@@ -4273,7 +4273,7 @@ ORDER BY s.display_order;
 -- ✅ Résultat :
 -- • Table 'sectors' avec 6 secteurs de Biguglia et RLS
 -- • home_sector_id sur profiles (secteur de résidence)
--- • sector_id sur : lost_found_items, help_requests, local_events,
+-- • sector_id sur : lost_found_items, help_requests, events,
 --   promenades, associations, collection_items, equipment_items, listings
 -- • Vue sector_stats avec compteurs en temps réel par secteur et module
 `;
