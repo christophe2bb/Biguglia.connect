@@ -5,9 +5,12 @@ import { useParams, useRouter } from 'next/navigation';
 import {
   Send, ChevronLeft, CheckCheck, ExternalLink,
   ShoppingBag, HandHeart, Dog, Users, MapPin, Wrench,
-  HelpCircle, MessageSquare, ChevronDown, ChevronUp,
+  MessageSquare, ChevronDown, ChevronUp,
   PartyPopper, Star, Clock, ThumbsUp,
   MoreVertical, StarOff, Ban, UserCheck, Flag, Trash2,
+  Info, Bot, Wifi, WifiOff, Phone, Copy,
+  CalendarCheck, Package, CheckCircle2, XCircle,
+  RefreshCw, Sparkles,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -39,11 +42,9 @@ const CONTEXT_CONFIG: Record<string, {
   general:        { icon: MessageSquare, label: 'Conversation',    color: 'text-gray-700',    bg: 'bg-gray-50',    border: 'border-gray-200',   href: () => `/` },
 };
 
-// ─── Bannière de contexte ──────────────────────────────────────────────────────
+// ─── Bannière de contexte compacte ────────────────────────────────────────────
 function ContextBanner({
-  relatedType,
-  relatedId,
-  subject,
+  relatedType, relatedId, subject,
 }: {
   relatedType: string | null;
   relatedId: string | null;
@@ -51,15 +52,10 @@ function ContextBanner({
 }) {
   const [open, setOpen] = useState(true);
   const [contextData, setContextData] = useState<{
-    title: string;
-    description?: string;
-    photo?: string;
-    price?: string;
-    location?: string;
-    status?: string;
+    title: string; description?: string; photo?: string;
+    price?: string; location?: string; status?: string;
   } | null>(null);
   const [loadingCtx, setLoadingCtx] = useState(false);
-
   const supabase = createClient();
   const conf = relatedType ? CONTEXT_CONFIG[relatedType] : null;
 
@@ -70,107 +66,44 @@ function ContextBanner({
     const loadContext = async () => {
       try {
         if (relatedType === 'listing') {
-          const { data } = await supabase
-            .from('listings')
-            .select('title, description, price, location, listing_type, photos:listing_photos(url)')
-            .eq('id', relatedId)
-            .single();
+          const { data } = await supabase.from('listings').select('title, description, price, location, listing_type, photos:listing_photos(url)').eq('id', relatedId).single();
           if (data) {
             const photos = data.photos as Array<{ url: string }> | undefined;
-            setContextData({
-              title: data.title,
-              description: data.description?.slice(0, 120),
-              photo: photos?.[0]?.url,
-              price: data.price != null ? (data.price === 0 ? 'Gratuit' : `${data.price} €`) : undefined,
-              location: data.location,
-              status: data.listing_type,
-            });
+            setContextData({ title: data.title, description: data.description?.slice(0, 120), photo: photos?.[0]?.url, price: data.price != null ? (data.price === 0 ? 'Gratuit' : `${data.price} €`) : undefined, location: data.location, status: data.listing_type });
           }
         } else if (relatedType === 'equipment') {
-          const { data } = await supabase
-            .from('equipment_items')
-            .select('title, description, daily_rate, photos:equipment_photos(url)')
-            .eq('id', relatedId)
-            .single();
+          const { data } = await supabase.from('equipment_items').select('title, description, daily_rate, photos:equipment_photos(url)').eq('id', relatedId).single();
           if (data) {
             const photos = data.photos as Array<{ url: string }> | undefined;
-            setContextData({
-              title: data.title,
-              description: data.description?.slice(0, 120),
-              photo: photos?.[0]?.url,
-              price: data.daily_rate ? `${data.daily_rate} €/j` : 'Gratuit',
-            });
+            setContextData({ title: data.title, description: data.description?.slice(0, 120), photo: photos?.[0]?.url, price: data.daily_rate ? `${data.daily_rate} €/j` : 'Gratuit' });
           }
         } else if (relatedType === 'help_request') {
-          const { data } = await supabase
-            .from('help_requests')
-            .select('title, description, category, urgency, location_city, photos:help_photos(url)')
-            .eq('id', relatedId)
-            .single();
+          const { data } = await supabase.from('help_requests').select('title, description, category, urgency, location_city, photos:help_photos(url)').eq('id', relatedId).single();
           if (data) {
             const photos = data.photos as Array<{ url: string }> | undefined;
-            setContextData({
-              title: data.title,
-              description: data.description?.slice(0, 120),
-              photo: photos?.[0]?.url,
-              location: data.location_city,
-              status: data.urgency,
-            });
+            setContextData({ title: data.title, description: data.description?.slice(0, 120), photo: photos?.[0]?.url, location: data.location_city, status: data.urgency });
           }
         } else if (relatedType === 'lost_found') {
-          const { data } = await supabase
-            .from('lost_found_items')
-            .select('title, description, location_area, photos:lf_photos(url)')
-            .eq('id', relatedId)
-            .single();
+          const { data } = await supabase.from('lost_found_items').select('title, description, location_area, photos:lf_photos(url)').eq('id', relatedId).single();
           if (data) {
             const photos = data.photos as Array<{ url: string }> | undefined;
-            setContextData({
-              title: data.title,
-              description: data.description?.slice(0, 120),
-              photo: photos?.[0]?.url,
-              location: data.location_area,
-            });
+            setContextData({ title: data.title, description: data.description?.slice(0, 120), photo: photos?.[0]?.url, location: data.location_area });
           }
         } else if (relatedType === 'association') {
-          const { data } = await supabase
-            .from('associations')
-            .select('name, description, location, photos:asso_photos(url)')
-            .eq('id', relatedId)
-            .single();
+          const { data } = await supabase.from('associations').select('name, description, location, photos:asso_photos(url)').eq('id', relatedId).single();
           if (data) {
             const photos = data.photos as Array<{ url: string }> | undefined;
-            setContextData({
-              title: data.name,
-              description: data.description?.slice(0, 120),
-              photo: photos?.[0]?.url,
-              location: data.location,
-            });
+            setContextData({ title: data.name, description: data.description?.slice(0, 120), photo: photos?.[0]?.url, location: data.location });
           }
         } else if (relatedType === 'collection_item') {
-          const { data } = await supabase
-            .from('collection_items')
-            .select('title, description, price, photos:collection_photos(url)')
-            .eq('id', relatedId)
-            .single();
+          const { data } = await supabase.from('collection_items').select('title, description, price, photos:collection_photos(url)').eq('id', relatedId).single();
           if (data) {
             const photos = data.photos as Array<{ url: string }> | undefined;
-            setContextData({
-              title: data.title,
-              description: data.description?.slice(0, 120),
-              photo: photos?.[0]?.url,
-              price: data.price != null ? `${data.price} €` : undefined,
-            });
+            setContextData({ title: data.title, description: data.description?.slice(0, 120), photo: photos?.[0]?.url, price: data.price != null ? `${data.price} €` : undefined });
           }
         } else if (relatedType === 'service_request') {
-          const { data } = await supabase
-            .from('service_requests')
-            .select('title, description')
-            .eq('id', relatedId)
-            .single();
-          if (data) {
-            setContextData({ title: data.title, description: data.description?.slice(0, 120) });
-          }
+          const { data } = await supabase.from('service_requests').select('title, description').eq('id', relatedId).single();
+          if (data) setContextData({ title: data.title, description: data.description?.slice(0, 120) });
         }
       } catch (e) {
         console.warn('Context load failed', e);
@@ -189,7 +122,6 @@ function ContextBanner({
 
   return (
     <div className={cn('rounded-2xl border mb-3 overflow-hidden', conf.bg, conf.border)}>
-      {/* Barre titre cliquable */}
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
@@ -205,7 +137,6 @@ function ContextBanner({
         }
       </button>
 
-      {/* Détail dépliable */}
       {open && (
         <div className="px-4 pb-3 pt-1">
           {loadingCtx ? (
@@ -220,13 +151,9 @@ function ContextBanner({
             <div className="flex gap-3">
               {contextData.photo ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={contextData.photo}
-                  alt={contextData.title}
-                  className="w-14 h-14 rounded-xl object-cover flex-shrink-0 border border-white/50 shadow-sm"
-                />
+                <img src={contextData.photo} alt={contextData.title} className="w-14 h-14 rounded-xl object-cover flex-shrink-0 border border-white/50 shadow-sm" />
               ) : (
-                <div className={cn('w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-white/50')}>
+                <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-white/50">
                   <CtxIcon className={cn('w-6 h-6', conf.color)} />
                 </div>
               )}
@@ -236,29 +163,21 @@ function ContextBanner({
                   <p className="text-xs text-gray-600 mt-0.5 line-clamp-2 leading-relaxed">{contextData.description}</p>
                 )}
                 <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                  {contextData.price && (
-                    <span className={cn('text-xs font-black', conf.color)}>{contextData.price}</span>
-                  )}
+                  {contextData.price && <span className={cn('text-xs font-black', conf.color)}>{contextData.price}</span>}
                   {contextData.location && (
                     <span className="flex items-center gap-0.5 text-xs text-gray-500">
                       <MapPin className="w-3 h-3" />{contextData.location}
                     </span>
                   )}
-                  {contextData.status && (
-                    <span className="text-xs text-gray-500 capitalize">{contextData.status}</span>
-                  )}
+                  {contextData.status && <span className="text-xs text-gray-500 capitalize">{contextData.status}</span>}
                 </div>
               </div>
               <Link
                 href={href}
-                className={cn(
-                  'flex-shrink-0 self-center flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-xl bg-white/80 border transition-all hover:bg-white',
-                  conf.color, conf.border
-                )}
+                className={cn('flex-shrink-0 self-center flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-xl bg-white/80 border transition-all hover:bg-white', conf.color, conf.border)}
                 target="_blank"
               >
-                <ExternalLink className="w-3 h-3" />
-                Voir
+                <ExternalLink className="w-3 h-3" />Voir
               </Link>
             </div>
           ) : (
@@ -280,38 +199,28 @@ type ExchangeStatus = 'pending_confirmation' | 'done' | null;
 
 interface ExchangeInfo {
   status: ExchangeStatus;
-  confirmedBy: string[];  // UUIDs des participants ayant confirmé
+  confirmedBy: string[];
   confirmedAt: string | null;
   relatedType: string | null;
   relatedId: string | null;
   otherUserId: string | null;
 }
 
-// ─── Types échangeables (peuvent déclencher un avis) ──────────────────────────
 const EXCHANGEABLE_TYPES: Record<string, { label: string; verb: string; color: string; bg: string; border: string }> = {
-  listing:         { label: 'Annonce',         verb: 'la vente',          color: 'text-blue-700',   bg: 'bg-blue-50',   border: 'border-blue-200'   },
-  equipment:       { label: 'Matériel',         verb: 'le prêt',           color: 'text-teal-700',   bg: 'bg-teal-50',   border: 'border-teal-200'   },
-  help_request:    { label: 'Coup de main',     verb: 'l\'aide',           color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200' },
-  association:     { label: 'Association',      verb: 'le contact',        color: 'text-purple-700', bg: 'bg-purple-50', border: 'border-purple-200' },
-  collection_item: { label: 'Collection',       verb: 'l\'échange',        color: 'text-rose-700',   bg: 'bg-rose-50',   border: 'border-rose-200'   },
-  service_request: { label: 'Demande artisan',  verb: 'la prestation',     color: 'text-brand-700',  bg: 'bg-brand-50',  border: 'border-brand-200'  },
+  listing:         { label: 'Annonce',         verb: 'la vente',      color: 'text-blue-700',   bg: 'bg-blue-50',   border: 'border-blue-200'   },
+  equipment:       { label: 'Matériel',         verb: 'le prêt',       color: 'text-teal-700',   bg: 'bg-teal-50',   border: 'border-teal-200'   },
+  help_request:    { label: 'Coup de main',     verb: 'l\'aide',       color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200' },
+  association:     { label: 'Association',      verb: 'le contact',    color: 'text-purple-700', bg: 'bg-purple-50', border: 'border-purple-200' },
+  collection_item: { label: 'Collection',       verb: 'l\'échange',    color: 'text-rose-700',   bg: 'bg-rose-50',   border: 'border-rose-200'   },
+  service_request: { label: 'Demande artisan',  verb: 'la prestation', color: 'text-brand-700',  bg: 'bg-brand-50',  border: 'border-brand-200'  },
 };
 
 // ─── Panneau de confirmation d'échange ────────────────────────────────────────
-function ExchangePanel({
-  conversationId,
-  userId,
-  exchange,
-  onExchangeUpdated,
-}: {
-  conversationId: string;
-  userId: string;
-  exchange: ExchangeInfo;
-  onExchangeUpdated: (updated: ExchangeInfo) => void;
+function ExchangePanel({ conversationId, userId, exchange, onExchangeUpdated }: {
+  conversationId: string; userId: string; exchange: ExchangeInfo; onExchangeUpdated: (updated: ExchangeInfo) => void;
 }) {
   const [confirming, setConfirming] = useState(false);
   const supabase = createClient();
-
   const conf = exchange.relatedType ? EXCHANGEABLE_TYPES[exchange.relatedType] : null;
   if (!conf || !exchange.relatedType || !exchange.relatedId) return null;
 
@@ -325,40 +234,25 @@ function ExchangePanel({
     try {
       const newConfirmedBy = [...exchange.confirmedBy, userId];
       const bothDone = newConfirmedBy.length >= 2;
-      const { error } = await supabase
-        .from('conversations')
-        .update({
-          exchange_status: bothDone ? 'done' : 'pending_confirmation',
-          exchange_confirmed_by: newConfirmedBy,
-          exchange_confirmed_at: bothDone ? new Date().toISOString() : null,
-        })
-        .eq('id', conversationId);
+      const { error } = await supabase.from('conversations').update({
+        exchange_status: bothDone ? 'done' : 'pending_confirmation',
+        exchange_confirmed_by: newConfirmedBy,
+        exchange_confirmed_at: bothDone ? new Date().toISOString() : null,
+      }).eq('id', conversationId);
 
       if (error) { toast.error('Erreur de confirmation'); return; }
 
-      // Message automatique dans la conversation
       const msg = bothDone
         ? `✅ Échange confirmé par les deux parties — les avis sont maintenant débloqués.`
         : `🤝 J'ai confirmé la fin de ${conf.verb}. En attente de confirmation de l'autre partie.`;
-      await supabase.from('messages').insert({
-        conversation_id: conversationId,
-        sender_id: userId,
-        content: msg,
-      });
+      await supabase.from('messages').insert({ conversation_id: conversationId, sender_id: userId, content: msg });
 
-      onExchangeUpdated({
-        ...exchange,
-        status: bothDone ? 'done' : 'pending_confirmation',
-        confirmedBy: newConfirmedBy,
-        confirmedAt: bothDone ? new Date().toISOString() : null,
-      });
-
+      onExchangeUpdated({ ...exchange, status: bothDone ? 'done' : 'pending_confirmation', confirmedBy: newConfirmedBy, confirmedAt: bothDone ? new Date().toISOString() : null });
       if (bothDone) toast.success('Échange confirmé ! Vous pouvez maintenant laisser un avis.');
       else toast.success('Confirmation envoyée ! En attente de l\'autre partie.');
     } finally { setConfirming(false); }
   };
 
-  // Échange terminé → afficher un résumé + lien vers l'avis
   if (isDone) {
     return (
       <div className={cn('rounded-2xl border p-4 mb-3', conf.bg, conf.border)}>
@@ -367,18 +261,14 @@ function ExchangePanel({
           <div>
             <p className={cn('font-bold text-sm', conf.color)}>Échange terminé ✅</p>
             {exchange.confirmedAt && (
-              <p className="text-xs text-gray-500">
-                Confirmé le {new Date(exchange.confirmedAt).toLocaleDateString('fr-FR', { day:'numeric', month:'long' })}
-              </p>
+              <p className="text-xs text-gray-500">Confirmé le {new Date(exchange.confirmedAt).toLocaleDateString('fr-FR', { day:'numeric', month:'long' })}</p>
             )}
           </div>
         </div>
         {exchange.relatedType && exchange.relatedId && (
           <div className="bg-white/70 rounded-xl p-3 flex items-center gap-2">
             <Star className="w-4 h-4 text-amber-400 fill-amber-400 flex-shrink-0" />
-            <p className="text-xs text-gray-700 flex-1">
-              Votre avis est maintenant <strong>débloqué</strong>.
-            </p>
+            <p className="text-xs text-gray-700 flex-1">Votre avis est maintenant <strong>débloqué</strong>.</p>
             <Link
               href={`/${exchange.relatedType === 'listing' ? 'annonces' : exchange.relatedType === 'equipment' ? 'materiel' : exchange.relatedType === 'help_request' ? 'coups-de-main' : exchange.relatedType === 'collection_item' ? 'collectionneurs' : exchange.relatedType}/${exchange.relatedId}`}
               className={cn('text-xs font-bold px-3 py-1.5 rounded-xl border bg-white', conf.color, conf.border)}
@@ -391,15 +281,12 @@ function ExchangePanel({
     );
   }
 
-  // En attente ou pas encore commencé
   return (
     <div className={cn('rounded-2xl border p-4 mb-3', conf.bg, conf.border)}>
       <div className="flex items-start gap-3">
         <ThumbsUp className={cn('w-5 h-5 flex-shrink-0 mt-0.5', conf.color)} />
         <div className="flex-1 min-w-0">
-          <p className={cn('font-bold text-sm mb-0.5', conf.color)}>
-            {conf.label} — Confirmer la fin de l&apos;échange
-          </p>
+          <p className={cn('font-bold text-sm mb-0.5', conf.color)}>{conf.label} — Confirmer la fin de l&apos;échange</p>
           <p className="text-xs text-gray-600 leading-relaxed mb-3">
             {iHaveConfirmed
               ? `✓ Vous avez confirmé. ${otherHasConfirmed ? 'Les deux parties ont confirmé !' : 'En attente de confirmation de l\'autre partie…'}`
@@ -408,30 +295,18 @@ function ExchangePanel({
           </p>
           {otherHasConfirmed && !iHaveConfirmed && (
             <p className="text-xs text-emerald-700 font-semibold mb-2 flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              L&apos;autre partie a déjà confirmé — confirmez pour finaliser !
+              <Clock className="w-3 h-3" /> L&apos;autre partie a déjà confirmé — confirmez pour finaliser !
             </p>
           )}
           {!iHaveConfirmed && (
-            <button
-              onClick={handleConfirm}
-              disabled={confirming}
-              className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm text-white transition-all',
-                'bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50'
-              )}
-            >
-              {confirming
-                ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                : <CheckCheck className="w-4 h-4" />
-              }
+            <button onClick={handleConfirm} disabled={confirming} className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-all">
+              {confirming ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <CheckCheck className="w-4 h-4" />}
               {confirming ? 'Confirmation…' : 'Confirmer la fin de l\'échange'}
             </button>
           )}
           {iHaveConfirmed && (
             <div className="flex items-center gap-2 text-xs text-emerald-700 font-semibold">
-              <CheckCheck className="w-4 h-4" />
-              Votre confirmation est enregistrée
+              <CheckCheck className="w-4 h-4" /> Votre confirmation est enregistrée
             </div>
           )}
         </div>
@@ -440,9 +315,53 @@ function ExchangePanel({
   );
 }
 
-// ─── Délais de reconnexion (ms) ────────────────────────────────────────────────
+// ─── Séparateur de date dans le fil de messages ───────────────────────────────
+function DateSeparator({ date }: { date: string }) {
+  const d = new Date(date);
+  const now = new Date();
+  const todayStr = now.toDateString();
+  const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toDateString();
+
+  let label: string;
+  if (d.toDateString() === todayStr) label = "Aujourd'hui";
+  else if (d.toDateString() === yesterdayStr) label = 'Hier';
+  else {
+    label = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    label = label.charAt(0).toUpperCase() + label.slice(1);
+  }
+
+  return (
+    <div className="flex items-center gap-3 my-4">
+      <div className="flex-1 h-px bg-gray-100" />
+      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap bg-white px-2">
+        {label}
+      </span>
+      <div className="flex-1 h-px bg-gray-100" />
+    </div>
+  );
+}
+
+// ─── Bulle message système ────────────────────────────────────────────────────
+function SystemMessage({ content }: { content: string }) {
+  const isPositive = content.startsWith('✅') || content.startsWith('🤝');
+  return (
+    <div className="flex justify-center my-2">
+      <div className={cn(
+        'flex items-start gap-2 max-w-[80%] px-3.5 py-2 rounded-2xl text-xs',
+        isPositive
+          ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+          : 'bg-gray-50 border border-gray-200 text-gray-600'
+      )}>
+        <Bot className={cn('w-3.5 h-3.5 mt-0.5 flex-shrink-0', isPositive ? 'text-emerald-500' : 'text-gray-400')} />
+        <span className="leading-relaxed">{content}</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Délais de reconnexion ────────────────────────────────────────────────────
 const RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000];
-// Intervalle du polling de secours quand Realtime est KO (ms)
 const FALLBACK_POLL_INTERVAL = 5000;
 
 // ─── Page conversation ─────────────────────────────────────────────────────────
@@ -452,7 +371,7 @@ export default function ConversationPage() {
   const { profile } = useAuthStore();
   const supabase = createClient();
 
-  const [messages, setMessages]       = useState<(Message & { sender?: Profile })[]>([]);
+  const [messages, setMessages]       = useState<(Message & { sender?: Profile; is_system?: boolean })[]>([]);
   const [newMessage, setNewMessage]   = useState('');
   const [loading, setLoading]         = useState(true);
   const [sending, setSending]         = useState(false);
@@ -466,15 +385,16 @@ export default function ConversationPage() {
   const [isBlocked, setIsBlocked]     = useState(false);
   const [activeMsg, setActiveMsg]     = useState<string | null>(null);
   const [deletingMsg, setDeletingMsg] = useState<string | null>(null);
-  const menuRef    = useRef<HTMLDivElement>(null);
-  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [exchange, setExchange]       = useState<ExchangeInfo>({
+  const [showQuickReplies, setShowQuickReplies] = useState(false);
+  const menuRef     = useRef<HTMLDivElement>(null);
+  const pressTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef    = useRef<HTMLInputElement>(null);
+  const [exchange, setExchange] = useState<ExchangeInfo>({
     status: null, confirmedBy: [], confirmedAt: null,
     relatedType: null, relatedId: null, otherUserId: null,
   });
 
   const messagesEndRef  = useRef<HTMLDivElement>(null);
-  const inputRef        = useRef<HTMLInputElement>(null);
   const profileCacheRef = useRef<Record<string, Profile>>({});
   const channelRef      = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const reconnectRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -495,45 +415,26 @@ export default function ConversationPage() {
 
   const markAsRead = useCallback(async () => {
     if (!profile) return;
-    await supabase
-      .from('conversation_participants')
-      .update({ last_read_at: new Date().toISOString() })
-      .eq('conversation_id', id as string)
-      .eq('user_id', profile.id);
+    await supabase.from('conversation_participants').update({ last_read_at: new Date().toISOString() })
+      .eq('conversation_id', id as string).eq('user_id', profile.id);
     window.dispatchEvent(new Event('messages-read'));
   }, [id, profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Polling de secours : récupère les nouveaux messages depuis le dernier connu ──
   const pollNewMessages = useCallback(async () => {
     if (!mountedRef.current || !profile) return;
     try {
-      let query = supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', id as string)
-        .order('created_at', { ascending: true });
-
+      let query = supabase.from('messages').select('*').eq('conversation_id', id as string).order('created_at', { ascending: true });
       if (lastMsgIdRef.current) {
-        // Récupérer seulement les messages plus récents que le dernier connu
-        const lastMsg = (await supabase
-          .from('messages')
-          .select('created_at')
-          .eq('id', lastMsgIdRef.current)
-          .single()).data;
-        if (lastMsg) {
-          query = query.gt('created_at', lastMsg.created_at);
-        }
+        const lastMsg = (await supabase.from('messages').select('created_at').eq('id', lastMsgIdRef.current).single()).data;
+        if (lastMsg) query = query.gt('created_at', lastMsg.created_at);
       }
-
       const { data: newMsgs } = await query;
       if (!newMsgs || newMsgs.length === 0) return;
 
-      const enriched = await Promise.all(
-        newMsgs.map(async (msg) => {
-          const sender = msg.sender_id ? await getSenderProfile(msg.sender_id) : undefined;
-          return { ...msg, sender } as Message & { sender?: Profile };
-        })
-      );
+      const enriched = await Promise.all(newMsgs.map(async (msg) => {
+        const sender = msg.sender_id ? await getSenderProfile(msg.sender_id) : undefined;
+        return { ...msg, sender } as Message & { sender?: Profile };
+      }));
 
       if (!mountedRef.current) return;
       setMessages(prev => {
@@ -544,82 +445,43 @@ export default function ConversationPage() {
         lastMsgIdRef.current = updated[updated.length - 1].id;
         return updated;
       });
-
-      // Marquer comme lu si nouveaux messages de l'autre
-      if (newMsgs.some(m => m.sender_id !== profile.id)) {
-        await markAsRead();
-        scrollToBottom();
-      }
-    } catch (err) {
-      console.warn('[ConversationPage] pollNewMessages error:', err);
-    }
+      if (newMsgs.some(m => m.sender_id !== profile.id)) { await markAsRead(); scrollToBottom(); }
+    } catch (err) { console.warn('[ConversationPage] pollNewMessages error:', err); }
   }, [id, profile, getSenderProfile, markAsRead, scrollToBottom]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Connexion Realtime ──────────────────────────────────────────────────────
   const connectRealtime = useCallback(() => {
     if (!profile || !id) return;
-
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
-    }
+    if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; }
 
     const channel = supabase
       .channel(`conv-${id}-${Date.now()}`, { config: { broadcast: { ack: false } } })
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${id}` },
-        async (payload) => {
-          if (!mountedRef.current) return;
-          const newMsg = payload.new as Message;
-
-          setMessages(prev => {
-            if (prev.find(m => m.id === newMsg.id)) return prev;
-            const updated = [...prev, newMsg];
-            lastMsgIdRef.current = newMsg.id;
-            return updated;
-          });
-
-          if (newMsg.sender_id) {
-            getSenderProfile(newMsg.sender_id).then(sender =>
-              setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...m, sender } : m))
-            );
-          }
-
-          if (newMsg.sender_id !== profile.id) {
-            await markAsRead();
-          }
-          scrollToBottom();
-        }
-      )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${id}` }, async (payload) => {
+        if (!mountedRef.current) return;
+        const newMsg = payload.new as Message;
+        setMessages(prev => {
+          if (prev.find(m => m.id === newMsg.id)) return prev;
+          const updated = [...prev, newMsg];
+          lastMsgIdRef.current = newMsg.id;
+          return updated;
+        });
+        if (newMsg.sender_id) getSenderProfile(newMsg.sender_id).then(sender => setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...m, sender } : m)));
+        if (newMsg.sender_id !== profile.id) await markAsRead();
+        scrollToBottom();
+      })
       .subscribe((status) => {
         if (!mountedRef.current) return;
         const ok = status === 'SUBSCRIBED';
         setRealtimeOk(ok);
-
         if (ok) {
           reconnectIdx.current = 0;
-          // Arrêter le polling de secours
-          if (pollRef.current) {
-            clearInterval(pollRef.current);
-            pollRef.current = null;
-          }
+          if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
           setRealtimeOk(false);
-
-          // Démarrer le polling de secours
-          if (!pollRef.current) {
-            pollRef.current = setInterval(pollNewMessages, FALLBACK_POLL_INTERVAL);
-          }
-
-          // Planifier reconnexion
+          if (!pollRef.current) pollRef.current = setInterval(pollNewMessages, FALLBACK_POLL_INTERVAL);
           const delay = RECONNECT_DELAYS[Math.min(reconnectIdx.current, RECONNECT_DELAYS.length - 1)];
           reconnectIdx.current = Math.min(reconnectIdx.current + 1, RECONNECT_DELAYS.length - 1);
-
           if (reconnectRef.current) clearTimeout(reconnectRef.current);
-          reconnectRef.current = setTimeout(() => {
-            if (mountedRef.current) connectRealtime();
-          }, delay);
+          reconnectRef.current = setTimeout(() => { if (mountedRef.current) connectRealtime(); }, delay);
         }
       });
 
@@ -631,22 +493,10 @@ export default function ConversationPage() {
     if (!profile) { router.push('/connexion'); return; }
 
     const init = async () => {
-      // ── Tout en parallèle : participants + conv + messages + RPC profil ──────
       const [participantsRes, convRes, msgsRes, rpcOtherRes] = await Promise.all([
-        supabase
-          .from('conversation_participants')
-          .select('user_id')
-          .eq('conversation_id', id as string),
-        supabase
-          .from('conversations')
-          .select('subject, related_type, related_id, exchange_status, exchange_confirmed_by, exchange_confirmed_at, owner_id, created_by')
-          .eq('id', id as string)
-          .single(),
-        supabase
-          .from('messages')
-          .select('*')
-          .eq('conversation_id', id as string)
-          .order('created_at', { ascending: true }),
+        supabase.from('conversation_participants').select('user_id').eq('conversation_id', id as string),
+        supabase.from('conversations').select('subject, related_type, related_id, exchange_status, exchange_confirmed_by, exchange_confirmed_at, owner_id, created_by').eq('id', id as string).single(),
+        supabase.from('messages').select('*').eq('conversation_id', id as string).order('created_at', { ascending: true }),
         supabase.rpc('get_conversation_other_participant', { p_conversation_id: id as string }),
       ]);
 
@@ -654,26 +504,19 @@ export default function ConversationPage() {
       const conv = convRes.data;
       const msgs = msgsRes.data || [];
 
-      // Vérifier accès
       if (!participants?.find(p => p.user_id === profile.id)) {
         toast.error('Accès refusé'); router.push('/messages'); return;
       }
 
-      // ── Résoudre l'autre participant : plusieurs stratégies en cascade ─────
-      // Collecter tous les user_id candidats (hors soi-même)
       const candidateIds = [
         ...( participants?.map(p => p.user_id).filter(uid => uid !== profile.id) || [] ),
         ...(conv?.owner_id && conv.owner_id !== profile.id ? [conv.owner_id as string] : []),
         ...(conv?.created_by && conv.created_by !== profile.id ? [conv.created_by as string] : []),
-        // Expéditeurs des messages
         ...msgs.filter(m => m.sender_id && m.sender_id !== profile.id).map(m => m.sender_id as string),
       ];
       const uniqueCandidates = Array.from(new Set(candidateIds));
 
-      // Toutes les requêtes profil en parallèle (1 seule requête SQL via .in)
       let otherUserId: string | null = null;
-
-      // Cas 1 : RPC SECURITY DEFINER (la plus fiable, contourne RLS)
       const rpcOther = rpcOtherRes.data as Array<{user_id:string;full_name:string;avatar_url:string}> | null;
       if (rpcOther && rpcOther.length > 0) {
         const op = rpcOther[0];
@@ -681,13 +524,8 @@ export default function ConversationPage() {
         otherUserId = op.user_id;
         profileCacheRef.current[op.user_id] = { id: op.user_id, full_name: op.full_name, avatar_url: op.avatar_url } as Profile;
       } else if (uniqueCandidates.length > 0) {
-        // Cas 2 : requête directe profiles pour TOUS les candidats en 1 seul appel
-        const { data: profRows } = await supabase
-          .from('profiles')
-          .select('id, full_name, avatar_url')
-          .in('id', uniqueCandidates);
+        const { data: profRows } = await supabase.from('profiles').select('id, full_name, avatar_url').in('id', uniqueCandidates);
         if (profRows && profRows.length > 0) {
-          // Remplir le cache
           profRows.forEach(p => { profileCacheRef.current[p.id] = p as Profile; });
           const found = profRows[0];
           setOtherUser(found as Profile);
@@ -699,25 +537,14 @@ export default function ConversationPage() {
       setRelatedType(conv?.related_type || null);
       setRelatedId(conv?.related_id || null);
 
-      // ── Enrichir les messages (profils déjà en cache après la requête .in) ─
-      const enriched = msgs.map(msg => ({
-        ...msg,
-        sender: msg.sender_id ? profileCacheRef.current[msg.sender_id] : undefined,
-      })) as (Message & { sender?: Profile })[];
+      const enriched = msgs.map(msg => ({ ...msg, sender: msg.sender_id ? profileCacheRef.current[msg.sender_id] : undefined })) as (Message & { sender?: Profile })[];
 
-      // Profils manquants dans le cache (expéditeurs non encore chargés)
-      const missingIds = Array.from(new Set(
-        msgs.map(m => m.sender_id).filter(sid => sid && !profileCacheRef.current[sid])
-      )) as string[];
+      const missingIds = Array.from(new Set(msgs.map(m => m.sender_id).filter(sid => sid && !profileCacheRef.current[sid]))) as string[];
       if (missingIds.length > 0) {
-        const { data: missingProfs } = await supabase
-          .from('profiles').select('id, full_name, avatar_url').in('id', missingIds);
+        const { data: missingProfs } = await supabase.from('profiles').select('id, full_name, avatar_url').in('id', missingIds);
         if (missingProfs) {
           missingProfs.forEach(p => { profileCacheRef.current[p.id] = p as Profile; });
-          // Mettre à jour les messages avec les profils maintenant disponibles
-          enriched.forEach(m => {
-            if (m.sender_id && !m.sender) m.sender = profileCacheRef.current[m.sender_id];
-          });
+          enriched.forEach(m => { if (m.sender_id && !m.sender) m.sender = profileCacheRef.current[m.sender_id]; });
         }
       }
 
@@ -725,19 +552,10 @@ export default function ConversationPage() {
       setMessages(enriched);
       if (enriched.length > 0) lastMsgIdRef.current = enriched[enriched.length - 1].id;
 
-      // ── État d'échange ──────────────────────────────────────────────────────
       if (conv?.related_type && EXCHANGEABLE_TYPES[conv.related_type]) {
-        setExchange({
-          status: (conv.exchange_status as ExchangeStatus) || null,
-          confirmedBy: (conv.exchange_confirmed_by as string[]) || [],
-          confirmedAt: conv.exchange_confirmed_at || null,
-          relatedType: conv.related_type,
-          relatedId: conv.related_id,
-          otherUserId: otherUserId || uniqueCandidates[0] || null,
-        });
+        setExchange({ status: (conv.exchange_status as ExchangeStatus) || null, confirmedBy: (conv.exchange_confirmed_by as string[]) || [], confirmedAt: conv.exchange_confirmed_at || null, relatedType: conv.related_type, relatedId: conv.related_id, otherUserId: otherUserId || uniqueCandidates[0] || null });
       }
 
-      // ── État favori/bloqué (non bloquant — en arrière-plan) ────────────────
       if (otherUserId) {
         Promise.all([
           supabase.from('user_favorites').select('id').eq('user_id', profile.id).eq('target_user_id', otherUserId).maybeSingle(),
@@ -750,7 +568,7 @@ export default function ConversationPage() {
       }
 
       setLoading(false);
-      markAsRead(); // non bloquant
+      markAsRead();
       scrollToBottom('instant' as ScrollBehavior);
     };
 
@@ -758,14 +576,9 @@ export default function ConversationPage() {
     connectRealtime();
 
     const handleVis = () => {
-      if (document.visibilityState === 'visible') {
-        markAsRead();
-        // Rafraîchir en cas de messages manqués pendant l'absence
-        pollNewMessages();
-      }
+      if (document.visibilityState === 'visible') { markAsRead(); pollNewMessages(); }
     };
     document.addEventListener('visibilitychange', handleVis);
-
     return () => {
       mountedRef.current = false;
       if (channelRef.current) supabase.removeChannel(channelRef.current);
@@ -775,65 +588,40 @@ export default function ConversationPage() {
     };
   }, [id, profile, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fermer les menus si clic extérieur
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-      // Fermer menu message si on clique ailleurs
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
       const target = e.target as HTMLElement;
-      if (!target.closest('[data-msg-menu]')) {
-        setActiveMsg(null);
-      }
+      if (!target.closest('[data-msg-menu]')) { setActiveMsg(null); setShowQuickReplies(false); }
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // Appui long (mobile) : 600 ms → ouvre le menu du message
   const handlePressStart = (msgId: string, isMe: boolean) => {
     if (!isMe) return;
-    pressTimer.current = setTimeout(() => {
-      setActiveMsg(msgId);
-      // Vibration haptique si disponible
-      if (navigator.vibrate) navigator.vibrate(30);
-    }, 600);
+    pressTimer.current = setTimeout(() => { setActiveMsg(msgId); if (navigator.vibrate) navigator.vibrate(30); }, 600);
   };
-  const handlePressEnd = () => {
-    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
-  };
+  const handlePressEnd = () => { if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; } };
 
-  // Suppression d'un message
   const handleDeleteMessage = async (msgId: string) => {
     setActiveMsg(null);
     setDeletingMsg(msgId);
     await new Promise(r => setTimeout(r, 280));
-    const { error } = await supabase
-      .from('messages')
-      .delete()
-      .eq('id', msgId)
-      .eq('sender_id', profile!.id);
-    if (error) {
-      toast.error('Impossible de supprimer ce message');
-      setDeletingMsg(null);
-    } else {
-      setMessages(prev => prev.filter(m => m.id !== msgId));
-      setDeletingMsg(null);
-    }
+    const { error } = await supabase.from('messages').delete().eq('id', msgId).eq('sender_id', profile!.id);
+    if (error) { toast.error('Impossible de supprimer ce message'); setDeletingMsg(null); }
+    else { setMessages(prev => prev.filter(m => m.id !== msgId)); setDeletingMsg(null); }
   };
 
   const handleToggleFavorite = async () => {
     if (!profile || !otherUser) return;
     setMenuOpen(false);
     if (isFavorite) {
-      await supabase.from('user_favorites')
-        .delete().eq('user_id', profile.id).eq('target_user_id', otherUser.id);
+      await supabase.from('user_favorites').delete().eq('user_id', profile.id).eq('target_user_id', otherUser.id);
       setIsFavorite(false);
       toast.success(`${otherUser.full_name || 'Utilisateur'} retiré des favoris`);
     } else {
-      await supabase.from('user_favorites')
-        .insert({ user_id: profile.id, target_user_id: otherUser.id });
+      await supabase.from('user_favorites').insert({ user_id: profile.id, target_user_id: otherUser.id });
       setIsFavorite(true);
       toast.success(`${otherUser.full_name || 'Utilisateur'} ajouté aux favoris ⭐`);
     }
@@ -843,50 +631,39 @@ export default function ConversationPage() {
     if (!profile || !otherUser) return;
     setMenuOpen(false);
     if (isBlocked) {
-      await supabase.from('user_blocks')
-        .delete().eq('user_id', profile.id).eq('target_user_id', otherUser.id);
+      await supabase.from('user_blocks').delete().eq('user_id', profile.id).eq('target_user_id', otherUser.id);
       setIsBlocked(false);
       toast.success(`${otherUser.full_name || 'Utilisateur'} débloqué`);
     } else {
-      if (!confirm(`Bloquer ${otherUser.full_name || 'cet utilisateur'} ? Il ne pourra plus vous envoyer de messages.`)) return;
-      await supabase.from('user_blocks')
-        .insert({ user_id: profile.id, target_user_id: otherUser.id });
+      if (!confirm(`Bloquer ${otherUser.full_name || 'cet utilisateur'} ?`)) return;
+      await supabase.from('user_blocks').insert({ user_id: profile.id, target_user_id: otherUser.id });
       setIsBlocked(true);
       toast.success(`${otherUser.full_name || 'Utilisateur'} bloqué`);
     }
   };
 
-  useEffect(() => {
-    if (!loading && messages.length > 0) scrollToBottom();
-  }, [messages.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!loading && messages.length > 0) scrollToBottom(); }, [messages.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !profile || sending) return;
-    const content = newMessage.trim();
+  const sendMessage = async (content?: string) => {
+    const text = (content || newMessage).trim();
+    if (!text || !profile || sending) return;
     setSending(true);
-    setNewMessage('');
+    if (!content) setNewMessage('');
+    setShowQuickReplies(false);
 
     const tempId = `temp-${Date.now()}`;
-    setMessages(prev => [...prev, {
-      id: tempId, conversation_id: id as string, sender_id: profile.id,
-      content, created_at: new Date().toISOString(), sender: profile as unknown as Profile,
-    }]);
+    setMessages(prev => [...prev, { id: tempId, conversation_id: id as string, sender_id: profile.id, content: text, created_at: new Date().toISOString(), sender: profile as unknown as Profile }]);
     scrollToBottom();
 
-    const { data: savedMsg, error } = await supabase
-      .from('messages').insert({ conversation_id: id as string, sender_id: profile.id, content }).select().single();
-
+    const { data: savedMsg, error } = await supabase.from('messages').insert({ conversation_id: id as string, sender_id: profile.id, content: text }).select().single();
     if (error) {
       toast.error('Erreur lors de l\'envoi');
       setMessages(prev => prev.filter(m => m.id !== tempId));
-      setNewMessage(content);
+      if (!content) setNewMessage(text);
     } else if (savedMsg) {
-      setMessages(prev => prev.map(m =>
-        m.id === tempId ? { ...savedMsg, sender: profile as unknown as Profile } : m
-      ));
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...savedMsg, sender: profile as unknown as Profile } : m));
       lastMsgIdRef.current = savedMsg.id;
     }
-
     setSending(false);
     inputRef.current?.focus();
   };
@@ -895,35 +672,64 @@ export default function ConversationPage() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
+  // ── Suggestions de réponses rapides selon le contexte ─────────────────────
+  const getQuickReplies = (): string[] => {
+    if (!relatedType) return ['Bonjour ! 👋', 'Merci pour votre message.', 'Je suis intéressé(e).', 'Pouvez-vous me donner plus d\'infos ?'];
+    if (relatedType === 'listing') return ['Je suis intéressé(e) 🛒', 'Est-il encore disponible ?', 'Quel est votre dernier prix ?', 'Quand peut-on se rencontrer ?'];
+    if (relatedType === 'equipment') return ['Je voudrais emprunter ce matériel 🔧', 'Pour quelle durée est-il disponible ?', 'À quel endroit peut-on se retrouver ?', 'Je vous le rends en bon état, promis !'];
+    if (relatedType === 'help_request') return ['Je peux vous aider ! 🙋', 'À quelle heure êtes-vous disponible ?', 'Donnez-moi votre adresse.', 'J\'arrive dès que possible.'];
+    if (relatedType === 'outing') return ['Je participe avec plaisir ! 🐾', 'Quel est le point de rendez-vous ?', 'Combien de chiens maximum ?', 'J\'ai une question sur le parcours.'];
+    if (relatedType === 'service_request') return ['Je peux intervenir 🔨', 'Je viendrai estimer le travail.', 'Pouvez-vous partager des photos ?', 'Quel est votre délai souhaité ?'];
+    return ['Bonjour ! 👋', 'Merci pour votre message.', 'À très bientôt !', 'Bien reçu, je reviens vers vous.'];
+  };
+
+  // ── Grouper les messages par jour ─────────────────────────────────────────
+  const groupedMessages = messages.reduce((acc, msg, i) => {
+    const msgDate = new Date(msg.created_at).toDateString();
+    const prevDate = i > 0 ? new Date(messages[i - 1].created_at).toDateString() : null;
+    const showSep = msgDate !== prevDate;
+    acc.push({ msg, showSep });
+    return acc;
+  }, [] as { msg: typeof messages[0]; showSep: boolean }[]);
+
+  const conf = relatedType ? CONTEXT_CONFIG[relatedType] : null;
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-4 h-[calc(100vh-64px)] flex flex-col">
 
       {/* ── Header ───────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 pb-3 border-b border-gray-100 mb-3">
-        <Link href="/messages" className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
+        <Link href="/messages" className="p-2 rounded-xl hover:bg-gray-100 transition-colors flex-shrink-0">
           <ChevronLeft className="w-5 h-5 text-gray-500" />
         </Link>
+
         <div className="relative flex-shrink-0">
           <Avatar src={otherUser?.avatar_url} name={otherUser?.full_name || '?'} size="md" />
-          {/* Badge favori sur l'avatar */}
           {isFavorite && (
             <span className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center text-[9px]">⭐</span>
           )}
         </div>
+
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <span className="font-semibold text-gray-900">
+            <span className="font-bold text-gray-900 truncate">
               {otherUser?.full_name
                 ? otherUser.full_name
-                : loading
-                  ? <span className="inline-block w-28 h-4 bg-gray-200 animate-pulse rounded" />
-                  : (subject || '—')}
+                : loading ? <span className="inline-block w-28 h-4 bg-gray-200 animate-pulse rounded" /> : (subject || '—')}
             </span>
-            {isBlocked && (
-              <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">Bloqué</span>
-            )}
+            {isBlocked && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">Bloqué</span>}
           </div>
-          <div className="text-xs text-gray-400 truncate">{subject}</div>
+
+          {/* Badge contexte en en-tête */}
+          {conf && relatedType !== 'general' ? (
+            <div className="flex items-center gap-1 mt-0.5">
+              <conf.icon className={cn('w-3 h-3', conf.color)} />
+              <span className={cn('text-xs font-semibold', conf.color)}>{conf.label}</span>
+              {subject && <span className="text-xs text-gray-400">· {subject.slice(0, 30)}{subject.length > 30 ? '…' : ''}</span>}
+            </div>
+          ) : (
+            <div className="text-xs text-gray-400 truncate">{subject}</div>
+          )}
         </div>
 
         {/* Indicateur Realtime */}
@@ -931,11 +737,13 @@ export default function ConversationPage() {
           'flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 transition-all',
           realtimeOk ? 'text-emerald-600 bg-emerald-50' : 'text-gray-400 bg-gray-100'
         )}>
-          <span className={cn('w-1.5 h-1.5 rounded-full', realtimeOk ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400')} />
-          {realtimeOk ? 'En ligne' : 'Reconnexion…'}
+          {realtimeOk
+            ? <><Wifi className="w-3 h-3" /><span className="hidden sm:inline">En ligne</span></>
+            : <><WifiOff className="w-3 h-3" /><span className="hidden sm:inline">Reconnexion</span></>
+          }
         </div>
 
-        {/* Menu ⋮ Favoris / Bloquer */}
+        {/* Menu ⋮ */}
         {otherUser && (
           <div className="relative flex-shrink-0" ref={menuRef}>
             <button
@@ -947,53 +755,31 @@ export default function ConversationPage() {
             </button>
             {menuOpen && (
               <div className="absolute right-0 top-10 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 min-w-[200px]">
-                {/* Lien profil */}
-                <Link
-                  href={`/profil/${otherUser.id}`}
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm text-gray-700"
-                >
-                  <UserCheck className="w-4 h-4 text-gray-400" />
-                  Voir le profil
+                <Link href={`/profil/${otherUser.id}`} onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm text-gray-700">
+                  <UserCheck className="w-4 h-4 text-gray-400" />Voir le profil
                 </Link>
-                <div className="h-px bg-gray-100 my-1" />
-                {/* Favori */}
+                {relatedType && relatedId && relatedType !== 'general' && conf && (
+                  <Link href={conf.href(relatedId)} target="_blank" onClick={() => setMenuOpen(false)} className={cn('flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm', conf.color)}>
+                    <ExternalLink className="w-4 h-4" />Voir {conf.label.toLowerCase()}
+                  </Link>
+                )}
                 <button
-                  onClick={handleToggleFavorite}
-                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm w-full text-left"
+                  onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Lien copié !'); setMenuOpen(false); }}
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm text-gray-500 w-full"
                 >
-                  {isFavorite ? (
-                    <>
-                      <StarOff className="w-4 h-4 text-yellow-500" />
-                      <span className="text-gray-700">Retirer des favoris</span>
-                    </>
-                  ) : (
-                    <>
-                      <Star className="w-4 h-4 text-yellow-500" />
-                      <span className="text-gray-700">Ajouter aux favoris</span>
-                    </>
-                  )}
+                  <Copy className="w-4 h-4" />Copier le lien
                 </button>
                 <div className="h-px bg-gray-100 my-1" />
-                {/* Bloquer */}
-                <button
-                  onClick={handleToggleBlock}
-                  className={cn(
-                    'flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm w-full text-left',
-                    isBlocked ? 'text-gray-500' : 'text-red-600'
-                  )}
-                >
-                  <Ban className="w-4 h-4" />
-                  {isBlocked ? 'Débloquer' : 'Bloquer cet utilisateur'}
+                <button onClick={handleToggleFavorite} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm w-full text-left">
+                  {isFavorite ? <><StarOff className="w-4 h-4 text-yellow-500" /><span className="text-gray-700">Retirer des favoris</span></> : <><Star className="w-4 h-4 text-yellow-500" /><span className="text-gray-700">Ajouter aux favoris</span></>}
                 </button>
                 <div className="h-px bg-gray-100 my-1" />
-                {/* Signaler */}
-                <button
-                  onClick={() => { setMenuOpen(false); toast('Signalement envoyé — merci !'); }}
-                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm w-full text-left text-gray-500"
-                >
-                  <Flag className="w-4 h-4" />
-                  Signaler
+                <button onClick={handleToggleBlock} className={cn('flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm w-full text-left', isBlocked ? 'text-gray-500' : 'text-red-600')}>
+                  <Ban className="w-4 h-4" />{isBlocked ? 'Débloquer' : 'Bloquer cet utilisateur'}
+                </button>
+                <div className="h-px bg-gray-100 my-1" />
+                <button onClick={() => { setMenuOpen(false); toast('Signalement envoyé — merci !'); }} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm w-full text-left text-gray-500">
+                  <Flag className="w-4 h-4" />Signaler
                 </button>
               </div>
             )}
@@ -1001,145 +787,129 @@ export default function ConversationPage() {
         )}
       </div>
 
-      {/* ── Bannière contexte annonce ─────────────────────────────────────────── */}
+      {/* ── Bannière contexte ──────────────────────────────────────────────────── */}
       {!loading && (
-        <ContextBanner
-          relatedType={relatedType}
-          relatedId={relatedId}
-          subject={subject}
-        />
+        <ContextBanner relatedType={relatedType} relatedId={relatedId} subject={subject} />
       )}
 
-      {/* ── Panneau suivi échange + avis ──────────────────────────────────────── */}
+      {/* ── Panneau échange ────────────────────────────────────────────────────── */}
       {!loading && profile && exchange.relatedType && EXCHANGEABLE_TYPES[exchange.relatedType] && (
-        <ExchangePanel
-          conversationId={id as string}
-          userId={profile.id}
-          exchange={exchange}
-          onExchangeUpdated={setExchange}
-        />
+        <ExchangePanel conversationId={id as string} userId={profile.id} exchange={exchange} onExchangeUpdated={setExchange} />
       )}
 
-      {/* ── Avis débloqués (échange terminé) ─────────────────────────────────── */}
-      {!loading && exchange.status === 'done' && exchange.relatedId && exchange.relatedType
-       && (exchange.relatedType as RatingTargetType) in ({} as Record<RatingTargetType, unknown>)
-        ? null /* affiché dans ExchangePanel */ : null
-      }
-
-      {/* ── Messages ─────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-3 pb-4 px-1">
+      {/* ── Fil de messages ────────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-1 pb-4 px-1">
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="animate-pulse space-y-3 w-full px-4">
               <div className="h-10 bg-gray-100 rounded-2xl w-2/3" />
               <div className="h-10 bg-gray-100 rounded-2xl w-1/2 ml-auto" />
               <div className="h-10 bg-gray-100 rounded-2xl w-3/4" />
+              <div className="h-10 bg-gray-100 rounded-2xl w-2/5 ml-auto" />
             </div>
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="text-4xl mb-3">👋</div>
-            <p className="text-gray-500 text-sm">Démarrez la conversation !</p>
-            <p className="text-gray-400 text-xs mt-1">Écrivez votre premier message ci-dessous</p>
+          <div className="flex flex-col items-center justify-center h-full text-center py-8">
+            <div className="w-16 h-16 bg-brand-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <MessageSquare className="w-7 h-7 text-brand-400" />
+            </div>
+            <p className="font-semibold text-gray-700 mb-1">Démarrez la conversation !</p>
+            <p className="text-gray-400 text-sm">Écrivez votre premier message ci-dessous</p>
+            {relatedType && relatedType !== 'general' && conf && (
+              <div className={cn('mt-4 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium', conf.bg, conf.color)}>
+                <conf.icon className="w-3.5 h-3.5" />
+                <span>À propos de : {subject || conf.label}</span>
+              </div>
+            )}
           </div>
         ) : (
-          messages.map((msg, i) => {
+          groupedMessages.map(({ msg, showSep }, i) => {
             const isMe = msg.sender_id === profile?.id;
             const isTemp = msg.id.startsWith('temp-');
             const isDeleting = deletingMsg === msg.id;
             const isMenuOpen = activeMsg === msg.id;
-            const showAvatar = !isMe && (i === 0 || messages[i - 1].sender_id !== msg.sender_id);
-            const isLastFromMe = isMe && (i === messages.length - 1 || messages[i + 1]?.sender_id !== profile?.id);
+
+            // Détection message système
+            const isSystem = (msg as Message & { is_system?: boolean }).is_system ||
+              msg.content?.startsWith('✅') || msg.content?.startsWith('🤝') ||
+              msg.content?.includes('Échange confirmé') || msg.content?.includes('Conversation créée');
+
+            const showAvatar = !isMe && !isSystem && (i === 0 || groupedMessages[i - 1]?.msg.sender_id !== msg.sender_id);
+            const isLastFromSender = isMe && !isSystem && (i === groupedMessages.length - 1 || groupedMessages[i + 1]?.msg.sender_id !== profile?.id);
 
             return (
-              <div
-                key={msg.id}
-                data-msg-menu={isMenuOpen ? 'open' : undefined}
-                className={cn(
-                  'transition-all duration-300',
-                  isDeleting && 'opacity-0 scale-95 pointer-events-none'
-                )}
-              >
-                {/* ── Ligne principale (avatar + bulle + bouton) ── */}
-                <div className={cn('flex items-end gap-1.5', isMe ? 'flex-row-reverse' : 'flex-row')}>
+              <div key={msg.id} className={cn('transition-all duration-300', isDeleting && 'opacity-0 scale-95 pointer-events-none')}>
+                {/* Séparateur de date */}
+                {showSep && <DateSeparator date={msg.created_at} />}
 
-                  {/* Avatar (autres uniquement) */}
-                  {!isMe && (
-                    <div className={cn('flex-shrink-0 w-8', !showAvatar && 'invisible')}>
-                      <Avatar src={msg.sender?.avatar_url} name={msg.sender?.full_name || '?'} size="sm" />
-                    </div>
-                  )}
-
-                  {/* Bulle */}
-                  <div
-                    className={cn(
-                      'max-w-[65%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words cursor-default',
-                      isMe ? 'bg-brand-600 text-white rounded-tr-sm' : 'bg-gray-100 text-gray-800 rounded-tl-sm',
-                      isTemp && 'opacity-50',
-                      isMenuOpen && isMe && 'ring-2 ring-red-400'
-                    )}
-                    onContextMenu={isMe && !isTemp
-                      ? (e) => { e.preventDefault(); setActiveMsg(isMenuOpen ? null : msg.id); }
-                      : undefined}
-                    onTouchStart={() => handlePressStart(msg.id, isMe)}
-                    onTouchEnd={handlePressEnd}
-                    onTouchMove={handlePressEnd}
-                  >
-                    {msg.content}
-                  </div>
-
-                  {/* Bouton 🗑 — visible en permanence à côté de la bulle */}
-                  {isMe && !isTemp && (
-                    <button
-                      data-msg-menu="trigger"
-                      onClick={(e) => { e.stopPropagation(); setActiveMsg(isMenuOpen ? null : msg.id); }}
-                      onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); setActiveMsg(isMenuOpen ? null : msg.id); }}
-                      className={cn(
-                        'flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-colors',
-                        isMenuOpen
-                          ? 'bg-red-500 text-white'
-                          : 'bg-red-100 text-red-400 hover:bg-red-200 hover:text-red-600'
+                {/* Message système */}
+                {isSystem ? (
+                  <SystemMessage content={msg.content || ''} />
+                ) : (
+                  <div data-msg-menu={isMenuOpen ? 'open' : undefined}>
+                    {/* Ligne principale */}
+                    <div className={cn('flex items-end gap-1.5', isMe ? 'flex-row-reverse' : 'flex-row')}>
+                      {/* Avatar */}
+                      {!isMe && (
+                        <div className={cn('flex-shrink-0 w-8', !showAvatar && 'invisible')}>
+                          <Avatar src={msg.sender?.avatar_url} name={msg.sender?.full_name || '?'} size="sm" />
+                        </div>
                       )}
-                      title="Supprimer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
 
-                {/* Heure + statut */}
-                <div className={cn(
-                  'text-xs text-gray-400 mt-0.5 px-1 flex items-center gap-1',
-                  isMe ? 'justify-end pr-10' : 'justify-start pl-10'
-                )}>
-                  <span>{formatRelative(msg.created_at)}</span>
-                  {isTemp && <span className="text-gray-300">· envoi…</span>}
-                  {isMe && !isTemp && isLastFromMe && <CheckCheck className="w-3 h-3 text-brand-400" />}
-                </div>
+                      {/* Bulle */}
+                      <div
+                        className={cn(
+                          'max-w-[65%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words cursor-default select-text',
+                          isMe ? 'bg-brand-600 text-white rounded-tr-sm' : 'bg-gray-100 text-gray-800 rounded-tl-sm',
+                          isTemp && 'opacity-60',
+                          isMenuOpen && isMe && 'ring-2 ring-red-400'
+                        )}
+                        onContextMenu={isMe && !isTemp ? (e) => { e.preventDefault(); setActiveMsg(isMenuOpen ? null : msg.id); } : undefined}
+                        onTouchStart={() => handlePressStart(msg.id, isMe)}
+                        onTouchEnd={handlePressEnd}
+                        onTouchMove={handlePressEnd}
+                      >
+                        {msg.content}
+                      </div>
 
-                {/* Popup confirmation — sous la bulle */}
-                {isMenuOpen && isMe && (
-                  <div
-                    data-msg-menu="popup"
-                    className="flex justify-end pr-10 mt-1"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="flex items-center gap-2 bg-white border border-red-200 shadow-lg rounded-2xl px-3 py-2 text-xs">
-                      <Trash2 className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
-                      <span className="text-gray-700 font-medium">Supprimer ce message ?</span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDeleteMessage(msg.id); }}
-                        className="bg-red-500 hover:bg-red-600 text-white font-bold text-xs px-3 py-1 rounded-lg"
-                      >
-                        Oui
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setActiveMsg(null); }}
-                        className="text-gray-400 hover:text-gray-600 font-medium"
-                      >
-                        Non
-                      </button>
+                      {/* Bouton suppression */}
+                      {isMe && !isTemp && (
+                        <button
+                          data-msg-menu="trigger"
+                          onClick={(e) => { e.stopPropagation(); setActiveMsg(isMenuOpen ? null : msg.id); }}
+                          onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); setActiveMsg(isMenuOpen ? null : msg.id); }}
+                          className={cn(
+                            'flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100',
+                            isMenuOpen ? 'bg-red-500 text-white opacity-100' : 'bg-red-100 text-red-400 hover:bg-red-200 hover:text-red-600'
+                          )}
+                          title="Supprimer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
+
+                    {/* Heure + statut */}
+                    <div className={cn(
+                      'text-xs text-gray-400 mt-0.5 px-1 flex items-center gap-1',
+                      isMe ? 'justify-end pr-10' : 'justify-start pl-10'
+                    )}>
+                      <span>{formatRelative(msg.created_at)}</span>
+                      {isTemp && <span className="text-gray-300">· envoi…</span>}
+                      {isMe && !isTemp && isLastFromSender && <CheckCheck className="w-3 h-3 text-brand-400" />}
+                    </div>
+
+                    {/* Popup confirmation suppression */}
+                    {isMenuOpen && isMe && (
+                      <div data-msg-menu="popup" className="flex justify-end pr-10 mt-1" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-2 bg-white border border-red-200 shadow-lg rounded-2xl px-3 py-2 text-xs">
+                          <Trash2 className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+                          <span className="text-gray-700 font-medium">Supprimer ce message ?</span>
+                          <button onClick={e => { e.stopPropagation(); handleDeleteMessage(msg.id); }} className="bg-red-500 hover:bg-red-600 text-white font-bold text-xs px-3 py-1 rounded-lg">Oui</button>
+                          <button onClick={e => { e.stopPropagation(); setActiveMsg(null); }} className="text-gray-400 hover:text-gray-600 font-medium">Non</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1149,8 +919,35 @@ export default function ConversationPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* ── Input ────────────────────────────────────────────────────────────── */}
+      {/* ── Réponses rapides ──────────────────────────────────────────────────── */}
+      {showQuickReplies && (
+        <div className="flex flex-wrap gap-1.5 mb-2 pb-1 overflow-x-auto">
+          {getQuickReplies().map((reply, i) => (
+            <button
+              key={i}
+              onClick={() => sendMessage(reply)}
+              className="flex-shrink-0 px-3 py-1.5 bg-brand-50 text-brand-700 rounded-xl text-xs font-semibold hover:bg-brand-100 transition-colors border border-brand-200"
+            >
+              {reply}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ── Zone de saisie ────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 border-t border-gray-100 pt-3">
+        {/* Bouton réponses rapides */}
+        <button
+          onClick={() => setShowQuickReplies(v => !v)}
+          className={cn(
+            'flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors',
+            showQuickReplies ? 'bg-brand-100 text-brand-600' : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600'
+          )}
+          title="Réponses rapides"
+        >
+          <Sparkles className="w-4 h-4" />
+        </button>
+
         <div className="flex-1 flex items-center gap-2 bg-gray-100 rounded-2xl px-4 py-2.5">
           <input
             ref={inputRef}
@@ -1158,14 +955,20 @@ export default function ConversationPage() {
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Votre message…"
+            placeholder={
+              relatedType && relatedType !== 'general'
+                ? 'Posez une question ou proposez quelque chose…'
+                : 'Écrivez votre message…'
+            }
             className="flex-1 bg-transparent text-sm text-gray-800 placeholder:text-gray-400 outline-none"
             disabled={sending}
             autoFocus
           />
+          {sending && <RefreshCw className="w-4 h-4 text-gray-400 animate-spin flex-shrink-0" />}
         </div>
+
         <button
-          onClick={sendMessage}
+          onClick={() => sendMessage()}
           disabled={!newMessage.trim() || sending}
           className="w-10 h-10 bg-brand-600 text-white rounded-xl flex items-center justify-center hover:bg-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
         >
