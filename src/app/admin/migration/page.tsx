@@ -3636,6 +3636,27 @@ COMMENT ON TABLE moderation_history IS 'Audit trail complet des décisions de mo
 -- ═══════════════════════════════════════════════════════════════════════════
 `;
 
+const PROFIL_PUBLIC_SQL = `-- ============================================================
+-- FIX RLS : Lisibilité publique des profils (/profil/[id])
+-- Permet aux visiteurs non connectés de voir les profils publics
+-- ============================================================
+
+-- Supprimer les anciennes politiques de lecture
+DROP POLICY IF EXISTS "Profils publics en lecture" ON profiles;
+DROP POLICY IF EXISTS "Public profiles readable" ON profiles;
+DROP POLICY IF EXISTS "Profiles are publicly readable" ON profiles;
+DROP POLICY IF EXISTS "Allow public select on profiles" ON profiles;
+
+-- Recréer une politique permissive (connecté OU non connecté)
+CREATE POLICY "Profils publics en lecture" ON profiles
+  FOR SELECT USING (true);
+
+-- S'assurer que RLS est bien activé sur la table
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+-- ✅ Résultat : /profil/[id] fonctionne pour tout visiteur
+`;
+
 export default function MigrationPage() {
   const supabase = createClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -3670,6 +3691,7 @@ export default function MigrationPage() {
   const [copiedTrustFix,    setCopiedTrustFix]    = useState(false);
   const [copiedTrust,       setCopiedTrust]       = useState(false);
   const [copiedCollectV2,   setCopiedCollectV2]   = useState(false);
+  const [copiedProfilPublic, setCopiedProfilPublic] = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -5609,6 +5631,39 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
           <pre className="text-xs text-amber-200 font-mono leading-relaxed whitespace-pre-wrap">{COLLECTIONNEURS_V2_SQL}</pre>
+        </div>
+      </div>
+
+      {/* ─── FIX RLS PROFILS PUBLICS ──────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-blue-200 overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-blue-700 to-indigo-700">
+          <span className="text-2xl">👤</span>
+          <div className="flex-1">
+            <h3 className="font-bold text-white">Fix RLS — Profils publics</h3>
+            <p className="text-xs text-blue-200 mt-0.5">
+              Corrige l&apos;erreur <strong>&quot;Profil introuvable&quot;</strong> sur{' '}
+              <code className="bg-blue-900 px-1 rounded">/profil/[id]</code>.
+              S&apos;assure que la politique RLS <code className="bg-blue-900 px-1 rounded">SELECT USING (true)</code> est active sur la table <code className="bg-blue-900 px-1 rounded">profiles</code>.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(PROFIL_PUBLIC_SQL).then(() => {
+                setCopiedProfilPublic(true);
+                setTimeout(() => setCopiedProfilPublic(false), 3000);
+              });
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
+              copiedProfilPublic ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white hover:bg-blue-600'
+            }`}
+          >
+            {copiedProfilPublic
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Fix Profils</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-96">
+          <pre className="text-xs text-blue-300 font-mono leading-relaxed whitespace-pre-wrap">{PROFIL_PUBLIC_SQL}</pre>
         </div>
       </div>
 
