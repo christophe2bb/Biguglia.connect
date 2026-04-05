@@ -109,25 +109,19 @@ export default function PublicProfilePage() {
       }
 
       if (!p) {
-        // Dernier recours : chercher via les événements (au moins on sait que cet auteur existe)
+        // Dernier recours 1 : chercher via les événements
         const { data: evCheck } = await supabase
           .from('events')
           .select('author_id, organizer_name')
           .eq('author_id', userId)
           .limit(1)
           .maybeSingle();
-        const { data: evCheck2 } = !evCheck ? await supabase
-          .from('events')
-          .select('author_id, organizer_name')
-          .eq('author_id', userId)
-          .limit(1)
-          .maybeSingle() : { data: null };
-        const ev = evCheck || evCheck2;
-        if (ev) {
-          // L'auteur existe mais son profil est protégé — afficher un profil minimal
+
+        if (evCheck) {
+          // L'auteur existe via un événement — afficher un profil minimal
           p = {
             id: userId,
-            full_name: ev.organizer_name || 'Organisateur',
+            full_name: evCheck.organizer_name || 'Organisateur',
             email: null,
             phone: null,
             avatar_url: null,
@@ -137,7 +131,60 @@ export default function PublicProfilePage() {
             status: 'active',
             created_at: new Date().toISOString(),
           } as PublicProfile;
-        } else {
+        }
+
+        // Dernier recours 2 : chercher via les annonces (listings)
+        if (!p) {
+          const { data: listingCheck } = await supabase
+            .from('listings')
+            .select('user_id, title')
+            .eq('user_id', userId)
+            .limit(1)
+            .maybeSingle();
+
+          if (listingCheck) {
+            // L'auteur existe via une annonce — afficher un profil minimal
+            p = {
+              id: userId,
+              full_name: 'Membre',
+              email: null,
+              phone: null,
+              avatar_url: null,
+              bio: null,
+              city: null,
+              role: 'resident',
+              status: 'active',
+              created_at: new Date().toISOString(),
+            } as PublicProfile;
+          }
+        }
+
+        // Dernier recours 3 : chercher via les annonces collectionneurs
+        if (!p) {
+          const { data: collCheck } = await supabase
+            .from('collection_items')
+            .select('author_id')
+            .eq('author_id', userId)
+            .limit(1)
+            .maybeSingle();
+
+          if (collCheck) {
+            p = {
+              id: userId,
+              full_name: 'Membre',
+              email: null,
+              phone: null,
+              avatar_url: null,
+              bio: null,
+              city: null,
+              role: 'resident',
+              status: 'active',
+              created_at: new Date().toISOString(),
+            } as PublicProfile;
+          }
+        }
+
+        if (!p) {
           setNotFound(true);
           setLoading(false);
           return;
