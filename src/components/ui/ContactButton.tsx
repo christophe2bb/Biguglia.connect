@@ -371,8 +371,10 @@ export default function ContactButton({
       // 2. Créer une nouvelle conversation
       const initialMsg = prefillMsg ||
         (isCommunity
-          ? `👋 Bonjour ! Je vous contacte depuis la communauté ${sourceTitle || ''}.`
-          : `👋 Bonjour ! Je vous contacte à propos de${sourceTitle ? ` "${sourceTitle}"` : ' votre annonce'}.`
+          ? `Bonjour, je vous contacte depuis la communauté ${sourceTitle || ''}.`
+          : sourceType === 'listing'
+            ? `Bonjour, je suis intéressé(e) par votre annonce${sourceTitle ? ` "${sourceTitle}"` : ''} — est-elle toujours disponible ?`
+            : `Bonjour${sourceTitle ? ` ${sourceTitle.split(' ')[0]}` : ''}, je vous contacte via Biguglia Connect.`
         );
 
       const result = await createConversation(initialMsg);
