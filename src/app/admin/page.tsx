@@ -114,6 +114,7 @@ function AdminContent() {
           { href: '/admin/signalements', label: 'Signalements', desc: 'Modérer le contenu', icon: '🚩' },
           { href: '/admin/confiance', label: 'Confiance & Réputation', desc: 'Modérer les avis, membres à risque, badges', icon: '🛡️', highlight: false },
           { href: '/admin/migration', label: 'Migration DB', desc: 'Tables thèmes (collectionneurs, promenades, événements)', icon: '🗄️', highlight: false },
+          { href: '/admin/spec', label: 'Spécification fonctionnelle', desc: 'Cahier des charges Collectionneurs v2.0 — état du développement', icon: '📋', highlight: false },
           { href: '/admin/securite', label: 'Sécurité & Cloudflare', desc: 'Guide Cloudflare WAF, anti-DDoS, headers', icon: '🛡️', highlight: false },
         ].map(({ href, label, desc, icon, highlight, badge }) => (
           <Link key={href} href={href}>
