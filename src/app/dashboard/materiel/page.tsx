@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Plus, Package, CheckCircle, XCircle, Clock, Archive,
   ChevronRight, Wrench, AlertCircle, RotateCcw, EyeOff, Eye,
-  History
+  History, BarChart2
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -20,7 +20,7 @@ import {
 } from '@/lib/equipment';
 import { formatDate } from '@/lib/utils';
 
-type Tab = 'materiel' | 'demandes' | 'prets' | 'historique';
+type Tab = 'materiel' | 'demandes' | 'prets' | 'historique' | 'activite';
 
 interface EquipmentWithRequests extends EquipmentItemFull {
   pending_count?: number;
@@ -173,6 +173,24 @@ export default function DashboardMaterielPage() {
   const activeLoans = allLoans.filter(l => ['reserve', 'en_cours'].includes(l.status));
   const loanHistory = allLoans.filter(l => ['retourne', 'annule'].includes(l.status));
 
+  // ── Graphique d'activité : emprunts par mois (12 derniers mois) ───────────
+  const activityData = (() => {
+    const months: { key: string; label: string; count: number }[] = [];
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
+      const count = allLoans.filter(l => {
+        const at = l.reserved_at || l.loan_started_at || '';
+        return at.startsWith(key);
+      }).length;
+      months.push({ key, label, count });
+    }
+    return months;
+  })();
+  const maxActivity = Math.max(...activityData.map(m => m.count), 1);
+
   const stats = {
     total: activeItems.length,
     disponible: items.filter(i => i.status === 'disponible').length,
@@ -240,12 +258,13 @@ export default function DashboardMaterielPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1">
+      <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1 flex-wrap">
         {([
           { key: 'materiel' as Tab, label: 'Matériels', count: activeItems.length },
           { key: 'demandes' as Tab, label: 'Demandes', count: pendingRequests.length, alert: pendingRequests.length > 0 },
           { key: 'prets' as Tab, label: 'Prêts actifs', count: activeLoans.length },
           { key: 'historique' as Tab, label: 'Historique', count: loanHistory.length },
+          { key: 'activite' as Tab, label: 'Activité', count: 0 },
         ]).map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition relative ${tab === t.key ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
@@ -403,6 +422,97 @@ export default function DashboardMaterielPage() {
               );
             })
           )}
+        </div>
+      )}
+
+      {/* ── Tab : Activité ── */}
+      {tab === 'activite' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-5">
+              <BarChart2 className="w-5 h-5 text-teal-600" /> Emprunts par mois (12 derniers mois)
+            </h3>
+            {allLoans.length === 0 ? (
+              <div className="text-center py-10 text-gray-400">
+                <BarChart2 className="w-10 h-10 mx-auto mb-3 opacity-20" />
+                <p className="text-sm">Aucun prêt enregistré pour l&apos;instant</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-end gap-2 h-40">
+                  {activityData.map(m => (
+                    <div key={m.key} className="flex-1 flex flex-col items-center gap-1">
+                      <span className="text-xs font-bold text-teal-700">{m.count > 0 ? m.count : ''}</span>
+                      <div className="w-full rounded-t-lg transition-all" style={{
+                        height: `${Math.round((m.count / maxActivity) * 120)}px`,
+                        minHeight: m.count > 0 ? '4px' : '2px',
+                        backgroundColor: m.count > 0 ? '#14b8a6' : '#e5e7eb',
+                      }} />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  {activityData.map(m => (
+                    <div key={m.key} className="flex-1 text-center">
+                      <span className="text-[9px] text-gray-400 leading-none">{m.label}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-50 grid grid-cols-3 gap-3 text-center text-sm">
+                  <div>
+                    <div className="font-bold text-teal-700 text-lg">{allLoans.length}</div>
+                    <div className="text-xs text-gray-500">Total prêts</div>
+                  </div>
+                  <div>
+                    <div className="font-bold text-emerald-700 text-lg">{loanHistory.filter(l => l.status === 'retourne').length}</div>
+                    <div className="text-xs text-gray-500">Terminés</div>
+                  </div>
+                  <div>
+                    <div className="font-bold text-orange-700 text-lg">
+                      {activityData.filter(m => {
+                        const now = new Date();
+                        return m.key === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                      })[0]?.count ?? 0}
+                    </div>
+                    <div className="text-xs text-gray-500">Ce mois-ci</div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Top matériels empruntés */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 className="font-bold text-gray-900 mb-4">🏆 Matériels les plus empruntés</h3>
+            {allLoans.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-4">Aucun prêt pour l&apos;instant</p>
+            ) : (() => {
+              const counts = allLoans.reduce<Record<string, { title: string; count: number }>>((acc, l) => {
+                const title = (l.equipment as { title?: string })?.title || l.equipment_id;
+                if (!acc[l.equipment_id]) acc[l.equipment_id] = { title, count: 0 };
+                acc[l.equipment_id].count++;
+                return acc;
+              }, {});
+              return (
+                <div className="space-y-2">
+                  {Object.entries(counts)
+                    .sort(([, a], [, b]) => b.count - a.count)
+                    .slice(0, 5)
+                    .map(([equipId, { title, count }], idx) => (
+                      <div key={equipId} className="flex items-center gap-3">
+                        <span className="text-xs font-bold text-gray-400 w-4">#{idx + 1}</span>
+                        <Link href={`/materiel/${equipId}`} className="flex-1 text-sm text-gray-700 hover:text-brand-700 truncate">
+                          {title}
+                        </Link>
+                        <span className="text-xs font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">
+                          {count} prêt{count > 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              );
+            })()}
+          </div>
         </div>
       )}
 

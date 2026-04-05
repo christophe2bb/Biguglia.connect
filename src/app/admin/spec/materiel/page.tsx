@@ -39,7 +39,7 @@ const MODULES: SpecModule[] = [
     title: 'Catalogue & liste',
     color: 'teal',
     items: [
-      { label: 'Liste paginée de matériel avec photos', status: 'done' },
+      { label: 'Liste paginée (12/page) avec bouton "Charger plus" et compteur', status: 'done' },
       { label: 'Filtres : statut (disponible / réservé / prêté / indisponible / tout)', status: 'done' },
       { label: 'Filtre par catégorie (menu déroulant)', status: 'done' },
       { label: 'Filtre Gratuit seulement', status: 'done' },
@@ -125,11 +125,7 @@ const MODULES: SpecModule[] = [
       { label: 'Refuser une demande', status: 'done' },
       { label: 'Accepter auto-refuse les autres demandes en attente', status: 'done' },
       { label: 'Statut de ma dernière demande visible (acceptée/refusée/annulée/terminée)', status: 'done' },
-      {
-        label: 'Notification au propriétaire quand nouvelle demande',
-        status: 'partial',
-        note: 'Système de notifications Supabase Realtime en place mais sans toast push mobile dédié',
-      },
+      { label: 'Notification au propriétaire quand nouvelle demande d\'emprunt', status: 'done' },
     ],
   },
   {
@@ -143,11 +139,7 @@ const MODULES: SpecModule[] = [
       { label: 'Bouton "Confirmer le retour" → passe statut en rendu + clôt le prêt', status: 'done' },
       { label: 'Table equipment_loans avec statuts : réservé → en_cours → retourné', status: 'done' },
       { label: 'Dates : reserved_at, loan_started_at, returned_at', status: 'done' },
-      {
-        label: 'Notes propriétaire / emprunteur sur le prêt',
-        status: 'partial',
-        note: 'Colonnes notes_owner et notes_borrower existent en base mais pas encore exposées dans l\'UI',
-      },
+      { label: 'Notes propriétaire / emprunteur sur le prêt (formulaires dans l\'UI)', status: 'done' },
     ],
   },
   {
@@ -163,11 +155,7 @@ const MODULES: SpecModule[] = [
       { label: 'Marquer prêté / retour depuis le dashboard', status: 'done' },
       { label: 'Historique des prêts (actifs + terminés)', status: 'done' },
       { label: 'Lien vers la fiche détail de chaque matériel', status: 'done' },
-      {
-        label: 'Graphique d\'activité (emprunts par mois)',
-        status: 'todo',
-        note: 'Non développé — données disponibles mais pas de visualisation chart',
-      },
+      { label: 'Graphique d\'activité (emprunts par mois, 12 mois, top matériels)', status: 'done' },
     ],
   },
   {
@@ -182,11 +170,7 @@ const MODULES: SpecModule[] = [
       { label: 'Avis reçus uniquement après prêts complétés (trust_interactions)', status: 'done' },
       { label: 'Lien profil complet depuis page matériel', status: 'done' },
       { label: 'Suppression ExchangePrompt + RatingWidget (notation ouverte à tous ❌)', status: 'done' },
-      {
-        label: 'Laisser un avis après retour confirmé (formulaire dédié)',
-        status: 'todo',
-        note: 'La trust_interaction n\'est pas créée automatiquement à la clôture du prêt — à implémenter',
-      },
+      { label: 'trust_interaction créée automatiquement à la clôture du prêt (review_unlocked)', status: 'done' },
     ],
   },
   {
@@ -231,16 +215,9 @@ const MODULES: SpecModule[] = [
         status: 'partial',
         note: 'Infrastructure Realtime présente mais pas de notification dédiée "nouvelle demande matériel"',
       },
-      {
-        label: 'Notification à l\'emprunteur quand sa demande est acceptée/refusée',
-        status: 'todo',
-        note: 'Non implémenté — à connecter au système de notifications existant',
-      },
-      {
-        label: 'Rappel de retour (J-1 avant date de fin prévue)',
-        status: 'todo',
-        note: 'Non implémenté — nécessite une tâche planifiée (cron/edge function)',
-      },
+      { label: 'Notification à l\'emprunteur quand sa demande est acceptée ou refusée', status: 'done' },
+      { label: 'Notification aux emprunteurs refusés lors de l\'acceptation d\'une autre demande', status: 'done' },
+      { label: 'Rappel de retour J-1 (SQL + pg_cron/Edge Function, disponible dans /admin/migration)', status: 'done' },
     ],
   },
   {
@@ -254,11 +231,7 @@ const MODULES: SpecModule[] = [
       { label: 'Toasts de confirmation pour toutes les actions', status: 'done' },
       { label: 'États vides avec messages contextuels', status: 'done' },
       { label: 'Retour haut de page / navigation fil d\'Ariane', status: 'done' },
-      {
-        label: 'Pagination / Charger plus sur la liste',
-        status: 'todo',
-        note: 'Actuellement pas de pagination — toutes les fiches disponibles sont chargées en une fois',
-      },
+      { label: 'Pagination "Charger plus" (12 par page, compteur total / chargé)', status: 'done' },
     ],
   },
 ];

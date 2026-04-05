@@ -3636,6 +3636,79 @@ COMMENT ON TABLE moderation_history IS 'Audit trail complet des décisions de mo
 -- ═══════════════════════════════════════════════════════════════════════════
 `;
 
+const REMINDER_SQL = `-- ═══════════════════════════════════════════════════════════════════════════
+-- RAPPEL J-1 MATÉRIEL — Fonction PostgreSQL + pg_cron ou Supabase Edge
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Option A : pg_cron (nécessite l'extension pg_cron activée dans Supabase)
+-- Option B : Supabase Edge Function planifiée (invoke toutes les 24h)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- ── Étape 1 : Fonction qui génère les notifications J-1 ───────────────────
+CREATE OR REPLACE FUNCTION send_loan_return_reminders()
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  r RECORD;
+  tomorrow DATE := CURRENT_DATE + INTERVAL '1 day';
+BEGIN
+  FOR r IN
+    SELECT
+      el.id          AS loan_id,
+      el.borrower_id,
+      el.owner_id,
+      ei.title       AS item_title,
+      ei.id          AS item_id,
+      er.requested_end_date
+    FROM equipment_loans el
+    JOIN equipment_items    ei ON ei.id = el.equipment_id
+    LEFT JOIN equipment_requests er ON er.id = el.request_id
+    WHERE el.status = 'en_cours'
+      AND er.requested_end_date::date = tomorrow
+  LOOP
+    -- Notifier l'emprunteur
+    INSERT INTO notifications (user_id, type, title, message, link)
+    VALUES (
+      r.borrower_id,
+      'loan_reminder',
+      '⏰ Rappel retour J-1',
+      'Vous devez rendre "' || r.item_title || '" demain (' || r.requested_end_date || '). Merci de le remettre propre et en bon état.',
+      '/materiel/' || r.item_id
+    )
+    ON CONFLICT DO NOTHING;
+
+    -- Notifier le propriétaire
+    INSERT INTO notifications (user_id, type, title, message, link)
+    VALUES (
+      r.owner_id,
+      'loan_reminder',
+      '📦 Retour prévu demain',
+      '"' || r.item_title || '" devrait être rendu demain (' || r.requested_end_date || ').',
+      '/dashboard/materiel'
+    )
+    ON CONFLICT DO NOTHING;
+  END LOOP;
+END;
+$$;
+
+-- ── Étape 2 : Programmer l'appel quotidien avec pg_cron (optionnel) ───────
+-- Activez d'abord pg_cron dans Supabase : Extensions → pg_cron
+-- Puis exécutez :
+--
+-- SELECT cron.schedule(
+--   'loan-return-reminders',   -- Nom du job
+--   '0 8 * * *',               -- Tous les jours à 8h UTC
+--   $$SELECT send_loan_return_reminders();$$
+-- );
+
+-- ── Alternative : Supabase Edge Function ─────────────────────────────────
+-- Créez une Edge Function "loan-reminders" avec le code :
+--   const { data } = await supabase.rpc('send_loan_return_reminders');
+-- Et planifiez-la dans Dashboard → Edge Functions → Schedules (cron: 0 8 * * *)
+
+-- ✅ Résultat : emprunteur + propriétaire notifiés la veille du retour prévu
+`;
+
 const PROFIL_PUBLIC_SQL = `-- ============================================================
 -- FIX RLS : Lisibilité publique des profils (/profil/[id])
 -- Permet aux visiteurs non connectés de voir les profils publics
@@ -3692,6 +3765,7 @@ export default function MigrationPage() {
   const [copiedTrust,       setCopiedTrust]       = useState(false);
   const [copiedCollectV2,   setCopiedCollectV2]   = useState(false);
   const [copiedProfilPublic, setCopiedProfilPublic] = useState(false);
+  const [copiedReminder, setCopiedReminder] = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -5664,6 +5738,38 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
           <pre className="text-xs text-blue-300 font-mono leading-relaxed whitespace-pre-wrap">{PROFIL_PUBLIC_SQL}</pre>
+        </div>
+      </div>
+
+      {/* ─── RAPPEL J-1 MATÉRIEL ──────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-orange-200 overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-orange-600 to-amber-600">
+          <span className="text-2xl">⏰</span>
+          <div className="flex-1">
+            <h3 className="font-bold text-white">Rappel retour J-1 — Matériel</h3>
+            <p className="text-xs text-orange-100 mt-0.5">
+              Fonction PostgreSQL + pg_cron (ou Edge Function) pour notifier emprunteur &amp; propriétaire
+              la veille de la date de retour prévue.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(REMINDER_SQL).then(() => {
+                setCopiedReminder(true);
+                setTimeout(() => setCopiedReminder(false), 3000);
+              });
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
+              copiedReminder ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white hover:bg-orange-600'
+            }`}
+          >
+            {copiedReminder
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Rappel J-1</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-96">
+          <pre className="text-xs text-orange-300 font-mono leading-relaxed whitespace-pre-wrap">{REMINDER_SQL}</pre>
         </div>
       </div>
 

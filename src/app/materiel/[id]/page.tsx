@@ -41,6 +41,9 @@ export default function MaterielDetailPage() {
   const [requestForm, setRequestForm] = useState({ start_date: '', end_date: '', message: '' });
   const [submitting, setSubmitting] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
+  const [ownerNote, setOwnerNote] = useState('');
+  const [borrowerNote, setBorrowerNote] = useState('');
+  const [showOwnerNoteForm, setShowOwnerNoteForm] = useState(false);
 
   const fetchAll = useCallback(async () => {
     const supabase = createClient();
@@ -118,6 +121,11 @@ export default function MaterielDetailPage() {
     setStatusLoading(false);
   };
 
+  const sendNotification = async (userId: string, type: string, title: string, message: string, link: string) => {
+    const supabase = createClient();
+    await supabase.from('notifications').insert({ user_id: userId, type, title, message, link });
+  };
+
   const handleAcceptRequest = async (req: EquipmentRequest) => {
     if (!item || !profile) return;
     setStatusLoading(true);
@@ -125,10 +133,24 @@ export default function MaterielDetailPage() {
 
     // 1. Accepter la demande
     await supabase.from('equipment_requests').update({ status: 'acceptee', updated_at: new Date().toISOString() }).eq('id', req.id);
-    // 2. Refuser les autres en_attente
+    // 2. Refuser les autres en_attente + notifier les refusés
+    const { data: othersToRefuse } = await supabase
+      .from('equipment_requests')
+      .select('id, requester_id')
+      .eq('equipment_id', item.id).eq('status', 'en_attente').neq('id', req.id);
     await supabase.from('equipment_requests')
       .update({ status: 'refusee', updated_at: new Date().toISOString() })
       .eq('equipment_id', item.id).eq('status', 'en_attente').neq('id', req.id);
+    // Notifier les emprunteurs refusés
+    for (const other of (othersToRefuse || [])) {
+      await sendNotification(
+        other.requester_id,
+        'request_update',
+        '❌ Demande refusée',
+        `Votre demande pour "${item.title}" n'a pas été retenue — le propriétaire a choisi un autre emprunteur.`,
+        `/materiel/${item.id}`,
+      );
+    }
     // 3. Créer le prêt
     await supabase.from('equipment_loans').insert({
       equipment_id: item.id,
@@ -142,6 +164,14 @@ export default function MaterielDetailPage() {
     await supabase.from('equipment_items')
       .update({ status: 'reserve', updated_at: new Date().toISOString() })
       .eq('id', item.id);
+    // 5. Notifier l'emprunteur accepté
+    await sendNotification(
+      req.requester_id,
+      'request_update',
+      '✅ Demande acceptée !',
+      `Votre demande pour "${item.title}" a été acceptée — prenez contact avec le propriétaire.`,
+      `/materiel/${item.id}`,
+    );
 
     toast.success('Demande acceptée — matériel réservé !');
     await fetchAll();
@@ -152,6 +182,14 @@ export default function MaterielDetailPage() {
     if (!item || !profile) return;
     const supabase = createClient();
     await supabase.from('equipment_requests').update({ status: 'refusee', updated_at: new Date().toISOString() }).eq('id', req.id);
+    // Notifier l'emprunteur
+    await sendNotification(
+      req.requester_id,
+      'request_update',
+      '❌ Demande refusée',
+      `Votre demande pour "${item.title}" a été refusée par le propriétaire.`,
+      `/materiel/${item.id}`,
+    );
     toast.success('Demande refusée');
     await fetchAll();
   };
@@ -168,13 +206,45 @@ export default function MaterielDetailPage() {
   };
 
   const handleMarkReturned = async () => {
-    if (!item || !activeLoan) return;
+    if (!item || !activeLoan || !profile) return;
     setStatusLoading(true);
     const supabase = createClient();
     await supabase.from('equipment_loans').update({ status: 'retourne', returned_at: new Date().toISOString() }).eq('id', activeLoan.id);
     await supabase.from('equipment_requests').update({ status: 'terminee' }).eq('id', activeLoan.request_id);
     await supabase.from('equipment_items').update({ status: 'rendu', updated_at: new Date().toISOString() }).eq('id', item.id);
-    toast.success('Retour confirmé !');
+
+    // ── Créer trust_interaction pour débloquer les avis ──────────────────
+    const now = new Date().toISOString();
+    await supabase.from('trust_interactions').upsert({
+      source_type: 'equipment',
+      source_id: item.id,
+      requester_id: activeLoan.borrower_id,
+      receiver_id: item.owner_id,
+      interaction_type: 'material_request',
+      status: 'done',
+      review_unlocked: true,
+      completed_at: now,
+      status_history: [{ status: 'done', changed_at: now }],
+    }, { onConflict: 'source_type,source_id,requester_id' });
+
+    // Notifier les deux parties
+    await sendNotification(
+      activeLoan.borrower_id,
+      'loan_returned',
+      '📦 Retour confirmé',
+      `Le retour de "${item.title}" est confirmé. Vous pouvez maintenant laisser un avis.`,
+      `/profil/${item.owner_id}`,
+    );
+    await sendNotification(
+      item.owner_id,
+      'loan_returned',
+      '📦 Matériel rendu',
+      `"${item.title}" a été rendu. Vous pouvez laisser un avis à l'emprunteur.`,
+      `/profil/${activeLoan.borrower_id}`,
+    );
+
+    toast.success('Retour confirmé ! Les avis sont maintenant débloqués.');
+    setShowOwnerNoteForm(true);
     await fetchAll();
     setStatusLoading(false);
   };
@@ -201,7 +271,7 @@ export default function MaterielDetailPage() {
   // ── Emprunteur ──────────────────────────────────────────────────────────
 
   const handleSendRequest = async () => {
-    if (!profile) { router.push('/connexion?redirect=/materiel/' + id); return; }
+    if (!profile || !item) { router.push('/connexion?redirect=/materiel/' + id); return; }
     if (!requestForm.start_date || !requestForm.end_date) { toast.error('Sélectionnez les dates'); return; }
     setSubmitting(true);
     const supabase = createClient();
@@ -215,6 +285,14 @@ export default function MaterielDetailPage() {
     });
     if (error) toast.error('Erreur lors de la demande');
     else {
+      // Notifier le propriétaire
+      await sendNotification(
+        item.owner_id,
+        'new_request',
+        '📬 Nouvelle demande d\'emprunt',
+        `${profile.full_name || 'Un membre'} souhaite emprunter "${item.title}" du ${requestForm.start_date} au ${requestForm.end_date}.`,
+        `/materiel/${id}`,
+      );
       toast.success('Demande envoyée ! Le propriétaire sera notifié.');
       setRequestForm({ start_date: '', end_date: '', message: '' });
       setShowRequestForm(false);
@@ -348,6 +426,31 @@ export default function MaterielDetailPage() {
                   </Button>
                 )}
               </div>
+
+              {/* Note du propriétaire sur le prêt */}
+              {showOwnerNoteForm && (
+                <div className="mt-4 pt-4 border-t border-purple-100">
+                  <label className="block text-xs font-semibold text-purple-800 mb-1">Note sur ce prêt (optionnel)</label>
+                  <textarea
+                    value={ownerNote}
+                    onChange={e => setOwnerNote(e.target.value)}
+                    placeholder="État à la restitution, remarques..."
+                    className="w-full text-sm px-3 py-2 border border-purple-200 rounded-xl resize-none h-16 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!ownerNote.trim() || !activeLoan) return;
+                      const supabase = createClient();
+                      await supabase.from('equipment_loans').update({ notes_owner: ownerNote }).eq('id', activeLoan.id);
+                      setShowOwnerNoteForm(false);
+                      toast.success('Note enregistrée');
+                    }}
+                    className="mt-2 w-full py-1.5 text-xs font-semibold bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition"
+                  >
+                    Enregistrer la note
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -578,6 +681,36 @@ export default function MaterielDetailPage() {
                   {rCfg.icon} {rCfg.label}
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Votre dernière demande</p>
+              </div>
+            );
+          })()}
+
+          {/* Note emprunteur sur son prêt (après retour confirmé) */}
+          {!isOwner && profile && (() => {
+            // Chercher un prêt retourné pour cet emprunteur
+            const myLoan = activeLoan?.borrower_id === profile.id ? activeLoan : null;
+            if (!myLoan || myLoan.status !== 'retourne') return null;
+            return (
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+                <h4 className="text-xs font-semibold text-blue-800 mb-2">📝 Votre note sur le prêt</h4>
+                <textarea
+                  value={borrowerNote}
+                  onChange={e => setBorrowerNote(e.target.value)}
+                  placeholder="Comment s'est passé ce prêt ? État du matériel..."
+                  className="w-full text-sm px-3 py-2 border border-blue-200 rounded-xl resize-none h-16 focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white"
+                />
+                <button
+                  onClick={async () => {
+                    if (!borrowerNote.trim()) return;
+                    const supabase = createClient();
+                    await supabase.from('equipment_loans').update({ notes_borrower: borrowerNote }).eq('id', myLoan.id);
+                    toast.success('Note enregistrée !');
+                    setBorrowerNote('');
+                  }}
+                  className="mt-2 w-full py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition"
+                >
+                  Enregistrer ma note
+                </button>
               </div>
             );
           })()}
