@@ -82,17 +82,63 @@ export default function PublicProfilePage() {
     const load = async () => {
       setLoading(true);
 
-      // 1. Charger le profil
-      const { data: p } = await supabase
+      // 1. Charger le profil — colonnes publiques uniquement (RLS peut bloquer email/phone)
+      // Essai 1 : colonnes complètes (si connecté et RLS permissive)
+      let p: PublicProfile | null = null;
+      const { data: pFull } = await supabase
         .from('profiles')
         .select('id, full_name, email, avatar_url, bio, city, phone, role, status, created_at')
         .eq('id', userId)
         .maybeSingle();
 
+      if (pFull) {
+        p = pFull as PublicProfile;
+      } else {
+        // Essai 2 : colonnes publiques seulement (sans email/phone sensibles)
+        const { data: pPublic } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url, bio, city, role, status, created_at')
+          .eq('id', userId)
+          .maybeSingle();
+        if (pPublic) {
+          p = { ...pPublic, email: null, phone: null } as PublicProfile;
+        }
+      }
+
       if (!p) {
-        setNotFound(true);
-        setLoading(false);
-        return;
+        // Dernier recours : chercher via les événements (au moins on sait que cet auteur existe)
+        const { data: evCheck } = await supabase
+          .from('events')
+          .select('author_id, organizer_name')
+          .eq('author_id', userId)
+          .limit(1)
+          .maybeSingle();
+        const { data: evCheck2 } = !evCheck ? await supabase
+          .from('local_events')
+          .select('author_id, organizer_name')
+          .eq('author_id', userId)
+          .limit(1)
+          .maybeSingle() : { data: null };
+        const ev = evCheck || evCheck2;
+        if (ev) {
+          // L'auteur existe mais son profil est protégé — afficher un profil minimal
+          p = {
+            id: userId,
+            full_name: ev.organizer_name || 'Organisateur',
+            email: null,
+            phone: null,
+            avatar_url: null,
+            bio: null,
+            city: null,
+            role: 'resident',
+            status: 'active',
+            created_at: new Date().toISOString(),
+          } as PublicProfile;
+        } else {
+          setNotFound(true);
+          setLoading(false);
+          return;
+        }
       }
       setPublicProfile(p);
 

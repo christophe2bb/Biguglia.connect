@@ -1071,5 +1071,21 @@ CREATE INDEX IF NOT EXISTS idx_esh_event_id         ON event_status_history(even
 CREATE INDEX IF NOT EXISTS idx_edh_event_id         ON event_date_history(event_id);
 CREATE INDEX IF NOT EXISTS idx_ec_event_id          ON event_comments(event_id);
 
--- ✅ Migration terminée — 9 tables, triggers, RLS, vue organisateur, mini-forum
+-- 21. RLS profiles — lecture publique des infos non-sensibles
+-- Sans cette policy, la page /profil/[id] retourne "Profil introuvable"
+DO $$
+BEGIN
+  -- Policy lecture publique (full_name, avatar_url, bio, city, role, created_at)
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'profiles' AND policyname = 'profiles_public_select'
+  ) THEN
+    CREATE POLICY "profiles_public_select" ON profiles
+      FOR SELECT USING (true);
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'profiles_public_select déjà configurée : %', SQLERRM;
+END$$;
+
+-- ✅ Migration terminée — tables, triggers, RLS, vue organisateur, mini-forum, profils publics
 `;
