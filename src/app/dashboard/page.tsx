@@ -574,7 +574,7 @@ function DashboardContent() {
                 href="/mes-echanges" color="text-emerald-600" bg="bg-emerald-50" />
               <StatCard icon={Repeat2} label="Prêts actifs" value={stats.activeLends + stats.activeBorrows}
                 href="/materiel" color="text-sky-700" bg="bg-sky-50" />
-              <StatCard icon={Trophy} label="Collections" value={stats.activeCollections} href="/collectionneurs"
+              <StatCard icon={Trophy} label="Collections" value={stats.activeCollections} href="/dashboard/collectionneurs"
                 color="text-amber-600" bg="bg-amber-50" />
               <StatCard icon={HelpCircle} label="Perdu/Trouvé" value={stats.activeLostFound} href="/perdu-trouve"
                 color="text-red-600" bg="bg-red-50" />
@@ -858,7 +858,7 @@ function DashboardContent() {
                 { icon: Footprints, label: `${stats.upcomingOutings} sortie(s)`, href: '/dashboard/promenades', color: 'text-emerald-600', bg: 'bg-emerald-50' },
                 { icon: BookOpen, label: `${stats.forumPosts} sujet(s) forum`, href: '/forum', color: 'text-violet-600', bg: 'bg-violet-50' },
                 { icon: Handshake, label: `${stats.associations} association(s)`, href: '/associations', color: 'text-teal-600', bg: 'bg-teal-50' },
-                { icon: Trophy, label: `${stats.activeCollections} collection(s)`, href: '/collectionneurs', color: 'text-amber-600', bg: 'bg-amber-50' },
+                { icon: Trophy, label: `${stats.activeCollections} collection(s)`, href: '/dashboard/collectionneurs', color: 'text-amber-600', bg: 'bg-amber-50' },
                 { icon: MapPin, label: 'Toutes mes publications', href: '/dashboard/contenus', color: 'text-brand-600', bg: 'bg-brand-50' },
               ].map(item => (
                 <Link key={item.href} href={item.href}>

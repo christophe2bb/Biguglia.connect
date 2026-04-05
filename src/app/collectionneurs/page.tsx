@@ -927,6 +927,21 @@ export default function CollectionneursPage() {
                   </div>
                 ))}
               </div>
+            ) : loading && items.length > 0 ? (
+              /* Refresh en cours : skeleton overlay léger */
+              <div className="relative">
+                <div className="absolute inset-0 bg-white/60 z-10 flex items-start justify-center pt-20 rounded-2xl">
+                  <div className="flex items-center gap-2 bg-white shadow-lg rounded-2xl px-5 py-3 border border-gray-100">
+                    <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
+                    <span className="text-sm font-semibold text-gray-700">Chargement…</span>
+                  </div>
+                </div>
+                <div className={cn('grid gap-4 opacity-40', viewMode === 'grid' ? 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1')}>
+                  {enrichedItems.slice(0, 8).map(item => (
+                    <ItemCard key={item.id} item={item} currentUserId={profile?.id} onFavoriteToggle={handleFavoriteToggle} viewMode={viewMode} />
+                  ))}
+                </div>
+              </div>
             ) : enrichedItems.length === 0 ? (
               <div className="text-center py-16 bg-white rounded-3xl border border-gray-100">
                 <div className="text-5xl mb-4">🔍</div>

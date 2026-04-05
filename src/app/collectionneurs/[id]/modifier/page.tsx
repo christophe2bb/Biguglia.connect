@@ -135,7 +135,7 @@ export default function ModifierAnnoncePage() {
       setItem(data as unknown as CollectionItem);
       const d = data as Record<string, unknown>;
       setForm({
-        mode: ((d.mode || d.item_type === 'troc' ? 'echange' : d.item_type) as CollectionMode) || 'vente',
+        mode: ((d.mode || (d.item_type === 'troc' ? 'echange' : d.item_type)) as CollectionMode) || 'vente',
         status: (d.status as CollectionStatus) || 'actif',
         category_id: (d.category_id as string) || '',
         subcategory: (d.subcategory as string) || '',
