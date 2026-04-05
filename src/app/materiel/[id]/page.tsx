@@ -18,8 +18,7 @@ import { CONDITION_LABELS, formatDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import ContactButton from '@/components/ui/ContactButton';
 import { PhotoGallery, toPhotoItems } from '@/components/ui/PhotoViewer';
-import RatingWidget from '@/components/ui/RatingWidget';
-import ExchangePrompt from '@/components/ui/ExchangePrompt';
+import { TrustScoreFull } from '@/components/ui/TrustScore';
 import {
   EQUIPMENT_STATUS_CONFIG, LOAN_REQUEST_STATUS_CONFIG,
   getAllowedTransitions, getTransitionLabel, canDelete, isRequestable,
@@ -504,6 +503,8 @@ export default function MaterielDetailPage() {
                 sourceTitle={item.title}
                 ownerId={item.owner_id}
                 userId={profile?.id}
+                ctaLabel="Discuter en privé"
+                prefillMsg={`Bonjour, je suis intéressé(e) par votre "${item.title}"${item.is_free ? ' (gratuit)' : item.daily_rate ? ` à ${item.daily_rate}€/jour` : ''} — est-il toujours disponible ?`}
                 className="w-full"
               />
             )}
@@ -581,22 +582,32 @@ export default function MaterielDetailPage() {
             );
           })()}
 
-          {/* Confirmation de fin de prêt → débloque l'avis */}
-          <ExchangePrompt
-            targetType="equipment"
-            targetId={item.id}
-            authorId={item.owner_id}
-            userId={profile?.id}
-          />
-
-          {/* Notation (après prêt confirmé) */}
-          <RatingWidget
-            targetType="equipment"
-            targetId={item.id}
-            authorId={item.owner_id}
-            userId={profile?.id}
-            showPoll
-          />
+          {/* ── Réputation du propriétaire ── */}
+          {item.owner && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-4 pt-4 pb-2 border-b border-gray-50">
+                <h3 className="text-sm font-bold text-gray-800">⭐ Réputation du propriétaire</h3>
+              </div>
+              <div className="p-4">
+                <TrustScoreFull
+                  profile={{
+                    id: item.owner_id,
+                    created_at: (item.owner as { created_at?: string }).created_at ?? new Date().toISOString(),
+                    role: (item.owner as { role?: string }).role ?? 'resident',
+                    avatar_url: (item.owner as { avatar_url?: string }).avatar_url ?? null,
+                    phone: null,
+                    full_name: (item.owner as { full_name?: string }).full_name ?? null,
+                  }}
+                />
+                <Link
+                  href={`/profil/${item.owner_id}`}
+                  className="mt-3 flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-xl hover:bg-amber-100 transition-colors"
+                >
+                  Voir le profil complet →
+                </Link>
+              </div>
+            </div>
+          )}
 
           {/* Conseils */}
           <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
