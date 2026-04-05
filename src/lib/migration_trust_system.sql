@@ -36,8 +36,8 @@ CREATE TABLE IF NOT EXISTS trust_interactions (
   review_unlocked          BOOLEAN NOT NULL DEFAULT false,
   review_requester_done    BOOLEAN NOT NULL DEFAULT false,
   review_receiver_done     BOOLEAN NOT NULL DEFAULT false,
-  -- Conversation liée
-  conversation_id  UUID REFERENCES conversations(id) ON DELETE SET NULL,
+  -- Conversation liée (FK ajoutée conditionnellement ci-dessous)
+  conversation_id  UUID,
   -- Historique statuts (JSONB)
   status_history   JSONB NOT NULL DEFAULT '[]',
   -- Timestamps
@@ -49,6 +49,21 @@ CREATE TABLE IF NOT EXISTS trust_interactions (
   -- Une seule interaction active par (source, requester)
   CONSTRAINT uq_trust_interaction UNIQUE (source_type, source_id, requester_id)
 );
+
+-- FK optionnelle vers conversations (seulement si la table existe)
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='conversations' AND table_schema='public') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.table_constraints
+      WHERE constraint_name='trust_interactions_conversation_id_fkey'
+    ) THEN
+      ALTER TABLE trust_interactions
+        ADD CONSTRAINT trust_interactions_conversation_id_fkey
+        FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE SET NULL;
+    END IF;
+  END IF;
+EXCEPTION WHEN OTHERS THEN NULL;
+END$$;
 
 CREATE INDEX IF NOT EXISTS idx_ti_requester  ON trust_interactions(requester_id);
 CREATE INDEX IF NOT EXISTS idx_ti_receiver   ON trust_interactions(receiver_id);
