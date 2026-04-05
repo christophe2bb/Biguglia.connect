@@ -18,11 +18,12 @@ import {
   SlidersHorizontal, TrendingUp, Clock, CheckCircle2, Shield,
   BadgeCheck, Sparkles, ChevronDown, ChevronUp, Loader2,
   Zap, Tag, Camera, Bell, LayoutGrid, List, RefreshCw,
-  AlertTriangle, Share2, Bookmark, Layers, Pencil, Trash2, AlertCircle
+  AlertTriangle, Share2, Bookmark, Layers, Pencil, Trash2, AlertCircle, Send
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import toast from 'react-hot-toast';
 import ReportButton from '@/components/ui/ReportButton';
+import ContactButton from '@/components/ui/ContactButton';
 import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
 import {
   MODE_CONFIG, STATUS_CONFIG, RARITY_CONFIG, CONDITION_CONFIG,
@@ -331,23 +332,29 @@ function ItemCard({
           </div>
         </div>
 
-        {/* Vendeur */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Avatar src={item.author?.avatar_url} name={item.author?.full_name || '?'} size="xs" />
-            <span className="text-xs text-gray-500 truncate max-w-[80px]">{item.author?.full_name || 'Anonyme'}</span>
-          </div>
+        {/* Date publication */}
+        <div className="flex justify-end">
           <span className="text-xs text-gray-400">{formatRelative(item.published_at || item.created_at)}</span>
         </div>
 
-        {/* CTA */}
+        {/* CTA — Voir l'annonce + Message privé */}
         {!isClosed && !isOwner && (
-          <div className="mt-3 pt-3 border-t border-gray-50">
+          <div className="mt-3 pt-3 border-t border-gray-50 flex gap-2">
             <Link href={`/collectionneurs/${item.id}`}
-                  className={cn('flex items-center justify-center gap-2 w-full px-3 py-2 rounded-xl text-xs font-bold transition-all', modeCfg.bg, modeCfg.color, 'hover:opacity-80')}>
+                  className={cn('flex items-center justify-center gap-1.5 flex-1 px-3 py-2 rounded-xl text-xs font-bold transition-all', modeCfg.bg, modeCfg.color, 'hover:opacity-80')}>
               <MessageSquare className="w-3.5 h-3.5" />
               {modeCfg.cta}
             </Link>
+            <ContactButton
+              sourceType="collection_item"
+              sourceId={item.id}
+              sourceTitle={item.title}
+              ownerId={item.author_id}
+              userId={currentUserId}
+              size="sm"
+              ctaLabel="Contacter"
+              prefillMsg={`👋 Bonjour, je suis intéressé(e) par votre annonce "${item.title}".`}
+            />
           </div>
         )}
         {isOwner && (
@@ -362,6 +369,20 @@ function ItemCard({
             </Link>
           </div>
         )}
+
+        {/* Mini-fiche auteur au survol (profil vendeur) */}
+        <div className="mt-2 pt-2 border-t border-gray-50">
+          <Link href={`/profil/${item.author_id}`}
+                className="flex items-center gap-2 group/author hover:bg-amber-50 rounded-xl px-2 py-1.5 transition-colors -mx-1">
+            <Avatar src={item.author?.avatar_url} name={item.author?.full_name || '?'} size="xs" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-gray-700 group-hover/author:text-amber-700 truncate transition-colors">
+                {item.author?.full_name || 'Membre'}
+              </p>
+              <p className="text-xs text-gray-400 truncate">Voir le profil →</p>
+            </div>
+          </Link>
+        </div>
       </div>
 
       {lightboxOpen && allPhotos.length > 0 && (
@@ -778,6 +799,11 @@ export default function CollectionneursPage() {
                 )}
               </button>
             ))}
+            {/* Lien direct vers la page Communauté avec les fiches membres */}
+            <Link href="/communaute/collectionneurs"
+                  className="flex items-center gap-2 px-5 py-3.5 text-sm font-semibold border-b-2 border-transparent text-amber-600 hover:text-amber-800 hover:border-amber-300 transition-all ml-auto">
+              <Users className="w-4 h-4" /> Membres
+            </Link>
           </div>
         </div>
       </div>
