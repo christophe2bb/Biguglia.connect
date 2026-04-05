@@ -924,7 +924,26 @@ export default function PerduTrouvePage() {
       });
     } catch { /* silencieux si table absente */ }
 
-    // Notification à l'auteur si quelqu'un d'autre change le statut
+    // Créer une trust_interaction lors d'une restitution confirmée
+    if (newStatus === 'restitue' && profile) {
+      const item = items.find(i => i.id === id);
+      if (item && item.author_id !== profile.id) {
+        try {
+          await supabase.from('trust_interactions').insert({
+            source_type: 'lost_found',
+            source_id: id,
+            requester_id: profile.id,
+            receiver_id: item.author_id,
+            interaction_type: 'transaction',
+            status: 'done',
+            requester_review_allowed: true,
+            receiver_review_allowed: true,
+            completed_at: new Date().toISOString(),
+          });
+        } catch { /* silencieux si table absente */ }
+      }
+    }
+
     const cfg = STATUS_CONFIG[newStatus];
     toast.success(`✅ Statut : ${cfg.icon} ${cfg.label}`);
     fetchItems();

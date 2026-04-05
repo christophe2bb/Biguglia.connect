@@ -41,6 +41,7 @@ type LFItem = {
   matched_item_id: string | null;
   closed_at: string | null;
   archived_at: string | null;
+  author_id: string;
   created_at: string;
   updated_at: string;
   photos?: { url: string; display_order?: number }[];
@@ -315,6 +316,24 @@ export default function DashboardPerduTrouvePage() {
         changed_by: profile?.id,
       });
     } catch { /* silencieux si table absente */ }
+
+    // Créer une trust_interaction lors d'une restitution confirmée
+    if (newStatus === 'restitue' && profile) {
+      try {
+        await supabase.from('trust_interactions').insert({
+          source_type: 'lost_found',
+          source_id: id,
+          requester_id: profile.id,
+          receiver_id: item?.author_id ?? profile.id,
+          interaction_type: 'transaction',
+          status: 'done',
+          requester_review_allowed: true,
+          receiver_review_allowed: true,
+          completed_at: new Date().toISOString(),
+        });
+      } catch { /* silencieux si table absente */ }
+    }
+
     toast.success(`${cfg.icon} Statut mis à jour : ${cfg.label}`);
     fetchData();
   };
