@@ -15,6 +15,7 @@ import ModerationBadge from '@/components/ui/ModerationBadge';
 import Link from 'next/link';
 import { useModeration } from '@/hooks/useModeration';
 import { type ModerationStatus } from '@/lib/moderation';
+import SectorFilter from '@/components/ui/SectorFilter';
 
 export default function NouvelleAnnoncePage() {
   const { profile, loading: authLoading } = useAuthStore();
@@ -28,6 +29,7 @@ export default function NouvelleAnnoncePage() {
   const [form, setForm] = useState({
     title: '', description: '', category_id: '',
     listing_type: 'sale', price: '', condition: '', location: 'Biguglia',
+    sector_id: '',
   });
 
   const { submitForModeration } = useModeration();
@@ -37,6 +39,10 @@ export default function NouvelleAnnoncePage() {
     if (!profile) {
       router.push('/connexion?redirect=/annonces/nouvelle');
       return;
+    }
+    // Pré-remplir secteur depuis le profil
+    if (profile.home_sector_id) {
+      setForm(f => ({ ...f, sector_id: profile.home_sector_id ?? '' }));
     }
     const fetchCategories = async () => {
       const supabase = createClient();
@@ -67,6 +73,7 @@ export default function NouvelleAnnoncePage() {
         price: form.price ? parseFloat(form.price) : null,
         condition: form.condition || null,
         location: form.location || 'Biguglia',
+        sector_id: form.sector_id || null,
         status: 'active',
         moderation_status: 'en_attente_validation',
       })
@@ -265,6 +272,20 @@ export default function NouvelleAnnoncePage() {
             onChange={(e) => setForm(f => ({ ...f, location: e.target.value }))}
             placeholder="Biguglia"
           />
+
+          {/* Secteur */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Secteur
+              <span className="ml-1 text-xs font-normal text-gray-400">(fortement recommandé)</span>
+            </label>
+            <SectorFilter
+              value={form.sector_id || null}
+              onChange={id => setForm(f => ({ ...f, sector_id: id || '' }))}
+              allowCitywide
+              compact
+            />
+          </div>
         </div>
 
         {/* Photos */}

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { EVENT_CATEGORIES_LIST } from '@/lib/events';
+import SectorFilter from '@/components/ui/SectorFilter';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface EventForm {
@@ -37,6 +38,7 @@ interface EventForm {
   external_link: string;
   target_audience: string;
   tags: string;
+  sector_id: string;
 }
 
 const DEFAULT_FORM: EventForm = {
@@ -62,6 +64,7 @@ const DEFAULT_FORM: EventForm = {
   external_link: '',
   target_audience: '',
   tags: '',
+  sector_id: '',
 };
 
 type FormStep = 'essentiel' | 'details' | 'pratique' | 'photos';
@@ -71,7 +74,9 @@ export default function NouvelEvenementPage() {
   const { profile } = useAuthStore();
   const supabase = createClient();
 
-  const [form, setForm] = useState<EventForm>(DEFAULT_FORM);
+  const [form, setForm] = useState<EventForm>(
+    profile?.home_sector_id ? { ...DEFAULT_FORM, sector_id: profile.home_sector_id } : DEFAULT_FORM
+  );
   const [step, setStep] = useState<FormStep>('essentiel');
   const [submitting, setSubmitting] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
@@ -136,6 +141,7 @@ export default function NouvelEvenementPage() {
         status: 'a_venir',
         registration_open: form.registration_open,
         tags,
+        sector_id: form.sector_id || null,
         accessibility: form.accessibility.trim(),
         contact_info: form.contact_info.trim(),
         external_link: form.external_link.trim(),
@@ -424,9 +430,22 @@ export default function NouvelEvenementPage() {
                     className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
                   />
                 </div>
+                {/* Secteur territorial */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                    Secteur concerné
+                    <span className="ml-1 text-xs font-normal text-gray-400">(facultatif — ou « Toute la ville »)</span>
+                  </label>
+                  <SectorFilter
+                    value={form.sector_id || null}
+                    onChange={id => setField('sector_id', id || '')}
+                    allowCitywide
+                    compact
+                  />
+                </div>
                 <div className="grid sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Secteur / Quartier</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Zone / Quartier (précision libre)</label>
                     <input type="text" placeholder="Ex: Centre-ville, Nord..."
                       value={form.location_area} onChange={e => setField('location_area', e.target.value)}
                       className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
