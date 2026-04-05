@@ -11,6 +11,7 @@ import {
   CheckCircle, XCircle, AlertCircle, Loader2, Send, MessageSquare,
   ChevronRight, Star, History, Info, UserCheck, RefreshCw, Archive,
   Phone, Globe, Accessibility, UserX, Tag, Euro,
+  Share2, Copy, Download, Bell,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import toast from 'react-hot-toast';
@@ -146,6 +147,8 @@ export default function EventDetailPage() {
   const [newDate, setNewDate] = useState('');
   const [newTime, setNewTime] = useState('');
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // ─── Fetch event ───────────────────────────────────────────────────────────
   const fetchEvent = useCallback(async () => {
@@ -238,28 +241,175 @@ export default function EventDetailPage() {
     if (activeTab === 'discussion') fetchComments();
     if (activeTab === 'historique') fetchHistory();
   }, [activeTab, fetchParticipants, fetchComments, fetchHistory]);
+  useEffect(() => {
+    if (!showShareMenu) return;
+    const close = () => setShowShareMenu(false);
+    window.addEventListener('click', close, { once: true });
+    return () => window.removeEventListener('click', close);
+  }, [showShareMenu]);
 
   // ─── Actions ───────────────────────────────────────────────────────────────
-  const handleJoin = async () => {
+  // handleJoin → remplacé par handleJoinWithWaitlist (défini plus bas)
+
+  // ─── Notifier les participants d'un changement de statut ─────────────────
+  const notifyParticipants = async (newStatus: EventStatus, reason?: string) => {
+    if (!event) return;
+    try {
+      // Récupère tous les participants inscrits (sauf annulés)
+      const { data: parts } = await supabase
+        .from('event_participants')
+        .select('user_id')
+        .eq('event_id', id)
+        .neq('status', 'annule');
+      if (!parts || parts.length === 0) return;
+
+      const msgMap: Partial<Record<EventStatus, string>> = {
+        annule: `❌ L'événement "${event.title}" a été annulé${reason ? ` : ${reason}` : '.'} `,
+        reporte: `🔵 L'événement "${event.title}" a été reporté${reason ? ` : ${reason}` : '.'} `,
+        passe: `⚪ L'événement "${event.title}" est maintenant terminé.`,
+        complet: `🟡 L'événement "${event.title}" est complet — vous êtes sur liste d'attente.`,
+        a_venir: `🟢 Les inscriptions pour "${event.title}" sont à nouveau ouvertes !`,
+        archive: `📦 L'événement "${event.title}" a été archivé.`,
+      };
+      const message = msgMap[newStatus];
+      if (!message) return;
+
+      const notifications = parts.map((p: { user_id: string }) => ({
+        user_id: p.user_id,
+        type: 'event_status_change',
+        title: 'Changement de statut',
+        message,
+        related_type: 'event',
+        related_id: id,
+        read: false,
+      }));
+      await supabase.from('notifications').insert(notifications);
+    } catch (e) {
+      console.error('[notifyParticipants]', e);
+    }
+  };
+
+  // ─── Inscription avec liste d'attente automatique ─────────────────────────
+  const handleJoinWithWaitlist = async () => {
     if (!profile || !event) return;
     setJoiningEvent(true);
     try {
       if (event.user_joined) {
-        // Leave
+        // Désinscription
         await supabase.from('event_participants').delete()
           .eq('event_id', id).eq('user_id', profile.id);
         toast.success('Désinscription effectuée');
       } else {
-        // Join
+        // Déterminer le statut : inscrit ou liste_attente
+        const isFull = !event.is_unlimited &&
+          event.capacity !== null && event.capacity !== undefined &&
+          (event.participants_count ?? 0) >= event.capacity;
+
+        const participantStatus = isFull ? 'liste_attente' : 'inscrit';
+
         const { error } = await supabase.from('event_participants').upsert({
-          event_id: id, user_id: profile.id, status: 'inscrit', joined_at: new Date().toISOString(),
+          event_id: id,
+          user_id: profile.id,
+          status: participantStatus,
+          joined_at: new Date().toISOString(),
         }, { onConflict: 'event_id,user_id' });
+
         if (error) { toast.error("Erreur lors de l'inscription"); return; }
-        toast.success('Inscription confirmée !');
+
+        if (participantStatus === 'liste_attente') {
+          toast.success("📋 Événement complet — vous êtes ajouté(e) à la liste d'attente !", { duration: 4000 });
+          // Notifier l'organisateur
+          await supabase.from('notifications').insert({
+            user_id: event.author_id,
+            type: 'waitlist_join',
+            title: "Nouvelle liste d'attente",
+            message: `${profile.full_name ?? 'Un utilisateur'} s'est inscrit(e) sur la liste d'attente de "${event.title}".`,
+            related_type: 'event',
+            related_id: id,
+            read: false,
+          });
+        } else {
+          toast.success('✅ Inscription confirmée !');
+          // Notifier l'organisateur
+          await supabase.from('notifications').insert({
+            user_id: event.author_id,
+            type: 'new_participant',
+            title: 'Nouvelle inscription',
+            message: `${profile.full_name ?? 'Un utilisateur'} s'est inscrit(e) à "${event.title}".`,
+            related_type: 'event',
+            related_id: id,
+            read: false,
+          });
+        }
       }
       await fetchEvent();
     } finally {
       setJoiningEvent(false);
+    }
+  };
+
+  // ─── Export iCal ─────────────────────────────────────────────────────────
+  const handleDownloadIcal = () => {
+    if (!event) return;
+    const fmt = (d: string, t?: string | null) => {
+      const date = d.replace(/-/g, '');
+      if (!t) return date;
+      const time = t.replace(/:/g, '').substring(0, 4) + '00';
+      return `${date}T${time}00`;
+    };
+    const uid = `${event.id}@biguglia-connect`;
+    const now = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    const dtstart = event.start_time
+      ? `DTSTART:${fmt(event.event_date, event.start_time)}`
+      : `DTSTART;VALUE=DATE:${fmt(event.event_date)}`;
+    const dtend = event.event_end_date
+      ? (event.end_time
+          ? `DTEND:${fmt(event.event_end_date, event.end_time)}`
+          : `DTEND;VALUE=DATE:${fmt(event.event_end_date)}`)
+      : (event.end_time
+          ? `DTEND:${fmt(event.event_date, event.end_time)}`
+          : `DTEND;VALUE=DATE:${fmt(event.event_date)}`);
+    const desc = (event.description ?? '').replace(/\n/g, '\\n').substring(0, 500);
+    const loc = [event.location, event.location_detail].filter(Boolean).join(', ');
+
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Biguglia Connect//FR',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      `UID:${uid}`,
+      `DTSTAMP:${now}`,
+      dtstart,
+      dtend,
+      `SUMMARY:${event.title}`,
+      desc ? `DESCRIPTION:${desc}` : '',
+      loc ? `LOCATION:${loc}` : '',
+      `URL:${window.location.href}`,
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].filter(Boolean).join('\r\n');
+
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${event.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('📅 Fichier .ics téléchargé !');
+  };
+
+  // ─── Partage ──────────────────────────────────────────────────────────────
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      toast.success('🔗 Lien copié !');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Impossible de copier le lien');
     }
   };
 
@@ -293,6 +443,8 @@ export default function EventDetailPage() {
         await supabase.from('local_events').update(updates).eq('id', id);
       }
       toast.success(`Statut mis à jour : ${EVENT_STATUS_CONFIG[pendingTransition.to]?.label}`);
+      // Notifier les participants
+      await notifyParticipants(pendingTransition.to, transitionReason || undefined);
       setShowTransitionModal(false);
       setPendingTransition(null);
       setTransitionReason('');
@@ -409,8 +561,49 @@ export default function EventDetailPage() {
         <Link href="/evenements" className="absolute top-4 left-4 flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white px-3 py-2 rounded-xl text-sm font-semibold hover:bg-white/30 transition-all">
           <ArrowLeft className="w-4 h-4" /> Retour
         </Link>
-        {/* Status badge */}
+        {/* Status badge + Share + iCal */}
         <div className="absolute top-4 right-4 flex items-center gap-2">
+          {/* iCal */}
+          <button
+            onClick={handleDownloadIcal}
+            title="Ajouter au calendrier (.ics)"
+            className="p-2 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-all"
+          >
+            <Download className="w-4 h-4" />
+          </button>
+          {/* Share */}
+          <div className="relative">
+            <button
+              onClick={() => setShowShareMenu(s => !s)}
+              title="Partager"
+              className="p-2 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-all"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
+            {showShareMenu && (
+              <div className="absolute right-0 top-10 bg-white shadow-xl rounded-2xl border border-gray-100 p-2 w-52 z-20 space-y-1">
+                <button onClick={handleCopyLink}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-gray-700 hover:bg-gray-50 font-medium">
+                  <Copy className="w-4 h-4 text-gray-400" />
+                  {copied ? 'Lien copié ✓' : 'Copier le lien'}
+                </button>
+                <a href={`https://wa.me/?text=${encodeURIComponent(event.title + ' — ' + window.location.href)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-gray-700 hover:bg-gray-50 font-medium">
+                  <span className="text-base">💬</span> WhatsApp
+                </a>
+                <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-gray-700 hover:bg-gray-50 font-medium">
+                  <span className="text-base">📘</span> Facebook
+                </a>
+                <a href={`mailto:?subject=${encodeURIComponent(event.title)}&body=${encodeURIComponent('Rejoins-moi : ' + window.location.href)}`}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-gray-700 hover:bg-gray-50 font-medium">
+                  <span className="text-base">📧</span> Email
+                </a>
+              </div>
+            )}
+          </div>
           <StatusBadge status={event.status} contentType="event" extra={{ eventDate: event.event_date, isFull: !event.is_unlimited && !!event.capacity && (event.participants_count ?? 0) >= event.capacity }} />
         </div>
         {/* Title overlay */}
@@ -507,16 +700,22 @@ export default function EventDetailPage() {
                 </div>
               )}
             </div>
-            {profile && (resolvedStatus === 'a_venir') && (
+            {profile && (resolvedStatus === 'a_venir' || resolvedStatus === 'complet') && (
               <div className="flex-shrink-0">
                 {event.user_joined ? (
-                  <button onClick={handleJoin} disabled={joiningEvent}
+                  <button onClick={handleJoinWithWaitlist} disabled={joiningEvent}
                     className="flex items-center gap-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 font-bold px-4 py-2 rounded-xl text-sm transition-all disabled:opacity-50">
                     {joiningEvent ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                     Se désinscrire
                   </button>
+                ) : resolvedStatus === 'complet' ? (
+                  <button onClick={handleJoinWithWaitlist} disabled={joiningEvent}
+                    className="flex items-center gap-2 bg-amber-500 text-white hover:bg-amber-600 font-bold px-4 py-2 rounded-xl text-sm transition-all disabled:opacity-50">
+                    {joiningEvent ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+                    Liste d&apos;attente
+                  </button>
                 ) : registerCheck.allowed ? (
-                  <button onClick={handleJoin} disabled={joiningEvent}
+                  <button onClick={handleJoinWithWaitlist} disabled={joiningEvent}
                     className="flex items-center gap-2 bg-purple-600 text-white hover:bg-purple-700 font-bold px-4 py-2 rounded-xl text-sm transition-all disabled:opacity-50">
                     {joiningEvent ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                     S&apos;inscrire
