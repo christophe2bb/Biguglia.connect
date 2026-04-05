@@ -196,21 +196,20 @@ export default function MemberProfilePage() {
       }
       setMemberProfile(p);
 
-      // 2. Adhésion thème
-      const { data: m } = await supabase
-        .from('theme_memberships')
-        .select('joined_at, status')
-        .eq('user_id', userId)
-        .eq('theme_slug', themeSlug)
-        .eq('status', 'active')
-        .maybeSingle();
-
-      if (!m) {
-        setNotFound(true);
-        setLoading(false);
-        return;
+      // 2. Adhésion thème (optionnelle — ne bloque pas si table absente ou membre non inscrit)
+      try {
+        const { data: m } = await supabase
+          .from('theme_memberships')
+          .select('joined_at, status')
+          .eq('user_id', userId)
+          .eq('theme_slug', themeSlug)
+          .eq('status', 'active')
+          .maybeSingle();
+        setMembership(m ?? null);
+      } catch {
+        // table absente ou RLS — on continue quand même
+        setMembership(null);
       }
-      setMembership(m);
 
       // 3. Mini-profil thématique (optionnel)
       try {

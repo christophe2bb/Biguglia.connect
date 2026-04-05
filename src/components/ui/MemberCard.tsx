@@ -56,11 +56,11 @@ export default function MemberCard({
     )}>
       {/* Header : avatar + nom */}
       <div className="flex items-start gap-3">
-        <Link href={`/communaute/${themeSlug}/membre/${member.user_id}`}>
+        <Link href={`/profil/${member.user_id}`}>
           <Avatar src={profile?.avatar_url} name={name} size="lg" className="hover:ring-2 hover:ring-brand-300 transition" />
         </Link>
         <div className="flex-1 min-w-0">
-          <Link href={`/communaute/${themeSlug}/membre/${member.user_id}`} className="hover:text-brand-700 transition">
+          <Link href={`/profil/${member.user_id}`} className="hover:text-brand-700 transition">
             <p className="font-semibold text-gray-900 truncate hover:text-brand-700">{name}</p>
           </Link>
           {tp?.level && (
@@ -124,9 +124,9 @@ export default function MemberCard({
 
       {/* Actions */}
       <div className="pt-1 border-t border-gray-50 flex gap-2">
-        {/* Voir le profil */}
+        {/* Voir le profil public — toujours accessible */}
         <Link
-          href={`/communaute/${themeSlug}/membre/${member.user_id}`}
+          href={`/profil/${member.user_id}`}
           className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition"
         >
           <ExternalLink className="w-3.5 h-3.5" />
