@@ -22,6 +22,7 @@ import GlobalTrustBadge from '@/components/ui/TrustBadge';
 import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
 import ContactButton from '@/components/ui/ContactButton';
 import StatusBadge from '@/components/ui/StatusBadge';
+import SectorFilter, { SectorBadge } from '@/components/ui/SectorFilter';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type HelpType = 'demande' | 'offre' | 'echange';
@@ -381,6 +382,9 @@ function HelpCard({
 
         {/* Infos pratiques */}
         <div className="grid grid-cols-2 gap-1.5 mb-3 text-xs text-gray-500">
+          {(item as HelpRequest & { sector_id?: string }).sector_id && (
+            <SectorBadge sectorId={(item as HelpRequest & { sector_id?: string }).sector_id} size="xs" />
+          )}
           <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-rose-400 flex-shrink-0" />{item.location_area}{item.location_city !== 'Biguglia' ? ` · ${item.location_city}` : ''}</span>
           <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-blue-400 flex-shrink-0" />{DURATION_OPTIONS.find(d => d.value === item.duration)?.label ?? item.duration}</span>
           {item.help_date && <span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-purple-400 flex-shrink-0" />{new Date(item.help_date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}{item.help_time ? ` · ${item.help_time}` : ''}</span>}
@@ -594,6 +598,7 @@ export default function CoupsDeMainPage() {
   const [filterType, setFilterType] = useState<'all' | HelpType>('all');
   const [filterCat, setFilterCat] = useState('all');
   const [filterUrgency, setFilterUrgency] = useState<'all' | UrgencyLevel>('all');
+  const [filterSector, setFilterSector] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
   // Formulaire
@@ -612,6 +617,7 @@ export default function CoupsDeMainPage() {
     urgency: 'flexible' as UrgencyLevel,
     help_date: '',
     help_time: '',
+    sector_id: '',
     location_area: 'Centre-ville',
     location_city: 'Biguglia',
     location_detail: '',
@@ -708,6 +714,7 @@ export default function CoupsDeMainPage() {
       urgency: item.urgency,
       help_date: item.help_date ?? '',
       help_time: item.help_time ?? '',
+      sector_id: (item as HelpRequest & { sector_id?: string }).sector_id ?? '',
       location_area: item.location_area,
       location_city: item.location_city,
       location_detail: item.location_detail ?? '',
@@ -776,6 +783,7 @@ export default function CoupsDeMainPage() {
       urgency: form.urgency,
       help_date: form.help_date || null,
       help_time: form.help_time || null,
+      sector_id: form.sector_id || null,
       location_area: form.location_area,
       location_city: form.location_city,
       location_detail: form.location_detail || null,
@@ -833,6 +841,7 @@ export default function CoupsDeMainPage() {
     if (filterType !== 'all' && item.help_type !== filterType) return false;
     if (filterCat !== 'all' && item.category !== filterCat) return false;
     if (filterUrgency !== 'all' && item.urgency !== filterUrgency) return false;
+    if (filterSector && (item as HelpRequest & { sector_id?: string }).sector_id !== filterSector) return false;
     if (search && !item.title.toLowerCase().includes(search.toLowerCase()) && !item.description.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
@@ -986,6 +995,21 @@ export default function CoupsDeMainPage() {
                     <input type="text" placeholder="Ex : 14h, matin, soirée…" value={form.help_time} onChange={e => setForm(f => ({ ...f, help_time: e.target.value }))}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" />
                   </div>
+                </div>
+
+                {/* Secteur (obligatoire) */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-2">
+                    6b. Secteur <span className="text-red-500">*</span>
+                    <span className="text-gray-400 font-normal ml-1">— dans quel quartier avez-vous besoin d&apos;aide ?</span>
+                  </label>
+                  <SectorFilter
+                    value={form.sector_id || null}
+                    onChange={id => setForm(f => ({ ...f, sector_id: id || '' }))}
+                    showAll={false}
+                    compact={true}
+                    required={!form.sector_id}
+                  />
                 </div>
 
                 {/* Lieu */}
@@ -1282,6 +1306,16 @@ export default function CoupsDeMainPage() {
         {showForm && profile && renderForm()}
 
         {/* ── Filtres ── */}
+        {/* ── Filtre secteur ── */}
+        <SectorFilter
+          value={filterSector}
+          onChange={setFilterSector}
+          showAll={true}
+          compact={true}
+          label="Secteur"
+          className="mb-4"
+        />
+
         <div className="flex flex-wrap gap-3 mb-6">
           {/* Recherche */}
           <div className="flex-1 min-w-56 relative">

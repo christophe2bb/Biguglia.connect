@@ -15,6 +15,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { LISTING_TYPE_LABELS, LISTING_TYPE_COLORS, CONDITION_LABELS, formatPrice, formatRelative } from '@/lib/utils';
 import ReportButton from '@/components/ui/ReportButton';
+import SectorFilter, { SectorBadge } from '@/components/ui/SectorFilter';
 
 export default function AnnoncesPage() {
   const { profile } = useAuthStore();
@@ -27,6 +28,7 @@ export default function AnnoncesPage() {
   const [selectedType, setSelectedType] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('active');
   const [sortBy, setSortBy] = useState('recent');
+  const [filterSector, setFilterSector] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -52,6 +54,10 @@ export default function AnnoncesPage() {
       }
       if (selectedType) query = query.eq('listing_type', selectedType);
 
+      if (filterSector) {
+        try { query = query.eq('sector_id', filterSector); } catch { /* colonne optionnelle */ }
+      }
+
       if (sortBy === 'price_asc') query = query.order('price', { ascending: true });
       else if (sortBy === 'price_desc') query = query.order('price', { ascending: false });
       else query = query.order('created_at', { ascending: false });
@@ -61,7 +67,7 @@ export default function AnnoncesPage() {
       setLoading(false);
     };
     fetchData();
-  }, [selectedCategory, selectedType, selectedStatus, sortBy]);
+  }, [selectedCategory, selectedType, selectedStatus, sortBy, filterSector]);
 
   const filtered = listings.filter(l =>
     !search ||
@@ -89,6 +95,17 @@ export default function AnnoncesPage() {
             </Button>
           )}
         </div>
+      </div>
+
+      {/* Filtre secteur */}
+      <div className="bg-white rounded-2xl border border-gray-100 px-4 pt-3 pb-2 mb-4">
+        <SectorFilter
+          value={filterSector}
+          onChange={setFilterSector}
+          compact
+          label="Secteur"
+          allowCitywide
+        />
       </div>
 
       {/* Filtres */}
@@ -215,6 +232,11 @@ function ListingCard({ listing, currentUserId }: { listing: Listing; currentUser
 
           {listing.condition && (
             <p className="text-xs text-gray-400 mt-2">{CONDITION_LABELS[listing.condition]}</p>
+          )}
+          {(listing as Listing & { sector_id?: string }).sector_id && (
+            <div className="mt-2">
+              <SectorBadge sectorId={(listing as Listing & { sector_id?: string }).sector_id} size="xs" />
+            </div>
           )}
         </div>
       </div>

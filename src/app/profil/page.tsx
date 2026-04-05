@@ -14,12 +14,14 @@ import ProtectedPage from '@/components/providers/ProtectedPage';
 import { ROLE_LABELS } from '@/lib/utils';
 import Link from 'next/link';
 import { UserRatingBadge } from '@/components/ui/RatingWidget';
+import SectorFilter from '@/components/ui/SectorFilter';
 
 function ProfilContent() {
   const { profile, setProfile } = useAuthStore();
   const router = useRouter();
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [phone, setPhone] = useState(profile?.phone || '');
+  const [homeSector, setHomeSector] = useState<string | null>(profile?.home_sector_id ?? null);
   const [loading, setLoading] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -28,6 +30,7 @@ function ProfilContent() {
     if (profile) {
       setFullName(profile.full_name || '');
       setPhone(profile.phone || '');
+      setHomeSector(profile.home_sector_id ?? null);
     }
   }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -78,7 +81,7 @@ function ProfilContent() {
     setLoading(true);
     const supabase = createClient();
     const { data, error } = await supabase
-      .from('profiles').update({ full_name: fullName, phone }).eq('id', profile.id).select().single();
+      .from('profiles').update({ full_name: fullName, phone, home_sector_id: homeSector || null }).eq('id', profile.id).select().single();
     if (error) toast.error('Erreur lors de la sauvegarde');
     else { setProfile(data as typeof profile); toast.success('Profil mis à jour !'); }
     setLoading(false);
@@ -164,6 +167,18 @@ function ProfilContent() {
               <Mail className="w-4 h-4 text-gray-400" />
               <span className="text-sm text-gray-600">{profile.email}</span>
               <span className="text-xs text-gray-400 ml-auto">Non modifiable</span>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Mon secteur de résidence
+                <span className="ml-1 text-xs font-normal text-gray-400">(pré-sélectionné dans vos publications)</span>
+              </label>
+              <SectorFilter
+                value={homeSector}
+                onChange={setHomeSector}
+                compact
+                allowCitywide={false}
+              />
             </div>
           </div>
 

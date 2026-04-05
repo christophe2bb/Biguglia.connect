@@ -19,6 +19,7 @@ import RatingWidget from '@/components/ui/RatingWidget';
 import { PhotoViewer } from '@/components/ui/PhotoViewer';
 import ContactButton from '@/components/ui/ContactButton';
 import StatusBadge from '@/components/ui/StatusBadge';
+import SectorFilter, { SectorBadge } from '@/components/ui/SectorFilter';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LocalEvent = {
@@ -1245,6 +1246,7 @@ export default function EvenementsPage() {
   const [activeTab, setActiveTab] = useState<'agenda' | 'liste' | 'forum' | 'creer'>('agenda');
   const [filterCat, setFilterCat] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('a_venir');
+  const [filterSector, setFilterSector] = useState<string | null>(null); // facultatif/spécial
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'calendar' | 'grid'>('calendar');
 
@@ -1589,8 +1591,13 @@ export default function EvenementsPage() {
     ? events.filter(e => e.status === 'passe' || (e.event_date < today && !['annule','reporte'].includes(e.status)))
     : events.filter(e => e.status === filterStatus);
   const filteredByCat = filterCat === 'all' ? filteredByStatus : filteredByStatus.filter(e => e.category === filterCat);
+  // Filtre secteur facultatif (ville = aucun secteur précis, ou secteur précis)
+  const filteredBySector = !filterSector ? filteredByCat
+    : filterSector === 'ville'
+      ? filteredByCat.filter(e => !(e as LocalEvent & { sector_id?: string }).sector_id)
+      : filteredByCat.filter(e => (e as LocalEvent & { sector_id?: string }).sector_id === filterSector);
   const filteredEvents = searchQuery.trim()
-    ? filteredByCat.filter(e => {
+    ? filteredBySector.filter(e => {
         const q = searchQuery.toLowerCase();
         return (
           e.title?.toLowerCase().includes(q) ||
@@ -1601,7 +1608,7 @@ export default function EvenementsPage() {
           (e.tags ?? []).some((t: string) => t.toLowerCase().includes(q))
         );
       })
-    : filteredByCat;
+    : filteredBySector;
   const totalCount = upcomingEvents.length;
 
   return (
@@ -1750,6 +1757,17 @@ export default function EvenementsPage() {
                   </button>
                 )}
               </div>
+              {/* Filtre secteur — facultatif/spécial pour les événements */}
+              <SectorFilter
+                value={filterSector}
+                onChange={setFilterSector}
+                showAll={true}
+                allowCitywide={true}
+                compact={true}
+                label="Secteur (facultatif)"
+                className="mb-1"
+              />
+
               {/* Status filter */}
               <div className="flex flex-wrap gap-2">
                 {[

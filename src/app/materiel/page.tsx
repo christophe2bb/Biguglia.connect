@@ -14,6 +14,7 @@ import Avatar from '@/components/ui/Avatar';
 import { CONDITION_LABELS } from '@/lib/utils';
 import { EQUIPMENT_STATUS_CONFIG, EquipmentStatus, isPubliclyVisible } from '@/lib/equipment';
 import type { EquipmentItemFull } from '@/lib/equipment';
+import SectorFilter, { SectorBadge } from '@/components/ui/SectorFilter';
 
 const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: 'disponible', label: '✅ Disponible uniquement' },
@@ -37,6 +38,7 @@ export default function MaterielPage() {
   const [selectedStatus, setSelectedStatus] = useState('disponible');
   const [onlyFree, setOnlyFree] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [filterSector, setFilterSector] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
@@ -76,6 +78,10 @@ export default function MaterielPage() {
 
     if (onlyFree) query = query.eq('is_free', true);
 
+    if (filterSector) {
+      try { query = query.eq('sector_id', filterSector); } catch { /* colonne optionnelle */ }
+    }
+
     const { data, count } = await query;
     const newItems = (data as EquipmentItemFull[]) || [];
 
@@ -96,7 +102,7 @@ export default function MaterielPage() {
     setPage(0);
     fetchData(0, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCategory, selectedStatus, onlyFree]);
+  }, [selectedCategory, selectedStatus, onlyFree, filterSector]);
 
   const handleLoadMore = async () => {
     const nextPage = page + 1;
@@ -109,7 +115,7 @@ export default function MaterielPage() {
     i.title?.toLowerCase().includes(search.toLowerCase()) ||
     i.description?.toLowerCase().includes(search.toLowerCase()) ||
     i.pickup_location?.toLowerCase().includes(search.toLowerCase())
-  );
+  ).filter(i => !filterSector || (i as EquipmentItemFull & { sector_id?: string }).sector_id === filterSector);
 
   const counts = {
     disponible: items.filter(i => i.status === 'disponible').length,
@@ -162,6 +168,16 @@ export default function MaterielPage() {
           })}
         </div>
       )}
+
+      {/* Filtre secteur */}
+      <div className="bg-white rounded-2xl border border-gray-100 px-4 pt-3 pb-2 mb-4">
+        <SectorFilter
+          value={filterSector}
+          onChange={setFilterSector}
+          compact
+          label="Secteur"
+        />
+      </div>
 
       {/* Filtres */}
       <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-6">
@@ -322,6 +338,9 @@ function EquipmentCard({ item, currentUserId }: { item: EquipmentItemFull; curre
                 </span>
                 {item.pickup_location && (
                   <div className="text-xs text-gray-400">{item.pickup_location}</div>
+                )}
+                {(item as EquipmentItemFull & { sector_id?: string }).sector_id && (
+                  <SectorBadge sectorId={(item as EquipmentItemFull & { sector_id?: string }).sector_id} size="xs" />
                 )}
               </div>
             </div>
