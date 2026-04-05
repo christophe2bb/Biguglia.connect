@@ -210,7 +210,7 @@ export default function DashboardEvenementsPage() {
       // Fallback to local_events if events table fails or is empty
       if (evErr || rawEvents.length === 0) {
         const { data: legData } = await supabase
-          .from('local_events')
+          .from('events')
           .select('id, title, category, event_date, event_time, location, status, max_participants, created_at')
           .eq('author_id', profile.id)
           .order('event_date', { ascending: false });
@@ -302,7 +302,7 @@ export default function DashboardEvenementsPage() {
       if (pendingAction.to === 'a_venir') updates.registration_open = true;
 
       const { error } = await supabase.from('events').update(updates).eq('id', pendingAction.id);
-      if (error) await supabase.from('local_events').update(updates).eq('id', pendingAction.id);
+      if (error) await supabase.from('events').update(updates).eq('id', pendingAction.id);
 
       const label = EVENT_STATUS_CONFIG[pendingAction.to]?.label ?? pendingAction.to;
       toast.success(`Statut mis à jour : ${label}`);
@@ -319,7 +319,7 @@ export default function DashboardEvenementsPage() {
     if ((ev?.participants_count ?? 0) > 0) { toast.error('Impossible : des participants sont inscrits'); return; }
     if (!confirm('Supprimer définitivement cet événement ?')) return;
     await supabase.from('events').delete().eq('id', id);
-    await supabase.from('local_events').delete().eq('id', id);
+    await supabase.from('events').delete().eq('id', id);
     toast.success('Événement supprimé');
     await fetchMyEvents();
   };

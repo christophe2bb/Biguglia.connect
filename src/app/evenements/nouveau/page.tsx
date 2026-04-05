@@ -165,7 +165,7 @@ export default function NouvelEvenementPage() {
           tags,
         };
         const { data: legEv, error: legErr } = await supabase
-          .from('local_events').insert(legacyData).select('id').single();
+          .from('events').insert(legacyData).select('id').single();
         if (legErr) throw legErr;
         eventId = legEv?.id;
       } else {

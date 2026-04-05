@@ -192,7 +192,7 @@ export default function HomePage() {
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'artisan_verified'),
         supabase.from('profiles').select('id', { count: 'exact', head: true }),
         supabase.from('listings').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-        supabase.from('local_events').select('id', { count: 'exact', head: true }).gte('event_date', new Date().toISOString().split('T')[0]),
+        supabase.from('events').select('id', { count: 'exact', head: true }).gte('event_date', new Date().toISOString().split('T')[0]),
         supabase.from('help_requests').select('id', { count: 'exact', head: true }).eq('status', 'open'),
         supabase.from('group_outings').select('id', { count: 'exact', head: true }).gte('outing_date', new Date().toISOString().split('T')[0]),
       ]);

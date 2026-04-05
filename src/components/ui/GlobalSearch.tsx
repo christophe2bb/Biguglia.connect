@@ -257,7 +257,7 @@ export default function GlobalSearch({
             .gte('outing_date', new Date().toISOString().split('T')[0])
             .limit(3),
           supabase
-            .from('local_events')
+            .from('events')
             .select('id, title, location, event_date')
             .ilike('title', q)
             .gte('event_date', new Date().toISOString().split('T')[0])

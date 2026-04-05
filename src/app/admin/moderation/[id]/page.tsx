@@ -210,7 +210,7 @@ function ModerationDetailContent() {
         const tableMap: Record<ContentType, string> = {
           listing: 'listings', equipment: 'equipment_items',
           help_request: 'help_requests', outing: 'group_outings',
-          event: 'local_events', lost_found: 'lost_found_items',
+          event: 'events', lost_found: 'lost_found_items',
           collection_item: 'collection_items', association: 'associations',
           forum_post: 'forum_posts',
         };

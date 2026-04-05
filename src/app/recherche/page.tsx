@@ -342,7 +342,7 @@ function RechercheContent() {
           .gte('outing_date', today)
           .limit(20),
         supabase
-          .from('local_events')
+          .from('events')
           .select('id, title, description, location, event_date, is_free, price, photos:event_photos(url)')
           .or(`title.ilike.${pattern},description.ilike.${pattern},location.ilike.${pattern}`)
           .gte('event_date', today)
