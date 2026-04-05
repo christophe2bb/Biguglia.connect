@@ -427,6 +427,54 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- ── LF HISTORIQUE STATUTS ────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS lf_status_history (
+  id          UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  item_id     UUID REFERENCES lost_found_items(id) ON DELETE CASCADE NOT NULL,
+  old_status  TEXT,
+  new_status  TEXT NOT NULL,
+  changed_by  UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  reason      TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE lf_status_history ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='lf_status_history' AND policyname='lf_sh_select') THEN
+    CREATE POLICY "lf_sh_select" ON lf_status_history FOR SELECT USING (
+      EXISTS (SELECT 1 FROM lost_found_items WHERE id = item_id AND author_id = auth.uid())
+      OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+    );
+    CREATE POLICY "lf_sh_insert" ON lf_status_history FOR INSERT WITH CHECK (
+      EXISTS (SELECT 1 FROM lost_found_items WHERE id = item_id AND author_id = auth.uid())
+      OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+    );
+  END IF;
+END $$;
+
+-- ── LF CORRESPONDANCES (MATCHES) ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS lf_matches (
+  id             UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  lost_item_id   UUID REFERENCES lost_found_items(id) ON DELETE CASCADE NOT NULL,
+  found_item_id  UUID REFERENCES lost_found_items(id) ON DELETE CASCADE NOT NULL,
+  match_score    INT NOT NULL DEFAULT 0,
+  match_status   TEXT NOT NULL DEFAULT 'suggested' CHECK (match_status IN ('suggested','confirmed','rejected')),
+  reviewed_by    UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE lf_matches ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='lf_matches' AND policyname='lf_matches_select') THEN
+    CREATE POLICY "lf_matches_select" ON lf_matches FOR SELECT USING (true);
+    CREATE POLICY "lf_matches_insert" ON lf_matches FOR INSERT WITH CHECK (
+      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+      OR auth.uid() = (SELECT author_id FROM lost_found_items WHERE id = lost_item_id)
+    );
+    CREATE POLICY "lf_matches_update" ON lf_matches FOR UPDATE USING (
+      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+    );
+  END IF;
+END $$;
+
 -- ── ASSOCIATIONS ──────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS associations (
   id                   UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -1701,6 +1749,8 @@ const TABLES_TO_CHECK: TableCheck[] = [
   { name: 'lost_found_items',      label: 'Annonces Perdu/Trouvé',   theme: '🔍 Perdu/Trouvé' },
   { name: 'lf_photos',             label: 'Photos Perdu/Trouvé',     theme: '🔍 Perdu/Trouvé' },
   { name: 'lf_comments',           label: 'Commentaires Perdu/Trouvé', theme: '🔍 Perdu/Trouvé' },
+  { name: 'lf_status_history',    label: 'Historique statuts P/T',   theme: '🔍 Perdu/Trouvé' },
+  { name: 'lf_matches',           label: 'Correspondances P/T',      theme: '🔍 Perdu/Trouvé' },
   { name: 'help_requests',         label: 'Coups de main',            theme: '🤝 Coups de main' },
   { name: 'help_photos',           label: 'Photos coups de main',     theme: '🤝 Coups de main' },
   { name: 'help_comments',         label: 'Commentaires coups de main', theme: '🤝 Coups de main' },

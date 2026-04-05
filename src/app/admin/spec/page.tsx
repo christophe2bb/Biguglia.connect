@@ -419,6 +419,8 @@ export default function SpecPage() {
               { href: '/admin/moderation', label: 'Admin Modération', icon: Lock },
               { href: '/admin/signalements', label: 'Admin Signalements', icon: AlertCircle },
               { href: '/messages', label: 'Messagerie', icon: MessageSquare },
+              { href: '/admin/spec/materiel', label: 'Spec Matériel (100%)', icon: Settings },
+              { href: '/admin/spec/perdu-trouve', label: 'Spec Perdu/Trouvé', icon: Search },
             ].map(p => {
               const Icon = p.icon;
               return (
