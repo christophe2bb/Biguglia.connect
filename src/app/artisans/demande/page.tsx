@@ -11,6 +11,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Select from '@/components/ui/Select';
+import SectorFilter from '@/components/ui/SectorFilter';
 
 function DemandeServiceForm() {
   const searchParams = useSearchParams();
@@ -32,7 +33,15 @@ function DemandeServiceForm() {
     preferred_date: '',
     preferred_time: '',
     address: 'Biguglia',
+    sector_id: '',
   });
+
+  // Pré-remplir le secteur depuis le profil
+  useEffect(() => {
+    if (profile?.home_sector_id) {
+      setForm(f => ({ ...f, sector_id: profile.home_sector_id || '' }));
+    }
+  }, [profile?.home_sector_id]);
 
   useEffect(() => {
     if (!profile) { router.push('/connexion?redirect=/artisans/demande'); return; }
@@ -110,6 +119,7 @@ function DemandeServiceForm() {
         preferred_date: form.preferred_date || null,
         preferred_time: form.preferred_time || null,
         address: form.address,
+        sector_id: form.sector_id || null,
         status: 'submitted',
       })
       .select()
@@ -233,6 +243,18 @@ function DemandeServiceForm() {
             leftIcon={<MapPin className="w-4 h-4" />}
             placeholder="Votre adresse à Biguglia"
           />
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Secteur <span className="text-xs text-gray-400 font-normal ml-1">(recommandé — pour cibler les artisans de votre zone)</span>
+            </label>
+            <SectorFilter
+              value={form.sector_id || null}
+              onChange={id => setForm(f => ({ ...f, sector_id: id || '' }))}
+              showAll={false}
+              compact={true}
+            />
+          </div>
         </div>
 
         {/* Photos */}
