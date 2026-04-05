@@ -3998,7 +3998,30 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- ✅ Forum v2 opérationnel : 9 tables, RLS, triggers, full-text search
+-- ── Photos de sujets (forum_topic_photos) ───────────────────────────────────
+CREATE TABLE IF NOT EXISTS forum_topic_photos (
+  id            UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  topic_id      UUID REFERENCES forum_topics(id) ON DELETE CASCADE NOT NULL,
+  url           TEXT NOT NULL,
+  display_order INT NOT NULL DEFAULT 0,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS forum_topic_photos_topic_idx ON forum_topic_photos(topic_id, display_order);
+ALTER TABLE forum_topic_photos ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='forum_topic_photos' AND policyname='forum_topic_photos_select') THEN
+    CREATE POLICY "forum_topic_photos_select" ON forum_topic_photos FOR SELECT USING (true);
+    CREATE POLICY "forum_topic_photos_insert" ON forum_topic_photos FOR INSERT WITH CHECK (
+      EXISTS (SELECT 1 FROM forum_topics WHERE id = topic_id AND author_id = auth.uid())
+    );
+    CREATE POLICY "forum_topic_photos_delete" ON forum_topic_photos FOR DELETE USING (
+      EXISTS (SELECT 1 FROM forum_topics WHERE id = topic_id AND author_id = auth.uid())
+      OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+    );
+  END IF;
+END $$;
+
+-- ✅ Forum v2 opérationnel : 10 tables (+ photos), RLS, triggers, full-text search
 `;
 
 const PROFIL_PUBLIC_SQL = `-- ============================================================

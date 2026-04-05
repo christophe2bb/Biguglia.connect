@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react';
 import {
   Plus, MessageCircle, Eye, Pin, Flame, Lock, Archive,
   Search, Filter, MapPin, Tag, Users, Bell,
-  TrendingUp, Clock, Star, LayoutGrid, List, X
+  TrendingUp, Clock, Star, LayoutGrid, List, X, Image
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { ForumSector, ForumCategory, ForumTopic } from '@/types';
@@ -73,82 +73,117 @@ function TopicCard({ topic, sectors }: { topic: ForumTopic; sectors: ForumSector
   const sector = sectors.find(s => s.id === topic.sector_id);
   const colors = SECTOR_COLORS[sector?.color || 'gray'];
   const replyCount = topic.reply_count ?? 0;
+  const photos = (topic as ForumTopic & { photos?: { url: string }[] }).photos;
+  const coverPhoto = photos?.[0]?.url;
+  const photoCount = photos?.length ?? 0;
 
   return (
     <Link href={`/forum/${topic.id}`}>
-      <div className="bg-white rounded-2xl border border-gray-100 hover:shadow-sm hover:border-gray-200 transition-all duration-200 p-4 sm:p-5">
-        <div className="flex items-start gap-3">
-          {/* Avatar */}
-          <Avatar
-            src={(topic.author as { avatar_url?: string })?.avatar_url}
-            name={(topic.author as { full_name?: string })?.full_name || '?'}
-            size="md"
-          />
+      <div className="bg-white rounded-2xl border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 overflow-hidden">
 
-          <div className="flex-1 min-w-0">
-            {/* Badges ligne */}
-            <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-              {topic.is_pinned && (
-                <span className="inline-flex items-center gap-1 text-xs text-brand-600 font-medium">
-                  <Pin className="w-3 h-3" /> Épinglé
-                </span>
-              )}
-              {topic.is_hot && (
-                <span className="inline-flex items-center gap-1 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">
-                  <Flame className="w-3 h-3" /> Hot
-                </span>
-              )}
-              {sector && (
-                <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${colors.badge}`}>
-                  {sector.icon} {sector.name}
-                </span>
-              )}
-              {topic.category && (
-                <span className="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">
-                  {(topic.category as { icon?: string })?.icon} {(topic.category as { name?: string })?.name}
-                </span>
-              )}
-              <StatusBadge status={topic.status} />
-            </div>
-
-            {/* Titre */}
-            <h3 className="font-semibold text-gray-900 mb-1 line-clamp-2 hover:text-brand-600 transition-colors">
-              {topic.title}
-            </h3>
-
-            {/* Extrait */}
-            <p className="text-sm text-gray-500 line-clamp-2 mb-3">{topic.content}</p>
-
-            {/* Tags */}
-            {topic.tags && topic.tags.length > 0 && (
-              <div className="flex items-center gap-1 mb-2 flex-wrap">
-                {(topic.tags as string[]).slice(0, 3).map((tag: string) => (
-                  <span key={tag} className="text-xs bg-brand-50 text-brand-600 px-1.5 py-0.5 rounded-md">
-                    #{tag}
-                  </span>
-                ))}
-              </div>
+        {/* Photo de couverture */}
+        {coverPhoto && (
+          <div className="relative h-40 bg-gray-100 overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={coverPhoto} alt={topic.title} className="w-full h-full object-cover" />
+            {photoCount > 1 && (
+              <span className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Image className="w-3 h-3" /> {photoCount}
+              </span>
             )}
+            {topic.is_pinned && (
+              <span className="absolute top-2 left-2 bg-brand-600/90 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Pin className="w-3 h-3" /> Épinglé
+              </span>
+            )}
+            {topic.is_hot && (
+              <span className="absolute top-2 right-2 bg-red-500/90 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Flame className="w-3 h-3" /> Hot
+              </span>
+            )}
+          </div>
+        )}
 
-            {/* Métadonnées */}
-            <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
-              <span className="font-medium text-gray-500">{(topic.author as { full_name?: string })?.full_name}</span>
-              <span>·</span>
-              <span>{formatRelative(topic.created_at)}</span>
-              <div className="flex items-center gap-1">
-                <MessageCircle className="w-3 h-3" />
-                {replyCount} réponse{replyCount !== 1 ? 's' : ''}
+        <div className="p-4 sm:p-5">
+          <div className="flex items-start gap-3">
+            {/* Avatar */}
+            <Avatar
+              src={(topic.author as { avatar_url?: string })?.avatar_url}
+              name={(topic.author as { full_name?: string })?.full_name || '?'}
+              size="md"
+            />
+
+            <div className="flex-1 min-w-0">
+              {/* Badges ligne */}
+              <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                {!coverPhoto && topic.is_pinned && (
+                  <span className="inline-flex items-center gap-1 text-xs text-brand-600 font-medium">
+                    <Pin className="w-3 h-3" /> Épinglé
+                  </span>
+                )}
+                {!coverPhoto && topic.is_hot && (
+                  <span className="inline-flex items-center gap-1 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">
+                    <Flame className="w-3 h-3" /> Hot
+                  </span>
+                )}
+                {sector && (
+                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${colors.badge}`}>
+                    {sector.icon} {sector.name}
+                  </span>
+                )}
+                {topic.category && (
+                  <span className="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">
+                    {(topic.category as { icon?: string })?.icon} {(topic.category as { name?: string })?.name}
+                  </span>
+                )}
+                <StatusBadge status={topic.status} />
               </div>
-              <div className="flex items-center gap-1">
-                <Eye className="w-3 h-3" />
-                {topic.views}
-              </div>
-              {topic.last_reply_at && (
-                <div className="flex items-center gap-1 text-gray-300">
-                  <Clock className="w-3 h-3" />
-                  {formatRelative(topic.last_reply_at)}
+
+              {/* Titre */}
+              <h3 className="font-semibold text-gray-900 mb-1 line-clamp-2 hover:text-brand-600 transition-colors">
+                {topic.title}
+              </h3>
+
+              {/* Extrait */}
+              <p className="text-sm text-gray-500 line-clamp-2 mb-2">{topic.content}</p>
+
+              {/* Tags */}
+              {topic.tags && (topic.tags as string[]).length > 0 && (
+                <div className="flex items-center gap-1 mb-2 flex-wrap">
+                  {(topic.tags as string[]).slice(0, 3).map((tag: string) => (
+                    <span key={tag} className="text-xs bg-brand-50 text-brand-600 px-1.5 py-0.5 rounded-md">
+                      #{tag}
+                    </span>
+                  ))}
                 </div>
               )}
+
+              {/* Métadonnées claires */}
+              <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap mt-1">
+                <span className="font-medium text-gray-500">{(topic.author as { full_name?: string })?.full_name}</span>
+                <span>·</span>
+                <span title="Publié">{formatRelative(topic.created_at)}</span>
+                <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-md" title="Réponses">
+                  <MessageCircle className="w-3 h-3" />
+                  <span className="font-medium">{replyCount}</span>
+                </span>
+                <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-md" title="Vues">
+                  <Eye className="w-3 h-3" />
+                  <span className="font-medium">{topic.views}</span>
+                </span>
+                {photoCount > 0 && !coverPhoto && (
+                  <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md">
+                    <Image className="w-3 h-3" />
+                    <span className="font-medium">{photoCount}</span>
+                  </span>
+                )}
+                {topic.last_reply_at && (
+                  <span className="text-gray-300 ml-auto hidden sm:inline" title="Dernière réponse">
+                    <Clock className="w-3 h-3 inline mr-0.5" />
+                    {formatRelative(topic.last_reply_at)}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -518,40 +553,56 @@ function ForumPageInner() {
             )}
           </div>
 
-          {/* Barre tri rapide + vue */}
-          <div className="flex items-center justify-between mb-3">
+          {/* Barre tri + compteur résultats + vue */}
+          <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+            {/* Tri clair avec labels complets */}
             <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
               {([
-                { key: 'recent', icon: Clock,      label: 'Récents'  },
-                { key: 'hot',    icon: Flame,       label: 'Hot'      },
-                { key: 'replies',icon: MessageCircle,label: 'Actifs'  },
-                { key: 'views',  icon: Eye,         label: 'Vus'      },
-              ] as { key: SortMode; icon: React.ComponentType<{ className?: string }>; label: string }[]).map(s => (
+                { key: 'recent',  icon: Clock,         short: 'Récents',      title: "Trier par date (plus récents d'abord)" },
+                { key: 'hot',     icon: Flame,         short: '🔥 Chauds',    title: "Sujets avec le plus d'activité" },
+                { key: 'replies', icon: MessageCircle, short: '+ Réponses',   title: 'Trier par nombre de réponses' },
+                { key: 'views',   icon: Eye,           short: 'Consultés',    title: 'Trier par nombre de consultations' },
+              ] as { key: SortMode; icon: React.ComponentType<{ className?: string }>; short: string; title: string }[]).map(s => (
                 <button
                   key={s.key}
                   onClick={() => setSortMode(s.key)}
-                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    sortMode === s.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  title={s.title}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    sortMode === s.key
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  <s.icon className="w-3 h-3" />
-                  <span className="hidden sm:inline">{s.label}</span>
+                  <s.icon className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>{s.short}</span>
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-gray-200 text-gray-700' : 'text-gray-400 hover:text-gray-600'}`}
-              >
-                <List className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-1.5 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-gray-200 text-gray-700' : 'text-gray-400 hover:text-gray-600'}`}
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </button>
+
+            <div className="flex items-center gap-2">
+              {/* Compteur résultats */}
+              {!loading && (
+                <span className="text-xs text-gray-500 bg-gray-100 px-2.5 py-1.5 rounded-lg font-medium">
+                  {topics.length} sujet{topics.length !== 1 ? 's' : ''}
+                </span>
+              )}
+              {/* Vue liste / grille */}
+              <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
+                <button
+                  onClick={() => setViewMode('list')}
+                  title="Vue liste"
+                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white text-gray-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  <List className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setViewMode('grid')}
+                  title="Vue grille (avec photos)"
+                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white text-gray-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </div>
 

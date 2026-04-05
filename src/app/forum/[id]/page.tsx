@@ -316,6 +316,8 @@ export default function ForumTopicPage() {
 
   const [topic, setTopic] = useState<ForumTopic | null>(null);
   const [replies, setReplies] = useState<ForumReply[]>([]);
+  const [topicPhotos, setTopicPhotos] = useState<{ url: string; display_order: number }[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [newReply, setNewReply] = useState('');
   const [quotedReply, setQuotedReply] = useState<ForumReply | null>(null);
@@ -450,6 +452,16 @@ export default function ForumTopicPage() {
           .single();
         setIsFollowing(!!followData);
       }
+
+      // Photos du sujet
+      try {
+        const { data: photoData } = await supabase
+          .from('forum_topic_photos')
+          .select('url, display_order')
+          .eq('topic_id', id as string)
+          .order('display_order');
+        setTopicPhotos(photoData || []);
+      } catch { /* Table optionnelle */ }
 
       setLoading(false);
     };
@@ -770,6 +782,86 @@ export default function ForumTopicPage() {
 
         {/* Contenu */}
         <div className="text-gray-700 leading-relaxed whitespace-pre-wrap mb-5">{topic.content}</div>
+
+        {/* Photos du sujet */}
+        {topicPhotos.length > 0 && (
+          <div className="mb-5">
+            {topicPhotos.length === 1 ? (
+              <button onClick={() => setLightboxIndex(0)} className="block w-full rounded-xl overflow-hidden border border-gray-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={topicPhotos[0].url} alt="Photo" className="w-full max-h-96 object-cover hover:opacity-95 transition-opacity" />
+              </button>
+            ) : (
+              <div className={`grid gap-2 ${topicPhotos.length === 2 ? 'grid-cols-2' : topicPhotos.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                {topicPhotos.slice(0, topicPhotos.length <= 4 ? topicPhotos.length : 4).map((photo, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setLightboxIndex(i)}
+                    className={`relative overflow-hidden rounded-xl border border-gray-100 ${i === 0 && topicPhotos.length >= 3 ? 'col-span-2 row-span-1' : ''}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photo.url}
+                      alt={`Photo ${i + 1}`}
+                      className="w-full h-48 object-cover hover:opacity-90 transition-opacity"
+                    />
+                    {i === 3 && topicPhotos.length > 4 && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-xl font-bold">
+                        +{topicPhotos.length - 4}
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Lightbox */}
+        {lightboxIndex !== null && topicPhotos[lightboxIndex] && (
+          <div
+            className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+            onClick={() => setLightboxIndex(null)}
+          >
+            <div className="relative max-w-4xl w-full" onClick={e => e.stopPropagation()}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={topicPhotos[lightboxIndex].url}
+                alt="Photo"
+                className="max-h-[80vh] w-full object-contain rounded-xl"
+              />
+              <div className="absolute top-3 right-3 flex gap-2">
+                {topicPhotos.length > 1 && (
+                  <span className="bg-black/60 text-white text-xs px-2 py-1 rounded-full">
+                    {lightboxIndex + 1} / {topicPhotos.length}
+                  </span>
+                )}
+                <button
+                  onClick={() => setLightboxIndex(null)}
+                  className="bg-black/60 text-white rounded-full w-8 h-8 flex items-center justify-center text-lg hover:bg-black/80"
+                >
+                  ✕
+                </button>
+              </div>
+              {topicPhotos.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setLightboxIndex(i => i !== null ? (i - 1 + topicPhotos.length) % topicPhotos.length : 0)}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 text-white rounded-full w-10 h-10 flex items-center justify-center text-xl hover:bg-black/80"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    onClick={() => setLightboxIndex(i => i !== null ? (i + 1) % topicPhotos.length : 0)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 text-white rounded-full w-10 h-10 flex items-center justify-center text-xl hover:bg-black/80"
+                  >
+                    ›
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Réactions + actions */}
         <div className="flex items-center gap-3 flex-wrap pt-3 border-t border-gray-50">
