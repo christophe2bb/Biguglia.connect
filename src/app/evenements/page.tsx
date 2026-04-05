@@ -1245,6 +1245,7 @@ export default function EvenementsPage() {
   const [activeTab, setActiveTab] = useState<'agenda' | 'liste' | 'forum' | 'creer'>('agenda');
   const [filterCat, setFilterCat] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('a_venir');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'calendar' | 'grid'>('calendar');
 
   const [events, setEvents] = useState<LocalEvent[]>([]);
@@ -1587,7 +1588,20 @@ export default function EvenementsPage() {
     : filterStatus === 'passe'
     ? events.filter(e => e.status === 'passe' || (e.event_date < today && !['annule','reporte'].includes(e.status)))
     : events.filter(e => e.status === filterStatus);
-  const filteredEvents = filterCat === 'all' ? filteredByStatus : filteredByStatus.filter(e => e.category === filterCat);
+  const filteredByCat = filterCat === 'all' ? filteredByStatus : filteredByStatus.filter(e => e.category === filterCat);
+  const filteredEvents = searchQuery.trim()
+    ? filteredByCat.filter(e => {
+        const q = searchQuery.toLowerCase();
+        return (
+          e.title?.toLowerCase().includes(q) ||
+          e.description?.toLowerCase().includes(q) ||
+          e.location?.toLowerCase().includes(q) ||
+          e.organizer_name?.toLowerCase().includes(q) ||
+          e.category?.toLowerCase().includes(q) ||
+          (e.tags ?? []).some((t: string) => t.toLowerCase().includes(q))
+        );
+      })
+    : filteredByCat;
   const totalCount = upcomingEvents.length;
 
   return (
@@ -1715,6 +1729,27 @@ export default function EvenementsPage() {
           <div>
             {/* Filters */}
             <div className="mb-5 space-y-3">
+              {/* Search bar */}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Rechercher un événement (titre, lieu, organisateur, tag…)"
+                  className="w-full border border-gray-200 rounded-2xl px-4 py-2.5 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 bg-white shadow-sm"
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                  </svg>
+                </span>
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M18 6 6 18M6 6l12 12"/></svg>
+                  </button>
+                )}
+              </div>
               {/* Status filter */}
               <div className="flex flex-wrap gap-2">
                 {[
