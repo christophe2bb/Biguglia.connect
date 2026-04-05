@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import toast from 'react-hot-toast';
+import ContactButton from '@/components/ui/ContactButton';
+import { SectorBadge } from '@/components/ui/SectorFilter';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type ServiceRequest = {
@@ -26,6 +28,7 @@ type ServiceRequest = {
   preferred_date?: string | null;
   preferred_time?: string | null;
   resident_id: string;
+  sector_id?: string | null;
   resident?: { id: string; full_name: string; avatar_url?: string } | null;
   category?: { id: string; name: string; icon: string } | null;
   photos?: { url: string }[];
@@ -71,7 +74,7 @@ export default function DemandeDetailPage() {
       .from('service_requests')
       .select(`
         id, title, description, urgency, address, status, created_at,
-        preferred_date, preferred_time, resident_id,
+        preferred_date, preferred_time, resident_id, sector_id,
         resident:profiles!service_requests_resident_id_fkey(id, full_name, avatar_url),
         category:trade_categories(id, name, icon),
         photos:service_request_photos(url)
@@ -242,6 +245,11 @@ export default function DemandeDetailPage() {
 
             {/* Méta */}
             <div className="grid sm:grid-cols-2 gap-3 bg-gray-50 rounded-2xl p-4 text-sm text-gray-600 mb-5">
+              {request.sector_id && (
+                <div className="flex items-center gap-2">
+                  <SectorBadge sectorId={request.sector_id} size="sm" />
+                </div>
+              )}
               {request.address && (
                 <div className="flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-gray-400" />
@@ -270,24 +278,26 @@ export default function DemandeDetailPage() {
               </div>
 
               {/* Actions auteur */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 {isOwner && !isResolved && (
                   <button onClick={handleMarkResolved}
                     className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl hover:bg-emerald-100 transition-all">
                     <CheckCircle className="w-4 h-4" /> Marquer résolue
                   </button>
                 )}
-                {isOwner && (
-                  <Link href={`/messages`}
-                    className="inline-flex items-center gap-1.5 text-sm font-bold text-blue-700 bg-blue-50 border border-blue-200 px-4 py-2 rounded-xl hover:bg-blue-100 transition-all">
-                    <MessageSquare className="w-4 h-4" /> Mes messages
-                  </Link>
-                )}
-                {!isOwner && profile && (
-                  <Link href={`/messages?to=${request.resident_id}`}
-                    className="inline-flex items-center gap-1.5 text-sm font-bold text-blue-700 bg-blue-50 border border-blue-200 px-4 py-2 rounded-xl hover:bg-blue-100 transition-all">
-                    <MessageSquare className="w-4 h-4" /> Message privé
-                  </Link>
+                {/* Message privé — visible pour les non-auteurs connectés */}
+                {!isOwner && profile && request.resident_id && (
+                  <ContactButton
+                    sourceType="service_request"
+                    sourceId={request.id}
+                    sourceTitle={request.title}
+                    ownerId={request.resident_id}
+                    userId={profile.id}
+                    ctaLabel="Message privé"
+                    prefillMsg={`Bonjour, je vous contacte suite à votre demande « ${request.title} ».`}
+                    size="sm"
+                    variant="secondary"
+                  />
                 )}
               </div>
             </div>

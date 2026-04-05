@@ -10,6 +10,7 @@ import {
   Wrench, MessageSquare, ChevronRight, Filter,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
+import SectorFilter from '@/components/ui/SectorFilter';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type ServiceRequest = {
@@ -21,6 +22,7 @@ type ServiceRequest = {
   status: string;
   created_at: string;
   resident_id: string;
+  sector_id?: string | null;
   resident?: { full_name: string; avatar_url?: string } | null;
   category?: { id: string; name: string; icon: string } | null;
   photos?: { url: string }[];
@@ -51,13 +53,14 @@ export default function DemandesPage() {
   const [search, setSearch]         = useState('');
   const [filterUrgency, setFilterUrgency] = useState('all');
   const [filterStatus, setFilterStatus]   = useState('open'); // open = submitted+viewed+replied
+  const [filterSector, setFilterSector]   = useState<string | null>(null);
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
     let query = supabase
       .from('service_requests')
       .select(`
-        id, title, description, urgency, address, status, created_at, resident_id,
+        id, title, description, urgency, address, status, created_at, resident_id, sector_id,
         resident:profiles!service_requests_resident_id_fkey(full_name, avatar_url),
         category:trade_categories(id, name, icon),
         photos:service_request_photos(url)
@@ -82,12 +85,13 @@ export default function DemandesPage() {
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
-  const filtered = requests.filter(r =>
-    !search ||
-    r.title.toLowerCase().includes(search.toLowerCase()) ||
-    r.description.toLowerCase().includes(search.toLowerCase()) ||
-    r.category?.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = requests.filter(r => {
+    if (filterSector && (r as ServiceRequest & { sector_id?: string }).sector_id !== filterSector) return false;
+    if (search && !r.title.toLowerCase().includes(search.toLowerCase()) &&
+        !r.description.toLowerCase().includes(search.toLowerCase()) &&
+        !r.category?.name.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -120,6 +124,16 @@ export default function DemandesPage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        {/* ── Filtre secteur ── */}
+        <SectorFilter
+          value={filterSector}
+          onChange={setFilterSector}
+          showAll={true}
+          compact={true}
+          label="Secteur"
+          className="mb-4"
+        />
 
         {/* ── Barre recherche + filtres ── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-6 flex flex-col sm:flex-row gap-3">
