@@ -94,7 +94,7 @@ const MODULES: Module[] = [
       { label: 'Détails étendus : couleur, marque, signe distinctif, preuve propriété, contact conditionnel', status: 'done' },
       { label: 'Confidentialité : infos cachées si keep_secret = true', status: 'done' },
       { label: 'Galerie miniatures supplémentaires cliquables', status: 'done' },
-      { label: 'Page détail dédiée /perdu-trouve/[id]', status: 'todo', note: 'Actuellement tout est sur la liste avec expand. Une page dédiée reste à créer.' },
+      { label: 'Page détail dédiée /perdu-trouve/[id]', status: 'done' },
     ],
   },
   {
@@ -109,7 +109,8 @@ const MODULES: Module[] = [
       { label: 'Signaler (ReportButton)', status: 'done' },
       { label: 'Transitions de statut pour l\'auteur (boutons colorés)', status: 'done' },
       { label: 'Modifier et Supprimer pour l\'auteur', status: 'done' },
-      { label: 'Print fiche / QR code', status: 'todo', note: 'Feature premium non encore implémentée' },
+      { label: 'Impression fiche (window.print + styles dédiés)', status: 'done' },
+      { label: 'QR code fiche', status: 'todo', note: 'Librairie qrcode.react — non implémenté' },
     ],
   },
   {
@@ -157,7 +158,7 @@ const MODULES: Module[] = [
       { label: 'Conseils sécurité dans étape 6 (ne pas photographier, garder un détail secret…)', status: 'done' },
       { label: 'Conseils photo pour objets sensibles (étape 4)', status: 'done' },
       { label: 'proof_required flag pour la restitution', status: 'done' },
-      { label: 'Visibilité photos par niveau (public / private_admin / private_restitution)', status: 'partial', note: 'Champ non encore ajouté sur lf_photos; visibility_type à ajouter en migration' },
+      { label: 'Visibilité photos par niveau (public / private_admin / private_restitution)', status: 'done', note: 'visibility_type ajouté sur lf_photos via migration LF Extras' },
       { label: 'Validation admin pour objets très sensibles (identité bancaire)', status: 'todo', note: 'Workflow modération à développer' },
     ],
   },
@@ -175,7 +176,7 @@ const MODULES: Module[] = [
       { label: 'RLS sur toutes les tables : lecture publique, écriture auteur, admin full', status: 'done' },
       { label: 'Trigger log_lost_found_status sur lost_found_items', status: 'done' },
       { label: 'Fonction SQL change_lost_found_status (validation transitions)', status: 'done' },
-      { label: 'Colonnes visibility_type sur lf_photos', status: 'todo', note: 'À ajouter en migration pour gérer les niveaux de visibilité photo' },
+      { label: 'Colonnes visibility_type sur lf_photos', status: 'done', note: 'SQL dans bloc LF Extras de /admin/migration' },
     ],
   },
   {
@@ -191,7 +192,7 @@ const MODULES: Module[] = [
       { label: 'Notification utilisateur : restitution confirmée', status: 'todo' },
       { label: 'Notification admin : nouvel objet sensible', status: 'todo' },
       { label: 'Notification admin : signalement', status: 'partial', note: 'ReportButton envoie un signal, dashboard admin à compléter' },
-      { label: 'Archivage imminent (60 jours)', status: 'todo', note: 'Cron pg_cron à programmer similaire au rappel J-1 matériel' },
+      { label: 'Archivage automatique J+60 (fonction SQL + cron)', status: 'done', note: 'Fonction archive_expired_lost_found() + cron commenté dans bloc LF Extras de /admin/migration' },
     ],
   },
   {
@@ -203,7 +204,7 @@ const MODULES: Module[] = [
       { label: 'TrustScoreMini affiché dans le footer de chaque carte', status: 'done' },
       { label: 'Lost_found enregistré comme InteractionSourceType dans trust.ts', status: 'done' },
       { label: 'related_type \'lost_found\' dans les migrations trust_system', status: 'done' },
-      { label: 'trust_interaction créé automatiquement lors de la restitution confirmée', status: 'todo', note: 'handleStatusChange(restitue) doit créer une trust_interaction' },
+      { label: 'trust_interaction créé automatiquement lors de la restitution confirmée', status: 'done', note: 'Implémenté dans handleStatusChange() de perdu-trouve/page.tsx et dashboard/perdu-trouve' },
       { label: 'Badge "Restitution confirmée" pour les profils ayant restitué', status: 'todo', note: 'À ajouter dans le système de badges' },
     ],
   },
@@ -230,7 +231,7 @@ const MODULES: Module[] = [
     title: 'Fonctionnalités premium / innovantes',
     color: 'violet',
     items: [
-      { label: 'Impression fiche / PDF', status: 'todo', note: 'window.print() ou librairie PDF' },
+      { label: 'Impression fiche (window.print + styles dédiés depuis la page détail)', status: 'done' },
       { label: 'QR code fiche', status: 'todo', note: 'Librairie qrcode.react' },
       { label: 'Carte locale des pertes/trouvailles (leaflet/mapbox)', status: 'todo' },
       { label: 'Lieux relais partenaires (mairie, commerces)', status: 'partial', note: 'deposited_at est géré mais sans liste officielle de relais' },

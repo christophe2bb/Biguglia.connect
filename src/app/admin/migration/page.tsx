@@ -427,54 +427,6 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- ── LF HISTORIQUE STATUTS ────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS lf_status_history (
-  id          UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  item_id     UUID REFERENCES lost_found_items(id) ON DELETE CASCADE NOT NULL,
-  old_status  TEXT,
-  new_status  TEXT NOT NULL,
-  changed_by  UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  reason      TEXT,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-ALTER TABLE lf_status_history ENABLE ROW LEVEL SECURITY;
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='lf_status_history' AND policyname='lf_sh_select') THEN
-    CREATE POLICY "lf_sh_select" ON lf_status_history FOR SELECT USING (
-      EXISTS (SELECT 1 FROM lost_found_items WHERE id = item_id AND author_id = auth.uid())
-      OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
-    );
-    CREATE POLICY "lf_sh_insert" ON lf_status_history FOR INSERT WITH CHECK (
-      EXISTS (SELECT 1 FROM lost_found_items WHERE id = item_id AND author_id = auth.uid())
-      OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
-    );
-  END IF;
-END $$;
-
--- ── LF CORRESPONDANCES (MATCHES) ─────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS lf_matches (
-  id             UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  lost_item_id   UUID REFERENCES lost_found_items(id) ON DELETE CASCADE NOT NULL,
-  found_item_id  UUID REFERENCES lost_found_items(id) ON DELETE CASCADE NOT NULL,
-  match_score    INT NOT NULL DEFAULT 0,
-  match_status   TEXT NOT NULL DEFAULT 'suggested' CHECK (match_status IN ('suggested','confirmed','rejected')),
-  reviewed_by    UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-ALTER TABLE lf_matches ENABLE ROW LEVEL SECURITY;
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='lf_matches' AND policyname='lf_matches_select') THEN
-    CREATE POLICY "lf_matches_select" ON lf_matches FOR SELECT USING (true);
-    CREATE POLICY "lf_matches_insert" ON lf_matches FOR INSERT WITH CHECK (
-      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
-      OR auth.uid() = (SELECT author_id FROM lost_found_items WHERE id = lost_item_id)
-    );
-    CREATE POLICY "lf_matches_update" ON lf_matches FOR UPDATE USING (
-      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
-    );
-  END IF;
-END $$;
-
 -- ── ASSOCIATIONS ──────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS associations (
   id                   UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -3780,6 +3732,122 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 -- ✅ Résultat : /profil/[id] fonctionne pour tout visiteur
 `;
 
+const LF_HISTORY_SQL = `-- ════════════════════════════════════════════════════════════════
+-- PERDU / TROUVÉ — Historique de statuts (lf_status_history)
+-- ════════════════════════════════════════════════════════════════
+-- Exécuter APRÈS le bloc principal Perdu/Trouvé (lost_found_items).
+-- Ce script est idempotent (safe à relancer).
+-- ════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS lf_status_history (
+  id          UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  item_id     UUID REFERENCES lost_found_items(id) ON DELETE CASCADE NOT NULL,
+  old_status  TEXT,
+  new_status  TEXT NOT NULL,
+  changed_by  UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  reason      TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE lf_status_history ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='lf_status_history' AND policyname='lf_sh_select') THEN
+    CREATE POLICY "lf_sh_select" ON lf_status_history FOR SELECT USING (
+      EXISTS (SELECT 1 FROM lost_found_items WHERE id = item_id AND author_id = auth.uid())
+      OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+    );
+    CREATE POLICY "lf_sh_insert" ON lf_status_history FOR INSERT WITH CHECK (
+      EXISTS (SELECT 1 FROM lost_found_items WHERE id = item_id AND author_id = auth.uid())
+      OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+    );
+  END IF;
+END $$;
+
+-- ✅ Résultat : chaque changement de statut est tracé dans lf_status_history
+`;
+
+const LF_MATCHES_SQL = `-- ════════════════════════════════════════════════════════════════
+-- PERDU / TROUVÉ — Correspondances automatiques (lf_matches)
+-- ════════════════════════════════════════════════════════════════
+-- Exécuter APRÈS le bloc principal Perdu/Trouvé (lost_found_items).
+-- Ce script est idempotent (safe à relancer).
+-- ════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS lf_matches (
+  id             UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  lost_item_id   UUID REFERENCES lost_found_items(id) ON DELETE CASCADE NOT NULL,
+  found_item_id  UUID REFERENCES lost_found_items(id) ON DELETE CASCADE NOT NULL,
+  match_score    INT NOT NULL DEFAULT 0,
+  match_status   TEXT NOT NULL DEFAULT 'suggested'
+                 CHECK (match_status IN ('suggested','confirmed','rejected')),
+  reviewed_by    UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE lf_matches ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='lf_matches' AND policyname='lf_matches_select') THEN
+    CREATE POLICY "lf_matches_select" ON lf_matches FOR SELECT USING (true);
+    CREATE POLICY "lf_matches_insert" ON lf_matches FOR INSERT WITH CHECK (
+      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+      OR auth.uid() = (SELECT author_id FROM lost_found_items WHERE id = lost_item_id)
+    );
+    CREATE POLICY "lf_matches_update" ON lf_matches FOR UPDATE USING (
+      EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
+    );
+  END IF;
+END $$;
+
+-- ✅ Résultat : les correspondances perdu↔trouvé sont stockées et consultables
+`;
+
+const LF_EXTRAS_SQL = `-- ════════════════════════════════════════════════════════════════════════════
+-- PERDU / TROUVÉ — Extras : visibility_type + archivage automatique J+60
+-- ════════════════════════════════════════════════════════════════════════════
+-- Idempotent — exécuter APRÈS les blocs lf_status_history et lf_matches.
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- 1. Ajouter visibility_type sur lf_photos (niveaux : public / private_admin / private_restitution)
+ALTER TABLE lf_photos
+  ADD COLUMN IF NOT EXISTS visibility_type TEXT NOT NULL DEFAULT 'public'
+    CHECK (visibility_type IN ('public','private_admin','private_restitution'));
+
+COMMENT ON COLUMN lf_photos.visibility_type IS
+  'public = visible par tous | private_admin = visible admin/mod seulement | private_restitution = visible au propriétaire prouvé uniquement';
+
+-- 2. Archivage automatique J+60 via pg_cron (activer l''extension dans Supabase Dashboard → Database → Extensions)
+-- Cette fonction archive toutes les annonces actives dont expires_at est dépassé.
+CREATE OR REPLACE FUNCTION archive_expired_lost_found()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE lost_found_items
+  SET
+    status     = 'archive',
+    archived_at = now(),
+    updated_at  = now()
+  WHERE
+    status IN ('perdu','trouve','identifie')
+    AND expires_at IS NOT NULL
+    AND expires_at < now();
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION archive_expired_lost_found() TO service_role;
+
+-- 3. Planifier l''archivage tous les jours à 02h00 (si pg_cron est activé)
+-- Décommentez après avoir activé l''extension pg_cron :
+-- SELECT cron.schedule('archive-expired-lf', '0 2 * * *', 'SELECT archive_expired_lost_found()');
+
+-- ✅ Résultat :
+-- • lf_photos dispose de visibility_type pour contrôler la confidentialité des images
+-- • archive_expired_lost_found() peut être planifiée en cron pour l''archivage automatique à J+60
+`;
+
 export default function MigrationPage() {
   const supabase = createClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -3816,6 +3884,9 @@ export default function MigrationPage() {
   const [copiedCollectV2,   setCopiedCollectV2]   = useState(false);
   const [copiedProfilPublic, setCopiedProfilPublic] = useState(false);
   const [copiedReminder, setCopiedReminder] = useState(false);
+  const [copiedLfHistory, setCopiedLfHistory] = useState(false);
+  const [copiedLfMatches, setCopiedLfMatches] = useState(false);
+  const [copiedLfExtras,  setCopiedLfExtras]  = useState(false);
 
   // Storage diagnostic
   const [storageDiag, setStorageDiag] = useState<StorageDiag>({
@@ -5788,6 +5859,102 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
           <pre className="text-xs text-blue-300 font-mono leading-relaxed whitespace-pre-wrap">{PROFIL_PUBLIC_SQL}</pre>
+        </div>
+      </div>
+
+      {/* ─── LF HISTORIQUE STATUTS ────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-teal-200 overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-teal-600 to-emerald-600">
+          <span className="text-2xl">🔍</span>
+          <div className="flex-1">
+            <h3 className="font-bold text-white">Perdu/Trouvé — Historique de statuts</h3>
+            <p className="text-xs text-teal-100 mt-0.5">
+              Table <code className="bg-white/20 px-1 rounded">lf_status_history</code> — trace tous les changements de statut avec auteur et horodatage.
+              À exécuter après le bloc principal Perdu/Trouvé.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(LF_HISTORY_SQL).then(() => {
+                setCopiedLfHistory(true);
+                setTimeout(() => setCopiedLfHistory(false), 3000);
+              });
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
+              copiedLfHistory ? 'bg-emerald-500 text-white' : 'bg-teal-500 text-white hover:bg-teal-400'
+            }`}
+          >
+            {copiedLfHistory
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Historique statuts</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-96">
+          <pre className="text-xs text-teal-300 font-mono leading-relaxed whitespace-pre-wrap">{LF_HISTORY_SQL}</pre>
+        </div>
+      </div>
+
+      {/* ─── LF MATCHES ─────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-blue-200 overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-blue-600 to-indigo-600">
+          <span className="text-2xl">⚡</span>
+          <div className="flex-1">
+            <h3 className="font-bold text-white">Perdu/Trouvé — Correspondances (matches)</h3>
+            <p className="text-xs text-blue-100 mt-0.5">
+              Table <code className="bg-white/20 px-1 rounded">lf_matches</code> — stocke les correspondances automatiques entre objets perdus et trouvés (score, statut, modérateur).
+              À exécuter après le bloc principal Perdu/Trouvé.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(LF_MATCHES_SQL).then(() => {
+                setCopiedLfMatches(true);
+                setTimeout(() => setCopiedLfMatches(false), 3000);
+              });
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
+              copiedLfMatches ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white hover:bg-blue-400'
+            }`}
+          >
+            {copiedLfMatches
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL lf_matches</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-96">
+          <pre className="text-xs text-blue-300 font-mono leading-relaxed whitespace-pre-wrap">{LF_MATCHES_SQL}</pre>
+        </div>
+      </div>
+
+      {/* ─── LF EXTRAS ───────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-violet-200 overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-violet-600 to-purple-600">
+          <span className="text-2xl">🔐</span>
+          <div className="flex-1">
+            <h3 className="font-bold text-white">Perdu/Trouvé — Extras (visibility_type + archivage auto)</h3>
+            <p className="text-xs text-violet-100 mt-0.5">
+              Ajoute <code className="bg-white/20 px-1 rounded">visibility_type</code> sur <code className="bg-white/20 px-1 rounded">lf_photos</code>
+              {' '}et crée la fonction <code className="bg-white/20 px-1 rounded">archive_expired_lost_found()</code> planifiable en pg_cron (J+60).
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(LF_EXTRAS_SQL).then(() => {
+                setCopiedLfExtras(true);
+                setTimeout(() => setCopiedLfExtras(false), 3000);
+              });
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
+              copiedLfExtras ? 'bg-emerald-500 text-white' : 'bg-violet-500 text-white hover:bg-violet-400'
+            }`}
+          >
+            {copiedLfExtras
+              ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
+              : <><Copy className="w-4 h-4" /> Copier SQL Extras P/T</>}
+          </button>
+        </div>
+        <div className="p-4 bg-gray-950 overflow-auto max-h-96">
+          <pre className="text-xs text-violet-300 font-mono leading-relaxed whitespace-pre-wrap">{LF_EXTRAS_SQL}</pre>
         </div>
       </div>
 
