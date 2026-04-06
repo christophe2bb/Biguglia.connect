@@ -11,6 +11,8 @@ interface UnreadCounts {
 }
 
 const RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000];
+// Polling de sécurité toutes les 8s (filet de rattrapage)
+const SAFE_POLL_MS = 8000;
 
 export function useUnreadCounts(): UnreadCounts {
   const { profile } = useAuthStore();
@@ -18,20 +20,21 @@ export function useUnreadCounts(): UnreadCounts {
 
   const channelRef        = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
   const myConvIdsRef      = useRef<string[]>([]);
-  // Cache: unread count par conversation_id (pour décrémentation optimiste)
-  const convUnreadMapRef  = useRef<Record<string, number>>({});
   const reconnectRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectIdx      = useRef(0);
   const mountedRef        = useRef(true);
-  const pollIntervalRef   = useRef<ReturnType<typeof setInterval> | null>(null);
-  const confirmTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const realtimePollRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const safePollRef       = useRef<ReturnType<typeof setInterval> | null>(null);
   const supabaseRef       = useRef<ReturnType<typeof createClient> | null>(null);
   const userIdRef         = useRef<string | null>(null);
+  const fetchingRef       = useRef(false);
 
-  // ── Recalcul complet depuis la BDD ──────────────────────────────────────────
+  // ── Recalcul complet depuis la BDD (2 requêtes seulement) ───────────────────
   const fetchCounts = useCallback(async (supabase: ReturnType<typeof createClient>, userId: string) => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
     try {
-      // 1. Mes participations avec last_read_at
+      // Requête 1 : toutes mes participations avec last_read_at en une fois
       const { data: myConvs } = await supabase
         .from('conversation_participants')
         .select('conversation_id, last_read_at')
@@ -39,31 +42,36 @@ export function useUnreadCounts(): UnreadCounts {
 
       myConvIdsRef.current = (myConvs ?? []).map(c => c.conversation_id);
 
-      // 2. Compter messages non lus conversation par conversation
+      // Requête 2 : tous les messages non lus en une seule requête RPC-like
+      // On récupère les messages des conversations où je participe,
+      // envoyés par quelqu'un d'autre, et créés après mon last_read_at.
+      // On passe les données côté client pour le filtrage par last_read_at.
       let unreadMessages = 0;
-      const newMap: Record<string, number> = {};
-
       if (myConvs && myConvs.length > 0) {
-        const results = await Promise.all(
-          myConvs.map(async (conv) => {
-            const since = conv.last_read_at || '1970-01-01T00:00:00Z';
-            const { count } = await supabase
-              .from('messages')
-              .select('id', { count: 'exact', head: true })
-              .eq('conversation_id', conv.conversation_id)
-              .neq('sender_id', userId)
-              .gt('created_at', since);
-            return { convId: conv.conversation_id, count: count || 0 };
-          })
-        );
-        results.forEach(({ convId, count }) => {
-          newMap[convId] = count;
-          unreadMessages += count;
-        });
-      }
-      convUnreadMapRef.current = newMap;
+        // Une seule requête : tous les messages non lus de toutes mes conversations
+        const convIds = myConvs.map(c => c.conversation_id);
+        const { data: allUnread } = await supabase
+          .from('messages')
+          .select('id, conversation_id, created_at, content')
+          .in('conversation_id', convIds)
+          .neq('sender_id', userId);
 
-      // 3. Notifications non lues
+        if (allUnread) {
+          // Filtrage côté client par last_read_at + exclusion messages système
+          const readMap: Record<string, string> = {};
+          myConvs.forEach(c => { readMap[c.conversation_id] = c.last_read_at || '1970-01-01T00:00:00Z'; });
+          unreadMessages = allUnread.filter(m => {
+            if (m.created_at <= readMap[m.conversation_id]) return false;
+            // Exclure messages système/intro automatiques
+            const c = m.content || '';
+            if (c.startsWith('👋') || c.startsWith('✅') || c.startsWith('🤝')) return false;
+            if (c.includes('Je vous contacte') || c.includes('Échange confirmé') || c.includes('Conversation créée')) return false;
+            return true;
+          }).length;
+        }
+      }
+
+      // Requête 3 : notifications non lues
       const { count: unreadNotifs } = await supabase
         .from('notifications')
         .select('id', { count: 'exact', head: true })
@@ -79,8 +87,17 @@ export function useUnreadCounts(): UnreadCounts {
       }
     } catch (err) {
       console.warn('[useUnreadCounts] fetchCounts error:', err);
+    } finally {
+      fetchingRef.current = false;
     }
   }, []);
+
+  // Wrapper pour appels depuis les event listeners (refs toujours à jour)
+  const fetchCountsFromRefs = useCallback(() => {
+    if (supabaseRef.current && userIdRef.current && mountedRef.current) {
+      fetchCounts(supabaseRef.current, userIdRef.current);
+    }
+  }, [fetchCounts]);
 
   // ── Connexion Realtime ───────────────────────────────────────────────────────
   const connectRealtime = useCallback((supabase: ReturnType<typeof createClient>, userId: string) => {
@@ -91,19 +108,21 @@ export function useUnreadCounts(): UnreadCounts {
 
     const channel = supabase
       .channel(`unread-counts-${userId}-${Date.now()}`)
-      // Nouveau message reçu → +1 optimiste
+      // Nouveau message reçu → refetch (le plus fiable)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const msg = payload.new as { sender_id: string; conversation_id: string };
         if (msg.sender_id === userId) return;
         if (!myConvIdsRef.current.includes(msg.conversation_id)) return;
-        convUnreadMapRef.current[msg.conversation_id] = (convUnreadMapRef.current[msg.conversation_id] || 0) + 1;
+        // +1 optimiste immédiat
         setCounts(prev => ({ messages: prev.messages + 1, notifications: prev.notifications, total: prev.total + 1 }));
+        // Puis refetch pour confirmer
+        setTimeout(() => fetchCounts(supabase, userId), 500);
       })
       // Nouvelle notification → +1 optimiste
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, () => {
         setCounts(prev => ({ messages: prev.messages, notifications: prev.notifications + 1, total: prev.total + 1 }));
       })
-      // Notification mise à jour (lue) → recalcul BDD
+      // Notification mise à jour (lue) → recalcul
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, () => {
         fetchCounts(supabase, userId);
       })
@@ -111,15 +130,15 @@ export function useUnreadCounts(): UnreadCounts {
         if (!mountedRef.current) return;
         if (status === 'SUBSCRIBED') {
           reconnectIdx.current = 0;
-          if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
+          if (realtimePollRef.current) { clearInterval(realtimePollRef.current); realtimePollRef.current = null; }
           fetchCounts(supabase, userId);
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
           const delay = RECONNECT_DELAYS[Math.min(reconnectIdx.current, RECONNECT_DELAYS.length - 1)];
           reconnectIdx.current = Math.min(reconnectIdx.current + 1, RECONNECT_DELAYS.length - 1);
           if (reconnectRef.current) clearTimeout(reconnectRef.current);
           reconnectRef.current = setTimeout(() => { if (mountedRef.current) connectRealtime(supabase, userId); }, delay);
-          if (!pollIntervalRef.current) {
-            pollIntervalRef.current = setInterval(() => { if (mountedRef.current) fetchCounts(supabase, userId); }, 10000);
+          if (!realtimePollRef.current) {
+            realtimePollRef.current = setInterval(() => { if (mountedRef.current) fetchCounts(supabase, userId); }, 10000);
           }
         }
       });
@@ -129,6 +148,7 @@ export function useUnreadCounts(): UnreadCounts {
 
   useEffect(() => {
     mountedRef.current = true;
+    fetchingRef.current = false;
 
     if (!profile?.id) {
       setCounts({ messages: 0, notifications: 0, total: 0 });
@@ -144,42 +164,25 @@ export function useUnreadCounts(): UnreadCounts {
     fetchCounts(supabase, userId);
     connectRealtime(supabase, userId);
 
+    // ── Polling de sécurité (filet si realtime KO ou lag BDD) ────────────────
+    safePollRef.current = setInterval(() => {
+      if (mountedRef.current) fetchCounts(supabase, userId);
+    }, SAFE_POLL_MS);
+
     // Retour sur l'onglet navigateur
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') fetchCounts(supabase, userId);
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
-    // ── 'messages-read' ──────────────────────────────────────────────────────
-    // Décrémentation OPTIMISTE immédiate : on met à 0 le compteur de la conversation
-    // concernée dans notre cache local, sans attendre la BDD.
-    // Puis on confirme depuis la BDD après 2s (délai suffisant pour que le UPDATE
-    // last_read_at soit visible).
-    const handleMessagesRead = (e: Event) => {
-      const convId = (e as CustomEvent<{ conversationId?: string }>).detail?.conversationId;
-
-      if (convId) {
-        // On sait exactement quelle conversation vient d'être lue
-        const removed = convUnreadMapRef.current[convId] || 0;
-        if (removed > 0) {
-          convUnreadMapRef.current[convId] = 0;
-          setCounts(prev => {
-            const newMessages = Math.max(0, prev.messages - removed);
-            return { messages: newMessages, notifications: prev.notifications, total: newMessages + prev.notifications };
-          });
-        }
-      } else {
-        // Fallback : on remet messages à 0 (cas sans conversationId)
-        setCounts(prev => ({ messages: 0, notifications: prev.notifications, total: prev.notifications }));
-      }
-
-      // Confirmation BDD après 2s (le UPDATE last_read_at est alors visible)
-      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
-      confirmTimerRef.current = setTimeout(() => {
-        if (mountedRef.current && supabaseRef.current && userIdRef.current) {
-          fetchCounts(supabaseRef.current, userIdRef.current);
-        }
-      }, 2000);
+    // ── 'messages-read' : une conversation vient d'être lue ─────────────────
+    // On re-fetch immédiatement depuis la BDD.
+    // markAsRead() fait d'abord le UPDATE last_read_at (await), PUIS dispatch.
+    // Donc quand on arrive ici, last_read_at est déjà écrit en BDD.
+    const handleMessagesRead = () => {
+      // Annuler le fetch en cours pour forcer un nouveau
+      fetchingRef.current = false;
+      fetchCounts(supabase, userId);
     };
     window.addEventListener('messages-read', handleMessagesRead);
 
@@ -191,8 +194,8 @@ export function useUnreadCounts(): UnreadCounts {
       mountedRef.current = false;
       if (channelRef.current) supabase.removeChannel(channelRef.current);
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+      if (realtimePollRef.current) clearInterval(realtimePollRef.current);
+      if (safePollRef.current) clearInterval(safePollRef.current);
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('messages-read', handleMessagesRead);
       window.removeEventListener('new-notification', handleNewNotif);

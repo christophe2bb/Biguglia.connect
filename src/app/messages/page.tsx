@@ -159,7 +159,12 @@ export default function MessagesPage() {
       const lastMsg = lastRealMsg;
 
       const since = p.last_read_at || '1970-01-01T00:00:00Z';
-      const unread = msgs.filter(m => m.sender_id !== profile.id && m.created_at > since).length;
+      // Exclure les messages système (messages d'intro automatiques) du compteur non lus
+      const unread = msgs.filter(m =>
+        m.sender_id !== profile.id &&
+        m.created_at > since &&
+        !isSystemMsg(m.content)
+      ).length;
 
       return {
         ...conv,
