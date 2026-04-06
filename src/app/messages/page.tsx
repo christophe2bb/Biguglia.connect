@@ -150,7 +150,14 @@ export default function MessagesPage() {
       const other = conv.participants?.find(pp => pp.user_id !== profile.id)?.profile;
       const msgs = conv.last_msg || [];
       msgs.sort((a, b) => b.created_at.localeCompare(a.created_at));
-      const lastMsg = msgs[0];
+
+      // Préférer le dernier message NON-système (vrai échange), sinon le dernier tout court
+      const isSystemMsg = (content: string) =>
+        content?.startsWith('👋') || content?.startsWith('✅') || content?.startsWith('🤝') ||
+        content?.includes('Échange confirmé') || content?.includes('Je vous contacte');
+      const lastRealMsg = msgs.find(m => !isSystemMsg(m.content)) ?? msgs[0];
+      const lastMsg = lastRealMsg;
+
       const since = p.last_read_at || '1970-01-01T00:00:00Z';
       const unread = msgs.filter(m => m.sender_id !== profile.id && m.created_at > since).length;
 
@@ -158,7 +165,7 @@ export default function MessagesPage() {
         ...conv,
         other_user: other,
         last_message_text: lastMsg?.content,
-        last_message_at: lastMsg?.created_at || conv.updated_at,
+        last_message_at: msgs[0]?.created_at || conv.updated_at, // date basée sur le tout dernier msg
         unread_count: unread,
         related_type: (conv as ConvWithOther & { related_type?: string }).related_type ?? null,
         related_id: (conv as ConvWithOther & { related_id?: string }).related_id ?? null,
@@ -242,16 +249,22 @@ export default function MessagesPage() {
   };
 
   // ── Filtrage ──────────────────────────────────────────────────────────────
+  const MAIN_TAB_IDS = ['all', 'unread', 'to_handle'];
+
   const filtered = conversations.filter(c => {
-    // Filtre onglet
+    // Filtre onglet principal
     if (activeTab === 'unread' && !(c.unread_count && c.unread_count > 0)) return false;
     if (activeTab === 'to_handle') {
-      // "À traiter" = non lus + avec contexte (annonce, aide, etc.)
       if (!(c.unread_count && c.unread_count > 0)) return false;
       if (!c.related_type || c.related_type === 'general') return false;
     }
 
-    // Filtre type de contenu
+    // Filtre onglet par type de contenu (ex: activeTab === 'event')
+    if (!MAIN_TAB_IDS.includes(activeTab)) {
+      if (c.related_type !== activeTab) return false;
+    }
+
+    // Filtre type de contenu (menu déroulant Filtrer)
     if (typeFilter && c.related_type !== typeFilter) return false;
 
     // Filtre recherche
