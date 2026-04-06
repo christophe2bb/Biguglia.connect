@@ -415,9 +415,29 @@ export default function ConversationPage() {
 
   const markAsRead = useCallback(async () => {
     if (!profile) return;
-    await supabase.from('conversation_participants').update({ last_read_at: new Date().toISOString() })
-      .eq('conversation_id', id as string).eq('user_id', profile.id);
-    window.dispatchEvent(new Event('messages-read'));
+    // Compter les non-lus de cette conv avant de marquer (pour décrémentation précise)
+    const { data: myPart } = await supabase
+      .from('conversation_participants')
+      .select('last_read_at')
+      .eq('conversation_id', id as string)
+      .eq('user_id', profile.id)
+      .single();
+    const since = myPart?.last_read_at || '1970-01-01T00:00:00Z';
+    const { count: unreadCount } = await supabase
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('conversation_id', id as string)
+      .neq('sender_id', profile.id)
+      .gt('created_at', since);
+
+    // Marquer comme lu dans la BDD
+    await supabase.from('conversation_participants')
+      .update({ last_read_at: new Date().toISOString() })
+      .eq('conversation_id', id as string)
+      .eq('user_id', profile.id);
+
+    // Dispatcher avec le nombre précis de non-lus pour décrémentation immédiate du badge
+    window.dispatchEvent(new CustomEvent('messages-read', { detail: { unreadCount: unreadCount ?? 0 } }));
   }, [id, profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pollNewMessages = useCallback(async () => {
