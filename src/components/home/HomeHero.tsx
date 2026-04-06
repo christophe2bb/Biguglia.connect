@@ -1,0 +1,121 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// HomeHero — Bannière principale de la Maison vivante
+// Design : humain, local, avec preuve de vie et CTA adaptés au statut auth
+// ─────────────────────────────────────────────────────────────────────────────
+
+'use client';
+
+import Link from 'next/link';
+import { PenLine, ArrowRight, Sparkles } from 'lucide-react';
+import { useAuthStore } from '@/lib/auth-store';
+
+interface HomeHeroProps {
+  totalItems: number;
+  generatedAt: string;
+}
+
+function formatGeneratedAt(iso: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const diffMins = Math.floor((now.getTime() - date.getTime()) / 60000);
+  if (diffMins < 1) return 'à l\'instant';
+  if (diffMins < 60) return `il y a ${diffMins} min`;
+  return new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(date);
+}
+
+// Quick-publish actions
+const QUICK_ACTIONS = [
+  { label: 'Annonce', emoji: '📦', href: '/annonces/nouvelle' },
+  { label: 'Coup de main', emoji: '🤝', href: '/coups-de-main/nouveau' },
+  { label: 'Événement', emoji: '🎉', href: '/evenements/nouveau' },
+  { label: 'Forum', emoji: '💬', href: '/forum/nouveau' },
+];
+
+export default function HomeHero({ totalItems, generatedAt }: HomeHeroProps) {
+  const { profile } = useAuthStore();
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 via-brand-700 to-orange-800 mb-8">
+      {/* Décoration */}
+      <div className="absolute inset-0 opacity-[0.06]"
+        style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }}
+      />
+      <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3 blur-2xl" />
+
+      <div className="relative z-10 px-6 py-8 sm:px-8 sm:py-10">
+        {/* Indicateur preuve de vie */}
+        <div className="inline-flex items-center gap-2 bg-white/15 border border-white/25 rounded-full px-3.5 py-1.5 mb-5">
+          <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse flex-shrink-0" />
+          <span className="text-white/90 text-xs font-bold">
+            {totalItems > 0
+              ? `${totalItems} contenus actifs · Mis à jour ${formatGeneratedAt(generatedAt)}`
+              : 'Biguglia Connect · Village numérique'
+            }
+          </span>
+        </div>
+
+        {/* Titre */}
+        <h1 className="text-2xl sm:text-3xl font-black text-white mb-2 leading-tight">
+          {profile
+            ? `Bonjour ${profile.full_name?.split(' ')[0] ?? ''} 👋`
+            : 'Bienvenue à Biguglia'
+          }
+        </h1>
+        <p className="text-white/70 text-sm sm:text-base mb-6 max-w-lg leading-relaxed">
+          {totalItems > 0
+            ? 'Voici ce qui se passe dans votre village aujourd\'hui.'
+            : 'Le fil de vie local de Biguglia. Rejoignez vos voisins.'
+          }
+        </p>
+
+        {/* Actions contextuelles */}
+        {profile ? (
+          // Utilisateur connecté → quick publish
+          <div className="flex flex-wrap gap-2">
+            {QUICK_ACTIONS.map(action => (
+              <Link
+                key={action.href}
+                href={action.href}
+                className="inline-flex items-center gap-1.5 bg-white/15 hover:bg-white/25 border border-white/20 text-white text-xs font-bold px-3 py-2 rounded-xl transition-all hover:-translate-y-0.5"
+              >
+                <span>{action.emoji}</span>
+                {action.label}
+              </Link>
+            ))}
+          </div>
+        ) : (
+          // Visiteur → inscription
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Link
+              href="/inscription"
+              className="group inline-flex items-center justify-center gap-2 bg-white text-brand-700 font-black px-6 py-3 rounded-2xl hover:bg-brand-50 transition-all shadow-lg hover:-translate-y-0.5 text-sm"
+            >
+              <Sparkles className="w-4 h-4" />
+              Rejoindre la communauté
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+            <Link
+              href="/connexion"
+              className="inline-flex items-center justify-center gap-2 border border-white/30 text-white/90 font-bold px-6 py-3 rounded-2xl hover:bg-white/10 transition-all text-sm"
+            >
+              J&apos;ai déjà un compte
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {/* Barre de publication rapide pour membres */}
+      {profile && (
+        <div className="border-t border-white/10 px-6 py-3 sm:px-8 flex items-center gap-2">
+          <PenLine className="w-4 h-4 text-white/50 flex-shrink-0" />
+          <Link
+            href="/forum/nouveau"
+            className="flex-1 text-sm text-white/50 hover:text-white/80 transition-colors cursor-pointer"
+          >
+            Quoi de neuf à Biguglia ? Partagez quelque chose…
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
