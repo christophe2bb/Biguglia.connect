@@ -92,13 +92,6 @@ export function useUnreadCounts(): UnreadCounts {
     }
   }, []);
 
-  // Wrapper pour appels depuis les event listeners (refs toujours à jour)
-  const fetchCountsFromRefs = useCallback(() => {
-    if (supabaseRef.current && userIdRef.current && mountedRef.current) {
-      fetchCounts(supabaseRef.current, userIdRef.current);
-    }
-  }, [fetchCounts]);
-
   // ── Connexion Realtime ───────────────────────────────────────────────────────
   const connectRealtime = useCallback((supabase: ReturnType<typeof createClient>, userId: string) => {
     if (channelRef.current) {
@@ -122,8 +115,9 @@ export function useUnreadCounts(): UnreadCounts {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, () => {
         setCounts(prev => ({ messages: prev.messages, notifications: prev.notifications + 1, total: prev.total + 1 }));
       })
-      // Notification mise à jour (lue) → recalcul
+      // Notification mise à jour (lue) → recalcul forcé
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, () => {
+        fetchingRef.current = false;
         fetchCounts(supabase, userId);
       })
       .subscribe((status) => {
@@ -187,7 +181,12 @@ export function useUnreadCounts(): UnreadCounts {
     window.addEventListener('messages-read', handleMessagesRead);
 
     // ── 'new-notification' : une notification a changé d'état ────────────────
-    const handleNewNotif = () => fetchCounts(supabase, userId);
+    // L'UPDATE is_read est déjà fait en BDD avant le dispatch → fetchCounts
+    // lira la valeur correcte. On annule fetchingRef pour forcer le refetch.
+    const handleNewNotif = () => {
+      fetchingRef.current = false;
+      fetchCounts(supabase, userId);
+    };
     window.addEventListener('new-notification', handleNewNotif);
 
     return () => {

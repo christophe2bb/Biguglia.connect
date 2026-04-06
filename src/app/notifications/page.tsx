@@ -216,8 +216,10 @@ export default function NotificationsPage() {
   const markAllRead = async () => {
     if (!profile) return;
     const supabase = createClient();
-    await supabase.from('notifications').update({ is_read: true }).eq('user_id', profile.id).eq('is_read', false);
+    // Optimistic update immédiat
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    // Écriture BDD puis signal (après await → is_read visible en BDD)
+    await supabase.from('notifications').update({ is_read: true }).eq('user_id', profile.id).eq('is_read', false);
     toast.success('Toutes les notifications marquées comme lues');
     window.dispatchEvent(new Event('new-notification'));
   };
@@ -225,21 +227,24 @@ export default function NotificationsPage() {
   const markOneRead = useCallback(async (notif: Notification) => {
     if (notif.is_read) return;
     const supabase = createClient();
-    // Optimistic update immédiat — point rouge disparaît tout de suite
+    // 1. Optimistic update local immédiat — point rouge disparaît tout de suite
     setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
-    window.dispatchEvent(new Event('new-notification'));
+    // 2. Écriture BDD (await) puis signal — fetchCounts lira is_read=true en BDD
     await supabase.from('notifications').update({ is_read: true, read_at: new Date().toISOString() }).eq('id', notif.id);
+    window.dispatchEvent(new Event('new-notification'));
   }, []);
 
   const deleteNotif = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
     setDeletingId(id);
+    // Optimistic local d'abord
+    setNotifications(prev => prev.filter(n => n.id !== id));
     await new Promise(r => setTimeout(r, 250));
     const supabase = createClient();
     await supabase.from('notifications').delete().eq('id', id);
-    setNotifications(prev => prev.filter(n => n.id !== id));
     setDeletingId(null);
+    // Signal après écriture BDD
     window.dispatchEvent(new Event('new-notification'));
   };
 
