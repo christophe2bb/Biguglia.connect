@@ -2,30 +2,48 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, Search, RefreshCw, ShoppingBag, HandHeart, Dog, Users, MapPin, Wrench, Trash2 } from 'lucide-react';
+import {
+  MessageSquare, Search, RefreshCw, ShoppingBag, HandHeart, Dog,
+  Users, MapPin, Wrench, Trash2, Filter, Archive, Inbox,
+  MailOpen, Clock, BookOpen, Star, SlidersHorizontal, X, CheckCheck,
+} from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { Conversation, Profile } from '@/types';
 import Link from 'next/link';
 import Avatar from '@/components/ui/Avatar';
-import Input from '@/components/ui/Input';
 import EmptyState from '@/components/ui/EmptyState';
+import { formatRelative, cn } from '@/lib/utils';
 
-// Icônes par type de contenu lié
-const RELATED_ICONS: Record<string, { icon: React.ElementType; color: string; label: string }> = {
-  listing:         { icon: ShoppingBag, color: 'text-blue-500',    label: 'Annonce' },
-  equipment:       { icon: Wrench,      color: 'text-teal-500',    label: 'Matériel' },
-  help_request:    { icon: HandHeart,   color: 'text-orange-500',  label: 'Coup de main' },
-  lost_found:      { icon: Dog,         color: 'text-amber-500',   label: 'Perdu/Trouvé' },
-  association:     { icon: Users,       color: 'text-purple-500',  label: 'Association' },
-  outing:          { icon: MapPin,      color: 'text-emerald-500', label: 'Sortie' },
-  event:           { icon: MapPin,      color: 'text-indigo-500',  label: 'Événement' },
-  collection_item: { icon: ShoppingBag, color: 'text-rose-500',    label: 'Collectionneur' },
-  service_request: { icon: Wrench,      color: 'text-brand-500',   label: 'Artisan' },
-  general:         { icon: MessageSquare, color: 'text-gray-500',  label: 'Message' },
+// ─── Config type de contenu lié ───────────────────────────────────────────────
+const RELATED_CONFIG: Record<string, {
+  icon: React.ElementType;
+  color: string;
+  bg: string;
+  border: string;
+  label: string;
+  tab: string;
+}> = {
+  listing:         { icon: ShoppingBag,   color: 'text-blue-600',    bg: 'bg-blue-50',    border: 'border-blue-200',   label: 'Annonce',       tab: 'listing' },
+  equipment:       { icon: Wrench,        color: 'text-teal-600',    bg: 'bg-teal-50',    border: 'border-teal-200',   label: 'Matériel',      tab: 'equipment' },
+  help_request:    { icon: HandHeart,     color: 'text-orange-600',  bg: 'bg-orange-50',  border: 'border-orange-200', label: 'Coup de main',  tab: 'help_request' },
+  lost_found:      { icon: Dog,           color: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-200',  label: 'Perdu/Trouvé',  tab: 'lost_found' },
+  association:     { icon: Users,         color: 'text-purple-600',  bg: 'bg-purple-50',  border: 'border-purple-200', label: 'Association',   tab: 'association' },
+  outing:          { icon: MapPin,        color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200',label: 'Promenade',     tab: 'outing' },
+  event:           { icon: MapPin,        color: 'text-indigo-600',  bg: 'bg-indigo-50',  border: 'border-indigo-200', label: 'Événement',     tab: 'event' },
+  collection_item: { icon: ShoppingBag,   color: 'text-rose-600',    bg: 'bg-rose-50',    border: 'border-rose-200',   label: 'Collectionneur',tab: 'collection_item' },
+  service_request: { icon: Wrench,        color: 'text-brand-600',   bg: 'bg-brand-50',   border: 'border-brand-200',  label: 'Artisan',       tab: 'service_request' },
+  general:         { icon: MessageSquare, color: 'text-gray-500',    bg: 'bg-gray-50',    border: 'border-gray-200',   label: 'Message',       tab: 'general' },
 };
-import { formatRelative } from '@/lib/utils';
-import { cn } from '@/lib/utils';
+
+// ─── Onglets ──────────────────────────────────────────────────────────────────
+type TabId = 'all' | 'unread' | 'to_handle' | 'archived' | string;
+
+const MAIN_TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
+  { id: 'all',       label: 'Tous',       icon: Inbox },
+  { id: 'unread',    label: 'Non lus',    icon: MailOpen },
+  { id: 'to_handle', label: 'À traiter',  icon: Clock },
+];
 
 interface ConvWithOther extends Conversation {
   other_user?: Profile;
@@ -36,35 +54,73 @@ interface ConvWithOther extends Conversation {
 
 const RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000];
 
+// ─── Badge de type ──────────────────────────────────────────────────────────
+function TypeBadge({ relatedType }: { relatedType?: string | null }) {
+  if (!relatedType || !RELATED_CONFIG[relatedType]) return null;
+  const cfg = RELATED_CONFIG[relatedType];
+  const Icon = cfg.icon;
+  return (
+    <span className={cn(
+      'inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md',
+      cfg.color, cfg.bg
+    )}>
+      <Icon className="w-3 h-3" />
+      {cfg.label}
+    </span>
+  );
+}
+
+// ─── Skeleton ────────────────────────────────────────────────────────────────
+function ConvSkeleton() {
+  return (
+    <div className="flex items-center gap-3 p-4 animate-pulse">
+      <div className="w-12 h-12 bg-gray-200 rounded-full flex-shrink-0" />
+      <div className="flex-1 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="h-3.5 bg-gray-200 rounded w-1/3" />
+          <div className="h-3 bg-gray-100 rounded w-12" />
+        </div>
+        <div className="h-3 bg-gray-100 rounded w-2/3" />
+        <div className="h-4 bg-gray-100 rounded w-16" />
+      </div>
+    </div>
+  );
+}
+
 export default function MessagesPage() {
   const { profile } = useAuthStore();
   const router = useRouter();
   const supabase = createClient();
 
-  // Fermer la confirmation si clic en dehors
-  React.useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      const t = e.target as HTMLElement;
-      if (!t.closest('[data-conv-menu]')) setConfirmConv(null);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [conversations, setConversations] = useState<ConvWithOther[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [deletingConv, setDeletingConv] = useState<string | null>(null); // id en cours de suppression
-  const [confirmConv, setConfirmConv]   = useState<string | null>(null); // id en attente de confirmation
+  const [loading, setLoading]           = useState(true);
+  const [search, setSearch]             = useState('');
+  const [activeTab, setActiveTab]       = useState<TabId>('all');
+  const [typeFilter, setTypeFilter]     = useState<string | null>(null);
+  const [showTypeMenu, setShowTypeMenu] = useState(false);
+  const [deletingConv, setDeletingConv] = useState<string | null>(null);
+  const [confirmConv, setConfirmConv]   = useState<string | null>(null);
   const channelRef      = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const reconnectRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectIdx    = useRef(0);
   const mountedRef      = useRef(true);
+  const typeMenuRef     = useRef<HTMLDivElement>(null);
 
-  // ── Chargement des conversations — 1 requête imbriquée, 0 N+1 ───────────────
+  // Fermer menus si clic dehors
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (!t.closest('[data-conv-menu]')) setConfirmConv(null);
+      if (typeMenuRef.current && !typeMenuRef.current.contains(t)) setShowTypeMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // ── Chargement des conversations ──────────────────────────────────────────
   const fetchConversations = useCallback(async () => {
     if (!profile) return;
 
-    // 1 seule requête : participations + conv + tous les participants + dernier msg
     const { data: participations } = await supabase
       .from('conversation_participants')
       .select(`
@@ -92,13 +148,9 @@ export default function MessagesPage() {
       if (!conv) return null;
 
       const other = conv.participants?.find(pp => pp.user_id !== profile.id)?.profile;
-
-      // Dernier message : trier côté client (PostgREST ne supporte pas ORDER sur embedded)
       const msgs = conv.last_msg || [];
       msgs.sort((a, b) => b.created_at.localeCompare(a.created_at));
       const lastMsg = msgs[0];
-
-      // Comptage non-lus côté client
       const since = p.last_read_at || '1970-01-01T00:00:00Z';
       const unread = msgs.filter(m => m.sender_id !== profile.id && m.created_at > since).length;
 
@@ -124,42 +176,25 @@ export default function MessagesPage() {
     setLoading(false);
   }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Connexion Realtime avec reconnexion auto ──────────────────────────────
+  // ── Realtime ──────────────────────────────────────────────────────────────
   const connectRealtime = useCallback(() => {
     if (!profile) return;
-
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
-    }
+    if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; }
 
     const channel = supabase
       .channel(`messages-list-${profile.id}-${Date.now()}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-      }, async (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
         if (!mountedRef.current) return;
         const msg = payload.new as { id: string; conversation_id: string; sender_id: string; content: string; created_at: string };
 
         setConversations(prev => {
           const idx = prev.findIndex(c => c.id === msg.conversation_id);
-          if (idx === -1) {
-            // Conversation inconnue → refetch complet
-            fetchConversations();
-            return prev;
-          }
-
+          if (idx === -1) { fetchConversations(); return prev; }
           const updated = [...prev];
           const conv = { ...updated[idx] };
           conv.last_message_text = msg.content;
           conv.last_message_at = msg.created_at;
-
-          if (msg.sender_id !== profile.id) {
-            conv.unread_count = (conv.unread_count || 0) + 1;
-          }
-
+          if (msg.sender_id !== profile.id) conv.unread_count = (conv.unread_count || 0) + 1;
           updated.splice(idx, 1);
           updated.unshift(conv);
           return updated;
@@ -173,9 +208,7 @@ export default function MessagesPage() {
           const delay = RECONNECT_DELAYS[Math.min(reconnectIdx.current, RECONNECT_DELAYS.length - 1)];
           reconnectIdx.current = Math.min(reconnectIdx.current + 1, RECONNECT_DELAYS.length - 1);
           if (reconnectRef.current) clearTimeout(reconnectRef.current);
-          reconnectRef.current = setTimeout(() => {
-            if (mountedRef.current) connectRealtime();
-          }, delay);
+          reconnectRef.current = setTimeout(() => { if (mountedRef.current) connectRealtime(); }, delay);
         }
       });
 
@@ -187,12 +220,8 @@ export default function MessagesPage() {
     if (!profile) { router.push('/connexion'); return; }
     fetchConversations();
     connectRealtime();
-
-    const handleVis = () => {
-      if (document.visibilityState === 'visible') fetchConversations();
-    };
+    const handleVis = () => { if (document.visibilityState === 'visible') fetchConversations(); };
     document.addEventListener('visibilitychange', handleVis);
-
     return () => {
       mountedRef.current = false;
       if (channelRef.current) supabase.removeChannel(channelRef.current);
@@ -201,120 +230,322 @@ export default function MessagesPage() {
     };
   }, [profile, router, fetchConversations, connectRealtime]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Supprimer une conversation (quitte les participants + supprime si vide) ──
+  // ── Supprimer une conversation ────────────────────────────────────────────
   const handleDeleteConversation = async (convId: string) => {
     setConfirmConv(null);
     setDeletingConv(convId);
-    // Animation sortie
     await new Promise(r => setTimeout(r, 280));
-    // 1. Supprimer la participation de l'utilisateur
-    await supabase
-      .from('conversation_participants')
-      .delete()
-      .eq('conversation_id', convId)
-      .eq('user_id', profile!.id);
-    // 2. Supprimer aussi les messages dont l'user est l'expéditeur dans cette conv
-    await supabase
-      .from('messages')
-      .delete()
-      .eq('conversation_id', convId)
-      .eq('sender_id', profile!.id);
-    // 3. Retirer de la liste locale
+    await supabase.from('conversation_participants').delete().eq('conversation_id', convId).eq('user_id', profile!.id);
+    await supabase.from('messages').delete().eq('conversation_id', convId).eq('sender_id', profile!.id);
     setConversations(prev => prev.filter(c => c.id !== convId));
     setDeletingConv(null);
   };
 
+  // ── Filtrage ──────────────────────────────────────────────────────────────
   const filtered = conversations.filter(c => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    const relatedLabel = c.related_type ? RELATED_ICONS[c.related_type]?.label?.toLowerCase() : '';
-    return (
-      c.other_user?.full_name?.toLowerCase().includes(q) ||
-      c.subject?.toLowerCase().includes(q) ||
-      c.last_message_text?.toLowerCase().includes(q) ||
-      relatedLabel?.includes(q)
-    );
+    // Filtre onglet
+    if (activeTab === 'unread' && !(c.unread_count && c.unread_count > 0)) return false;
+    if (activeTab === 'to_handle') {
+      // "À traiter" = non lus + avec contexte (annonce, aide, etc.)
+      if (!(c.unread_count && c.unread_count > 0)) return false;
+      if (!c.related_type || c.related_type === 'general') return false;
+    }
+
+    // Filtre type de contenu
+    if (typeFilter && c.related_type !== typeFilter) return false;
+
+    // Filtre recherche
+    if (search) {
+      const q = search.toLowerCase();
+      const relatedLabel = c.related_type ? RELATED_CONFIG[c.related_type]?.label?.toLowerCase() : '';
+      return (
+        c.other_user?.full_name?.toLowerCase().includes(q) ||
+        c.subject?.toLowerCase().includes(q) ||
+        c.last_message_text?.toLowerCase().includes(q) ||
+        relatedLabel?.includes(q)
+      );
+    }
+    return true;
   });
 
-  const totalUnread = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+  const totalUnread  = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+  const unreadCount  = conversations.filter(c => c.unread_count && c.unread_count > 0).length;
+  const toHandleCount= conversations.filter(c => c.unread_count && c.unread_count > 0 && c.related_type && c.related_type !== 'general').length;
+
+  // Types présents dans la liste pour le filtre
+  const presentTypes = Array.from(new Set(
+    conversations.map(c => c.related_type).filter(Boolean) as string[]
+  ));
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <MessageSquare className="w-6 h-6 text-brand-500" /> Messages
+    <div className="max-w-4xl mx-auto px-4 py-8">
+
+      {/* ── En-tête ─────────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <div className="w-11 h-11 rounded-2xl bg-brand-50 flex items-center justify-center">
+              <MessageSquare className="w-5 h-5 text-brand-600" />
+            </div>
             {totalUnread > 0 && (
-              <span className="ml-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[22px] h-[22px] flex items-center justify-center px-1">
+              <span className="absolute -top-1 -right-1 min-w-[20px] h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 shadow border-2 border-white">
                 {totalUnread > 99 ? '99+' : totalUnread}
               </span>
             )}
-          </h1>
-          <p className="text-gray-500 text-sm mt-1">Vos conversations privées</p>
+          </div>
+          <div>
+            <h1 className="text-xl font-black text-gray-900">Messages</h1>
+            <p className="text-sm text-gray-500">
+              {totalUnread > 0
+                ? <span className="text-red-500 font-semibold">{totalUnread} non lu{totalUnread > 1 ? 's' : ''}</span>
+                : <span className="text-emerald-600 font-semibold">✓ Tout est à jour</span>}
+            </p>
+          </div>
         </div>
-        <button
-          onClick={fetchConversations}
-          title="Actualiser"
-          className="p-2 rounded-xl border border-gray-200 bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all"
-        >
-          <RefreshCw className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Filtre par type */}
+          <div className="relative" ref={typeMenuRef}>
+            <button
+              onClick={() => setShowTypeMenu(v => !v)}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-all',
+                typeFilter
+                  ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
+                  : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-700'
+              )}
+              title="Filtrer par type"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              {typeFilter ? RELATED_CONFIG[typeFilter]?.label : <span className="hidden sm:inline">Filtrer</span>}
+              {typeFilter && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setTypeFilter(null); setShowTypeMenu(false); }}
+                  className="ml-0.5 text-white/80 hover:text-white"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </button>
+            {showTypeMenu && presentTypes.length > 0 && (
+              <div className="absolute right-0 top-11 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 min-w-[180px]">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 px-3 py-1">Type de conversation</p>
+                {presentTypes.map(type => {
+                  const cfg = RELATED_CONFIG[type];
+                  if (!cfg) return null;
+                  const Icon = cfg.icon;
+                  const isActive = typeFilter === type;
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => { setTypeFilter(isActive ? null : type); setShowTypeMenu(false); }}
+                      className={cn(
+                        'flex items-center gap-2 w-full px-3 py-2 text-sm transition-colors',
+                        isActive ? `${cfg.bg} ${cfg.color} font-semibold` : 'text-gray-700 hover:bg-gray-50'
+                      )}
+                    >
+                      <Icon className={cn('w-4 h-4', isActive ? cfg.color : 'text-gray-400')} />
+                      {cfg.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={fetchConversations}
+            title="Actualiser"
+            className="p-2 rounded-xl border border-gray-200 bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
-      <Input
-        placeholder="Rechercher une conversation..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        leftIcon={<Search className="w-4 h-4" />}
-        className="mb-6"
-      />
+      {/* ── Barre de recherche ───────────────────────────────────────────────── */}
+      <div className="relative mb-5">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        <input
+          type="text"
+          placeholder="Rechercher un contact, une annonce, un message…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-brand-400 focus:bg-white transition-all"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
 
+      {/* ── Onglets ──────────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-1 mb-5 bg-gray-100 p-1 rounded-2xl overflow-x-auto">
+        {MAIN_TABS.map(tab => {
+          const count = tab.id === 'unread' ? unreadCount : tab.id === 'to_handle' ? toHandleCount : conversations.length;
+          const isActive = activeTab === tab.id;
+          const TabIcon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                'flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0',
+                isActive ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              )}
+            >
+              <TabIcon className="w-3.5 h-3.5" />
+              {tab.label}
+              {count > 0 && tab.id !== 'all' && (
+                <span className={cn(
+                  'min-w-[18px] h-[18px] text-[10px] font-black rounded-full inline-flex items-center justify-center px-1',
+                  isActive
+                    ? tab.id === 'unread' ? 'bg-red-500 text-white' : 'bg-brand-500 text-white'
+                    : 'bg-gray-200 text-gray-600'
+                )}>
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+
+        {/* Séparateur */}
+        {presentTypes.length > 0 && <div className="h-5 w-px bg-gray-300 mx-1 flex-shrink-0" />}
+
+        {/* Onglets dynamiques par type */}
+        {presentTypes.map(type => {
+          const cfg = RELATED_CONFIG[type];
+          if (!cfg) return null;
+          const Icon = cfg.icon;
+          const typeCount = conversations.filter(c => c.related_type === type).length;
+          const isActive = activeTab === type;
+          return (
+            <button
+              key={type}
+              onClick={() => { setActiveTab(type); setTypeFilter(null); }}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0',
+                isActive ? `bg-white shadow-sm ${cfg.color}` : 'text-gray-500 hover:text-gray-700'
+              )}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{cfg.label}</span>
+              {typeCount > 0 && (
+                <span className={cn(
+                  'min-w-[16px] h-4 text-[9px] font-black rounded-full inline-flex items-center justify-center px-1',
+                  isActive ? `${cfg.bg} ${cfg.color}` : 'bg-gray-200 text-gray-600'
+                )}>
+                  {typeCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Liste des conversations ───────────────────────────────────────────── */}
       {loading ? (
-        <div className="space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3 animate-pulse">
-              <div className="w-12 h-12 bg-gray-200 rounded-full flex-shrink-0" />
-              <div className="flex-1">
-                <div className="h-4 bg-gray-200 rounded w-1/3 mb-2" />
-                <div className="h-3 bg-gray-100 rounded w-2/3" />
-              </div>
-            </div>
-          ))}
+        <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden divide-y divide-gray-50">
+          {[...Array(5)].map((_, i) => <ConvSkeleton key={i} />)}
         </div>
       ) : filtered.length === 0 ? (
-        <EmptyState
-          icon="💬"
-          title={search ? 'Aucune conversation trouvée' : 'Aucune conversation'}
-          description={
-            search
-              ? `Aucune conversation ne correspond à "${search}".`
-              : 'Retrouvez ici tous vos échanges privés avec les habitants, artisans et associations de Biguglia.'
-          }
-          action={search ? { label: 'Effacer la recherche', onClick: () => setSearch('') } : { label: 'Explorer les annonces', onClick: () => router.push('/annonces') }}
-        />
+        <div className="text-center py-16">
+          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
+            {activeTab === 'unread' ? (
+              <CheckCheck className="w-9 h-9 text-emerald-400" />
+            ) : activeTab === 'to_handle' ? (
+              <Clock className="w-9 h-9 text-gray-400" />
+            ) : (
+              <MessageSquare className="w-9 h-9 text-gray-300" />
+            )}
+          </div>
+          {activeTab === 'unread' ? (
+            <>
+              <h3 className="font-bold text-gray-800 text-lg mb-2">Tout est à jour ✨</h3>
+              <p className="text-sm text-gray-500">Vous n&apos;avez aucun message non lu.</p>
+            </>
+          ) : activeTab === 'to_handle' ? (
+            <>
+              <h3 className="font-bold text-gray-800 text-lg mb-2">Rien à traiter</h3>
+              <p className="text-sm text-gray-500">Toutes vos conversations contextuelles sont à jour.</p>
+            </>
+          ) : search ? (
+            <>
+              <h3 className="font-bold text-gray-800 text-lg mb-2">Aucun résultat</h3>
+              <p className="text-sm text-gray-500 mb-4">Aucune conversation ne correspond à &laquo;&nbsp;{search}&nbsp;&raquo;</p>
+              <button onClick={() => setSearch('')} className="text-brand-600 font-semibold text-sm hover:underline">
+                Effacer la recherche
+              </button>
+            </>
+          ) : (
+            <>
+              <h3 className="font-bold text-gray-800 text-lg mb-2">Aucune conversation pour le moment</h3>
+              <p className="text-sm text-gray-500 mb-6 max-w-xs mx-auto">
+                Retrouvez ici tous vos échanges avec les habitants, artisans et associations de Biguglia.
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                <button onClick={() => router.push('/annonces')} className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-xl text-sm font-semibold hover:bg-blue-100 transition-colors">
+                  <ShoppingBag className="w-4 h-4" /> Annonces
+                </button>
+                <button onClick={() => router.push('/coups-de-main')} className="flex items-center gap-2 px-4 py-2 bg-orange-50 text-orange-700 rounded-xl text-sm font-semibold hover:bg-orange-100 transition-colors">
+                  <HandHeart className="w-4 h-4" /> Coups de main
+                </button>
+                <button onClick={() => router.push('/promenades')} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-sm font-semibold hover:bg-emerald-100 transition-colors">
+                  <MapPin className="w-4 h-4" /> Promenades
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       ) : (
-        <div className="space-y-2">
+        <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden divide-y divide-gray-50 shadow-sm">
+          {/* Stats rapides en haut de la liste */}
+          {activeTab === 'all' && !search && !typeFilter && conversations.length > 0 && (
+            <div className="flex items-center gap-4 px-5 py-3 bg-gray-50/70 text-xs text-gray-500">
+              <span className="flex items-center gap-1 font-semibold text-gray-700">
+                <BookOpen className="w-3.5 h-3.5" />
+                {conversations.length} conversation{conversations.length > 1 ? 's' : ''}
+              </span>
+              {totalUnread > 0 && (
+                <span className="flex items-center gap-1 text-red-500 font-semibold">
+                  <MailOpen className="w-3.5 h-3.5" />
+                  {totalUnread} non lu{totalUnread > 1 ? 's' : ''}
+                </span>
+              )}
+              {toHandleCount > 0 && (
+                <span className="flex items-center gap-1 text-amber-600 font-semibold">
+                  <Clock className="w-3.5 h-3.5" />
+                  {toHandleCount} à traiter
+                </span>
+              )}
+            </div>
+          )}
+
           {filtered.map(conv => {
-            const hasUnread   = (conv.unread_count || 0) > 0;
-            const isDeleting  = deletingConv === conv.id;
-            const isConfirm   = confirmConv  === conv.id;
+            const hasUnread  = (conv.unread_count || 0) > 0;
+            const isDeleting = deletingConv === conv.id;
+            const isConfirm  = confirmConv  === conv.id;
+            const relCfg     = conv.related_type ? RELATED_CONFIG[conv.related_type] : null;
 
             return (
               <div
                 key={conv.id}
                 className={cn(
                   'transition-all duration-300',
-                  isDeleting && 'opacity-0 scale-95 pointer-events-none'
+                  isDeleting && 'opacity-0 scale-y-0 max-h-0 overflow-hidden pointer-events-none'
                 )}
               >
-                {/* Popup de confirmation suppression */}
+                {/* Popup confirmation suppression */}
                 {isConfirm && (
-                  <div data-conv-menu className="mb-1 flex items-center gap-2 bg-white border border-red-200 shadow-lg rounded-2xl px-4 py-3 text-sm">
+                  <div data-conv-menu className="flex items-center gap-2 bg-red-50 border-b border-red-100 px-5 py-3 text-sm">
                     <Trash2 className="w-4 h-4 text-red-500 flex-shrink-0" />
                     <span className="flex-1 text-gray-700 font-medium">Supprimer cette conversation ?</span>
                     <button
                       onClick={() => handleDeleteConversation(conv.id)}
-                      className="bg-red-500 hover:bg-red-600 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition-colors"
+                      className="bg-red-500 hover:bg-red-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-colors"
                     >
                       Supprimer
                     </button>
@@ -327,19 +558,18 @@ export default function MessagesPage() {
                   </div>
                 )}
 
-                {/* Ligne conversation */}
-                <div className="flex items-center gap-2">
+                {/* Ligne de conversation */}
+                <div className={cn(
+                  'group flex items-center gap-0 transition-colors',
+                  isConfirm ? 'bg-red-50/50' : hasUnread ? 'bg-brand-50/20' : 'hover:bg-gray-50/60'
+                )}>
+                  {/* Bande non-lu */}
+                  <div className={cn('w-1 self-stretch rounded-r flex-shrink-0', hasUnread ? 'bg-brand-500' : 'bg-transparent')} />
+
                   {/* Lien principal */}
                   <Link
                     href={`/messages/${conv.id}`}
-                    className={cn(
-                      'flex-1 flex items-center gap-3 rounded-2xl border p-4 hover:shadow-sm transition-all duration-200 min-w-0',
-                      isConfirm
-                        ? 'bg-red-50 border-red-200'
-                        : hasUnread
-                          ? 'bg-brand-50/40 border-brand-200 hover:border-brand-300'
-                          : 'bg-white border-gray-100 hover:border-gray-200'
-                    )}
+                    className="flex-1 flex items-center gap-3.5 px-4 py-4 min-w-0"
                   >
                     {/* Avatar */}
                     <div className="relative flex-shrink-0">
@@ -349,14 +579,16 @@ export default function MessagesPage() {
                         size="md"
                       />
                       {hasUnread && (
-                        <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+                        <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white" />
                       )}
-                      {!hasUnread && conv.related_type && RELATED_ICONS[conv.related_type] && (() => {
-                        const ri = RELATED_ICONS[conv.related_type!];
-                        const RIcon = ri.icon;
+                      {!hasUnread && relCfg && (() => {
+                        const RIcon = relCfg.icon;
                         return (
-                          <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm">
-                            <RIcon className={cn('w-3 h-3', ri.color)} />
+                          <span className={cn(
+                            'absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full border border-white flex items-center justify-center shadow-sm',
+                            relCfg.bg
+                          )}>
+                            <RIcon className={cn('w-2.5 h-2.5', relCfg.color)} />
                           </span>
                         );
                       })()}
@@ -364,53 +596,56 @@ export default function MessagesPage() {
 
                     {/* Contenu */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
                         <span className={cn(
-                          'truncate',
-                          hasUnread ? 'font-bold text-gray-900' : 'font-semibold text-gray-800'
+                          'truncate text-sm',
+                          hasUnread ? 'font-black text-gray-900' : 'font-semibold text-gray-800'
                         )}>
                           {conv.other_user?.full_name || conv.subject || 'Conversation'}
                         </span>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          {conv.last_message_at && (
-                            <span className="text-xs text-gray-400 whitespace-nowrap">
-                              {formatRelative(conv.last_message_at)}
-                            </span>
-                          )}
+                          <span className="text-xs text-gray-400 whitespace-nowrap">
+                            {conv.last_message_at ? formatRelative(conv.last_message_at) : ''}
+                          </span>
                           {hasUnread && (
-                            <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">
+                            <span className="bg-red-500 text-white text-[10px] font-black rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">
                               {conv.unread_count! > 99 ? '99+' : conv.unread_count}
                             </span>
                           )}
                         </div>
                       </div>
+
                       <p className={cn(
-                        'text-sm truncate mt-0.5',
-                        hasUnread ? 'text-gray-700 font-medium' : 'text-gray-500'
+                        'text-sm truncate',
+                        hasUnread ? 'text-gray-800 font-medium' : 'text-gray-500'
                       )}>
-                        {conv.last_message_text || 'Aucun message pour l\'instant'}
+                        {conv.last_message_text || <span className="italic text-gray-400">Aucun message</span>}
                       </p>
-                      {conv.related_type && RELATED_ICONS[conv.related_type] && (
-                        <span className={cn(
-                          'inline-flex items-center gap-1 text-xs mt-1',
-                          RELATED_ICONS[conv.related_type].color, 'opacity-70'
-                        )}>
-                          {React.createElement(RELATED_ICONS[conv.related_type].icon, { className: 'w-3 h-3' })}
-                          {RELATED_ICONS[conv.related_type].label}
-                        </span>
+
+                      {/* Badge type */}
+                      {conv.related_type && conv.related_type !== 'general' && (
+                        <div className="mt-1.5">
+                          <TypeBadge relatedType={conv.related_type} />
+                          {conv.subject && (
+                            <span className="text-xs text-gray-400 ml-1.5 truncate">
+                              · {conv.subject.slice(0, 40)}{conv.subject.length > 40 ? '…' : ''}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </Link>
 
-                  {/* Bouton 🗑 — toujours visible à droite */}
+                  {/* Bouton supprimer */}
                   <button
                     data-conv-menu
                     onClick={() => setConfirmConv(isConfirm ? null : conv.id)}
                     className={cn(
-                      'flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors border',
+                      'flex-shrink-0 w-9 h-9 rounded-xl mr-3 flex items-center justify-center transition-all',
+                      'opacity-0 group-hover:opacity-100',
                       isConfirm
-                        ? 'bg-red-500 text-white border-red-500'
-                        : 'bg-white text-red-400 border-red-200 hover:bg-red-50 hover:text-red-600'
+                        ? 'bg-red-500 text-white opacity-100'
+                        : 'text-gray-300 hover:text-red-500 hover:bg-red-50'
                     )}
                     title="Supprimer la conversation"
                   >
@@ -421,6 +656,13 @@ export default function MessagesPage() {
             );
           })}
         </div>
+      )}
+
+      {/* ── Note de bas de page ──────────────────────────────────────────────── */}
+      {!loading && conversations.length > 0 && (
+        <p className="text-center text-xs text-gray-400 mt-4">
+          Les messages sont privés et chiffrés entre vous et vos interlocuteurs.
+        </p>
       )}
     </div>
   );
