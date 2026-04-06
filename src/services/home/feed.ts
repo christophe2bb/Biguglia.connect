@@ -19,21 +19,25 @@ import { rankAndFilter, scoreItems, sortByScore } from './scoring';
 // ─── Configuration des sections ───────────────────────────────────────────────
 
 const SECTION_LIMITS = {
-  now: 6,       // Ce qui se passe maintenant
-  needs: 4,     // Besoins près de chez vous
-  upcoming: 4,  // À venir cette semaine
-  discussions: 4, // Ça parle ici
-  foryou: 5,    // Pour vous
+  now: 6,
+  needs: 4,
+  upcoming: 4,
+  discussions: 4,
+  foryou: 5,
 } as const;
 
 // ─── Fetch par domaine ────────────────────────────────────────────────────────
+// NB : on utilise les alias Supabase (author:profiles) pour normaliser
+//      les clés de jointure quelle que soit la colonne FK source.
 
 async function fetchHelpRequests(supabase: ReturnType<typeof createClient>) {
-  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 jours
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const { data } = await supabase
     .from('help_requests')
-    .select('id, title, description, status, urgency, sector, created_at, updated_at, profiles(id, full_name, avatar_url)')
-    .in('status', ['open', 'pending', 'active'])
+    .select('id, title, description, status, urgency, sector, created_at, updated_at, author:profiles(id, full_name, avatar_url)')
+    .neq('status', 'draft')
+    .neq('status', 'resolved')
+    .neq('status', 'archived')
     .gte('created_at', since)
     .order('created_at', { ascending: false })
     .limit(20);
@@ -41,14 +45,18 @@ async function fetchHelpRequests(supabase: ReturnType<typeof createClient>) {
 }
 
 async function fetchEvents(supabase: ReturnType<typeof createClient>) {
-  const now = new Date().toISOString();
-  const nextWeek = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+  // On récupère les événements à venir sur 21 jours, tous statuts visibles
+  const now = new Date().toISOString().split('T')[0]; // date seule (YYYY-MM-DD)
+  const inThreeWeeks = new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
   const { data } = await supabase
     .from('events')
-    .select('id, title, description, status, event_date, location, created_at, updated_at, profiles(id, full_name, avatar_url)')
+    .select('id, title, description, status, event_date, location, created_at, updated_at, author:profiles(id, full_name, avatar_url)')
     .gte('event_date', now)
-    .lte('event_date', nextWeek)
-    .in('status', ['published', 'active', 'approved', 'open'])
+    .lte('event_date', inThreeWeeks)
+    // Tous les statuts non-annulés : a_venir, publie, active, approved, open, published, complet, reporte
+    .not('status', 'eq', 'annule')
+    .not('status', 'eq', 'cancelled')
+    .not('status', 'eq', 'draft')
     .order('event_date', { ascending: true })
     .limit(10);
   return data ?? [];
@@ -58,9 +66,10 @@ async function fetchForumTopics(supabase: ReturnType<typeof createClient>) {
   const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
   const { data } = await supabase
     .from('forum_topics')
-    .select('id, title, content, status, sector, created_at, updated_at, reply_count, profiles(id, full_name, avatar_url)')
+    .select('id, title, content, status, sector, created_at, updated_at, reply_count, author:profiles(id, full_name, avatar_url)')
     .neq('status', 'masque')
     .neq('status', 'archive')
+    .neq('status', 'verrouille')
     .gte('created_at', since)
     .order('updated_at', { ascending: false })
     .limit(15);
@@ -68,11 +77,14 @@ async function fetchForumTopics(supabase: ReturnType<typeof createClient>) {
 }
 
 async function fetchLostFound(supabase: ReturnType<typeof createClient>) {
+  // Table réelle : lost_found_items (pas lost_and_found)
   const since = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
   const { data } = await supabase
-    .from('lost_and_found')
-    .select('id, title, description, status, type, location, created_at, updated_at, profiles(id, full_name, avatar_url)')
+    .from('lost_found_items')
+    .select('id, title, description, status, type, location_area, created_at, updated_at, author:profiles(id, full_name, avatar_url)')
     .neq('status', 'resolved')
+    .neq('status', 'found')
+    .neq('status', 'returned')
     .gte('created_at', since)
     .order('created_at', { ascending: false })
     .limit(10);
@@ -83,8 +95,8 @@ async function fetchListings(supabase: ReturnType<typeof createClient>) {
   const since = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString();
   const { data } = await supabase
     .from('listings')
-    .select('id, title, description, status, price, category, created_at, updated_at, profiles(id, full_name, avatar_url)')
-    .in('status', ['active', 'published', 'approved'])
+    .select('id, title, description, status, price, category, created_at, updated_at, author:profiles(id, full_name, avatar_url)')
+    .in('status', ['active', 'published', 'approved', 'disponible'])
     .gte('created_at', since)
     .order('created_at', { ascending: false })
     .limit(10);
@@ -92,14 +104,17 @@ async function fetchListings(supabase: ReturnType<typeof createClient>) {
 }
 
 async function fetchOutings(supabase: ReturnType<typeof createClient>) {
-  const now = new Date().toISOString();
-  const nextTwoWeeks = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+  // Table : group_outings, FK : organizer_id → profiles
+  const now = new Date().toISOString().split('T')[0];
+  const inTwoWeeks = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
   const { data } = await supabase
     .from('group_outings')
-    .select('id, title, description, status, outing_date, location, max_participants, created_at, updated_at, profiles(id, full_name, avatar_url)')
+    .select('id, title, description, status, outing_date, meeting_point, max_participants, created_at, updated_at, organizer:profiles!group_outings_organizer_id_fkey(id, full_name, avatar_url)')
     .gte('outing_date', now)
-    .lte('outing_date', nextTwoWeeks)
-    .in('status', ['ouverte', 'active', 'published', 'open'])
+    .lte('outing_date', inTwoWeeks)
+    .neq('status', 'annulee')
+    .neq('status', 'cancelled')
+    .neq('status', 'archivee')
     .order('outing_date', { ascending: true })
     .limit(8);
   return data ?? [];
@@ -143,9 +158,8 @@ function buildNeedsSection(allItems: HomeFeedItem[]): HomeSection {
 
 function buildUpcomingSection(allItems: HomeFeedItem[]): HomeSection {
   const eligible = allItems.filter(i =>
-    ['event', 'outing'].includes(i.type) && (i.status === 'upcoming' || i.eventDate)
+    ['event', 'outing'].includes(i.type)
   );
-  // Sort by event date ascending
   const sorted = [...eligible].sort((a, b) => {
     const da = new Date(a.eventDate ?? a.createdAt).getTime();
     const db = new Date(b.eventDate ?? b.createdAt).getTime();
@@ -182,12 +196,11 @@ function buildDiscussionsSection(allItems: HomeFeedItem[]): HomeSection {
 }
 
 function buildForYouSection(allItems: HomeFeedItem[]): HomeSection {
-  // V1 : mix équilibré des contenus les plus récents toutes sources
   const items = rankAndFilter(allItems, { limit: SECTION_LIMITS.foryou, maxPerType: 1 });
   return {
     id: 'foryou',
     title: 'Pour vous',
-    subtitle: 'Sélection personnalisée de l\'activité locale',
+    subtitle: 'Sélection de l\'activité locale',
     icon: '✨',
     items,
     ctaLabel: 'Explorer',
@@ -201,7 +214,7 @@ function buildForYouSection(allItems: HomeFeedItem[]): HomeSection {
 export async function getHomeFeed(): Promise<HomeFeedResult> {
   const supabase = createClient();
 
-  // Fetch en parallèle — si une source échoue, les autres continuent
+  // Fetch en parallèle — tolérant aux pannes : si une source échoue, les autres continuent
   const [helpRaw, eventsRaw, forumRaw, lostFoundRaw, listingsRaw, outingsRaw] =
     await Promise.allSettled([
       fetchHelpRequests(supabase),
@@ -216,7 +229,7 @@ export async function getHomeFeed(): Promise<HomeFeedResult> {
   const get = <T>(r: PromiseSettledResult<T[]>): T[] =>
     r.status === 'fulfilled' ? r.value : [];
 
-  // Normalisation via adaptateurs
+  // Normalisation via adaptateurs — chaque adaptateur gère ses alias
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const allItems: HomeFeedItem[] = [
     ...helpRequestsToFeedItems(get(helpRaw) as any[]),
@@ -227,7 +240,6 @@ export async function getHomeFeed(): Promise<HomeFeedResult> {
     ...outingsToFeedItems(get(outingsRaw) as any[]),
   ];
 
-  // Assemblage des sections
   const sections = [
     buildNowSection(allItems),
     buildNeedsSection(allItems),
