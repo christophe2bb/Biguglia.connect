@@ -26,13 +26,29 @@ const SECTION_LIMITS = {
   foryou: 5,
 } as const;
 
-// ─── Fetch par domaine ────────────────────────────────────────────────────────
-// NB : on utilise les alias Supabase (author:profiles) pour normaliser
-//      les clés de jointure quelle que soit la colonne FK source.
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-async function fetchHelpRequests(supabase: ReturnType<typeof createClient>) {
-  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  const { data } = await supabase
+// Retourne la date du jour en YYYY-MM-DD (timezone locale du serveur)
+function todayStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function daysFromNow(days: number): string {
+  const d = new Date(Date.now() + days * 86400000);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// ─── Fetch par domaine ────────────────────────────────────────────────────────
+// • currentUserId : si fourni, on exclut les contenus de l'utilisateur connecté
+//   (le fil est fait pour voir ce que les VOISINS publient)
+
+async function fetchHelpRequests(
+  supabase: ReturnType<typeof createClient>,
+  currentUserId: string | null,
+) {
+  const since = new Date(Date.now() - 30 * 86400000).toISOString();
+  let q = supabase
     .from('help_requests')
     .select('id, title, description, status, urgency, sector, created_at, updated_at, author:profiles(id, full_name, avatar_url)')
     .neq('status', 'draft')
@@ -41,82 +57,107 @@ async function fetchHelpRequests(supabase: ReturnType<typeof createClient>) {
     .gte('created_at', since)
     .order('created_at', { ascending: false })
     .limit(20);
+  if (currentUserId) q = q.neq('author_id', currentUserId);
+  const { data } = await q;
   return data ?? [];
 }
 
-async function fetchEvents(supabase: ReturnType<typeof createClient>) {
-  // On récupère les événements à venir sur 21 jours, tous statuts visibles
-  const now = new Date().toISOString().split('T')[0]; // date seule (YYYY-MM-DD)
-  const inThreeWeeks = new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const { data } = await supabase
+async function fetchEvents(
+  supabase: ReturnType<typeof createClient>,
+  currentUserId: string | null,
+) {
+  const today = todayStr();
+  const in3Weeks = daysFromNow(21);
+  let q = supabase
     .from('events')
     .select('id, title, description, status, event_date, location, created_at, updated_at, author:profiles(id, full_name, avatar_url)')
-    .gte('event_date', now)
-    .lte('event_date', inThreeWeeks)
-    // Tous les statuts non-annulés : a_venir, publie, active, approved, open, published, complet, reporte
+    .gte('event_date', today)
+    .lte('event_date', in3Weeks)
     .not('status', 'eq', 'annule')
     .not('status', 'eq', 'cancelled')
     .not('status', 'eq', 'draft')
     .order('event_date', { ascending: true })
     .limit(10);
+  if (currentUserId) q = q.neq('author_id', currentUserId);
+  const { data } = await q;
   return data ?? [];
 }
 
-async function fetchForumTopics(supabase: ReturnType<typeof createClient>) {
-  const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
-  const { data } = await supabase
+async function fetchForumTopics(
+  supabase: ReturnType<typeof createClient>,
+  currentUserId: string | null,
+) {
+  const since = new Date(Date.now() - 14 * 86400000).toISOString();
+  let q = supabase
     .from('forum_topics')
-    .select('id, title, content, status, sector, created_at, updated_at, reply_count, author:profiles(id, full_name, avatar_url)')
+    .select('id, title, content, status, sector, created_at, updated_at, reply_count, author:profiles!forum_topics_author_id_fkey(id, full_name, avatar_url)')
     .neq('status', 'masque')
     .neq('status', 'archive')
     .neq('status', 'verrouille')
     .gte('created_at', since)
     .order('updated_at', { ascending: false })
     .limit(15);
+  if (currentUserId) q = q.neq('author_id', currentUserId);
+  const { data } = await q;
   return data ?? [];
 }
 
-async function fetchLostFound(supabase: ReturnType<typeof createClient>) {
-  // Table réelle : lost_found_items (pas lost_and_found)
-  const since = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
-  const { data } = await supabase
+async function fetchLostFound(
+  supabase: ReturnType<typeof createClient>,
+  currentUserId: string | null,
+) {
+  const since = new Date(Date.now() - 60 * 86400000).toISOString();
+  let q = supabase
     .from('lost_found_items')
-    .select('id, title, description, status, type, location_area, created_at, updated_at, author:profiles(id, full_name, avatar_url)')
+    .select('id, title, description, status, type, location_area, created_at, updated_at, author:profiles!lost_found_items_author_id_fkey(id, full_name, avatar_url)')
     .neq('status', 'resolved')
     .neq('status', 'found')
     .neq('status', 'returned')
     .gte('created_at', since)
     .order('created_at', { ascending: false })
     .limit(10);
+  if (currentUserId) q = q.neq('author_id', currentUserId);
+  const { data } = await q;
   return data ?? [];
 }
 
-async function fetchListings(supabase: ReturnType<typeof createClient>) {
-  const since = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString();
-  const { data } = await supabase
+async function fetchListings(
+  supabase: ReturnType<typeof createClient>,
+  currentUserId: string | null,
+) {
+  const since = new Date(Date.now() - 21 * 86400000).toISOString();
+  // listings utilise user_id (pas author_id) — on exclut les propres annonces
+  // Note: la jointure profiles est optionnelle; si elle échoue, le feed affiche quand même les annonces
+  let q = supabase
     .from('listings')
-    .select('id, title, description, status, price, category, created_at, updated_at, author:profiles(id, full_name, avatar_url)')
+    .select('id, title, description, status, price, category, created_at, updated_at')
     .in('status', ['active', 'published', 'approved', 'disponible'])
     .gte('created_at', since)
     .order('created_at', { ascending: false })
     .limit(10);
+  if (currentUserId) q = q.neq('user_id', currentUserId); // FK réelle = user_id
+  const { data } = await q;
   return data ?? [];
 }
 
-async function fetchOutings(supabase: ReturnType<typeof createClient>) {
-  // Table : group_outings, FK : organizer_id → profiles
-  const now = new Date().toISOString().split('T')[0];
-  const inTwoWeeks = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const { data } = await supabase
+async function fetchOutings(
+  supabase: ReturnType<typeof createClient>,
+  currentUserId: string | null,
+) {
+  const today = todayStr();
+  const in2Weeks = daysFromNow(14);
+  let q = supabase
     .from('group_outings')
     .select('id, title, description, status, outing_date, meeting_point, max_participants, created_at, updated_at, organizer:profiles!group_outings_organizer_id_fkey(id, full_name, avatar_url)')
-    .gte('outing_date', now)
-    .lte('outing_date', inTwoWeeks)
+    .gte('outing_date', today)
+    .lte('outing_date', in2Weeks)
     .neq('status', 'annulee')
     .neq('status', 'cancelled')
     .neq('status', 'archivee')
     .order('outing_date', { ascending: true })
     .limit(8);
+  if (currentUserId) q = q.neq('organizer_id', currentUserId);
+  const { data } = await q;
   return data ?? [];
 }
 
@@ -140,9 +181,7 @@ function buildNowSection(allItems: HomeFeedItem[]): HomeSection {
 }
 
 function buildNeedsSection(allItems: HomeFeedItem[]): HomeSection {
-  const eligible = allItems.filter(i =>
-    i.type === 'help_request' && !i.isResolved
-  );
+  const eligible = allItems.filter(i => i.type === 'help_request' && !i.isResolved);
   const items = rankAndFilter(eligible, { limit: SECTION_LIMITS.needs, maxPerType: 4, excludeResolved: true });
   return {
     id: 'needs',
@@ -157,9 +196,7 @@ function buildNeedsSection(allItems: HomeFeedItem[]): HomeSection {
 }
 
 function buildUpcomingSection(allItems: HomeFeedItem[]): HomeSection {
-  const eligible = allItems.filter(i =>
-    ['event', 'outing'].includes(i.type)
-  );
+  const eligible = allItems.filter(i => ['event', 'outing'].includes(i.type));
   const sorted = [...eligible].sort((a, b) => {
     const da = new Date(a.eventDate ?? a.createdAt).getTime();
     const db = new Date(b.eventDate ?? b.createdAt).getTime();
@@ -211,25 +248,24 @@ function buildForYouSection(allItems: HomeFeedItem[]): HomeSection {
 
 // ─── Point d'entrée principal ─────────────────────────────────────────────────
 
-export async function getHomeFeed(): Promise<HomeFeedResult> {
+export async function getHomeFeed(currentUserId: string | null = null): Promise<HomeFeedResult> {
   const supabase = createClient();
 
-  // Fetch en parallèle — tolérant aux pannes : si une source échoue, les autres continuent
+  // Fetch en parallèle — tolérant aux pannes
   const [helpRaw, eventsRaw, forumRaw, lostFoundRaw, listingsRaw, outingsRaw] =
     await Promise.allSettled([
-      fetchHelpRequests(supabase),
-      fetchEvents(supabase),
-      fetchForumTopics(supabase),
-      fetchLostFound(supabase),
-      fetchListings(supabase),
-      fetchOutings(supabase),
+      fetchHelpRequests(supabase, currentUserId),
+      fetchEvents(supabase, currentUserId),
+      fetchForumTopics(supabase, currentUserId),
+      fetchLostFound(supabase, currentUserId),
+      fetchListings(supabase, currentUserId),
+      fetchOutings(supabase, currentUserId),
     ]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const get = <T>(r: PromiseSettledResult<T[]>): T[] =>
     r.status === 'fulfilled' ? r.value : [];
 
-  // Normalisation via adaptateurs — chaque adaptateur gère ses alias
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const allItems: HomeFeedItem[] = [
     ...helpRequestsToFeedItems(get(helpRaw) as any[]),
@@ -249,12 +285,11 @@ export async function getHomeFeed(): Promise<HomeFeedResult> {
   ];
 
   const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0);
-  const hasContent = totalItems > 0;
 
   return {
     sections,
     totalItems,
     generatedAt: new Date().toISOString(),
-    hasContent,
+    hasContent: totalItems > 0,
   };
 }

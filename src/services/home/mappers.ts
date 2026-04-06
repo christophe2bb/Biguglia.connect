@@ -21,11 +21,11 @@ function urgencyFromText(text: string | null | undefined): HomeFeedItemUrgency {
   return 'low';
 }
 
-// Résout le profil auteur quelque soit l'alias utilisé (profiles, author, organizer)
+// Résout le profil auteur quelque soit l'alias utilisé (profiles, author, organizer, owner)
 function resolveProfile(
   row: Record<string, unknown>
 ): { id: string; full_name?: string | null; avatar_url?: string | null } | null {
-  const p = (row.author ?? row.organizer ?? row.profiles) as
+  const p = (row.author ?? row.organizer ?? row.owner ?? row.profiles) as
     | { id: string; full_name?: string | null; avatar_url?: string | null }
     | null
     | undefined;
@@ -99,8 +99,7 @@ interface RawListing {
   category?: string | null;
   created_at: string;
   updated_at?: string | null;
-  author?: RawProfile | null;
-  profiles?: RawProfile | null;
+  // listings: pas de jointure profiles dans le feed (FK ambiguë) — pas de profil auteur affiché
 }
 
 interface RawOuting {

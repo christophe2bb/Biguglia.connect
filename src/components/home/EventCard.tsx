@@ -9,19 +9,27 @@ import type { HomeFeedItem } from '@/services/home/types';
 import { cn } from '@/lib/utils';
 
 function formatEventDate(dateStr: string): { day: string; month: string; time: string; countdown: string } {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = date.getTime() - now.getTime();
-  const diffDays = Math.floor(diffMs / 86400000);
+  // Normalise : si la date est YYYY-MM-DD (sans heure), on l'interprète comme
+  // minuit heure locale pour éviter le décalage timezone qui donnait "-1 jours"
+  const normalized = dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00';
+  const date = new Date(normalized);
 
-  const day = new Intl.DateTimeFormat('fr-FR', { day: 'numeric' }).format(date);
+  // Comparaison par date seule (jour / mois / année) — pas par timestamp
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const eventStart = new Date(normalized);
+  eventStart.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.round((eventStart.getTime() - todayStart.getTime()) / 86400000);
+
+  const day   = new Intl.DateTimeFormat('fr-FR', { day: 'numeric' }).format(date);
   const month = new Intl.DateTimeFormat('fr-FR', { month: 'short' }).format(date);
-  const time = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(date);
+  const time  = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(date);
 
   let countdown = '';
-  if (diffDays === 0) countdown = 'Aujourd\'hui';
+  if (diffDays <= 0)    countdown = 'Aujourd\'hui';
   else if (diffDays === 1) countdown = 'Demain';
-  else if (diffDays <= 7) countdown = `Dans ${diffDays} jours`;
+  else if (diffDays <= 7)  countdown = `Dans ${diffDays} jours`;
   else countdown = `${day} ${month}`;
 
   return { day, month, time, countdown };
