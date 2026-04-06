@@ -194,7 +194,14 @@ export default function NotificationsPage() {
     if (!profile) { router.push('/connexion'); return; }
     fetchNotifications();
     connectRealtime();
-    const handleVis = () => { if (document.visibilityState === 'visible') fetchNotifications(); };
+    // Quand on arrive sur la page notifications → forcer recalcul du badge immédiatement
+    window.dispatchEvent(new Event('new-notification'));
+    const handleVis = () => {
+      if (document.visibilityState === 'visible') {
+        fetchNotifications();
+        window.dispatchEvent(new Event('new-notification'));
+      }
+    };
     document.addEventListener('visibilitychange', handleVis);
     return () => {
       mountedRef.current = false;
