@@ -415,13 +415,13 @@ export default function ConversationPage() {
 
   const markAsRead = useCallback(async () => {
     if (!profile) return;
-    // 1. Marquer comme lu immédiatement
+    // 1. Marquer comme lu immédiatement dans la BDD
     await supabase.from('conversation_participants')
       .update({ last_read_at: new Date().toISOString() })
       .eq('conversation_id', id as string)
       .eq('user_id', profile.id);
-    // 2. Signaler au hook de recalculer le badge depuis la BDD
-    window.dispatchEvent(new Event('messages-read'));
+    // 2. Signaler au hook avec le conversationId pour décrémentation optimiste immédiate
+    window.dispatchEvent(new CustomEvent('messages-read', { detail: { conversationId: id } }));
   }, [id, profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pollNewMessages = useCallback(async () => {

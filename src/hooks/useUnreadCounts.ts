@@ -16,14 +16,19 @@ export function useUnreadCounts(): UnreadCounts {
   const { profile } = useAuthStore();
   const [counts, setCounts] = useState<UnreadCounts>({ messages: 0, notifications: 0, total: 0 });
 
-  const channelRef      = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
-  const myConvIdsRef    = useRef<string[]>([]);
-  const reconnectRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reconnectIdx    = useRef(0);
-  const mountedRef      = useRef(true);
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const channelRef        = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
+  const myConvIdsRef      = useRef<string[]>([]);
+  // Cache: unread count par conversation_id (pour décrémentation optimiste)
+  const convUnreadMapRef  = useRef<Record<string, number>>({});
+  const reconnectRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectIdx      = useRef(0);
+  const mountedRef        = useRef(true);
+  const pollIntervalRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const confirmTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const supabaseRef       = useRef<ReturnType<typeof createClient> | null>(null);
+  const userIdRef         = useRef<string | null>(null);
 
-  // ── Recalcul complet depuis la BDD — TOUJOURS appelé, jamais bloqué ─────────
+  // ── Recalcul complet depuis la BDD ──────────────────────────────────────────
   const fetchCounts = useCallback(async (supabase: ReturnType<typeof createClient>, userId: string) => {
     try {
       // 1. Mes participations avec last_read_at
@@ -36,6 +41,8 @@ export function useUnreadCounts(): UnreadCounts {
 
       // 2. Compter messages non lus conversation par conversation
       let unreadMessages = 0;
+      const newMap: Record<string, number> = {};
+
       if (myConvs && myConvs.length > 0) {
         const results = await Promise.all(
           myConvs.map(async (conv) => {
@@ -46,11 +53,15 @@ export function useUnreadCounts(): UnreadCounts {
               .eq('conversation_id', conv.conversation_id)
               .neq('sender_id', userId)
               .gt('created_at', since);
-            return count || 0;
+            return { convId: conv.conversation_id, count: count || 0 };
           })
         );
-        unreadMessages = results.reduce((a, b) => a + b, 0);
+        results.forEach(({ convId, count }) => {
+          newMap[convId] = count;
+          unreadMessages += count;
+        });
       }
+      convUnreadMapRef.current = newMap;
 
       // 3. Notifications non lues
       const { count: unreadNotifs } = await supabase
@@ -85,18 +96,15 @@ export function useUnreadCounts(): UnreadCounts {
         const msg = payload.new as { sender_id: string; conversation_id: string };
         if (msg.sender_id === userId) return;
         if (!myConvIdsRef.current.includes(msg.conversation_id)) return;
+        convUnreadMapRef.current[msg.conversation_id] = (convUnreadMapRef.current[msg.conversation_id] || 0) + 1;
         setCounts(prev => ({ messages: prev.messages + 1, notifications: prev.notifications, total: prev.total + 1 }));
       })
       // Nouvelle notification → +1 optimiste
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, () => {
         setCounts(prev => ({ messages: prev.messages, notifications: prev.notifications + 1, total: prev.total + 1 }));
       })
-      // Notification mise à jour (lue) → recalcul
+      // Notification mise à jour (lue) → recalcul BDD
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, () => {
-        fetchCounts(supabase, userId);
-      })
-      // conversation_participants mis à jour (last_read_at changé) → recalcul
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversation_participants', filter: `user_id=eq.${userId}` }, () => {
         fetchCounts(supabase, userId);
       })
       .subscribe((status) => {
@@ -129,6 +137,8 @@ export function useUnreadCounts(): UnreadCounts {
 
     const supabase = createClient();
     const userId = profile.id;
+    supabaseRef.current = supabase;
+    userIdRef.current = userId;
 
     // Fetch initial
     fetchCounts(supabase, userId);
@@ -140,10 +150,37 @@ export function useUnreadCounts(): UnreadCounts {
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
-    // ── 'messages-read' : une conversation vient d'être lue ──────────────────
-    // markAsRead() dans messages/[id] a déjà fait le UPDATE last_read_at en BDD
-    // → on recalcule immédiatement
-    const handleMessagesRead = () => fetchCounts(supabase, userId);
+    // ── 'messages-read' ──────────────────────────────────────────────────────
+    // Décrémentation OPTIMISTE immédiate : on met à 0 le compteur de la conversation
+    // concernée dans notre cache local, sans attendre la BDD.
+    // Puis on confirme depuis la BDD après 2s (délai suffisant pour que le UPDATE
+    // last_read_at soit visible).
+    const handleMessagesRead = (e: Event) => {
+      const convId = (e as CustomEvent<{ conversationId?: string }>).detail?.conversationId;
+
+      if (convId) {
+        // On sait exactement quelle conversation vient d'être lue
+        const removed = convUnreadMapRef.current[convId] || 0;
+        if (removed > 0) {
+          convUnreadMapRef.current[convId] = 0;
+          setCounts(prev => {
+            const newMessages = Math.max(0, prev.messages - removed);
+            return { messages: newMessages, notifications: prev.notifications, total: newMessages + prev.notifications };
+          });
+        }
+      } else {
+        // Fallback : on remet messages à 0 (cas sans conversationId)
+        setCounts(prev => ({ messages: 0, notifications: prev.notifications, total: prev.notifications }));
+      }
+
+      // Confirmation BDD après 2s (le UPDATE last_read_at est alors visible)
+      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+      confirmTimerRef.current = setTimeout(() => {
+        if (mountedRef.current && supabaseRef.current && userIdRef.current) {
+          fetchCounts(supabaseRef.current, userIdRef.current);
+        }
+      }, 2000);
+    };
     window.addEventListener('messages-read', handleMessagesRead);
 
     // ── 'new-notification' : une notification a changé d'état ────────────────
@@ -155,6 +192,7 @@ export function useUnreadCounts(): UnreadCounts {
       if (channelRef.current) supabase.removeChannel(channelRef.current);
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('messages-read', handleMessagesRead);
       window.removeEventListener('new-notification', handleNewNotif);
