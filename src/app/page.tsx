@@ -11,6 +11,7 @@ import {
   Wrench, Hammer, Zap, Paintbrush, Layers, Wind, Leaf, Drill,
   Star, Lock, Eye, Bell, MessageSquare, Package,
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/server';
 import { getHomeFeed } from '@/services/home/feed';
 import HomeHero from '@/components/home/HomeHero';
 import HomeSection from '@/components/home/HomeSection';
@@ -48,10 +49,18 @@ const groups = ['Services', 'Vie pratique', 'Vie locale'] as const;
 // ─── Composant SSR principal ──────────────────────────────────────────────────
 
 export default async function HomePage() {
+  // Récupère l'utilisateur connecté côté serveur (pour exclure ses propres contenus)
+  let currentUserId: string | null = null;
+  try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    currentUserId = user?.id ?? null;
+  } catch { /* non critique */ }
+
   // Fetch du feed côté serveur — aucun appel Supabase dans l'UI
   let feedResult;
   try {
-    feedResult = await getHomeFeed();
+    feedResult = await getHomeFeed(currentUserId);
   } catch {
     feedResult = {
       sections: [],
