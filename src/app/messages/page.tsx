@@ -227,13 +227,32 @@ export default function MessagesPage() {
     if (!profile) { router.push('/connexion'); return; }
     fetchConversations();
     connectRealtime();
+
+    // Retour sur onglet navigateur → rafraîchir
     const handleVis = () => { if (document.visibilityState === 'visible') fetchConversations(); };
     document.addEventListener('visibilitychange', handleVis);
+
+    // ── 'messages-read' : une conversation vient d'être lue depuis [id]/page ──
+    // On met à 0 le badge de cette conversation IMMÉDIATEMENT (sans requête BDD)
+    // puis on recharge la liste après 2s pour confirmer.
+    const handleMessagesRead = (e: Event) => {
+      const convId = (e as CustomEvent<{ conversationId?: string }>).detail?.conversationId;
+      if (convId) {
+        setConversations(prev =>
+          prev.map(c => c.id === convId ? { ...c, unread_count: 0 } : c)
+        );
+      }
+      // Confirmation BDD après 2s
+      setTimeout(() => { if (mountedRef.current) fetchConversations(); }, 2000);
+    };
+    window.addEventListener('messages-read', handleMessagesRead);
+
     return () => {
       mountedRef.current = false;
       if (channelRef.current) supabase.removeChannel(channelRef.current);
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
       document.removeEventListener('visibilitychange', handleVis);
+      window.removeEventListener('messages-read', handleMessagesRead);
     };
   }, [profile, router, fetchConversations, connectRealtime]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -583,6 +602,15 @@ export default function MessagesPage() {
                   <Link
                     href={`/messages/${conv.id}`}
                     className="flex-1 flex items-center gap-3.5 px-4 py-4 min-w-0"
+                    onClick={() => {
+                      // Décrémentation optimiste immédiate au clic (avant navigation)
+                      if ((conv.unread_count || 0) > 0) {
+                        setConversations(prev =>
+                          prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c)
+                        );
+                        window.dispatchEvent(new CustomEvent('messages-read', { detail: { conversationId: conv.id } }));
+                      }
+                    }}
                   >
                     {/* Avatar */}
                     <div className="relative flex-shrink-0">
