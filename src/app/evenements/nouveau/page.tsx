@@ -120,65 +120,78 @@ export default function NouvelEvenementPage() {
         ? form.tags.split(',').map(t => t.trim()).filter(Boolean)
         : [];
 
-      const eventData = {
+      // ── Payload minimal garanti compatible avec la table events ──────────────
+      // On n'envoie que les colonnes connues, les colonnes optionnelles sont
+      // conditionnellement ajoutées pour ne pas provoquer d'erreur 400 PGRST116.
+      const basePayload: Record<string, unknown> = {
         author_id: profile.id,
         title: form.title.trim(),
-        subtitle: form.subtitle.trim(),
-        description: form.description.trim(),
+        description: form.description.trim() || null,
         category: form.category,
         event_date: form.event_date,
-        event_end_date: form.event_end_date || null,
         start_time: form.start_time || '18:00',
-        end_time: form.end_time || null,
         location: form.location.trim() || 'Biguglia',
-        location_area: form.location_area.trim(),
-        location_detail: form.location_detail.trim(),
-        organizer_name: form.organizer_name.trim(),
-        price_type: form.price_type,
-        price_amount: form.price_type === 'payant' && form.price_amount ? parseFloat(form.price_amount) : null,
+        organizer_name: form.organizer_name.trim() || null,
         capacity: !form.is_unlimited && form.capacity ? parseInt(form.capacity) : null,
         is_unlimited: form.is_unlimited,
-        status: 'a_venir',
+        price_type: form.price_type,
+        price_amount: form.price_type === 'payant' && form.price_amount ? parseFloat(form.price_amount) : null,
         registration_open: form.registration_open,
+        status: 'a_venir',
         tags,
-        sector_id: form.sector_id || null,
-        accessibility: form.accessibility.trim(),
-        contact_info: form.contact_info.trim(),
-        external_link: form.external_link.trim(),
-        target_audience: form.target_audience.trim(),
       };
 
-      // Try 'events' table first, fallback to 'local_events'
-      let eventId: string | null = null;
-      const { data: newEvent, error: evErr } = await supabase
-        .from('events').insert(eventData).select('id').single();
+      // Colonnes étendues — incluses seulement si elles ont une valeur
+      if (form.subtitle.trim()) basePayload.subtitle = form.subtitle.trim();
+      if (form.event_end_date) basePayload.event_end_date = form.event_end_date;
+      if (form.end_time) basePayload.end_time = form.end_time;
+      if (form.location_area.trim()) basePayload.location_area = form.location_area.trim();
+      if (form.location_detail.trim()) basePayload.location_detail = form.location_detail.trim();
+      if (form.sector_id) basePayload.sector_id = form.sector_id;
+      if (form.accessibility.trim()) basePayload.accessibility = form.accessibility.trim();
+      if (form.contact_info.trim()) basePayload.contact_info = form.contact_info.trim();
+      if (form.external_link.trim()) basePayload.external_link = form.external_link.trim();
+      if (form.target_audience.trim()) basePayload.target_audience = form.target_audience.trim();
 
-      if (evErr) {
-        // Fallback to legacy local_events
-        const legacyData = {
+      let eventId: string | null = null;
+
+      // ── Tentative 1 : payload complet ────────────────────────────────────────
+      const { data: newEvent, error: evErr } = await supabase
+        .from('events').insert(basePayload).select('id').single();
+
+      if (!evErr && newEvent?.id) {
+        eventId = newEvent.id;
+      } else {
+        // ── Tentative 2 : payload minimal strict (colonnes de base seulement) ──
+        const minPayload = {
           author_id: profile.id,
           title: form.title.trim(),
-          description: form.description.trim(),
-          event_date: form.event_date,
-          event_time: form.start_time || '18:00',
-          location: form.location.trim() || 'Biguglia',
+          description: form.description.trim() || null,
           category: form.category,
-          organizer_name: form.organizer_name.trim(),
-          max_participants: !form.is_unlimited && form.capacity ? parseInt(form.capacity) : null,
-          is_free: form.price_type === 'gratuit',
-          price: form.price_type === 'payant' && form.price_amount ? parseFloat(form.price_amount) : null,
+          event_date: form.event_date,
+          start_time: form.start_time || '18:00',
+          location: form.location.trim() || 'Biguglia',
+          organizer_name: form.organizer_name.trim() || null,
+          capacity: !form.is_unlimited && form.capacity ? parseInt(form.capacity) : null,
+          is_unlimited: form.is_unlimited,
+          price_type: form.price_type,
+          price_amount: form.price_type === 'payant' && form.price_amount ? parseFloat(form.price_amount) : null,
+          registration_open: form.registration_open,
           status: 'a_venir',
           tags,
         };
-        const { data: legEv, error: legErr } = await supabase
-          .from('events').insert(legacyData).select('id').single();
-        if (legErr) throw legErr;
-        eventId = legEv?.id;
-      } else {
-        eventId = newEvent?.id;
+        const { data: minEvent, error: minErr } = await supabase
+          .from('events').insert(minPayload).select('id').single();
+
+        if (minErr) {
+          console.error('[Event création] Erreur Supabase :', minErr);
+          toast.error(`Erreur : ${minErr.message || 'Impossible de créer l\'événement'}`);
+          return;
+        }
+        eventId = minEvent?.id ?? null;
       }
 
-      if (!eventId) throw new Error('Pas d\'ID événement');
+      if (!eventId) throw new Error('Pas d\'ID événement retourné');
 
       // Upload photos
       if (photos.length > 0) {

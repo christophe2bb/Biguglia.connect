@@ -2,7 +2,7 @@
 // Maison vivante — Adaptateurs par vertical
 // Chaque fonction transforme les données brutes d'une verticale
 // vers le type canonique HomeFeedItem.
-// Aucune logique métier des pages ne doit appeler ces fonctions directement.
+// Les alias Supabase (author:profiles, organizer:profiles) sont gérés ici.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { HomeFeedItem, HomeFeedItemStatus, HomeFeedItemUrgency } from './types';
@@ -21,7 +21,20 @@ function urgencyFromText(text: string | null | undefined): HomeFeedItemUrgency {
   return 'low';
 }
 
-// ─── Types bruts Supabase (minimaux, pour éviter les imports circulaires) ────
+// Résout le profil auteur quelque soit l'alias utilisé (profiles, author, organizer)
+function resolveProfile(
+  row: Record<string, unknown>
+): { id: string; full_name?: string | null; avatar_url?: string | null } | null {
+  const p = (row.author ?? row.organizer ?? row.profiles) as
+    | { id: string; full_name?: string | null; avatar_url?: string | null }
+    | null
+    | undefined;
+  return p ?? null;
+}
+
+// ─── Types bruts Supabase (flexibles pour gérer les alias) ───────────────────
+
+type RawProfile = { id: string; full_name?: string | null; avatar_url?: string | null };
 
 interface RawHelpRequest {
   id: string;
@@ -32,7 +45,9 @@ interface RawHelpRequest {
   sector?: string | null;
   created_at: string;
   updated_at?: string | null;
-  profiles?: { id: string; full_name?: string | null; avatar_url?: string | null } | null;
+  // Supabase alias: author:profiles(...)
+  author?: RawProfile | null;
+  profiles?: RawProfile | null;
 }
 
 interface RawEvent {
@@ -44,7 +59,8 @@ interface RawEvent {
   location?: string | null;
   created_at: string;
   updated_at?: string | null;
-  profiles?: { id: string; full_name?: string | null; avatar_url?: string | null } | null;
+  author?: RawProfile | null;
+  profiles?: RawProfile | null;
 }
 
 interface RawForumTopic {
@@ -56,7 +72,8 @@ interface RawForumTopic {
   created_at: string;
   updated_at?: string | null;
   reply_count?: number | null;
-  profiles?: { id: string; full_name?: string | null; avatar_url?: string | null } | null;
+  author?: RawProfile | null;
+  profiles?: RawProfile | null;
 }
 
 interface RawLostFound {
@@ -64,11 +81,13 @@ interface RawLostFound {
   title: string;
   description?: string | null;
   status: string;
-  type?: string | null;           // 'lost' | 'found'
+  type?: string | null;
   location?: string | null;
+  location_area?: string | null;  // colonne réelle dans lost_found_items
   created_at: string;
   updated_at?: string | null;
-  profiles?: { id: string; full_name?: string | null; avatar_url?: string | null } | null;
+  author?: RawProfile | null;
+  profiles?: RawProfile | null;
 }
 
 interface RawListing {
@@ -80,7 +99,8 @@ interface RawListing {
   category?: string | null;
   created_at: string;
   updated_at?: string | null;
-  profiles?: { id: string; full_name?: string | null; avatar_url?: string | null } | null;
+  author?: RawProfile | null;
+  profiles?: RawProfile | null;
 }
 
 interface RawOuting {
@@ -90,10 +110,14 @@ interface RawOuting {
   status?: string | null;
   outing_date: string;
   location?: string | null;
+  meeting_point?: string | null;  // colonne réelle dans group_outings
   max_participants?: number | null;
   created_at: string;
   updated_at?: string | null;
-  profiles?: { id: string; full_name?: string | null; avatar_url?: string | null } | null;
+  // group_outings utilise organizer_id → alias organizer:profiles!fkey(...)
+  organizer?: RawProfile | null;
+  author?: RawProfile | null;
+  profiles?: RawProfile | null;
 }
 
 // ─── Adaptateur : Coups de main / Entraide ───────────────────────────────────
@@ -107,11 +131,12 @@ export function helpRequestsToFeedItems(rows: RawHelpRequest[]): HomeFeedItem[] 
 
     const status: HomeFeedItemStatus =
       r.status === 'resolved' ? 'resolved' :
-      r.status === 'in_progress' ? 'active' : 'open';
+      r.status === 'in_progress' || r.status === 'active' ? 'active' : 'open';
 
     const badges: string[] = [];
     if (urgency === 'high') badges.push('Urgent');
-    if (status === 'open') badges.push('En attente');
+
+    const profile = resolveProfile(r as unknown as Record<string, unknown>);
 
     return {
       id: r.id,
@@ -121,10 +146,10 @@ export function helpRequestsToFeedItems(rows: RawHelpRequest[]): HomeFeedItem[] 
       summary: truncate(r.description),
       sector: r.sector,
       locationLabel: r.sector ? `Biguglia · ${r.sector}` : 'Biguglia',
-      author: r.profiles ? {
-        id: r.profiles.id,
-        name: r.profiles.full_name || 'Habitant',
-        avatarUrl: r.profiles.avatar_url,
+      author: profile ? {
+        id: profile.id,
+        name: profile.full_name || 'Habitant',
+        avatarUrl: profile.avatar_url,
       } : undefined,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
@@ -135,7 +160,7 @@ export function helpRequestsToFeedItems(rows: RawHelpRequest[]): HomeFeedItem[] 
       freshnessScore: 0,
       relevanceScore: 0,
       finalScore: 0,
-      actionUrl: `/coups-de-main/${r.id}`,
+      actionUrl: `/coups-de-main`,
       actionLabel: 'Voir la demande',
       badges,
     };
@@ -147,7 +172,8 @@ export function helpRequestsToFeedItems(rows: RawHelpRequest[]): HomeFeedItem[] 
 export function eventsToFeedItems(rows: RawEvent[]): HomeFeedItem[] {
   const now = new Date();
   return rows.map((r): HomeFeedItem => {
-    const eventDate = new Date(r.event_date);
+    // event_date peut être YYYY-MM-DD ou ISO complet
+    const eventDate = new Date(r.event_date.includes('T') ? r.event_date : r.event_date + 'T00:00:00');
     const daysUntil = Math.ceil((eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
     const urgency: HomeFeedItemUrgency =
@@ -159,6 +185,8 @@ export function eventsToFeedItems(rows: RawEvent[]): HomeFeedItem[] {
     else if (daysUntil === 1) badges.push('Demain');
     else if (daysUntil <= 7) badges.push('Cette semaine');
 
+    const profile = resolveProfile(r as unknown as Record<string, unknown>);
+
     return {
       id: r.id,
       type: 'event',
@@ -167,10 +195,10 @@ export function eventsToFeedItems(rows: RawEvent[]): HomeFeedItem[] {
       summary: truncate(r.description),
       sector: null,
       locationLabel: r.location || 'Biguglia',
-      author: r.profiles ? {
-        id: r.profiles.id,
-        name: r.profiles.full_name || 'Organisateur',
-        avatarUrl: r.profiles.avatar_url,
+      author: profile ? {
+        id: profile.id,
+        name: profile.full_name || 'Organisateur',
+        avatarUrl: profile.avatar_url,
       } : undefined,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
@@ -195,11 +223,12 @@ export function eventsToFeedItems(rows: RawEvent[]): HomeFeedItem[] {
 export function forumTopicsToFeedItems(rows: RawForumTopic[]): HomeFeedItem[] {
   return rows.map((r): HomeFeedItem => {
     const replyCount = r.reply_count || 0;
-    const urgency: HomeFeedItemUrgency =
-      replyCount >= 5 ? 'medium' : 'low';
+    const urgency: HomeFeedItemUrgency = replyCount >= 5 ? 'medium' : 'low';
 
     const badges: string[] = [];
     if (replyCount > 0) badges.push(`${replyCount} réponse${replyCount > 1 ? 's' : ''}`);
+
+    const profile = resolveProfile(r as unknown as Record<string, unknown>);
 
     return {
       id: r.id,
@@ -209,10 +238,10 @@ export function forumTopicsToFeedItems(rows: RawForumTopic[]): HomeFeedItem[] {
       summary: truncate(r.content),
       sector: r.sector,
       locationLabel: r.sector ? `Biguglia · ${r.sector}` : 'Biguglia',
-      author: r.profiles ? {
-        id: r.profiles.id,
-        name: r.profiles.full_name || 'Habitant',
-        avatarUrl: r.profiles.avatar_url,
+      author: profile ? {
+        id: profile.id,
+        name: profile.full_name || 'Habitant',
+        avatarUrl: profile.avatar_url,
       } : undefined,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
@@ -235,27 +264,32 @@ export function forumTopicsToFeedItems(rows: RawForumTopic[]): HomeFeedItem[] {
 
 export function lostFoundToFeedItems(rows: RawLostFound[]): HomeFeedItem[] {
   return rows.map((r): HomeFeedItem => {
-    const isLost = r.type === 'lost' || r.title.toLowerCase().includes('perdu');
+    const isLost = r.type === 'lost' || r.type === 'perdu'
+      || r.title.toLowerCase().includes('perdu');
     const status: HomeFeedItemStatus =
-      r.status === 'resolved' || r.status === 'found' ? 'resolved' : 'open';
+      r.status === 'resolved' || r.status === 'found' || r.status === 'returned'
+        ? 'resolved' : 'open';
+
+    const location = r.location_area || r.location || 'Biguglia';
 
     const badges: string[] = [];
-    if (isLost) badges.push('Perdu');
-    else badges.push('Trouvé');
+    badges.push(isLost ? 'Perdu' : 'Trouvé');
     if (status === 'open') badges.push('Actif');
+
+    const profile = resolveProfile(r as unknown as Record<string, unknown>);
 
     return {
       id: r.id,
       type: 'lost_found',
-      sourceModule: 'lost_and_found',
+      sourceModule: 'lost_found_items',
       title: r.title,
       summary: truncate(r.description),
       sector: null,
-      locationLabel: r.location || 'Biguglia',
-      author: r.profiles ? {
-        id: r.profiles.id,
-        name: r.profiles.full_name || 'Habitant',
-        avatarUrl: r.profiles.avatar_url,
+      locationLabel: location,
+      author: profile ? {
+        id: profile.id,
+        name: profile.full_name || 'Habitant',
+        avatarUrl: profile.avatar_url,
       } : undefined,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
@@ -266,7 +300,7 @@ export function lostFoundToFeedItems(rows: RawLostFound[]): HomeFeedItem[] {
       freshnessScore: 0,
       relevanceScore: 0,
       finalScore: 0,
-      actionUrl: `/perdu-trouve/${r.id}`,
+      actionUrl: `/perdu-trouve`,
       actionLabel: 'Voir l\'annonce',
       badges,
       metadata: { isLost },
@@ -277,41 +311,45 @@ export function lostFoundToFeedItems(rows: RawLostFound[]): HomeFeedItem[] {
 // ─── Adaptateur : Annonces ────────────────────────────────────────────────────
 
 export function listingsToFeedItems(rows: RawListing[]): HomeFeedItem[] {
-  return rows.map((r): HomeFeedItem => ({
-    id: r.id,
-    type: 'listing',
-    sourceModule: 'listings',
-    title: r.title,
-    summary: truncate(r.description),
-    sector: null,
-    locationLabel: 'Biguglia',
-    author: r.profiles ? {
-      id: r.profiles.id,
-      name: r.profiles.full_name || 'Habitant',
-      avatarUrl: r.profiles.avatar_url,
-    } : undefined,
-    createdAt: r.created_at,
-    updatedAt: r.updated_at,
-    status: r.status === 'active' ? 'active' : 'closed',
-    urgency: 'low',
-    isUrgent: false,
-    isResolved: false,
-    freshnessScore: 0,
-    relevanceScore: 0,
-    finalScore: 0,
-    actionUrl: `/annonces/${r.id}`,
-    actionLabel: 'Voir l\'annonce',
-    badges: r.price === 0 ? ['Gratuit'] : r.price ? [`${r.price} €`] : [],
-    metadata: { price: r.price, category: r.category },
-  }));
+  return rows.map((r): HomeFeedItem => {
+    const profile = resolveProfile(r as unknown as Record<string, unknown>);
+
+    return {
+      id: r.id,
+      type: 'listing',
+      sourceModule: 'listings',
+      title: r.title,
+      summary: truncate(r.description),
+      sector: null,
+      locationLabel: 'Biguglia',
+      author: profile ? {
+        id: profile.id,
+        name: profile.full_name || 'Habitant',
+        avatarUrl: profile.avatar_url,
+      } : undefined,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+      status: 'active',
+      urgency: 'low',
+      isUrgent: false,
+      isResolved: false,
+      freshnessScore: 0,
+      relevanceScore: 0,
+      finalScore: 0,
+      actionUrl: `/annonces/${r.id}`,
+      actionLabel: 'Voir l\'annonce',
+      badges: r.price === 0 ? ['Gratuit'] : r.price ? [`${r.price} €`] : [],
+      metadata: { price: r.price, category: r.category },
+    };
+  });
 }
 
-// ─── Adaptateur : Promenades ──────────────────────────────────────────────────
+// ─── Adaptateur : Promenades / Sorties ───────────────────────────────────────
 
 export function outingsToFeedItems(rows: RawOuting[]): HomeFeedItem[] {
   const now = new Date();
   return rows.map((r): HomeFeedItem => {
-    const outingDate = new Date(r.outing_date);
+    const outingDate = new Date(r.outing_date.includes('T') ? r.outing_date : r.outing_date + 'T00:00:00');
     const daysUntil = Math.ceil((outingDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
     const badges: string[] = [];
@@ -320,6 +358,11 @@ export function outingsToFeedItems(rows: RawOuting[]): HomeFeedItem[] {
     else if (daysUntil <= 7) badges.push('Cette semaine');
     if (r.max_participants) badges.push(`${r.max_participants} places`);
 
+    // meeting_point est la colonne réelle dans group_outings
+    const locationLabel = r.meeting_point || r.location || 'Biguglia';
+
+    const profile = resolveProfile(r as unknown as Record<string, unknown>);
+
     return {
       id: r.id,
       type: 'outing',
@@ -327,11 +370,11 @@ export function outingsToFeedItems(rows: RawOuting[]): HomeFeedItem[] {
       title: r.title,
       summary: truncate(r.description),
       sector: null,
-      locationLabel: r.location || 'Biguglia',
-      author: r.profiles ? {
-        id: r.profiles.id,
-        name: r.profiles.full_name || 'Organisateur',
-        avatarUrl: r.profiles.avatar_url,
+      locationLabel,
+      author: profile ? {
+        id: profile.id,
+        name: profile.full_name || 'Organisateur',
+        avatarUrl: profile.avatar_url,
       } : undefined,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
@@ -343,7 +386,7 @@ export function outingsToFeedItems(rows: RawOuting[]): HomeFeedItem[] {
       freshnessScore: 0,
       relevanceScore: 0,
       finalScore: 0,
-      actionUrl: `/promenades/${r.id}`,
+      actionUrl: `/promenades/sorties/${r.id}`,
       actionLabel: 'Voir la sortie',
       badges,
       metadata: { daysUntil, maxParticipants: r.max_participants },
