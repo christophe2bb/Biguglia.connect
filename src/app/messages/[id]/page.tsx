@@ -503,6 +503,10 @@ export default function ConversationPage() {
     mountedRef.current = true;
     if (!profile) { router.push('/connexion'); return; }
 
+    // Marquer comme lu IMMÉDIATEMENT dès l'ouverture de la page
+    // (avant même que les données soient chargées)
+    markAsRead();
+
     const init = async () => {
       const [participantsRes, convRes, msgsRes, rpcOtherRes] = await Promise.all([
         supabase.from('conversation_participants').select('user_id').eq('conversation_id', id as string),
