@@ -127,7 +127,8 @@ export default async function HomePage() {
         <HomeHero totalItems={totalItems} generatedAt={generatedAt} />
 
         {/* Sections du feed — rendu SSR, composants purs */}
-        {sections.map(section => (
+        {/* Les sections vides sont masquées : pas de bloc "rien ici" si pas de contenu */}
+        {sections.filter(s => !s.isEmpty).map(section => (
           <HomeSection key={section.id} section={section} />
         ))}
 
