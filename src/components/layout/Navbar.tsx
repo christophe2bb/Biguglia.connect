@@ -288,9 +288,6 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    if (pathname.startsWith('/messages')) {
-      window.dispatchEvent(new Event('messages-read'));
-    }
     // Ferme les menus au changement de page
     setMenuOpen(false);
     setOpenUnivers(null);
