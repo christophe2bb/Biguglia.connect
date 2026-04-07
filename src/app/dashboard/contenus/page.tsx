@@ -152,7 +152,8 @@ function MesContenusContent() {
         supabase.from('help_requests').select('id, title, description, status, location_city, created_at').eq('author_id', profile.id).order('created_at', { ascending: false }),
         supabase.from('events').select('id, title, description, status, location, event_date, created_at, photos:event_photos(url)').eq('author_id', profile.id).order('created_at', { ascending: false }),
         supabase.from('group_outings').select('id, title, description, status, meeting_point, outing_date, created_at, photos:outing_photos(url)').eq('organizer_id', profile.id).order('created_at', { ascending: false }),
-        supabase.from('forum_posts').select('id, title, content, views, created_at').eq('author_id', profile.id).order('created_at', { ascending: false }),
+        // forum_topics est le nom de table correct (forum_posts = ancien nom / posts dans un topic)
+        supabase.from('forum_topics').select('id, title, content, views, created_at').eq('author_id', profile.id).order('created_at', { ascending: false }),
         supabase.from('associations').select('id, name, description_short, status, location, created_at, logo_url').eq('author_id', profile.id).order('created_at', { ascending: false }),
       ]);
 
@@ -180,14 +181,14 @@ function MesContenusContent() {
         ...(events || []).map((e: Record<string, unknown>) => ({
           id: e.id as string, type: 'event' as ContentTheme, title: e.title as string,
           status: e.status as string, createdAt: e.created_at as string,
-          href: `/evenements`, image: ((e.photos as {url: string}[]) || [])[0]?.url,
+          href: `/evenements/${e.id}`, image: ((e.photos as {url: string}[]) || [])[0]?.url,
           location: e.location as string, date: e.event_date as string,
           isClosed: ['done', 'cancelled'].includes(e.status as string),
         })),
         ...(outings || []).map((o: Record<string, unknown>) => ({
           id: o.id as string, type: 'outing' as ContentTheme, title: o.title as string,
           status: o.status as string, createdAt: o.created_at as string,
-          href: `/promenades`, image: ((o.photos as {url: string}[]) || [])[0]?.url,
+          href: `/promenades/sorties/${o.id}`, image: ((o.photos as {url: string}[]) || [])[0]?.url,
           location: o.meeting_point as string, date: o.outing_date as string,
           isClosed: ['done', 'cancelled'].includes(o.status as string),
         })),
@@ -199,7 +200,7 @@ function MesContenusContent() {
         ...(associations || []).map((a: Record<string, unknown>) => ({
           id: a.id as string, type: 'association' as ContentTheme, title: a.name as string,
           status: a.status as string, createdAt: a.created_at as string,
-          href: `/associations`, image: a.logo_url as string, location: a.location as string,
+          href: `/associations#${a.id}`, image: a.logo_url as string, location: a.location as string,
           isClosed: ['inactive', 'draft'].includes(a.status as string),
         })),
       ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

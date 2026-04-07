@@ -34,6 +34,9 @@ function ArtisansContent() {
       setCategories(cats || []);
 
       // Artisans vérifiés uniquement
+      // Note: on ne filtre PAS sur profiles.role via Supabase (les filtres sur colonnes
+      // de tables jointes ne fonctionnent pas dans Supabase PostgREST).
+      // On filtre côté client après récupération, ou on ajoute is_verified sur artisan_profiles.
       let query = supabase
         .from('artisan_profiles')
         .select(`
@@ -42,8 +45,7 @@ function ArtisansContent() {
           trade_category:trade_categories(*),
           gallery:artisan_photos(url, display_order),
           reviews(rating)
-        `)
-        .eq('profiles.role', 'artisan_verified');
+        `);
 
       if (selectedCategory) {
         const cat = cats?.find(c => c.slug === selectedCategory);
@@ -52,14 +54,19 @@ function ArtisansContent() {
 
       const { data } = await query.order('is_featured', { ascending: false });
 
-      // Calculer la note moyenne
-      const enriched = (data || []).map(a => ({
-        ...a,
-        avg_rating: a.reviews?.length
-          ? a.reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / a.reviews.length
-          : 0,
-        review_count: a.reviews?.length || 0,
-      }));
+      // Calculer la note moyenne + filtrer artisans vérifiés côté client
+      const enriched = (data || [])
+        .filter(a => {
+          const role = (a.profile as { role?: string } | null)?.role;
+          return role === 'artisan_verified' || role === 'admin';
+        })
+        .map(a => ({
+          ...a,
+          avg_rating: a.reviews?.length
+            ? a.reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / a.reviews.length
+            : 0,
+          review_count: a.reviews?.length || 0,
+        }));
 
       setArtisans(enriched);
       setLoading(false);
