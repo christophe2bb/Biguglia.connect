@@ -42,7 +42,7 @@ interface RawHelpRequest {
   description?: string | null;
   status: string;
   urgency?: string | null;
-  sector?: string | null;
+  sector_id?: string | null;  // colonne réelle en DB (pas 'sector')
   created_at: string;
   updated_at?: string | null;
   // Supabase alias: author:profiles(...)
@@ -68,7 +68,7 @@ interface RawForumTopic {
   title: string;
   content?: string | null;
   status?: string | null;
-  sector?: string | null;
+  sector_id?: string | null;  // colonne réelle en DB (pas 'sector')
   created_at: string;
   updated_at?: string | null;
   reply_count?: number | null;
@@ -143,8 +143,8 @@ export function helpRequestsToFeedItems(rows: RawHelpRequest[]): HomeFeedItem[] 
       sourceModule: 'help_requests',
       title: r.title,
       summary: truncate(r.description),
-      sector: r.sector,
-      locationLabel: r.sector ? `Biguglia · ${r.sector}` : 'Biguglia',
+      sector: r.sector_id ?? null,
+      locationLabel: 'Biguglia',
       author: profile ? {
         id: profile.id,
         name: profile.full_name || 'Habitant',
@@ -235,8 +235,8 @@ export function forumTopicsToFeedItems(rows: RawForumTopic[]): HomeFeedItem[] {
       sourceModule: 'forum_topics',
       title: r.title,
       summary: truncate(r.content),
-      sector: r.sector,
-      locationLabel: r.sector ? `Biguglia · ${r.sector}` : 'Biguglia',
+      sector: r.sector_id ?? null,
+      locationLabel: 'Biguglia',
       author: profile ? {
         id: profile.id,
         name: profile.full_name || 'Habitant',

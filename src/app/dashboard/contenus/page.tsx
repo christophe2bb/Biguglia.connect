@@ -154,7 +154,7 @@ function MesContenusContent() {
         supabase.from('group_outings').select('id, title, description, status, meeting_point, outing_date, created_at, photos:outing_photos(url)').eq('organizer_id', profile.id).order('created_at', { ascending: false }),
         // forum_topics est le nom de table correct (forum_posts = ancien nom / posts dans un topic)
         supabase.from('forum_topics').select('id, title, content, views, created_at').eq('author_id', profile.id).order('created_at', { ascending: false }),
-        supabase.from('associations').select('id, name, description_short, status, location, created_at, logo_url').eq('author_id', profile.id).order('created_at', { ascending: false }),
+        supabase.from('associations').select('id, name, description_short, status, location, created_at').eq('author_id', profile.id).order('created_at', { ascending: false }), // logo_url n'existe pas en DB
       ]);
 
       const all: ContentItem[] = [
@@ -200,7 +200,7 @@ function MesContenusContent() {
         ...(associations || []).map((a: Record<string, unknown>) => ({
           id: a.id as string, type: 'association' as ContentTheme, title: a.name as string,
           status: a.status as string, createdAt: a.created_at as string,
-          href: `/associations#${a.id}`, image: a.logo_url as string, location: a.location as string,
+          href: `/associations#${a.id}`, image: undefined, location: a.location as string,
           isClosed: ['inactive', 'draft'].includes(a.status as string),
         })),
       ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

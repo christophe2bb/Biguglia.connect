@@ -48,6 +48,10 @@ const NOTIF_CONFIG: Record<string, {
   event_cancelled: { icon: Calendar,      color: 'text-red-600',     bg: 'bg-red-50',     border: 'border-red-200',     label: 'Annulé',         tab: 'activity',   priority: 'high'   },
   badge_awarded:   { icon: Award,         color: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-200',   label: 'Badge obtenu',   tab: 'activity',   priority: 'low'    },
 
+  // ── Compte / Profil
+  account_update:  { icon: Info,          color: 'text-brand-600',   bg: 'bg-brand-50',   border: 'border-brand-200',   label: 'Compte',         tab: 'system',     priority: 'medium' },
+  artisan_approved:{ icon: Wrench,        color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'Artisan validé', tab: 'system',     priority: 'high'   },
+
   // ── Modération / Système
   content_approved:{ icon: CheckCheck,    color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'Approuvé',       tab: 'system',     priority: 'high'   },
   content_rejected:{ icon: AlertCircle,   color: 'text-red-600',     bg: 'bg-red-50',     border: 'border-red-200',     label: 'Refusé',         tab: 'system',     priority: 'high'   },
@@ -230,7 +234,7 @@ export default function NotificationsPage() {
     // 1. Optimistic update local immédiat — point rouge disparaît tout de suite
     setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
     // 2. Écriture BDD (await) puis signal — fetchCounts lira is_read=true en BDD
-    await supabase.from('notifications').update({ is_read: true, read_at: new Date().toISOString() }).eq('id', notif.id);
+    await supabase.from('notifications').update({ is_read: true }).eq('id', notif.id); // read_at n'existe pas en DB
     window.dispatchEvent(new Event('new-notification'));
   }, []);
 

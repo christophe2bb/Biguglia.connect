@@ -84,15 +84,18 @@ export default function ArtisanDetailPage() {
         .order('created_at', { ascending: false });
       setReviews(rev as Review[] || []);
 
-      // Favori
+      // Favori — user_favorites est la table réelle (favorite_artisans n'existe pas)
       if (profile) {
-        const { data: fav } = await supabase
-          .from('favorite_artisans')
-          .select('id')
-          .eq('user_id', profile.id)
-          .eq('artisan_id', id as string)
-          .single();
-        setIsFavorite(!!fav);
+        try {
+          const { data: fav } = await supabase
+            .from('user_favorites')
+            .select('id')
+            .eq('user_id', profile.id)
+            .eq('target_id', id as string)
+            .eq('target_type', 'artisan')
+            .maybeSingle();
+          setIsFavorite(!!fav);
+        } catch { setIsFavorite(false); }
       }
 
       setLoading(false);
@@ -105,12 +108,12 @@ export default function ArtisanDetailPage() {
     if (!profile) { router.push('/connexion'); return; }
     const supabase = createClient();
     if (isFavorite) {
-      await supabase.from('favorite_artisans').delete()
-        .eq('user_id', profile.id).eq('artisan_id', id as string);
+      await supabase.from('user_favorites').delete()
+        .eq('user_id', profile.id).eq('target_id', id as string).eq('target_type', 'artisan');
       setIsFavorite(false);
       toast.success('Retiré des favoris');
     } else {
-      await supabase.from('favorite_artisans').insert({ user_id: profile.id, artisan_id: id });
+      await supabase.from('user_favorites').insert({ user_id: profile.id, target_id: id, target_type: 'artisan' });
       setIsFavorite(true);
       toast.success('Ajouté aux favoris');
     }

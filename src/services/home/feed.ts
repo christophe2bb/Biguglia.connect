@@ -50,7 +50,7 @@ async function fetchHelpRequests(
   const since = new Date(Date.now() - 90 * 86400000).toISOString(); // 90 jours
   let q = supabase
     .from('help_requests')
-    .select('id, title, description, status, urgency, sector, created_at, updated_at, author:profiles(id, full_name, avatar_url)')
+    .select('id, title, description, status, urgency, sector_id, created_at, updated_at, author:profiles(id, full_name, avatar_url)')
     .neq('status', 'draft')
     .neq('status', 'resolved')
     .neq('status', 'archived')
@@ -90,7 +90,7 @@ async function fetchForumTopics(
   const since = new Date(Date.now() - 90 * 86400000).toISOString(); // 90 jours
   let q = supabase
     .from('forum_topics')
-    .select('id, title, content, status, sector, created_at, updated_at, reply_count, author:profiles!forum_topics_author_id_fkey(id, full_name, avatar_url)')
+    .select('id, title, content, status, sector_id, created_at, updated_at, reply_count, author:profiles(id, full_name, avatar_url)')
     .neq('status', 'masque')
     .neq('status', 'archive')
     .neq('status', 'verrouille')
@@ -198,12 +198,14 @@ async function fetchOutings(
   const in2Weeks = daysFromNow(14);
   let q = supabase
     .from('group_outings')
-    .select('id, title, description, status, outing_date, meeting_point, max_participants, created_at, updated_at, organizer:profiles!group_outings_organizer_id_fkey(id, full_name, avatar_url)')
+    .select('id, title, description, status, outing_date, meeting_point, max_participants, created_at, updated_at, organizer:profiles(id, full_name, avatar_url)')
     .gte('outing_date', today)
     .lte('outing_date', in2Weeks)
     .neq('status', 'annulee')
     .neq('status', 'cancelled')
     .neq('status', 'archivee')
+    .neq('status', 'passe')
+    .neq('status', 'archive')
     .order('outing_date', { ascending: true })
     .limit(8);
   if (currentUserId) q = q.neq('organizer_id', currentUserId);
