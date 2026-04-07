@@ -3,6 +3,8 @@
 // Barre colorée en haut + badge type + titre + résumé + footer
 // ─────────────────────────────────────────────────────────────────────────────
 
+'use client';
+
 import Link from 'next/link';
 import { MapPin, ArrowRight, AlertCircle } from 'lucide-react';
 import type { HomeFeedItem, HomeFeedItemType } from '@/services/home/types';

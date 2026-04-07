@@ -1,7 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // FreshnessIndicator — Affiche le temps écoulé depuis la publication
 // Design : humain, lisible, avec indicateur coloré selon la fraîcheur
+// IMPORTANT: 'use client' obligatoire — Date.now() cause un hydration mismatch
+// si ce composant est rendu côté serveur (valeur différente entre SSR et client)
 // ─────────────────────────────────────────────────────────────────────────────
+
+'use client';
 
 import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
