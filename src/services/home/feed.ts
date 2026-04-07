@@ -107,17 +107,67 @@ async function fetchLostFound(
   currentUserId: string | null,
 ) {
   const since = new Date(Date.now() - 60 * 86400000).toISOString();
+
+  // Tentative 1 : avec FK explicite
   let q = supabase
     .from('lost_found_items')
     .select('id, title, description, status, type, location_area, created_at, updated_at, author:profiles!lost_found_items_author_id_fkey(id, full_name, avatar_url)')
+    // Exclure statuts résolus (anglais ET français)
     .neq('status', 'resolved')
     .neq('status', 'found')
     .neq('status', 'returned')
+    .neq('status', 'restitue')
+    .neq('status', 'clos')
+    .neq('status', 'archive')
+    .neq('status', 'draft')
     .gte('created_at', since)
     .order('created_at', { ascending: false })
     .limit(10);
   if (currentUserId) q = q.neq('author_id', currentUserId);
-  const { data } = await q;
+
+  let { data, error } = await q;
+
+  // Tentative 2 : sans FK explicite si la FK a un autre nom
+  if (error?.message?.includes('fkey') || error?.message?.includes('foreign')) {
+    let q2 = supabase
+      .from('lost_found_items')
+      .select('id, title, description, status, type, location_area, created_at, updated_at, author:profiles(id, full_name, avatar_url)')
+      .neq('status', 'resolved')
+      .neq('status', 'found')
+      .neq('status', 'returned')
+      .neq('status', 'restitue')
+      .neq('status', 'clos')
+      .neq('status', 'archive')
+      .neq('status', 'draft')
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    if (currentUserId) q2 = q2.neq('author_id', currentUserId);
+    ({ data, error } = await q2);
+  }
+
+  // Tentative 3 : sans jointure profiles
+  if (error) {
+    let q3 = supabase
+      .from('lost_found_items')
+      .select('id, title, description, status, type, location_area, created_at, updated_at')
+      .neq('status', 'resolved')
+      .neq('status', 'found')
+      .neq('status', 'returned')
+      .neq('status', 'restitue')
+      .neq('status', 'clos')
+      .neq('status', 'archive')
+      .neq('status', 'draft')
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    if (currentUserId) q3 = q3.neq('author_id', currentUserId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: d3 } = await q3;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    data = d3 as any;
+  }
+
   return data ?? [];
 }
 
