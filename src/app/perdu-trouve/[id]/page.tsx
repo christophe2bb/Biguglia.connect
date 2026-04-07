@@ -27,6 +27,20 @@ import { TrustScoreMini } from '@/components/ui/TrustScore';
 type LFType = 'perdu' | 'trouve';
 type LFStatus = 'perdu' | 'trouve' | 'identifie' | 'restitue' | 'clos' | 'archive' | 'draft';
 
+// Normalise les statuts anglais (DB legacy) vers les statuts français attendus par l'UI
+function normalizeStatus(s: string | null | undefined): LFStatus {
+  const map: Record<string, LFStatus> = {
+    // anglais → français
+    lost: 'perdu', found: 'trouve', identified: 'identifie',
+    returned: 'restitue', closed: 'clos', archived: 'archive',
+    active: 'perdu', open: 'perdu', resolved: 'clos',
+    // déjà français — pass-through
+    perdu: 'perdu', trouve: 'trouve', identifie: 'identifie',
+    restitue: 'restitue', clos: 'clos', archive: 'archive', draft: 'draft',
+  };
+  return map[s ?? ''] ?? 'perdu'; // fallback sûr
+}
+
 type LFItem = {
   id: string;
   type: LFType;
@@ -116,8 +130,8 @@ const CATEGORIES: Record<string, string> = {
   autre: 'Autre',
 };
 
-function StatusBadge({ status, size = 'md' }: { status: LFStatus; size?: 'sm' | 'md' | 'lg' }) {
-  const cfg = STATUS_CONFIG[status];
+function StatusBadge({ status, size = 'md' }: { status: string; size?: 'sm' | 'md' | 'lg' }) {
+  const cfg = STATUS_CONFIG[normalizeStatus(status)] ?? STATUS_CONFIG.perdu;
   const sz = size === 'sm' ? 'text-xs px-2.5 py-0.5' : size === 'lg' ? 'text-base px-4 py-2' : 'text-sm px-3 py-1';
   return (
     <span className={`inline-flex items-center gap-1.5 font-bold rounded-full border shadow-sm ${cfg.bg} ${cfg.color} ${cfg.border} ${sz}`}>
@@ -179,6 +193,10 @@ export default function PerduTrouveDetailPage() {
 
     const sorted = {
       ...data,
+      // Normalise le statut DB (anglais ou français) vers les valeurs FR attendues par l'UI
+      status: normalizeStatus(data.status),
+      // Normalise le type aussi (DB peut stocker 'lost'/'found' au lieu de 'perdu'/'trouve')
+      type: (['perdu', 'trouve'].includes(data.type) ? data.type : (data.type === 'lost' ? 'perdu' : data.type === 'found' ? 'trouve' : 'perdu')) as LFType,
       photos: (data.photos ?? []).sort((a: { display_order?: number }, b: { display_order?: number }) =>
         (a.display_order ?? 0) - (b.display_order ?? 0)),
     };
@@ -295,7 +313,8 @@ export default function PerduTrouveDetailPage() {
     </div>
   );
 
-  const cfg = STATUS_CONFIG[item.status];
+  // Utilise normalizeStatus pour se prémunir contre tout statut inconnu (DB legacy)
+  const cfg = STATUS_CONFIG[normalizeStatus(item.status)] ?? STATUS_CONFIG.perdu;
   const allPhotos = toPhotoItems(item.photos ?? []);
   const isActive = ['perdu', 'trouve', 'identifie'].includes(item.status);
   const transitions = ALLOWED_TRANSITIONS[item.status] ?? [];

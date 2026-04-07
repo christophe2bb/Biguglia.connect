@@ -39,6 +39,31 @@ const ACTIVE_STATUSES: LFStatus[] = ['perdu', 'trouve', 'identifie'];
 // Statuts du flux historique
 const HISTORY_STATUSES: LFStatus[] = ['restitue', 'clos', 'archive'];
 
+// Statuts anglais (DB legacy) équivalents des statuts actifs
+const ACTIVE_STATUSES_EN = ['lost', 'found', 'identified', 'active', 'open'];
+// Statuts anglais (DB legacy) équivalents des statuts historiques
+const HISTORY_STATUSES_EN = ['returned', 'closed', 'archived', 'resolved'];
+
+// Normalise un statut DB (anglais ou français) vers les valeurs FR de l'UI
+function normalizeItemStatus(s: string | null | undefined): LFStatus {
+  const map: Record<string, LFStatus> = {
+    lost: 'perdu', found: 'trouve', identified: 'identifie',
+    returned: 'restitue', closed: 'clos', archived: 'archive',
+    active: 'perdu', open: 'perdu', resolved: 'clos',
+    perdu: 'perdu', trouve: 'trouve', identifie: 'identifie',
+    restitue: 'restitue', clos: 'clos', archive: 'archive', draft: 'draft',
+  };
+  return map[s ?? ''] ?? 'perdu';
+}
+
+// Normalise le type DB (anglais ou français) vers 'perdu' | 'trouve'
+function normalizeItemType(t: string | null | undefined): LFType {
+  if (t === 'lost') return 'perdu';
+  if (t === 'found') return 'trouve';
+  if (t === 'perdu' || t === 'trouve') return t as LFType;
+  return 'perdu';
+}
+
 type LFItem = {
   id: string;
   type: LFType;
@@ -698,29 +723,41 @@ export default function PerduTrouvePage() {
     const activeStatuses = ACTIVE_STATUSES.map(s => `"${s}"`).join(',');
     const historyStatuses = HISTORY_STATUSES.map(s => `"${s}"`).join(',');
 
-    let query = supabase
-      .from('lost_found_items')
-      .select(`*, author:profiles!lost_found_items_author_id_fkey(full_name, avatar_url, created_at, role, phone), photos:lf_photos(url, display_order, is_cover)`)
-      .neq('status', 'draft')
-      .order('created_at', { ascending: false })
-      .limit(100);
+    // ── Requête principale avec FK explicite ─────────────────────────────────
+    const buildQuery = (selectStr: string) => {
+      let q = supabase
+        .from('lost_found_items')
+        .select(selectStr)
+        .neq('status', 'draft')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      // Inclut les équivalents anglais (DB legacy) pour ne rater aucune annonce
+      if (flux === 'actif') q = q.in('status', [...ACTIVE_STATUSES, ...ACTIVE_STATUSES_EN]);
+      else q = q.in('status', [...HISTORY_STATUSES, ...HISTORY_STATUSES_EN]);
+      if (filterType !== 'all') q = q.eq('type', filterType);
+      if (filterCat !== 'all') q = q.eq('category', filterCat);
+      if (filterStatus !== 'all') q = q.eq('status', filterStatus);
+      if (filterSector) { try { q = q.eq('sector_id', filterSector); } catch { /* optionnel */ } }
+      return q;
+    };
 
-    // Flux actif vs historique
-    if (flux === 'actif') {
-      query = query.in('status', ACTIVE_STATUSES);
-    } else {
-      query = query.in('status', HISTORY_STATUSES);
+    // Tentative 1 : avec FK explicite
+    let { data, error } = await buildQuery(
+      '*, author:profiles!lost_found_items_author_id_fkey(full_name, avatar_url, created_at, role, phone), photos:lf_photos(url, display_order, is_cover)'
+    );
+
+    // Tentative 2 : sans FK nommée
+    if (error?.message?.includes('fkey') || error?.message?.includes('foreign') || error?.code === 'PGRST200') {
+      ({ data, error } = await buildQuery(
+        '*, author:profiles(full_name, avatar_url, created_at, role, phone), photos:lf_photos(url, display_order, is_cover)'
+      ));
     }
 
-    if (filterType !== 'all') query = query.eq('type', filterType);
-    if (filterCat !== 'all') query = query.eq('category', filterCat);
-    if (filterStatus !== 'all') query = query.eq('status', filterStatus);
-    // Filtre secteur (côté DB si la colonne existe, sinon côté client)
-    if (filterSector) {
-      try { query = query.eq('sector_id', filterSector); } catch { /* colonne optionnelle */ }
+    // Tentative 3 : sans jointure profiles ni photos
+    if (error?.message?.includes('fkey') || error?.message?.includes('foreign') || error?.code === 'PGRST200') {
+      ({ data, error } = await buildQuery('*'));
     }
 
-    const { data, error } = await query;
     if (error) {
       if (error.code === '42P01' || error.message?.includes('relation') || error.message?.includes('column')) {
         setDbReady(false);
@@ -730,9 +767,13 @@ export default function PerduTrouvePage() {
     }
     setDbReady(true);
 
-    // Sort photos
-    const enriched = (data || []).map((it: LFItem & { photos?: { url: string; display_order?: number; is_cover?: boolean }[] }) => ({
+    // Normalise les statuts et types (DB peut stocker en anglais) + tri photos
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawData = (data || []) as unknown as (LFItem & { photos?: { url: string; display_order?: number; is_cover?: boolean }[] })[];
+    const enriched = rawData.map((it) => ({
       ...it,
+      status: normalizeItemStatus(it.status),
+      type: normalizeItemType(it.type),
       photos: (it.photos || []).sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)),
     }));
 
