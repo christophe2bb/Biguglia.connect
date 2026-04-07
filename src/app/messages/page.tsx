@@ -153,9 +153,14 @@ export default function MessagesPage() {
       msgs.sort((a, b) => b.created_at.localeCompare(a.created_at));
 
       // Préférer le dernier message NON-système (vrai échange), sinon le dernier tout court
-      const isSystemMsg = (content: string) =>
-        content?.startsWith('👋') || content?.startsWith('✅') || content?.startsWith('🤝') ||
-        content?.includes('Échange confirmé') || content?.includes('Je vous contacte');
+      const isSystemMsg = (content: string) => {
+        if (!content) return false;
+        const l = content.toLowerCase();
+        return content.startsWith('👋') || content.startsWith('✅') || content.startsWith('🤝') ||
+          l.includes('échange confirmé') || l.includes('echange confirme') ||
+          l.includes('je vous contacte') || l.includes('via biguglia connect') ||
+          l.includes('conversation créée') || l.includes('conversation creee');
+      };
       const lastRealMsg = msgs.find(m => !isSystemMsg(m.content)) ?? msgs[0];
       const lastMsg = lastRealMsg;
 
@@ -210,8 +215,10 @@ export default function MessagesPage() {
           conv.last_message_text = msg.content;
           conv.last_message_at = msg.created_at;
           // Ne pas incrémenter le badge pour les messages système/auto
+          const lc = (msg.content || '').toLowerCase();
           const isSys = msg.content?.startsWith('👋') || msg.content?.startsWith('✅') || msg.content?.startsWith('🤝') ||
-            msg.content?.includes('Je vous contacte') || msg.content?.includes('Échange confirmé') || msg.content?.includes('Conversation créée');
+            lc.includes('je vous contacte') || lc.includes('échange confirmé') || lc.includes('echange confirme') ||
+            lc.includes('conversation créée') || lc.includes('conversation creee') || lc.includes('via biguglia connect');
           if (msg.sender_id !== profile.id && !isSys) conv.unread_count = (conv.unread_count || 0) + 1;
           updated.splice(idx, 1);
           updated.unshift(conv);
