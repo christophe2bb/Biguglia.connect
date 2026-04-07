@@ -78,18 +78,20 @@ export default async function HomePage() {
       {/* ══════════════════════════════════════════════════════════
           HERO PHOTO + SEARCH
       ══════════════════════════════════════════════════════════ */}
-      <section className="relative min-h-[60vh] sm:min-h-[70vh] flex items-end overflow-hidden">
-        {/* Fond photo */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/images/biguglia-hero.jpg"
-          alt="Biguglia"
-          className="absolute inset-0 w-full h-full object-cover object-center"
-        />
-        {/* Dégradé bas pour lisibilité */}
-        <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 via-gray-900/30 to-transparent" />
+      <section className="relative min-h-[60vh] sm:min-h-[70vh] flex items-end">
+        {/* Fond photo — overflow-hidden ici uniquement pour ne pas couper le dropdown search */}
+        <div className="absolute inset-0 overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/biguglia-hero.jpg"
+            alt="Biguglia"
+            className="w-full h-full object-cover object-center"
+          />
+          {/* Dégradé bas pour lisibilité */}
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 via-gray-900/30 to-transparent" />
+        </div>
 
-        {/* Contenu */}
+        {/* Contenu — z-10 pour passer au-dessus du fond, dropdown z-50 passe librement */}
         <div className="relative z-10 w-full max-w-4xl mx-auto px-4 sm:px-6 pb-10 sm:pb-14">
           {/* Badge lieu */}
           <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur border border-white/25 rounded-full px-4 py-1.5 mb-4">
