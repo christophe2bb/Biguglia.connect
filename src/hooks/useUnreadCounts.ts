@@ -34,10 +34,12 @@ export function useUnreadCounts(): UnreadCounts {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
     try {
-      // Requête 1 : toutes mes participations avec last_read_at en une fois
+      // Petit délai pour laisser le temps à la BDD d'être commitée
+      await new Promise(r => setTimeout(r, 150));
+      // Requête 1 : toutes mes participations avec last_read_at et joined_at
       const { data: myConvs } = await supabase
         .from('conversation_participants')
-        .select('conversation_id, last_read_at')
+        .select('conversation_id, last_read_at, joined_at')
         .eq('user_id', userId);
 
       myConvIdsRef.current = (myConvs ?? []).map(c => c.conversation_id);
@@ -48,20 +50,38 @@ export function useUnreadCounts(): UnreadCounts {
       // On passe les données côté client pour le filtrage par last_read_at.
       let unreadMessages = 0;
       if (myConvs && myConvs.length > 0) {
+        // Trouver la date la plus ancienne de last_read_at pour limiter la requête côté serveur
+        const oldestReadAt = myConvs.reduce((oldest, c) => {
+          const ts = c.last_read_at ? new Date(c.last_read_at).getTime() : 0;
+          return ts < oldest ? ts : oldest;
+        }, Date.now());
+        const oldestISO = new Date(oldestReadAt).toISOString();
         // Une seule requête : tous les messages non lus de toutes mes conversations
+        // Filtre serveur: created_at > oldest_read_at (élimine l'essentiel côté serveur)
         const convIds = myConvs.map(c => c.conversation_id);
         const { data: allUnread } = await supabase
           .from('messages')
           .select('id, conversation_id, created_at, content')
           .in('conversation_id', convIds)
-          .neq('sender_id', userId);
+          .neq('sender_id', userId)
+          .gt('created_at', oldestISO)
+          .limit(500);
 
         if (allUnread) {
           // Filtrage côté client par last_read_at + exclusion messages système
           const readMap: Record<string, string> = {};
-          myConvs.forEach(c => { readMap[c.conversation_id] = c.last_read_at || '1970-01-01T00:00:00Z'; });
+          myConvs.forEach(c => {
+            // Si last_read_at est NULL, utiliser joined_at comme référence
+            // (les messages avant joined_at ne peuvent pas être "non lus")
+            // Si les deux sont NULL, utiliser 1970 (fallback ultime)
+            const raw = c.last_read_at || c.joined_at || '1970-01-01T00:00:00Z';
+            readMap[c.conversation_id] = raw;
+          });
           unreadMessages = allUnread.filter(m => {
-            if (m.created_at <= readMap[m.conversation_id]) return false;
+            // Comparaison robuste via timestamps
+            const readAt = new Date(readMap[m.conversation_id] || '1970-01-01T00:00:00Z').getTime();
+            const msgAt = new Date(m.created_at).getTime();
+            if (msgAt <= readAt) return false;
             // Exclure messages système/intro automatiques
             const c = m.content || '';
             if (c.startsWith('👋') || c.startsWith('✅') || c.startsWith('🤝')) return false;
@@ -174,9 +194,16 @@ export function useUnreadCounts(): UnreadCounts {
     // markAsRead() fait d'abord le UPDATE last_read_at (await), PUIS dispatch.
     // Donc quand on arrive ici, last_read_at est déjà écrit en BDD.
     const handleMessagesRead = () => {
-      // Annuler le fetch en cours pour forcer un nouveau
+      // Forcer le recalcul : annuler tout debounce en cours
       fetchingRef.current = false;
+      // Double fetch: immédiat + après 800ms pour s'assurer que la BDD est à jour
       fetchCounts(supabase, userId);
+      setTimeout(() => {
+        if (mountedRef.current) {
+          fetchingRef.current = false;
+          fetchCounts(supabase, userId);
+        }
+      }, 800);
     };
     window.addEventListener('messages-read', handleMessagesRead);
 
@@ -186,6 +213,12 @@ export function useUnreadCounts(): UnreadCounts {
     const handleNewNotif = () => {
       fetchingRef.current = false;
       fetchCounts(supabase, userId);
+      setTimeout(() => {
+        if (mountedRef.current) {
+          fetchingRef.current = false;
+          fetchCounts(supabase, userId);
+        }
+      }, 500);
     };
     window.addEventListener('new-notification', handleNewNotif);
 

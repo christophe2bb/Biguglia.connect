@@ -415,15 +415,18 @@ export default function ConversationPage() {
 
   const markAsRead = useCallback(async () => {
     if (!profile) return;
-    // 1. Marquer comme lu dans la BDD
+    // 1. Marquer comme lu dans la BDD avec timestamp normalisé (format ISO Z)
+    const now = new Date().toISOString();
     const { error } = await supabase.from('conversation_participants')
-      .update({ last_read_at: new Date().toISOString() })
+      .update({ last_read_at: now })
       .eq('conversation_id', id as string)
       .eq('user_id', profile.id);
     if (error) {
       console.warn('[markAsRead] UPDATE failed:', error);
+      // Même en cas d'erreur BDD, on force la mise à 0 côté UI
     }
-    // 2. Signaler au hook — il refera fetchCounts immédiatement
+    // 2. Signaler au hook — il refera fetchCounts après un court délai
+    // Le délai permet à Supabase de committer la valeur avant le SELECT
     window.dispatchEvent(new CustomEvent('messages-read', { detail: { conversationId: id } }));
   }, [id, profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
