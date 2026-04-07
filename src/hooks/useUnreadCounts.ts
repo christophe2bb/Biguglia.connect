@@ -24,6 +24,8 @@ export function useUnreadCounts(): UnreadCounts {
   const realtimePollRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   const safePollRef      = useRef<ReturnType<typeof setInterval> | null>(null);
   const fetchingRef      = useRef(false);
+  // Timestamp du montage du hook — ignore tout event realtime antérieur (événements rejoués)
+  const hookStartRef     = useRef<number>(Date.now());
 
   // readMap  : conv_id → last_read_at timestamp (ms)
   const readMapRef       = useRef<Record<string, number>>({});
@@ -139,8 +141,11 @@ export function useUnreadCounts(): UnreadCounts {
         if (!(msg.conversation_id in readMapRef.current)) return;
         if (isSystem(msg.content || '')) return;
 
-        const readAt = readMapRef.current[msg.conversation_id] ?? 0;
         const msgAt  = new Date(msg.created_at).getTime();
+        // Ignorer les événements rejoués (antérieurs au montage du hook)
+        if (msgAt < hookStartRef.current) return;
+
+        const readAt = readMapRef.current[msg.conversation_id] ?? 0;
         if (msgAt <= readAt) return; // message déjà lu (readAt mis à jour par markAsRead)
 
         if (!unreadMapRef.current[msg.conversation_id]) {
@@ -182,6 +187,7 @@ export function useUnreadCounts(): UnreadCounts {
   useEffect(() => {
     mountedRef.current = true;
     fetchingRef.current = false;
+    hookStartRef.current = Date.now();
     readMapRef.current = {};
     unreadMapRef.current = {};
 

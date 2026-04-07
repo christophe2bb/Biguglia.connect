@@ -105,6 +105,8 @@ export default function MessagesPage() {
   const reconnectIdx    = useRef(0);
   const mountedRef      = useRef(true);
   const typeMenuRef     = useRef<HTMLDivElement>(null);
+  // Timestamp de montage — rejette les événements realtime rejoués (antérieurs)
+  const pageStartRef    = useRef<number>(Date.now());
 
   // Fermer menus si clic dehors
   useEffect(() => {
@@ -215,6 +217,9 @@ export default function MessagesPage() {
           conv.last_message_text = msg.content;
           conv.last_message_at = msg.created_at;
           // Ne pas incrémenter le badge pour les messages système/auto
+          // Ignorer les événements rejoués (antérieurs au montage de la page)
+          const msgAt = new Date(msg.created_at).getTime();
+          if (msgAt < pageStartRef.current) return prev;
           const lc = (msg.content || '').toLowerCase();
           const isSys = msg.content?.startsWith('👋') || msg.content?.startsWith('✅') || msg.content?.startsWith('🤝') ||
             lc.includes('je vous contacte') || lc.includes('échange confirmé') || lc.includes('echange confirme') ||
