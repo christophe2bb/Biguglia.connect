@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Search, X, Clock, TrendingUp, Wrench, ShoppingBag, Package,
   Heart, Footprints, Calendar, BookOpen, Handshake, MapPin,
-  ArrowRight, Loader2, AlertCircle,
+  ArrowRight, Loader2, AlertCircle, ScanSearch,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
@@ -82,6 +82,12 @@ const THEME_CONFIG = {
     color: 'text-teal-600',
     bg: 'bg-teal-100',
     icon: <Handshake className="w-3.5 h-3.5" />,
+  },
+  perdu: {
+    label: 'Perdu / Trouvé',
+    color: 'text-rose-600',
+    bg: 'bg-rose-100',
+    icon: <ScanSearch className="w-3.5 h-3.5" />,
   },
 } as const;
 
@@ -217,6 +223,7 @@ export default function GlobalSearch({
         const supabase = createClient();
         const q = `%${debouncedQuery}%`;
 
+        const today = new Date().toISOString().split('T')[0];
         const [
           { data: artisans },
           { data: listings },
@@ -224,54 +231,77 @@ export default function GlobalSearch({
           { data: helps },
           { data: outings },
           { data: events },
-          { data: forum },
+          { data: forumTopics },
           { data: associations },
+          { data: lostFound },
         ] = await Promise.all([
+          // Artisans — nom + description
           supabase
             .from('artisan_profiles')
             .select('id, business_name, service_area, trade_category:trade_categories(name)')
             .or(`business_name.ilike.${q},description.ilike.${q}`)
             .limit(3),
+          // Annonces — titre + description
           supabase
             .from('listings')
             .select('id, title, listing_type, price, location')
-            .ilike('title', q)
+            .or(`title.ilike.${q},description.ilike.${q}`)
             .in('status', ['active', 'reserved'])
             .limit(3),
+          // Matériel — titre + description
           supabase
             .from('equipment_items')
             .select('id, title, description, is_free, pickup_location')
-            .ilike('title', q)
+            .or(`title.ilike.${q},description.ilike.${q}`)
             .eq('is_available', true)
             .limit(3),
+          // Coups de main — titre + description
           supabase
             .from('help_requests')
-            .select('id, title, location_city, help_type')
-            .ilike('title', q)
-            .eq('status', 'active')
+            .select('id, title, description')
+            .or(`title.ilike.${q},description.ilike.${q}`)
+            .neq('status', 'draft')
+            .neq('status', 'resolved')
+            .neq('status', 'archived')
             .limit(3),
+          // Promenades — titre + description
           supabase
             .from('group_outings')
-            .select('id, title, meeting_point, outing_date')
-            .ilike('title', q)
-            .gte('outing_date', new Date().toISOString().split('T')[0])
+            .select('id, title, description, meeting_point, outing_date')
+            .or(`title.ilike.${q},description.ilike.${q}`)
+            .gte('outing_date', today)
             .limit(3),
+          // Événements — titre + description
           supabase
             .from('events')
-            .select('id, title, location, event_date')
-            .ilike('title', q)
-            .gte('event_date', new Date().toISOString().split('T')[0])
+            .select('id, title, description, location, event_date')
+            .or(`title.ilike.${q},description.ilike.${q}`)
+            .gte('event_date', today)
+            .not('status', 'eq', 'annule')
+            .not('status', 'eq', 'draft')
             .limit(3),
+          // Forum topics — titre + contenu
           supabase
-            .from('forum_posts')
-            .select('id, title, category:forum_categories(name)')
-            .ilike('title', q)
+            .from('forum_topics')
+            .select('id, title, content')
+            .or(`title.ilike.${q},content.ilike.${q}`)
+            .neq('status', 'masque')
+            .neq('status', 'archive')
             .limit(3),
+          // Associations — nom + description
           supabase
             .from('associations')
-            .select('id, name, location, category')
-            .ilike('name', q)
+            .select('id, name, location, category, description')
+            .or(`name.ilike.${q},description.ilike.${q}`)
             .eq('status', 'active')
+            .limit(3),
+          // Perdu / Trouvé — titre + description
+          supabase
+            .from('lost_found_items')
+            .select('id, title, description, type, location_area')
+            .or(`title.ilike.${q},description.ilike.${q}`)
+            .neq('status', 'resolved')
+            .neq('status', 'returned')
             .limit(3),
         ]);
 
@@ -314,7 +344,7 @@ export default function GlobalSearch({
           ...(helps || []).map(h => ({
             id: `help-${h.id}`,
             title: h.title,
-            subtitle: h.location_city,
+            subtitle: 'Coup de main',
             href: `/coups-de-main#${h.id}`,
             theme: 'aide',
             themeLabel: THEME_CONFIG.aide.label,
@@ -326,7 +356,7 @@ export default function GlobalSearch({
             id: `outing-${o.id}`,
             title: o.title,
             subtitle: o.meeting_point,
-            href: `/promenades`,
+            href: `/promenades/sorties/${o.id}`,
             theme: 'promenade',
             themeLabel: THEME_CONFIG.promenade.label,
             themeColor: THEME_CONFIG.promenade.color,
@@ -337,17 +367,17 @@ export default function GlobalSearch({
             id: `event-${e.id}`,
             title: e.title,
             subtitle: e.location,
-            href: `/evenements`,
+            href: `/evenements/${e.id}`,
             theme: 'evenement',
             themeLabel: THEME_CONFIG.evenement.label,
             themeColor: THEME_CONFIG.evenement.color,
             themeBg: THEME_CONFIG.evenement.bg,
             icon: THEME_CONFIG.evenement.icon,
           })),
-          ...(forum || []).map(f => ({
+          ...(forumTopics || []).map(f => ({
             id: `forum-${f.id}`,
             title: f.title,
-            subtitle: (f.category as { name?: string } | null)?.name,
+            subtitle: 'Discussion',
             href: `/forum/${f.id}`,
             theme: 'forum',
             themeLabel: THEME_CONFIG.forum.label,
@@ -365,6 +395,17 @@ export default function GlobalSearch({
             themeColor: THEME_CONFIG.association.color,
             themeBg: THEME_CONFIG.association.bg,
             icon: THEME_CONFIG.association.icon,
+          })),
+          ...(lostFound || []).map(l => ({
+            id: `lf-${l.id}`,
+            title: l.title,
+            subtitle: l.type === 'lost' || l.type === 'perdu' ? '🔴 Perdu' : '🟢 Trouvé',
+            href: `/perdu-trouve`,
+            theme: 'perdu' as const,
+            themeLabel: THEME_CONFIG.perdu.label,
+            themeColor: THEME_CONFIG.perdu.color,
+            themeBg: THEME_CONFIG.perdu.bg,
+            icon: THEME_CONFIG.perdu.icon,
           })),
         ];
 
@@ -636,6 +677,7 @@ export default function GlobalSearch({
                       evenement: '/evenements',
                       forum: '/forum',
                       association: '/associations',
+                      perdu: '/perdu-trouve',
                     };
                     return (
                       <button
