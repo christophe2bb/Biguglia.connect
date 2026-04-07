@@ -31,9 +31,13 @@ export function useUnreadCounts(): UnreadCounts {
   const unreadMapRef     = useRef<Record<string, Set<string>>>({});
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
-  const isSystem = (c: string) =>
-    c.startsWith('👋') || c.startsWith('✅') || c.startsWith('🤝') ||
-    c.includes('Je vous contacte') || c.includes('Échange confirmé') || c.includes('Conversation créée');
+  const isSystem = (c: string) => {
+    const lower = c.toLowerCase();
+    return c.startsWith('👋') || c.startsWith('✅') || c.startsWith('🤝') ||
+      lower.includes('je vous contacte') || lower.includes('échange confirmé') ||
+      lower.includes('echange confirme') || lower.includes('conversation créée') ||
+      lower.includes('conversation creee') || lower.includes('via biguglia connect');
+  };
 
   const totalUnreadMsgs = () =>
     Object.values(unreadMapRef.current).reduce((s, set) => s + set.size, 0);
@@ -42,6 +46,8 @@ export function useUnreadCounts(): UnreadCounts {
   const fetchCounts = useCallback(async (supabase: ReturnType<typeof createClient>, userId: string) => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
+    // Sécurité : si fetchCounts ne se termine pas en 15s, débloquer le verrou
+    const lockTimeout = setTimeout(() => { fetchingRef.current = false; }, 15000);
     try {
       // 1. Participations
       const { data: myConvs } = await supabase
@@ -112,6 +118,7 @@ export function useUnreadCounts(): UnreadCounts {
     } catch (err) {
       console.warn('[useUnreadCounts] fetchCounts error:', err);
     } finally {
+      clearTimeout(lockTimeout);
       fetchingRef.current = false;
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
