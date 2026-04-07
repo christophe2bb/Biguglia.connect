@@ -96,7 +96,7 @@ function ContextBanner({
             setContextData({ title: data.name, description: data.description?.slice(0, 120), photo: photos?.[0]?.url, location: data.location });
           }
         } else if (relatedType === 'collection_item') {
-          const { data } = await supabase.from('collection_items').select('title, description, price, photos:collection_photos(url)').eq('id', relatedId).single();
+          const { data } = await supabase.from('collection_items').select('title, description, price, photos:collection_item_photos(url)').eq('id', relatedId).single();
           if (data) {
             const photos = data.photos as Array<{ url: string }> | undefined;
             setContextData({ title: data.title, description: data.description?.slice(0, 120), photo: photos?.[0]?.url, price: data.price != null ? `${data.price} €` : undefined });

@@ -337,8 +337,8 @@ function RechercheContent() {
           .limit(20),
         supabase
           .from('group_outings')
-          .select('id, title, description, meeting_point, outing_date, difficulty, photos:outing_photos(url)')
-          .or(`title.ilike.${pattern},description.ilike.${pattern},location.ilike.${pattern}`)
+          .select('id, title, description, meeting_point, location_city, outing_date, difficulty, photos:outing_photos(url)')
+          .or(`title.ilike.${pattern},description.ilike.${pattern},meeting_point.ilike.${pattern},location_city.ilike.${pattern}`)
           .gte('outing_date', today)
           .limit(20),
         supabase
@@ -354,7 +354,7 @@ function RechercheContent() {
           .limit(20),
         supabase
           .from('associations')
-          .select('id, name, description_short, location, category, logo_url')
+          .select('id, name, description_short, location, category')
           .or(`name.ilike.${pattern},description_short.ilike.${pattern},location.ilike.${pattern},category.ilike.${pattern}`)
           .eq('status', 'active')
           .limit(20),
@@ -517,7 +517,7 @@ function RechercheContent() {
         themeColor: THEMES.association.color,
         themeBg: THEMES.association.bg,
         themeIcon: THEMES.association.icon,
-        image: a.logo_url,
+        image: undefined,
         location: a.location,
         subtitle: a.category,
       }));
