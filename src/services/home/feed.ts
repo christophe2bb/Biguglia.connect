@@ -47,7 +47,7 @@ async function fetchHelpRequests(
   supabase: ReturnType<typeof createClient>,
   currentUserId: string | null,
 ) {
-  const since = new Date(Date.now() - 30 * 86400000).toISOString();
+  const since = new Date(Date.now() - 90 * 86400000).toISOString(); // 90 jours
   let q = supabase
     .from('help_requests')
     .select('id, title, description, status, urgency, sector, created_at, updated_at, author:profiles(id, full_name, avatar_url)')
@@ -87,7 +87,7 @@ async function fetchForumTopics(
   supabase: ReturnType<typeof createClient>,
   currentUserId: string | null,
 ) {
-  const since = new Date(Date.now() - 14 * 86400000).toISOString();
+  const since = new Date(Date.now() - 90 * 86400000).toISOString(); // 90 jours
   let q = supabase
     .from('forum_topics')
     .select('id, title, content, status, sector, created_at, updated_at, reply_count, author:profiles!forum_topics_author_id_fkey(id, full_name, avatar_url)')
@@ -163,6 +163,15 @@ async function fetchOutings(
 
 // ─── Assemblage des sections ──────────────────────────────────────────────────
 
+// Collecte les IDs déjà utilisés dans les sections précédentes (anti-doublon)
+function usedIds(sections: HomeSection[]): Set<string> {
+  const ids = new Set<string>();
+  for (const s of sections) {
+    for (const item of s.items) ids.add(item.id);
+  }
+  return ids;
+}
+
 function buildNowSection(allItems: HomeFeedItem[]): HomeSection {
   const eligible = allItems.filter(i =>
     ['help_request', 'lost_found', 'listing', 'forum_topic'].includes(i.type) && !i.isResolved
@@ -232,8 +241,10 @@ function buildDiscussionsSection(allItems: HomeFeedItem[]): HomeSection {
   };
 }
 
-function buildForYouSection(allItems: HomeFeedItem[]): HomeSection {
-  const items = rankAndFilter(allItems, { limit: SECTION_LIMITS.foryou, maxPerType: 1 });
+// "Pour vous" : uniquement des items PAS encore affichés dans les sections précédentes
+function buildForYouSection(allItems: HomeFeedItem[], alreadyShown: Set<string>): HomeSection {
+  const fresh = allItems.filter(i => !alreadyShown.has(i.id));
+  const items = rankAndFilter(fresh, { limit: SECTION_LIMITS.foryou, maxPerType: 1 });
   return {
     id: 'foryou',
     title: 'Pour vous',
@@ -276,12 +287,20 @@ export async function getHomeFeed(currentUserId: string | null = null): Promise<
     ...outingsToFeedItems(get(outingsRaw) as any[]),
   ];
 
+  // Construire les sections dans l'ordre — "Pour vous" utilise les IDs déjà affichés
+  const nowSection          = buildNowSection(allItems);
+  const needsSection        = buildNeedsSection(allItems);
+  const upcomingSection     = buildUpcomingSection(allItems);
+  const discussionsSection  = buildDiscussionsSection(allItems);
+  const shownSoFar          = usedIds([nowSection, needsSection, upcomingSection, discussionsSection]);
+  const forYouSection       = buildForYouSection(allItems, shownSoFar);
+
   const sections = [
-    buildNowSection(allItems),
-    buildNeedsSection(allItems),
-    buildUpcomingSection(allItems),
-    buildDiscussionsSection(allItems),
-    buildForYouSection(allItems),
+    nowSection,
+    needsSection,
+    upcomingSection,
+    discussionsSection,
+    forYouSection,
   ];
 
   const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0);
