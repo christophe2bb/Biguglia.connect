@@ -149,11 +149,31 @@ export default function PerduTrouveDetailPage() {
   const fetchItem = useCallback(async () => {
     if (!id) return;
     setLoading(true);
-    const { data, error } = await supabase
+
+    // Tentative 1 : avec FK explicite
+    let { data, error } = await supabase
       .from('lost_found_items')
       .select('*, author:profiles!lost_found_items_author_id_fkey(full_name, avatar_url, created_at, role, phone), photos:lf_photos(url, display_order, is_cover, visibility_type)')
       .eq('id', id)
       .single();
+
+    // Tentative 2 : sans FK explicite (si la FK a un autre nom)
+    if ((error || !data) && error?.message?.includes('fkey')) {
+      ({ data, error } = await supabase
+        .from('lost_found_items')
+        .select('*, author:profiles(full_name, avatar_url, created_at, role, phone), photos:lf_photos(url, display_order, is_cover, visibility_type)')
+        .eq('id', id)
+        .single());
+    }
+
+    // Tentative 3 : sans jointure profiles ni lf_photos (table de base uniquement)
+    if (error || !data) {
+      ({ data, error } = await supabase
+        .from('lost_found_items')
+        .select('*')
+        .eq('id', id)
+        .single());
+    }
 
     if (error || !data) { setNotFound(true); setLoading(false); return; }
 

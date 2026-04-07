@@ -263,10 +263,12 @@ export function forumTopicsToFeedItems(rows: RawForumTopic[]): HomeFeedItem[] {
 
 export function lostFoundToFeedItems(rows: RawLostFound[]): HomeFeedItem[] {
   return rows.map((r): HomeFeedItem => {
+    // type peut être 'perdu'/'trouve' (FR) ou 'lost'/'found' (EN)
     const isLost = r.type === 'lost' || r.type === 'perdu'
       || r.title.toLowerCase().includes('perdu');
+    // status peut être EN (resolved/found/returned) ou FR (restitue/clos/archive)
     const status: HomeFeedItemStatus =
-      r.status === 'resolved' || r.status === 'found' || r.status === 'returned'
+      ['resolved', 'found', 'returned', 'restitue', 'clos', 'archive'].includes(r.status ?? '')
         ? 'resolved' : 'open';
 
     const location = r.location_area || r.location || 'Biguglia';
