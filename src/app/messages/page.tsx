@@ -126,6 +126,7 @@ export default function MessagesPage() {
       .select(`
         conversation_id,
         last_read_at,
+        joined_at,
         conversation:conversations(
           id, subject, related_type, related_id, updated_at,
           participants:conversation_participants(
@@ -158,11 +159,13 @@ export default function MessagesPage() {
       const lastRealMsg = msgs.find(m => !isSystemMsg(m.content)) ?? msgs[0];
       const lastMsg = lastRealMsg;
 
-      const since = p.last_read_at || '1970-01-01T00:00:00Z';
+      // Si last_read_at est NULL, utiliser joined_at (messages avant l'entrée dans la conv = lus)
+      // Comparaison robuste via timestamp (évite les problèmes de format +00:00 vs Z)
+      const sinceTs = new Date(p.last_read_at || p.joined_at || '1970-01-01T00:00:00Z').getTime();
       // Exclure les messages système (messages d'intro automatiques) du compteur non lus
       const unread = msgs.filter(m =>
         m.sender_id !== profile.id &&
-        m.created_at > since &&
+        new Date(m.created_at).getTime() > sinceTs &&
         !isSystemMsg(m.content)
       ).length;
 
@@ -206,7 +209,10 @@ export default function MessagesPage() {
           const conv = { ...updated[idx] };
           conv.last_message_text = msg.content;
           conv.last_message_at = msg.created_at;
-          if (msg.sender_id !== profile.id) conv.unread_count = (conv.unread_count || 0) + 1;
+          // Ne pas incrémenter le badge pour les messages système/auto
+          const isSys = msg.content?.startsWith('👋') || msg.content?.startsWith('✅') || msg.content?.startsWith('🤝') ||
+            msg.content?.includes('Je vous contacte') || msg.content?.includes('Échange confirmé') || msg.content?.includes('Conversation créée');
+          if (msg.sender_id !== profile.id && !isSys) conv.unread_count = (conv.unread_count || 0) + 1;
           updated.splice(idx, 1);
           updated.unshift(conv);
           return updated;
