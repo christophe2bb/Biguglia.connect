@@ -369,7 +369,10 @@ export default function ConversationPage() {
   const { id } = useParams();
   const router = useRouter();
   const { profile } = useAuthStore();
-  const supabase = createClient();
+  // Ref stable pour supabase — évite de recréer l'instance à chaque render
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
+  if (!supabaseRef.current) supabaseRef.current = createClient();
+  const supabase = supabaseRef.current;
 
   const [messages, setMessages]       = useState<(Message & { sender?: Profile; is_system?: boolean })[]>([]);
   const [newMessage, setNewMessage]   = useState('');
@@ -413,22 +416,12 @@ export default function ConversationPage() {
     if (data) { profileCacheRef.current[senderId] = data as Profile; return data as Profile; }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const markAsRead = useCallback(async () => {
+  const markAsRead = useCallback(() => {
     if (!profile) return;
-    const readAt = Date.now();
-    const now = new Date(readAt).toISOString();
-    // 1. Dispatch IMMÉDIAT côté UI — le badge tombe à 0 tout de suite
+    // Dispatch l'event → useUnreadCounts gère le badge ET la persistence BDD
     window.dispatchEvent(new CustomEvent('messages-read', {
-      detail: { conversationId: id, readAt }
+      detail: { conversationId: id, readAt: Date.now() }
     }));
-    // 2. Persister en BDD (en arrière-plan, pas besoin d'attendre)
-    supabase.from('conversation_participants')
-      .update({ last_read_at: now })
-      .eq('conversation_id', id as string)
-      .eq('user_id', profile.id)
-      .then(({ error }) => {
-        if (error) console.warn('[markAsRead] UPDATE failed:', error);
-      });
   }, [id, profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pollNewMessages = useCallback(async () => {

@@ -205,20 +205,31 @@ export function useUnreadCounts(): UnreadCounts {
     document.addEventListener('visibilitychange', handleVisibility);
 
     // ── 'messages-read' ──────────────────────────────────────────────────────
-    // markAsRead() dispatche cet event AVANT le UPDATE BDD.
-    // On met à jour le readMap + on vide le unreadMap de cette conv IMMÉDIATEMENT.
-    // Résultat : badge tombe à 0 instantanément côté UI.
-    // Le safe poll (30s) confirmera avec la BDD.
+    // Reçoit { conversationId, readAt } depuis markAsRead().
+    // 1. Met à jour le badge localement (instantané, sans BDD)
+    // 2. Persiste last_read_at en BDD via CE hook (instance supabase authentifiée)
     const handleMessagesRead = (e: Event) => {
       const detail = (e as CustomEvent<{ conversationId?: string; readAt?: number }>).detail;
       const convId = detail?.conversationId;
       const readAt = detail?.readAt ?? Date.now();
 
       if (convId) {
-        // Mise à jour locale immédiate
+        // 1. Mise à jour locale immédiate du readMap
         readMapRef.current[convId] = readAt;
-        // Vider tous les msg non-lus de cette conv
+        // 2. Vider le unreadMap de cette conv → badge tombe à 0 immédiatement
         unreadMapRef.current[convId] = new Set();
+
+        // 3. Persister en BDD depuis ce hook (qui a une session supabase fiable)
+        supabase
+          .from('conversation_participants')
+          .update({ last_read_at: new Date(readAt).toISOString() })
+          .eq('conversation_id', convId)
+          .eq('user_id', userId)
+          .then(({ error }) => {
+            if (error) {
+              console.warn('[useUnreadCounts] mark_read UPDATE failed:', error);
+            }
+          });
       }
 
       // Recalcul du badge sans requête BDD
@@ -227,13 +238,13 @@ export function useUnreadCounts(): UnreadCounts {
         setCounts(prev => ({ messages: msgCount, notifications: prev.notifications, total: msgCount + prev.notifications }));
       }
 
-      // Confirmation BDD en arrière-plan après 2s (pour resynchroniser si besoin)
+      // Confirmation BDD après 3s pour détecter toute désynchronisation
       setTimeout(() => {
         if (mountedRef.current) {
           fetchingRef.current = false;
           fetchCounts(supabase, userId);
         }
-      }, 2000);
+      }, 3000);
     };
     window.addEventListener('messages-read', handleMessagesRead);
 
