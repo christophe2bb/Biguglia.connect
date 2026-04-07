@@ -3,6 +3,8 @@
 // Design coloré : barre top bleue, compteur réponses mis en avant, badge actif
 // ─────────────────────────────────────────────────────────────────────────────
 
+'use client';
+
 import Link from 'next/link';
 import { MessageSquare, ArrowRight, MapPin, TrendingUp } from 'lucide-react';
 import type { HomeFeedItem } from '@/services/home/types';

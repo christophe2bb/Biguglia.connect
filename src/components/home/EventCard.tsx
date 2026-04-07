@@ -1,7 +1,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // EventCard — Carte spécialisée pour les événements et promenades
 // Design fort : grande date en bandeau coloré, compte à rebours mis en avant
+// IMPORTANT: 'use client' obligatoire — new Date() cause un hydration mismatch
 // ─────────────────────────────────────────────────────────────────────────────
+
+'use client';
 
 import Link from 'next/link';
 import { Calendar, MapPin, ArrowRight, Footprints, Clock } from 'lucide-react';
