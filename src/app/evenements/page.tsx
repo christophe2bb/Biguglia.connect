@@ -1290,21 +1290,21 @@ export default function EvenementsPage() {
         data = evData.map((e: Record<string, unknown>) => ({ ...e, is_free: e.price_type === 'gratuit', event_time: e.start_time ?? '18:00', max_participants: e.capacity ?? null })) as LocalEvent[];
         error = null;
       } else {
-        // Fallback to events — try event_participants then event_participants
+        // Fallback to events — without explicit FK (works with any FK name)
         const partTable = 'event_participants';
         const { data: legData, error: legErr } = await supabase
           .from('events')
-          .select(`*, author:profiles!local_events_author_id_fkey(full_name, avatar_url), participants:${partTable}(count), participants_list:${partTable}(user_id, user:profiles(full_name, avatar_url))`)
+          .select(`*, author:profiles(full_name, avatar_url), participants:${partTable}(count), participants_list:${partTable}(user_id, user:profiles(full_name, avatar_url))`)
           .in('status', ['active', 'publie', 'a_venir', 'complet', 'reporte', 'annule', 'passe'])
           .order('event_date', { ascending: true });
         if (!legErr) {
           data = legData as LocalEvent[] | null;
           error = null;
         } else {
-          // Last resort: old table name
+          // Last resort: minimal select without profile join
           const { data: oldData, error: oldErr } = await supabase
             .from('events')
-            .select(`*, author:profiles!local_events_author_id_fkey(full_name, avatar_url), participants:event_participants(count), participants_list:event_participants(user_id, user:profiles(full_name, avatar_url))`)
+            .select(`*, participants:event_participants(count), participants_list:event_participants(user_id, user:profiles(full_name, avatar_url))`)
             .in('status', ['active', 'publie', 'a_venir', 'complet', 'reporte', 'annule', 'passe'])
             .order('event_date', { ascending: true });
           data = oldData as LocalEvent[] | null;

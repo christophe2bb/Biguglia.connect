@@ -299,7 +299,7 @@ export function lostFoundToFeedItems(rows: RawLostFound[]): HomeFeedItem[] {
       freshnessScore: 0,
       relevanceScore: 0,
       finalScore: 0,
-      actionUrl: `/perdu-trouve`,
+      actionUrl: `/perdu-trouve/${r.id}`,
       actionLabel: 'Voir l\'annonce',
       badges,
       metadata: { isLost },

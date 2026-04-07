@@ -229,7 +229,8 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
           .eq('author_id', profileId).gte('event_date', today),
         supabase.from('group_outings').select('id', { count: 'exact', head: true })
           .eq('organizer_id', profileId).gte('outing_date', today),
-        supabase.from('forum_posts').select('id', { count: 'exact', head: true })
+        // forum_topics est le nom de table correct (forum_posts = postes dans un topic)
+        supabase.from('forum_topics').select('id', { count: 'exact', head: true })
           .eq('author_id', profileId),
         supabase.from('associations').select('id', { count: 'exact', head: true })
           .eq('author_id', profileId),

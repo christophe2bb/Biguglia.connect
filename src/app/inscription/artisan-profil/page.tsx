@@ -131,7 +131,8 @@ export default function ArtisanProfilPage() {
     // Attendre la fin du chargement de l'authentification avant de rediriger
     if (authLoading) return;
     if (!profile) { router.push('/connexion'); return; }
-    if (profile.role !== 'artisan_pending') { router.push('/dashboard'); return; }
+    // Autoriser aussi les artisans vérifiés à modifier leur profil
+    if (profile.role !== 'artisan_pending' && profile.role !== 'artisan_verified' && profile.role !== 'admin') { router.push('/dashboard'); return; }
     const fetchCats = async () => {
       const supabase = createClient();
       const { data } = await supabase.from('trade_categories').select('*').order('display_order');

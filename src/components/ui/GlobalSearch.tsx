@@ -400,7 +400,7 @@ export default function GlobalSearch({
             id: `lf-${l.id}`,
             title: l.title,
             subtitle: l.type === 'lost' || l.type === 'perdu' ? '🔴 Perdu' : '🟢 Trouvé',
-            href: `/perdu-trouve`,
+            href: `/perdu-trouve/${l.id}`,
             theme: 'perdu' as const,
             themeLabel: THEME_CONFIG.perdu.label,
             themeColor: THEME_CONFIG.perdu.color,

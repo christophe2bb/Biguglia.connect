@@ -26,7 +26,7 @@ function formatGeneratedAt(iso: string): string {
 // Quick-publish actions
 const QUICK_ACTIONS = [
   { label: 'Annonce', emoji: '📦', href: '/annonces/nouvelle' },
-  { label: 'Coup de main', emoji: '🤝', href: '/coups-de-main/nouveau' },
+  { label: 'Coup de main', emoji: '🤝', href: '/coups-de-main' },
   { label: 'Événement', emoji: '🎉', href: '/evenements/nouveau' },
   { label: 'Forum', emoji: '💬', href: '/forum/nouveau' },
 ];
