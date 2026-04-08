@@ -94,7 +94,16 @@ export function useUnreadCounts(): UnreadCounts {
         for (const m of candidateMsgs) {
           const readAt = readMapRef.current[m.conversation_id] ?? 0;
           const msgAt  = new Date(m.created_at).getTime();
-          if (msgAt > readAt && !isSystem(m.content || '')) {
+          const sys    = isSystem(m.content || '');
+          const counted = msgAt > readAt && !sys;
+          // ── DIAGNOSTIC badge ──────────────────────────────────────────────
+          console.debug(
+            `[badge:fetchCounts] conv=${m.conversation_id.slice(0,8)} ` +
+            `msgId=${m.id.slice(0,8)} created_at=${m.created_at} ` +
+            `readAt=${new Date(readAt).toISOString()} ` +
+            `isSystem=${sys} counted=${counted}`
+          );
+          if (counted) {
             if (!newUnreadMap[m.conversation_id]) newUnreadMap[m.conversation_id] = new Set();
             newUnreadMap[m.conversation_id].add(m.id);
           }
@@ -110,6 +119,8 @@ export function useUnreadCounts(): UnreadCounts {
         .eq('is_read', false);
 
       const msgCount = totalUnreadMsgs();
+      // ── DIAGNOSTIC badge ──────────────────────────────────────────────────
+      console.info(`[badge:fetchCounts] RÉSULTAT messages=${msgCount} notifs=${unreadNotifs || 0} total=${msgCount + (unreadNotifs || 0)}`);
       if (mountedRef.current) {
         setCounts({
           messages: msgCount,
@@ -137,16 +148,29 @@ export function useUnreadCounts(): UnreadCounts {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const msg = payload.new as { id: string; sender_id: string; conversation_id: string; content: string; created_at: string };
         if (msg.sender_id === userId) return;
+        // ── DIAGNOSTIC badge ──────────────────────────────────────────────
+        const _rtConvKnown = msg.conversation_id in readMapRef.current;
+        const _rtSys       = isSystem(msg.content || '');
+        const _rtMsgAt     = new Date(msg.created_at).getTime();
+        const _rtReplayed  = _rtMsgAt < hookStartRef.current;
+        const _rtReadAt    = readMapRef.current[msg.conversation_id] ?? 0;
+        const _rtAlreadyRead = _rtMsgAt <= _rtReadAt;
+        console.info(
+          `[badge:realtime:useUnread] conv=${msg.conversation_id.slice(0,8)} ` +
+          `msgId=${msg.id.slice(0,8)} created_at=${msg.created_at} ` +
+          `convKnown=${_rtConvKnown} isSystem=${_rtSys} ` +
+          `replayed=${_rtReplayed}(hookStart=${new Date(hookStartRef.current).toISOString()}) ` +
+          `alreadyRead=${_rtAlreadyRead}(readAt=${new Date(_rtReadAt).toISOString()}) ` +
+          `→ COMPTÉ=${!_rtSys && !_rtReplayed && !_rtAlreadyRead && _rtConvKnown}`
+        );
         // Vérifier que c'est une de nos conversations
-        if (!(msg.conversation_id in readMapRef.current)) return;
-        if (isSystem(msg.content || '')) return;
-
-        const msgAt  = new Date(msg.created_at).getTime();
+        if (!_rtConvKnown) return;
+        if (_rtSys) return;
         // Ignorer les événements rejoués (antérieurs au montage du hook)
-        if (msgAt < hookStartRef.current) return;
-
-        const readAt = readMapRef.current[msg.conversation_id] ?? 0;
-        if (msgAt <= readAt) return; // message déjà lu (readAt mis à jour par markAsRead)
+        if (_rtReplayed) return;
+        const msgAt  = _rtMsgAt;
+        const readAt = _rtReadAt;
+        if (_rtAlreadyRead) return; // message déjà lu (readAt mis à jour par markAsRead)
 
         if (!unreadMapRef.current[msg.conversation_id]) {
           unreadMapRef.current[msg.conversation_id] = new Set();
@@ -225,6 +249,12 @@ export function useUnreadCounts(): UnreadCounts {
       const detail = (e as CustomEvent<{ conversationId?: string; readAt?: number }>).detail;
       const convId = detail?.conversationId;
       const readAt = detail?.readAt ?? Date.now();
+      // ── DIAGNOSTIC badge ──────────────────────────────────────────────────
+      console.info(
+        `[badge:messages-read:useUnread] convId=${convId?.slice(0,8) ?? 'undefined'} ` +
+        `readAt=${new Date(readAt).toISOString()} ` +
+        `unreadAvant=${unreadMapRef.current[convId ?? '']?.size ?? 0}`
+      );
 
       if (convId) {
         // 1. Mise à jour locale immédiate du readMap
