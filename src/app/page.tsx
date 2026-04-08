@@ -92,22 +92,27 @@ export default async function HomePage() {
         </div>
 
         {/* Contenu — z-10 pour passer au-dessus du fond, dropdown z-50 passe librement */}
-        <div className="relative z-10 w-full max-w-4xl mx-auto px-4 sm:px-6 pb-10 sm:pb-14">
+        <div className="relative z-10 w-full max-w-4xl mx-auto px-4 sm:px-6 pb-10 sm:pb-14 text-center">
           {/* Badge lieu */}
-          <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur border border-white/25 rounded-full px-4 py-1.5 mb-4">
+          <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur border border-white/25 rounded-full px-4 py-1.5 mb-6">
             <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
             <MapPin className="w-3.5 h-3.5 text-white/80" />
             <span className="text-sm font-bold text-white/90">Biguglia · Haute-Corse · 2B</span>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl font-black text-white leading-tight mb-3">
-            Toute la vie de
-            <br />
-            <span className="bg-gradient-to-r from-brand-400 to-amber-300 bg-clip-text text-transparent">
-              Biguglia
+          {/* Titre principal de l'application */}
+          <h1 className="text-5xl sm:text-7xl font-black mb-6 leading-none tracking-tight">
+            <span className="bg-gradient-to-r from-brand-400 via-amber-300 to-brand-500 bg-clip-text text-transparent [text-shadow:_0_2px_10px_rgb(0_0_0_/_50%)]">
+              Biguglia Connect
             </span>
           </h1>
-          <p className="text-white/75 text-base sm:text-lg mb-6 max-w-xl">
+
+          {/* Slogan */}
+          <p className="text-2xl sm:text-3xl font-bold text-white mb-4 leading-tight mx-auto">
+            Toute la vie de Biguglia
+          </p>
+
+          <p className="text-white/80 text-base sm:text-lg mb-8 mx-auto max-w-xl">
             Voisins, artisans, événements, forum, annonces… En un seul endroit.
           </p>
 
