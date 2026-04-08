@@ -672,6 +672,23 @@ export default function ConversationPage() {
     } else if (savedMsg) {
       setMessages(prev => prev.map(m => m.id === tempId ? { ...savedMsg, sender: profile as unknown as Profile } : m));
       lastMsgIdRef.current = savedMsg.id;
+
+      // ── Notification pour l'autre utilisateur ──────────────────────────────
+      // Pas de notification pour les messages système (exchange confirmation, etc.)
+      const isSystem = text.startsWith('👋') || text.startsWith('✅') || text.startsWith('🤝');
+      if (!isSystem && otherUser?.id) {
+        const senderName = profile.full_name || 'Quelqu\'un';
+        const preview = text.length > 60 ? text.slice(0, 60) + '…' : text;
+        supabase.from('notifications').insert({
+          user_id: otherUser.id,
+          type: 'new_message',
+          title: `Message de ${senderName}`,
+          message: preview,
+          link: `/messages/${id as string}`,
+        }).then(({ error: ne }) => {
+          if (ne) console.warn('[sendMessage] notification insert error:', ne);
+        });
+      }
     }
     setSending(false);
     inputRef.current?.focus();
