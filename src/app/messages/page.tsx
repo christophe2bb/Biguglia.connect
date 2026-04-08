@@ -218,13 +218,23 @@ export default function MessagesPage() {
           conv.last_message_at = msg.created_at;
           // Ne pas incrémenter le badge pour les messages système/auto
           // Ignorer les événements rejoués (antérieurs au montage de la page)
-          const msgAt = new Date(msg.created_at).getTime();
-          if (msgAt < pageStartRef.current) return prev;
+          const msgAt    = new Date(msg.created_at).getTime();
+          const replayed = msgAt < pageStartRef.current;
           const lc = (msg.content || '').toLowerCase();
           const isSys = msg.content?.startsWith('👋') || msg.content?.startsWith('✅') || msg.content?.startsWith('🤝') ||
             lc.includes('je vous contacte') || lc.includes('échange confirmé') || lc.includes('echange confirme') ||
             lc.includes('conversation créée') || lc.includes('conversation creee') || lc.includes('via biguglia connect');
-          if (msg.sender_id !== profile.id && !isSys) conv.unread_count = (conv.unread_count || 0) + 1;
+          const isOther   = msg.sender_id !== profile.id;
+          const willCount = isOther && !isSys && !replayed;
+          // ── DIAGNOSTIC badge ──────────────────────────────────────────────────────
+          console.info(
+            `[badge:realtime:page] conv=${msg.conversation_id.slice(0,8)} ` +
+            `msgId=${msg.id.slice(0,8)} created_at=${msg.created_at} ` +
+            `replayed=${replayed}(pageStart=${new Date(pageStartRef.current).toISOString()}) ` +
+            `isOther=${isOther} isSystem=${isSys} → COMPTÉ=${willCount}`
+          );
+          if (replayed) return prev;
+          if (willCount) conv.unread_count = (conv.unread_count || 0) + 1;
           updated.splice(idx, 1);
           updated.unshift(conv);
           return updated;
@@ -259,7 +269,13 @@ export default function MessagesPage() {
     // On met à 0 le badge de cette conversation IMMÉDIATEMENT (sans requête BDD)
     // puis on recharge la liste après 2s pour confirmer.
     const handleMessagesRead = (e: Event) => {
-      const convId = (e as CustomEvent<{ conversationId?: string }>).detail?.conversationId;
+      const convId = (e as CustomEvent<{ conversationId?: string; readAt?: number }>).detail?.conversationId;
+      // ── DIAGNOSTIC badge ──────────────────────────────────────────────────────
+      const prevUnread = conversations.find(c => c.id === convId)?.unread_count ?? '?';
+      console.info(
+        `[badge:messages-read:page] convId=${convId?.slice(0,8) ?? 'undefined'} ` +
+        `unread_count_avant=${prevUnread} → remise à 0`
+      );
       if (convId) {
         setConversations(prev =>
           prev.map(c => c.id === convId ? { ...c, unread_count: 0 } : c)
