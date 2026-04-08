@@ -901,6 +901,8 @@ GRANT EXECUTE ON FUNCTION create_conversation_with_message TO authenticated;
 
 -- Fonction pour récupérer le profil de l'autre participant (contourne RLS)
 -- Nécessaire car la RLS sur conversation_participants filtre sur user_id = auth.uid()
+-- IMPORTANT : utiliser des aliases qualifiés pour éviter l'ambiguïté de "user_id"
+-- entre la colonne de table et la variable PL/pgSQL (erreur 42702)
 CREATE OR REPLACE FUNCTION get_conversation_other_participant(p_conversation_id UUID)
 RETURNS TABLE(user_id UUID, full_name TEXT, avatar_url TEXT)
 LANGUAGE plpgsql
@@ -908,23 +910,25 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_user_id UUID := auth.uid();
+  v_current_user UUID := auth.uid();
 BEGIN
-  -- Vérifier que l'utilisateur participe à cette conversation
+  -- Vérifier que l'utilisateur actuel participe à cette conversation
   IF NOT EXISTS (
-    SELECT 1 FROM conversation_participants
-    WHERE conversation_id = p_conversation_id AND user_id = v_user_id
+    SELECT 1 FROM conversation_participants cp2
+    WHERE cp2.conversation_id = p_conversation_id
+      AND cp2.user_id = v_current_user
   ) THEN
     RAISE EXCEPTION 'ACCESS_DENIED';
   END IF;
 
   -- Retourner le profil de l'autre participant
+  -- Alias explicite p.id AS user_id pour éviter 42702 (ambiguous column reference)
   RETURN QUERY
-    SELECT p.id, p.full_name, p.avatar_url
+    SELECT p.id AS user_id, p.full_name, p.avatar_url
     FROM conversation_participants cp
     JOIN profiles p ON p.id = cp.user_id
     WHERE cp.conversation_id = p_conversation_id
-      AND cp.user_id != v_user_id
+      AND cp.user_id != v_current_user
     LIMIT 1;
 END;
 $$;
