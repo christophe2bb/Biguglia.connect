@@ -106,6 +106,9 @@ export default function MessagesPage() {
   const typeMenuRef     = useRef<HTMLDivElement>(null);
   // Timestamp de montage — rejette les événements realtime rejoués (antérieurs)
   const pageStartRef    = useRef<number>(Date.now());
+  // Cache local de last_read_at : convId → timestamp (ms)
+  // Permet de corriger le badge SANS attendre que le PATCH soit persisté en BDD.
+  const localReadMapRef = useRef<Record<string, number>>({});
 
   // Fermer menus si clic dehors
   useEffect(() => {
@@ -167,7 +170,10 @@ export default function MessagesPage() {
 
       // Si last_read_at est NULL, utiliser joined_at (messages avant l'entrée dans la conv = lus)
       // Comparaison robuste via timestamp (évite les problèmes de format +00:00 vs Z)
-      const sinceTs = new Date(p.last_read_at || p.joined_at || '1970-01-01T00:00:00Z').getTime();
+      // Utiliser le max entre la valeur BDD et le cache local (le PATCH BDD peut avoir du retard)
+      const dbSinceTs    = new Date(p.last_read_at || p.joined_at || '1970-01-01T00:00:00Z').getTime();
+      const localSinceTs = localReadMapRef.current[p.conversation_id] ?? 0;
+      const sinceTs      = Math.max(dbSinceTs, localSinceTs);
       // Exclure les messages système (messages d'intro automatiques) du compteur non lus
       const unread = msgs.filter(m =>
         m.sender_id !== profile.id &&
@@ -268,20 +274,26 @@ export default function MessagesPage() {
     // On met à 0 le badge de cette conversation IMMÉDIATEMENT (sans requête BDD)
     // puis on recharge la liste après 2s pour confirmer.
     const handleMessagesRead = (e: Event) => {
-      const convId = (e as CustomEvent<{ conversationId?: string; readAt?: number }>).detail?.conversationId;
+      const detail = (e as CustomEvent<{ conversationId?: string; readAt?: number }>).detail;
+      const convId = detail?.conversationId;
+      const readAt = detail?.readAt ?? Date.now();
       // ── DIAGNOSTIC badge ──────────────────────────────────────────────────────
       const prevUnread = conversations.find(c => c.id === convId)?.unread_count ?? '?';
       console.info(
         `[badge:messages-read:page] convId=${convId?.slice(0,8) ?? 'undefined'} ` +
-        `unread_count_avant=${prevUnread} → remise à 0`
+        `readAt=${new Date(readAt).toISOString()} unread_count_avant=${prevUnread} → remise à 0`
       );
       if (convId) {
+        // 1. Mettre à jour le cache local (évite la recalcul erroné si BDD pas encore à jour)
+        const current = localReadMapRef.current[convId] ?? 0;
+        localReadMapRef.current[convId] = Math.max(readAt, current);
+        // 2. Mise à zéro immédiate du badge dans la liste
         setConversations(prev =>
           prev.map(c => c.id === convId ? { ...c, unread_count: 0 } : c)
         );
       }
-      // Confirmation BDD après 2s
-      setTimeout(() => { if (mountedRef.current) fetchConversations(); }, 2000);
+      // Confirmation BDD après 5s (laisse le temps au PATCH de se propager)
+      setTimeout(() => { if (mountedRef.current) fetchConversations(); }, 5000);
     };
     window.addEventListener('messages-read', handleMessagesRead);
 
@@ -646,10 +658,13 @@ export default function MessagesPage() {
                       //    → React re-render la liste (badge disparaît) avant que router.push
                       //      ne démonte le composant.
                       if ((conv.unread_count || 0) > 0) {
+                        const readAt = Date.now();
+                        // Mettre à jour le cache local immédiatement
+                        localReadMapRef.current[conv.id] = Math.max(readAt, localReadMapRef.current[conv.id] ?? 0);
                         setConversations(prev =>
                           prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c)
                         );
-                        window.dispatchEvent(new CustomEvent('messages-read', { detail: { conversationId: conv.id } }));
+                        window.dispatchEvent(new CustomEvent('messages-read', { detail: { conversationId: conv.id, readAt } }));
                       }
                       // 2) Navigation différée d'un tick (requestAnimationFrame) pour que
                       //    React ait le temps de peindre le nouveau badge avant de naviguer.
@@ -659,10 +674,12 @@ export default function MessagesPage() {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
                         if ((conv.unread_count || 0) > 0) {
+                          const readAt = Date.now();
+                          localReadMapRef.current[conv.id] = Math.max(readAt, localReadMapRef.current[conv.id] ?? 0);
                           setConversations(prev =>
                             prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c)
                           );
-                          window.dispatchEvent(new CustomEvent('messages-read', { detail: { conversationId: conv.id } }));
+                          window.dispatchEvent(new CustomEvent('messages-read', { detail: { conversationId: conv.id, readAt } }));
                         }
                         requestAnimationFrame(() => router.push(`/messages/${conv.id}`));
                       }
