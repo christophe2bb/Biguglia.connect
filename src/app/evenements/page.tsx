@@ -1284,7 +1284,8 @@ export default function EvenementsPage() {
       const { data: evData, error: evErr } = await supabase
         .from('events')
         .select(`*, author:profiles(full_name, avatar_url), participants:event_participants(count), participants_list:event_participants(user_id, user:profiles(full_name, avatar_url))`)
-        .in('status', ['a_venir', 'complet', 'reporte', 'annule', 'passe'])
+        .in('status', ['a_venir', 'complet', 'reporte'])
+        .gte('event_date', today)
         .order('event_date', { ascending: true });
       if (!evErr && evData) {
         data = evData.map((e: Record<string, unknown>) => ({ ...e, is_free: e.price_type === 'gratuit', event_time: e.start_time ?? '18:00', max_participants: e.capacity ?? null })) as LocalEvent[];
@@ -1295,7 +1296,8 @@ export default function EvenementsPage() {
         const { data: legData, error: legErr } = await supabase
           .from('events')
           .select(`*, author:profiles(full_name, avatar_url), participants:${partTable}(count), participants_list:${partTable}(user_id, user:profiles(full_name, avatar_url))`)
-          .in('status', ['active', 'publie', 'a_venir', 'complet', 'reporte', 'annule', 'passe'])
+          .in('status', ['active', 'publie', 'a_venir', 'complet', 'reporte'])
+          .gte('event_date', today)
           .order('event_date', { ascending: true });
         if (!legErr) {
           data = legData as LocalEvent[] | null;
@@ -1305,7 +1307,8 @@ export default function EvenementsPage() {
           const { data: oldData, error: oldErr } = await supabase
             .from('events')
             .select(`*, participants:event_participants(count), participants_list:event_participants(user_id, user:profiles(full_name, avatar_url))`)
-            .in('status', ['active', 'publie', 'a_venir', 'complet', 'reporte', 'annule', 'passe'])
+            .in('status', ['active', 'publie', 'a_venir', 'complet', 'reporte'])
+            .gte('event_date', today)
             .order('event_date', { ascending: true });
           data = oldData as LocalEvent[] | null;
           error = oldErr;
