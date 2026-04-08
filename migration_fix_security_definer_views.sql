@@ -13,9 +13,7 @@
 -- =====================================================
 DROP VIEW IF EXISTS public.moderation_kpi CASCADE;
 
-CREATE VIEW public.moderation_kpi 
-SECURITY INVOKER  -- Enforce RLS with querying user's permissions
-AS
+CREATE VIEW public.moderation_kpi AS
 SELECT 
   COUNT(*) FILTER (WHERE status = 'pending') as pending_count,
   COUNT(*) FILTER (WHERE status = 'approved') as approved_count,
@@ -28,9 +26,7 @@ FROM public.moderation_queue;
 -- =====================================================
 DROP VIEW IF EXISTS public.outing_organizer_summary CASCADE;
 
-CREATE VIEW public.outing_organizer_summary
-SECURITY INVOKER
-AS
+CREATE VIEW public.outing_organizer_summary AS
 SELECT 
   p.id as organizer_id,
   p.full_name,
@@ -53,9 +49,7 @@ GROUP BY p.id, p.full_name;
 -- =====================================================
 DROP VIEW IF EXISTS public.event_organizer_summary CASCADE;
 
-CREATE VIEW public.event_organizer_summary
-SECURITY INVOKER
-AS
+CREATE VIEW public.event_organizer_summary AS
 SELECT 
   p.id as organizer_id,
   p.full_name,
@@ -78,9 +72,7 @@ GROUP BY p.id, p.full_name;
 -- =====================================================
 DROP VIEW IF EXISTS public.equipment_owner_summary CASCADE;
 
-CREATE VIEW public.equipment_owner_summary
-SECURITY INVOKER
-AS
+CREATE VIEW public.equipment_owner_summary AS
 SELECT 
   p.id as owner_id,
   p.full_name,
@@ -104,9 +96,7 @@ GROUP BY p.id, p.full_name;
 -- =====================================================
 DROP VIEW IF EXISTS public.sector_stats CASCADE;
 
-CREATE VIEW public.sector_stats
-SECURITY INVOKER
-AS
+CREATE VIEW public.sector_stats AS
 SELECT 
   tc.name as sector_name,
   tc.slug as sector_slug,
