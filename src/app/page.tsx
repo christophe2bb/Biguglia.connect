@@ -92,27 +92,27 @@ export default async function HomePage() {
         </div>
 
         {/* Contenu — z-10 pour passer au-dessus du fond, dropdown z-50 passe librement */}
-        <div className="relative z-10 w-full max-w-4xl mx-auto px-4 sm:px-6 pb-10 sm:pb-14 text-center">
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pb-12 sm:pb-16 text-center flex flex-col items-center justify-center">
           {/* Badge lieu */}
-          <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur border border-white/25 rounded-full px-4 py-1.5 mb-6">
-            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-            <MapPin className="w-3.5 h-3.5 text-white/80" />
-            <span className="text-sm font-bold text-white/90">Biguglia · Haute-Corse · 2B</span>
+          <div className="inline-flex items-center gap-2.5 bg-white/25 backdrop-blur-md border border-white/40 rounded-full px-6 py-2.5 mb-10">
+            <span className="w-3 h-3 bg-emerald-300 rounded-full animate-pulse shadow-lg shadow-emerald-300/50" />
+            <MapPin className="w-5 h-5 text-white" />
+            <span className="text-lg font-bold text-white tracking-wide">Biguglia · Haute-Corse · 2B</span>
           </div>
 
-          {/* Titre principal de l'application */}
-          <h1 className="text-5xl sm:text-7xl font-black mb-6 leading-none tracking-tight">
-            <span className="bg-gradient-to-r from-brand-400 via-amber-300 to-brand-500 bg-clip-text text-transparent [text-shadow:_0_2px_10px_rgb(0_0_0_/_50%)]">
+          {/* Titre principal de l'application - ULTRA ÉNORME avec couleurs pastel harmonieuses */}
+          <h1 className="text-8xl sm:text-9xl lg:text-[12rem] xl:text-[14rem] font-black mb-10 leading-[0.85] tracking-tighter">
+            <span className="bg-gradient-to-br from-rose-300 via-pink-200 to-purple-300 bg-clip-text text-transparent drop-shadow-[0_8px_25px_rgba(255,182,193,0.5)] animate-[gradient_8s_ease_infinite]">
               Biguglia Connect
             </span>
           </h1>
 
-          {/* Slogan */}
-          <p className="text-2xl sm:text-3xl font-bold text-white mb-4 leading-tight mx-auto">
+          {/* Slogan - Plus gros et avec couleurs pastel harmonieuses */}
+          <p className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black mb-8 leading-tight mx-auto bg-gradient-to-r from-sky-200 via-blue-200 to-indigo-200 bg-clip-text text-transparent">
             Toute la vie de Biguglia
           </p>
 
-          <p className="text-white/80 text-base sm:text-lg mb-8 mx-auto max-w-xl">
+          <p className="text-white text-xl sm:text-2xl lg:text-3xl mb-12 mx-auto max-w-3xl font-semibold leading-relaxed">
             Voisins, artisans, événements, forum, annonces… En un seul endroit.
           </p>
 
