@@ -85,7 +85,7 @@ BEGIN
     FROM public.trade_categories tc
     LEFT JOIN public.artisan_profiles ap ON ap.trade_category_id = tc.id
     LEFT JOIN public.service_requests sr ON sr.artisan_id = ap.id
-    LEFT JOIN public.reviews r ON r.related_type = 'service_request' AND r.related_id = sr.id
+    LEFT JOIN public.reviews r ON r.artisan_id = ap.id
     GROUP BY tc.id, tc.name, tc.slug;
     
     RAISE NOTICE '✓ sector_stats recreated';
