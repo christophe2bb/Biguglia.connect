@@ -10,7 +10,6 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { Conversation, Profile } from '@/types';
-import Link from 'next/link';
 import Avatar from '@/components/ui/Avatar';
 import EmptyState from '@/components/ui/EmptyState';
 import { formatRelative, cn } from '@/lib/utils';
@@ -637,17 +636,35 @@ export default function MessagesPage() {
                   {/* Bande non-lu */}
                   <div className={cn('w-1 self-stretch rounded-r flex-shrink-0', hasUnread ? 'bg-brand-500' : 'bg-transparent')} />
 
-                  {/* Lien principal */}
-                  <Link
-                    href={`/messages/${conv.id}`}
-                    className="flex-1 flex items-center gap-3.5 px-4 py-4 min-w-0"
+                  {/* Lien principal — div + router.push pour laisser React re-render avant navigation */}
+                  <div
+                    role="link"
+                    tabIndex={0}
+                    className="flex-1 flex items-center gap-3.5 px-4 py-4 min-w-0 cursor-pointer"
                     onClick={() => {
-                      // Décrémentation optimiste immédiate au clic (avant navigation)
+                      // 1) Mise à zéro optimiste AVANT la navigation
+                      //    → React re-render la liste (badge disparaît) avant que router.push
+                      //      ne démonte le composant.
                       if ((conv.unread_count || 0) > 0) {
                         setConversations(prev =>
                           prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c)
                         );
                         window.dispatchEvent(new CustomEvent('messages-read', { detail: { conversationId: conv.id } }));
+                      }
+                      // 2) Navigation différée d'un tick (requestAnimationFrame) pour que
+                      //    React ait le temps de peindre le nouveau badge avant de naviguer.
+                      requestAnimationFrame(() => router.push(`/messages/${conv.id}`));
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if ((conv.unread_count || 0) > 0) {
+                          setConversations(prev =>
+                            prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c)
+                          );
+                          window.dispatchEvent(new CustomEvent('messages-read', { detail: { conversationId: conv.id } }));
+                        }
+                        requestAnimationFrame(() => router.push(`/messages/${conv.id}`));
                       }
                     }}
                   >
@@ -714,7 +731,7 @@ export default function MessagesPage() {
                         </div>
                       )}
                     </div>
-                  </Link>
+                  </div>
 
                   {/* Bouton supprimer */}
                   <button
