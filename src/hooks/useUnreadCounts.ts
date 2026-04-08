@@ -64,19 +64,31 @@ export function useUnreadCounts(): UnreadCounts {
         return;
       }
 
-      // Mettre à jour readMap
+      // Mettre à jour readMap depuis la BDD
       myConvs.forEach(c => {
         const ref = c.last_read_at || c.joined_at || '1970-01-01T00:00:00Z';
-        readMapRef.current[c.conversation_id] = new Date(ref).getTime();
+        const tsFromDB = new Date(ref).getTime();
+        const tsInMem  = readMapRef.current[c.conversation_id] ?? 0;
+        // Ne PAS dégrader readMap : conserver le plus récent entre BDD et mémoire locale
+        const tsToUse  = Math.max(tsFromDB, tsInMem);
+        readMapRef.current[c.conversation_id] = tsToUse;
+        if (tsFromDB < tsInMem) {
+          console.warn(
+            `[badge:fetchCounts] readMap PROTECT conv=${c.conversation_id.slice(0,8)} ` +
+            `DB=${new Date(tsFromDB).toISOString()} < Mem=${new Date(tsInMem).toISOString()} → garde mémoire`
+          );
+        }
       });
 
       // 2. Messages non lus
       const convIds = myConvs.map(c => c.conversation_id);
-      const oldestTs = Math.min(...myConvs.map(c => {
-        const ref = c.last_read_at || c.joined_at;
-        return ref ? new Date(ref).getTime() : 0;
-      }));
+      // Utiliser readMapRef (déjà protégé) pour calculer oldestISO
+      const convIds2 = Object.keys(readMapRef.current);
+      const oldestTs = convIds2.length > 0
+        ? Math.min(...convIds2.map(cid => readMapRef.current[cid]))
+        : 0;
       const oldestISO = new Date(Math.max(oldestTs, 0)).toISOString();
+      console.info(`[badge:fetchCounts] START oldestISO=${oldestISO} convIds=${convIds.length}`);
 
       const { data: candidateMsgs } = await supabase
         .from('messages')
@@ -97,11 +109,12 @@ export function useUnreadCounts(): UnreadCounts {
           const sys    = isSystem(m.content || '');
           const counted = msgAt > readAt && !sys;
           // ── DIAGNOSTIC badge ──────────────────────────────────────────────
-          console.debug(
+          console.info(
             `[badge:fetchCounts] conv=${m.conversation_id.slice(0,8)} ` +
             `msgId=${m.id.slice(0,8)} created_at=${m.created_at} ` +
             `readAt=${new Date(readAt).toISOString()} ` +
-            `isSystem=${sys} counted=${counted}`
+            `isSystem=${sys} counted=${counted} ` +
+            `content=${JSON.stringify((m.content||'').slice(0,50))}`
           );
           if (counted) {
             if (!newUnreadMap[m.conversation_id]) newUnreadMap[m.conversation_id] = new Set();
@@ -257,21 +270,25 @@ export function useUnreadCounts(): UnreadCounts {
       );
 
       if (convId) {
-        // 1. Mise à jour locale immédiate du readMap
-        readMapRef.current[convId] = readAt;
+        // 1. Ne PAS dégrader readMap : garder le plus récent entre l'event et la mémoire actuelle
+        const currentReadAt = readMapRef.current[convId] ?? 0;
+        const effectiveReadAt = Math.max(readAt, currentReadAt);
+        readMapRef.current[convId] = effectiveReadAt;
         // 2. Vider le unreadMap de cette conv → badge tombe à 0 immédiatement
         unreadMapRef.current[convId] = new Set();
 
-        // 3. Persister en BDD depuis ce hook (qui a une session supabase fiable)
+        // 3. Persister en BDD — n'écrire que si effectiveReadAt > valeur connue en BDD
+        // (évite d'écraser un last_read_at plus récent défini manuellement ou par un autre onglet)
+        const newISO = new Date(effectiveReadAt).toISOString();
+        console.info(`[badge:messages-read:useUnread] PATCH last_read_at=${newISO} (effectiveReadAt vs event: max(${new Date(readAt).toISOString()}, ${new Date(currentReadAt).toISOString()}))`);
         supabase
           .from('conversation_participants')
-          .update({ last_read_at: new Date(readAt).toISOString() })
+          .update({ last_read_at: newISO })
           .eq('conversation_id', convId)
           .eq('user_id', userId)
+          .or(`last_read_at.is.null,last_read_at.lt.${newISO}`)  // n'écrire que si la BDD est plus ancienne
           .then(({ error }) => {
-            if (error) {
-              console.warn('[useUnreadCounts] mark_read UPDATE failed:', error);
-            }
+            if (error) console.warn('[useUnreadCounts] mark_read UPDATE failed:', error);
           });
       }
 
