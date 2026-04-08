@@ -1,25 +1,24 @@
 -- ============================================
--- MIGRATION: Optimisation Performance RLS (VERSION CORRIGÉE)
+-- MIGRATION: Optimisation Performance RLS (TABLES DE BASE UNIQUEMENT)
 -- ============================================
 -- Problème: auth.uid() et auth.jwt() sont ré-évalués pour chaque ligne dans les politiques RLS
 -- Solution: Utiliser (SELECT auth.uid()) pour évaluer une seule fois
 -- Impact: Amélioration drastique des performances sur toutes les requêtes authentifiées
 -- Référence: https://supabase.com/docs/guides/database/database-linter?lint=auth_rls_initplan
 -- Date: 2026-04-08
+-- Note: Cette migration ne touche que les tables du schéma de base (supabase-schema.sql)
 
 -- ============================================
 -- PARTIE 1: PROFILES
 -- ============================================
 
--- Supprimer anciennes politiques
 DROP POLICY IF EXISTS "allow_select" ON public.profiles;
 DROP POLICY IF EXISTS "allow_update" ON public.profiles;
 DROP POLICY IF EXISTS "allow_insert" ON public.profiles;
 DROP POLICY IF EXISTS "profiles_insert" ON public.profiles;
 
--- Recréer avec (SELECT auth.uid())
 CREATE POLICY "allow_select" ON public.profiles
-  FOR SELECT USING (true); -- Les profils sont publics
+  FOR SELECT USING (true);
 
 CREATE POLICY "allow_update" ON public.profiles
   FOR UPDATE USING ((SELECT auth.uid()) = id);
@@ -67,17 +66,12 @@ CREATE POLICY "artisan_photos_delete" ON public.artisan_photos
   );
 
 -- ============================================
--- PARTIE 3: SERVICE REQUESTS & COMMENTS
+-- PARTIE 3: SERVICE REQUESTS
 -- ============================================
 
--- Service Requests utilise resident_id et artisan_id
-DROP POLICY IF EXISTS "service_requests_select" ON public.service_requests;
 DROP POLICY IF EXISTS "service_requests_select_parties" ON public.service_requests;
-DROP POLICY IF EXISTS "service_requests_insert" ON public.service_requests;
 DROP POLICY IF EXISTS "service_requests_insert_resident" ON public.service_requests;
-DROP POLICY IF EXISTS "service_requests_update" ON public.service_requests;
 DROP POLICY IF EXISTS "service_requests_update_parties" ON public.service_requests;
-DROP POLICY IF EXISTS "service_requests_delete" ON public.service_requests;
 
 CREATE POLICY "service_requests_select_parties" ON public.service_requests
   FOR SELECT USING (
@@ -98,22 +92,10 @@ CREATE POLICY "service_requests_update_parties" ON public.service_requests
     )
   );
 
--- Request Comments
-DROP POLICY IF EXISTS "request_comments_select" ON public.request_comments;
-DROP POLICY IF EXISTS "request_comments_insert" ON public.request_comments;
-
-CREATE POLICY "request_comments_select" ON public.request_comments
-  FOR SELECT USING (true);
-
-CREATE POLICY "request_comments_insert" ON public.request_comments
-  FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id);
-
 -- ============================================
 -- PARTIE 4: MESSAGES & CONVERSATIONS
 -- ============================================
 
-DROP POLICY IF EXISTS "messages_select" ON public.messages;
-DROP POLICY IF EXISTS "messages_insert" ON public.messages;
 DROP POLICY IF EXISTS "messages_select_participant" ON public.messages;
 DROP POLICY IF EXISTS "messages_insert_participant" ON public.messages;
 
@@ -134,8 +116,6 @@ CREATE POLICY "messages_insert_participant" ON public.messages
   );
 
 -- Conversations
-DROP POLICY IF EXISTS "conversations_select" ON public.conversations;
-DROP POLICY IF EXISTS "conversations_update" ON public.conversations;
 DROP POLICY IF EXISTS "conversations_select_participant" ON public.conversations;
 DROP POLICY IF EXISTS "conversations_update_participant" ON public.conversations;
 
@@ -154,9 +134,6 @@ CREATE POLICY "conversations_update_participant" ON public.conversations
   );
 
 -- Conversation Participants
-DROP POLICY IF EXISTS "conversation_participants_select" ON public.conversation_participants;
-DROP POLICY IF EXISTS "conversation_participants_insert" ON public.conversation_participants;
-DROP POLICY IF EXISTS "conversation_participants_update" ON public.conversation_participants;
 DROP POLICY IF EXISTS "conversation_participants_select_own" ON public.conversation_participants;
 DROP POLICY IF EXISTS "conversation_participants_insert_own" ON public.conversation_participants;
 DROP POLICY IF EXISTS "conversation_participants_update_own" ON public.conversation_participants;
@@ -174,10 +151,6 @@ CREATE POLICY "conversation_participants_update_own" ON public.conversation_part
 -- PARTIE 5: LISTINGS & EQUIPMENT
 -- ============================================
 
-DROP POLICY IF EXISTS "listings_select" ON public.listings;
-DROP POLICY IF EXISTS "listings_insert" ON public.listings;
-DROP POLICY IF EXISTS "listings_update" ON public.listings;
-DROP POLICY IF EXISTS "listings_delete" ON public.listings;
 DROP POLICY IF EXISTS "listings_select_published_or_own" ON public.listings;
 DROP POLICY IF EXISTS "listings_insert_own" ON public.listings;
 DROP POLICY IF EXISTS "listings_update_own" ON public.listings;
@@ -196,9 +169,6 @@ CREATE POLICY "listings_delete_own" ON public.listings
   FOR DELETE USING ((SELECT auth.uid()) = user_id);
 
 -- Listing Photos
-DROP POLICY IF EXISTS "listing_photos_select" ON public.listing_photos;
-DROP POLICY IF EXISTS "listing_photos_insert" ON public.listing_photos;
-DROP POLICY IF EXISTS "listing_photos_delete" ON public.listing_photos;
 DROP POLICY IF EXISTS "listing_photos_select_public" ON public.listing_photos;
 DROP POLICY IF EXISTS "listing_photos_insert_owner" ON public.listing_photos;
 DROP POLICY IF EXISTS "listing_photos_delete_owner" ON public.listing_photos;
@@ -220,11 +190,7 @@ CREATE POLICY "listing_photos_delete_owner" ON public.listing_photos
     )
   );
 
--- Equipment Items (utilise owner_id)
-DROP POLICY IF EXISTS "equipment_items_select" ON public.equipment_items;
-DROP POLICY IF EXISTS "equipment_items_insert" ON public.equipment_items;
-DROP POLICY IF EXISTS "equipment_items_update" ON public.equipment_items;
-DROP POLICY IF EXISTS "equipment_items_delete" ON public.equipment_items;
+-- Equipment Items
 DROP POLICY IF EXISTS "equipment_items_select_available_or_own" ON public.equipment_items;
 DROP POLICY IF EXISTS "equipment_items_insert_own" ON public.equipment_items;
 DROP POLICY IF EXISTS "equipment_items_update_own" ON public.equipment_items;
@@ -243,9 +209,6 @@ CREATE POLICY "equipment_items_delete_own" ON public.equipment_items
   FOR DELETE USING ((SELECT auth.uid()) = owner_id);
 
 -- Equipment Photos
-DROP POLICY IF EXISTS "equipment_photos_select" ON public.equipment_photos;
-DROP POLICY IF EXISTS "equipment_photos_insert" ON public.equipment_photos;
-DROP POLICY IF EXISTS "equipment_photos_delete" ON public.equipment_photos;
 DROP POLICY IF EXISTS "equipment_photos_select_public" ON public.equipment_photos;
 DROP POLICY IF EXISTS "equipment_photos_insert_owner" ON public.equipment_photos;
 DROP POLICY IF EXISTS "equipment_photos_delete_owner" ON public.equipment_photos;
@@ -267,10 +230,7 @@ CREATE POLICY "equipment_photos_delete_owner" ON public.equipment_photos
     )
   );
 
--- Borrow Requests (utilise borrower_id)
-DROP POLICY IF EXISTS "borrow_requests_select" ON public.borrow_requests;
-DROP POLICY IF EXISTS "borrow_requests_insert" ON public.borrow_requests;
-DROP POLICY IF EXISTS "borrow_requests_update" ON public.borrow_requests;
+-- Borrow Requests
 DROP POLICY IF EXISTS "borrow_requests_select_parties" ON public.borrow_requests;
 DROP POLICY IF EXISTS "borrow_requests_insert_borrower" ON public.borrow_requests;
 DROP POLICY IF EXISTS "borrow_requests_update_parties" ON public.borrow_requests;
@@ -298,11 +258,6 @@ CREATE POLICY "borrow_requests_update_parties" ON public.borrow_requests
 -- PARTIE 6: FORUM
 -- ============================================
 
--- Forum Posts (utilise author_id)
-DROP POLICY IF EXISTS "forum_posts_select" ON public.forum_posts;
-DROP POLICY IF EXISTS "forum_posts_insert" ON public.forum_posts;
-DROP POLICY IF EXISTS "forum_posts_update" ON public.forum_posts;
-DROP POLICY IF EXISTS "forum_posts_delete" ON public.forum_posts;
 DROP POLICY IF EXISTS "forum_posts_select_published_or_own" ON public.forum_posts;
 DROP POLICY IF EXISTS "forum_posts_insert_own" ON public.forum_posts;
 DROP POLICY IF EXISTS "forum_posts_update_own" ON public.forum_posts;
@@ -320,11 +275,7 @@ CREATE POLICY "forum_posts_update_own" ON public.forum_posts
 CREATE POLICY "forum_posts_delete_own" ON public.forum_posts
   FOR DELETE USING ((SELECT auth.uid()) = author_id);
 
--- Forum Comments (utilise author_id)
-DROP POLICY IF EXISTS "forum_comments_select" ON public.forum_comments;
-DROP POLICY IF EXISTS "forum_comments_insert" ON public.forum_comments;
-DROP POLICY IF EXISTS "forum_comments_update" ON public.forum_comments;
-DROP POLICY IF EXISTS "forum_comments_delete" ON public.forum_comments;
+-- Forum Comments
 DROP POLICY IF EXISTS "forum_comments_select_public" ON public.forum_comments;
 DROP POLICY IF EXISTS "forum_comments_insert_own" ON public.forum_comments;
 DROP POLICY IF EXISTS "forum_comments_update_own" ON public.forum_comments;
@@ -346,11 +297,6 @@ CREATE POLICY "forum_comments_delete_own" ON public.forum_comments
 -- PARTIE 7: REVIEWS & NOTIFICATIONS
 -- ============================================
 
--- Reviews (utilise reviewer_id et reviewee_id)
-DROP POLICY IF EXISTS "reviews_select" ON public.reviews;
-DROP POLICY IF EXISTS "reviews_insert" ON public.reviews;
-DROP POLICY IF EXISTS "reviews_update" ON public.reviews;
-DROP POLICY IF EXISTS "reviews_delete" ON public.reviews;
 DROP POLICY IF EXISTS "reviews_select_public" ON public.reviews;
 DROP POLICY IF EXISTS "reviews_insert_own" ON public.reviews;
 DROP POLICY IF EXISTS "reviews_update_own" ON public.reviews;
@@ -369,10 +315,6 @@ CREATE POLICY "reviews_delete_own" ON public.reviews
   FOR DELETE USING ((SELECT auth.uid()) = reviewer_id);
 
 -- Notifications
-DROP POLICY IF EXISTS "notifications_select" ON public.notifications;
-DROP POLICY IF EXISTS "notifications_insert" ON public.notifications;
-DROP POLICY IF EXISTS "notifications_update" ON public.notifications;
-DROP POLICY IF EXISTS "notifications_delete" ON public.notifications;
 DROP POLICY IF EXISTS "notifications_select_own" ON public.notifications;
 DROP POLICY IF EXISTS "notifications_insert_system" ON public.notifications;
 DROP POLICY IF EXISTS "notifications_update_own" ON public.notifications;
@@ -382,7 +324,7 @@ CREATE POLICY "notifications_select_own" ON public.notifications
   FOR SELECT USING ((SELECT auth.uid()) = user_id);
 
 CREATE POLICY "notifications_insert_system" ON public.notifications
-  FOR INSERT WITH CHECK (true); -- System can insert
+  FOR INSERT WITH CHECK (true);
 
 CREATE POLICY "notifications_update_own" ON public.notifications
   FOR UPDATE USING ((SELECT auth.uid()) = user_id);
@@ -394,11 +336,6 @@ CREATE POLICY "notifications_delete_own" ON public.notifications
 -- PARTIE 8: APPOINTMENTS
 -- ============================================
 
--- Appointments (utilise resident_id et artisan_id)
-DROP POLICY IF EXISTS "appointments_select" ON public.appointments;
-DROP POLICY IF EXISTS "appointments_insert" ON public.appointments;
-DROP POLICY IF EXISTS "appointments_update" ON public.appointments;
-DROP POLICY IF EXISTS "appointments_delete" ON public.appointments;
 DROP POLICY IF EXISTS "appointments_select_parties" ON public.appointments;
 DROP POLICY IF EXISTS "appointments_insert_resident" ON public.appointments;
 DROP POLICY IF EXISTS "appointments_update_parties" ON public.appointments;
@@ -430,9 +367,6 @@ CREATE POLICY "appointments_delete_resident" ON public.appointments
 -- PARTIE 9: REPORTS
 -- ============================================
 
--- Reports (utilise reporter_id)
-DROP POLICY IF EXISTS "reports_select" ON public.reports;
-DROP POLICY IF EXISTS "reports_insert" ON public.reports;
 DROP POLICY IF EXISTS "reports_select_own" ON public.reports;
 DROP POLICY IF EXISTS "reports_insert_own" ON public.reports;
 
@@ -452,13 +386,12 @@ DECLARE
   _count int := 0;
   _optimized int := 0;
 BEGIN
-  -- Liste des tables RLS critiques
   FOR _table IN 
     SELECT tablename FROM pg_tables 
     WHERE schemaname = 'public' 
     AND tablename IN (
       'profiles', 'artisan_profiles', 'artisan_photos',
-      'service_requests', 'request_comments',
+      'service_requests',
       'messages', 'conversations', 'conversation_participants',
       'listings', 'listing_photos',
       'equipment_items', 'equipment_photos', 'borrow_requests',
