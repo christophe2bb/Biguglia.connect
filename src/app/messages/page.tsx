@@ -14,6 +14,12 @@ import Avatar from '@/components/ui/Avatar';
 import EmptyState from '@/components/ui/EmptyState';
 import { formatRelative, cn } from '@/lib/utils';
 
+// ─── Cache module-level : survit au démontage du composant ────────────────────
+// Stocke convId → timestamp (ms) de la dernière lecture locale.
+// Permet à fetchConversations de ne pas recompter un message comme non lu
+// si le PATCH BDD n'est pas encore persisté au moment du remontage.
+const _localReadMap: Record<string, number> = {};
+
 // ─── Config type de contenu lié ───────────────────────────────────────────────
 const RELATED_CONFIG: Record<string, {
   icon: React.ElementType;
@@ -106,9 +112,11 @@ export default function MessagesPage() {
   const typeMenuRef     = useRef<HTMLDivElement>(null);
   // Timestamp de montage — rejette les événements realtime rejoués (antérieurs)
   const pageStartRef    = useRef<number>(Date.now());
-  // Cache local de last_read_at : convId → timestamp (ms)
-  // Permet de corriger le badge SANS attendre que le PATCH soit persisté en BDD.
-  const localReadMapRef = useRef<Record<string, number>>({});
+  // Ref stable vers conversations (évite stale-closure dans les listeners d'events)
+  const conversationsRef = useRef<ConvWithOther[]>([]);
+  // Cache local de last_read_at — pointe vers le singleton module-level _localReadMap.
+  // Survit au démontage/remontage du composant (navigation vers [id] puis retour).
+  const localReadMapRef = useRef<Record<string, number>>(_localReadMap);
 
   // Fermer menus si clic dehors
   useEffect(() => {
@@ -199,6 +207,7 @@ export default function MessagesPage() {
       return bDate.localeCompare(aDate);
     });
 
+    conversationsRef.current = valid;
     setConversations(valid);
     setLoading(false);
   }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -242,6 +251,7 @@ export default function MessagesPage() {
           if (willCount) conv.unread_count = (conv.unread_count || 0) + 1;
           updated.splice(idx, 1);
           updated.unshift(conv);
+          conversationsRef.current = updated;
           return updated;
         });
       })
@@ -278,7 +288,7 @@ export default function MessagesPage() {
       const convId = detail?.conversationId;
       const readAt = detail?.readAt ?? Date.now();
       // ── DIAGNOSTIC badge ──────────────────────────────────────────────────────
-      const prevUnread = conversations.find(c => c.id === convId)?.unread_count ?? '?';
+      const prevUnread = conversationsRef.current.find(c => c.id === convId)?.unread_count ?? '?';
       console.info(
         `[badge:messages-read:page] convId=${convId?.slice(0,8) ?? 'undefined'} ` +
         `readAt=${new Date(readAt).toISOString()} unread_count_avant=${prevUnread} → remise à 0`
@@ -288,9 +298,11 @@ export default function MessagesPage() {
         const current = localReadMapRef.current[convId] ?? 0;
         localReadMapRef.current[convId] = Math.max(readAt, current);
         // 2. Mise à zéro immédiate du badge dans la liste
-        setConversations(prev =>
-          prev.map(c => c.id === convId ? { ...c, unread_count: 0 } : c)
-        );
+        setConversations(prev => {
+          const next = prev.map(c => c.id === convId ? { ...c, unread_count: 0 } : c);
+          conversationsRef.current = next;
+          return next;
+        });
       }
       // Confirmation BDD après 5s (laisse le temps au PATCH de se propager)
       setTimeout(() => { if (mountedRef.current) fetchConversations(); }, 5000);
