@@ -12,6 +12,7 @@
 | 4 | Notifications jamais créées à l'envoi message | INSERT `new_message` dans sendMessage | #83 | ✅ MERGED |
 | 5 | RLS désactivée sur tables catégories (CRITIQUE) | Migration SQL activant RLS + policies | #84 | ✅ MERGED |
 | 6 | 52 problèmes Security Linter Supabase | 3 migrations SQL (views, functions, policies) | #85 | ✅ MERGED |
+| 7 | **🔥 476 problèmes PERFORMANCE Auth RLS** | **Migration optimisation `(SELECT auth.uid())`** | **#86** | **✅ MERGED** |
 
 ---
 
@@ -32,14 +33,16 @@
 | `migration_fix_security_definer_views.sql` | Recrée 5 vues en SECURITY INVOKER | 162 | 5 ERREURS |
 | `migration_fix_function_search_path.sql` | Ajoute search_path à 12 fonctions critiques | 212 | 12/40 WARN |
 | `migration_fix_permissive_rls.sql` | Restreint 3 policies INSERT | 98 | 3 WARN |
-| **Total** | **4 migrations SQL** | **592 lignes** | **25 problèmes** |
+| **🔥 `migration_fix_auth_rls_performance.sql`** | **Optimise 30+ tables avec `(SELECT auth.uid())`** | **589** | **476 WARN PERFORMANCE** |
+| **Total** | **5 migrations SQL** | **1 181 lignes** | **501 problèmes** |
 
 ### Guides utilisateur
 
 | Fichier | Description |
 |---|---|
 | `GUIDE_RLS_FIX.md` | Guide pour activer RLS sur catégories |
-| `GUIDE_SECURITY_LINTER_FIX.md` | Guide pour les 3 migrations Security Linter |
+| `GUIDE_SECURITY_LINTER_FIX.md` | Guide complet pour les 4 migrations (views, performance, functions, policies) |
+| `VERIFICATION_TRAVAIL.md` | Document de vérification (ce fichier) |
 
 ---
 
