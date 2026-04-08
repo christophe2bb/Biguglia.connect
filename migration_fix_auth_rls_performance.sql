@@ -157,7 +157,7 @@ DROP POLICY IF EXISTS "listings_update_own" ON public.listings;
 DROP POLICY IF EXISTS "listings_delete_own" ON public.listings;
 
 CREATE POLICY "listings_select_published_or_own" ON public.listings
-  FOR SELECT USING (status = 'published' OR (SELECT auth.uid()) = user_id);
+  FOR SELECT USING (status = 'active' OR (SELECT auth.uid()) = user_id);
 
 CREATE POLICY "listings_insert_own" ON public.listings
   FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id);
@@ -258,13 +258,13 @@ CREATE POLICY "borrow_requests_update_parties" ON public.borrow_requests
 -- PARTIE 6: FORUM
 -- ============================================
 
-DROP POLICY IF EXISTS "forum_posts_select_published_or_own" ON public.forum_posts;
+DROP POLICY IF EXISTS "forum_posts_select_public" ON public.forum_posts;
 DROP POLICY IF EXISTS "forum_posts_insert_own" ON public.forum_posts;
 DROP POLICY IF EXISTS "forum_posts_update_own" ON public.forum_posts;
 DROP POLICY IF EXISTS "forum_posts_delete_own" ON public.forum_posts;
 
-CREATE POLICY "forum_posts_select_published_or_own" ON public.forum_posts
-  FOR SELECT USING (status = 'published' OR (SELECT auth.uid()) = author_id);
+CREATE POLICY "forum_posts_select_public" ON public.forum_posts
+  FOR SELECT USING (true);
 
 CREATE POLICY "forum_posts_insert_own" ON public.forum_posts
   FOR INSERT WITH CHECK ((SELECT auth.uid()) = author_id);
