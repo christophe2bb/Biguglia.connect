@@ -18,7 +18,7 @@ const MODULES = [
     status: 'done',
     items: [
       { label: 'Hub principal /forum avec statistiques globales (sujets, réponses, membres)', done: true },
-      { label: '6 secteurs géographiques (Les Collines, Figabruna, Village, Casatorra, Ortale, La Plaine)', done: true },
+      { label: '7 secteurs géographiques (Les Collines, Figabruna, Village, Casatorra, Ortale, La Plaine, La Marana)', done: true },
       { label: '10 catégories thématiques (Vie quartier, Infos pratiques, Entraide, Sécurité, etc.)', done: true },
       { label: 'Filtre par secteur (boutons colorés avec icônes)', done: true },
       { label: 'Filtre par catégorie (sidebar)', done: true },
@@ -189,7 +189,7 @@ const MODULES = [
     color: 'slate',
     status: 'done',
     items: [
-      { label: 'forum_sectors — 6 secteurs Biguglia, RLS', done: true },
+      { label: 'forum_sectors — 7 secteurs Biguglia, RLS', done: true },
       { label: 'forum_categories — catégories thématiques, RLS', done: true },
       { label: 'forum_topics — sujets v2 (statut, secteur, tags, visibilité, compteurs, search_vector)', done: true },
       { label: 'forum_replies — réponses (citation, solution, réaction_count), RLS', done: true },
@@ -214,7 +214,7 @@ const MODULES = [
     status: 'done',
     items: [
       { label: 'Bloc SQL FORUM_V2_SQL visible et copiable dans /admin/migration', done: true },
-      { label: 'Insertion 6 secteurs Biguglia ON CONFLICT DO NOTHING', done: true },
+      { label: 'Insertion 7 secteurs Biguglia ON CONFLICT DO NOTHING', done: true },
       { label: 'Insertion 9 catégories thématiques enrichies', done: true },
       { label: 'Toutes RLS avec DO $$ BEGIN IF NOT EXISTS...', done: true },
       { label: 'Compatibilité MIGRATION_SQL v1 conservée (forum_posts/comments)', done: true },
@@ -343,7 +343,7 @@ export default function ForumSpecPage() {
           <div className="flex-1">
             <h1 className="text-2xl font-bold mb-1">Forum local — Cahier des charges</h1>
             <p className="text-indigo-200 text-sm">
-              Forum de voisinage par secteurs géographiques (Les Collines, Figabruna, Village de Biguglia, Casatorra, Ortale, La Plaine) avec catégories thématiques, modération complète et interactions sociales.
+              Forum de voisinage par secteurs géographiques (Les Collines, Figabruna, Village de Biguglia, Casatorra, Ortale, La Plaine, La Marana) avec catégories thématiques, modération complète et interactions sociales.
             </p>
           </div>
         </div>
