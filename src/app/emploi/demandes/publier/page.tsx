@@ -42,10 +42,14 @@ interface FormData {
   salary_min: string;
   salary_max: string;
   salary_period: string;
+  salary_type: 'net' | 'brut' | '';          // net ou brut
+  weekly_hours: string;                        // heures / semaine souhaitées
+  is_flexible_schedule: boolean;
   /* Étape 4 – Contact */
   contact_email: string;
   contact_phone: string;
   contact_mode: string;
+  contact_instructions: string;               // informations complémentaires
 }
 
 const INITIAL: FormData = {
@@ -53,7 +57,8 @@ const INITIAL: FormData = {
   experience_level: '', experience_summary: '', has_driving_license: false, has_vehicle: false,
   availability_type: 'flexible', available_from: '', location_city: 'Biguglia', sector_id: '',
   mobility_radius: '20', salary_min: '', salary_max: '', salary_period: 'monthly',
-  contact_email: '', contact_phone: '', contact_mode: 'email',
+  salary_type: '', weekly_hours: '', is_flexible_schedule: false,
+  contact_email: '', contact_phone: '', contact_mode: 'email', contact_instructions: '',
 };
 
 const STEPS = [
@@ -509,40 +514,89 @@ export default function PublierDemandePage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Prétentions salariales (optionnel)
-                </label>
+              {/* ── PRÉTENTIONS SALARIALES ──────────────────────────── */}
+              <div className="bg-gray-50 rounded-2xl p-5 border border-gray-200 space-y-4">
+                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2">
+                  <Euro className="w-4 h-4 text-green-600" /> Prétentions salariales
+                </h3>
+
+                {/* Fourchette */}
                 <div className="flex items-center gap-3 flex-wrap">
-                  <div className="relative flex-1 min-w-0">
+                  <div className="relative flex-1 min-w-[100px]">
                     <Euro className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="number" placeholder="Min"
-                      value={form.salary_min}
-                      onChange={e => set('salary_min', e.target.value)}
-                      className="w-full pl-9 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400"
-                    />
+                    <input type="number" placeholder="Min"
+                      value={form.salary_min} onChange={e => set('salary_min', e.target.value)}
+                      className="w-full pl-9 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white" />
                   </div>
                   <span className="text-gray-400 font-bold">–</span>
-                  <div className="relative flex-1 min-w-0">
+                  <div className="relative flex-1 min-w-[100px]">
                     <Euro className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="number" placeholder="Max"
-                      value={form.salary_max}
-                      onChange={e => set('salary_max', e.target.value)}
-                      className="w-full pl-9 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400"
-                    />
+                    <input type="number" placeholder="Max"
+                      value={form.salary_max} onChange={e => set('salary_max', e.target.value)}
+                      className="w-full pl-9 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white" />
                   </div>
-                  <select
-                    value={form.salary_period}
-                    onChange={e => set('salary_period', e.target.value)}
-                    className="px-3 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white"
-                  >
+                  <select value={form.salary_period} onChange={e => set('salary_period', e.target.value)}
+                    className="px-3 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white">
                     {Object.entries(SALARY_PERIOD_LABELS).map(([v, l]) => (
                       <option key={v} value={v}>{l}</option>
                     ))}
                   </select>
                 </div>
+
+                {/* Net ou Brut */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-600 mb-2">Le salaire indiqué est :</p>
+                  <div className="flex gap-3">
+                    {[
+                      { v: 'net',  label: '💵 Net', desc: 'Ce que vous percevez' },
+                      { v: 'brut', label: '📄 Brut', desc: 'Avant déductions' },
+                    ].map(opt => (
+                      <label key={opt.v}
+                        className={`flex-1 flex flex-col items-center p-3 border-2 rounded-xl cursor-pointer transition-all text-center ${
+                          form.salary_type === opt.v
+                            ? 'border-purple-500 bg-purple-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}>
+                        <input type="radio" name="salary_type" value={opt.v}
+                          checked={form.salary_type === opt.v}
+                          onChange={e => set('salary_type', e.target.value as 'net' | 'brut' | '')}
+                          className="sr-only" />
+                        <span className="text-sm font-bold text-gray-900">{opt.label}</span>
+                        <span className="text-xs text-gray-500 mt-0.5">{opt.desc}</span>
+                      </label>
+                    ))}
+                    <label className={`flex-1 flex flex-col items-center p-3 border-2 rounded-xl cursor-pointer transition-all text-center ${
+                      form.salary_type === '' ? 'border-gray-400 bg-gray-50' : 'border-gray-200 hover:border-gray-300'
+                    }`}>
+                      <input type="radio" name="salary_type" value=""
+                        checked={form.salary_type === ''}
+                        onChange={() => set('salary_type', '')}
+                        className="sr-only" />
+                      <span className="text-sm font-bold text-gray-900">❓ NSP</span>
+                      <span className="text-xs text-gray-500 mt-0.5">Non précisé</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── HORAIRES SOUHAITÉS ───────────────────────────────── */}
+              <div className="bg-gray-50 rounded-2xl p-5 border border-gray-200 space-y-3">
+                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-blue-600" /> Horaires souhaités
+                </h3>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input type="number" placeholder="Ex : 35, 39, 25, 20…"
+                    value={form.weekly_hours} onChange={e => set('weekly_hours', e.target.value)}
+                    className="w-full pl-9 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white" />
+                </div>
+                <p className="text-xs text-gray-400">Nombre d&apos;heures par semaine souhaité</p>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={form.is_flexible_schedule}
+                    onChange={e => set('is_flexible_schedule', e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 text-purple-600" />
+                  <span className="text-sm text-gray-700">⚡ <span className="font-semibold">Horaires flexibles</span> / à définir</span>
+                </label>
               </div>
             </div>
           )}
@@ -605,7 +659,17 @@ export default function PublierDemandePage() {
                 </div>
               )}
 
-              {/* Récap */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  Message / Informations complémentaires <span className="text-gray-400 font-normal">(optionnel)</span>
+                </label>
+                <textarea rows={3}
+                  placeholder="Ex : Disponible rapidement, références disponibles sur demande, cherche temps partiel matin uniquement…"
+                  value={form.contact_instructions} onChange={e => set('contact_instructions', e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 resize-none" />
+              </div>
+
+              {/* Récap complet */}
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-2 text-sm">
                 <p className="font-bold text-gray-900 mb-3">✅ Récapitulatif de votre demande</p>
                 {[
@@ -614,15 +678,21 @@ export default function PublierDemandePage() {
                   ['Contrats',         form.contract_types.map(c => CONTRACT_TYPE_LABELS[c as keyof typeof CONTRACT_TYPE_LABELS]).join(', ') || '–'],
                   ['Ville',            form.location_city || '–'],
                   ['Disponibilité',    AVAILABILITY_LABELS[form.availability_type] || '–'],
-                  ['Salaire souhaité', form.salary_min ? `${form.salary_min}€${form.salary_max ? ` – ${form.salary_max}€` : ''}` : 'Non renseigné'],
+                  ['Salaire souhaité', form.salary_min
+                    ? `${form.salary_min}€${form.salary_max ? ` – ${form.salary_max}€` : ''} ${SALARY_PERIOD_LABELS[form.salary_period] ?? ''}${form.salary_type ? ` (${form.salary_type})` : ''}`
+                    : 'Non renseigné'],
+                  ['Heures / semaine', form.weekly_hours ? `${form.weekly_hours}h${form.is_flexible_schedule ? ' · Flexible' : ''}` : form.is_flexible_schedule ? 'Flexibles' : '–'],
                 ].map(([k, v]) => (
-                  <div key={k} className="flex justify-between text-gray-600">
-                    <span>{k}</span>
+                  <div key={k} className="flex justify-between text-gray-600 gap-2">
+                    <span className="flex-shrink-0">{k}</span>
                     <span className="font-semibold text-gray-900 text-right max-w-[200px] truncate">{v}</span>
                   </div>
                 ))}
-                {form.has_driving_license && <p className="text-blue-600 font-semibold text-xs mt-2">🪪 Permis de conduire</p>}
-                {form.has_vehicle && <p className="text-green-600 font-semibold text-xs">🚗 Véhicule personnel</p>}
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {form.has_driving_license && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">🪪 Permis</span>}
+                  {form.has_vehicle && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">🚗 Véhicule</span>}
+                  {form.is_flexible_schedule && <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-semibold">⚡ Flexible</span>}
+                </div>
               </div>
             </div>
           )}

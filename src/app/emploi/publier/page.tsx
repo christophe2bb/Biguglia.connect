@@ -170,24 +170,40 @@ export default function PublierOffrePage() {
     ].join('').trim();
 
     const result = await publishJobOffer({
-      title:            form.title,
-      job_category:     form.job_category,
-      contract_type:    form.contract_type,
-      description:      enrichedDesc,
-      employer_name:    form.employer_name,
-      location_city:    form.location_city,
-      location_address: form.location_address || undefined,
-      sector_id:        form.sector_id || undefined,
-      salary_min:       form.salary_min ? parseFloat(form.salary_min) : undefined,
-      salary_max:       form.salary_max ? parseFloat(form.salary_max) : undefined,
-      salary_period:    form.salary_period || undefined,
-      start_date:       form.start_date || undefined,
-      experience_level: form.experience_level || undefined,
-      provides_housing: form.provides_housing,
-      is_urgent:        form.is_urgent,
-      contact_email:    form.contact_email || undefined,
-      contact_phone:    form.contact_phone || undefined,
-      application_mode: form.application_mode,
+      /* Étape 1 */
+      title:                  form.title,
+      job_category:           form.job_category,
+      contract_type:          form.contract_type,
+      description:            enrichedDesc,
+      /* Étape 2 */
+      employer_name:          form.employer_name,
+      location_city:          form.location_city,
+      location_address:       form.location_address || undefined,
+      sector_id:              form.sector_id || undefined,
+      is_urgent:              form.is_urgent,
+      /* Étape 3 – Conditions enrichies */
+      salary_min:             form.salary_min ? parseFloat(form.salary_min) : undefined,
+      salary_max:             form.salary_max ? parseFloat(form.salary_max) : undefined,
+      salary_period:          form.salary_period || undefined,
+      salary_type:            form.salary_type || undefined,
+      salary_is_negotiable:   form.salary_is_negotiable,
+      weekly_hours:           form.weekly_hours ? parseFloat(form.weekly_hours) : undefined,
+      schedule_details:       form.schedule_details || undefined,
+      is_flexible_schedule:   form.is_flexible_schedule,
+      start_date:             form.start_date || undefined,
+      end_date:               form.end_date || undefined,
+      experience_level:       form.experience_level || undefined,
+      provides_housing:       form.provides_housing,
+      housing_details:        form.housing_details || undefined,
+      provides_meals:         form.provides_meals,
+      requires_vehicle:       form.requires_vehicle,
+      has_driving_license:    form.has_driving_license,
+      other_benefits:         form.other_benefits.length > 0 ? form.other_benefits : undefined,
+      /* Étape 4 */
+      contact_email:          form.contact_email || undefined,
+      contact_phone:          form.contact_phone || undefined,
+      application_mode:       form.application_mode,
+      contact_instructions:   form.contact_instructions || undefined,
     });
 
     setSubmitting(false);
