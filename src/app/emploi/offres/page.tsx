@@ -8,6 +8,7 @@ import { Briefcase, TrendingUp } from 'lucide-react';
 import { getJobOffers } from '@/services/jobs/queries';
 import { JobOfferCard } from '@/components/jobs/JobOfferCard';
 import { JobFiltersClient } from './JobFiltersClient';
+import { SortSelectClient } from './SortSelectClient';
 import type { JobOfferFilters } from '@/types/jobs';
 
 interface PageProps {
@@ -101,22 +102,12 @@ export default async function OffresEmploiPage({ searchParams }: PageProps) {
                 </h2>
               </div>
 
-              {/* Sorting (mobile dropdown) */}
+              {/* Sorting (client dropdown) */}
               <div className="hidden md:block">
-                <select
-                  defaultValue={filters.sortBy || 'date_desc'}
-                  className="px-4 py-2 border-2 border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:border-brand-400"
-                  onChange={(e) => {
-                    const params = new URLSearchParams(searchParams as any);
-                    params.set('sortBy', e.target.value);
-                    window.location.href = `/emploi/offres?${params.toString()}`;
-                  }}
-                >
-                  <option value="date_desc">Plus récentes</option>
-                  <option value="date_asc">Plus anciennes</option>
-                  <option value="salary_desc">Salaire décroissant</option>
-                  <option value="completeness_desc">Mieux remplies</option>
-                </select>
+                <SortSelectClient
+                  currentSort={filters.sortBy || 'date_desc'}
+                  currentParams={searchParams as Record<string, string>}
+                />
               </div>
             </div>
 
