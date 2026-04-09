@@ -134,14 +134,14 @@ export const jobOfferSchema = z
   .object({
     // Basic info
     title: titleSchema,
-    job_category: z.enum(JOB_CATEGORIES as [string, ...string[]], {
-      errorMap: () => ({ message: 'Catégorie invalide' }),
+    job_category: z.enum(JOB_CATEGORIES, {
+      message: 'Catégorie invalide',
     }),
-    contract_type: z.enum(CONTRACT_TYPES as [string, ...string[]], {
-      errorMap: () => ({ message: 'Type de contrat invalide' }),
+    contract_type: z.enum(CONTRACT_TYPES, {
+      message: 'Type de contrat invalide',
     }),
-    employment_type: z.enum(EMPLOYMENT_TYPES as [string, ...string[]], {
-      errorMap: () => ({ message: 'Type d\'emploi invalide' }),
+    employment_type: z.enum(EMPLOYMENT_TYPES, {
+      message: 'Type d\'emploi invalide',
     }),
 
     // Location
@@ -167,8 +167,8 @@ export const jobOfferSchema = z
       )
       .optional()
       .nullable(),
-    availability_type: z.enum(AVAILABILITY_TYPES as [string, ...string[]], {
-      errorMap: () => ({ message: 'Type de disponibilité invalide' }),
+    availability_type: z.enum(AVAILABILITY_TYPES, {
+      message: 'Type de disponibilité invalide',
     }),
 
     // Description
@@ -180,8 +180,8 @@ export const jobOfferSchema = z
 
     // Experience
     experience_level: z
-      .enum(EXPERIENCE_LEVELS as [string, ...string[]], {
-        errorMap: () => ({ message: 'Niveau d\'expérience invalide' }),
+      .enum(EXPERIENCE_LEVELS, {
+        message: 'Niveau d\'expérience invalide',
       })
       .optional()
       .nullable(),
@@ -229,8 +229,8 @@ export const jobOfferSchema = z
     requires_vehicle: z.boolean().default(false),
 
     // Contact
-    application_mode: z.enum(APPLICATION_MODES as [string, ...string[]], {
-      errorMap: () => ({ message: 'Mode de candidature invalide' }),
+    application_mode: z.enum(APPLICATION_MODES, {
+      message: 'Mode de candidature invalide',
     }),
     contact_email: emailSchema,
     contact_phone: phoneSchema,
@@ -245,16 +245,16 @@ export const jobOfferSchema = z
 
     // Status & visibility
     status: z
-      .enum(JOB_STATUSES as [string, ...string[]], {
-        errorMap: () => ({ message: 'Statut invalide' }),
+      .enum(JOB_STATUSES, {
+        message: 'Statut invalide',
       })
       .default('draft'),
     is_urgent: z.boolean().default(false),
     visibility_level: z
-      .enum(VISIBILITY_LEVELS as [string, ...string[]])
+      .enum(VISIBILITY_LEVELS)
       .default('standard'),
     promotion_type: z
-      .enum(PROMOTION_TYPES as [string, ...string[]])
+      .enum(PROMOTION_TYPES)
       .default('none'),
     boosted_until: z.string().optional().nullable(),
     sponsor_label: z.string().max(50).optional().nullable(),
@@ -369,15 +369,15 @@ export const jobDemandSchema = z
   .object({
     // Basic info
     title: titleSchema,
-    job_category: z.enum(JOB_CATEGORIES as [string, ...string[]], {
-      errorMap: () => ({ message: 'Catégorie invalide' }),
+    job_category: z.enum(JOB_CATEGORIES, {
+      message: 'Catégorie invalide',
     }),
     desired_contract_types: z
-      .array(z.enum(CONTRACT_TYPES as [string, ...string[]]))
+      .array(z.enum(CONTRACT_TYPES))
       .min(1, 'Vous devez sélectionner au moins un type de contrat')
       .max(5, 'Vous ne pouvez pas sélectionner plus de 5 types de contrats'),
     desired_employment_types: z
-      .array(z.enum(EMPLOYMENT_TYPES as [string, ...string[]]))
+      .array(z.enum(EMPLOYMENT_TYPES))
       .min(1, 'Vous devez sélectionner au moins un type d\'emploi')
       .max(3, 'Vous ne pouvez pas sélectionner plus de 3 types d\'emploi'),
 
@@ -396,15 +396,15 @@ export const jobDemandSchema = z
       .optional()
       .nullable(),
     mobility_mode: z
-      .enum(MOBILITY_MODES as [string, ...string[]], {
-        errorMap: () => ({ message: 'Mode de mobilité invalide' }),
+      .enum(MOBILITY_MODES, {
+        message: 'Mode de mobilité invalide',
       })
       .optional()
       .nullable(),
 
     // Availability
-    availability_type: z.enum(AVAILABILITY_TYPES as [string, ...string[]], {
-      errorMap: () => ({ message: 'Type de disponibilité invalide' }),
+    availability_type: z.enum(AVAILABILITY_TYPES, {
+      message: 'Type de disponibilité invalide',
     }),
     available_from: z.string().optional().nullable(),
     availability_comment: z.string().max(300).optional().nullable(),
@@ -417,8 +417,8 @@ export const jobDemandSchema = z
 
     // Experience
     experience_level: z
-      .enum(EXPERIENCE_LEVELS as [string, ...string[]], {
-        errorMap: () => ({ message: 'Niveau d\'expérience invalide' }),
+      .enum(EXPERIENCE_LEVELS, {
+        message: 'Niveau d\'expérience invalide',
       })
       .optional()
       .nullable(),
@@ -460,8 +460,8 @@ export const jobDemandSchema = z
 
     // Status
     status: z
-      .enum(JOB_STATUSES as [string, ...string[]], {
-        errorMap: () => ({ message: 'Statut invalide' }),
+      .enum(JOB_STATUSES, {
+        message: 'Statut invalide',
       })
       .default('draft'),
     is_urgent: z.boolean().default(false),
@@ -505,7 +505,7 @@ export const jobContactSchema = z
         `Le message ne peut pas dépasser ${VALIDATION_RULES.MAX_CONTACT_MESSAGE_LENGTH} caractères`
       ),
     contact_method: z.enum(['internal_message', 'email', 'phone'], {
-      errorMap: () => ({ message: 'Méthode de contact invalide' }),
+      message: 'Méthode de contact invalide',
     }),
   })
   .refine(
@@ -529,20 +529,20 @@ export const jobContactSchema = z
 export const jobOfferFiltersSchema = z.object({
   query: z.string().optional(),
   categories: z
-    .array(z.enum(JOB_CATEGORIES as [string, ...string[]]))
+    .array(z.enum(JOB_CATEGORIES))
     .optional(),
   contractTypes: z
-    .array(z.enum(CONTRACT_TYPES as [string, ...string[]]))
+    .array(z.enum(CONTRACT_TYPES))
     .optional(),
   employmentTypes: z
-    .array(z.enum(EMPLOYMENT_TYPES as [string, ...string[]]))
+    .array(z.enum(EMPLOYMENT_TYPES))
     .optional(),
   sectorId: z.string().optional(),
   radius: z.number().min(0).max(VALIDATION_RULES.MAX_MOBILITY_RADIUS).optional(),
   lat: z.number().min(-90).max(90).optional(),
   lng: z.number().min(-180).max(180).optional(),
   experienceLevels: z
-    .array(z.enum(EXPERIENCE_LEVELS as [string, ...string[]]))
+    .array(z.enum(EXPERIENCE_LEVELS))
     .optional(),
   salaryMin: z.number().min(0).optional(),
   salaryMax: z.number().min(0).optional(),
@@ -577,20 +577,20 @@ export const jobOfferFiltersSchema = z.object({
 export const jobDemandFiltersSchema = z.object({
   query: z.string().optional(),
   categories: z
-    .array(z.enum(JOB_CATEGORIES as [string, ...string[]]))
+    .array(z.enum(JOB_CATEGORIES))
     .optional(),
   contractTypes: z
-    .array(z.enum(CONTRACT_TYPES as [string, ...string[]]))
+    .array(z.enum(CONTRACT_TYPES))
     .optional(),
   employmentTypes: z
-    .array(z.enum(EMPLOYMENT_TYPES as [string, ...string[]]))
+    .array(z.enum(EMPLOYMENT_TYPES))
     .optional(),
   sectorId: z.string().optional(),
   radius: z.number().min(0).max(VALIDATION_RULES.MAX_MOBILITY_RADIUS).optional(),
   lat: z.number().min(-90).max(90).optional(),
   lng: z.number().min(-180).max(180).optional(),
   experienceLevels: z
-    .array(z.enum(EXPERIENCE_LEVELS as [string, ...string[]]))
+    .array(z.enum(EXPERIENCE_LEVELS))
     .optional(),
   availableFrom: z.string().optional(),
   isUrgent: z.boolean().optional(),

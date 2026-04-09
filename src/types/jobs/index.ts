@@ -386,6 +386,7 @@ export interface JobOfferFormInput {
   // Details (étape 4)
   start_date?: string;
   end_date?: string;
+  mission_duration_days?: number;
   experience_level?: ExperienceLevel;
   salary_range_min?: number;
   salary_range_max?: number;
