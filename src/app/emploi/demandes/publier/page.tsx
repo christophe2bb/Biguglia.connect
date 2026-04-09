@@ -11,13 +11,14 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
   Search, ArrowLeft, ChevronRight, CheckCircle,
-  MapPin, Euro, Clock, FileText, Phone, AlertCircle, User,
+  MapPin, Euro, Clock, FileText, Phone, AlertCircle, User, Upload, X,
 } from 'lucide-react';
 import {
   CONTRACT_TYPES, CONTRACT_TYPE_LABELS,
   JOB_CATEGORIES, JOB_CATEGORY_LABELS,
 } from '@/types/jobs/constants';
 import { publishJobDemand } from '@/services/jobs/publish-demand';
+import { createClient } from '@/lib/supabase/client';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 type Step = 1 | 2 | 3 | 4;
@@ -33,6 +34,7 @@ interface FormData {
   experience_summary: string;
   has_driving_license: boolean;
   has_vehicle: boolean;
+  cv_file: File | null;                       // fichier CV sélectionné
   /* Étape 3 – Disponibilité & Conditions */
   availability_type: string;
   available_from: string;
@@ -54,7 +56,7 @@ interface FormData {
 
 const INITIAL: FormData = {
   title: '', job_category: '', contract_types: [], description: '',
-  experience_level: '', experience_summary: '', has_driving_license: false, has_vehicle: false,
+  experience_level: '', experience_summary: '', has_driving_license: false, has_vehicle: false, cv_file: null,
   availability_type: 'flexible', available_from: '', location_city: 'Biguglia', sector_id: '',
   mobility_radius: '20', salary_min: '', salary_max: '', salary_period: 'monthly',
   salary_type: '', weekly_hours: '', is_flexible_schedule: false,
@@ -124,6 +126,27 @@ export default function PublierDemandePage() {
     return false;
   };
 
+  /* ── Upload CV vers Supabase Storage ────────────────────────────────────── */
+  const uploadCv = async (demandId: string): Promise<string | null> => {
+    if (!form.cv_file) return null;
+    try {
+      const supabase = createClient();
+      const ext = form.cv_file.name.split('.').pop() ?? 'pdf';
+      const path = `cv/${demandId}.${ext}`;
+      const { error } = await supabase.storage
+        .from('job-documents')
+        .upload(path, form.cv_file, { upsert: true, contentType: form.cv_file.type });
+      if (error) {
+        console.warn('[cv-upload] Storage error:', error.message);
+        return null;
+      }
+      const { data } = supabase.storage.from('job-documents').getPublicUrl(path);
+      return data?.publicUrl ?? null;
+    } catch {
+      return null;
+    }
+  };
+
   /* ── Soumission Supabase ──────────────────────────────────────────────── */
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -144,6 +167,7 @@ export default function PublierDemandePage() {
       salary_min:         form.salary_min ? parseFloat(form.salary_min) : undefined,
       salary_max:         form.salary_max ? parseFloat(form.salary_max) : undefined,
       has_driving_license: form.has_driving_license,
+      has_vehicle:        form.has_vehicle,
       contact_email:      form.contact_email || undefined,
       contact_phone:      form.contact_phone || undefined,
       contact_mode:       form.contact_mode,
@@ -154,6 +178,11 @@ export default function PublierDemandePage() {
     if (!result.success) {
       setServerError(result.error ?? 'Une erreur est survenue.');
       return;
+    }
+
+    // Upload du CV si présent (non-bloquant)
+    if (form.cv_file && result.id) {
+      await uploadCv(result.id);
     }
 
     setPublishedSlug(result.slug ?? null);
@@ -414,6 +443,48 @@ export default function PublierDemandePage() {
                     <p className="text-xs text-green-600">Badge visible sur votre profil</p>
                   </div>
                 </label>
+              </div>
+
+              {/* ── UPLOAD CV ─────────────────────────────────────────────── */}
+              <div className="bg-gray-50 rounded-2xl p-5 border border-gray-200 space-y-3">
+                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2">
+                  <Upload className="w-4 h-4 text-purple-600" /> Joindre un CV
+                  <span className="text-gray-400 font-normal text-xs normal-case">(optionnel)</span>
+                </h3>
+
+                {form.cv_file ? (
+                  <div className="flex items-center gap-3 p-3 bg-purple-50 border border-purple-200 rounded-xl">
+                    <FileText className="w-5 h-5 text-purple-600 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-purple-900 truncate">{form.cv_file.name}</p>
+                      <p className="text-xs text-purple-600">{(form.cv_file.size / 1024).toFixed(0)} Ko</p>
+                    </div>
+                    <button onClick={() => set('cv_file', null as unknown as string)}
+                      className="w-7 h-7 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors flex-shrink-0">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-purple-300 rounded-xl cursor-pointer hover:border-purple-400 hover:bg-purple-50 transition-all">
+                    <Upload className="w-8 h-8 text-purple-400" />
+                    <span className="text-sm font-semibold text-purple-700">Cliquer pour sélectionner votre CV</span>
+                    <span className="text-xs text-gray-400">PDF, DOC, DOCX · Max 5 Mo</span>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file && file.size <= 5 * 1024 * 1024) {
+                          setForm(f => ({ ...f, cv_file: file }));
+                        }
+                      }}
+                      className="sr-only"
+                    />
+                  </label>
+                )}
+                <p className="text-xs text-gray-500">
+                  Votre CV sera stocké de façon sécurisée et partagé uniquement aux employeurs qui vous contactent.
+                </p>
               </div>
             </div>
           )}

@@ -36,6 +36,9 @@ export interface PublishOfferInput {
   requires_vehicle?: boolean;
   has_driving_license?: boolean;
   other_benefits?: string[];                   // IDs des avantages cochés
+  /* Compétences */
+  required_skills?: string;
+  nice_to_have_skills?: string;
   /* Étape 4 – Contact */
   contact_email?: string;
   contact_phone?: string;
@@ -178,6 +181,13 @@ export async function publishJobOffer(
     /* flags */
     is_urgent: input.is_urgent ?? false,
     is_remote_possible: false,
+    /* compétences */
+    required_skills: input.required_skills
+      ? input.required_skills.split(',').map(s => s.trim()).filter(Boolean)
+      : null,
+    nice_to_have_skills: input.nice_to_have_skills
+      ? input.nice_to_have_skills.split(',').map(s => s.trim()).filter(Boolean)
+      : null,
     /* contact */
     contact_email: input.contact_email ?? null,
     contact_phone: input.contact_phone ?? null,

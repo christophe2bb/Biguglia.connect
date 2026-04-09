@@ -20,6 +20,7 @@ export interface PublishDemandInput {
   salary_min?: number;
   salary_max?: number;
   has_driving_license?: boolean;
+  has_vehicle?: boolean;
   contact_email?: string;
   contact_phone?: string;
   contact_mode?: string;
@@ -110,6 +111,7 @@ export async function publishJobDemand(
     salary_expectation_min: input.salary_min ?? null,
     salary_expectation_max: input.salary_max ?? null,
     has_driving_license: input.has_driving_license ?? false,
+    has_vehicle: input.has_vehicle ?? false,
     contact_email: input.contact_email ?? null,
     contact_phone: input.contact_phone ?? null,
     contact_mode: input.contact_mode ?? 'email',

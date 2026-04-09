@@ -29,6 +29,8 @@ interface FormData {
   job_category: string;
   contract_type: string;
   description: string;
+  required_skills: string;      // compétences requises (texte libre)
+  nice_to_have_skills: string;  // compétences appréciées
   /* Étape 2 – Employeur */
   employer_name: string;
   location_city: string;
@@ -61,7 +63,7 @@ interface FormData {
 }
 
 const INITIAL: FormData = {
-  title: '', job_category: '', contract_type: '', description: '',
+  title: '', job_category: '', contract_type: '', description: '', required_skills: '', nice_to_have_skills: '',
   employer_name: '', location_city: 'Biguglia', location_address: '', sector_id: '', is_urgent: false,
   salary_min: '', salary_max: '', salary_period: 'monthly', salary_type: '', salary_is_negotiable: false,
   weekly_hours: '', schedule_details: '', is_flexible_schedule: false,
@@ -175,6 +177,8 @@ export default function PublierOffrePage() {
       job_category:           form.job_category,
       contract_type:          form.contract_type,
       description:            enrichedDesc,
+      required_skills:        form.required_skills || undefined,
+      nice_to_have_skills:    form.nice_to_have_skills || undefined,
       /* Étape 2 */
       employer_name:          form.employer_name,
       location_city:          form.location_city,
@@ -365,6 +369,34 @@ export default function PublierOffrePage() {
                   value={form.description} onChange={e => set('description', e.target.value)}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-brand-400 resize-none" />
                 <p className="text-xs text-gray-400 mt-1">{form.description.length} caractères (min. 20)</p>
+              </div>
+
+              {/* ── COMPÉTENCES ───────────────────────────────────────────── */}
+              <div className="bg-gray-50 rounded-2xl p-5 border border-gray-200 space-y-4">
+                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2">
+                  <GraduationCap className="w-4 h-4 text-indigo-600" /> Compétences
+                </h3>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                    ✅ Compétences requises <span className="text-gray-400 font-normal">(optionnel)</span>
+                  </label>
+                  <textarea rows={2}
+                    placeholder="Ex : Permis B, connaissance du FIFO, maîtrise du pack Office, expérience en restauration collective…"
+                    value={form.required_skills} onChange={e => set('required_skills', e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-brand-400 resize-none bg-white" />
+                  <p className="text-xs text-gray-400 mt-1">Séparez par des virgules ou décrivez librement.</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                    ⭐ Compétences appréciées <span className="text-gray-400 font-normal">(optionnel)</span>
+                  </label>
+                  <textarea rows={2}
+                    placeholder="Ex : Bilinguisme, HACCP, anglais professionnel, connaissance du bâtiment corse…"
+                    value={form.nice_to_have_skills} onChange={e => set('nice_to_have_skills', e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-brand-400 resize-none bg-white" />
+                </div>
               </div>
             </div>
           )}

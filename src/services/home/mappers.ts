@@ -394,3 +394,167 @@ export function outingsToFeedItems(rows: RawOuting[]): HomeFeedItem[] {
     };
   });
 }
+
+// ─── Adaptateur : Offres d'emploi ─────────────────────────────────────────────
+
+interface RawJobOffer {
+  id: string;
+  slug: string;
+  title: string;
+  short_description?: string | null;
+  full_description?: string | null;
+  employer_name?: string | null;
+  job_category?: string | null;
+  contract_type?: string | null;
+  location_city?: string | null;
+  sector_id?: string | null;
+  salary_range_min?: number | null;
+  salary_range_max?: number | null;
+  salary_period?: string | null;
+  salary_type?: string | null;
+  is_urgent?: boolean;
+  provides_housing?: boolean;
+  experience_level?: string | null;
+  published_at?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+const CONTRACT_LABELS: Record<string, string> = {
+  cdi: 'CDI', cdd: 'CDD', interim: 'Intérim', saisonnier: 'Saisonnier',
+  alternance: 'Alternance', stage: 'Stage', freelance: 'Freelance', extra: 'Extra',
+};
+
+const PERIOD_LABELS: Record<string, string> = {
+  hourly: '/ h', daily: '/ j', monthly: '/ mois', yearly: '/ an',
+};
+
+function formatSalary(min?: number | null, max?: number | null, period?: string | null, type?: string | null): string | null {
+  if (!min && !max) return null;
+  const p = period ? (PERIOD_LABELS[period] ?? period) : '/ mois';
+  const t = type ? ` ${type}` : '';
+  if (min && max) return `${min.toLocaleString('fr-FR')} – ${max.toLocaleString('fr-FR')} €${p}${t}`;
+  if (min) return `À partir de ${min.toLocaleString('fr-FR')} €${p}${t}`;
+  return `Jusqu'à ${max!.toLocaleString('fr-FR')} €${p}${t}`;
+}
+
+export function jobOffersToFeedItems(rows: RawJobOffer[]): HomeFeedItem[] {
+  return rows.map((r): HomeFeedItem => {
+    const badges: string[] = [];
+    if (r.is_urgent) badges.push('Urgent');
+    if (r.provides_housing) badges.push('Logement');
+    const contractLabel = r.contract_type ? (CONTRACT_LABELS[r.contract_type] ?? r.contract_type.toUpperCase()) : null;
+    if (contractLabel) badges.push(contractLabel);
+    const salaryStr = formatSalary(r.salary_range_min, r.salary_range_max, r.salary_period, r.salary_type);
+    if (salaryStr) badges.push(salaryStr);
+
+    const summary = r.short_description
+      ? truncate(r.short_description, 130)
+      : r.employer_name
+        ? `${r.employer_name} recrute${r.location_city ? ` à ${r.location_city}` : ''}.`
+        : truncate(r.full_description, 130);
+
+    return {
+      id: r.id,
+      type: 'job_offer',
+      sourceModule: 'job_offers',
+      title: r.title,
+      summary,
+      sector: r.sector_id,
+      locationLabel: r.location_city ?? 'Biguglia',
+      author: r.employer_name ? { id: r.id, name: r.employer_name } : undefined,
+      createdAt: r.published_at ?? r.created_at,
+      updatedAt: r.updated_at,
+      status: 'active',
+      urgency: r.is_urgent ? 'high' : 'medium',
+      isUrgent: r.is_urgent ?? false,
+      isResolved: false,
+      freshnessScore: 0,
+      relevanceScore: 0,
+      finalScore: 0,
+      actionUrl: `/emploi/offres/${r.slug}`,
+      actionLabel: 'Voir l\'offre',
+      badges,
+      metadata: {
+        employer: r.employer_name,
+        contract: r.contract_type,
+        category: r.job_category,
+        salary: salaryStr,
+      },
+    };
+  });
+}
+
+// ─── Adaptateur : Demandes d'emploi ──────────────────────────────────────────
+
+interface RawJobDemand {
+  id: string;
+  slug: string;
+  title: string;
+  short_description?: string | null;
+  profile_description?: string | null;
+  job_category?: string | null;
+  desired_contract_types?: string[] | null;
+  location_city?: string | null;
+  sector_id?: string | null;
+  availability_type?: string | null;
+  experience_level?: string | null;
+  salary_expectation_min?: number | null;
+  salary_expectation_max?: number | null;
+  is_urgent?: boolean;
+  has_driving_license?: boolean;
+  has_vehicle?: boolean;
+  published_at?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+const AVAILABILITY_LABELS: Record<string, string> = {
+  immediate: 'Dispo immédiatement',
+  week: 'Dispo cette semaine',
+  month: 'Dispo ce mois-ci',
+  flexible: 'Disponibilité flexible',
+};
+
+export function jobDemandsToFeedItems(rows: RawJobDemand[]): HomeFeedItem[] {
+  return rows.map((r): HomeFeedItem => {
+    const badges: string[] = [];
+    if (r.is_urgent) badges.push('Urgent');
+    const availLabel = r.availability_type ? (AVAILABILITY_LABELS[r.availability_type] ?? null) : null;
+    if (availLabel) badges.push(availLabel);
+    if (r.has_driving_license) badges.push('Permis');
+    if (r.has_vehicle) badges.push('Véhicule');
+
+    const summary = r.short_description
+      ? truncate(r.short_description, 130)
+      : truncate(r.profile_description, 130);
+
+    return {
+      id: r.id,
+      type: 'job_demand',
+      sourceModule: 'job_demands',
+      title: r.title,
+      summary,
+      sector: r.sector_id,
+      locationLabel: r.location_city ?? 'Biguglia',
+      author: undefined,
+      createdAt: r.published_at ?? r.created_at,
+      updatedAt: r.updated_at,
+      status: 'active',
+      urgency: r.is_urgent ? 'high' : 'low',
+      isUrgent: r.is_urgent ?? false,
+      isResolved: false,
+      freshnessScore: 0,
+      relevanceScore: 0,
+      finalScore: 0,
+      actionUrl: `/emploi/demandes/${r.slug}`,
+      actionLabel: 'Voir le profil',
+      badges,
+      metadata: {
+        category: r.job_category,
+        contracts: r.desired_contract_types,
+        availability: r.availability_type,
+      },
+    };
+  });
+}

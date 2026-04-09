@@ -66,6 +66,15 @@ const SECTION_CONFIG: Record<HomeSectionId, {
     ctaLabel: 'Explorer',
     ctaUrl: '/recherche',
   },
+  emploi: {
+    emoji: '💼',
+    emptyTitle: 'Aucune offre pour l\'instant',
+    emptyDesc: 'Soyez le premier à publier une offre ou déposer votre candidature.',
+    lowTitle: 'Quelques offres d\'emploi',
+    lowDesc: 'Découvrez les opportunités locales.',
+    ctaLabel: 'Voir toutes les offres',
+    ctaUrl: '/emploi/offres',
+  },
 };
 
 export default function HomeEmptyState({ sectionId, variant = 'empty' }: HomeEmptyStateProps) {

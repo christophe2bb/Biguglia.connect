@@ -71,6 +71,14 @@ const SECTION_CONFIG: Record<string, {
     iconBg:       'bg-white/25',
     tagline:      'Sélection de l\'activité locale pour vous',
   },
+  emploi: {
+    gradient:     'from-cyan-500 via-teal-500 to-emerald-600',
+    accentColor:  'text-cyan-700',
+    accentBg:     'bg-cyan-50 hover:bg-cyan-100',
+    accentBorder: 'border-l-4 border-cyan-400',
+    iconBg:       'bg-white/25',
+    tagline:      'Offres et candidatures d\'emploi à Biguglia',
+  },
 };
 
 const FALLBACK_CONFIG = SECTION_CONFIG.now;
@@ -88,6 +96,7 @@ function renderCard(section: HomeSectionType, index: number) {
   if (item.type === 'help_request') return <NeedCard key={item.id} item={item} />;
   if (item.type === 'event' || item.type === 'outing') return <EventCard key={item.id} item={item} />;
   if (item.type === 'forum_topic') return <DiscussionCard key={item.id} item={item} />;
+  if (item.type === 'job_offer' || item.type === 'job_demand') return <FeedCard key={item.id} item={item} />;
 
   return <FeedCard key={item.id} item={item} />;
 }
@@ -99,6 +108,7 @@ const GRID_CLASS: Record<string, string> = {
   needs:       'grid grid-cols-1 sm:grid-cols-2 gap-3',
   upcoming:    'grid grid-cols-1 sm:grid-cols-2 gap-3',
   discussions: 'grid grid-cols-1 sm:grid-cols-2 gap-3',
+  emploi:      'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3',
   foryou:      'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3',
 };
 
