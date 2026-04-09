@@ -7,7 +7,7 @@ import { Suspense } from 'react';
 import { Briefcase, TrendingUp } from 'lucide-react';
 import { getJobOffers } from '@/services/jobs/queries';
 import { JobOfferCard } from '@/components/jobs/JobOfferCard';
-import { JobFilters } from '@/components/jobs/JobFilters';
+import { JobFiltersClient } from './JobFiltersClient';
 import type { JobOfferFilters } from '@/types/jobs';
 
 interface PageProps {
@@ -194,42 +194,5 @@ export default async function OffresEmploiPage({ searchParams }: PageProps) {
         </div>
       </div>
     </div>
-  );
-}
-
-// Client component for filters (needed for interactivity)
-'use client';
-
-function JobFiltersClient({
-  filters,
-  totalResults,
-}: {
-  filters: Partial<JobOfferFilters>;
-  totalResults: number;
-}) {
-  const handleFiltersChange = (newFilters: Partial<JobOfferFilters>) => {
-    const params = new URLSearchParams();
-
-    if (newFilters.query) params.set('query', newFilters.query);
-    if (newFilters.categories?.length)
-      params.set('categories', newFilters.categories.join(','));
-    if (newFilters.contractTypes?.length)
-      params.set('contractTypes', newFilters.contractTypes.join(','));
-    if (newFilters.sectorId) params.set('sectorId', newFilters.sectorId);
-    if (newFilters.isUrgent) params.set('isUrgent', 'true');
-    if (newFilters.providesHousing) params.set('providesHousing', 'true');
-    if (newFilters.salaryMin) params.set('salaryMin', String(newFilters.salaryMin));
-    if (newFilters.sortBy) params.set('sortBy', newFilters.sortBy);
-
-    window.location.href = `/emploi/offres?${params.toString()}`;
-  };
-
-  return (
-    <JobFilters
-      filters={filters}
-      onFiltersChange={handleFiltersChange}
-      totalResults={totalResults}
-      variant="offers"
-    />
   );
 }
