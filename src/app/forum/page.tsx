@@ -24,6 +24,7 @@ const SECTORS_DEFAULT: Omit<ForumSector, 'topic_count'>[] = [
   { id: 'casatorra',          name: 'Casatorra',             slug: 'casatorra',          description: 'Secteur Casatorra',                     icon: '🌿',  color: 'green',   display_order: 4 },
   { id: 'ortale',             name: 'Ortale',                slug: 'ortale',             description: 'Quartier Ortale',                       icon: '🏡',  color: 'violet',  display_order: 5 },
   { id: 'la-plaine',          name: 'La Plaine',             slug: 'la-plaine',          description: 'Zone de la plaine et étang',            icon: '🌾',  color: 'orange',  display_order: 6 },
+  { id: 'la-marana',          name: 'La Marana',             slug: 'la-marana',          description: 'Zone de La Marana',                     icon: '🏖️',  color: 'cyan',    display_order: 7 },
 ];
 
 const SECTOR_COLORS: Record<string, { bg: string; text: string; border: string; badge: string }> = {
@@ -33,6 +34,7 @@ const SECTOR_COLORS: Record<string, { bg: string; text: string; border: string; 
   green:   { bg: 'bg-green-50',   text: 'text-green-700',   border: 'border-green-200',   badge: 'bg-green-100 text-green-700'     },
   violet:  { bg: 'bg-violet-50',  text: 'text-violet-700',  border: 'border-violet-200',  badge: 'bg-violet-100 text-violet-700'   },
   orange:  { bg: 'bg-orange-50',  text: 'text-orange-700',  border: 'border-orange-200',  badge: 'bg-orange-100 text-orange-700'   },
+  cyan:    { bg: 'bg-cyan-50',    text: 'text-cyan-700',    border: 'border-cyan-200',    badge: 'bg-cyan-100 text-cyan-700'       },
   gray:    { bg: 'bg-gray-50',    text: 'text-gray-700',    border: 'border-gray-200',    badge: 'bg-gray-100 text-gray-700'       },
 };
 

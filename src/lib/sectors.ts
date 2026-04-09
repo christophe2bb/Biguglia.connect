@@ -16,7 +16,7 @@ export interface Sector {
   description?: string;
 }
 
-export type SectorColor = 'emerald' | 'blue' | 'amber' | 'green' | 'violet' | 'orange' | 'gray';
+export type SectorColor = 'emerald' | 'blue' | 'amber' | 'green' | 'violet' | 'orange' | 'cyan' | 'gray';
 
 /** Niveau d'obligation selon le module */
 export type SectorRequirement = 'required' | 'recommended' | 'optional' | 'special';
@@ -42,6 +42,7 @@ export const SECTORS: Sector[] = [
   { id: 'casatorra',    name: 'Casatorra',             slug: 'casatorra',    icon: '🌿', color: 'green',   display_order: 4, description: 'Secteur Casatorra' },
   { id: 'ortale',       name: 'Ortale',                slug: 'ortale',       icon: '🏡', color: 'violet',  display_order: 5, description: 'Quartier Ortale' },
   { id: 'la-plaine',   name: 'La Plaine',             slug: 'la-plaine',    icon: '🌾', color: 'orange',  display_order: 6, description: 'Zone de la plaine et étang' },
+  { id: 'la-marana',   name: 'La Marana',             slug: 'la-marana',    icon: '🏖️', color: 'cyan',    display_order: 7, description: 'Zone de La Marana' },
 ];
 
 /** Map id → Sector pour accès O(1) */
@@ -83,6 +84,11 @@ export const SECTOR_COLORS: Record<SectorColor, {
     bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200',
     badge: 'bg-orange-100 text-orange-700', badgeSolid: 'bg-orange-600 text-white',
     ring: 'ring-orange-300',
+  },
+  cyan: {
+    bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200',
+    badge: 'bg-cyan-100 text-cyan-700', badgeSolid: 'bg-cyan-600 text-white',
+    ring: 'ring-cyan-300',
   },
   gray: {
     bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200',

@@ -3743,14 +3743,15 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- Insertion des 6 secteurs de Biguglia
+-- Insertion des 7 secteurs de Biguglia
 INSERT INTO forum_sectors (name, slug, description, icon, color, display_order) VALUES
   ('Les Collines',       'les-collines', 'Quartier résidentiel sur les hauteurs', '⛰️', 'emerald', 1),
   ('Figabruna',          'figabruna',    'Secteur sud de Biguglia',               '🌊', 'blue',    2),
   ('Village de Biguglia','village',      'Cœur historique du village',            '🏘️', 'amber',   3),
   ('Casatorra',          'casatorra',    'Secteur Casatorra',                     '🌿', 'green',   4),
   ('Ortale',             'ortale',       'Quartier Ortale',                       '🏡', 'violet',  5),
-  ('La Plaine',          'la-plaine',    'Zone de la plaine et étang',            '🌾', 'orange',  6)
+  ('La Plaine',          'la-plaine',    'Zone de la plaine et étang',            '🌾', 'orange',  6),
+  ('La Marana',          'la-marana',    'Zone de La Marana',                     '🏖️', 'cyan',    7)
 ON CONFLICT (slug) DO NOTHING;
 
 -- Ajout catégories thématiques forum v2
@@ -4207,7 +4208,8 @@ INSERT INTO sectors (id, name, slug, icon, color, display_order, description) VA
   ('village',      'Village de Biguglia', 'village',      '🏘️',  'amber',   3, 'Cœur historique du village'),
   ('casatorra',    'Casatorra',           'casatorra',    '🌿',  'green',   4, 'Secteur Casatorra'),
   ('ortale',       'Ortale',              'ortale',       '🏡',  'violet',  5, 'Quartier Ortale'),
-  ('la-plaine',    'La Plaine',           'la-plaine',    '🌾',  'orange',  6, 'Zone de la plaine et étang')
+  ('la-plaine',    'La Plaine',           'la-plaine',    '🌾',  'orange',  6, 'Zone de la plaine et étang'),
+  ('la-marana',    'La Marana',           'la-marana',    '🏖️',  'cyan',    7, 'Zone de La Marana')
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name, icon = EXCLUDED.icon, color = EXCLUDED.color,
   display_order = EXCLUDED.display_order, description = EXCLUDED.description;

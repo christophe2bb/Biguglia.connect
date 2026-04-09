@@ -23,6 +23,7 @@ const SECTORS_DEFAULT: ForumSector[] = [
   { id: 'casatorra',     name: 'Casatorra',             slug: 'casatorra',     description: '', icon: '🌿', color: 'green',   display_order: 4 },
   { id: 'ortale',        name: 'Ortale',                slug: 'ortale',        description: '', icon: '🏡', color: 'violet',  display_order: 5 },
   { id: 'la-plaine',     name: 'La Plaine',             slug: 'la-plaine',     description: '', icon: '🌾', color: 'orange',  display_order: 6 },
+  { id: 'la-marana',     name: 'La Marana',             slug: 'la-marana',     description: '', icon: '🏖️', color: 'cyan',    display_order: 7 },
 ];
 
 const CATEGORIES_DEFAULT: ForumCategory[] = [
