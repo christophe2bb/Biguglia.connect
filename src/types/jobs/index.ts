@@ -42,8 +42,14 @@ export interface JobOffer {
   contract_type: ContractType;
   employment_type: EmploymentType;
 
+  // Employer
+  employer_name?: string | null;   // Nom de l'entreprise / employeur
+  employer_address?: string | null; // Adresse physique de l'employeur
+
   // Location
   location_label: string;
+  location_city?: string | null;
+  location_address?: string | null;
   location_lat?: number | null;
   location_lng?: number | null;
   sector_id?: string | null; // Type string (aligné avec table sectors)
