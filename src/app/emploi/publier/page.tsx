@@ -392,11 +392,43 @@ export default function PublierOffrePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Secteur / quartier</label>
-                <select value={form.sector_id} onChange={e => set('sector_id', e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-brand-400 bg-white">
-                  {SECTORS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                </select>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  📍 Secteur / Quartier
+                  <span className="text-gray-400 font-normal text-xs ml-1">(utilisé dans la recherche par zone)</span>
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {SECTORS.filter(s => s.id !== '').map(s => (
+                    <label key={s.id}
+                      className={`flex items-center gap-2 p-3 border-2 rounded-xl cursor-pointer text-sm transition-all ${
+                        form.sector_id === s.id
+                          ? 'border-brand-500 bg-brand-50 text-brand-800 font-semibold'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}>
+                      <input type="radio" name="sector" value={s.id}
+                        checked={form.sector_id === s.id}
+                        onChange={e => set('sector_id', e.target.value)}
+                        className="sr-only" />
+                      <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
+                        form.sector_id === s.id ? 'border-brand-500 bg-brand-500' : 'border-gray-300'
+                      }`} />
+                      {s.label}
+                    </label>
+                  ))}
+                  <label className={`flex items-center gap-2 p-3 border-2 rounded-xl cursor-pointer text-sm transition-all ${
+                    form.sector_id === ''
+                      ? 'border-gray-400 bg-gray-50 text-gray-700 font-semibold'
+                      : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                  }`}>
+                    <input type="radio" name="sector" value=""
+                      checked={form.sector_id === ''}
+                      onChange={() => set('sector_id', '')}
+                      className="sr-only" />
+                    <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
+                      form.sector_id === '' ? 'border-gray-500 bg-gray-500' : 'border-gray-300'
+                    }`} />
+                    Non précisé
+                  </label>
+                </div>
               </div>
 
               <label className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl cursor-pointer">
