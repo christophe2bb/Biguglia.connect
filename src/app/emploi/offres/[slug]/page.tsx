@@ -7,7 +7,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import {
   MapPin, Euro, Clock, Calendar, Briefcase, User, Home, Utensils,
-  Car, ArrowLeft, Send, Eye, Phone, Mail, Flame, CheckCircle,
+  Car, ArrowLeft, Eye, Flame, CheckCircle,
   Star, GraduationCap, Wifi, Building2, ChevronRight, FileText,
 } from 'lucide-react';
 import { getJobOfferBySlug } from '@/services/jobs/queries';
@@ -19,6 +19,7 @@ import {
   formatSalaryRange,
   getContractTypeColor,
 } from '@/types/jobs/constants';
+import ProtectedContact from '@/components/jobs/ProtectedContact';
 
 interface PageProps {
   params: { slug: string };
@@ -366,22 +367,18 @@ export default async function OffreDetailPage({ params }: PageProps) {
             )}
 
             {/* CTA mobile (visible uniquement sur petit écran) */}
-            <div className="lg:hidden bg-white rounded-2xl border-2 border-brand-200 shadow-sm p-5">
-              <h3 className="text-base font-bold text-gray-900 mb-3">Postuler à cette offre</h3>
-              <div className="space-y-3">
-                {offer.contact_email && (
-                  <a href={`mailto:${offer.contact_email}?subject=Candidature – ${offer.title}`}
-                    className="flex items-center gap-2 w-full px-4 py-3 bg-brand-500 text-white font-bold rounded-xl hover:bg-brand-600 transition-colors justify-center">
-                    <Send className="w-4 h-4" /> Envoyer un email
-                  </a>
-                )}
-                {offer.contact_phone && (
-                  <a href={`tel:${offer.contact_phone}`}
-                    className="flex items-center gap-2 w-full px-4 py-3 bg-white text-brand-600 font-semibold rounded-xl border-2 border-brand-200 hover:bg-brand-50 transition-colors justify-center">
-                    <Phone className="w-4 h-4" /> Appeler : {offer.contact_phone}
-                  </a>
-                )}
-              </div>
+            <div className="lg:hidden bg-gradient-to-br from-brand-500 to-brand-700 rounded-2xl border-0 shadow-sm p-5">
+              <h3 className="text-base font-bold text-white mb-1">Postuler à cette offre</h3>
+              <p className="text-brand-100 text-xs mb-4">Connectez-vous pour voir les coordonnées.</p>
+              <ProtectedContact
+                type="offer"
+                slug={offer.slug}
+                hasEmail={!!(offer.application_mode === 'email' || offer.application_mode === 'mixed' || offer.contact_email)}
+                hasPhone={!!(offer.application_mode === 'phone' || offer.application_mode === 'mixed' || offer.contact_phone)}
+                colorScheme="brand"
+                jobTitle={offer.title}
+                ctaLabel="Voir les coordonnées"
+              />
             </div>
           </div>
 
@@ -392,34 +389,18 @@ export default async function OffreDetailPage({ params }: PageProps) {
               {/* CTA Postuler */}
               <div className="bg-gradient-to-br from-brand-500 to-brand-700 rounded-2xl p-6 text-white shadow-lg">
                 <h3 className="text-lg font-bold mb-1">Intéressé(e) ?</h3>
-                <p className="text-brand-100 text-sm mb-5">
-                  Contactez directement {offer.employer_name || 'l\'employeur'} pour postuler.
+                <p className="text-brand-100 text-sm mb-4">
+                  Connectez-vous pour voir les coordonnées de {offer.employer_name || 'l\'employeur'}.
                 </p>
-                <div className="space-y-3">
-                  {offer.contact_email && (
-                    <a href={`mailto:${offer.contact_email}?subject=Candidature – ${offer.title}`}
-                      className="flex items-center gap-2 w-full px-4 py-3 bg-white text-brand-700 font-bold rounded-xl hover:bg-brand-50 transition-colors justify-center">
-                      <Mail className="w-4 h-4" /> Envoyer un email
-                    </a>
-                  )}
-                  {offer.contact_phone && (
-                    <a href={`tel:${offer.contact_phone}`}
-                      className="flex items-center gap-2 w-full px-4 py-3 bg-white/20 text-white font-semibold rounded-xl border border-white/30 hover:bg-white/30 transition-colors justify-center">
-                      <Phone className="w-4 h-4" /> {offer.contact_phone}
-                    </a>
-                  )}
-                  {offer.application_url && (
-                    <a href={offer.application_url} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-2 w-full px-4 py-3 bg-white/20 text-white font-semibold rounded-xl border border-white/30 hover:bg-white/30 transition-colors justify-center">
-                      🌐 Postuler en ligne
-                    </a>
-                  )}
-                </div>
-                {offer.contact_instructions && (
-                  <div className="mt-4 p-3 bg-white/15 rounded-xl text-xs text-brand-100 leading-relaxed">
-                    ℹ️ {offer.contact_instructions}
-                  </div>
-                )}
+                <ProtectedContact
+                  type="offer"
+                  slug={offer.slug}
+                  hasEmail={!!(offer.application_mode === 'email' || offer.application_mode === 'mixed' || offer.contact_email)}
+                  hasPhone={!!(offer.application_mode === 'phone' || offer.application_mode === 'mixed' || offer.contact_phone)}
+                  colorScheme="brand"
+                  jobTitle={offer.title}
+                  ctaLabel="Voir les coordonnées"
+                />
               </div>
 
               {/* Fiche poste */}

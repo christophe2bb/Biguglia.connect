@@ -595,14 +595,14 @@ export default function PublierDemandePage() {
                 <div className="flex items-center gap-3 flex-wrap">
                   <div className="relative flex-1 min-w-[100px]">
                     <Euro className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input type="number" placeholder="Min"
+                    <input type="number" placeholder="Min" min="0" step="1"
                       value={form.salary_min} onChange={e => set('salary_min', e.target.value)}
                       className="w-full pl-9 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white" />
                   </div>
                   <span className="text-gray-400 font-bold">–</span>
                   <div className="relative flex-1 min-w-[100px]">
                     <Euro className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input type="number" placeholder="Max"
+                    <input type="number" placeholder="Max" min="0" step="1"
                       value={form.salary_max} onChange={e => set('salary_max', e.target.value)}
                       className="w-full pl-9 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white" />
                   </div>

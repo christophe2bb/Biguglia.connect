@@ -7,7 +7,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import {
   MapPin, Euro, Clock, Calendar, Search, User, Car, ArrowLeft,
-  Phone, Mail, FileText, Eye, CheckCircle, Star, GraduationCap,
+  FileText, Eye, CheckCircle, Star, GraduationCap,
   ChevronRight, Flame, Building2, Briefcase,
 } from 'lucide-react';
 import { getJobDemandBySlug } from '@/services/jobs/queries';
@@ -18,6 +18,7 @@ import {
   EXPERIENCE_LEVEL_LABELS,
   formatSalaryRange,
 } from '@/types/jobs/constants';
+import ProtectedContact from '@/components/jobs/ProtectedContact';
 
 interface PageProps {
   params: { slug: string };
@@ -300,22 +301,18 @@ export default async function DemandDetailPage({ params }: PageProps) {
             )}
 
             {/* CTA mobile */}
-            <div className="lg:hidden bg-white rounded-2xl border-2 border-purple-200 shadow-sm p-5">
-              <h3 className="text-base font-bold text-gray-900 mb-3">Contacter ce candidat</h3>
-              <div className="space-y-3">
-                {demand.contact_email && (
-                  <a href={`mailto:${demand.contact_email}?subject=Opportunité d'emploi – ${demand.title}`}
-                    className="flex items-center gap-2 w-full px-4 py-3 bg-purple-500 text-white font-bold rounded-xl hover:bg-purple-600 transition-colors justify-center">
-                    <Mail className="w-4 h-4" /> Envoyer un email
-                  </a>
-                )}
-                {demand.contact_phone && (
-                  <a href={`tel:${demand.contact_phone}`}
-                    className="flex items-center gap-2 w-full px-4 py-3 bg-white text-purple-600 font-semibold rounded-xl border-2 border-purple-200 justify-center">
-                    <Phone className="w-4 h-4" /> {demand.contact_phone}
-                  </a>
-                )}
-              </div>
+            <div className="lg:hidden bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl border-0 shadow-sm p-5">
+              <h3 className="text-base font-bold text-white mb-1">Contacter ce candidat</h3>
+              <p className="text-purple-100 text-xs mb-4">Connectez-vous pour voir les coordonnées.</p>
+              <ProtectedContact
+                type="demand"
+                slug={demand.slug}
+                hasEmail={!!(demand.contact_mode === 'email' || demand.contact_mode === 'mixed' || demand.contact_email)}
+                hasPhone={!!(demand.contact_mode === 'phone' || demand.contact_mode === 'mixed' || demand.contact_phone)}
+                colorScheme="purple"
+                jobTitle={demand.title}
+                ctaLabel="Voir les coordonnées"
+              />
             </div>
           </div>
 
@@ -326,29 +323,26 @@ export default async function DemandDetailPage({ params }: PageProps) {
               {/* CTA Contact */}
               <div className="bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl p-6 text-white shadow-lg">
                 <h3 className="text-lg font-bold mb-1">Intéressé(e) par ce profil ?</h3>
-                <p className="text-purple-100 text-sm mb-5">
-                  Contactez directement ce candidat pour lui proposer un poste.
+                <p className="text-purple-100 text-sm mb-4">
+                  Connectez-vous pour voir les coordonnées du candidat.
                 </p>
-                <div className="space-y-3">
-                  {demand.contact_email && (
-                    <a href={`mailto:${demand.contact_email}?subject=Opportunité d'emploi – ${demand.title}`}
-                      className="flex items-center gap-2 w-full px-4 py-3 bg-white text-purple-700 font-bold rounded-xl hover:bg-purple-50 transition-colors justify-center">
-                      <Mail className="w-4 h-4" /> Envoyer un email
-                    </a>
-                  )}
-                  {demand.contact_phone && (
-                    <a href={`tel:${demand.contact_phone}`}
-                      className="flex items-center gap-2 w-full px-4 py-3 bg-white/20 text-white font-semibold rounded-xl border border-white/30 hover:bg-white/30 transition-colors justify-center">
-                      <Phone className="w-4 h-4" /> {demand.contact_phone}
-                    </a>
-                  )}
-                  {demand.cv_url && (
+                <ProtectedContact
+                  type="demand"
+                  slug={demand.slug}
+                  hasEmail={!!(demand.contact_mode === 'email' || demand.contact_mode === 'mixed' || demand.contact_email)}
+                  hasPhone={!!(demand.contact_mode === 'phone' || demand.contact_mode === 'mixed' || demand.contact_phone)}
+                  colorScheme="purple"
+                  jobTitle={demand.title}
+                  ctaLabel="Voir les coordonnées"
+                />
+                {demand.cv_url && (
+                  <div className="mt-3">
                     <a href={demand.cv_url} target="_blank" rel="noopener noreferrer"
                       className="flex items-center gap-2 w-full px-4 py-3 bg-white/20 text-white font-semibold rounded-xl border border-white/30 hover:bg-white/30 transition-colors justify-center">
                       <FileText className="w-4 h-4" /> Voir le CV
                     </a>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
               {/* Fiche candidat */}
