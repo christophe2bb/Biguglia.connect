@@ -98,6 +98,7 @@ export async function publishJobDemand(
     title: input.title.trim(),
     job_category: input.job_category,
     contract_types: input.contract_types,
+    desired_contract_types: input.contract_types,   // alias métier
     employment_type: 'flexible',
     short_description: input.description.slice(0, 300),
     profile_description: input.experience_summary ?? input.description,
