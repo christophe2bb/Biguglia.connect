@@ -190,9 +190,17 @@ export interface JobDemand {
   has_driving_license: boolean;
   has_vehicle: boolean;
 
+  // Contact
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  contact_mode?: string | null; // 'email' | 'phone' | 'mixed'
+
   // Documents
   cv_url?: string | null;
   portfolio_url?: string | null;
+
+  // Location details
+  location_city?: string | null;
 
   // Status
   status: JobStatus;
