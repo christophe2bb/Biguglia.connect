@@ -7,7 +7,7 @@ import {
   Menu, X, Bell, MessageSquare, User, LogOut, Shield, Home,
   Wrench, ChevronDown, PenLine, Drill, TreePine, Gem, PartyPopper,
   Package, BookOpen, Calendar, Footprints, ArrowRight,
-  ClipboardList, Search, Handshake, Heart, Activity,
+  ClipboardList, Search, Handshake, Heart, Activity, Briefcase,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -72,8 +72,16 @@ const UNIVERS = [
     gradFrom: 'from-blue-500',
     gradTo: 'to-teal-500',
     headerBg: 'bg-gradient-to-r from-blue-50 to-teal-50 border-blue-100',
-    paths: ['/annonces', '/materiel', '/collectionneurs', '/perdu-trouve'],
+    paths: ['/annonces', '/materiel', '/collectionneurs', '/perdu-trouve', '/emploi'],
     items: [
+      {
+        href: '/emploi/offres',
+        icon: Briefcase,
+        label: 'Emploi local',
+        desc: 'CDI, CDD, saisonnier, extra…',
+        iconColor: 'text-cyan-500',
+        iconBg: 'bg-cyan-100',
+      },
       {
         href: '/annonces',
         icon: Package,
