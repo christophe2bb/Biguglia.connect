@@ -33,6 +33,11 @@ body {
     text-wrap: balance;
   }
 
+  /* Container custom */
+  .container-custom {
+    @apply w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
   /* Glass effects */
   .glass {
     @apply bg-white/70 backdrop-blur-xl border border-white/20;
