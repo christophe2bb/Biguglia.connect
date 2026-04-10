@@ -11,9 +11,9 @@
  *   { status: 'error' }       → erreur serveur
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Mail, Phone, EyeOff, Loader2, UserCheck, Info } from 'lucide-react';
+import { Mail, Phone, EyeOff, Loader2, UserCheck, Info, RefreshCw } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 interface ProtectedContactProps {
@@ -43,8 +43,9 @@ export default function ProtectedContact({
   colorScheme = 'brand',
   jobTitle = '',
 }: ProtectedContactProps) {
-  const [uiState, setUiState] = useState<UIState>('loading');
-  const [contact, setContact] = useState<ContactData | null>(null);
+  const [uiState, setUiState]   = useState<UIState>('loading');
+  const [contact, setContact]   = useState<ContactData | null>(null);
+  const [errorInfo, setErrorInfo] = useState<string>('');
 
   const btnPrimary =
     colorScheme === 'purple'
@@ -54,20 +55,31 @@ export default function ProtectedContact({
   const lockBg = colorScheme === 'purple' ? 'bg-purple-800/40' : 'bg-brand-800/40';
   const placeholderCls = `flex items-center gap-2 w-full px-4 py-3 rounded-xl ${lockBg} text-white/60 font-medium text-sm`;
 
-  useEffect(() => {
-    async function init() {
+  const load = useCallback(async () => {
+    setUiState('loading');
+    setErrorInfo('');
+
+    try {
+      const supabase = createClient();
+
+      // getUser() force un refresh du token si nécessaire
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        setUiState('guest');
+        return;
+      }
+
+      // Récupérer la session pour le token d'accès
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setUiState('guest');
+        return;
+      }
+
+      let res: Response;
       try {
-        const supabase = createClient();
-        const { data: { session } } = await supabase.auth.getSession();
-
-        // Pas connecté → état guest sans appel API
-        if (!session) {
-          setUiState('guest');
-          return;
-        }
-
-        // Un seul appel API — gère owner + coordonnées + erreurs
-        const res = await fetch('/api/emploi/contact', {
+        res = await fetch('/api/emploi/contact', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -75,48 +87,70 @@ export default function ProtectedContact({
           },
           body: JSON.stringify({ type, slug }),
         });
-
-        // Non authentifié côté serveur (token expiré ?)
-        if (res.status === 401) {
-          setUiState('guest');
-          return;
-        }
-
-        const json = await res.json().catch(() => ({ status: 'error' }));
-        const apiStatus = json?.status;
-
-        switch (apiStatus) {
-          case 'owner':
-            setUiState('owner');
-            break;
-          case 'revealed':
-            // Vérifier qu'il y a au moins une coordonnée
-            if (json.contact_email || json.contact_phone) {
-              setContact(json as ContactData);
-              setUiState('revealed');
-            } else {
-              setUiState('no_contact');
-            }
-            break;
-          case 'guest':
-            setUiState('guest');
-            break;
-          case 'not_found':
-            setUiState('not_found');
-            break;
-          default:
-            // Erreur serveur ou réponse inattendue
-            setUiState('error');
-        }
-      } catch {
-        // Erreur réseau
+      } catch (fetchErr: unknown) {
+        setErrorInfo('Erreur réseau: ' + (fetchErr instanceof Error ? fetchErr.message : String(fetchErr)));
         setUiState('error');
+        return;
       }
-    }
 
-    init();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug]);
+      const httpStatus = res.status;
+
+      if (httpStatus === 401) {
+        setUiState('guest');
+        return;
+      }
+
+      // Lire la réponse — peut être du JSON ou du HTML (en cas d'erreur Vercel)
+      const rawText = await res.text().catch(() => '');
+      let json: Record<string, unknown> = { status: 'error' };
+      try {
+        json = JSON.parse(rawText);
+      } catch {
+        // Réponse HTML (page d'erreur Vercel 500) — on log le début
+        setErrorInfo(`HTTP ${httpStatus} – réponse non-JSON: ${rawText.slice(0, 80)}`);
+        setUiState('error');
+        return;
+      }
+
+      const apiStatus = json?.status as string | undefined;
+
+      switch (apiStatus) {
+        case 'owner':
+          setUiState('owner');
+          break;
+        case 'revealed': {
+          const d = json as unknown as ContactData;
+          if (d.contact_email || d.contact_phone) {
+            setContact(d);
+            setUiState('revealed');
+          } else {
+            setUiState('no_contact');
+          }
+          break;
+        }
+        case 'guest':
+          setUiState('guest');
+          break;
+        case 'not_found':
+          setUiState('not_found');
+          break;
+        case 'error':
+          setErrorInfo(`HTTP ${httpStatus} – ${(json.error as string) || 'erreur serveur'}`);
+          setUiState('error');
+          break;
+        default:
+          setErrorInfo(`HTTP ${httpStatus} – status inattendu: "${apiStatus}"`);
+          setUiState('error');
+      }
+    } catch (e: unknown) {
+      setErrorInfo(e instanceof Error ? e.message : String(e));
+      setUiState('error');
+    }
+  }, [type, slug]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   /* ── Chargement ── */
   if (uiState === 'loading') {
@@ -141,7 +175,6 @@ export default function ProtectedContact({
   if (uiState === 'guest') {
     return (
       <div className="space-y-3">
-        {/* Placeholders floutés */}
         {hasEmail && (
           <div className={placeholderCls}>
             <Mail className="w-4 h-4 flex-shrink-0" />
@@ -154,7 +187,6 @@ export default function ProtectedContact({
             <span className="blur-sm select-none flex-1 font-mono">06 00 00 00 00</span>
           </div>
         )}
-
         <div className="bg-white/10 rounded-xl p-4 text-center space-y-2">
           <p className="text-sm font-bold text-white">
             Connectez-vous pour contacter l&apos;employeur
@@ -179,7 +211,7 @@ export default function ProtectedContact({
     );
   }
 
-  /* ── Annonce sans coordonnées saisies ── */
+  /* ── Annonce introuvable ou sans coordonnées ── */
   if (uiState === 'not_found' || uiState === 'no_contact') {
     return (
       <div className="flex items-start gap-2 text-sm text-white/70 bg-white/10 rounded-xl px-4 py-3">
@@ -187,7 +219,7 @@ export default function ProtectedContact({
         <span>
           {uiState === 'not_found'
             ? 'Annonce introuvable.'
-            : "Aucune coordonnée renseignée pour cette annonce."}
+            : 'Aucune coordonnée renseignée pour cette annonce.'}
         </span>
       </div>
     );
@@ -196,9 +228,21 @@ export default function ProtectedContact({
   /* ── Erreur réseau / serveur ── */
   if (uiState === 'error') {
     return (
-      <div className="flex items-start gap-2 text-sm text-white/70 bg-white/10 rounded-xl px-4 py-3">
-        <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-        <span>Impossible de charger les coordonnées. Réessayez.</span>
+      <div className="flex flex-col gap-2 bg-white/10 rounded-xl px-4 py-3">
+        <div className="flex items-start gap-2 text-sm text-white/70">
+          <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>Impossible de charger les coordonnées.</span>
+        </div>
+        {errorInfo && (
+          <p className="text-xs text-white/40 font-mono break-all">{errorInfo}</p>
+        )}
+        <button
+          onClick={load}
+          className="flex items-center gap-1.5 text-xs text-white/70 hover:text-white underline"
+        >
+          <RefreshCw className="w-3 h-3" />
+          Réessayer
+        </button>
       </div>
     );
   }
