@@ -16,7 +16,13 @@ function ConnexionForm() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const searchParams = useSearchParams();
-  const redirect = searchParams.get('redirect') || '/dashboard';
+
+  // Lire le paramètre de redirection post-login.
+  // Le middleware envoie ?next= ; certains liens directs utilisent encore ?redirect=.
+  // On accepte les deux et on filtre les URL externes (sécurité open-redirect).
+  const rawNext = searchParams.get('next') || searchParams.get('redirect') || '/dashboard';
+  // Refuser toute URL qui ne commence pas par '/' (évite les redirections vers des sites externes)
+  const redirect = rawNext.startsWith('/') ? rawNext : '/dashboard';
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
