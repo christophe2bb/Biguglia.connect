@@ -26,6 +26,7 @@ import { THEME_CONFIG, BADGE_CONFIG, type BadgeCode, type InteractionSourceType 
 import Avatar from '@/components/ui/Avatar';
 import { BadgePill } from '@/components/ui/TrustScore';
 import toast from 'react-hot-toast';
+import ProtectedPage from '@/components/providers/ProtectedPage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface AdminReview {
@@ -193,6 +194,7 @@ export default function AdminConfiancePage() {
   const reportedOnly = reportedReviews.filter(r => r.moderation_status === 'reported');
 
   return (
+    <ProtectedPage adminOnly>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-20">
@@ -545,5 +547,7 @@ export default function AdminConfiancePage() {
         )}
       </div>
     </div>
+
+    </ProtectedPage>
   );
 }

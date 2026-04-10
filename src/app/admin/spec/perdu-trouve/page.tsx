@@ -13,6 +13,7 @@ import {
   Search, MapPin, Shield, Bell, Database, Lock, Zap, Users,
   BarChart3, Camera, FileText, Settings, Star, MessageSquare,
 } from 'lucide-react';
+import ProtectedPage from '@/components/providers/ProtectedPage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ItemStatus = 'done' | 'partial' | 'todo';
@@ -290,6 +291,7 @@ export default function SpecPerduTrouvePage() {
   const compliance = Math.round((doneCount / total) * 100);
 
   return (
+    <ProtectedPage adminOnly>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-gradient-to-br from-orange-400 via-amber-400 to-emerald-500 text-white">
@@ -460,5 +462,7 @@ export default function SpecPerduTrouvePage() {
         </div>
       </div>
     </div>
+
+    </ProtectedPage>
   );
 }

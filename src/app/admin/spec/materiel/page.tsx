@@ -13,6 +13,7 @@ import {
   BarChart3, Database, Bell, Settings, FileText,
   ChevronDown, ChevronUp,
 } from 'lucide-react';
+import ProtectedPage from '@/components/providers/ProtectedPage';
 
 // ─── Données du cahier des charges ───────────────────────────────────────────
 
@@ -277,6 +278,7 @@ export default function SpecMaterielPage() {
   const pctPartial   = Math.round((totalPartial / total) * 100);
 
   return (
+    <ProtectedPage adminOnly>
     <div className="max-w-4xl mx-auto px-4 py-10">
 
       {/* Navigation */}
@@ -436,5 +438,7 @@ export default function SpecMaterielPage() {
         Cahier des charges Biguglia Connect — Module Matériel · Vérifié le {new Date().toLocaleDateString('fr-FR')}
       </div>
     </div>
+
+    </ProtectedPage>
   );
 }

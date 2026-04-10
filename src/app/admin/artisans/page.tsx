@@ -19,6 +19,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { ROLE_LABELS, formatRelative } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import ProtectedPage from '@/components/providers/ProtectedPage';
 
 interface ArtisanEntry {
   id: string;
@@ -550,6 +551,7 @@ export default function AdminArtisansPage() {
   if (!profile || !isAdmin()) return null;
 
   return (
+    <ProtectedPage adminOnly>
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
       {/* ── En-tête ── */}
@@ -640,5 +642,7 @@ export default function AdminArtisansPage() {
         </div>
       )}
     </div>
+
+    </ProtectedPage>
   );
 }
