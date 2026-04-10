@@ -82,11 +82,11 @@ export async function GET(req: NextRequest) {
   const participantUserIds = (allParticipants ?? []).map((p: { user_id: string }) => p.user_id);
   const allUserIds = Array.from(new Set([...participantUserIds, userId]));
 
-  let profiles: Array<{ id: string; full_name: string | null; avatar_url: string | null }> = [];
+  let profiles: Array<{ id: string; full_name: string | null; avatar_url: string | null; email: string | null }> = [];
   if (allUserIds.length > 0) {
     const { data: profileData, error: profileErr } = await admin
       .from('profiles')
-      .select('id, full_name, avatar_url')
+      .select('id, full_name, avatar_url, email')
       .in('id', allUserIds);
 
     if (profileErr) {

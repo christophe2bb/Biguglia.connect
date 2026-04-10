@@ -12,7 +12,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { Conversation, Profile } from '@/types';
 import Avatar from '@/components/ui/Avatar';
 import EmptyState from '@/components/ui/EmptyState';
-import { formatRelative, cn } from '@/lib/utils';
+import { formatRelative, cn, displayName as libDisplayName } from '@/lib/utils';
 
 // ─── Cache module-level : survit au démontage du composant ────────────────────
 // Stocke convId → timestamp (ms) de la dernière lecture locale.
@@ -240,7 +240,7 @@ export default function MessagesPage() {
       try {
         const { data: fallbackProfiles } = await supabase
           .from('profiles')
-          .select('id, full_name, avatar_url')
+          .select('id, full_name, avatar_url, email')
           .in('id', Array.from(missingProfileIds));
         if (fallbackProfiles && fallbackProfiles.length > 0) {
           const fbMap = new Map(fallbackProfiles.map(fp => [fp.id, fp as Profile]));
@@ -762,7 +762,7 @@ export default function MessagesPage() {
                     <div className="relative flex-shrink-0">
                       <Avatar
                         src={conv.other_user?.avatar_url}
-                        name={conv.other_user?.full_name || conv.subject || '?'}
+                        name={libDisplayName(conv.other_user, conv.subject || '?')}
                         size="md"
                       />
                       {hasUnread && (
@@ -788,7 +788,7 @@ export default function MessagesPage() {
                           'truncate text-sm',
                           hasUnread ? 'font-black text-gray-900' : 'font-semibold text-gray-800'
                         )}>
-                          {conv.other_user?.full_name || conv.subject || 'Conversation'}
+                          {libDisplayName(conv.other_user, conv.subject || 'Conversation')}
                         </span>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <span className="text-xs text-gray-400 whitespace-nowrap">
