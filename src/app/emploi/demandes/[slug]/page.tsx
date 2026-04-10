@@ -17,6 +17,7 @@ import {
   JOB_CATEGORY_ICONS,
   EXPERIENCE_LEVEL_LABELS,
   formatSalaryRange,
+  SECTOR_LABELS,
 } from '@/types/jobs/constants';
 import ProtectedContact from '@/components/jobs/ProtectedContact';
 
@@ -41,14 +42,6 @@ const AVAILABILITY_LABELS: Record<string, { label: string; color: string; bg: st
   flexible:  { label: 'Flexible / À discuter',        color: 'text-gray-700',   bg: 'bg-gray-50 border-gray-200'    },
 };
 
-const SECTOR_LABELS: Record<string, string> = {
-  biguglia:    '📍 Biguglia centre',
-  lido:        '🏖️ Zone du Lido',
-  marana:      '🌿 La Marana',
-  furiani:     '🏘️ Furiani',
-  bastia:      '🏙️ Bastia (proches)',
-  haute_corse: '🗺️ Toute la Haute-Corse',
-};
 
 export default async function DemandDetailPage({ params }: PageProps) {
   const demand = await getJobDemandBySlug(params.slug);

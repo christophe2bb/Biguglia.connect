@@ -459,3 +459,25 @@ export function isUrgent(
 
   return diffDays <= 7;
 }
+
+// ============================================================================
+// SECTORS (Quartiers / Zones de Biguglia et alentours)
+// Utilisé partout : wizards, filtres, pages de détail
+// ============================================================================
+export const JOB_SECTORS = [
+  { id: 'figuerune',    label: 'Figuerune',             emoji: '🏘️' },
+  { id: 'portale',      label: 'Portale',               emoji: '🏡' },
+  { id: 'marana',       label: 'La Marana',             emoji: '🌿' },
+  { id: 'borgo',        label: 'Borgo',                 emoji: '🏙️' },
+  { id: 'lido',         label: 'Zone du Lido',          emoji: '🏖️' },
+  { id: 'furiani',      label: 'Furiani',               emoji: '⛪' },
+  { id: 'bastia',       label: 'Bastia (proches)',      emoji: '🏛️' },
+  { id: 'biguglia',     label: 'Biguglia centre',       emoji: '📍' },
+  { id: 'haute_corse',  label: 'Toute la Haute-Corse',  emoji: '🗺️' },
+] as const;
+
+export type SectorId = (typeof JOB_SECTORS)[number]['id'];
+
+export const SECTOR_LABELS: Record<string, string> = Object.fromEntries(
+  JOB_SECTORS.map(s => [s.id, `${s.emoji} ${s.label}`])
+);

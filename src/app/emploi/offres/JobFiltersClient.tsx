@@ -16,17 +16,12 @@ import {
   JOB_CATEGORIES,
   JOB_CATEGORY_LABELS,
   JOB_CATEGORY_ICONS,
+  JOB_SECTORS,
 } from '@/types/jobs/constants';
 
 /* ── Secteurs de Biguglia (à adapter selon table DB) ─────────────── */
-const SECTORS = [
-  { id: 'biguglia',       label: 'Biguglia centre' },
-  { id: 'lido',           label: 'Zone du Lido' },
-  { id: 'marana',         label: 'La Marana' },
-  { id: 'furiani',        label: 'Furiani' },
-  { id: 'bastia',         label: 'Bastia (proches)' },
-  { id: 'haute_corse',    label: 'Toute la Haute-Corse' },
-];
+// Secteurs : liste centrale
+const SECTORS = [...JOB_SECTORS];
 
 const SALARY_STEPS = [0, 1000, 1200, 1500, 1800, 2000, 2500, 3000, 4000];
 
@@ -205,7 +200,7 @@ export function JobFiltersClient({ filters, totalResults }: Props) {
                   className="w-4 h-4 text-brand-600 border-gray-300 focus:ring-brand-500"
                 />
                 <span className="text-sm text-gray-700 group-hover:text-brand-600">
-                  {s.label}
+                  {s.emoji} {s.label}
                 </span>
               </label>
             ))}

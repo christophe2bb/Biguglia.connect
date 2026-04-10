@@ -16,6 +16,7 @@ import {
 import {
   CONTRACT_TYPES, CONTRACT_TYPE_LABELS,
   JOB_CATEGORIES, JOB_CATEGORY_LABELS,
+  JOB_SECTORS,
 } from '@/types/jobs/constants';
 import { publishJobDemand } from '@/services/jobs/publish-demand';
 import { createClient } from '@/lib/supabase/client';
@@ -83,12 +84,8 @@ const SALARY_PERIOD_LABELS: Record<string, string> = {
 };
 
 const SECTORS = [
-  { id: '',            label: 'Toute la zone' },
-  { id: 'biguglia',    label: 'Biguglia centre' },
-  { id: 'lido',        label: 'Zone du Lido' },
-  { id: 'marana',      label: 'La Marana' },
-  { id: 'furiani',     label: 'Furiani' },
-  { id: 'bastia',      label: 'Bastia (proches)' },
+  { id: '', label: 'Toute la zone', emoji: '' },
+  ...JOB_SECTORS,
 ];
 
 export default function PublierDemandePage() {
@@ -563,7 +560,7 @@ export default function PublierDemandePage() {
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-white"
                   >
                     {SECTORS.map(s => (
-                      <option key={s.id} value={s.id}>{s.label}</option>
+                      <option key={s.id} value={s.id}>{s.emoji ? `${s.emoji} ${s.label}` : s.label}</option>
                     ))}
                   </select>
                 </div>

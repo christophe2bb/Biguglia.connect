@@ -18,6 +18,7 @@ import {
   EXPERIENCE_LEVEL_LABELS,
   formatSalaryRange,
   getContractTypeColor,
+  SECTOR_LABELS,
 } from '@/types/jobs/constants';
 import ProtectedContact from '@/components/jobs/ProtectedContact';
 
@@ -45,14 +46,6 @@ const CONTRACT_COLOR_MAP: Record<string, { bg: string; text: string; border: str
   gray:   { bg: 'bg-gray-100',   text: 'text-gray-700',   border: 'border-gray-200'   },
 };
 
-const SECTOR_LABELS: Record<string, string> = {
-  biguglia:    '📍 Biguglia centre',
-  lido:        '🏖️ Zone du Lido',
-  marana:      '🌿 La Marana',
-  furiani:     '🏘️ Furiani',
-  bastia:      '🏙️ Bastia (proches)',
-  haute_corse: '🗺️ Toute la Haute-Corse',
-};
 
 export default async function OffreDetailPage({ params }: PageProps) {
   const offer = await getJobOfferBySlug(params.slug);

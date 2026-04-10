@@ -13,17 +13,12 @@ import {
   JOB_CATEGORIES,
   JOB_CATEGORY_LABELS,
   JOB_CATEGORY_ICONS,
+  JOB_SECTORS,
 } from '@/types/jobs/constants';
 
 /* ── Secteurs de Biguglia ─────────────────────────────────────────── */
-const SECTORS = [
-  { id: 'biguglia',    label: 'Biguglia centre' },
-  { id: 'lido',        label: 'Zone du Lido' },
-  { id: 'marana',      label: 'La Marana' },
-  { id: 'furiani',     label: 'Furiani' },
-  { id: 'bastia',      label: 'Bastia (proches)' },
-  { id: 'haute_corse', label: 'Toute la Haute-Corse' },
-];
+// Secteurs : liste centrale
+const SECTORS = [...JOB_SECTORS];
 
 interface Props {
   filters: Partial<JobDemandFilters>;
@@ -189,7 +184,7 @@ export function DemandFiltersClient({ filters, totalResults }: Props) {
                   className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
                 />
                 <span className="text-sm text-gray-700 group-hover:text-purple-600">
-                  {s.label}
+                  {s.emoji} {s.label}
                 </span>
               </label>
             ))}

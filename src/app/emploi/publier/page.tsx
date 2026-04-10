@@ -17,6 +17,7 @@ import {
 import {
   CONTRACT_TYPES, CONTRACT_TYPE_LABELS,
   JOB_CATEGORIES, JOB_CATEGORY_LABELS,
+  JOB_SECTORS,
 } from '@/types/jobs/constants';
 import { publishJobOffer } from '@/services/jobs/publish-offer';
 
@@ -85,13 +86,10 @@ const SALARY_PERIOD_LABELS: Record<string, string> = {
   hourly: '/ heure', daily: '/ jour', monthly: '/ mois', yearly: '/ an',
 };
 
+// Secteurs : on utilise la liste centrale + option 'Non précisé'
 const SECTORS = [
-  { id: '',            label: 'Non précisé' },
-  { id: 'biguglia',    label: 'Biguglia centre' },
-  { id: 'lido',        label: 'Zone du Lido' },
-  { id: 'marana',      label: 'La Marana' },
-  { id: 'furiani',     label: 'Furiani' },
-  { id: 'bastia',      label: 'Bastia (proches)' },
+  { id: '', label: 'Non précisé', emoji: '' },
+  ...JOB_SECTORS,
 ];
 
 /* ── Avantages prédéfinis ───────────────────────────────────────────────── */
@@ -459,7 +457,7 @@ export default function PublierOffrePage() {
                       <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
                         form.sector_id === s.id ? 'border-brand-500 bg-brand-500' : 'border-gray-300'
                       }`} />
-                      {s.label}
+                      <span>{s.emoji} {s.label}</span>
                     </label>
                   ))}
                   <label className={`flex items-center gap-2 p-3 border-2 rounded-xl cursor-pointer text-sm transition-all ${
@@ -806,6 +804,7 @@ export default function PublierOffrePage() {
                   ['Contrat',    form.contract_type ? CONTRACT_TYPE_LABELS[form.contract_type as keyof typeof CONTRACT_TYPE_LABELS] : '–'],
                   ['Employeur',  form.employer_name || '–'],
                   ['Ville',      form.location_city || '–'],
+                  ['Secteur',    form.sector_id ? (SECTORS.find(s => s.id === form.sector_id)?.emoji + ' ' + SECTORS.find(s => s.id === form.sector_id)?.label) : 'Non précisé'],
                   ['Salaire',    form.salary_min
                       ? `${form.salary_min}€${form.salary_max ? ` – ${form.salary_max}€` : ''} ${SALARY_PERIOD_LABELS[form.salary_period] ?? ''}${form.salary_type ? ` (${form.salary_type})` : ''}`
                       : 'Non renseigné'],
