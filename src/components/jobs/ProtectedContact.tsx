@@ -1,34 +1,28 @@
 'use client';
 
 /**
- * ProtectedContact – affiche les coordonnées de contact de façon protégée.
+ * ProtectedContact — Bloc de contact intelligent.
  *
- * Les informations (email / téléphone) sont masquées par défaut et ne
- * sont jamais intégrées dans le HTML de la page.
- * Un clic sur "Voir les coordonnées" :
- *   1. Vérifie la session côté serveur (via /api/emploi/contact)
- *   2. Si connecté → retourne email/téléphone et les affiche
- *   3. Si non connecté → affiche un message d'invitation à se connecter
+ * Comportement selon l'état de connexion :
+ *
+ * 1. Non connecté        → "Connectez-vous pour contacter l'employeur"
+ * 2. Connecté            → Révèle directement email/téléphone (pas de bouton intermédiaire)
+ * 3. Propriétaire        → "Vous gérez cette annonce" (pas de bloc contact)
+ * 4. Chargement session  → Spinner discret
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Mail, Phone, Eye, EyeOff, Lock, ExternalLink, Loader2 } from 'lucide-react';
+import { Mail, Phone, EyeOff, Loader2, UserCheck, MessageCircle } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 interface ProtectedContactProps {
-  /** 'offer' ou 'demand' */
   type: 'offer' | 'demand';
-  /** Slug de l'annonce */
   slug: string;
-  /** Indique s'il y a un email (pour afficher le placeholder) */
   hasEmail?: boolean;
-  /** Indique s'il y a un téléphone (pour afficher le placeholder) */
   hasPhone?: boolean;
-  /** Couleur principale : 'brand' (cyan/teal) ou 'purple' */
   colorScheme?: 'brand' | 'purple';
-  /** Titre du poste (pour le sujet de l'email) */
   jobTitle?: string;
-  /** Label du bouton */
   ctaLabel?: string;
 }
 
@@ -39,6 +33,8 @@ interface ContactData {
   application_mode: string | null;
 }
 
+type UIState = 'loading' | 'guest' | 'owner' | 'revealed' | 'error';
+
 export default function ProtectedContact({
   type,
   slug,
@@ -46,123 +42,111 @@ export default function ProtectedContact({
   hasPhone = false,
   colorScheme = 'brand',
   jobTitle = '',
-  ctaLabel = 'Voir les coordonnées',
 }: ProtectedContactProps) {
-  const [state, setState] = useState<'hidden' | 'loading' | 'revealed' | 'unauth'>('hidden');
-  const [contact, setContact] = useState<ContactData | null>(null);
+  const [uiState, setUiState]   = useState<UIState>('loading');
+  const [contact, setContact]   = useState<ContactData | null>(null);
 
-  /* ── Classes Tailwind selon couleur ── */
   const btnPrimary =
     colorScheme === 'purple'
       ? 'bg-white text-purple-700 hover:bg-purple-50'
       : 'bg-white text-brand-700 hover:bg-brand-50';
-  const btnSecondary =
-    'bg-white/20 text-white border border-white/30 hover:bg-white/30';
-  const lockBg =
-    colorScheme === 'purple' ? 'bg-purple-800/40' : 'bg-brand-800/40';
+  const btnSecondary = 'bg-white/20 text-white border border-white/30 hover:bg-white/30';
+  const lockBg = colorScheme === 'purple' ? 'bg-purple-800/40' : 'bg-brand-800/40';
   const placeholderCls = `flex items-center gap-2 w-full px-4 py-3 rounded-xl ${lockBg} text-white/60 font-medium text-sm`;
 
-  /* ── Appel API sécurisé ── */
-  async function handleReveal() {
-    setState('loading');
-    try {
-      const res = await fetch('/api/emploi/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, slug }),
-      });
+  /* ── Au montage : vérifier la session et charger les coordonnées ── */
+  useEffect(() => {
+    async function init() {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
 
-      if (res.status === 401) {
-        setState('unauth');
+      // Pas connecté → afficher invitation à se connecter
+      if (!session) {
+        setUiState('guest');
         return;
       }
 
-      if (!res.ok) {
-        setState('hidden');
-        return;
-      }
+      // Connecté → appeler l'API contact avec le token Bearer
+      try {
+        const res = await fetch('/api/emploi/contact', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ type, slug }),
+        });
 
-      const data: ContactData = await res.json();
-      setContact(data);
-      setState('revealed');
-    } catch {
-      setState('hidden');
+        if (res.status === 401) { setUiState('guest'); return; }
+        if (res.status === 403) { setUiState('owner'); return; }
+        if (!res.ok)            { setUiState('error'); return; }
+
+        const data: ContactData = await res.json();
+        setContact(data);
+        setUiState('revealed');
+      } catch {
+        setUiState('error');
+      }
     }
-  }
+    init();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug]);
 
-  /* ══════════════════════════════════════════════
-     État : masqué
-  ══════════════════════════════════════════════ */
-  if (state === 'hidden' || state === 'loading') {
+  /* ── Chargement ── */
+  if (uiState === 'loading') {
     return (
-      <div className="space-y-3">
-        {/* Placeholders floutés */}
-        {hasEmail && (
-          <div className={placeholderCls}>
-            <Lock className="w-4 h-4 flex-shrink-0" />
-            <span className="blur-sm select-none flex-1 font-mono">email@exemple.fr</span>
-          </div>
-        )}
-        {hasPhone && (
-          <div className={placeholderCls}>
-            <Lock className="w-4 h-4 flex-shrink-0" />
-            <span className="blur-sm select-none flex-1 font-mono">06 00 00 00 00</span>
-          </div>
-        )}
-
-        {/* Bouton principal */}
-        <button
-          onClick={handleReveal}
-          disabled={state === 'loading'}
-          className={`flex items-center gap-2 w-full px-4 py-3 ${btnPrimary} font-bold rounded-xl transition-colors justify-center shadow-md disabled:opacity-70`}
-        >
-          {state === 'loading' ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Eye className="w-4 h-4" />
-          )}
-          {state === 'loading' ? 'Vérification…' : ctaLabel}
-        </button>
+      <div className="flex items-center justify-center py-4">
+        <Loader2 className="w-5 h-5 animate-spin text-white/60" />
       </div>
     );
   }
 
-  /* ══════════════════════════════════════════════
-     État : non connecté
-  ══════════════════════════════════════════════ */
-  if (state === 'unauth') {
+  /* ── Propriétaire de l'annonce ── */
+  if (uiState === 'owner') {
+    return (
+      <div className="flex items-center gap-2 text-sm text-white/80 bg-white/10 rounded-xl px-4 py-3">
+        <UserCheck className="w-4 h-4 flex-shrink-0" />
+        <span>Vous gérez cette annonce</span>
+      </div>
+    );
+  }
+
+  /* ── Non connecté ── */
+  if (uiState === 'guest') {
     return (
       <div className="space-y-3">
         {/* Placeholders floutés */}
         {hasEmail && (
           <div className={placeholderCls}>
-            <Lock className="w-4 h-4 flex-shrink-0" />
+            <Mail className="w-4 h-4 flex-shrink-0" />
             <span className="blur-sm select-none flex-1 font-mono">email@exemple.fr</span>
           </div>
         )}
         {hasPhone && (
           <div className={placeholderCls}>
-            <Lock className="w-4 h-4 flex-shrink-0" />
+            <Phone className="w-4 h-4 flex-shrink-0" />
             <span className="blur-sm select-none flex-1 font-mono">06 00 00 00 00</span>
           </div>
         )}
 
-        {/* Message connexion */}
-        <div className="text-xs text-white/90 bg-white/10 rounded-xl p-3 text-center space-y-2">
-          <p className="font-semibold">🔒 Connexion requise pour voir les coordonnées</p>
-          <p className="text-white/70">C&apos;est gratuit et rapide !</p>
-          <div className="flex items-center justify-center gap-3 pt-1">
+        {/* Message clair : connecté à quoi */}
+        <div className="bg-white/10 rounded-xl p-4 text-center space-y-2">
+          <p className="text-sm font-bold text-white">
+            Connectez-vous pour contacter l&apos;employeur
+          </p>
+          <p className="text-xs text-white/70">Inscription gratuite, sans engagement</p>
+          <div className="flex items-center justify-center gap-2 pt-1">
             <Link
               href={`/connexion?redirect=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname : '')}`}
-              className="inline-flex items-center gap-1 bg-white text-gray-800 font-bold px-3 py-1.5 rounded-lg text-xs hover:bg-gray-100 transition-colors"
+              className="inline-flex items-center gap-1.5 bg-white text-gray-900 font-bold px-4 py-2 rounded-xl text-sm hover:bg-gray-100 transition-colors"
             >
               Se connecter
             </Link>
             <Link
               href="/inscription"
-              className="inline-flex items-center gap-1 underline underline-offset-2 text-white/80 hover:text-white text-xs"
+              className="inline-flex items-center gap-1.5 border border-white/40 text-white font-semibold px-4 py-2 rounded-xl text-sm hover:bg-white/10 transition-colors"
             >
-              S&apos;inscrire <ExternalLink className="w-3 h-3" />
+              S&apos;inscrire
             </Link>
           </div>
         </div>
@@ -170,13 +154,20 @@ export default function ProtectedContact({
     );
   }
 
-  /* ══════════════════════════════════════════════
-     État : révélé
-  ══════════════════════════════════════════════ */
+  /* ── Erreur ── */
+  if (uiState === 'error') {
+    return (
+      <div className="text-xs text-white/70 bg-white/10 rounded-xl px-4 py-3 text-center">
+        <MessageCircle className="w-4 h-4 mx-auto mb-1" />
+        Coordonnées temporairement indisponibles
+      </div>
+    );
+  }
+
+  /* ── Connecté : coordonnées révélées ── */
   return (
     <div className="space-y-3">
-      {/* Badge discrétion */}
-      <div className="flex items-center gap-1.5 text-xs font-medium text-white/70 mb-1">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-white/70">
         <EyeOff className="w-3.5 h-3.5" />
         Coordonnées visibles uniquement par vous
       </div>

@@ -323,7 +323,6 @@ export default async function DemandDetailPage({ params }: PageProps) {
             {/* CTA mobile */}
             <div className="lg:hidden bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl border-0 shadow-sm p-5">
               <h3 className="text-base font-bold text-white mb-1">Contacter ce candidat</h3>
-              <p className="text-purple-100 text-xs mb-4">Connectez-vous pour voir les coordonnées.</p>
               <ProtectedContact
                 type="demand"
                 slug={demand.slug}
@@ -342,10 +341,7 @@ export default async function DemandDetailPage({ params }: PageProps) {
 
               {/* CTA Contact */}
               <div className="bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl p-6 text-white shadow-lg">
-                <h3 className="text-lg font-bold mb-1">Intéressé(e) par ce profil ?</h3>
-                <p className="text-purple-100 text-sm mb-4">
-                  Connectez-vous pour voir les coordonnées du candidat.
-                </p>
+                <h3 className="text-lg font-bold mb-2">Intéressé(e) par ce profil ?</h3>
                 <ProtectedContact
                   type="demand"
                   slug={demand.slug}
