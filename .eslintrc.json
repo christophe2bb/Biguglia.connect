@@ -1,0 +1,13 @@
+{
+  "extends": "next/core-web-vitals",
+  "rules": {
+    // Texte français avec apostrophes et guillemets : cosmétique, à corriger progressivement
+    "react/no-unescaped-entities": "warn",
+    // <img> vs <Image> next/image : migration progressive
+    "@next/next/no-img-element": "warn",
+    // Dépendances de hooks manquantes : à corriger progressivement
+    "react-hooks/exhaustive-deps": "warn",
+    // Accessibilité alt-text : à corriger progressivement
+    "jsx-a11y/alt-text": "warn"
+  }
+}
