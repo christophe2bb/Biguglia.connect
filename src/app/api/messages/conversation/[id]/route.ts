@@ -106,21 +106,38 @@ export async function GET(
   ]);
 
   if (convError) {
+    console.error('[api/conversation/GET] conversation error:', convError.message);
     return NextResponse.json({ error: convError.message }, { status: 500 });
   }
 
+  // messagesError : on log mais on ne bloque pas — retourner la convers sans messages
   if (messagesError) {
-    return NextResponse.json({ error: messagesError.message }, { status: 500 });
+    console.error('[api/conversation/GET] messages error:', messagesError.message);
+    // Ne pas retourner 500 pour une erreur de messages seuls — l'UI peut gérer [].
+    // Le client affichera « Démarrez la conversation ! » plutôt qu'une erreur.
   }
 
   // Récupérer les profils des participants
-  const participantIds = (participants ?? []).map((p: { user_id: string }) => p.user_id);
+  // On garantit que userId EST dans la liste même si participantsError est non-null
+  // (récursion RLS possible sur conversation_participants)
+  const participantIds = Array.from(new Set([
+    userId,
+    ...(participants ?? []).map((p: { user_id: string }) => p.user_id),
+  ]));
+
+  if (participantsError) {
+    console.error('[api/conversation/GET] participants error:', participantsError.message);
+  }
+
   let profiles: Array<{ id: string; full_name: string | null; avatar_url: string | null }> = [];
   if (participantIds.length > 0) {
-    const { data: profileData } = await admin
+    const { data: profileData, error: profileErr } = await admin
       .from('profiles')
       .select('id, full_name, avatar_url')
       .in('id', participantIds);
+    if (profileErr) {
+      console.error('[api/conversation/GET] profiles error:', profileErr.message);
+    }
     profiles = profileData ?? [];
   }
 

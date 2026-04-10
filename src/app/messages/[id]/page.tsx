@@ -615,22 +615,33 @@ export default function ConversationPage() {
       if (candidateIds.length > 0) {
         const otherId = candidateIds[0];
         // Chercher d'abord dans profilesData (fraîchement récupéré depuis l'API)
-        const found = (profilesData || []).find(p => p.id === otherId)
+        const foundInApi = (profilesData || []).find(p => p.id === otherId)
           ?? profileCacheRef.current[otherId]
           ?? null;
-        if (found) {
-          setOtherUser(found as unknown as Profile);
-          otherUserId = found.id;
+
+        if (foundInApi) {
+          profileCacheRef.current[foundInApi.id] = foundInApi as unknown as Profile;
+          setOtherUser(foundInApi as unknown as Profile);
+          otherUserId = foundInApi.id;
         } else {
-          // Profil introuvable dans la réponse API — tentative directe (table profiles sans RLS récursive)
-          supabase.from('profiles').select('id, full_name, avatar_url').eq('id', otherId).maybeSingle()
-            .then(({ data }) => {
-              if (data && mountedRef.current) {
-                profileCacheRef.current[data.id] = data as unknown as Profile;
-                setOtherUser(data as unknown as Profile);
-              }
-            });
-          otherUserId = otherId; // conserver l'ID même si profil pas encore chargé
+          // Profil introuvable dans la réponse API —
+          // Tentative directe sur la table profiles (pas de RLS récursive).
+          // On ATTEND cette requête avant d'appeler setLoading(false) pour éviter
+          // un flash '?' / '—' le temps que le profil arrive.
+          otherUserId = otherId;
+          try {
+            const { data: fallbackProfile } = await supabase
+              .from('profiles')
+              .select('id, full_name, avatar_url')
+              .eq('id', otherId)
+              .maybeSingle();
+            if (fallbackProfile && mountedRef.current) {
+              profileCacheRef.current[fallbackProfile.id] = fallbackProfile as unknown as Profile;
+              setOtherUser(fallbackProfile as unknown as Profile);
+            }
+          } catch (e) {
+            console.warn('[ConversationPage] fallback profile fetch error:', e);
+          }
         }
       }
 
@@ -831,7 +842,11 @@ export default function ConversationPage() {
           {loading && !otherUser ? (
             <div className="w-10 h-10 rounded-full bg-gray-200 animate-pulse" />
           ) : (
-            <Avatar src={otherUser?.avatar_url} name={otherUser?.full_name || subject || '?'} size="md" />
+            <Avatar
+              src={otherUser?.avatar_url}
+              name={otherUser?.full_name?.trim() || 'Utilisateur'}
+              size="md"
+            />
           )}
           {isFavorite && (
             <span className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center text-[9px]">⭐</span>
@@ -841,11 +856,11 @@ export default function ConversationPage() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="font-bold text-gray-900 truncate">
-              {otherUser?.full_name
-                ? otherUser.full_name
-                : loading
-                  ? <span className="inline-block w-28 h-4 bg-gray-200 animate-pulse rounded" />
-                  : (subject && subject !== 'Conversation' ? subject : '—')}
+              {loading && !otherUser
+                ? <span className="inline-block w-28 h-4 bg-gray-200 animate-pulse rounded" />
+                : (otherUser?.full_name?.trim() || otherUser?.id
+                    ? (otherUser?.full_name?.trim() || 'Utilisateur')
+                    : (subject && subject !== 'Conversation' ? subject : 'Chargement…'))}
             </span>
             {isBlocked && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">Bloqué</span>}
           </div>
