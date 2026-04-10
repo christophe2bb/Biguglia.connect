@@ -72,19 +72,29 @@ export default function ModifierDemandePage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push(`/connexion?redirect=/emploi/demandes/${slug}/modifier`); return; }
 
-      // Vérifier l'ownership via API (service role, bypass RLS)
-      const ownerRes = await fetch(`/api/emploi/ownership?type=demand&slug=${slug}`);
-      const ownerData = await ownerRes.json();
-      if (!ownerData.isOwner) { setNotOwner(true); setLoading(false); return; }
+      // Charger les données via API (bypass RLS, vérifie propriété côté serveur)
+      // L'API GET /api/emploi/demandes/[slug] retourne 401 si non connecté,
+      // 403 si non propriétaire, 200 + { demand } si OK
+      const res = await fetch(`/api/emploi/demandes/${slug}`);
 
-      // Charger les données de la demande
-      const { data, error: err } = await supabase
-        .from('job_demands')
-        .select('*')
-        .eq('slug', slug)
-        .single();
+      if (res.status === 401) {
+        router.push(`/connexion?redirect=/emploi/demandes/${slug}/modifier`);
+        return;
+      }
+      if (res.status === 403) {
+        setNotOwner(true);
+        setLoading(false);
+        return;
+      }
+      if (!res.ok) {
+        setError('Demande introuvable ou accès refusé.');
+        setLoading(false);
+        return;
+      }
 
-      if (err || !data) { setError('Demande introuvable.'); setLoading(false); return; }
+      const json = await res.json();
+      const data = json.demand;
+      if (!data) { setError('Demande introuvable.'); setLoading(false); return; }
 
       setForm({
         title: data.title ?? '',

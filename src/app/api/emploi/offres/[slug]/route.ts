@@ -1,5 +1,6 @@
 /**
  * API Route — /api/emploi/offres/[slug]
+ * GET    : récupère une offre (propriétaire uniquement, bypass RLS)
  * DELETE : supprime une offre (propriétaire uniquement)
  * PATCH  : met à jour une offre (propriétaire uniquement)
  *
@@ -11,6 +12,52 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
 
 interface RouteParams {
   params: { slug: string };
+}
+
+// ── GET /api/emploi/offres/[slug] ────────────────────────────────────────────
+// Récupère les données complètes d'une offre pour son propriétaire (édition)
+export async function GET(_req: Request, { params }: RouteParams) {
+  // 1. Auth
+  const supabase = createClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) {
+    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
+
+  // 2. Lire l'offre via admin (bypass RLS) ou via client authentifié
+  let offer: Record<string, unknown> | null = null;
+
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (serviceKey) {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from('job_offers')
+      .select('*')
+      .eq('slug', params.slug)
+      .single();
+    if (!error && data) offer = data as Record<string, unknown>;
+  }
+
+  // Fallback : client authentifié (fonctionne via RLS public_read si status=published)
+  if (!offer) {
+    const { data, error } = await supabase
+      .from('job_offers')
+      .select('*')
+      .eq('slug', params.slug)
+      .single();
+    if (!error && data) offer = data as Record<string, unknown>;
+  }
+
+  if (!offer) {
+    return NextResponse.json({ error: 'Offre introuvable' }, { status: 404 });
+  }
+
+  // 3. Vérifier propriété
+  if (offer.user_id !== user.id) {
+    return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+  }
+
+  return NextResponse.json({ offer });
 }
 
 // ── DELETE /api/emploi/offres/[slug] ────────────────────────────────────────

@@ -2,7 +2,11 @@
  * API Route — /api/emploi/ownership
  * GET ?type=offer|demand&slug=xxx
  * Retourne { isOwner: boolean } pour l'utilisateur connecté.
- * Utilise le service role (bypass RLS) pour lire user_id.
+ *
+ * Stratégie en 3 niveaux :
+ * 1. Service role (admin) → bypass RLS total si SUPABASE_SERVICE_ROLE_KEY est défini
+ * 2. Client authentifié avec filtre user_id (via RLS own_crud)
+ * 3. Client authentifié SELECT user_id puis comparaison
  */
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
@@ -25,18 +29,49 @@ export async function GET(req: Request) {
     return NextResponse.json({ isOwner: false, reason: 'not_authenticated' });
   }
 
-  // 2. Lire user_id via admin (bypass RLS)
-  const admin = createAdminClient();
-  const { data, error } = await admin
+  // 2. Essayer via admin (service role) si disponible
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (serviceKey) {
+    try {
+      const admin = createAdminClient();
+      const { data, error } = await admin
+        .from(table)
+        .select('user_id')
+        .eq('slug', slug)
+        .single();
+
+      if (!error && data) {
+        const isOwner = (data as any).user_id === user.id;
+        return NextResponse.json({ isOwner, method: 'admin', userId: user.id });
+      }
+    } catch {
+      // Continuer vers le fallback
+    }
+  }
+
+  // 3. Fallback : compter les lignes WHERE slug=? AND user_id=auth.uid()
+  //    Fonctionne avec la politique RLS "own_crud FOR ALL"
+  const { count, error: countErr } = await supabase
+    .from(table)
+    .select('id', { count: 'exact', head: true })
+    .eq('slug', slug)
+    .eq('user_id', user.id);
+
+  if (!countErr && count !== null) {
+    return NextResponse.json({ isOwner: count > 0, method: 'rls_count', userId: user.id });
+  }
+
+  // 4. Dernier recours : lire user_id directement
+  const { data: row } = await supabase
     .from(table)
     .select('user_id')
     .eq('slug', slug)
     .single();
 
-  if (error || !data) {
-    return NextResponse.json({ isOwner: false, reason: 'not_found' });
+  if (row) {
+    const isOwner = (row as any).user_id === user.id;
+    return NextResponse.json({ isOwner, method: 'rls_read', userId: user.id });
   }
 
-  const isOwner = (data as any).user_id === user.id;
-  return NextResponse.json({ isOwner, userId: user.id });
+  return NextResponse.json({ isOwner: false, reason: 'not_found', method: 'fallback' });
 }
