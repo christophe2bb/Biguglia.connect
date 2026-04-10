@@ -73,9 +73,11 @@ export default function ModifierDemandePage() {
       if (!user) { router.push(`/connexion?redirect=/emploi/demandes/${slug}/modifier`); return; }
 
       // Charger les données via API (bypass RLS, vérifie propriété côté serveur)
-      // L'API GET /api/emploi/demandes/[slug] retourne 401 si non connecté,
-      // 403 si non propriétaire, 200 + { demand } si OK
-      const res = await fetch(`/api/emploi/demandes/${slug}`);
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {};
+      if (session) headers['Authorization'] = `Bearer ${session.access_token}`;
+
+      const res = await fetch(`/api/emploi/demandes/${slug}`, { headers });
 
       if (res.status === 401) {
         router.push(`/connexion?redirect=/emploi/demandes/${slug}/modifier`);
@@ -154,9 +156,14 @@ export default function ModifierDemandePage() {
     };
 
     try {
+      const supabaseClient = createClient();
+      const { data: { session: sess } } = await supabaseClient.auth.getSession();
+      const patchHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (sess) patchHeaders['Authorization'] = `Bearer ${sess.access_token}`;
+
       const res = await fetch(`/api/emploi/demandes/${slug}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: patchHeaders,
         body: JSON.stringify(payload),
       });
 
