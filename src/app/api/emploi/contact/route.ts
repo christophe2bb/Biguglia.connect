@@ -2,9 +2,13 @@
  * API Route: /api/emploi/contact
  * POST { type: 'offer' | 'demand', slug: string }
  *
- * Retourne les coordonnées UNIQUEMENT si l'utilisateur est connecté.
+ * Retourne un objet unifié selon l'état de l'utilisateur :
+ *   { status: 'owner' }                         — propriétaire de l'annonce
+ *   { status: 'revealed', contact_email, ... }  — connecté, coordonnées révélées
+ *   { status: 'guest' }                         — non authentifié (401)
+ *   { status: 'not_found' }                     — annonce introuvable (404)
+ *
  * Accepte Authorization: Bearer <token> (priorité) ou cookies SSR.
- * Retourne 403 si l'utilisateur est le propriétaire.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -40,26 +44,23 @@ async function getUserId(req: NextRequest): Promise<string | null> {
 }
 
 export async function POST(req: NextRequest) {
-  /* 1. Lire le body d'abord */
+  /* 1. Lire le body */
   let body: { type?: string; slug?: string };
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: 'Corps de la requête invalide.' }, { status: 400 });
+    return NextResponse.json({ error: 'Corps invalide.', status: 'error' }, { status: 400 });
   }
 
   const { type, slug } = body;
   if (!type || !slug || !['offer', 'demand'].includes(type)) {
-    return NextResponse.json({ error: 'Paramètres manquants ou invalides.' }, { status: 400 });
+    return NextResponse.json({ error: 'Paramètres manquants.', status: 'error' }, { status: 400 });
   }
 
   /* 2. Authentification */
   const userId = await getUserId(req);
   if (!userId) {
-    return NextResponse.json(
-      { error: 'Vous devez être connecté pour accéder aux coordonnées.' },
-      { status: 401 }
-    );
+    return NextResponse.json({ status: 'guest' }, { status: 401 });
   }
 
   /* 3. Récupérer les données via admin (bypass RLS) */
@@ -70,23 +71,29 @@ export async function POST(req: NextRequest) {
     .from(table)
     .select('user_id, contact_email, contact_phone, contact_instructions, application_mode, contact_mode')
     .eq('slug', slug)
-    .single();
+    .maybeSingle();   // ← maybeSingle() au lieu de single() : pas d'erreur si 0 lignes
 
-  if (error || !data) {
-    return NextResponse.json({ error: 'Annonce introuvable.' }, { status: 404 });
+  if (error) {
+    // Erreur DB réelle (ex : table manquante)
+    console.error('[contact API] DB error:', error.message);
+    return NextResponse.json({ status: 'error', error: error.message }, { status: 500 });
   }
 
-  /* 4. Propriétaire → 403 (il voit le bloc "Gérer mon annonce") */
+  if (!data) {
+    return NextResponse.json({ status: 'not_found' }, { status: 404 });
+  }
+
+  /* 4. Propriétaire → répondre avec status 'owner' (200, pas 403) */
   if ((data as any).user_id === userId) {
-    return NextResponse.json({ error: "Propriétaire de l'annonce." }, { status: 403 });
+    return NextResponse.json({ status: 'owner' });
   }
 
   /* 5. Retourner les coordonnées */
   return NextResponse.json({
+    status: 'revealed',
     contact_email:        (data as any).contact_email        ?? null,
     contact_phone:        (data as any).contact_phone        ?? null,
     contact_instructions: (data as any).contact_instructions ?? null,
     application_mode:     (data as any).application_mode     ?? (data as any).contact_mode ?? null,
   });
 }
-// redeploy Fri Apr 10 08:42:40 UTC 2026
