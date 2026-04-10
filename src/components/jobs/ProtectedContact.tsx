@@ -66,20 +66,37 @@ export default function ProtectedContact({
         return;
       }
 
-      // Connecté → appeler l'API contact avec le token Bearer
+      const bearer = { 'Authorization': `Bearer ${session.access_token}` };
+
+      // ── Étape 1 : vérifier si propriétaire (API ownership — on sait qu'elle marche)
+      try {
+        const ownerRes = await fetch(
+          `/api/emploi/ownership?type=${type === 'offer' ? 'offer' : 'demand'}&slug=${slug}`,
+          { headers: bearer }
+        );
+        if (ownerRes.ok) {
+          const ownerData = await ownerRes.json();
+          if (ownerData.isOwner === true) {
+            setUiState('owner');
+            return;
+          }
+        }
+      } catch { /* ignore, on continue */ }
+
+      // ── Étape 2 : récupérer les coordonnées
       try {
         const res = await fetch('/api/emploi/contact', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
+            ...bearer,
           },
           body: JSON.stringify({ type, slug }),
         });
 
         if (res.status === 401) { setUiState('guest'); return; }
         if (res.status === 403) { setUiState('owner'); return; }
-        if (!res.ok)            { setUiState('error'); return; }
+        if (!res.ok) { setUiState('error'); return; }
 
         const data: ContactData = await res.json();
         setContact(data);
