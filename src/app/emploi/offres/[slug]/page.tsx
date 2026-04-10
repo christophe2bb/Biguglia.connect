@@ -10,7 +10,7 @@ import {
   Car, ArrowLeft, Eye, Flame, CheckCircle,
   Star, GraduationCap, Wifi, Building2, ChevronRight, FileText,
 } from 'lucide-react';
-import { getJobOfferBySlug, checkJobOwnership } from '@/services/jobs/queries';
+import { getJobOfferBySlug } from '@/services/jobs/queries';
 import {
   CONTRACT_TYPE_LABELS,
   JOB_CATEGORY_LABELS,
@@ -49,10 +49,7 @@ const CONTRACT_COLOR_MAP: Record<string, { bg: string; text: string; border: str
 
 
 export default async function OffreDetailPage({ params }: PageProps) {
-  const [offer, isOwner] = await Promise.all([
-    getJobOfferBySlug(params.slug),
-    checkJobOwnership('job_offers', params.slug),
-  ]);
+  const offer = await getJobOfferBySlug(params.slug);
 
   /* ── Table DB pas encore créée OU annonce introuvable ── */
   if (!offer) {
@@ -549,15 +546,13 @@ export default async function OffreDetailPage({ params }: PageProps) {
                 </div>
               )}
 
-              {/* Boutons Modifier / Supprimer (propriétaire uniquement) */}
-              {isOwner && (
-                <OwnerActions
-                  type="offer"
-                  slug={offer.slug}
-                  editHref={`/emploi/offres/${offer.slug}/modifier`}
-                  colorScheme="cyan"
-                />
-              )}
+              {/* Boutons Modifier / Supprimer — vérification propriété côté client */}
+              <OwnerActions
+                type="offer"
+                slug={offer.slug}
+                editHref={`/emploi/offres/${offer.slug}/modifier`}
+                colorScheme="cyan"
+              />
 
               {/* Voir les demandes */}
               <div className="bg-gray-50 rounded-2xl border border-gray-200 p-5 text-center">

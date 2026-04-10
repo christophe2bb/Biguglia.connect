@@ -10,7 +10,7 @@ import {
   FileText, Eye, CheckCircle, Star, GraduationCap,
   ChevronRight, Flame, Building2, Briefcase,
 } from 'lucide-react';
-import { getJobDemandBySlug, checkJobOwnership } from '@/services/jobs/queries';
+import { getJobDemandBySlug } from '@/services/jobs/queries';
 import OwnerActions from '@/components/jobs/OwnerActions';
 import {
   CONTRACT_TYPE_LABELS,
@@ -45,10 +45,7 @@ const AVAILABILITY_LABELS: Record<string, { label: string; color: string; bg: st
 
 
 export default async function DemandDetailPage({ params }: PageProps) {
-  const [demand, isOwner] = await Promise.all([
-    getJobDemandBySlug(params.slug),
-    checkJobOwnership('job_demands', params.slug),
-  ]);
+  const demand = await getJobDemandBySlug(params.slug);
 
   /* ── Table DB pas encore créée OU demande introuvable ── */
   if (!demand) {
@@ -478,15 +475,13 @@ export default async function DemandDetailPage({ params }: PageProps) {
                 </div>
               )}
 
-              {/* Boutons Modifier / Supprimer (propriétaire uniquement) */}
-              {isOwner && (
-                <OwnerActions
-                  type="demand"
-                  slug={demand.slug}
-                  editHref={`/emploi/demandes/${demand.slug}/modifier`}
-                  colorScheme="purple"
-                />
-              )}
+              {/* Boutons Modifier / Supprimer — vérification propriété côté client */}
+              <OwnerActions
+                type="demand"
+                slug={demand.slug}
+                editHref={`/emploi/demandes/${demand.slug}/modifier`}
+                colorScheme="purple"
+              />
 
               {/* Lien retour offres */}
               <div className="bg-gray-50 rounded-2xl border border-gray-200 p-5 text-center">
