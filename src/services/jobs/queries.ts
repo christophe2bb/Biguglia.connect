@@ -5,7 +5,7 @@
  * Services pour récupérer offres et demandes d'emploi depuis Supabase
  */
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import type {
   JobOffer,
   JobDemand,
@@ -469,32 +469,23 @@ export async function checkJobOwnership(
   slug: string
 ): Promise<boolean> {
   try {
+    // 1. Récupérer l'utilisateur connecté (client normal avec cookies de session)
     const supabase = createClient();
-
-    // 1. Récupérer l'utilisateur connecté
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
 
-    // 2. Chercher une ligne qui correspond à SLUG + USER_ID
-    //    Si RLS est actif et que l'utilisateur est proprio → 1 ligne retournée
-    //    Sinon → 0 lignes (count = 0)
-    const { count, error } = await supabase
+    // 2. Vérifier la propriété via le client ADMIN (service role = bypass RLS total)
+    //    → lit user_id sans aucune restriction RLS
+    const admin = createAdminClient();
+    const { data, error } = await admin
       .from(table)
-      .select('id', { count: 'exact', head: true })
+      .select('user_id')
       .eq('slug', slug)
-      .eq('user_id', user.id);
+      .single();
 
-    if (error) {
-      // Fallback : essai direct sans filtre user_id pour comparer
-      const { data } = await supabase
-        .from(table)
-        .select('user_id')
-        .eq('slug', slug)
-        .single();
-      return !!(data && (data as any).user_id === user.id);
-    }
+    if (error || !data) return false;
 
-    return (count ?? 0) > 0;
+    return (data as any).user_id === user.id;
   } catch {
     return false;
   }

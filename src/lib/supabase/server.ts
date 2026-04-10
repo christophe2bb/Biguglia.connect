@@ -1,6 +1,8 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
+/** Client serveur normal (anon key + cookies session) */
 export function createClient() {
   const cookieStore = cookies();
 
@@ -23,5 +25,18 @@ export function createClient() {
         },
       },
     }
+  );
+}
+
+/**
+ * Client admin (service role key) — bypass RLS complet.
+ * À utiliser UNIQUEMENT côté serveur (Server Components, API Routes).
+ * Ne jamais exposer côté client.
+ */
+export function createAdminClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
   );
 }

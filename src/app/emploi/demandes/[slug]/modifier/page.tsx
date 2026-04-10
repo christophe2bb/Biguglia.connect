@@ -72,6 +72,12 @@ export default function ModifierDemandePage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push(`/connexion?redirect=/emploi/demandes/${slug}/modifier`); return; }
 
+      // Vérifier l'ownership via API (service role, bypass RLS)
+      const ownerRes = await fetch(`/api/emploi/ownership?type=demand&slug=${slug}`);
+      const ownerData = await ownerRes.json();
+      if (!ownerData.isOwner) { setNotOwner(true); setLoading(false); return; }
+
+      // Charger les données de la demande
       const { data, error: err } = await supabase
         .from('job_demands')
         .select('*')
@@ -79,7 +85,6 @@ export default function ModifierDemandePage() {
         .single();
 
       if (err || !data) { setError('Demande introuvable.'); setLoading(false); return; }
-      if (data.user_id !== user.id) { setNotOwner(true); setLoading(false); return; }
 
       setForm({
         title: data.title ?? '',

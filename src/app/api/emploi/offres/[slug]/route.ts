@@ -2,9 +2,12 @@
  * API Route — /api/emploi/offres/[slug]
  * DELETE : supprime une offre (propriétaire uniquement)
  * PATCH  : met à jour une offre (propriétaire uniquement)
+ *
+ * Utilise createClient() pour getUser() (cookies session)
+ * et createAdminClient() (service role) pour lire/écrire sans RLS.
  */
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 
 interface RouteParams {
   params: { slug: string };
@@ -12,15 +15,16 @@ interface RouteParams {
 
 // ── DELETE /api/emploi/offres/[slug] ────────────────────────────────────────
 export async function DELETE(_req: Request, { params }: RouteParams) {
+  // 1. Auth : qui appelle ?
   const supabase = createClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
-
   if (authErr || !user) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
 
-  // Vérifier que l'offre appartient à l'utilisateur
-  const { data: offer, error: fetchErr } = await supabase
+  // 2. Lire l'offre via admin (bypass RLS → user_id toujours visible)
+  const admin = createAdminClient();
+  const { data: offer, error: fetchErr } = await admin
     .from('job_offers')
     .select('id, user_id')
     .eq('slug', params.slug)
@@ -30,14 +34,16 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Offre introuvable' }, { status: 404 });
   }
 
-  if (offer.user_id !== user.id) {
+  // 3. Vérifier propriété
+  if ((offer as any).user_id !== user.id) {
     return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
   }
 
-  const { error: deleteErr } = await supabase
+  // 4. Supprimer via admin
+  const { error: deleteErr } = await admin
     .from('job_offers')
     .delete()
-    .eq('id', offer.id);
+    .eq('id', (offer as any).id);
 
   if (deleteErr) {
     return NextResponse.json({ error: deleteErr.message }, { status: 500 });
@@ -48,15 +54,16 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
 
 // ── PATCH /api/emploi/offres/[slug] ─────────────────────────────────────────
 export async function PATCH(req: Request, { params }: RouteParams) {
+  // 1. Auth
   const supabase = createClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
-
   if (authErr || !user) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
 
-  // Vérifier propriété
-  const { data: offer, error: fetchErr } = await supabase
+  // 2. Lire l'offre via admin
+  const admin = createAdminClient();
+  const { data: offer, error: fetchErr } = await admin
     .from('job_offers')
     .select('id, user_id')
     .eq('slug', params.slug)
@@ -66,13 +73,14 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Offre introuvable' }, { status: 404 });
   }
 
-  if (offer.user_id !== user.id) {
+  // 3. Vérifier propriété
+  if ((offer as any).user_id !== user.id) {
     return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
   }
 
   const body = await req.json();
 
-  // Champs autorisés à la modification
+  // 4. Champs autorisés
   const allowed = [
     'title', 'short_description', 'full_description',
     'employer_name', 'location_city', 'location_address', 'sector_id',
@@ -91,10 +99,11 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     if (key in body) updates[key] = body[key];
   }
 
-  const { data: updated, error: updateErr } = await supabase
+  // 5. Mettre à jour via admin
+  const { data: updated, error: updateErr } = await admin
     .from('job_offers')
     .update(updates)
-    .eq('id', offer.id)
+    .eq('id', (offer as any).id)
     .select('slug')
     .single();
 
@@ -102,5 +111,5 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     return NextResponse.json({ error: updateErr.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, slug: updated?.slug });
+  return NextResponse.json({ success: true, slug: (updated as any)?.slug });
 }

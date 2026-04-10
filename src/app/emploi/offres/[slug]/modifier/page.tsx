@@ -76,8 +76,12 @@ export default function ModifierOffrePage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push(`/connexion?redirect=/emploi/offres/${slug}/modifier`); return; }
 
-      const res = await fetch(`/api/emploi/debug?slug=${slug}`);
-      // On charge directement depuis Supabase
+      // Vérifier l'ownership via API (service role, bypass RLS)
+      const ownerRes = await fetch(`/api/emploi/ownership?type=offer&slug=${slug}`);
+      const ownerData = await ownerRes.json();
+      if (!ownerData.isOwner) { setNotOwner(true); setLoading(false); return; }
+
+      // Charger les données de l'offre
       const { data, error: err } = await supabase
         .from('job_offers')
         .select('*')
@@ -85,7 +89,6 @@ export default function ModifierOffrePage() {
         .single();
 
       if (err || !data) { setError('Annonce introuvable.'); setLoading(false); return; }
-      if (data.user_id !== user.id) { setNotOwner(true); setLoading(false); return; }
 
       setForm({
         title: data.title ?? '',
