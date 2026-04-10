@@ -2458,6 +2458,7 @@ import { EQUIPMENT_LIFECYCLE_SQL } from '@/lib/equipment';
 import { OUTINGS_LIFECYCLE_SQL } from '@/lib/outings';
 // ─── SQL Cycle de vie événements ─────────────────────────────────────────────
 import { EVENT_LIFECYCLE_SQL, EVENT_FIX_SQL } from '@/lib/events';
+import ProtectedPage from '@/components/providers/ProtectedPage';
 
 // ─── SQL Fix rapide : trust_profile_stats + profile_badges ──────────────────
 const TRUST_STATS_FIX_SQL = `-- ============================================================
@@ -4740,6 +4741,7 @@ CREATE TRIGGER asso_search_trigger
   const missingCount = tables.filter(t => !t.exists).length;
 
   return (
+    <ProtectedPage adminOnly>
     <div className="max-w-3xl mx-auto px-4 py-10">
 
       {/* ── En-tête ── */}
@@ -6491,5 +6493,7 @@ SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
       </div>
 
     </div>
+
+    </ProtectedPage>
   );
 }

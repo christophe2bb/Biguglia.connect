@@ -19,6 +19,7 @@ import Avatar from '@/components/ui/Avatar';
 import Select from '@/components/ui/Select';
 import { ROLE_LABELS, formatDate, formatRelative } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import ProtectedPage from '@/components/providers/ProtectedPage';
 
 interface UserWithActivity extends Profile {
   artisan_profile?: {
@@ -445,6 +446,7 @@ export default function AdminUtilisateursPage() {
   if (!profile || !isAdmin()) return null;
 
   return (
+    <ProtectedPage adminOnly>
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
@@ -540,5 +542,7 @@ export default function AdminUtilisateursPage() {
         </div>
       )}
     </div>
+
+    </ProtectedPage>
   );
 }

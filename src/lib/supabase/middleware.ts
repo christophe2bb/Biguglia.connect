@@ -1,6 +1,18 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+/**
+ * updateSession — Rafraîchit la session Supabase et applique les guards de navigation.
+ *
+ * Guards actifs :
+ *  1. /admin/** → redirige vers /connexion si l'utilisateur n'est pas authentifié.
+ *     (La vérification du rôle 'admin' est faite côté client via ProtectedPage adminOnly,
+ *      car le role est en DB et non dans le JWT — inaccessible depuis l'Edge Runtime.)
+ *
+ * Note : ce middleware tourne sur l'Edge Runtime de Vercel/Next.js.
+ * Il ne peut PAS faire de requête Supabase DB (pas de service role key en Edge).
+ * Il peut uniquement lire la session JWT depuis les cookies.
+ */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -25,8 +37,20 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Juste rafraîchir la session - PAS de redirection ici
-  await supabase.auth.getUser();
+  // Rafraîchir la session (obligatoire — ne pas supprimer)
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // ── Guard /admin : authentification requise ───────────────────────────────
+  // Le rôle 'admin' est vérifié en aval par ProtectedPage adminOnly (client-side).
+  // Ici on bloque uniquement les visiteurs non connectés pour éviter le rendu
+  // des pages admin en SSR sans session valide.
+  const { pathname } = request.nextUrl;
+  if (pathname.startsWith('/admin') && !user) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = '/connexion';
+    loginUrl.searchParams.set('next', pathname);
+    return NextResponse.redirect(loginUrl);
+  }
 
   return supabaseResponse;
 }

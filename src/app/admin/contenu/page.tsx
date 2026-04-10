@@ -17,6 +17,7 @@ import Input from '@/components/ui/Input';
 import Avatar from '@/components/ui/Avatar';
 import { formatDate, formatRelative } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import ProtectedPage from '@/components/providers/ProtectedPage';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -640,6 +641,7 @@ export default function AdminContenuPage() {
   if (!profile || !isAdmin()) return null;
 
   return (
+    <ProtectedPage adminOnly>
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
@@ -708,5 +710,7 @@ export default function AdminContenuPage() {
       {activeTab === 'equipment' && <EquipmentTab />}
       {activeTab === 'reviews'   && <ReviewsTab />}
     </div>
+
+    </ProtectedPage>
   );
 }

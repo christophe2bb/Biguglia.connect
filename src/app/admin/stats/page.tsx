@@ -15,6 +15,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
 } from 'recharts';
+import ProtectedPage from '@/components/providers/ProtectedPage';
 
 // ─── Couleurs ──────────────────────────────────────────────
 const COLORS = {
@@ -380,6 +381,7 @@ export default function AdminStatsPage() {
   })) || [];
 
   return (
+    <ProtectedPage adminOnly>
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
       {/* Header */}
@@ -765,5 +767,7 @@ export default function AdminStatsPage() {
         </div>
       )}
     </div>
+
+    </ProtectedPage>
   );
 }

@@ -7,6 +7,7 @@ import {
   CheckCircle2, Circle, ExternalLink, Copy, Check,
   Globe, Zap, Lock, AlertTriangle, Info, ArrowRight,
 } from 'lucide-react';
+import ProtectedPage from '@/components/providers/ProtectedPage';
 
 // ─── Données du guide ──────────────────────────────────────────────────────────
 const STEPS = [
@@ -450,6 +451,7 @@ export default function SecuritePage() {
   const allDone  = doneSteps.size === STEPS.length;
 
   return (
+    <ProtectedPage adminOnly>
     <div className="max-w-2xl mx-auto px-4 py-10">
 
       {/* ── Retour ── */}
@@ -573,5 +575,7 @@ export default function SecuritePage() {
       </div>
 
     </div>
+
+    </ProtectedPage>
   );
 }
