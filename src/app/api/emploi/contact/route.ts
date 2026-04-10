@@ -9,6 +9,12 @@
  *   { status: 'not_found' }                     — annonce introuvable (404)
  *
  * Accepte Authorization: Bearer <token> (priorité) ou cookies SSR.
+ *
+ * ─── Différence offer vs demand ───────────────────────────────────────────────
+ * job_offers  : possède contact_email, contact_phone, contact_instructions,
+ *               application_mode — on les retourne directement.
+ * job_demands : N'a PAS ces colonnes. On retourne le contact du candidat
+ *               via la table profiles (email + phone).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -18,22 +24,8 @@ import { getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
 
 // ── Schéma de validation ────────────────────────────────────────────────────
 
-/** Miroir de l'ENUM SQL application_mode */
-const APPLICATION_MODES = ['email', 'phone', 'on_site', 'mixed'] as const;
-
 const ContactBodySchema = z.object({
-  /**
-   * Type d'annonce.
-   * ‘offer’ → table job_offers | ‘demand’ → table job_demands
-   */
   type: z.enum(['offer', 'demand']),
-
-  /**
-   * Slug de l'annonce : lettres, chiffres, tirets, 3–120 caractères.
-   * Format réel : "serveur-a053956e", "dev-fullstack-bc3f21aa".
-   * On rejette tout ce qui ne correspond pas plutôt que d'envoyer
-   * une requête garantie sans résultat.
-   */
   slug: z
     .string()
     .trim()
@@ -42,14 +34,26 @@ const ContactBodySchema = z.object({
     .regex(/^[a-z0-9][a-z0-9-]*[a-z0-9]$/i, 'slug invalide'),
 });
 
-// Type résultant de la requête Supabase
-type ContactRow = {
+// ── Types des lignes DB ─────────────────────────────────────────────────────
+
+type OfferContactRow = {
   user_id:              string;
   contact_email:        string | null;
   contact_phone:        string | null;
   contact_instructions: string | null;
-  application_mode:     typeof APPLICATION_MODES[number] | null;
+  application_mode:     string | null;
 };
+
+type DemandOwnerRow = {
+  user_id: string;
+};
+
+type ProfileRow = {
+  email: string | null;
+  phone: string | null;
+};
+
+// ── Handler ─────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   /* 1. Valider le body */
@@ -76,36 +80,84 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: 'guest' }, { status: 401 });
   }
 
-  /* 3. Récupérer les données via admin (bypass RLS) */
-  const table = type === 'offer' ? 'job_offers' : 'job_demands';
   const admin = createAdminClient();
 
-  const { data, error } = await admin
-    .from(table)
-    .select('user_id, contact_email, contact_phone, contact_instructions, application_mode')
-    .eq('slug', slug)
-    .maybeSingle<ContactRow>();
+  /* ════════════════════════════════════════════════════════════════
+     OFFRE D'EMPLOI — colonnes contact directement sur job_offers
+  ════════════════════════════════════════════════════════════════ */
+  if (type === 'offer') {
+    const { data, error } = await admin
+      .from('job_offers')
+      .select('user_id, contact_email, contact_phone, contact_instructions, application_mode')
+      .eq('slug', slug)
+      .maybeSingle<OfferContactRow>();
 
-  if (error) {
-    console.error('[contact API] DB error:', error.message);
-    return NextResponse.json({ status: 'error', error: error.message }, { status: 500 });
+    if (error) {
+      console.error('[contact API] offer DB error:', error.message);
+      return NextResponse.json({ status: 'error', error: error.message }, { status: 500 });
+    }
+    if (!data) {
+      return NextResponse.json({ status: 'not_found' }, { status: 404 });
+    }
+
+    if (data.user_id === userId) {
+      return NextResponse.json({ status: 'owner' });
+    }
+
+    return NextResponse.json({
+      status:               'revealed',
+      contact_email:        data.contact_email        ?? null,
+      contact_phone:        data.contact_phone        ?? null,
+      contact_instructions: data.contact_instructions ?? null,
+      application_mode:     data.application_mode     ?? null,
+    });
   }
 
-  if (!data) {
+  /* ════════════════════════════════════════════════════════════════
+     DEMANDE D'EMPLOI — job_demands n'a pas de colonnes contact.
+     On récupère le profil du candidat (profiles.email + phone).
+  ════════════════════════════════════════════════════════════════ */
+  // Étape A : trouver le user_id de la demande
+  const { data: demandRow, error: demandError } = await admin
+    .from('job_demands')
+    .select('user_id')
+    .eq('slug', slug)
+    .maybeSingle<DemandOwnerRow>();
+
+  if (demandError) {
+    console.error('[contact API] demand DB error:', demandError.message);
+    return NextResponse.json({ status: 'error', error: demandError.message }, { status: 500 });
+  }
+  if (!demandRow) {
     return NextResponse.json({ status: 'not_found' }, { status: 404 });
   }
 
-  /* 4. Propriétaire → répondre avec status 'owner' (200, pas 403) */
-  if (data.user_id === userId) {
+  // Propriétaire de la demande
+  if (demandRow.user_id === userId) {
     return NextResponse.json({ status: 'owner' });
   }
 
-  /* 5. Retourner les coordonnées — jamais user_id ni données internes */
+  // Étape B : récupérer email + téléphone depuis profiles
+  const { data: profile, error: profileError } = await admin
+    .from('profiles')
+    .select('email, phone')
+    .eq('id', demandRow.user_id)
+    .maybeSingle<ProfileRow>();
+
+  if (profileError) {
+    console.error('[contact API] profile DB error:', profileError.message);
+    return NextResponse.json({ status: 'error', error: profileError.message }, { status: 500 });
+  }
+
+  if (!profile || (!profile.email && !profile.phone)) {
+    return NextResponse.json({ status: 'no_contact' });
+  }
+
   return NextResponse.json({
-    status: 'revealed',
-    contact_email:        data.contact_email        ?? null,
-    contact_phone:        data.contact_phone        ?? null,
-    contact_instructions: data.contact_instructions ?? null,
-    application_mode:     data.application_mode     ?? null,
+    status:               'revealed',
+    contact_email:        profile.email  ?? null,
+    contact_phone:        profile.phone  ?? null,
+    contact_instructions: null,
+    application_mode:     null,
   });
 }

@@ -341,11 +341,13 @@ export default async function DemandDetailPage({ params }: PageProps) {
             {/* CTA mobile */}
             <div className="lg:hidden bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl border-0 shadow-sm p-5">
               <h3 className="text-base font-bold text-white mb-1">Contacter ce candidat</h3>
+              {/* contact_email/phone/mode n'existent pas sur job_demands — l'API
+                  récupère automatiquement email+phone depuis profiles */}
               <ProtectedContact
                 type="demand"
                 slug={demand.slug}
-                hasEmail={!!(demand.contact_mode === 'email' || demand.contact_mode === 'mixed' || demand.contact_email)}
-                hasPhone={!!(demand.contact_mode === 'phone' || demand.contact_mode === 'mixed' || demand.contact_phone)}
+                hasEmail={true}
+                hasPhone={true}
                 colorScheme="purple"
                 jobTitle={demand.title}
                 ctaLabel="Voir les coordonnées"
@@ -360,11 +362,13 @@ export default async function DemandDetailPage({ params }: PageProps) {
               {/* CTA Contact */}
               <div className="bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl p-6 text-white shadow-lg">
                 <h3 className="text-lg font-bold mb-2">Intéressé(e) par ce profil ?</h3>
+                {/* contact_email/phone/mode n'existent pas sur job_demands — l'API
+                    récupère automatiquement email+phone depuis profiles */}
                 <ProtectedContact
                   type="demand"
                   slug={demand.slug}
-                  hasEmail={!!(demand.contact_mode === 'email' || demand.contact_mode === 'mixed' || demand.contact_email)}
-                  hasPhone={!!(demand.contact_mode === 'phone' || demand.contact_mode === 'mixed' || demand.contact_phone)}
+                  hasEmail={true}
+                  hasPhone={true}
                   colorScheme="purple"
                   jobTitle={demand.title}
                   ctaLabel="Voir les coordonnées"
