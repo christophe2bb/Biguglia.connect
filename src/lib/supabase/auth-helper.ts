@@ -1,17 +1,33 @@
 /**
- * Utilitaires d'authentification pour les API Routes Next.js.
+ * Utilitaires d'authentification pour les API Routes Next.js (Node.js, server-side).
  * Compatible avec @supabase/ssr (cookies SSR) + Bearer token (clients SPA/mobile).
  *
- * Deux variantes selon le contexte :
+ * ╔══════════════════════════════════════════════════════════════════════╗
+ * ║  SCOPE : API Routes uniquement  (src/app/api/**)                    ║
+ * ║                                                                      ║
+ * ║  NE PAS utiliser dans :                                              ║
+ * ║  • Server Components  → utiliser createClient() de server.ts        ║
+ * ║  • Client Components  → utiliser createClient() de client.ts        ║
+ * ║  • Middleware         → utiliser createServerClient() de middleware  ║
+ * ║  • Services client-side (trust.ts, publish-*.ts)                    ║
+ * ║    → ils appellent createClient() navigateur, pas des API Routes     ║
+ * ╚══════════════════════════════════════════════════════════════════════╝
  *
- *  getUserFromRequest(req)
- *    Priorité SSR → Bearer.
- *    Usage : routes emploi (Server Components, formulaires, SSR-first).
+ * Deux variantes selon le type de route :
  *
- *  getUserIdBearerFirst(req)
- *    Priorité Bearer → SSR.
- *    Usage : routes messages (appelées via fetch() client-side avec Authorization header).
- *    Retourne uniquement l'UUID (string | null) — suffisant pour les guards.
+ *  getUserFromRequest(req)          — SSR-first  (cookies → Bearer)
+ *    Usage : routes emploi appelées depuis SSR ou formulaires Next.js.
+ *    Retourne { id, email, … } | null
+ *
+ *  getUserIdBearerFirst(req)        — Bearer-first (Bearer → cookies)
+ *    Usage : routes messages appelées via fetch() client-side avec
+ *            Authorization: Bearer <access_token>.
+ *    Retourne string | null  (UUID uniquement — suffisant pour les guards)
+ *
+ * Couverture actuelle (9 routes) :
+ *   emploi/contact · emploi/demandes/[slug] · emploi/offres/[slug]
+ *   emploi/ownership · messages/conversations · messages/conversation/[id]
+ *   messages/unread · messages/start-conversation · messages/check-conversation
  */
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
