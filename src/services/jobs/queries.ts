@@ -186,14 +186,17 @@ export async function getJobOfferBySlug(
     .eq('status', 'published')
     .single();
 
-  if (error || !data) {
+  if (error) {
+    // Table manquante (migration SQL pas encore exécutée) → ne pas 404
+    const msg = (error as { message?: string }).message ?? '';
+    if (msg.includes('relation') || msg.includes('does not exist') || msg.includes('42P01')) {
+      console.warn('[queries] Table job_offers introuvable — migration SQL en attente.');
+      return null;
+    }
     console.error('Error fetching job offer:', error);
     return null;
   }
-
-  // Increment views count (system-only field, needs service role or function)
-  // For now, we'll skip this to avoid RLS issues
-  // TODO: Create a database function for incrementing views
+  if (!data) return null;
 
   return {
     ...data,
@@ -353,13 +356,19 @@ export async function getJobDemandBySlug(
     `
     )
     .eq('slug', slug)
-    .eq('status', 'published')
+    .in('status', ['published', 'active'])
     .single();
 
-  if (error || !data) {
+  if (error) {
+    const msg = (error as { message?: string }).message ?? '';
+    if (msg.includes('relation') || msg.includes('does not exist') || msg.includes('42P01')) {
+      console.warn('[queries] Table job_demands introuvable — migration SQL en attente.');
+      return null;
+    }
     console.error('Error fetching job demand:', error);
     return null;
   }
+  if (!data) return null;
 
   return {
     ...data,

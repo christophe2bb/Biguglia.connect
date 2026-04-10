@@ -49,7 +49,33 @@ const CONTRACT_COLOR_MAP: Record<string, { bg: string; text: string; border: str
 
 export default async function OffreDetailPage({ params }: PageProps) {
   const offer = await getJobOfferBySlug(params.slug);
-  if (!offer) notFound();
+
+  /* ── Table DB pas encore créée OU annonce introuvable ── */
+  if (!offer) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 text-center">
+        <div className="text-5xl mb-4">🔧</div>
+        <h1 className="text-2xl font-bold text-gray-800 mb-2">Annonce introuvable</h1>
+        <p className="text-gray-500 mb-2 max-w-sm">
+          Cette offre n&apos;existe pas encore, a été retirée, ou la base de données
+          n&apos;a pas encore été initialisée.
+        </p>
+        <p className="text-xs text-gray-400 mb-6">
+          Si vous venez de publier une offre, exécutez la migration SQL dans Supabase puis revenez.
+        </p>
+        <div className="flex gap-3 flex-wrap justify-center">
+          <Link href="/emploi/offres"
+            className="px-5 py-2.5 bg-brand-500 text-white font-semibold rounded-xl hover:bg-brand-600 transition-colors text-sm">
+            ← Voir toutes les offres
+          </Link>
+          <Link href="/emploi/publier"
+            className="px-5 py-2.5 bg-white border-2 border-brand-200 text-brand-700 font-semibold rounded-xl hover:bg-brand-50 transition-colors text-sm">
+            Publier une offre
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const contractColorKey = getContractTypeColor(offer.contract_type);
   const contractCls = CONTRACT_COLOR_MAP[contractColorKey] ?? CONTRACT_COLOR_MAP.gray;

@@ -45,7 +45,33 @@ const AVAILABILITY_LABELS: Record<string, { label: string; color: string; bg: st
 
 export default async function DemandDetailPage({ params }: PageProps) {
   const demand = await getJobDemandBySlug(params.slug);
-  if (!demand) notFound();
+
+  /* ── Table DB pas encore créée OU demande introuvable ── */
+  if (!demand) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 text-center">
+        <div className="text-5xl mb-4">🔧</div>
+        <h1 className="text-2xl font-bold text-gray-800 mb-2">Demande introuvable</h1>
+        <p className="text-gray-500 mb-2 max-w-sm">
+          Cette demande n&apos;existe pas encore, a été retirée, ou la base de données
+          n&apos;a pas encore été initialisée.
+        </p>
+        <p className="text-xs text-gray-400 mb-6">
+          Si vous venez de publier une demande, exécutez la migration SQL dans Supabase puis revenez.
+        </p>
+        <div className="flex gap-3 flex-wrap justify-center">
+          <Link href="/emploi/demandes"
+            className="px-5 py-2.5 bg-purple-500 text-white font-semibold rounded-xl hover:bg-purple-600 transition-colors text-sm">
+            ← Voir toutes les demandes
+          </Link>
+          <Link href="/emploi/demandes/publier"
+            className="px-5 py-2.5 bg-white border-2 border-purple-200 text-purple-700 font-semibold rounded-xl hover:bg-purple-50 transition-colors text-sm">
+            Déposer une demande
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const categoryIcon = JOB_CATEGORY_ICONS[demand.job_category] || '💼';
   const avail = AVAILABILITY_LABELS[demand.availability_type] ?? AVAILABILITY_LABELS.flexible;
