@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await admin
     .from(table)
-    .select('user_id, contact_email, contact_phone, contact_instructions, application_mode, contact_mode')
+    .select('user_id, contact_email, contact_phone, contact_instructions, application_mode')
     .eq('slug', slug)
     .maybeSingle();   // ← maybeSingle() au lieu de single() : pas d'erreur si 0 lignes
 
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
     contact_email:        (data as any).contact_email        ?? null,
     contact_phone:        (data as any).contact_phone        ?? null,
     contact_instructions: (data as any).contact_instructions ?? null,
-    application_mode:     (data as any).application_mode     ?? (data as any).contact_mode ?? null,
+    application_mode:     (data as any).application_mode     ?? null,
   });
 }
 // force redeploy Fri Apr 10 09:15:56 UTC 2026
