@@ -389,7 +389,6 @@ export default async function OffreDetailPage({ params }: PageProps) {
             {/* CTA mobile (visible uniquement sur petit écran) */}
             <div className="lg:hidden bg-gradient-to-br from-brand-500 to-brand-700 rounded-2xl border-0 shadow-sm p-5">
               <h3 className="text-base font-bold text-white mb-1">Postuler à cette offre</h3>
-              <p className="text-brand-100 text-xs mb-4">Connectez-vous pour voir les coordonnées.</p>
               <ProtectedContact
                 type="offer"
                 slug={offer.slug}
@@ -408,10 +407,7 @@ export default async function OffreDetailPage({ params }: PageProps) {
 
               {/* CTA Postuler */}
               <div className="bg-gradient-to-br from-brand-500 to-brand-700 rounded-2xl p-6 text-white shadow-lg">
-                <h3 className="text-lg font-bold mb-1">Intéressé(e) ?</h3>
-                <p className="text-brand-100 text-sm mb-4">
-                  Connectez-vous pour voir les coordonnées de {offer.employer_name || 'l\'employeur'}.
-                </p>
+                <h3 className="text-lg font-bold mb-2">Intéressé(e) ?</h3>
                 <ProtectedContact
                   type="offer"
                   slug={offer.slug}
