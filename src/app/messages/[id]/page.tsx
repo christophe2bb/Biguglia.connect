@@ -571,7 +571,11 @@ export default function ConversationPage() {
     // Attendre la fin de l'initialisation auth — évite un 401 si le token n'est
     // pas encore disponible au premier render (race condition AuthProvider)
     if (authLoading) return;
-    if (!profile) { router.push('/connexion'); return; }
+    if (!profile) {
+      const dest = `/messages/${id}`;
+      router.push(`/connexion?next=${encodeURIComponent(dest)}`);
+      return;
+    }
 
     // Marquer comme lu IMMÉDIATEMENT dès l'ouverture de la page
     // (avant même que les données soient chargées)
@@ -592,7 +596,8 @@ export default function ConversationPage() {
       const token = session?.access_token;
 
       if (!token) {
-        router.push('/connexion'); return;
+        const dest = `/messages/${id}`;
+        router.push(`/connexion?next=${encodeURIComponent(dest)}`); return;
       }
 
       const apiRes = await fetch(`/api/messages/conversation/${id}`, {
@@ -611,7 +616,8 @@ export default function ConversationPage() {
 
       if (apiRes.status === 401) {
         // Token invalide ou expiré même après refreshSession
-        router.push('/connexion'); return;
+        const dest = `/messages/${id}`;
+        router.push(`/connexion?next=${encodeURIComponent(dest)}`); return;
       }
 
       if (!apiRes.ok) {

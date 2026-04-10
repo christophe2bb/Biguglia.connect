@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import {
   MessageSquare, Search, RefreshCw, ShoppingBag, HandHeart, Dog,
   Users, MapPin, Wrench, Trash2, Filter, Archive, Inbox,
@@ -329,7 +329,7 @@ export default function MessagesPage() {
     // Attendre la fin de l'initialisation auth avant d'agir
     // (évite la redirection prématurée si profile est encore null au premier render)
     if (authLoading) return;
-    if (!profile) { router.push('/connexion'); return; }
+    if (!profile) { router.push(`/connexion?next=${encodeURIComponent('/messages')}`); return; }
     fetchConversations();
     connectRealtime();
 
