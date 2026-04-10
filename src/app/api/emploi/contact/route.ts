@@ -97,3 +97,4 @@ export async function POST(req: NextRequest) {
     application_mode:     (data as any).application_mode     ?? (data as any).contact_mode ?? null,
   });
 }
+// force redeploy Fri Apr 10 09:15:56 UTC 2026
