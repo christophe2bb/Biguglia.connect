@@ -1,23 +1,23 @@
 'use client';
 
 /**
- * OwnerActions — Barre d'actions réservée au créateur de l'annonce.
- * Affiche les boutons "Modifier" et "Supprimer" uniquement si
- * l'utilisateur connecté est le propriétaire (vérifié côté serveur).
+ * OwnerActions — Vérifie côté CLIENT si l'utilisateur est propriétaire,
+ * puis affiche les boutons Modifier / Supprimer.
+ *
+ * La vérification se fait via /api/emploi/ownership (service role bypass RLS).
+ * Le composant est toujours rendu dans la page, mais ne s'affiche que si
+ * isOwner === true — ainsi on contourne le problème de session Server Component.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Pencil, Trash2, Loader2, AlertTriangle } from 'lucide-react';
 
 interface OwnerActionsProps {
-  /** 'offer' | 'demand' */
   type: 'offer' | 'demand';
   slug: string;
-  /** URL de la page de modification */
   editHref: string;
-  /** Couleur : 'cyan' pour offres, 'purple' pour demandes */
   colorScheme?: 'cyan' | 'purple';
 }
 
@@ -28,9 +28,10 @@ export default function OwnerActions({
   colorScheme = 'cyan',
 }: OwnerActionsProps) {
   const router = useRouter();
+  const [isOwner, setIsOwner]     = useState<boolean | null>(null); // null = en cours
   const [showConfirm, setShowConfirm] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting]   = useState(false);
+  const [error, setError]         = useState<string | null>(null);
 
   const apiPath =
     type === 'offer'
@@ -40,6 +41,24 @@ export default function OwnerActions({
   const redirectAfterDelete =
     type === 'offer' ? '/emploi/offres' : '/emploi/demandes';
 
+  // ── Vérification de propriété au montage ──────────────────────────────────
+  useEffect(() => {
+    async function checkOwnership() {
+      try {
+        const res = await fetch(
+          `/api/emploi/ownership?type=${type === 'offer' ? 'offer' : 'demand'}&slug=${slug}`
+        );
+        if (!res.ok) { setIsOwner(false); return; }
+        const data = await res.json();
+        setIsOwner(!!data.isOwner);
+      } catch {
+        setIsOwner(false);
+      }
+    }
+    checkOwnership();
+  }, [type, slug]);
+
+  // ── Suppression ───────────────────────────────────────────────────────────
   async function handleDelete() {
     setDeleting(true);
     setError(null);
@@ -59,8 +78,12 @@ export default function OwnerActions({
     }
   }
 
-  const borderColor   = colorScheme === 'purple' ? 'border-purple-200' : 'border-cyan-200';
-  const editBtnColor  = colorScheme === 'purple'
+  // ── Ne rien afficher si vérification en cours ou non propriétaire ─────────
+  if (isOwner === null || isOwner === false) return null;
+
+  // ── Styles ────────────────────────────────────────────────────────────────
+  const borderColor  = colorScheme === 'purple' ? 'border-purple-200' : 'border-cyan-200';
+  const editBtnColor = colorScheme === 'purple'
     ? 'border-purple-300 text-purple-700 hover:bg-purple-50'
     : 'border-cyan-300 text-cyan-700 hover:bg-cyan-50';
 
