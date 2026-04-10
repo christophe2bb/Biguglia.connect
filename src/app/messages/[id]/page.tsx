@@ -235,18 +235,35 @@ function ExchangePanel({ conversationId, userId, exchange, onExchangeUpdated }: 
     try {
       const newConfirmedBy = [...exchange.confirmedBy, userId];
       const bothDone = newConfirmedBy.length >= 2;
-      const { error } = await supabase.from('conversations').update({
-        exchange_status: bothDone ? 'done' : 'pending_confirmation',
-        exchange_confirmed_by: newConfirmedBy,
-        exchange_confirmed_at: bothDone ? new Date().toISOString() : null,
-      }).eq('id', conversationId);
 
-      if (error) { toast.error('Erreur de confirmation'); return; }
+      // Utilise l'API admin pour contourner la récursion RLS
+      const { data: { session: exchSession } } = await supabase.auth.getSession();
+      const exchToken = exchSession?.access_token;
+      const exchHeaders = {
+        'Content-Type': 'application/json',
+        ...(exchToken ? { 'Authorization': `Bearer ${exchToken}` } : {}),
+      };
 
-      const msg = bothDone
+      const patchRes = await fetch(`/api/messages/conversation/${conversationId}`, {
+        method: 'PATCH',
+        headers: exchHeaders,
+        body: JSON.stringify({
+          action: 'update_exchange_status',
+          exchangeStatus: bothDone ? 'done' : 'pending_confirmation',
+        }),
+      }).catch(() => null);
+
+      if (!patchRes?.ok) { toast.error('Erreur de confirmation'); return; }
+
+      // Envoyer le message de confirmation via l'API
+      const msgText = bothDone
         ? `✅ Échange confirmé par les deux parties — les avis sont maintenant débloqués.`
         : `🤝 J'ai confirmé la fin de ${conf.verb}. En attente de confirmation de l'autre partie.`;
-      await supabase.from('messages').insert({ conversation_id: conversationId, sender_id: userId, content: msg });
+      await fetch(`/api/messages/conversation/${conversationId}`, {
+        method: 'POST',
+        headers: exchHeaders,
+        body: JSON.stringify({ content: msgText }),
+      }).catch(() => null);
 
       onExchangeUpdated({ ...exchange, status: bothDone ? 'done' : 'pending_confirmation', confirmedBy: newConfirmedBy, confirmedAt: bothDone ? new Date().toISOString() : null });
       if (bothDone) toast.success('Échange confirmé ! Vous pouvez maintenant laisser un avis.');
@@ -428,18 +445,31 @@ export default function ConversationPage() {
   const pollNewMessages = useCallback(async () => {
     if (!mountedRef.current || !profile) return;
     try {
-      let query = supabase.from('messages').select('*').eq('conversation_id', id as string).order('created_at', { ascending: true });
-      if (lastMsgIdRef.current) {
-        const lastMsg = (await supabase.from('messages').select('created_at').eq('id', lastMsgIdRef.current).single()).data;
-        if (lastMsg) query = query.gt('created_at', lastMsg.created_at);
-      }
-      const { data: newMsgs } = await query;
-      if (!newMsgs || newMsgs.length === 0) return;
+      // Utilise l'API admin pour contourner la récursion RLS sur messages
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
 
-      const enriched = await Promise.all(newMsgs.map(async (msg) => {
-        const sender = msg.sender_id ? await getSenderProfile(msg.sender_id) : undefined;
-        return { ...msg, sender } as Message & { sender?: Profile };
-      }));
+      const apiRes = await fetch(`/api/messages/conversation/${id}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      }).catch(() => null);
+
+      if (!apiRes || !apiRes.ok) return;
+      const apiData = await apiRes.json().catch(() => null);
+      if (!apiData?.messages) return;
+
+      const allMsgs = apiData.messages as Array<Message & Record<string, unknown>>;
+
+      // Alimenter le cache de profils avec les données fraîches
+      if (apiData.profiles) {
+        (apiData.profiles as Array<{ id: string; full_name: string | null; avatar_url: string | null }>).forEach(p => {
+          profileCacheRef.current[p.id] = p as unknown as Profile;
+        });
+      }
+
+      const enriched = allMsgs.map(msg => ({
+        ...msg,
+        sender: msg.sender_id ? profileCacheRef.current[msg.sender_id as string] : undefined,
+      })) as (Message & { sender?: Profile })[];
 
       if (!mountedRef.current) return;
       setMessages(prev => {
@@ -450,9 +480,9 @@ export default function ConversationPage() {
         lastMsgIdRef.current = updated[updated.length - 1].id;
         return updated;
       });
-      if (newMsgs.some(m => m.sender_id !== profile.id)) { await markAsRead(); scrollToBottom(); }
+      if (allMsgs.some(m => m.sender_id !== profile.id)) { markAsRead(); scrollToBottom(); }
     } catch (err) { console.warn('[ConversationPage] pollNewMessages error:', err); }
-  }, [id, profile, getSenderProfile, markAsRead, scrollToBottom]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id, profile, markAsRead, scrollToBottom]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const connectRealtime = useCallback(() => {
     if (!profile || !id) return;
@@ -502,70 +532,83 @@ export default function ConversationPage() {
     markAsRead();
 
     const init = async () => {
-      const [participantsRes, convRes, msgsRes, rpcOtherRes] = await Promise.all([
-        supabase.from('conversation_participants').select('user_id').eq('conversation_id', id as string),
-        supabase.from('conversations').select('subject, related_type, related_id, exchange_status, exchange_confirmed_by, exchange_confirmed_at, owner_id, created_by').eq('id', id as string).single(),
-        supabase.from('messages').select('*').eq('conversation_id', id as string).order('created_at', { ascending: true }),
-        supabase.rpc('get_conversation_other_participant', { p_conversation_id: id as string }),
-      ]);
+      // Utilise l'API admin pour contourner la récursion infinie dans les RLS
+      // de conversation_participants, messages et conversations.
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
 
-      const participants = participantsRes.data;
-      const conv = convRes.data;
-      const msgs = msgsRes.data || [];
+      const apiRes = await fetch(`/api/messages/conversation/${id}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      }).catch(() => null);
 
-      if (!participants?.find(p => p.user_id === profile.id)) {
+      if (!apiRes) {
+        toast.error('Erreur réseau'); setLoading(false); return;
+      }
+
+      if (apiRes.status === 403) {
         toast.error('Accès refusé'); router.push('/messages'); return;
       }
 
-      const candidateIds = [
-        ...( participants?.map(p => p.user_id).filter(uid => uid !== profile.id) || [] ),
-        ...(conv?.owner_id && conv.owner_id !== profile.id ? [conv.owner_id as string] : []),
-        ...(conv?.created_by && conv.created_by !== profile.id ? [conv.created_by as string] : []),
-        ...msgs.filter(m => m.sender_id && m.sender_id !== profile.id).map(m => m.sender_id as string),
-      ];
-      const uniqueCandidates = Array.from(new Set(candidateIds));
+      if (apiRes.status === 401) {
+        router.push('/connexion'); return;
+      }
+
+      if (!apiRes.ok) {
+        toast.error('Erreur de chargement'); setLoading(false); return;
+      }
+
+      const apiData = await apiRes.json().catch(() => null);
+      if (!apiData) { toast.error('Erreur de données'); setLoading(false); return; }
+
+      const { conversation: conv, participants, profiles: profilesData, messages: msgs } = apiData as {
+        conversation: Record<string, unknown> | null;
+        participants: string[];
+        profiles: Array<{ id: string; full_name: string | null; avatar_url: string | null }>;
+        messages: Array<{ id: string; conversation_id: string; sender_id: string; content: string; created_at: string; is_deleted?: boolean; deleted_at?: string }>;
+        myParticipation: { user_id: string; last_read_at: string | null; joined_at: string };
+      };
+
+      // Alimenter le cache des profils
+      (profilesData || []).forEach(p => { profileCacheRef.current[p.id] = p as unknown as Profile; });
+
+      // Déterminer l'autre utilisateur
+      const candidateIds = (participants || []).filter(uid => uid !== profile.id);
 
       let otherUserId: string | null = null;
-      const rpcOther = rpcOtherRes.data as Array<{user_id:string;full_name:string;avatar_url:string}> | null;
-      if (rpcOther && rpcOther.length > 0) {
-        const op = rpcOther[0];
-        setOtherUser({ id: op.user_id, full_name: op.full_name, avatar_url: op.avatar_url } as Profile);
-        otherUserId = op.user_id;
-        profileCacheRef.current[op.user_id] = { id: op.user_id, full_name: op.full_name, avatar_url: op.avatar_url } as Profile;
-      } else if (uniqueCandidates.length > 0) {
-        const { data: profRows } = await supabase.from('profiles').select('id, full_name, avatar_url').in('id', uniqueCandidates);
-        if (profRows && profRows.length > 0) {
-          profRows.forEach(p => { profileCacheRef.current[p.id] = p as Profile; });
-          const found = profRows[0];
-          setOtherUser(found as Profile);
+      if (candidateIds.length > 0) {
+        const found = profileCacheRef.current[candidateIds[0]];
+        if (found) {
+          setOtherUser(found);
           otherUserId = found.id;
         }
       }
 
-      setSubject(conv?.subject || 'Conversation');
-      setRelatedType(conv?.related_type || null);
-      setRelatedId(conv?.related_id || null);
+      setSubject((conv?.subject as string) || 'Conversation');
+      setRelatedType((conv?.related_type as string) || null);
+      setRelatedId((conv?.related_id as string) || null);
 
-      const enriched = msgs.map(msg => ({ ...msg, sender: msg.sender_id ? profileCacheRef.current[msg.sender_id] : undefined })) as (Message & { sender?: Profile })[];
-
-      const missingIds = Array.from(new Set(msgs.map(m => m.sender_id).filter(sid => sid && !profileCacheRef.current[sid]))) as string[];
-      if (missingIds.length > 0) {
-        const { data: missingProfs } = await supabase.from('profiles').select('id, full_name, avatar_url').in('id', missingIds);
-        if (missingProfs) {
-          missingProfs.forEach(p => { profileCacheRef.current[p.id] = p as Profile; });
-          enriched.forEach(m => { if (m.sender_id && !m.sender) m.sender = profileCacheRef.current[m.sender_id]; });
-        }
-      }
+      const enriched = (msgs || []).map(msg => ({
+        ...msg,
+        sender: msg.sender_id ? profileCacheRef.current[msg.sender_id] : undefined,
+      })) as (Message & { sender?: Profile })[];
 
       if (!mountedRef.current) return;
       setMessages(enriched);
       if (enriched.length > 0) lastMsgIdRef.current = enriched[enriched.length - 1].id;
 
-      if (conv?.related_type && EXCHANGEABLE_TYPES[conv.related_type]) {
-        setExchange({ status: (conv.exchange_status as ExchangeStatus) || null, confirmedBy: (conv.exchange_confirmed_by as string[]) || [], confirmedAt: conv.exchange_confirmed_at || null, relatedType: conv.related_type, relatedId: conv.related_id, otherUserId: otherUserId || uniqueCandidates[0] || null });
+      if (conv?.related_type && EXCHANGEABLE_TYPES[conv.related_type as string]) {
+        setExchange({
+          status: (conv.exchange_status as ExchangeStatus) || null,
+          confirmedBy: (conv.exchange_confirmed_by as string[]) || [],
+          confirmedAt: (conv.exchange_confirmed_at as string) || null,
+          relatedType: conv.related_type as string,
+          relatedId: conv.related_id as string,
+          otherUserId: otherUserId || candidateIds[0] || null,
+        });
       }
 
       if (otherUserId) {
+        // Les tables user_favorites et user_blocks n'ont pas de RLS récursive
         Promise.all([
           supabase.from('user_favorites').select('id').eq('user_id', profile.id).eq('target_user_id', otherUserId).maybeSingle(),
           supabase.from('user_blocks').select('id').eq('user_id', profile.id).eq('target_user_id', otherUserId).maybeSingle(),
@@ -617,8 +660,14 @@ export default function ConversationPage() {
     setActiveMsg(null);
     setDeletingMsg(msgId);
     await new Promise(r => setTimeout(r, 280));
-    const { error } = await supabase.from('messages').delete().eq('id', msgId).eq('sender_id', profile!.id);
-    if (error) { toast.error('Impossible de supprimer ce message'); setDeletingMsg(null); }
+    // Utilise l'API admin pour contourner la récursion RLS
+    const { data: { session: delSession } } = await supabase.auth.getSession();
+    const delToken = delSession?.access_token;
+    const delRes = await fetch(`/api/messages/conversation/${id}?messageId=${msgId}`, {
+      method: 'DELETE',
+      headers: delToken ? { 'Authorization': `Bearer ${delToken}` } : {},
+    }).catch(() => null);
+    if (!delRes?.ok) { toast.error('Impossible de supprimer ce message'); setDeletingMsg(null); }
     else { setMessages(prev => prev.filter(m => m.id !== msgId)); setDeletingMsg(null); }
   };
 
@@ -664,7 +713,20 @@ export default function ConversationPage() {
     setMessages(prev => [...prev, { id: tempId, conversation_id: id as string, sender_id: profile.id, content: text, created_at: new Date().toISOString(), sender: profile as unknown as Profile }]);
     scrollToBottom();
 
-    const { data: savedMsg, error } = await supabase.from('messages').insert({ conversation_id: id as string, sender_id: profile.id, content: text }).select().single();
+    // Utilise l'API admin pour contourner la récursion RLS sur messages
+    const { data: { session: sendSession } } = await supabase.auth.getSession();
+    const sendToken = sendSession?.access_token;
+    const sendRes = await fetch(`/api/messages/conversation/${id}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(sendToken ? { 'Authorization': `Bearer ${sendToken}` } : {}),
+      },
+      body: JSON.stringify({ content: text }),
+    }).catch(() => null);
+    const savedMsg = sendRes?.ok ? (await sendRes.json().catch(() => null))?.message : null;
+    const error = !sendRes?.ok ? true : null;
+
     if (error) {
       toast.error('Erreur lors de l\'envoi');
       setMessages(prev => prev.filter(m => m.id !== tempId));
@@ -673,22 +735,7 @@ export default function ConversationPage() {
       setMessages(prev => prev.map(m => m.id === tempId ? { ...savedMsg, sender: profile as unknown as Profile } : m));
       lastMsgIdRef.current = savedMsg.id;
 
-      // ── Notification pour l'autre utilisateur ──────────────────────────────
-      // Pas de notification pour les messages système (exchange confirmation, etc.)
-      const isSystem = text.startsWith('👋') || text.startsWith('✅') || text.startsWith('🤝');
-      if (!isSystem && otherUser?.id) {
-        const senderName = profile.full_name || 'Quelqu\'un';
-        const preview = text.length > 60 ? text.slice(0, 60) + '…' : text;
-        supabase.from('notifications').insert({
-          user_id: otherUser.id,
-          type: 'new_message',
-          title: `Message de ${senderName}`,
-          message: preview,
-          link: `/messages/${id as string}`,
-        }).then(({ error: ne }) => {
-          if (ne) console.warn('[sendMessage] notification insert error:', ne);
-        });
-      }
+      // Notifications gérées côté serveur dans /api/messages/conversation/[id] POST
     }
     setSending(false);
     inputRef.current?.focus();

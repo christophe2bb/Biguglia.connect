@@ -33,21 +33,19 @@ export default function ExchangePrompt({
   useEffect(() => {
     if (!userId) { setLoading(false); return; }
     const check = async () => {
-      const { data: parts } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', userId);
-      if (!parts?.length) { setLoading(false); return; }
-      const ids = parts.map((p: { conversation_id: string }) => p.conversation_id);
-      const { data: conv } = await supabase
-        .from('conversations')
-        .select('id, exchange_status')
-        .eq('related_type', targetType)
-        .eq('related_id', targetId)
-        .in('id', ids)
-        .maybeSingle();
-      setConvId(conv?.id || null);
-      setStatus(conv?.exchange_status || null);
+      // Utiliser l'API admin pour contourner la récursion infinie dans les RLS
+      // de conversation_participants / conversations
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const url = `/api/messages/check-conversation?relatedType=${encodeURIComponent(targetType)}&relatedId=${encodeURIComponent(targetId)}`;
+      const res = await fetch(url, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      }).catch(() => null);
+      if (res?.ok) {
+        const json = await res.json().catch(() => null);
+        setConvId(json?.conversationId || null);
+        setStatus(json?.exchangeStatus || null);
+      }
       setLoading(false);
     };
     check();

@@ -1,5 +1,15 @@
 'use client';
 
+/**
+ * useUnreadCounts — Badge de messages non lus + notifications.
+ *
+ * Utilise l'API /api/messages/unread (admin client) pour contourner la
+ * récursion infinie dans les politiques RLS de conversation_participants
+ * et messages.
+ *
+ * Le realtime Supabase fonctionne toujours (simple compteur, pas de SELECT).
+ */
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -24,7 +34,6 @@ export function useUnreadCounts(): UnreadCounts {
   const realtimePollRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   const safePollRef      = useRef<ReturnType<typeof setInterval> | null>(null);
   const fetchingRef      = useRef(false);
-  // Timestamp du montage du hook — ignore tout event realtime antérieur (événements rejoués)
   const hookStartRef     = useRef<number>(Date.now());
 
   // readMap  : conv_id → last_read_at timestamp (ms)
@@ -44,102 +53,73 @@ export function useUnreadCounts(): UnreadCounts {
   const totalUnreadMsgs = () =>
     Object.values(unreadMapRef.current).reduce((s, set) => s + set.size, 0);
 
-  // ── Recalcul complet depuis la BDD ──────────────────────────────────────────
+  // ── Recalcul complet depuis l'API (admin client bypass RLS) ─────────────────
   const fetchCounts = useCallback(async (supabase: ReturnType<typeof createClient>, userId: string) => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
-    // Sécurité : si fetchCounts ne se termine pas en 15s, débloquer le verrou
     const lockTimeout = setTimeout(() => { fetchingRef.current = false; }, 15000);
     try {
-      // 1. Participations
-      const { data: myConvs } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id, last_read_at, joined_at')
-        .eq('user_id', userId);
-
-      if (!myConvs || myConvs.length === 0) {
-        readMapRef.current = {};
-        unreadMapRef.current = {};
-        if (mountedRef.current) setCounts({ messages: 0, notifications: 0, total: 0 });
-        return;
-      }
-
-      // Mettre à jour readMap depuis la BDD
-      myConvs.forEach(c => {
-        const ref = c.last_read_at || c.joined_at || '1970-01-01T00:00:00Z';
-        const tsFromDB = new Date(ref).getTime();
-        const tsInMem  = readMapRef.current[c.conversation_id] ?? 0;
-        // Ne PAS dégrader readMap : conserver le plus récent entre BDD et mémoire locale
-        const tsToUse  = Math.max(tsFromDB, tsInMem);
-        readMapRef.current[c.conversation_id] = tsToUse;
-        if (tsFromDB < tsInMem) {
-          console.warn(
-            `[badge:fetchCounts] readMap PROTECT conv=${c.conversation_id.slice(0,8)} ` +
-            `DB=${new Date(tsFromDB).toISOString()} < Mem=${new Date(tsInMem).toISOString()} → garde mémoire`
-          );
-        }
-      });
-
-      // 2. Messages non lus
-      const convIds = myConvs.map(c => c.conversation_id);
-      // Utiliser readMapRef (déjà protégé) pour calculer oldestISO
+      // Calculer le ISO le plus ancien dans readMap pour filtrer les messages
       const convIds2 = Object.keys(readMapRef.current);
       const oldestTs = convIds2.length > 0
         ? Math.min(...convIds2.map(cid => readMapRef.current[cid]))
         : 0;
       const oldestISO = new Date(Math.max(oldestTs, 0)).toISOString();
-      console.info(`[badge:fetchCounts] START oldestISO=${oldestISO} convIds=${convIds.length}`);
 
-      const { data: candidateMsgs } = await supabase
-        .from('messages')
-        .select('id, conversation_id, created_at, content')
-        .in('conversation_id', convIds)
-        .neq('sender_id', userId)
-        .gt('created_at', oldestISO)
-        .limit(500);
+      // Récupérer le token pour l'auth Bearer
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      // Appel API unique (admin client côté serveur)
+      const res = await fetch(`/api/messages/unread?since=${encodeURIComponent(oldestISO)}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      }).catch(() => null);
+
+      if (!res || !res.ok) {
+        // Si non-authent, on remet les compteurs à 0 sans crasher
+        if (res?.status === 401) {
+          if (mountedRef.current) setCounts({ messages: 0, notifications: 0, total: 0 });
+        }
+        return;
+      }
+
+      const data = await res.json().catch(() => null);
+      if (!data) return;
+
+      const { participations = [], messages: candidateMsgs = [], notifications: unreadNotifs = 0 } = data as {
+        participations: Array<{ conversation_id: string; last_read_at: string | null; joined_at: string | null }>;
+        messages: Array<{ id: string; conversation_id: string; created_at: string; content: string; sender_id: string }>;
+        notifications: number;
+      };
+
+      // Mettre à jour readMap depuis la BDD
+      participations.forEach(c => {
+        const ref = c.last_read_at || c.joined_at || '1970-01-01T00:00:00Z';
+        const tsFromDB = new Date(ref).getTime();
+        const tsInMem  = readMapRef.current[c.conversation_id] ?? 0;
+        readMapRef.current[c.conversation_id] = Math.max(tsFromDB, tsInMem);
+      });
+
+      const convIds = participations.map(c => c.conversation_id);
 
       // Reconstruire unreadMap
       const newUnreadMap: Record<string, Set<string>> = {};
       convIds.forEach(cid => { newUnreadMap[cid] = new Set(); });
 
-      if (candidateMsgs) {
-        for (const m of candidateMsgs) {
-          const readAt = readMapRef.current[m.conversation_id] ?? 0;
-          const msgAt  = new Date(m.created_at).getTime();
-          const sys    = isSystem(m.content || '');
-          const counted = msgAt > readAt && !sys;
-          // ── DIAGNOSTIC badge ──────────────────────────────────────────────
-          console.info(
-            `[badge:fetchCounts] conv=${m.conversation_id.slice(0,8)} ` +
-            `msgId=${m.id.slice(0,8)} created_at=${m.created_at} ` +
-            `readAt=${new Date(readAt).toISOString()} ` +
-            `isSystem=${sys} counted=${counted} ` +
-            `content=${JSON.stringify((m.content||'').slice(0,50))}`
-          );
-          if (counted) {
-            if (!newUnreadMap[m.conversation_id]) newUnreadMap[m.conversation_id] = new Set();
-            newUnreadMap[m.conversation_id].add(m.id);
-          }
+      for (const m of candidateMsgs) {
+        const readAt = readMapRef.current[m.conversation_id] ?? 0;
+        const msgAt  = new Date(m.created_at).getTime();
+        const sys    = isSystem(m.content || '');
+        if (msgAt > readAt && !sys) {
+          if (!newUnreadMap[m.conversation_id]) newUnreadMap[m.conversation_id] = new Set();
+          newUnreadMap[m.conversation_id].add(m.id);
         }
       }
       unreadMapRef.current = newUnreadMap;
 
-      // 3. Notifications
-      const { count: unreadNotifs } = await supabase
-        .from('notifications')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('is_read', false);
-
       const msgCount = totalUnreadMsgs();
-      // ── DIAGNOSTIC badge ──────────────────────────────────────────────────
-      console.info(`[badge:fetchCounts] RÉSULTAT messages=${msgCount} notifs=${unreadNotifs || 0} total=${msgCount + (unreadNotifs || 0)}`);
       if (mountedRef.current) {
-        setCounts({
-          messages: msgCount,
-          notifications: unreadNotifs || 0,
-          total: msgCount + (unreadNotifs || 0),
-        });
+        setCounts({ messages: msgCount, notifications: unreadNotifs, total: msgCount + unreadNotifs });
       }
     } catch (err) {
       console.warn('[useUnreadCounts] fetchCounts error:', err);
@@ -150,6 +130,8 @@ export function useUnreadCounts(): UnreadCounts {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Connexion Realtime ───────────────────────────────────────────────────────
+  // Le realtime est utilisé seulement pour incrémenter le compteur en temps réel.
+  // Le SELECT lourd est fait via l'API admin, pas via le client browser.
   const connectRealtime = useCallback((supabase: ReturnType<typeof createClient>, userId: string) => {
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
@@ -161,29 +143,17 @@ export function useUnreadCounts(): UnreadCounts {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const msg = payload.new as { id: string; sender_id: string; conversation_id: string; content: string; created_at: string };
         if (msg.sender_id === userId) return;
-        // ── DIAGNOSTIC badge ──────────────────────────────────────────────
         const _rtConvKnown = msg.conversation_id in readMapRef.current;
         const _rtSys       = isSystem(msg.content || '');
         const _rtMsgAt     = new Date(msg.created_at).getTime();
         const _rtReplayed  = _rtMsgAt < hookStartRef.current;
         const _rtReadAt    = readMapRef.current[msg.conversation_id] ?? 0;
         const _rtAlreadyRead = _rtMsgAt <= _rtReadAt;
-        console.info(
-          `[badge:realtime:useUnread] conv=${msg.conversation_id.slice(0,8)} ` +
-          `msgId=${msg.id.slice(0,8)} created_at=${msg.created_at} ` +
-          `convKnown=${_rtConvKnown} isSystem=${_rtSys} ` +
-          `replayed=${_rtReplayed}(hookStart=${new Date(hookStartRef.current).toISOString()}) ` +
-          `alreadyRead=${_rtAlreadyRead}(readAt=${new Date(_rtReadAt).toISOString()}) ` +
-          `→ COMPTÉ=${!_rtSys && !_rtReplayed && !_rtAlreadyRead && _rtConvKnown}`
-        );
-        // Vérifier que c'est une de nos conversations
+
         if (!_rtConvKnown) return;
         if (_rtSys) return;
-        // Ignorer les événements rejoués (antérieurs au montage du hook)
         if (_rtReplayed) return;
-        const msgAt  = _rtMsgAt;
-        const readAt = _rtReadAt;
-        if (_rtAlreadyRead) return; // message déjà lu (readAt mis à jour par markAsRead)
+        if (_rtAlreadyRead) return;
 
         if (!unreadMapRef.current[msg.conversation_id]) {
           unreadMapRef.current[msg.conversation_id] = new Set();
@@ -255,50 +225,41 @@ export function useUnreadCounts(): UnreadCounts {
     document.addEventListener('visibilitychange', handleVisibility);
 
     // ── 'messages-read' ──────────────────────────────────────────────────────
-    // Reçoit { conversationId, readAt } depuis markAsRead().
-    // 1. Met à jour le badge localement (instantané, sans BDD)
-    // 2. Persiste last_read_at en BDD via CE hook (instance supabase authentifiée)
+    // Reçoit { conversationId, readAt } depuis markAsRead() dans [id]/page.tsx.
+    // 1. Met à jour le badge localement (instantané)
+    // 2. Persiste last_read_at en BDD via l'API admin
     const handleMessagesRead = (e: Event) => {
       const detail = (e as CustomEvent<{ conversationId?: string; readAt?: number }>).detail;
       const convId = detail?.conversationId;
       const readAt = detail?.readAt ?? Date.now();
-      // ── DIAGNOSTIC badge ──────────────────────────────────────────────────
-      console.info(
-        `[badge:messages-read:useUnread] convId=${convId?.slice(0,8) ?? 'undefined'} ` +
-        `readAt=${new Date(readAt).toISOString()} ` +
-        `unreadAvant=${unreadMapRef.current[convId ?? '']?.size ?? 0}`
-      );
 
       if (convId) {
-        // 1. Ne PAS dégrader readMap : garder le plus récent entre l'event et la mémoire actuelle
         const currentReadAt = readMapRef.current[convId] ?? 0;
         const effectiveReadAt = Math.max(readAt, currentReadAt);
         readMapRef.current[convId] = effectiveReadAt;
-        // 2. Vider le unreadMap de cette conv → badge tombe à 0 immédiatement
         unreadMapRef.current[convId] = new Set();
 
-        // 3. Persister en BDD — n'écrire que si effectiveReadAt > valeur connue en BDD
-        // (évite d'écraser un last_read_at plus récent défini manuellement ou par un autre onglet)
+        // Persister via l'API admin (contourne RLS)
         const newISO = new Date(effectiveReadAt).toISOString();
-        console.info(`[badge:messages-read:useUnread] PATCH last_read_at=${newISO} (effectiveReadAt vs event: max(${new Date(readAt).toISOString()}, ${new Date(currentReadAt).toISOString()}))`);
-        supabase
-          .from('conversation_participants')
-          .update({ last_read_at: newISO })
-          .eq('conversation_id', convId)
-          .eq('user_id', userId)
-          .or(`last_read_at.is.null,last_read_at.lt.${newISO}`)  // n'écrire que si la BDD est plus ancienne
-          .then(({ error }) => {
-            if (error) console.warn('[useUnreadCounts] mark_read UPDATE failed:', error);
-          });
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          const token = session?.access_token;
+          fetch('/api/messages/unread', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ conversationId: convId, lastReadAt: newISO }),
+          }).catch(() => null);
+        });
       }
 
-      // Recalcul du badge sans requête BDD
       const msgCount = totalUnreadMsgs();
       if (mountedRef.current) {
         setCounts(prev => ({ messages: msgCount, notifications: prev.notifications, total: msgCount + prev.notifications }));
       }
 
-      // Confirmation BDD après 3s pour détecter toute désynchronisation
+      // Confirmation BDD après 3s
       setTimeout(() => {
         if (mountedRef.current) {
           fetchingRef.current = false;

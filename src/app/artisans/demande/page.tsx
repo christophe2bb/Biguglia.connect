@@ -139,23 +139,24 @@ function DemandeServiceForm() {
       );
     }
 
-    // Si artisan spécifié, créer une conversation
+    // Si artisan spécifié, créer une conversation via l'API admin (contourne RLS récursive)
     if (artisanId && artisan) {
-      const { data: conv } = await supabase
-        .from('conversations')
-        .insert({
-          subject: form.title,
-          related_type: 'service_request',
-          related_id: request.id,
-        })
-        .select()
-        .single();
-
-      if (conv) {
-        await supabase.from('conversation_participants').insert([
-          { conversation_id: conv.id, user_id: profile.id },
-          { conversation_id: conv.id, user_id: artisan.user_id },
-        ]);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await fetch('/api/messages/start-conversation', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            ownerId: artisan.user_id,
+            subject: form.title,
+            relatedType: 'service_request',
+            relatedId: request.id,
+            initialMsg: null,
+          }),
+        }).catch(() => null);
       }
     }
 
