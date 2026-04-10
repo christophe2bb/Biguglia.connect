@@ -550,12 +550,15 @@ CREATE POLICY job_offers_delete ON job_offers
 CREATE POLICY job_demands_select ON job_demands
   FOR SELECT
   USING (
-    status = 'published' 
-    OR user_id = auth.uid()
+    -- Lecture publique : 'active' (inséré par publish-demand.ts) OU 'published'
+    status IN ('active', 'published')
+    -- Auteur : accès à ses propres demandes (draft, paused, expired…)
+    OR (SELECT auth.uid()) = user_id
+    -- Admins / modérateurs
     OR EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE id = auth.uid() 
-      AND role IN ('admin', 'moderator')
+      SELECT 1 FROM profiles
+      WHERE id = (SELECT auth.uid())
+        AND role IN ('admin', 'moderator')
     )
   );
 

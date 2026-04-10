@@ -227,7 +227,7 @@ export async function getJobDemands(
   let query = supabase
     .from('job_demands')
     .select('*', { count: 'exact' })
-    .in('status', ['active', 'published']);
+    .eq('status', 'published');
 
   // Apply filters
   if (filters?.query) {
@@ -320,19 +320,80 @@ export async function getJobDemands(
 export async function getJobDemandBySlug(
   slug: string
 ): Promise<JobDemandSearchResult | null> {
-  const supabase = createClient();
+  // ── Passe 1 : client admin (bypass RLS) ─────────────────────────────────
+  // Évite tout conflit de RLS (status 'active' vs 'published', jointure profiles).
+  // Le client admin ne lit que les colonnes nécessaires et filtre status en app.
+  try {
+    const admin = createAdminClient();
+    const { data: base, error: adminErr } = await admin
+      .from('job_demands')
+      .select('*')
+      .eq('slug', slug)
+      .single();
 
-  // Tentative 1 : avec jointure author
+    if (adminErr) {
+      const msg = (adminErr as { message?: string }).message ?? '';
+      if (msg.includes('relation') || msg.includes('does not exist') || msg.includes('42P01')) {
+        console.warn('[queries] Table job_demands introuvable — migration SQL en attente.');
+        return null;
+      }
+      if ((adminErr as { code?: string }).code === 'PGRST116') {
+        // 0 lignes → slug vraiment absent
+        return null;
+      }
+      console.error('[queries] getJobDemandBySlug admin error:', msg);
+      // Continuer vers la passe 2 en cas d'erreur admin inattendue
+    } else if (base) {
+      // Filtre de statut côté application (demande active ou publiée)
+      if ((base as any).status !== 'published') {
+        return null;
+      }
+
+      // Passe 1b : tenter la jointure author (optionnelle, ne bloque pas)
+      let authorProfile: JobDemandSearchResult['author_profile'] = undefined;
+      try {
+        const { data: withAuthor } = await admin
+          .from('job_demands')
+          .select(
+            `author:profiles!user_id (
+              id, display_name, avatar_url, is_verified, created_at
+            )`
+          )
+          .eq('slug', slug)
+          .single();
+        const a = (withAuthor as any)?.author;
+        if (a) {
+          authorProfile = {
+            id: a.id,
+            display_name: a.display_name,
+            avatar_url: a.avatar_url,
+            is_verified: a.is_verified,
+            created_at: a.created_at,
+          };
+        }
+      } catch {
+        // Jointure author optionnelle — on continue sans
+      }
+
+      return {
+        ...base,
+        author_profile: authorProfile,
+        freshness_score: (base as any).published_at
+          ? calculateFreshnessScore((base as any).published_at)
+          : 0,
+      } as JobDemandSearchResult;
+    }
+  } catch {
+    // Pas de service role key ou erreur réseau → passe 2
+  }
+
+  // ── Passe 2 : client anon + RLS (fallback si pas de service role key) ───
+  const supabase = createClient();
   const { data, error } = await supabase
     .from('job_demands')
-    .select(
-      `*,
-      author:profiles!user_id (
-        id, display_name, avatar_url, is_verified, created_at
-      )`
-    )
+    .select('*')
     .eq('slug', slug)
-    .in('status', ['published', 'active'])
+    .eq('status', 'published')
     .single();
 
   if (error) {
@@ -341,37 +402,21 @@ export async function getJobDemandBySlug(
       console.warn('[queries] Table job_demands introuvable — migration SQL en attente.');
       return null;
     }
-    // Jointure author échoue → retenter sans jointure
-    console.warn('[queries] Jointure author demand échouée, tentative sans jointure:', msg);
-    const { data: data2, error: error2 } = await supabase
-      .from('job_demands')
-      .select('*')
-      .eq('slug', slug)
-      .in('status', ['published', 'active'])
-      .single();
-    if (error2 || !data2) {
-      console.error('[queries] getJobDemandBySlug fallback error:', error2);
+    if ((error as { code?: string }).code === 'PGRST116') {
       return null;
     }
-    return {
-      ...data2,
-      author_profile: undefined,
-      freshness_score: data2.published_at ? calculateFreshnessScore(data2.published_at) : 0,
-    };
+    console.error('[queries] getJobDemandBySlug fallback error:', msg, error);
+    return null;
   }
   if (!data) return null;
 
   return {
     ...data,
-    author_profile: data.author ? {
-      id: data.author.id,
-      display_name: data.author.display_name,
-      avatar_url: data.author.avatar_url,
-      is_verified: data.author.is_verified,
-      created_at: data.author.created_at,
-    } : undefined,
-    freshness_score: data.published_at ? calculateFreshnessScore(data.published_at) : 0,
-  };
+    author_profile: undefined,
+    freshness_score: (data as any).published_at
+      ? calculateFreshnessScore((data as any).published_at)
+      : 0,
+  } as JobDemandSearchResult;
 }
 
 // ============================================================================
@@ -425,11 +470,10 @@ export async function getRecentJobDemands(
   const supabase = createClient();
 
   // Sans jointure profiles pour compatibilité RLS maximale
-  // Note : job_demands peut avoir status 'active' ou 'published'
   let query = supabase
     .from('job_demands')
     .select('*')
-    .in('status', ['active', 'published'])
+    .eq('status', 'published')
     .order('published_at', { ascending: false })
     .limit(limit);
 

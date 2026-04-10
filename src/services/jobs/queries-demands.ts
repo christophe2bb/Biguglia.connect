@@ -59,7 +59,7 @@ export async function getJobDemands(filters: DemandFilters = {}): Promise<{
   let query = supabase
     .from('job_demands')
     .select('*', { count: 'exact' })
-    .eq('status', 'active')
+    .eq('status', 'published')
     .range(from, to);
 
   if (filters.query) {
@@ -109,7 +109,7 @@ export async function getJobDemandBySlug(slug: string): Promise<JobDemandRow | n
     .from('job_demands')
     .select('*')
     .eq('slug', slug)
-    .eq('status', 'active')
+    .eq('status', 'published')
     .single();
 
   if (error || !data) return null;
