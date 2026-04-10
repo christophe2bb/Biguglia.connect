@@ -130,12 +130,14 @@ export default async function HomePage() {
             Voisins, artisans, événements, forum, annonces… En un seul endroit.
           </p>
 
-          {/* Barre de recherche */}
-          <Suspense fallback={
-            <div className="w-full h-12 bg-white/20 backdrop-blur rounded-2xl animate-pulse" />
-          }>
-            <GlobalSearchWrapper />
-          </Suspense>
+          {/* Barre de recherche — grand format hero */}
+          <div className="w-full max-w-3xl">
+            <Suspense fallback={
+              <div className="w-full h-16 bg-white/20 backdrop-blur rounded-2xl animate-pulse" />
+            }>
+              <GlobalSearchWrapper size="xl" />
+            </Suspense>
+          </div>
         </div>
       </section>
 

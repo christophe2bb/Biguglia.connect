@@ -6,6 +6,10 @@
 
 import GlobalSearch from '@/components/ui/GlobalSearch';
 
-export default function GlobalSearchWrapper() {
-  return <GlobalSearch />;
+interface Props {
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+}
+
+export default function GlobalSearchWrapper({ size = 'md' }: Props) {
+  return <GlobalSearch size={size} />;
 }
