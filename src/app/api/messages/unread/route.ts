@@ -13,6 +13,9 @@
  *     messages: Array<{ id, conversation_id, created_at, content, sender_id }>,
  *     notifications: number   (count non lus)
  *   }
+ *
+ * SÉCURITÉ : les messages sont TOUJOURS filtrés par les conversation_ids de
+ * l'utilisateur. Un fetch global non filtré constituerait une fuite de données.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -56,23 +59,13 @@ export async function GET(req: NextRequest) {
 
   const admin = createAdminClient();
 
-  // Fetch in parallel
-  const [participRes, msgRes, notifRes] = await Promise.all([
-    // 1. Participations (last_read_at, joined_at)
+  // Étape 1 — participations + notifications en parallèle (pas de dépendance entre elles)
+  const [participRes, notifRes] = await Promise.all([
     admin
       .from('conversation_participants')
       .select('conversation_id, last_read_at, joined_at')
       .eq('user_id', userId),
 
-    // 2. Messages candidats (plus récents que oldestISO, non envoyés par l'utilisateur)
-    admin
-      .from('messages')
-      .select('id, conversation_id, created_at, content, sender_id')
-      .neq('sender_id', userId)
-      .gt('created_at', oldestISO)
-      .limit(500),
-
-    // 3. Notifications non lues
     admin
       .from('notifications')
       .select('id', { count: 'exact', head: true })
@@ -80,9 +73,33 @@ export async function GET(req: NextRequest) {
       .eq('is_read', false),
   ]);
 
+  // Étape 2 — extraire les conversation_ids de l'utilisateur
+  // CRITIQUE : ne jamais requêter messages sans ce filtre — fuite de données sinon.
+  const convIds: string[] = (participRes.data ?? []).map(
+    (p: { conversation_id: string }) => p.conversation_id
+  );
+
+  // Si l'utilisateur n'a aucune conversation, inutile d'interroger messages
+  if (convIds.length === 0) {
+    return NextResponse.json({
+      participations: [],
+      messages: [],
+      notifications: notifRes.count ?? 0,
+    });
+  }
+
+  // Étape 3 — messages UNIQUEMENT dans les conversations de l'utilisateur
+  const { data: messagesData } = await admin
+    .from('messages')
+    .select('id, conversation_id, created_at, content, sender_id')
+    .in('conversation_id', convIds)   // ← filtre de sécurité obligatoire
+    .neq('sender_id', userId)
+    .gt('created_at', oldestISO)
+    .limit(500);
+
   return NextResponse.json({
     participations: participRes.data ?? [],
-    messages: msgRes.data ?? [],
+    messages: messagesData ?? [],
     notifications: notifRes.count ?? 0,
   });
 }
