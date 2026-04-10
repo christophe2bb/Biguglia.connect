@@ -68,5 +68,6 @@ export async function GET(req: Request) {
   }
 
   const isOwner = (data as any).user_id === userId;
-  return NextResponse.json({ isOwner, method: 'admin', userId });
+  // Ne jamais exposer userId ni les détails internes dans la réponse publique
+  return NextResponse.json({ isOwner });
 }
