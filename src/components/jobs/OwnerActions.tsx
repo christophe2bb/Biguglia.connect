@@ -13,6 +13,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Pencil, Trash2, Loader2, AlertTriangle } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 interface OwnerActionsProps {
   type: 'offer' | 'demand';
@@ -45,8 +46,20 @@ export default function OwnerActions({
   useEffect(() => {
     async function checkOwnership() {
       try {
+        // Récupérer le token d'accès depuis le client navigateur
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (!session) { setIsOwner(false); return; }
+
         const res = await fetch(
-          `/api/emploi/ownership?type=${type === 'offer' ? 'offer' : 'demand'}&slug=${slug}`
+          `/api/emploi/ownership?type=${type === 'offer' ? 'offer' : 'demand'}&slug=${slug}`,
+          {
+            headers: {
+              // Envoyer le token Bearer pour que l'API puisse identifier l'utilisateur
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+          }
         );
         if (!res.ok) { setIsOwner(false); return; }
         const data = await res.json();
@@ -63,7 +76,12 @@ export default function OwnerActions({
     setDeleting(true);
     setError(null);
     try {
-      const res = await fetch(apiPath, { method: 'DELETE' });
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {};
+      if (session) headers['Authorization'] = `Bearer ${session.access_token}`;
+
+      const res = await fetch(apiPath, { method: 'DELETE', headers });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setError(data.error ?? 'Erreur lors de la suppression');

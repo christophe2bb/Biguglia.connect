@@ -3,13 +3,12 @@
  * GET ?type=offer|demand&slug=xxx
  * Retourne { isOwner: boolean } pour l'utilisateur connecté.
  *
- * Stratégie en 3 niveaux :
- * 1. Service role (admin) → bypass RLS total si SUPABASE_SERVICE_ROLE_KEY est défini
- * 2. Client authentifié avec filtre user_id (via RLS own_crud)
- * 3. Client authentifié SELECT user_id puis comparaison
+ * Lit la session via cookies (SSR) ET via Authorization header (Bearer token)
+ * pour maximiser la compatibilité avec les différentes versions de Supabase.
  */
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -22,56 +21,52 @@ export async function GET(req: Request) {
 
   const table = type === 'offer' ? 'job_offers' : 'job_demands';
 
-  // 1. Utilisateur connecté
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ isOwner: false, reason: 'not_authenticated' });
+  // ── Méthode 1 : cookies SSR (Server Component / Route Handler)
+  let userId: string | null = null;
+
+  try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) userId = user.id;
+  } catch {
+    // ignore
   }
 
-  // 2. Essayer via admin (service role) si disponible
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (serviceKey) {
-    try {
-      const admin = createAdminClient();
-      const { data, error } = await admin
-        .from(table)
-        .select('user_id')
-        .eq('slug', slug)
-        .single();
-
-      if (!error && data) {
-        const isOwner = (data as any).user_id === user.id;
-        return NextResponse.json({ isOwner, method: 'admin', userId: user.id });
+  // ── Méthode 2 : Authorization header (Bearer <access_token>)
+  if (!userId) {
+    const authHeader = req.headers.get('authorization');
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (token) {
+      try {
+        const client = createSupabaseClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          { auth: { autoRefreshToken: false, persistSession: false } }
+        );
+        const { data: { user } } = await client.auth.getUser(token);
+        if (user) userId = user.id;
+      } catch {
+        // ignore
       }
-    } catch {
-      // Continuer vers le fallback
     }
   }
 
-  // 3. Fallback : compter les lignes WHERE slug=? AND user_id=auth.uid()
-  //    Fonctionne avec la politique RLS "own_crud FOR ALL"
-  const { count, error: countErr } = await supabase
-    .from(table)
-    .select('id', { count: 'exact', head: true })
-    .eq('slug', slug)
-    .eq('user_id', user.id);
-
-  if (!countErr && count !== null) {
-    return NextResponse.json({ isOwner: count > 0, method: 'rls_count', userId: user.id });
+  if (!userId) {
+    return NextResponse.json({ isOwner: false, reason: 'not_authenticated' });
   }
 
-  // 4. Dernier recours : lire user_id directement
-  const { data: row } = await supabase
+  // ── Lire user_id via admin (bypass RLS)
+  const admin = createAdminClient();
+  const { data, error } = await admin
     .from(table)
     .select('user_id')
     .eq('slug', slug)
     .single();
 
-  if (row) {
-    const isOwner = (row as any).user_id === user.id;
-    return NextResponse.json({ isOwner, method: 'rls_read', userId: user.id });
+  if (error || !data) {
+    return NextResponse.json({ isOwner: false, reason: 'not_found' });
   }
 
-  return NextResponse.json({ isOwner: false, reason: 'not_found', method: 'fallback' });
+  const isOwner = (data as any).user_id === userId;
+  return NextResponse.json({ isOwner, method: 'admin', userId });
 }
