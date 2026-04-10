@@ -117,7 +117,7 @@ export async function publishJobDemand(
     contact_phone: input.contact_phone ?? null,
     contact_mode: input.contact_mode ?? 'email',
     cv_url: input.cv_url ?? null,
-    status: 'active',
+    status: 'published',
     moderation_status: 'approved',
     completeness_score,
     freshness_score: 100,

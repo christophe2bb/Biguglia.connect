@@ -1,60 +1,50 @@
 -- ============================================================================
 -- FIX URGENT : job_demands — page détail "Demande introuvable"
 -- ============================================================================
--- Problème :
---   publish-demand.ts insère les demandes avec status = 'active'
---   La policy RLS job_demands_select autorise uniquement status = 'published'
---   → La page détail (/emploi/demandes/[slug]) retourne null → "Demande introuvable"
---   → La liste fonctionne car queries.ts utilise une jointure qui contourne en partie
+-- Cause racine identifiée :
+--   L'ENUM job_status = ('draft','published','paused','expired','filled','archived')
+--   'active' N'EXISTE PAS dans l'ENUM → INSERT échoue côté Supabase
+--   publish-demand.ts utilisait status:'active' → aucune ligne insérée en base
+--   Le slug retourné était un uuid local fictif, jamais persisté
 --
--- Cause racine :
---   La migration 20260409_emploi_local.sql (ligne ~550) crée job_demands_select
---   avec USING (status = 'published' OR user_id = auth.uid() ...)
---   Elle peut avoir écrasé la policy correcte de supabase_migration_emploi_v2.sql
---   qui autorisait status IN ('active', 'published').
+-- Double fix :
+--   1. MIGRATION DES DONNÉES : passer les éventuelles lignes 'active' → 'published'
+--      (ne fait rien si aucune ligne n'a ce statut invalide)
+--   2. POLICY RLS : harmoniser pour accepter uniquement 'published' (seule valeur
+--      valide pour les demandes publiées dans l'ENUM)
 --
--- Fix :
---   Remplacer TOUTES les policies SELECT sur job_demands par une version unifiée
---   qui accepte status IN ('active', 'published') pour la lecture publique.
---   Les policies de nom variable (job_demands_select, job_demands_public_read,
---   job_demands_public, job_demands_read) sont toutes droppées et remplacées
---   par une seule policy claire.
---
--- Impact : aucune interruption de service, ~1 ms de verrou
+-- Code corrigé séparément : publish-demand.ts status:'active' → 'published'
 -- ============================================================================
 
--- 1. Supprimer toutes les policies SELECT existantes sur job_demands
---    (noms variables selon la migration qui a tourné en dernier)
-DROP POLICY IF EXISTS job_demands_select            ON public.job_demands;
-DROP POLICY IF EXISTS job_demands_public_read       ON public.job_demands;
-DROP POLICY IF EXISTS job_demands_public            ON public.job_demands;
-DROP POLICY IF EXISTS job_demands_read              ON public.job_demands;
-DROP POLICY IF EXISTS "job_demands_select"          ON public.job_demands;
-DROP POLICY IF EXISTS "job_demands_public_read"     ON public.job_demands;
-DROP POLICY IF EXISTS "job_demands_public"          ON public.job_demands;
-DROP POLICY IF EXISTS "job_demands_read"            ON public.job_demands;
+-- 1. Migration des données existantes avec status invalide
+--    (au cas où des lignes ont quand même été insérées avec un ENUM étendu)
+UPDATE public.job_demands
+SET status = 'published', updated_at = now()
+WHERE status::text = 'active';
+
+-- 2. Supprimer toutes les policies SELECT existantes sur job_demands
+DROP POLICY IF EXISTS job_demands_select             ON public.job_demands;
+DROP POLICY IF EXISTS job_demands_public_read        ON public.job_demands;
+DROP POLICY IF EXISTS job_demands_public             ON public.job_demands;
+DROP POLICY IF EXISTS job_demands_read               ON public.job_demands;
+DROP POLICY IF EXISTS "job_demands_select"           ON public.job_demands;
+DROP POLICY IF EXISTS "job_demands_public_read"      ON public.job_demands;
+DROP POLICY IF EXISTS "job_demands_public"           ON public.job_demands;
+DROP POLICY IF EXISTS "job_demands_read"             ON public.job_demands;
 DROP POLICY IF EXISTS "job_demands_select_published" ON public.job_demands;
-DROP POLICY IF EXISTS "job_demands_select_own"      ON public.job_demands;
+DROP POLICY IF EXISTS "job_demands_select_own"       ON public.job_demands;
 
--- 2. Créer la policy unifiée correcte
---    Règles :
---    a) Toute demande avec status 'active' ou 'published' est lisible par tous
---       (anon + authenticated) → c'est le comportement souhaité pour la liste
---       et la page détail
---    b) L'auteur peut toujours lire ses propres demandes quel que soit le status
---       (draft, paused, expired…) → nécessaire pour la page édition
---    c) Les admins/modérateurs peuvent tout lire (gestion backoffice)
-
+-- 3. Policy RLS unifiée et correcte
 CREATE POLICY "job_demands_select"
   ON public.job_demands
   FOR SELECT
   TO anon, authenticated
   USING (
-    -- Lecture publique : demandes actives ou publiées
-    status IN ('active', 'published')
-    -- Auteur : peut voir ses propres demandes quel que soit le status
+    -- Lecture publique : demandes publiées (seul statut valide de l'ENUM pour public)
+    status = 'published'
+    -- Auteur : accès à ses propres demandes quel que soit le status
     OR (SELECT auth.uid()) = user_id
-    -- Admins / modérateurs : accès total
+    -- Admins / modérateurs
     OR EXISTS (
       SELECT 1 FROM public.profiles
       WHERE id = (SELECT auth.uid())

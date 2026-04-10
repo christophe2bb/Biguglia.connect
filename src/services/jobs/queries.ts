@@ -227,7 +227,7 @@ export async function getJobDemands(
   let query = supabase
     .from('job_demands')
     .select('*', { count: 'exact' })
-    .in('status', ['active', 'published']);
+    .eq('status', 'published');
 
   // Apply filters
   if (filters?.query) {
@@ -345,7 +345,7 @@ export async function getJobDemandBySlug(
       // Continuer vers la passe 2 en cas d'erreur admin inattendue
     } else if (base) {
       // Filtre de statut côté application (demande active ou publiée)
-      if (!['active', 'published'].includes((base as any).status)) {
+      if ((base as any).status !== 'published') {
         return null;
       }
 
@@ -393,7 +393,7 @@ export async function getJobDemandBySlug(
     .from('job_demands')
     .select('*')
     .eq('slug', slug)
-    .in('status', ['published', 'active'])
+    .eq('status', 'published')
     .single();
 
   if (error) {
@@ -470,11 +470,10 @@ export async function getRecentJobDemands(
   const supabase = createClient();
 
   // Sans jointure profiles pour compatibilité RLS maximale
-  // Note : job_demands peut avoir status 'active' ou 'published'
   let query = supabase
     .from('job_demands')
     .select('*')
-    .in('status', ['active', 'published'])
+    .eq('status', 'published')
     .order('published_at', { ascending: false })
     .limit(limit);
 
