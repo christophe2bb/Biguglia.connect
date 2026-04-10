@@ -112,57 +112,31 @@ function ArtisanCard({
     setSendingMsg(true);
     try {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { toast.error('Non connecté'); return; }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { toast.error('Non connecté'); return; }
 
-      // Vérifier si une conversation admin ↔ artisan existe déjà
-      const { data: myConvs } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', user.id);
+      // Utiliser l'API admin pour contourner la récursion RLS sur conversation_participants
+      const res = await fetch('/api/messages/start-conversation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          ownerId: artisan.user_id,
+          subject: `Dossier artisan — ${artisan.profile?.full_name || artisan.business_name}`,
+          relatedType: 'general',
+          relatedId: null,
+          initialMsg: null,
+        }),
+      }).catch(() => null);
 
-      const myConvIds = (myConvs || []).map(c => c.conversation_id);
-      let convId: string | null = null;
-
-      if (myConvIds.length > 0) {
-        const { data: shared } = await supabase
-          .from('conversation_participants')
-          .select('conversation_id')
-          .eq('user_id', artisan.user_id)
-          .in('conversation_id', myConvIds);
-        if (shared && shared.length > 0) convId = shared[0].conversation_id;
-      }
-
-      if (!convId) {
-        // Créer une nouvelle conversation
-        const { data: conv, error: convErr } = await supabase
-          .from('conversations')
-          .insert({ subject: `Dossier artisan — ${artisan.profile?.full_name || artisan.business_name}`, related_type: 'general' })
-          .select('id')
-          .single();
-
-        if (convErr || !conv) {
-          // Essai sans related_type
-          const { data: conv2 } = await supabase
-            .from('conversations')
-            .insert({ subject: `Dossier artisan — ${artisan.profile?.full_name || artisan.business_name}` })
-            .select('id')
-            .single();
-          if (!conv2) { toast.error('Impossible de créer la conversation'); return; }
-          convId = conv2.id;
-        } else {
-          convId = conv.id;
-        }
-
-        // Ajouter les participants
-        await supabase.from('conversation_participants').upsert([
-          { conversation_id: convId, user_id: user.id },
-          { conversation_id: convId, user_id: artisan.user_id },
-        ], { onConflict: 'conversation_id,user_id', ignoreDuplicates: true });
-      }
+      if (!res?.ok) { toast.error('Impossible de créer la conversation'); return; }
+      const { conversationId } = await res.json().catch(() => ({}));
+      if (!conversationId) { toast.error('Impossible de créer la conversation'); return; }
 
       // Rediriger vers la messagerie
-      window.location.href = `/messages/${convId}`;
+      window.location.href = `/messages/${conversationId}`;
     } catch (e) {
       console.error(e);
       toast.error('Erreur lors de l\'ouverture de la messagerie');

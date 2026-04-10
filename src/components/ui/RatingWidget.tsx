@@ -52,6 +52,24 @@ const POLL_CONFIG: Record<RatingTargetType, { question: string; options: PollOpt
   service_request: { question: 'Prestation réalisée ?',           options: [{ label:'Excellent travail',emoji:'⭐'},{ label:'Dans les délais',emoji:'⏱️'},{ label:'Prix honnête',emoji:'💰' },{ label:'Je recommande',emoji:'👍' }] },
 };
 
+// ─── Helper : vérifier une conversation via l'API admin (contourne RLS récursive) ─────────
+async function checkConversationViaAPI(
+  relatedType: string,
+  relatedId: string,
+  authToken?: string | null,
+): Promise<{ conversationId: string | null; exchangeStatus: string | null }> {
+  try {
+    const url = `/api/messages/check-conversation?relatedType=${encodeURIComponent(relatedType)}&relatedId=${encodeURIComponent(relatedId)}`;
+    const res = await fetch(url, {
+      headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {},
+    });
+    if (!res.ok) return { conversationId: null, exchangeStatus: null };
+    return await res.json();
+  } catch {
+    return { conversationId: null, exchangeStatus: null };
+  }
+}
+
 // ─── Éligibilité : peut-on noter ? ───────────────────────────────────────────
 async function checkEligibility(
   supabase: ReturnType<typeof createClient>,
@@ -59,6 +77,7 @@ async function checkEligibility(
   targetId: string,
   userId: string,
   authorId?: string,
+  authToken?: string | null,
 ): Promise<boolean> {
   // Auteur de l'item → jamais (on ne se note pas soi-même)
   if (userId === authorId) return false;
@@ -75,25 +94,10 @@ async function checkEligibility(
     case 'equipment':
     case 'association':
     case 'collection_item': {
-      // Chercher une conversation liée avec exchange_status = 'done' ET l'utilisateur participant
-      const { data: parts } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', userId);
-      if (!parts?.length) return false;
-      const ids = parts.map((p: { conversation_id: string }) => p.conversation_id);
-      const { data: conv } = await supabase
-        .from('conversations')
-        .select('id, exchange_status')
-        .eq('related_type', targetType)
-        .eq('related_id', targetId)
-        .in('id', ids)
-        .maybeSingle();
-      // Échange terminé = 'done', sinon vérification si la colonne existe (ancienne version)
-      if (!conv) return false;
-      // Si la colonne exchange_status existe et vaut 'done' → ok
-      // Si exchange_status est null (migration pas encore appliquée) → fallback sur simple conversation
-      return conv.exchange_status === 'done' || conv.exchange_status === null;
+      // Utiliser l'API admin pour contourner la récursion RLS
+      const { conversationId, exchangeStatus } = await checkConversationViaAPI(targetType, targetId, authToken);
+      if (!conversationId) return false;
+      return exchangeStatus === 'done' || exchangeStatus === null;
     }
 
     // Coup de main : échange confirmé OU statut resolved + auteur
@@ -105,26 +109,12 @@ async function checkEligibility(
         .single();
       if (!req) return false;
 
-      // Chercher conversation avec échange confirmé
-      const { data: parts } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', userId);
-      if (parts?.length) {
-        const ids = parts.map((p: { conversation_id: string }) => p.conversation_id);
-        const { data: conv } = await supabase
-          .from('conversations')
-          .select('id, exchange_status')
-          .eq('related_type', 'help_request')
-          .eq('related_id', targetId)
-          .in('id', ids)
-          .maybeSingle();
-        if (conv && (conv.exchange_status === 'done' || conv.exchange_status === null)) {
-          // Si échange confirmé ou pas encore migré (fallback)
-          if (conv.exchange_status === 'done') return true;
-          // Fallback si pas encore migré : demande résolue requise
-          if (req.status === 'resolved') return true;
-        }
+      // Chercher conversation via l'API admin (contourne RLS récursive)
+      const { conversationId, exchangeStatus } = await checkConversationViaAPI('help_request', targetId, authToken);
+      if (conversationId) {
+        if (exchangeStatus === 'done') return true;
+        // Fallback si pas encore migré : demande résolue requise
+        if (exchangeStatus === null && req.status === 'resolved') return true;
       }
       // Fallback auteur : si demande résolue et auteur
       return req.status === 'resolved' && req.author_id === userId;
@@ -278,8 +268,12 @@ export default function RatingWidget({
   useEffect(() => {
     load();
     if (!userId) { setEligible(false); return; }
-    checkEligibility(supabase, targetType, targetId, userId, authorId)
-      .then(setEligible);
+    // Récupérer le token pour les appels API (contourne RLS récursive)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const token = session?.access_token ?? null;
+      checkEligibility(supabase, targetType, targetId, userId, authorId, token)
+        .then(setEligible);
+    });
   }, [load, targetType, targetId, userId, authorId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Soumettre note ──────────────────────────────────────────────────────────

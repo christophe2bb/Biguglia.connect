@@ -191,45 +191,35 @@ export default function InteractionButton({
   // ── Créer une interaction (clic CTA) ─────────────────────────────────────────
   const handleCreate = async () => {
     if (!userId || acting) return;
-    if (!userId) { toast.error('Connectez-vous pour continuer'); return; }
     setActing(true);
     try {
-      // Créer ou récupérer la conversation liée
-      const { data: parts } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', userId);
-      const myConvIds = (parts || []).map((p: { conversation_id: string }) => p.conversation_id);
+      // Récupérer le token pour l'auth Bearer
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      };
+
+      // Créer ou récupérer la conversation via API admin (contourne RLS récursive)
+      const convRes = await fetch('/api/messages/start-conversation', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          ownerId: receiverId,
+          subject: ctaLabel,
+          relatedType: sourceType,
+          relatedId: sourceId,
+          initialMsg: `👋 ${ctaLabel} — je voudrais en savoir plus !`,
+        }),
+      }).catch(() => null);
+
       let convId: string | null = null;
-      if (myConvIds.length > 0) {
-        const { data: existingConv } = await supabase
-          .from('conversations')
-          .select('id')
-          .eq('related_type', sourceType)
-          .eq('related_id', sourceId)
-          .in('id', myConvIds)
-          .maybeSingle();
-        convId = existingConv?.id || null;
+      if (convRes?.ok) {
+        const convData = await convRes.json().catch(() => null);
+        convId = convData?.conversationId ?? null;
       }
-      if (!convId) {
-        const { data: newConv } = await supabase
-          .from('conversations')
-          .insert({ related_type: sourceType, related_id: sourceId, subject: `${ctaLabel}` })
-          .select('id').single();
-        convId = newConv?.id || null;
-        if (convId) {
-          const participantRows = userId === receiverId
-            ? [{ conversation_id: convId, user_id: userId }]
-            : [{ conversation_id: convId, user_id: userId }, { conversation_id: convId, user_id: receiverId }];
-          await supabase.from('conversation_participants')
-            .upsert(participantRows, { onConflict: 'conversation_id,user_id', ignoreDuplicates: true });
-          // Message initial
-          await supabase.from('messages').insert({
-            conversation_id: convId, sender_id: userId,
-            content: `👋 ${ctaLabel} — je voudrais en savoir plus !`,
-          });
-        }
-      }
+
       // Créer l'interaction
       const { data: created, error } = await supabase
         .from('interactions')
@@ -321,33 +311,30 @@ export default function InteractionButton({
       if (!userId) { router.push('/connexion'); return; }
       setFallbackActing(true);
       try {
-        // Chercher conv existante
-        const { data: myParts } = await supabase
-          .from('conversation_participants').select('conversation_id').eq('user_id', userId);
-        if (myParts && myParts.length > 0) {
-          const myIds = myParts.map((p: { conversation_id: string }) => p.conversation_id);
-          const { data: existing } = await supabase
-            .from('conversations').select('id')
-            .eq('related_type', sourceType).eq('related_id', sourceId)
-            .in('id', myIds).maybeSingle();
-          if (existing) { router.push(`/messages/${existing.id}`); return; }
+        // Utiliser l'API admin pour contourner la récursion RLS
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        const headers = {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        };
+        const convRes = await fetch('/api/messages/start-conversation', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            ownerId: receiverId,
+            subject: ctaLabel,
+            relatedType: sourceType,
+            relatedId: sourceId,
+            initialMsg: `👋 ${ctaLabel} — je voudrais en savoir plus !`,
+          }),
+        }).catch(() => null);
+        if (!convRes?.ok) {
+          toast.error('Impossible d\'ouvrir la conversation');
+          return;
         }
-        // Créer nouvelle conv
-        const { data: conv } = await supabase
-          .from('conversations')
-          .insert({ subject: ctaLabel, related_type: sourceType, related_id: sourceId })
-          .select('id').single();
-        if (!conv) return;
-        await supabase.from('conversation_participants').upsert(
-          [{ conversation_id: conv.id, user_id: userId },
-           { conversation_id: conv.id, user_id: receiverId }],
-          { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
-        );
-        await supabase.from('messages').insert({
-          conversation_id: conv.id, sender_id: userId,
-          content: `👋 ${ctaLabel} — je voudrais en savoir plus !`,
-        });
-        router.push(`/messages/${conv.id}`);
+        const { conversationId } = await convRes.json().catch(() => ({}));
+        if (conversationId) router.push(`/messages/${conversationId}`);
       } finally { setFallbackActing(false); }
     };
 

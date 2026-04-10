@@ -130,29 +130,32 @@ export default function MessagesPage() {
   }, []);
 
   // ── Chargement des conversations ──────────────────────────────────────────
+  // Passe par l'API /api/messages/conversations (admin client) pour contourner
+  // la récursion infinie dans les politiques RLS de conversation_participants.
   const fetchConversations = useCallback(async () => {
     if (!profile) return;
 
-    const { data: participations } = await supabase
-      .from('conversation_participants')
-      .select(`
-        conversation_id,
-        last_read_at,
-        joined_at,
-        conversation:conversations(
-          id, subject, related_type, related_id, updated_at,
-          participants:conversation_participants(
-            user_id,
-            profile:profiles(id, full_name, avatar_url)
-          ),
-          last_msg:messages(content, created_at, sender_id)
-        )
-      `)
-      .eq('user_id', profile.id);
+    // Récupérer le token pour l'authentification Bearer
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+
+    const res = await fetch('/api/messages/conversations', {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+    }).catch(() => null);
+
+    if (!res || !res.ok) { setLoading(false); return; }
+
+    const json = await res.json().catch(() => null);
+    const participations = json?.participations;
 
     if (!participations) { setLoading(false); return; }
 
-    const convs = participations.map((p) => {
+    const convs = (participations as Array<{
+      conversation_id: string;
+      last_read_at: string | null;
+      joined_at: string | null;
+      conversation: unknown;
+    }>).map((p) => {
       const conv = p.conversation as unknown as Conversation & {
         participants?: Array<{ user_id: string; profile?: Profile }>;
         last_msg?: Array<{ content: string; created_at: string; sender_id: string }>;
@@ -322,8 +325,12 @@ export default function MessagesPage() {
     setConfirmConv(null);
     setDeletingConv(convId);
     await new Promise(r => setTimeout(r, 280));
-    await supabase.from('conversation_participants').delete().eq('conversation_id', convId).eq('user_id', profile!.id);
-    await supabase.from('messages').delete().eq('conversation_id', convId).eq('sender_id', profile!.id);
+    // Utilise l'API admin pour contourner la récursion RLS
+    const { data: { session } } = await supabase.auth.getSession();
+    await fetch(`/api/messages/conversations?conversationId=${convId}`, {
+      method: 'DELETE',
+      headers: session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {},
+    }).catch(() => null);
     setConversations(prev => prev.filter(c => c.id !== convId));
     setDeletingConv(null);
   };

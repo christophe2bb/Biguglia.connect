@@ -165,210 +165,15 @@ export default function ContactButton({
   // Le sujet encode le contexte pour l'isolation des conversations communautaires
   const subject = sourceTitle || ctaLabel || conf.defaultLabel || 'Message';
 
-  // ── Chercher une conv existante isolée ───────────────────────────────────────
-  const findExistingConversation = async (): Promise<string | null> => {
-    try {
-      // 1. Conv où je participe
-      const { data: myParts } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', userId);
-
-      if (!myParts || myParts.length === 0) return null;
-      const myConvIds = myParts.map((p: { conversation_id: string }) => p.conversation_id);
-
-      // 2. Intersection avec les conv où l'owner participe aussi
-      const { data: ownerParts } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', ownerId)
-        .in('conversation_id', myConvIds);
-
-      if (!ownerParts || ownerParts.length === 0) return null;
-      const sharedIds = ownerParts.map((p: { conversation_id: string }) => p.conversation_id);
-
-      if (isCommunity) {
-        // ── Communauté : isolation par subject (slug encodé dans le titre) ──────
-        // Cherche une conv partagée ayant exactement ce sujet
-        const { data: bySubject } = await supabase
-          .from('conversations')
-          .select('id')
-          .eq('subject', subject)
-          .in('id', sharedIds)
-          .order('updated_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (bySubject?.id) return bySubject.id;
-
-        // Fallback legacy : cherche par related_type=community sans related_id
-        const { data: byCommunityType } = await supabase
-          .from('conversations')
-          .select('id')
-          .eq('subject', subject)
-          .in('id', sharedIds)
-          .order('updated_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        return byCommunityType?.id ?? null;
-      }
-
-      if (relatedIdUUID) {
-        // ── Cas UUID : isolation stricte par (related_type, related_id) ─────────
-        const relType = primaryRelType;
-        const { data: exact } = await supabase
-          .from('conversations')
-          .select('id')
-          .eq('related_type', relType)
-          .eq('related_id', relatedIdUUID)
-          .in('id', sharedIds)
-          .order('updated_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (exact?.id) return exact.id;
-
-        // Fallback : related_id seul
-        const { data: byId } = await supabase
-          .from('conversations')
-          .select('id')
-          .eq('related_id', relatedIdUUID)
-          .in('id', sharedIds)
-          .order('updated_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        return byId?.id ?? null;
-      }
-
-      // ── Cas général : conv partagée la plus récente sans related_id ──────────
-      const { data: genConv } = await supabase
-        .from('conversations')
-        .select('id')
-        .in('id', sharedIds)
-        .is('related_id', null)
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      return genConv?.id ?? null;
-
-    } catch {
-      return null;
-    }
-  };
-
-  // ── Créer une conversation avec dégradation progressive ──────────────────────
-  /**
-   * Stratégie multi-niveaux :
-   *   1. RPC SECURITY DEFINER (contourne RLS, accepte slug communauté)
-   *   2. INSERT avec related_type correct + related_id UUID (si applicable)
-   *   3. INSERT avec related_type = 'general' + related_id UUID
-   *   4. INSERT avec related_type = 'general' sans related_id
-   *   5. INSERT minimal (subject seulement) → toujours fonctionnel
-   *
-   * Pour 'community', on n'envoie jamais de related_id (UUID invalide).
-   * L'isolation est garantie par le subject (ex: "Communauté Collectionneurs").
-   */
-  const createConversation = async (initialMsg: string): Promise<{ id: string | null; error?: unknown }> => {
-
-    // ─── Voie 1 : RPC SECURITY DEFINER ────────────────────────────────────────
-    const { data: rpcData, error: rpcErr } = await supabase.rpc(
-      'create_conversation_with_message',
-      {
-        p_subject:      subject,
-        p_related_type: primaryRelType,
-        // Pour communauté : p_related_id = themeSlug (la fonction gère le cas texte vs UUID)
-        p_related_id:   sourceId || null,
-        p_owner_id:     ownerId,
-        p_initial_msg:  initialMsg,
-      }
-    );
-    if (rpcData) return { id: rpcData as string };
-
-    // Log silencieux pour debug
-    if (rpcErr) {
-      console.warn('[ContactButton] RPC failed:', rpcErr.code, rpcErr.message);
-    }
-
-    // ─── Voie 2+ : INSERT direct avec dégradation ─────────────────────────────
-    // On tente plusieurs payloads du plus précis au plus générique
-    const payloads: object[] = [];
-
-    if (isCommunity) {
-      // Communauté → jamais de related_id UUID, isolation par subject
-      payloads.push(
-        { subject, related_type: 'community' },    // idéal si BLOC 1 exécuté
-        { subject, related_type: 'general' },      // fallback si ENUM incomplet
-        { subject },                               // fallback minimal
-      );
-    } else if (relatedIdUUID) {
-      payloads.push(
-        { subject, related_type: primaryRelType, related_id: relatedIdUUID },
-        { subject, related_type: 'general',      related_id: relatedIdUUID },
-        { subject, related_type: 'general' },
-        { subject },
-      );
-    } else {
-      payloads.push(
-        { subject, related_type: primaryRelType },
-        { subject, related_type: 'general' },
-        { subject },
-      );
-    }
-
-    let lastErr: unknown = rpcErr;
-    for (const payload of payloads) {
-      const { data, error } = await supabase
-        .from('conversations')
-        .insert(payload)
-        .select('id')
-        .single();
-
-      if (data?.id) {
-        // Succès → ajouter les participants et le message initial
-        await supabase.from('conversation_participants').upsert(
-          [
-            { conversation_id: data.id, user_id: userId },
-            { conversation_id: data.id, user_id: ownerId },
-          ],
-          { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
-        );
-        if (initialMsg) {
-          await supabase.from('messages').insert({
-            conversation_id: data.id,
-            sender_id: userId,
-            content: initialMsg,
-          });
-        }
-        return { id: data.id };
-      }
-
-      lastErr = error;
-      // Si permission refusée → inutile de continuer
-      const errCode = (error as { code?: string })?.code;
-      if (errCode === '42501') break;
-    }
-
-    return { id: null, error: lastErr };
-  };
-
-  // ── Handler principal ─────────────────────────────────────────────────────────
+  // ── Handler principal (via API admin — contourne la récursion RLS) ───────────
   const handleContact = async () => {
     if (loading) return;
     setLoading(true);
     try {
-      // 1. Chercher conv existante
-      const existingConvId = await findExistingConversation();
+      // Récupérer le token pour l'auth Bearer
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
 
-      if (existingConvId) {
-        onConversationReady?.(existingConvId);
-        router.push(`/messages/${existingConvId}`);
-        return;
-      }
-
-      // 2. Créer une nouvelle conversation
       const initialMsg = prefillMsg ||
         (isCommunity
           ? `Bonjour, je vous contacte depuis la communauté ${sourceTitle || ''}.`
@@ -377,30 +182,44 @@ export default function ContactButton({
             : `Bonjour${sourceTitle ? ` ${sourceTitle.split(' ')[0]}` : ''}, je vous contacte via Biguglia Connect.`
         );
 
-      const result = await createConversation(initialMsg);
+      const res = await fetch('/api/messages/start-conversation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          ownerId: ownerId,
+          subject: subject,
+          relatedType: isCommunity ? 'community' : primaryRelType,
+          relatedId: relatedIdUUID,
+          initialMsg,
+        }),
+      }).catch(() => null);
 
-      if (!result.id) {
-        const err = result.error as { code?: string; message?: string } | null;
-        const code = err?.code || '?';
-        console.error('[ContactButton] Échec création conversation:', code, err?.message);
-
-        // Message d'erreur utilisateur selon le code
-        const hint =
-          code === '42501'
-            ? 'Permission refusée — exécutez BLOC 2 dans Admin → Migration DB'
-            : code === '42703'
-              ? 'Colonne manquante — exécutez BLOC 2 dans Admin → Migration DB'
-              : code === '23514' || code === '22P02'
-                ? 'Contrainte base de données — exécutez BLOC 1 puis BLOC 2 dans Admin → Migration DB'
-                : `Impossible d'ouvrir la conversation [${code}]`;
-
-        toast.error(hint, { duration: 7000 });
+      if (!res) {
+        toast.error('Erreur réseau — réessayez');
+        return;
+      }
+      if (res.status === 401) {
+        toast.error('Connectez-vous pour envoyer un message');
+        return;
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error('[ContactButton] API error:', res.status, data.error);
+        toast.error(data.error || `Impossible d'ouvrir la conversation`);
         return;
       }
 
-      // 3. Redirection vers la conversation
-      onConversationReady?.(result.id);
-      router.push(`/messages/${result.id}`);
+      const { conversationId } = await res.json();
+      if (!conversationId) {
+        toast.error('Impossible d\'ouvrir la conversation');
+        return;
+      }
+
+      onConversationReady?.(conversationId);
+      router.push(`/messages/${conversationId}`);
 
     } catch (err) {
       console.error('[ContactButton] Exception inattendue:', err);
