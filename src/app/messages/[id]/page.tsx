@@ -8,7 +8,7 @@ import {
   MessageSquare, ChevronDown, ChevronUp,
   PartyPopper, Star, Clock, ThumbsUp,
   MoreVertical, StarOff, Ban, UserCheck, Flag, Trash2,
-  Info, Bot, Wifi, WifiOff, Phone, Copy,
+  Info, Bot, Wifi, Phone, Copy,
   CalendarCheck, Package, CheckCircle2, XCircle,
   RefreshCw, Sparkles,
 } from 'lucide-react';
@@ -488,6 +488,14 @@ export default function ConversationPage() {
     if (!profile || !id) return;
     if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; }
 
+    // Le polling est le mode principal (l'API admin bypass les RLS récursives).
+    // On démarre immédiatement un polling régulier.
+    if (!pollRef.current) {
+      pollRef.current = setInterval(pollNewMessages, FALLBACK_POLL_INTERVAL);
+    }
+
+    // On tente quand même le Realtime en bonus (messages instantanés si les RLS le permettent).
+    // Si l'abonnement échoue (RLS récursive sur messages), le polling prend le relais sans erreur UI.
     const channel = supabase
       .channel(`conv-${id}-${Date.now()}`, { config: { broadcast: { ack: false } } })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${id}` }, async (payload) => {
@@ -505,18 +513,25 @@ export default function ConversationPage() {
       })
       .subscribe((status) => {
         if (!mountedRef.current) return;
-        const ok = status === 'SUBSCRIBED';
-        setRealtimeOk(ok);
-        if (ok) {
+        if (status === 'SUBSCRIBED') {
+          // Realtime opérationnel — le polling devient redondant mais on le garde à basse fréquence
+          setRealtimeOk(true);
           reconnectIdx.current = 0;
+          // Réduire le polling (garder comme sécurité)
           if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          // Realtime indisponible (RLS récursive) — le polling suffit, pas de tentative de reconnexion agressive
           setRealtimeOk(false);
+          // S'assurer que le polling tourne
           if (!pollRef.current) pollRef.current = setInterval(pollNewMessages, FALLBACK_POLL_INTERVAL);
+          // Tentative de reconnexion espacée (pas en boucle rapide)
           const delay = RECONNECT_DELAYS[Math.min(reconnectIdx.current, RECONNECT_DELAYS.length - 1)];
-          reconnectIdx.current = Math.min(reconnectIdx.current + 1, RECONNECT_DELAYS.length - 1);
-          if (reconnectRef.current) clearTimeout(reconnectRef.current);
-          reconnectRef.current = setTimeout(() => { if (mountedRef.current) connectRealtime(); }, delay);
+          if (reconnectIdx.current < RECONNECT_DELAYS.length - 1) {
+            reconnectIdx.current++;
+            if (reconnectRef.current) clearTimeout(reconnectRef.current);
+            reconnectRef.current = setTimeout(() => { if (mountedRef.current) connectRealtime(); }, delay);
+          }
+          // Au-delà du dernier délai, on abandonne le Realtime — le polling suffit
         }
       });
 
@@ -572,14 +587,30 @@ export default function ConversationPage() {
       (profilesData || []).forEach(p => { profileCacheRef.current[p.id] = p as unknown as Profile; });
 
       // Déterminer l'autre utilisateur
+      // On cherche dans participants[] le premier ID différent du user courant,
+      // puis on retrouve son profil dans profilesData (plus fiable que le cache).
       const candidateIds = (participants || []).filter(uid => uid !== profile.id);
 
       let otherUserId: string | null = null;
       if (candidateIds.length > 0) {
-        const found = profileCacheRef.current[candidateIds[0]];
+        const otherId = candidateIds[0];
+        // Chercher d'abord dans profilesData (fraîchement récupéré depuis l'API)
+        const found = (profilesData || []).find(p => p.id === otherId)
+          ?? profileCacheRef.current[otherId]
+          ?? null;
         if (found) {
-          setOtherUser(found);
+          setOtherUser(found as unknown as Profile);
           otherUserId = found.id;
+        } else {
+          // Profil introuvable dans la réponse API — tentative directe (table profiles sans RLS récursive)
+          supabase.from('profiles').select('id, full_name, avatar_url').eq('id', otherId).maybeSingle()
+            .then(({ data }) => {
+              if (data && mountedRef.current) {
+                profileCacheRef.current[data.id] = data as unknown as Profile;
+                setOtherUser(data as unknown as Profile);
+              }
+            });
+          otherUserId = otherId; // conserver l'ID même si profil pas encore chargé
         }
       }
 
@@ -805,16 +836,12 @@ export default function ConversationPage() {
           )}
         </div>
 
-        {/* Indicateur Realtime */}
-        <div className={cn(
-          'flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 transition-all',
-          realtimeOk ? 'text-emerald-600 bg-emerald-50' : 'text-gray-400 bg-gray-100'
-        )}>
-          {realtimeOk
-            ? <><Wifi className="w-3 h-3" /><span className="hidden sm:inline">En ligne</span></>
-            : <><WifiOff className="w-3 h-3" /><span className="hidden sm:inline">Reconnexion</span></>
-          }
-        </div>
+        {/* Indicateur Realtime — affiché uniquement si connecté en temps réel */}
+        {realtimeOk && (
+          <div className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 text-emerald-600 bg-emerald-50">
+            <Wifi className="w-3 h-3" /><span className="hidden sm:inline">En ligne</span>
+          </div>
+        )}
 
         {/* Menu ⋮ */}
         {otherUser && (
