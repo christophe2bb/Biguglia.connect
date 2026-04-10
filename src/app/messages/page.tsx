@@ -150,6 +150,19 @@ export default function MessagesPage() {
 
     if (!participations) { setLoading(false); return; }
 
+    // Détecter les messages système
+    const isSystemMsg = (content: string) => {
+      if (!content) return false;
+      const l = content.toLowerCase();
+      return content.startsWith('👋') || content.startsWith('✅') || content.startsWith('🤝') ||
+        l.includes('échange confirmé') || l.includes('echange confirme') ||
+        l.includes('je vous contacte') || l.includes('via biguglia connect') ||
+        l.includes('conversation créée') || l.includes('conversation creee');
+    };
+
+    // IDs des utilisateurs dont le profil est manquant → récupération directe
+    const missingProfileIds = new Set<string>();
+
     const convs = (participations as Array<{
       conversation_id: string;
       last_read_at: string | null;
@@ -165,22 +178,18 @@ export default function MessagesPage() {
       if (!conv) return null;
 
       // Chercher l'autre utilisateur parmi les participants
-      const other = conv.participants
-        ?.find(pp => pp.user_id !== profile.id)
-        ?.profile ?? null;
+      const otherParticipant = conv.participants?.find(pp => pp.user_id !== profile.id);
+      const other = otherParticipant?.profile ?? null;
 
-      const msgs = conv.last_msg || [];
+      // Si le profil est manquant pour l'autre participant, noter l'ID pour une récupération groupée
+      if (otherParticipant && !other) {
+        missingProfileIds.add(otherParticipant.user_id);
+      }
+
+      const msgs = (conv.last_msg || []).slice(); // copie pour éviter la mutation
       msgs.sort((a, b) => b.created_at.localeCompare(a.created_at));
 
       // Préférer le dernier message NON-système (vrai échange), sinon le dernier tout court
-      const isSystemMsg = (content: string) => {
-        if (!content) return false;
-        const l = content.toLowerCase();
-        return content.startsWith('👋') || content.startsWith('✅') || content.startsWith('🤝') ||
-          l.includes('échange confirmé') || l.includes('echange confirme') ||
-          l.includes('je vous contacte') || l.includes('via biguglia connect') ||
-          l.includes('conversation créée') || l.includes('conversation creee');
-      };
       const lastRealMsg = msgs.find(m => !isSystemMsg(m.content)) ?? msgs[0];
       const lastMsg = lastRealMsg;
 
@@ -197,26 +206,58 @@ export default function MessagesPage() {
         !isSystemMsg(m.content)
       ).length;
 
+      // Extraire related_type robustement — peut être dans conv directement
+      const relType = (conv as ConvWithOther & { related_type?: string | null }).related_type ?? null;
+      const relId   = (conv as ConvWithOther & { related_id?: string | null }).related_id ?? null;
+
       return {
         ...conv,
         other_user: other,
         last_message_text: lastMsg?.content,
         last_message_at: msgs[0]?.created_at || conv.updated_at, // date basée sur le tout dernier msg
         unread_count: unread,
-        related_type: (conv as ConvWithOther & { related_type?: string }).related_type ?? null,
-        related_id: (conv as ConvWithOther & { related_id?: string }).related_id ?? null,
-      } as ConvWithOther;
+        related_type: relType,
+        related_id: relId,
+        // Stocker l'ID de l'autre participant pour le fallback
+        _other_participant_id: otherParticipant?.user_id ?? null,
+      } as ConvWithOther & { _other_participant_id?: string | null };
     });
 
-    const valid = convs.filter(Boolean) as ConvWithOther[];
+    let valid = convs.filter(Boolean) as (ConvWithOther & { _other_participant_id?: string | null })[];
     valid.sort((a, b) => {
       const aDate = a.last_message_at || a.updated_at || '';
       const bDate = b.last_message_at || b.updated_at || '';
       return bDate.localeCompare(aDate);
     });
 
-    conversationsRef.current = valid;
-    setConversations(valid);
+    // Récupération groupée des profils manquants (fallback direct depuis Supabase)
+    if (missingProfileIds.size > 0) {
+      try {
+        const { data: fallbackProfiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .in('id', Array.from(missingProfileIds));
+        if (fallbackProfiles && fallbackProfiles.length > 0) {
+          const fbMap = new Map(fallbackProfiles.map(fp => [fp.id, fp as Profile]));
+          valid = valid.map(c => {
+            if (!c.other_user && c._other_participant_id && fbMap.has(c._other_participant_id)) {
+              return { ...c, other_user: fbMap.get(c._other_participant_id)! };
+            }
+            return c;
+          });
+        }
+      } catch { /* ignore — profils resteront null */ }
+    }
+
+    // Nettoyer la clé temporaire avant de stocker
+    const cleanValid = valid.map(c => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { _other_participant_id, ...rest } = c as ConvWithOther & { _other_participant_id?: string | null };
+      return rest as ConvWithOther;
+    });
+
+    conversationsRef.current = cleanValid;
+    setConversations(cleanValid);
     setLoading(false);
   }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -774,16 +815,15 @@ export default function MessagesPage() {
                     </div>
                   </div>
 
-                  {/* Bouton supprimer — toujours visible sur mobile, hover sur desktop */}
+                  {/* Bouton supprimer — toujours visible */}
                   <button
                     data-conv-menu
                     onClick={(e) => { e.stopPropagation(); setConfirmConv(isConfirm ? null : conv.id); }}
                     className={cn(
                       'flex-shrink-0 w-9 h-9 rounded-xl mr-3 flex items-center justify-center transition-all',
-                      'opacity-100 sm:opacity-0 sm:group-hover:opacity-100',
                       isConfirm
                         ? 'bg-red-500 text-white'
-                        : 'text-gray-300 hover:text-red-500 hover:bg-red-50 active:text-red-500 active:bg-red-50'
+                        : 'text-gray-300 hover:text-red-500 hover:bg-red-50 active:text-red-600 active:bg-red-50'
                     )}
                     title="Supprimer la conversation"
                   >

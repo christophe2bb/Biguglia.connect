@@ -68,8 +68,8 @@ export async function GET(req: NextRequest) {
   // Étape 2 : conversations + tous participants + derniers messages (requêtes parallèles)
   const [
     { data: conversations, error: convErr },
-    { data: allParticipants },
-    { data: recentMessages },
+    { data: allParticipants, error: partAllErr },
+    { data: recentMessages, error: msgErr },
   ] = await Promise.all([
     // Données de la conversation
     admin
@@ -95,17 +95,34 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: convErr.message, code: convErr.code }, { status: 500 });
   }
 
+  if (partAllErr) {
+    console.error('[api/messages/conversations] allParticipants error:', partAllErr.message);
+    // Ne pas planter — continuer avec une liste vide de participants
+  }
+
+  if (msgErr) {
+    console.error('[api/messages/conversations] messages error:', msgErr.message);
+    // Ne pas planter — continuer sans messages de prévisualisation
+  }
+
   // Étape 3 : profils de tous les participants
-  const allUserIds = Array.from(new Set(
-    (allParticipants ?? []).map((p: { user_id: string }) => p.user_id)
-  ));
+  // On inclut TOUJOURS l'utilisateur courant dans la liste pour éviter un profil manquant
+  const participantUserIds = (allParticipants ?? []).map((p: { user_id: string }) => p.user_id);
+  const allUserIds = Array.from(new Set([...participantUserIds, userId]));
+
   let profiles: Array<{ id: string; full_name: string | null; avatar_url: string | null }> = [];
   if (allUserIds.length > 0) {
-    const { data: profileData } = await admin
+    const { data: profileData, error: profileErr } = await admin
       .from('profiles')
       .select('id, full_name, avatar_url')
       .in('id', allUserIds);
-    profiles = profileData ?? [];
+
+    if (profileErr) {
+      console.error('[api/messages/conversations] profiles error:', profileErr.message);
+      // Ne pas planter — continuer sans profils
+    } else {
+      profiles = profileData ?? [];
+    }
   }
 
   // Construire un index rapide
@@ -133,6 +150,13 @@ export async function GET(req: NextRequest) {
       user_id: p.user_id,
       profile: profileMap.get(p.user_id) ?? null,
     }));
+
+    // Fallback : si les participants n'incluent pas l'utilisateur courant,
+    // construire une liste minimale avec l'autre côté
+    const participantsList = convParticipants.length > 0
+      ? convParticipants
+      : [{ user_id: userId, profile: profileMap.get(userId) ?? null }];
+
     const msgs = msgsByConv.get(mp.conversation_id) ?? [];
     // Déjà trié DESC par la requête; ré-assurer le tri côté serveur
     msgs.sort((a, b) => b.created_at.localeCompare(a.created_at));
@@ -143,7 +167,7 @@ export async function GET(req: NextRequest) {
       joined_at: mp.joined_at,
       conversation: {
         ...conv,
-        participants: convParticipants,
+        participants: participantsList,
         last_msg: msgs,
       },
     };
