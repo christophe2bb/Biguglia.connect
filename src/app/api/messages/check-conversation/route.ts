@@ -8,21 +8,36 @@
  * pour contourner la récursion infinie dans les RLS de conversation_participants.
  *
  * Query params:
- *   relatedType  — ex: 'listing', 'equipment', 'help_request', etc.
+ *   relatedType  — whitelist de 12 valeurs (ContactSourceType + InteractionSourceType)
  *   relatedId    — UUID de l'objet lié
  *
  * Réponse:
  *   {
  *     conversationId: string | null,
- *     exchangeStatus: string | null,   // 'done' | 'pending_confirmation' | null
+ *     exchangeStatus: 'done' | 'pending_confirmation' | null,
  *   }
  *
  * Authentification : Authorization: Bearer <access_token>
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
+
+// ── Validation des query params ───────────────────────────────────────────────
+const RELATED_TYPES = [
+  'listing', 'equipment', 'help_request', 'association',
+  'collection_item', 'outing', 'event', 'service_request',
+  'lost_found', 'artisan', 'community', 'general',
+] as const;
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const QuerySchema = z.object({
+  relatedType: z.enum(RELATED_TYPES),
+  relatedId:   z.string().regex(UUID_REGEX, 'relatedId doit être un UUID valide'),
+});
 
 export async function GET(req: NextRequest) {
   const userId = await getUserIdBearerFirst(req);
@@ -31,12 +46,20 @@ export async function GET(req: NextRequest) {
   }
 
   const { searchParams } = new URL(req.url);
-  const relatedType = searchParams.get('relatedType');
-  const relatedId = searchParams.get('relatedId');
 
-  if (!relatedType || !relatedId) {
-    return NextResponse.json({ error: 'relatedType et relatedId requis' }, { status: 400 });
+  const parsed = QuerySchema.safeParse({
+    relatedType: searchParams.get('relatedType'),
+    relatedId:   searchParams.get('relatedId'),
+  });
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Paramètres invalides', fieldErrors: parsed.error.flatten().fieldErrors },
+      { status: 400 }
+    );
   }
+
+  const { relatedType, relatedId } = parsed.data;
 
   const admin = createAdminClient();
 
