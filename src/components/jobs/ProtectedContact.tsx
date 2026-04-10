@@ -3,17 +3,17 @@
 /**
  * ProtectedContact — Bloc de contact intelligent.
  *
- * Comportement selon l'état de connexion :
- *
- * 1. Non connecté        → "Connectez-vous pour contacter l'employeur"
- * 2. Connecté            → Révèle directement email/téléphone (pas de bouton intermédiaire)
- * 3. Propriétaire        → "Vous gérez cette annonce" (pas de bloc contact)
- * 4. Chargement session  → Spinner discret
+ * Un seul appel API POST /api/emploi/contact retourne :
+ *   { status: 'guest' }       → non connecté
+ *   { status: 'owner' }       → propriétaire de l'annonce
+ *   { status: 'revealed', … } → connecté, coordonnées visibles
+ *   { status: 'not_found' }   → annonce introuvable
+ *   { status: 'error' }       → erreur serveur
  */
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Mail, Phone, EyeOff, Loader2, UserCheck, MessageCircle } from 'lucide-react';
+import { Mail, Phone, EyeOff, Loader2, UserCheck, Info } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 interface ProtectedContactProps {
@@ -33,7 +33,7 @@ interface ContactData {
   application_mode: string | null;
 }
 
-type UIState = 'loading' | 'guest' | 'owner' | 'revealed' | 'error';
+type UIState = 'loading' | 'guest' | 'owner' | 'revealed' | 'not_found' | 'no_contact' | 'error';
 
 export default function ProtectedContact({
   type,
@@ -43,8 +43,8 @@ export default function ProtectedContact({
   colorScheme = 'brand',
   jobTitle = '',
 }: ProtectedContactProps) {
-  const [uiState, setUiState]   = useState<UIState>('loading');
-  const [contact, setContact]   = useState<ContactData | null>(null);
+  const [uiState, setUiState] = useState<UIState>('loading');
+  const [contact, setContact] = useState<ContactData | null>(null);
 
   const btnPrimary =
     colorScheme === 'purple'
@@ -54,57 +54,66 @@ export default function ProtectedContact({
   const lockBg = colorScheme === 'purple' ? 'bg-purple-800/40' : 'bg-brand-800/40';
   const placeholderCls = `flex items-center gap-2 w-full px-4 py-3 rounded-xl ${lockBg} text-white/60 font-medium text-sm`;
 
-  /* ── Au montage : vérifier la session et charger les coordonnées ── */
   useEffect(() => {
     async function init() {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-
-      // Pas connecté → afficher invitation à se connecter
-      if (!session) {
-        setUiState('guest');
-        return;
-      }
-
-      const bearer = { 'Authorization': `Bearer ${session.access_token}` };
-
-      // ── Étape 1 : vérifier si propriétaire (API ownership — on sait qu'elle marche)
       try {
-        const ownerRes = await fetch(
-          `/api/emploi/ownership?type=${type === 'offer' ? 'offer' : 'demand'}&slug=${slug}`,
-          { headers: bearer }
-        );
-        if (ownerRes.ok) {
-          const ownerData = await ownerRes.json();
-          if (ownerData.isOwner === true) {
-            setUiState('owner');
-            return;
-          }
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+
+        // Pas connecté → état guest sans appel API
+        if (!session) {
+          setUiState('guest');
+          return;
         }
-      } catch { /* ignore, on continue */ }
 
-      // ── Étape 2 : récupérer les coordonnées
-      try {
+        // Un seul appel API — gère owner + coordonnées + erreurs
         const res = await fetch('/api/emploi/contact', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...bearer,
+            'Authorization': `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({ type, slug }),
         });
 
-        if (res.status === 401) { setUiState('guest'); return; }
-        if (res.status === 403) { setUiState('owner'); return; }
-        if (!res.ok) { setUiState('error'); return; }
+        // Non authentifié côté serveur (token expiré ?)
+        if (res.status === 401) {
+          setUiState('guest');
+          return;
+        }
 
-        const data: ContactData = await res.json();
-        setContact(data);
-        setUiState('revealed');
+        const json = await res.json().catch(() => ({ status: 'error' }));
+        const apiStatus = json?.status;
+
+        switch (apiStatus) {
+          case 'owner':
+            setUiState('owner');
+            break;
+          case 'revealed':
+            // Vérifier qu'il y a au moins une coordonnée
+            if (json.contact_email || json.contact_phone) {
+              setContact(json as ContactData);
+              setUiState('revealed');
+            } else {
+              setUiState('no_contact');
+            }
+            break;
+          case 'guest':
+            setUiState('guest');
+            break;
+          case 'not_found':
+            setUiState('not_found');
+            break;
+          default:
+            // Erreur serveur ou réponse inattendue
+            setUiState('error');
+        }
       } catch {
+        // Erreur réseau
         setUiState('error');
       }
     }
+
     init();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
@@ -146,7 +155,6 @@ export default function ProtectedContact({
           </div>
         )}
 
-        {/* Message clair : connecté à quoi */}
         <div className="bg-white/10 rounded-xl p-4 text-center space-y-2">
           <p className="text-sm font-bold text-white">
             Connectez-vous pour contacter l&apos;employeur
@@ -171,12 +179,26 @@ export default function ProtectedContact({
     );
   }
 
-  /* ── Erreur ── */
+  /* ── Annonce sans coordonnées saisies ── */
+  if (uiState === 'not_found' || uiState === 'no_contact') {
+    return (
+      <div className="flex items-start gap-2 text-sm text-white/70 bg-white/10 rounded-xl px-4 py-3">
+        <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+        <span>
+          {uiState === 'not_found'
+            ? 'Annonce introuvable.'
+            : "Aucune coordonnée renseignée pour cette annonce."}
+        </span>
+      </div>
+    );
+  }
+
+  /* ── Erreur réseau / serveur ── */
   if (uiState === 'error') {
     return (
-      <div className="text-xs text-white/70 bg-white/10 rounded-xl px-4 py-3 text-center">
-        <MessageCircle className="w-4 h-4 mx-auto mb-1" />
-        Coordonnées temporairement indisponibles
+      <div className="flex items-start gap-2 text-sm text-white/70 bg-white/10 rounded-xl px-4 py-3">
+        <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+        <span>Impossible de charger les coordonnées. Réessayez.</span>
       </div>
     );
   }
@@ -213,12 +235,6 @@ export default function ProtectedContact({
         <div className="mt-2 p-3 bg-white/15 rounded-xl text-xs text-white/90 leading-relaxed">
           ℹ️ {contact.contact_instructions}
         </div>
-      )}
-
-      {!contact?.contact_email && !contact?.contact_phone && (
-        <p className="text-sm text-white/80 text-center py-2">
-          Aucune coordonnée disponible pour cette annonce.
-        </p>
       )}
     </div>
   );

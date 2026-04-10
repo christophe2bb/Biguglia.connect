@@ -148,8 +148,7 @@ export default function MessagesPage() {
           last_msg:messages(content, created_at, sender_id)
         )
       `)
-      .eq('user_id', profile.id)
-      .order('conversation(updated_at)', { ascending: false });
+      .eq('user_id', profile.id);
 
     if (!participations) { setLoading(false); return; }
 
