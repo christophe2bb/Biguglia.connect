@@ -129,11 +129,11 @@ export async function GET(
     console.error('[api/conversation/GET] participants error:', participantsError.message);
   }
 
-  let profiles: Array<{ id: string; full_name: string | null; avatar_url: string | null }> = [];
+  let profiles: Array<{ id: string; full_name: string | null; avatar_url: string | null; email: string | null }> = [];
   if (participantIds.length > 0) {
     const { data: profileData, error: profileErr } = await admin
       .from('profiles')
-      .select('id, full_name, avatar_url')
+      .select('id, full_name, avatar_url, email')
       .in('id', participantIds);
     if (profileErr) {
       console.error('[api/conversation/GET] profiles error:', profileErr.message);

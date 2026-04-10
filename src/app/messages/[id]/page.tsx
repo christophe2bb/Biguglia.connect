@@ -382,6 +382,29 @@ function SystemMessage({ content }: { content: string }) {
 const RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000];
 const FALLBACK_POLL_INTERVAL = 5000;
 
+// ─── Type étendu + helper d'affichage du nom ──────────────────────────────────
+
+/** Profile enrichi avec l'email retourné par l'API (fallback si full_name null) */
+type ProfileWithEmail = Profile & { email?: string | null };
+
+/**
+ * Retourne le meilleur nom d'affichage disponible :
+ *   1. full_name  (ex : "Albertini Jean")
+ *   2. partie locale de l'email (ex : "albertini" si email = "albertini@…")
+ *   3. fallback fourni (par défaut "Utilisateur")
+ *
+ * Évite l'affichage de "?" ou "—" quand le profil est chargé mais sans nom.
+ */
+function getDisplayName(user: ProfileWithEmail | null, fallback = 'Utilisateur'): string {
+  if (!user) return fallback;
+  if (user.full_name?.trim()) return user.full_name.trim();
+  if ((user as ProfileWithEmail).email?.trim()) {
+    const localPart = ((user as ProfileWithEmail).email as string).split('@')[0];
+    if (localPart) return localPart;
+  }
+  return fallback;
+}
+
 // ─── Page conversation ─────────────────────────────────────────────────────────
 export default function ConversationPage() {
   const { id } = useParams();
@@ -396,7 +419,7 @@ export default function ConversationPage() {
   const [newMessage, setNewMessage]   = useState('');
   const [loading, setLoading]         = useState(true);
   const [sending, setSending]         = useState(false);
-  const [otherUser, setOtherUser]     = useState<Profile | null>(null);
+  const [otherUser, setOtherUser]     = useState<ProfileWithEmail | null>(null);
   const [subject, setSubject]         = useState('');
   const [relatedType, setRelatedType] = useState<string | null>(null);
   const [relatedId, setRelatedId]     = useState<string | null>(null);
@@ -577,19 +600,25 @@ export default function ConversationPage() {
       }).catch(() => null);
 
       if (!apiRes) {
-        toast.error('Erreur réseau'); setLoading(false); return;
+        toast.error('Erreur réseau — vérifiez votre connexion');
+        setLoading(false); return;
       }
 
       if (apiRes.status === 403) {
-        toast.error('Accès refusé'); router.push('/messages'); return;
+        toast.error('Accès refusé — vous n\'avez pas accès à cette conversation');
+        router.push('/messages'); return;
       }
 
       if (apiRes.status === 401) {
+        // Token invalide ou expiré même après refreshSession
         router.push('/connexion'); return;
       }
 
       if (!apiRes.ok) {
-        toast.error('Erreur de chargement'); setLoading(false); return;
+        const errBody = await apiRes.json().catch(() => ({})) as { error?: string };
+        console.error('[ConversationPage] API error', apiRes.status, errBody);
+        toast.error(`Erreur de chargement (${apiRes.status})${errBody?.error ? ' : ' + errBody.error : ''}`);
+        setLoading(false); return;
       }
 
       const apiData = await apiRes.json().catch(() => null);
@@ -598,7 +627,7 @@ export default function ConversationPage() {
       const { conversation: conv, participants, profiles: profilesData, messages: msgs } = apiData as {
         conversation: Record<string, unknown> | null;
         participants: string[];
-        profiles: Array<{ id: string; full_name: string | null; avatar_url: string | null }>;
+        profiles: Array<{ id: string; full_name: string | null; avatar_url: string | null; email?: string | null }>;
         messages: Array<{ id: string; conversation_id: string; sender_id: string; content: string; created_at: string; is_deleted?: boolean; deleted_at?: string }>;
         myParticipation: { user_id: string; last_read_at: string | null; joined_at: string };
       };
@@ -621,7 +650,7 @@ export default function ConversationPage() {
 
         if (foundInApi) {
           profileCacheRef.current[foundInApi.id] = foundInApi as unknown as Profile;
-          setOtherUser(foundInApi as unknown as Profile);
+          setOtherUser(foundInApi as unknown as ProfileWithEmail);
           otherUserId = foundInApi.id;
         } else {
           // Profil introuvable dans la réponse API —
@@ -632,12 +661,12 @@ export default function ConversationPage() {
           try {
             const { data: fallbackProfile } = await supabase
               .from('profiles')
-              .select('id, full_name, avatar_url')
+              .select('id, full_name, avatar_url, email')
               .eq('id', otherId)
               .maybeSingle();
             if (fallbackProfile && mountedRef.current) {
               profileCacheRef.current[fallbackProfile.id] = fallbackProfile as unknown as Profile;
-              setOtherUser(fallbackProfile as unknown as Profile);
+              setOtherUser(fallbackProfile as unknown as ProfileWithEmail);
             }
           } catch (e) {
             console.warn('[ConversationPage] fallback profile fetch error:', e);
@@ -844,7 +873,7 @@ export default function ConversationPage() {
           ) : (
             <Avatar
               src={otherUser?.avatar_url}
-              name={otherUser?.full_name?.trim() || 'Utilisateur'}
+              name={getDisplayName(otherUser)}
               size="md"
             />
           )}
@@ -858,9 +887,7 @@ export default function ConversationPage() {
             <span className="font-bold text-gray-900 truncate">
               {loading && !otherUser
                 ? <span className="inline-block w-28 h-4 bg-gray-200 animate-pulse rounded" />
-                : (otherUser?.full_name?.trim() || otherUser?.id
-                    ? (otherUser?.full_name?.trim() || 'Utilisateur')
-                    : (subject && subject !== 'Conversation' ? subject : 'Chargement…'))}
+                : getDisplayName(otherUser, subject && subject !== 'Conversation' ? subject : 'Utilisateur')}
             </span>
             {isBlocked && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">Bloqué</span>}
           </div>
