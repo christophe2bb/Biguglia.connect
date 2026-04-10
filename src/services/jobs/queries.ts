@@ -173,7 +173,34 @@ export async function getJobOfferBySlug(
 ): Promise<JobOfferSearchResult | null> {
   const supabase = createClient();
 
-  // Tentative 1 : avec jointure author
+  // Passe 1 : SELECT * sans jointure, sans filtre status strict
+  // (la RLS se charge du filtre — évite le double-filtre qui peut bloquer)
+  const { data: data2, error: error2 } = await supabase
+    .from('job_offers')
+    .select('*')
+    .eq('slug', slug)
+    .single();
+
+  if (error2) {
+    const msg2 = (error2 as { message?: string }).message ?? '';
+    if (msg2.includes('relation') || msg2.includes('does not exist') || msg2.includes('42P01')) {
+      console.warn('[queries] Table job_offers introuvable — migration SQL en attente.');
+      return null;
+    }
+    // PGRST116 = 0 lignes (not found) — annonce vraiment absente
+    if ((error2 as {code?:string}).code === 'PGRST116') {
+      console.warn('[queries] Offre introuvable pour slug:', slug);
+      return null;
+    }
+    console.error('[queries] getJobOfferBySlug error:', msg2, error2);
+    return null;
+  }
+  if (!data2) return null;
+
+  // On n'affiche que les offres publiées (double vérification côté app)
+  if (data2.status !== 'published') return null;
+
+  // Passe 2 (optionnelle) : tenter la jointure author
   const { data, error } = await supabase
     .from('job_offers')
     .select(
@@ -183,46 +210,22 @@ export async function getJobOfferBySlug(
       )`
     )
     .eq('slug', slug)
-    .eq('status', 'published')
     .single();
 
-  if (error) {
-    const msg = (error as { message?: string }).message ?? '';
-    // Table manquante
-    if (msg.includes('relation') || msg.includes('does not exist') || msg.includes('42P01')) {
-      console.warn('[queries] Table job_offers introuvable — migration SQL en attente.');
-      return null;
-    }
-    // Jointure author échoue (FK non reconnue) → retenter sans jointure
-    console.warn('[queries] Jointure author échouée, tentative sans jointure:', msg);
-    const { data: data2, error: error2 } = await supabase
-      .from('job_offers')
-      .select('*')
-      .eq('slug', slug)
-      .eq('status', 'published')
-      .single();
-    if (error2 || !data2) {
-      console.error('[queries] getJobOfferBySlug fallback error:', error2);
-      return null;
-    }
-    return {
-      ...data2,
-      author_profile: undefined,
-      freshness_score: data2.published_at ? calculateFreshnessScore(data2.published_at) : 0,
-    };
-  }
-  if (!data) return null;
+  // Si la jointure échoue → on utilise data2 sans profil auteur
+  const base = (!error && data) ? data : data2;
+  const authorData = (!error && data && (data as any).author) ? (data as any).author : null;
 
   return {
-    ...data,
-    author_profile: data.author ? {
-      id: data.author.id,
-      display_name: data.author.display_name,
-      avatar_url: data.author.avatar_url,
-      is_verified: data.author.is_verified,
-      created_at: data.author.created_at,
+    ...base,
+    author_profile: authorData ? {
+      id: authorData.id,
+      display_name: authorData.display_name,
+      avatar_url: authorData.avatar_url,
+      is_verified: authorData.is_verified,
+      created_at: authorData.created_at,
     } : undefined,
-    freshness_score: data.published_at ? calculateFreshnessScore(data.published_at) : 0,
+    freshness_score: base.published_at ? calculateFreshnessScore(base.published_at) : 0,
   };
 }
 

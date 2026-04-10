@@ -200,10 +200,12 @@ DROP POLICY IF EXISTS "job_demands_public_read" ON public.job_demands;
 
 CREATE POLICY "job_offers_public_read"
   ON public.job_offers FOR SELECT
+  TO anon, authenticated
   USING (status = 'published');
 
 CREATE POLICY "job_demands_public_read"
   ON public.job_demands FOR SELECT
+  TO anon, authenticated
   USING (status IN ('active', 'published'));
 
 -- CRUD authentifié (ses propres annonces)
