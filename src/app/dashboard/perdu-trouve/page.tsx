@@ -255,7 +255,7 @@ export default function DashboardPerduTrouvePage() {
 
     // Count comments per item
     const ids = (itemsData ?? []).map((i: LFItem) => i.id);
-    let commentCounts: Record<string, number> = {};
+    const commentCounts: Record<string, number> = {};
     if (ids.length > 0) {
       const { data: cData } = await supabase
         .from('lf_comments')

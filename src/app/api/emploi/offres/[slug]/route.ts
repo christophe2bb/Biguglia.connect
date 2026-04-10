@@ -13,6 +13,19 @@ interface RouteParams {
   params: { slug: string };
 }
 
+// ── Types Supabase locaux ─────────────────────────────────────────────────────
+
+/** Shape minimale retournée par .select('id, user_id') */
+interface OfferOwnership {
+  id: string;
+  user_id: string;
+}
+
+/** Shape retournée par .select('slug') après update */
+interface OfferSlug {
+  slug: string;
+}
+
 // ── Zod — Schéma de mise à jour ───────────────────────────────────────────────
 const CONTRACT_TYPES = [
   'cdi', 'cdd', 'saisonnier', 'mission', 'extra',
@@ -94,7 +107,9 @@ export async function GET(req: Request, { params }: RouteParams) {
     .single();
 
   if (error || !offer) return NextResponse.json({ error: 'Offre introuvable' }, { status: 404 });
-  if ((offer as any).user_id !== user.id) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+
+  const o = offer as unknown as OfferOwnership;
+  if (o.user_id !== user.id) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
   return NextResponse.json({ offer });
 }
@@ -112,12 +127,14 @@ export async function DELETE(req: Request, { params }: RouteParams) {
     .single();
 
   if (fetchErr || !offer) return NextResponse.json({ error: 'Offre introuvable' }, { status: 404 });
-  if ((offer as any).user_id !== user.id) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+
+  const o = offer as unknown as OfferOwnership;
+  if (o.user_id !== user.id) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
   const { error: deleteErr } = await admin
     .from('job_offers')
     .delete()
-    .eq('id', (offer as any).id);
+    .eq('id', o.id);
 
   if (deleteErr) return NextResponse.json({ error: deleteErr.message }, { status: 500 });
   return NextResponse.json({ success: true });
@@ -153,7 +170,9 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     .single();
 
   if (fetchErr || !offer) return NextResponse.json({ error: 'Offre introuvable' }, { status: 404 });
-  if ((offer as any).user_id !== user.id) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+
+  const o = offer as unknown as OfferOwnership;
+  if (o.user_id !== user.id) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
   // 3. Build update payload (only validated fields, plus timestamp)
   const updates: Record<string, unknown> = {
@@ -164,10 +183,12 @@ export async function PATCH(req: Request, { params }: RouteParams) {
   const { data: updated, error: updateErr } = await admin
     .from('job_offers')
     .update(updates)
-    .eq('id', (offer as any).id)
+    .eq('id', o.id)
     .select('slug')
     .single();
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
-  return NextResponse.json({ success: true, slug: (updated as any)?.slug });
+
+  const u = updated as unknown as OfferSlug | null;
+  return NextResponse.json({ success: true, slug: u?.slug });
 }

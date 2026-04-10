@@ -13,6 +13,19 @@ interface RouteParams {
   params: { slug: string };
 }
 
+// ── Types Supabase locaux ─────────────────────────────────────────────────────
+
+/** Shape minimale retournée par .select('id, user_id') */
+interface DemandOwnership {
+  id: string;
+  user_id: string;
+}
+
+/** Shape retournée par .select('slug') après update */
+interface DemandSlug {
+  slug: string;
+}
+
 // ── Zod — Schéma de mise à jour ───────────────────────────────────────────────
 const CONTRACT_TYPES = [
   'cdi', 'cdd', 'saisonnier', 'mission', 'extra',
@@ -89,7 +102,9 @@ export async function GET(req: Request, { params }: RouteParams) {
     .single();
 
   if (error || !demand) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 });
-  if ((demand as any).user_id !== user.id) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+
+  const d = demand as unknown as DemandOwnership;
+  if (d.user_id !== user.id) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
   return NextResponse.json({ demand });
 }
@@ -107,12 +122,14 @@ export async function DELETE(req: Request, { params }: RouteParams) {
     .single();
 
   if (fetchErr || !demand) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 });
-  if ((demand as any).user_id !== user.id) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+
+  const d = demand as unknown as DemandOwnership;
+  if (d.user_id !== user.id) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
   const { error: deleteErr } = await admin
     .from('job_demands')
     .delete()
-    .eq('id', (demand as any).id);
+    .eq('id', d.id);
 
   if (deleteErr) return NextResponse.json({ error: deleteErr.message }, { status: 500 });
   return NextResponse.json({ success: true });
@@ -148,7 +165,9 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     .single();
 
   if (fetchErr || !demand) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 });
-  if ((demand as any).user_id !== user.id) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+
+  const d = demand as unknown as DemandOwnership;
+  if (d.user_id !== user.id) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
   // 3. Build update payload (only validated fields, plus timestamp)
   const updates: Record<string, unknown> = {
@@ -159,10 +178,12 @@ export async function PATCH(req: Request, { params }: RouteParams) {
   const { data: updated, error: updateErr } = await admin
     .from('job_demands')
     .update(updates)
-    .eq('id', (demand as any).id)
+    .eq('id', d.id)
     .select('slug')
     .single();
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
-  return NextResponse.json({ success: true, slug: (updated as any)?.slug });
+
+  const u = updated as unknown as DemandSlug | null;
+  return NextResponse.json({ success: true, slug: u?.slug });
 }

@@ -1,5 +1,8 @@
 {
-  "extends": "next/core-web-vitals",
+  "extends": [
+    "next/core-web-vitals",
+    "plugin:@typescript-eslint/recommended"
+  ],
   "rules": {
     // Texte français avec apostrophes et guillemets : cosmétique, à corriger progressivement
     "react/no-unescaped-entities": "warn",
@@ -8,6 +11,10 @@
     // Dépendances de hooks manquantes : à corriger progressivement
     "react-hooks/exhaustive-deps": "warn",
     // Accessibilité alt-text : à corriger progressivement
-    "jsx-a11y/alt-text": "warn"
+    "jsx-a11y/alt-text": "warn",
+    // `any` explicite : dette technique préexistante, à résorber progressivement
+    "@typescript-eslint/no-explicit-any": "warn",
+    // Variables non utilisées : à nettoyer progressivement
+    "@typescript-eslint/no-unused-vars": "warn"
   }
 }

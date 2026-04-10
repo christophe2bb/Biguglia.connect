@@ -52,7 +52,7 @@ function checkRateLimit(ip: string, isApi: boolean): boolean {
   cleanBuckets();
   const now   = Date.now();
   const limit = isApi ? RATE_LIMIT_API : RATE_LIMIT_MAX;
-  let bucket  = rateBuckets.get(ip);
+  const bucket  = rateBuckets.get(ip);
 
   if (!bucket) {
     rateBuckets.set(ip, { count: 1, firstReq: now, blocked: false, blockedUntil: 0 });
