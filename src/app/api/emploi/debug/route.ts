@@ -92,7 +92,7 @@ export async function GET(request: Request) {
     }
   }
 
-  // 3. Demandes
+  // 3. Demandes (admin — bypass RLS)
   const { data: demands, error: demandsErr } = await admin
     .from('job_demands')
     .select('id, slug, status, title, user_id, published_at, created_at')
@@ -102,6 +102,41 @@ export async function GET(request: Request) {
   result.demands_error = demandsErr ? { message: demandsErr.message, code: (demandsErr as {code?:string}).code } : null;
   result.demands = demands ?? [];
   result.demands_count = demands?.length ?? 0;
+
+  // 3b. Test slug spécifique pour une DEMANDE (si ?slug=xxx)
+  if (slug) {
+    // 3b-i. Admin (bypass RLS) — doit toujours trouver si le slug existe
+    const { data: demandAdmin, error: demandAdminErr } = await admin
+      .from('job_demands')
+      .select('id, slug, status, title, user_id')
+      .eq('slug', slug)
+      .maybeSingle();
+
+    result.demand_admin = {
+      found: !!demandAdmin,
+      status: (demandAdmin as Record<string,unknown> | null)?.status ?? null,
+      error: demandAdminErr ? { message: demandAdminErr.message, code: (demandAdminErr as {code?:string}).code } : null,
+    };
+
+    // 3b-ii. Anon client (avec RLS) — teste si la policy SELECT laisse passer
+    const supabaseAnon = createClient();
+    const { data: demandAnon, error: demandAnonErr } = await supabaseAnon
+      .from('job_demands')
+      .select('id, slug, status')
+      .eq('slug', slug)
+      .maybeSingle();
+
+    result.demand_anon_rls = {
+      found: !!demandAnon,
+      status: (demandAnon as Record<string,unknown> | null)?.status ?? null,
+      error: demandAnonErr ? { message: demandAnonErr.message, code: (demandAnonErr as {code?:string}).code } : null,
+      diagnosis: !demandAnon && demandAdmin
+        ? '❌ RLS bloque la lecture — vérifier la policy job_demands SELECT'
+        : demandAnon
+        ? '✅ RLS laisse passer'
+        : '— slug introuvable même en admin',
+    };
+  }
 
   // 4. Infos
   result.supabase_url = process.env.NEXT_PUBLIC_SUPABASE_URL;
