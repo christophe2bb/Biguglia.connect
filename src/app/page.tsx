@@ -13,9 +13,12 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getHomeFeed } from '@/services/home/feed';
+import { getRecentJobOffers, getRecentJobDemands } from '@/services/jobs/queries';
 import HomeHero from '@/components/home/HomeHero';
 import HomeSection from '@/components/home/HomeSection';
 import GlobalSearchWrapper from '@/components/home/GlobalSearchWrapper';
+import { JobOfferCard } from '@/components/jobs/JobOfferCard';
+import { JobDemandCard } from '@/components/jobs/JobDemandCard';
 
 // ─── Données statiques ────────────────────────────────────────────────────────
 
@@ -70,6 +73,16 @@ export default async function HomePage() {
       hasContent: false,
     };
   }
+
+  // Fetch des dernières offres et demandes d'emploi pour la section emploi
+  let recentOffers: Awaited<ReturnType<typeof getRecentJobOffers>> = [];
+  let recentDemands: Awaited<ReturnType<typeof getRecentJobDemands>> = [];
+  try {
+    [recentOffers, recentDemands] = await Promise.all([
+      getRecentJobOffers(3),
+      getRecentJobDemands(3),
+    ]);
+  } catch { /* table inexistante → tableaux vides */ }
 
   const { sections, totalItems, generatedAt } = feedResult;
 
@@ -220,67 +233,125 @@ export default async function HomePage() {
             </div>
           </div>
 
-          {/* Deux grandes cartes CTA */}
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
+          {/* ── Dernières offres publiées ──────────────────────────────── */}
+          {recentOffers.length > 0 && (
+            <div className="mb-10">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-black text-gray-800 flex items-center gap-2">
+                  <span className="w-2 h-2 bg-cyan-500 rounded-full animate-pulse" />
+                  Dernières offres
+                </h3>
+                <Link href="/emploi/offres"
+                  className="text-sm font-bold text-cyan-600 hover:text-cyan-800 flex items-center gap-1">
+                  Voir tout <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {recentOffers.map(offer => (
+                  <JobOfferCard key={offer.id} offer={offer} variant="compact" />
+                ))}
+              </div>
+            </div>
+          )}
 
-            {/* Carte Offres */}
-            <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-cyan-500 via-teal-500 to-emerald-600 p-8 text-white shadow-xl">
-              <div className="absolute -right-6 -top-6 text-[120px] opacity-10 leading-none select-none">💼</div>
-              <div className="relative">
-                <span className="inline-flex items-center gap-1.5 bg-white/20 border border-white/30 rounded-full px-3 py-1 text-xs font-black mb-4">
-                  <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> Offres actives
-                </span>
-                <h3 className="text-2xl font-black mb-2">Vous recrutez ?</h3>
-                <p className="text-white/80 text-sm leading-relaxed mb-6">
-                  Publiez votre offre en 4 étapes. Gratuit, visible immédiatement. Salaire net/brut, logement, horaires, avantages — tout s&apos;affiche sur votre annonce.
-                </p>
-                <ul className="space-y-1.5 mb-6">
-                  {['✅ Publication gratuite et immédiate', '📍 Visible par secteur / quartier', '🔥 Badge Urgent pour les recrutements pressés', '🏠 Badge Logement fourni inclus'].map(item => (
-                    <li key={item} className="text-sm text-white/90 flex items-center gap-2">{item}</li>
-                  ))}
-                </ul>
-                <div className="flex gap-3 flex-wrap">
-                  <Link href="/emploi/publier"
-                    className="inline-flex items-center gap-2 bg-white text-cyan-700 font-black px-5 py-3 rounded-2xl hover:bg-cyan-50 transition-all shadow-md text-sm">
-                    Publier une offre <ArrowRight className="w-4 h-4" />
-                  </Link>
-                  <Link href="/emploi/offres"
-                    className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 border border-white/30 text-white font-bold px-5 py-3 rounded-2xl transition-all text-sm">
-                    Voir les offres
-                  </Link>
+          {/* ── Dernières demandes publiées ───────────────────────────────── */}
+          {recentDemands.length > 0 && (
+            <div className="mb-10">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-black text-gray-800 flex items-center gap-2">
+                  <span className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
+                  Derniers candidats
+                </h3>
+                <Link href="/emploi/demandes"
+                  className="text-sm font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1">
+                  Voir tout <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {recentDemands.map(demand => (
+                  <JobDemandCard key={demand.id} demand={demand} variant="compact" />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Deux grandes cartes CTA — affichées si pas encore d'annonces */}
+          {recentOffers.length === 0 && recentDemands.length === 0 && (
+            <div className="grid md:grid-cols-2 gap-6 mb-8">
+
+              {/* Carte Offres */}
+              <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-cyan-500 via-teal-500 to-emerald-600 p-8 text-white shadow-xl">
+                <div className="absolute -right-6 -top-6 text-[120px] opacity-10 leading-none select-none">💼</div>
+                <div className="relative">
+                  <span className="inline-flex items-center gap-1.5 bg-white/20 border border-white/30 rounded-full px-3 py-1 text-xs font-black mb-4">
+                    <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> Offres actives
+                  </span>
+                  <h3 className="text-2xl font-black mb-2">Vous recrutez ?</h3>
+                  <p className="text-white/80 text-sm leading-relaxed mb-6">
+                    Publiez votre offre en 4 étapes. Gratuit, visible immédiatement. Salaire net/brut, logement, horaires, avantages — tout s&apos;affiche sur votre annonce.
+                  </p>
+                  <ul className="space-y-1.5 mb-6">
+                    {['✅ Publication gratuite et immédiate', '📍 Visible par secteur / quartier', '🔥 Badge Urgent pour les recrutements pressés', '🏠 Badge Logement fourni inclus'].map(item => (
+                      <li key={item} className="text-sm text-white/90 flex items-center gap-2">{item}</li>
+                    ))}
+                  </ul>
+                  <div className="flex gap-3 flex-wrap">
+                    <Link href="/emploi/publier"
+                      className="inline-flex items-center gap-2 bg-white text-cyan-700 font-black px-5 py-3 rounded-2xl hover:bg-cyan-50 transition-all shadow-md text-sm">
+                      Publier une offre <ArrowRight className="w-4 h-4" />
+                    </Link>
+                    <Link href="/emploi/offres"
+                      className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 border border-white/30 text-white font-bold px-5 py-3 rounded-2xl transition-all text-sm">
+                      Voir les offres
+                    </Link>
+                  </div>
+                </div>
+              </div>
+
+              {/* Carte Demandes */}
+              <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-purple-500 via-violet-500 to-indigo-600 p-8 text-white shadow-xl">
+                <div className="absolute -right-6 -top-6 text-[120px] opacity-10 leading-none select-none">🙋</div>
+                <div className="relative">
+                  <span className="inline-flex items-center gap-1.5 bg-white/20 border border-white/30 rounded-full px-3 py-1 text-xs font-black mb-4">
+                    <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> Candidats disponibles
+                  </span>
+                  <h3 className="text-2xl font-black mb-2">Vous cherchez un emploi ?</h3>
+                  <p className="text-white/80 text-sm leading-relaxed mb-6">
+                    Déposez votre profil en 4 étapes. Visibilité immédiate. Disponibilité, mobilité, prétentions salariales, CV — les employeurs locaux vous trouvent.
+                  </p>
+                  <ul className="space-y-1.5 mb-6">
+                    {['✅ Profil visible par les employeurs', '🪪 Badge Permis / Véhicule sur votre fiche', '📄 Joindre votre CV (PDF/DOC)', '📅 Disponibilité immédiate ou à venir'].map(item => (
+                      <li key={item} className="text-sm text-white/90 flex items-center gap-2">{item}</li>
+                    ))}
+                  </ul>
+                  <div className="flex gap-3 flex-wrap">
+                    <Link href="/emploi/demandes/publier"
+                      className="inline-flex items-center gap-2 bg-white text-purple-700 font-black px-5 py-3 rounded-2xl hover:bg-purple-50 transition-all shadow-md text-sm">
+                      Déposer ma candidature <ArrowRight className="w-4 h-4" />
+                    </Link>
+                    <Link href="/emploi/demandes"
+                      className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 border border-white/30 text-white font-bold px-5 py-3 rounded-2xl transition-all text-sm">
+                      Voir les candidats
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
+          )}
 
-            {/* Carte Demandes */}
-            <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-purple-500 via-violet-500 to-indigo-600 p-8 text-white shadow-xl">
-              <div className="absolute -right-6 -top-6 text-[120px] opacity-10 leading-none select-none">🙋</div>
-              <div className="relative">
-                <span className="inline-flex items-center gap-1.5 bg-white/20 border border-white/30 rounded-full px-3 py-1 text-xs font-black mb-4">
-                  <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> Candidats disponibles
-                </span>
-                <h3 className="text-2xl font-black mb-2">Vous cherchez un emploi ?</h3>
-                <p className="text-white/80 text-sm leading-relaxed mb-6">
-                  Déposez votre profil en 4 étapes. Visibilité immédiate. Disponibilité, mobilité, prétentions salariales, CV — les employeurs locaux vous trouvent.
-                </p>
-                <ul className="space-y-1.5 mb-6">
-                  {['✅ Profil visible par les employeurs', '🪪 Badge Permis / Véhicule sur votre fiche', '📄 Joindre votre CV (PDF/DOC)', '📅 Disponibilité immédiate ou à venir'].map(item => (
-                    <li key={item} className="text-sm text-white/90 flex items-center gap-2">{item}</li>
-                  ))}
-                </ul>
-                <div className="flex gap-3 flex-wrap">
-                  <Link href="/emploi/demandes/publier"
-                    className="inline-flex items-center gap-2 bg-white text-purple-700 font-black px-5 py-3 rounded-2xl hover:bg-purple-50 transition-all shadow-md text-sm">
-                    Déposer ma candidature <ArrowRight className="w-4 h-4" />
-                  </Link>
-                  <Link href="/emploi/demandes"
-                    className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 border border-white/30 text-white font-bold px-5 py-3 rounded-2xl transition-all text-sm">
-                    Voir les candidats
-                  </Link>
-                </div>
-              </div>
+          {/* Boutons d'action rapide (toujours visibles) */}
+          {(recentOffers.length > 0 || recentDemands.length > 0) && (
+            <div className="flex flex-wrap gap-3 mb-8">
+              <Link href="/emploi/publier"
+                className="inline-flex items-center gap-2 bg-cyan-600 text-white px-5 py-3 rounded-2xl font-black hover:bg-cyan-700 transition-all shadow-md text-sm">
+                + Publier une offre <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link href="/emploi/demandes/publier"
+                className="inline-flex items-center gap-2 border-2 border-purple-200 text-purple-700 px-5 py-3 rounded-2xl font-bold hover:bg-purple-50 transition-all text-sm">
+                + Déposer ma candidature
+              </Link>
             </div>
-          </div>
+          )}
 
           {/* Bandeau chiffres / arguments */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

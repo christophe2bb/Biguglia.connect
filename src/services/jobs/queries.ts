@@ -31,22 +31,10 @@ export async function getJobOffers(
 }> {
   const supabase = createClient();
 
-  // Build query
+  // Build query — sans jointure pour compatibilité RLS maximale
   let query = supabase
     .from('job_offers')
-    .select(
-      `
-      *,
-      author:profiles!user_id (
-        id,
-        display_name,
-        avatar_url,
-        is_verified,
-        created_at
-      )
-    `,
-      { count: 'exact' }
-    )
+    .select('*', { count: 'exact' })
     .eq('status', 'published');
 
   // Apply filters
@@ -141,19 +129,11 @@ export async function getJobOffers(
     return { offers: [], total: 0, page, limit };
   }
 
-  // Transform to SearchResult with enriched data
+  // Transform to SearchResult
   const offers: JobOfferSearchResult[] = (data || []).map((offer: any) => ({
     ...offer,
-    author_profile: offer.author ? {
-      id: offer.author.id,
-      display_name: offer.author.display_name,
-      avatar_url: offer.author.avatar_url,
-      is_verified: offer.author.is_verified,
-      created_at: offer.author.created_at,
-    } : undefined,
-    freshness_score: offer.published_at
-      ? calculateFreshnessScore(offer.published_at)
-      : 0,
+    author_profile: undefined,
+    freshness_score: offer.published_at ? calculateFreshnessScore(offer.published_at) : 0,
   }));
 
   return {
@@ -243,23 +223,11 @@ export async function getJobDemands(
 }> {
   const supabase = createClient();
 
-  // Build query
+  // Build query — sans jointure pour compatibilité RLS maximale
   let query = supabase
     .from('job_demands')
-    .select(
-      `
-      *,
-      author:profiles!user_id (
-        id,
-        display_name,
-        avatar_url,
-        is_verified,
-        created_at
-      )
-    `,
-      { count: 'exact' }
-    )
-    .eq('status', 'published');
+    .select('*', { count: 'exact' })
+    .in('status', ['active', 'published']);
 
   // Apply filters
   if (filters?.query) {
@@ -333,16 +301,8 @@ export async function getJobDemands(
   // Transform to SearchResult
   const demands: JobDemandSearchResult[] = (data || []).map((demand: any) => ({
     ...demand,
-    author_profile: demand.author ? {
-      id: demand.author.id,
-      display_name: demand.author.display_name,
-      avatar_url: demand.author.avatar_url,
-      is_verified: demand.author.is_verified,
-      created_at: demand.author.created_at,
-    } : undefined,
-    freshness_score: demand.published_at
-      ? calculateFreshnessScore(demand.published_at)
-      : 0,
+    author_profile: undefined,
+    freshness_score: demand.published_at ? calculateFreshnessScore(demand.published_at) : 0,
   }));
 
   return {
@@ -424,25 +384,14 @@ export async function getRecentJobOffers(
 ): Promise<JobOfferSearchResult[]> {
   const supabase = createClient();
 
+  // Sans jointure profiles pour compatibilité RLS maximale
   let query = supabase
     .from('job_offers')
-    .select(
-      `
-      *,
-      author:profiles!user_id (
-        id,
-        display_name,
-        avatar_url,
-        is_verified,
-        created_at
-      )
-    `
-    )
+    .select('*')
     .eq('status', 'published')
     .order('published_at', { ascending: false })
     .limit(limit);
 
-  // Filter by sector if provided
   if (sectorId) {
     query = query.eq('sector_id', sectorId);
   }
@@ -460,13 +409,7 @@ export async function getRecentJobOffers(
 
   return (data || []).map((offer: any) => ({
     ...offer,
-    author_profile: offer.author ? {
-      id: offer.author.id,
-      display_name: offer.author.display_name,
-      avatar_url: offer.author.avatar_url,
-      is_verified: offer.author.is_verified,
-      created_at: offer.author.created_at,
-    } : undefined,
+    author_profile: undefined,
     freshness_score: offer.published_at ? calculateFreshnessScore(offer.published_at) : 0,
   }));
 }
@@ -481,21 +424,12 @@ export async function getRecentJobDemands(
 ): Promise<JobDemandSearchResult[]> {
   const supabase = createClient();
 
+  // Sans jointure profiles pour compatibilité RLS maximale
+  // Note : job_demands peut avoir status 'active' ou 'published'
   let query = supabase
     .from('job_demands')
-    .select(
-      `
-      *,
-      author:profiles!user_id (
-        id,
-        display_name,
-        avatar_url,
-        is_verified,
-        created_at
-      )
-    `
-    )
-    .eq('status', 'published')
+    .select('*')
+    .in('status', ['active', 'published'])
     .order('published_at', { ascending: false })
     .limit(limit);
 
@@ -516,13 +450,7 @@ export async function getRecentJobDemands(
 
   return (data || []).map((demand: any) => ({
     ...demand,
-    author_profile: demand.author ? {
-      id: demand.author.id,
-      display_name: demand.author.display_name,
-      avatar_url: demand.author.avatar_url,
-      is_verified: demand.author.is_verified,
-      created_at: demand.author.created_at,
-    } : undefined,
+    author_profile: undefined,
     freshness_score: demand.published_at ? calculateFreshnessScore(demand.published_at) : 0,
   }));
 }
