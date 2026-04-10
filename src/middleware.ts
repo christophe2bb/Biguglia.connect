@@ -1,12 +1,31 @@
 /**
- * src/middleware.ts — Seul middleware actif (Next.js lit src/ en priorité sur la racine).
+ * src/middleware.ts — SEUL middleware actif du projet.
  *
- * Ordre d'exécution sur chaque requête :
- *   1. Filtre anti-bot (UA blacklist)
- *   2. Rate-limit en mémoire           ⚠️ limites serverless — voir note ci-dessous
- *   3. Refresh de session Supabase
- *   4. Guard /admin → redirect si non authentifié
+ * ─── Unicité garantie ──────────────────────────────────────────────────────────
+ *
+ *   Next.js 14 App Router résout le middleware dans cet ordre de priorité :
+ *     1. src/middleware.ts   ← CE FICHIER (actif)
+ *     2. middleware.ts       ← racine (ignoré si src/ existe — NE PAS CRÉER)
+ *
+ *   Le doublon racine middleware.ts a été supprimé dans le commit b4d737f.
+ *   Ne jamais recréer un middleware.ts à la racine du projet.
+ *
+ * ─── Ordre d'exécution sur chaque requête ─────────────────────────────────────
+ *
+ *   1. Skip des assets statiques (_next/*, favicon, images)
+ *   2. Filtre anti-bot (UA blacklist : sqlmap, nikto, gobuster, hydra…)
+ *   3. Rate-limit en mémoire  ⚠️ par instance Edge — voir note ci-dessous
+ *   4. Refresh de session Supabase + guards d'authentification :
+ *        /admin/**     → /connexion si non authentifié
+ *        /dashboard/** → /connexion si non authentifié
+ *        /profil       → /connexion si non authentifié
+ *        /messages/**  → /connexion si non authentifié
  *   5. Injection des headers de sécurité sur la réponse
+ *
+ * ─── Matcher ──────────────────────────────────────────────────────────────────
+ *
+ *   Le matcher exclut les assets statiques Next.js et les fichiers publics
+ *   pour éviter l'overhead du middleware sur chaque ressource statique.
  *
  * ⚠️  LIMITE CONNUE — Rate-limit en mémoire sur Vercel/serverless :
  *   Sur Vercel, chaque Edge Function est instanciée indépendamment.

@@ -4,15 +4,46 @@ import { NextResponse, type NextRequest } from 'next/server';
 /**
  * updateSession — Rafraîchit la session Supabase et applique les guards de navigation.
  *
- * Guards actifs :
- *  1. /admin/** → redirige vers /connexion si l'utilisateur n'est pas authentifié.
- *     (La vérification du rôle 'admin' est faite côté client via ProtectedPage adminOnly,
- *      car le role est en DB et non dans le JWT — inaccessible depuis l'Edge Runtime.)
+ * ─── Guards actifs ──────────────────────────────────────────────────────────────
  *
- * Note : ce middleware tourne sur l'Edge Runtime de Vercel/Next.js.
- * Il ne peut PAS faire de requête Supabase DB (pas de service role key en Edge).
- * Il peut uniquement lire la session JWT depuis les cookies.
+ *  /admin/**     → redirige vers /connexion si non authentifié.
+ *                  La vérification du rôle 'admin' est faite côté client via
+ *                  ProtectedPage adminOnly (le rôle est en DB, pas dans le JWT).
+ *
+ *  /dashboard/** → redirige vers /connexion si non authentifié.
+ *                  Ces pages affichent des données privées de l'utilisateur
+ *                  (messages, contenus, avis, profil artisan…).
+ *
+ *  /profil       → redirige vers /connexion si non authentifié.
+ *                  La page de profil expose des données personnelles.
+ *
+ *  /messages/**  → redirige vers /connexion si non authentifié.
+ *                  Les messages sont strictement privés.
+ *
+ * ─── Ce que ce middleware NE FAIT PAS ──────────────────────────────────────────
+ *
+ *  - Il ne vérifie PAS le rôle (admin, moderator, artisan…) : le JWT ne contient
+ *    que l'uid et l'email. La vérification des rôles se fait côté client (ProtectedPage)
+ *    ou côté API (createAdminClient + vérification en DB).
+ *
+ *  - Il ne bloque PAS les pages publiques (/annonces, /forum, /emploi…).
+ *
+ * ─── Note Edge Runtime ──────────────────────────────────────────────────────────
+ *
+ *  Ce middleware tourne sur l'Edge Runtime (Vercel/Next.js).
+ *  Il ne peut PAS faire de requête Supabase DB (pas de service role key en Edge).
+ *  Il peut uniquement lire la session JWT depuis les cookies.
  */
+
+// ─── Routes nécessitant une authentification ─────────────────────────────────
+// Ajout de chaque préfixe ici → redirection automatique vers /connexion
+const PROTECTED_PREFIXES = [
+  '/admin',
+  '/dashboard',
+  '/profil',
+  '/messages',
+] as const;
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -40,14 +71,19 @@ export async function updateSession(request: NextRequest) {
   // Rafraîchir la session (obligatoire — ne pas supprimer)
   const { data: { user } } = await supabase.auth.getUser();
 
-  // ── Guard /admin : authentification requise ───────────────────────────────
-  // Le rôle 'admin' est vérifié en aval par ProtectedPage adminOnly (client-side).
-  // Ici on bloque uniquement les visiteurs non connectés pour éviter le rendu
-  // des pages admin en SSR sans session valide.
+  // ── Guards : rediriger vers /connexion si non authentifié ──────────────────
   const { pathname } = request.nextUrl;
-  if (pathname.startsWith('/admin') && !user) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = '/connexion';
+
+  const isProtected = PROTECTED_PREFIXES.some(prefix =>
+    pathname === prefix || pathname.startsWith(prefix + '/')
+  );
+
+  if (isProtected && !user) {
+    // Construire l'URL de redirection à partir de l'origine (compatible Edge + tests Vitest)
+    // On utilise new URL() plutôt que request.nextUrl.clone() pour éviter la dépendance
+    // à NextURL.clone() qui n'est pas disponible dans les mocks Vitest (type WHATWG URL).
+    const loginUrl = new URL('/connexion', request.nextUrl.origin);
+    // Conserver l'URL cible pour rediriger après connexion
     loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
   }
