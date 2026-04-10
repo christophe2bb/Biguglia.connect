@@ -33,6 +33,12 @@ let mockUser: { id: string; email: string } | null = null;
 vi.mock('@supabase/ssr', () => ({
   createServerClient: () => ({
     auth: {
+      // Le middleware utilise getSession() (lecture cookie locale, sans appel réseau)
+      // getUser() n'est plus appelé dans updateSession — mock conservé pour compatibilité.
+      getSession: async () => ({
+        data: { session: mockUser ? { user: mockUser, access_token: 'mock-token' } : null },
+        error: null,
+      }),
       getUser: async () => ({ data: { user: mockUser }, error: null }),
     },
   }),

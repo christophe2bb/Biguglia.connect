@@ -32,7 +32,13 @@ import { NextResponse, type NextRequest } from 'next/server';
  *
  *  Ce middleware tourne sur l'Edge Runtime (Vercel/Next.js).
  *  Il ne peut PAS faire de requête Supabase DB (pas de service role key en Edge).
- *  Il peut uniquement lire la session JWT depuis les cookies.
+ *  Il lit la session JWT depuis les cookies via getSession() (pas d'appel réseau).
+ *
+ *  ⚠️  getUser() vs getSession() :
+ *  On utilise getSession() — lecture locale du cookie JWT, sans appel réseau.
+ *  getUser() valide le JWT auprès de Supabase Auth (appel HTTP) : risque de timeout
+ *  en Edge Runtime → user = null → redirection fausse vers /connexion.
+ *  La validation sécurisée des tokens se fait dans chaque API Route (Bearer token).
  */
 
 // ─── Routes nécessitant une authentification ─────────────────────────────────
@@ -68,8 +74,26 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Rafraîchir la session (obligatoire — ne pas supprimer)
-  const { data: { user } } = await supabase.auth.getUser();
+  // Lire la session depuis le cookie JWT (lecture locale, pas d'appel réseau).
+  //
+  // ⚠️  Choix délibéré : getSession() au lieu de getUser()
+  //
+  //  - getUser()    : valide le JWT auprès du serveur Supabase Auth → appel réseau.
+  //                   En Edge Runtime Vercel, ce call peut timeout ou échouer →
+  //                   user = null → redirection vers /connexion pour un utilisateur
+  //                   pourtant connecté (bug signalé).
+  //
+  //  - getSession() : lit et décode le JWT depuis le cookie httpOnly → instantané,
+  //                   aucun appel réseau. Suffisant pour les guards de navigation
+  //                   (l'objectif est d'empêcher l'affichage de pages privées, pas
+  //                   de valider cryptographiquement le token à chaque requête).
+  //                   La validation réelle du token se fait dans chaque API Route
+  //                   via getUserIdBearerFirst / getUserFromRequest.
+  //
+  //  Le appel getSession() déclenche quand même le rafraîchissement automatique
+  //  du token via setAll() si le cookie est expiré — comportement conservé.
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user ?? null;
 
   // ── Guards : rediriger vers /connexion si non authentifié ──────────────────
   const { pathname } = request.nextUrl;
