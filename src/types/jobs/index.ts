@@ -42,8 +42,14 @@ export interface JobOffer {
   contract_type: ContractType;
   employment_type: EmploymentType;
 
+  // Employer
+  employer_name?: string | null;   // Nom de l'entreprise / employeur
+  employer_address?: string | null; // Adresse physique de l'employeur
+
   // Location
   location_label: string;
+  location_city?: string | null;
+  location_address?: string | null;
   location_lat?: number | null;
   location_lng?: number | null;
   sector_id?: string | null; // Type string (aligné avec table sectors)
@@ -184,9 +190,17 @@ export interface JobDemand {
   has_driving_license: boolean;
   has_vehicle: boolean;
 
+  // Contact
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  contact_mode?: string | null; // 'email' | 'phone' | 'mixed'
+
   // Documents
   cv_url?: string | null;
   portfolio_url?: string | null;
+
+  // Location details
+  location_city?: string | null;
 
   // Status
   status: JobStatus;

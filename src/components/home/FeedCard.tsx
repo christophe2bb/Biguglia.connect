@@ -96,6 +96,24 @@ const TYPE_CONFIG: Record<HomeFeedItemType, TypeConfig> = {
     hoverBorder: 'hover:border-emerald-300',
     ctaColor: 'text-emerald-600 group-hover:text-emerald-700',
   },
+  job_offer: {
+    label: 'Offre d\'emploi',
+    emoji: '💼',
+    topBar: 'bg-gradient-to-r from-cyan-500 to-teal-600',
+    badgeClass: 'bg-cyan-100 text-cyan-700 border border-cyan-200',
+    badgeDot: 'bg-cyan-500',
+    hoverBorder: 'hover:border-cyan-300',
+    ctaColor: 'text-cyan-600 group-hover:text-cyan-700',
+  },
+  job_demand: {
+    label: 'Cherche emploi',
+    emoji: '🙋',
+    topBar: 'bg-gradient-to-r from-purple-500 to-violet-600',
+    badgeClass: 'bg-purple-100 text-purple-700 border border-purple-200',
+    badgeDot: 'bg-purple-500',
+    hoverBorder: 'hover:border-purple-300',
+    ctaColor: 'text-purple-600 group-hover:text-purple-700',
+  },
 };
 
 // ─── Composant ────────────────────────────────────────────────────────────────

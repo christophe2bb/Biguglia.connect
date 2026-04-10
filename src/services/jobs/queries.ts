@@ -31,22 +31,10 @@ export async function getJobOffers(
 }> {
   const supabase = createClient();
 
-  // Build query
+  // Build query — sans jointure pour compatibilité RLS maximale
   let query = supabase
     .from('job_offers')
-    .select(
-      `
-      *,
-      author:profiles!job_offers_user_id_fkey (
-        id,
-        display_name,
-        avatar_url,
-        is_verified,
-        created_at
-      )
-    `,
-      { count: 'exact' }
-    )
+    .select('*', { count: 'exact' })
     .eq('status', 'published');
 
   // Apply filters
@@ -132,23 +120,20 @@ export async function getJobOffers(
   const { data, error, count } = await query;
 
   if (error) {
+    const msg = (error as { message?: string }).message ?? '';
+    if (msg.includes('relation') || msg.includes('does not exist') || msg.includes('42P01')) {
+      console.warn('[queries] Table job_offers introuvable — migration SQL en attente.');
+      return { offers: [], total: 0, page, limit };
+    }
     console.error('Error fetching job offers:', error);
     return { offers: [], total: 0, page, limit };
   }
 
-  // Transform to SearchResult with enriched data
+  // Transform to SearchResult
   const offers: JobOfferSearchResult[] = (data || []).map((offer: any) => ({
     ...offer,
-    author_profile: offer.author ? {
-      id: offer.author.id,
-      display_name: offer.author.display_name,
-      avatar_url: offer.author.avatar_url,
-      is_verified: offer.author.is_verified,
-      created_at: offer.author.created_at,
-    } : undefined,
-    freshness_score: offer.published_at
-      ? calculateFreshnessScore(offer.published_at)
-      : 0,
+    author_profile: undefined,
+    freshness_score: offer.published_at ? calculateFreshnessScore(offer.published_at) : 0,
   }));
 
   return {
@@ -168,45 +153,59 @@ export async function getJobOfferBySlug(
 ): Promise<JobOfferSearchResult | null> {
   const supabase = createClient();
 
+  // Passe 1 : SELECT * sans jointure, sans filtre status strict
+  // (la RLS se charge du filtre — évite le double-filtre qui peut bloquer)
+  const { data: data2, error: error2 } = await supabase
+    .from('job_offers')
+    .select('*')
+    .eq('slug', slug)
+    .single();
+
+  if (error2) {
+    const msg2 = (error2 as { message?: string }).message ?? '';
+    if (msg2.includes('relation') || msg2.includes('does not exist') || msg2.includes('42P01')) {
+      console.warn('[queries] Table job_offers introuvable — migration SQL en attente.');
+      return null;
+    }
+    // PGRST116 = 0 lignes (not found) — annonce vraiment absente
+    if ((error2 as {code?:string}).code === 'PGRST116') {
+      console.warn('[queries] Offre introuvable pour slug:', slug);
+      return null;
+    }
+    console.error('[queries] getJobOfferBySlug error:', msg2, error2);
+    return null;
+  }
+  if (!data2) return null;
+
+  // On n'affiche que les offres publiées (double vérification côté app)
+  if (data2.status !== 'published') return null;
+
+  // Passe 2 (optionnelle) : tenter la jointure author
   const { data, error } = await supabase
     .from('job_offers')
     .select(
-      `
-      *,
-      author:profiles!job_offers_user_id_fkey (
-        id,
-        display_name,
-        avatar_url,
-        is_verified,
-        created_at
-      )
-    `
+      `*,
+      author:profiles!user_id (
+        id, display_name, avatar_url, is_verified, created_at
+      )`
     )
     .eq('slug', slug)
-    .eq('status', 'published')
     .single();
 
-  if (error || !data) {
-    console.error('Error fetching job offer:', error);
-    return null;
-  }
-
-  // Increment views count (system-only field, needs service role or function)
-  // For now, we'll skip this to avoid RLS issues
-  // TODO: Create a database function for incrementing views
+  // Si la jointure échoue → on utilise data2 sans profil auteur
+  const base = (!error && data) ? data : data2;
+  const authorData = (!error && data && (data as any).author) ? (data as any).author : null;
 
   return {
-    ...data,
-    author_profile: data.author ? {
-      id: data.author.id,
-      display_name: data.author.display_name,
-      avatar_url: data.author.avatar_url,
-      is_verified: data.author.is_verified,
-      created_at: data.author.created_at,
+    ...base,
+    author_profile: authorData ? {
+      id: authorData.id,
+      display_name: authorData.display_name,
+      avatar_url: authorData.avatar_url,
+      is_verified: authorData.is_verified,
+      created_at: authorData.created_at,
     } : undefined,
-    freshness_score: data.published_at
-      ? calculateFreshnessScore(data.published_at)
-      : 0,
+    freshness_score: base.published_at ? calculateFreshnessScore(base.published_at) : 0,
   };
 }
 
@@ -224,23 +223,11 @@ export async function getJobDemands(
 }> {
   const supabase = createClient();
 
-  // Build query
+  // Build query — sans jointure pour compatibilité RLS maximale
   let query = supabase
     .from('job_demands')
-    .select(
-      `
-      *,
-      author:profiles!job_demands_user_id_fkey (
-        id,
-        display_name,
-        avatar_url,
-        is_verified,
-        created_at
-      )
-    `,
-      { count: 'exact' }
-    )
-    .eq('status', 'published');
+    .select('*', { count: 'exact' })
+    .in('status', ['active', 'published']);
 
   // Apply filters
   if (filters?.query) {
@@ -302,6 +289,11 @@ export async function getJobDemands(
   const { data, error, count } = await query;
 
   if (error) {
+    const msg2 = (error as { message?: string }).message ?? '';
+    if (msg2.includes('relation') || msg2.includes('does not exist') || msg2.includes('42P01')) {
+      console.warn('[queries] Table job_demands introuvable — migration SQL en attente.');
+      return { demands: [], total: 0, page, limit };
+    }
     console.error('Error fetching job demands:', error);
     return { demands: [], total: 0, page, limit };
   }
@@ -309,16 +301,8 @@ export async function getJobDemands(
   // Transform to SearchResult
   const demands: JobDemandSearchResult[] = (data || []).map((demand: any) => ({
     ...demand,
-    author_profile: demand.author ? {
-      id: demand.author.id,
-      display_name: demand.author.display_name,
-      avatar_url: demand.author.avatar_url,
-      is_verified: demand.author.is_verified,
-      created_at: demand.author.created_at,
-    } : undefined,
-    freshness_score: demand.published_at
-      ? calculateFreshnessScore(demand.published_at)
-      : 0,
+    author_profile: undefined,
+    freshness_score: demand.published_at ? calculateFreshnessScore(demand.published_at) : 0,
   }));
 
   return {
@@ -338,28 +322,44 @@ export async function getJobDemandBySlug(
 ): Promise<JobDemandSearchResult | null> {
   const supabase = createClient();
 
+  // Tentative 1 : avec jointure author
   const { data, error } = await supabase
     .from('job_demands')
     .select(
-      `
-      *,
-      author:profiles!job_demands_user_id_fkey (
-        id,
-        display_name,
-        avatar_url,
-        is_verified,
-        created_at
-      )
-    `
+      `*,
+      author:profiles!user_id (
+        id, display_name, avatar_url, is_verified, created_at
+      )`
     )
     .eq('slug', slug)
-    .eq('status', 'published')
+    .in('status', ['published', 'active'])
     .single();
 
-  if (error || !data) {
-    console.error('Error fetching job demand:', error);
-    return null;
+  if (error) {
+    const msg = (error as { message?: string }).message ?? '';
+    if (msg.includes('relation') || msg.includes('does not exist') || msg.includes('42P01')) {
+      console.warn('[queries] Table job_demands introuvable — migration SQL en attente.');
+      return null;
+    }
+    // Jointure author échoue → retenter sans jointure
+    console.warn('[queries] Jointure author demand échouée, tentative sans jointure:', msg);
+    const { data: data2, error: error2 } = await supabase
+      .from('job_demands')
+      .select('*')
+      .eq('slug', slug)
+      .in('status', ['published', 'active'])
+      .single();
+    if (error2 || !data2) {
+      console.error('[queries] getJobDemandBySlug fallback error:', error2);
+      return null;
+    }
+    return {
+      ...data2,
+      author_profile: undefined,
+      freshness_score: data2.published_at ? calculateFreshnessScore(data2.published_at) : 0,
+    };
   }
+  if (!data) return null;
 
   return {
     ...data,
@@ -370,9 +370,7 @@ export async function getJobDemandBySlug(
       is_verified: data.author.is_verified,
       created_at: data.author.created_at,
     } : undefined,
-    freshness_score: data.published_at
-      ? calculateFreshnessScore(data.published_at)
-      : 0,
+    freshness_score: data.published_at ? calculateFreshnessScore(data.published_at) : 0,
   };
 }
 
@@ -386,25 +384,14 @@ export async function getRecentJobOffers(
 ): Promise<JobOfferSearchResult[]> {
   const supabase = createClient();
 
+  // Sans jointure profiles pour compatibilité RLS maximale
   let query = supabase
     .from('job_offers')
-    .select(
-      `
-      *,
-      author:profiles!job_offers_user_id_fkey (
-        id,
-        display_name,
-        avatar_url,
-        is_verified,
-        created_at
-      )
-    `
-    )
+    .select('*')
     .eq('status', 'published')
     .order('published_at', { ascending: false })
     .limit(limit);
 
-  // Filter by sector if provided
   if (sectorId) {
     query = query.eq('sector_id', sectorId);
   }
@@ -412,22 +399,18 @@ export async function getRecentJobOffers(
   const { data, error } = await query;
 
   if (error) {
+    const msg = (error as { message?: string }).message ?? '';
+    if (msg.includes('relation') || msg.includes('does not exist') || msg.includes('42P01')) {
+      return [];
+    }
     console.error('Error fetching recent job offers:', error);
     return [];
   }
 
   return (data || []).map((offer: any) => ({
     ...offer,
-    author_profile: offer.author ? {
-      id: offer.author.id,
-      display_name: offer.author.display_name,
-      avatar_url: offer.author.avatar_url,
-      is_verified: offer.author.is_verified,
-      created_at: offer.author.created_at,
-    } : undefined,
-    freshness_score: offer.published_at
-      ? calculateFreshnessScore(offer.published_at)
-      : 0,
+    author_profile: undefined,
+    freshness_score: offer.published_at ? calculateFreshnessScore(offer.published_at) : 0,
   }));
 }
 
@@ -441,21 +424,12 @@ export async function getRecentJobDemands(
 ): Promise<JobDemandSearchResult[]> {
   const supabase = createClient();
 
+  // Sans jointure profiles pour compatibilité RLS maximale
+  // Note : job_demands peut avoir status 'active' ou 'published'
   let query = supabase
     .from('job_demands')
-    .select(
-      `
-      *,
-      author:profiles!job_demands_user_id_fkey (
-        id,
-        display_name,
-        avatar_url,
-        is_verified,
-        created_at
-      )
-    `
-    )
-    .eq('status', 'published')
+    .select('*')
+    .in('status', ['active', 'published'])
     .order('published_at', { ascending: false })
     .limit(limit);
 
@@ -466,21 +440,17 @@ export async function getRecentJobDemands(
   const { data, error } = await query;
 
   if (error) {
+    const msg = (error as { message?: string }).message ?? '';
+    if (msg.includes('relation') || msg.includes('does not exist') || msg.includes('42P01')) {
+      return [];
+    }
     console.error('Error fetching recent job demands:', error);
     return [];
   }
 
   return (data || []).map((demand: any) => ({
     ...demand,
-    author_profile: demand.author ? {
-      id: demand.author.id,
-      display_name: demand.author.display_name,
-      avatar_url: demand.author.avatar_url,
-      is_verified: demand.author.is_verified,
-      created_at: demand.author.created_at,
-    } : undefined,
-    freshness_score: demand.published_at
-      ? calculateFreshnessScore(demand.published_at)
-      : 0,
+    author_profile: undefined,
+    freshness_score: demand.published_at ? calculateFreshnessScore(demand.published_at) : 0,
   }));
 }

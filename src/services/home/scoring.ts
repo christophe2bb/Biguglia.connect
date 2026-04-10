@@ -21,6 +21,8 @@ const TYPE_WEIGHT: Record<HomeFeedItemType, number> = {
   outing:       1.1,   // Bon : crée de la vie
   equipment:    0.8,   // En retrait : usage plus ponctuel
   association:  0.8,   // En retrait : moins temps réel
+  job_offer:    1.15,  // Emploi : très pertinent pour les habitants
+  job_demand:   1.05,  // Candidature : bon signal d'activité
 };
 
 // Poids par urgence

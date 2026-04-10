@@ -12,7 +12,9 @@ export type HomeFeedItemType =
   | 'listing'         // Petite annonce
   | 'outing'          // Promenade / sortie groupée
   | 'equipment'       // Matériel partagé
-  | 'association';    // Actualité association
+  | 'association'     // Actualité association
+  | 'job_offer'       // Offre d'emploi local
+  | 'job_demand';     // Demande d'emploi local
 
 export type HomeFeedItemStatus =
   | 'open'        // En attente / disponible / actif
@@ -80,6 +82,7 @@ export type HomeSectionId =
   | 'needs'         // Besoins près de chez vous
   | 'upcoming'      // À venir cette semaine
   | 'discussions'   // Ça parle ici
+  | 'emploi'        // Offres et demandes d'emploi local
   | 'foryou';       // Pour vous (personnalisation future)
 
 export interface HomeSection {

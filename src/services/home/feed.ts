@@ -13,6 +13,8 @@ import {
   lostFoundToFeedItems,
   listingsToFeedItems,
   outingsToFeedItems,
+  jobOffersToFeedItems,
+  jobDemandsToFeedItems,
 } from './mappers';
 import { rankAndFilter, scoreItems, sortByScore } from './scoring';
 
@@ -23,6 +25,7 @@ const SECTION_LIMITS = {
   needs: 4,
   upcoming: 4,
   discussions: 4,
+  emploi: 4,     // offres + demandes emploi dans le feed
   foryou: 5,
 } as const;
 
@@ -190,6 +193,61 @@ async function fetchListings(
   return data ?? [];
 }
 
+async function fetchJobOffers(
+  supabase: ReturnType<typeof createClient>,
+  currentUserId: string | null,
+) {
+  const since = new Date(Date.now() - 30 * 86400000).toISOString(); // 30 jours
+  let q = supabase
+    .from('job_offers')
+    .select('id, slug, title, short_description, full_description, employer_name, job_category, contract_type, location_city, sector_id, salary_range_min, salary_range_max, salary_period, salary_type, is_urgent, provides_housing, experience_level, published_at, created_at, updated_at')
+    .eq('status', 'published')
+    .gte('created_at', since)
+    .order('published_at', { ascending: false })
+    .limit(6);
+  if (currentUserId) q = q.neq('user_id', currentUserId);
+  const { data, error } = await q;
+  if (error) {
+    // Table peut ne pas encore avoir toutes les colonnes — fallback minimal
+    const { data: d2 } = await supabase
+      .from('job_offers')
+      .select('id, slug, title, short_description, employer_name, location_city, is_urgent, published_at, created_at')
+      .eq('status', 'published')
+      .order('published_at', { ascending: false })
+      .limit(6);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (d2 ?? []) as any[];
+  }
+  return data ?? [];
+}
+
+async function fetchJobDemands(
+  supabase: ReturnType<typeof createClient>,
+  currentUserId: string | null,
+) {
+  const since = new Date(Date.now() - 30 * 86400000).toISOString();
+  let q = supabase
+    .from('job_demands')
+    .select('id, slug, title, short_description, profile_description, job_category, desired_contract_types, location_city, sector_id, availability_type, experience_level, salary_expectation_min, salary_expectation_max, is_urgent, has_driving_license, has_vehicle, published_at, created_at, updated_at')
+    .eq('status', 'active')
+    .gte('created_at', since)
+    .order('published_at', { ascending: false })
+    .limit(4);
+  if (currentUserId) q = q.neq('user_id', currentUserId);
+  const { data, error } = await q;
+  if (error) {
+    const { data: d2 } = await supabase
+      .from('job_demands')
+      .select('id, slug, title, short_description, location_city, is_urgent, published_at, created_at')
+      .eq('status', 'active')
+      .order('published_at', { ascending: false })
+      .limit(4);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (d2 ?? []) as any[];
+  }
+  return data ?? [];
+}
+
 async function fetchOutings(
   supabase: ReturnType<typeof createClient>,
   currentUserId: string | null,
@@ -294,6 +352,24 @@ function buildDiscussionsSection(allItems: HomeFeedItem[]): HomeSection {
 }
 
 // "Pour vous" : uniquement des items PAS encore affichés dans les sections précédentes
+function buildEmploiSection(allItems: HomeFeedItem[]): HomeSection {
+  const eligible = allItems.filter(i => ['job_offer', 'job_demand'].includes(i.type));
+  // Offres en premier, puis demandes
+  const offers  = eligible.filter(i => i.type === 'job_offer').slice(0, 3);
+  const demands = eligible.filter(i => i.type === 'job_demand').slice(0, 2);
+  const items = [...offers, ...demands].slice(0, SECTION_LIMITS.emploi);
+  return {
+    id: 'emploi',
+    title: '💼 Emploi local',
+    subtitle: 'Offres et demandes d\'emploi à Biguglia et alentours',
+    icon: '💼',
+    items,
+    ctaLabel: 'Voir toutes les offres',
+    ctaUrl: '/emploi/offres',
+    isEmpty: items.length === 0,
+  };
+}
+
 function buildForYouSection(allItems: HomeFeedItem[], alreadyShown: Set<string>): HomeSection {
   const fresh = allItems.filter(i => !alreadyShown.has(i.id));
   const items = rankAndFilter(fresh, { limit: SECTION_LIMITS.foryou, maxPerType: 1 });
@@ -315,7 +391,7 @@ export async function getHomeFeed(currentUserId: string | null = null): Promise<
   const supabase = createClient();
 
   // Fetch en parallèle — tolérant aux pannes
-  const [helpRaw, eventsRaw, forumRaw, lostFoundRaw, listingsRaw, outingsRaw] =
+  const [helpRaw, eventsRaw, forumRaw, lostFoundRaw, listingsRaw, outingsRaw, offersRaw, demandsRaw] =
     await Promise.allSettled([
       fetchHelpRequests(supabase, currentUserId),
       fetchEvents(supabase, currentUserId),
@@ -323,6 +399,8 @@ export async function getHomeFeed(currentUserId: string | null = null): Promise<
       fetchLostFound(supabase, currentUserId),
       fetchListings(supabase, currentUserId),
       fetchOutings(supabase, currentUserId),
+      fetchJobOffers(supabase, currentUserId),
+      fetchJobDemands(supabase, currentUserId),
     ]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -337,6 +415,8 @@ export async function getHomeFeed(currentUserId: string | null = null): Promise<
     ...lostFoundToFeedItems(get(lostFoundRaw) as any[]),
     ...listingsToFeedItems(get(listingsRaw) as any[]),
     ...outingsToFeedItems(get(outingsRaw) as any[]),
+    ...jobOffersToFeedItems(get(offersRaw) as any[]),
+    ...jobDemandsToFeedItems(get(demandsRaw) as any[]),
   ];
 
   // Construire les sections dans l'ordre — "Pour vous" utilise les IDs déjà affichés
@@ -344,7 +424,8 @@ export async function getHomeFeed(currentUserId: string | null = null): Promise<
   const needsSection        = buildNeedsSection(allItems);
   const upcomingSection     = buildUpcomingSection(allItems);
   const discussionsSection  = buildDiscussionsSection(allItems);
-  const shownSoFar          = usedIds([nowSection, needsSection, upcomingSection, discussionsSection]);
+  const emploiSection       = buildEmploiSection(allItems);
+  const shownSoFar          = usedIds([nowSection, needsSection, upcomingSection, discussionsSection, emploiSection]);
   const forYouSection       = buildForYouSection(allItems, shownSoFar);
 
   const sections = [
@@ -352,6 +433,7 @@ export async function getHomeFeed(currentUserId: string | null = null): Promise<
     needsSection,
     upcomingSection,
     discussionsSection,
+    emploiSection,
     forYouSection,
   ];
 

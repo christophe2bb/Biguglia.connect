@@ -459,3 +459,21 @@ export function isUrgent(
 
   return diffDays <= 7;
 }
+
+// ============================================================================
+// SECTORS — source unique : src/lib/sectors.ts (mêmes secteurs que Forum, etc.)
+// Utilisé partout : wizards, filtres, pages de détail
+// ============================================================================
+import { SECTORS as LIB_SECTORS } from '@/lib/sectors';
+
+export const JOB_SECTORS = LIB_SECTORS.map(s => ({
+  id:    s.id,
+  label: s.name,
+  emoji: s.icon,
+}));
+
+export type SectorId = string;
+
+export const SECTOR_LABELS: Record<string, string> = Object.fromEntries(
+  JOB_SECTORS.map(s => [s.id, `${s.emoji} ${s.label}`])
+);
