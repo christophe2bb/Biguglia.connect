@@ -10,8 +10,7 @@ import {
   FileText, Eye, CheckCircle, Star, GraduationCap,
   ChevronRight, Flame, Building2, Briefcase,
 } from 'lucide-react';
-import { getJobDemandBySlug } from '@/services/jobs/queries';
-import { createClient } from '@/lib/supabase/server';
+import { getJobDemandBySlug, checkJobOwnership } from '@/services/jobs/queries';
 import OwnerActions from '@/components/jobs/OwnerActions';
 import {
   CONTRACT_TYPE_LABELS,
@@ -46,18 +45,10 @@ const AVAILABILITY_LABELS: Record<string, { label: string; color: string; bg: st
 
 
 export default async function DemandDetailPage({ params }: PageProps) {
-  const [demand, currentUserId] = await Promise.all([
+  const [demand, isOwner] = await Promise.all([
     getJobDemandBySlug(params.slug),
-    (async () => {
-      try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        return user?.id ?? null;
-      } catch { return null; }
-    })(),
+    checkJobOwnership('job_demands', params.slug),
   ]);
-
-  const isOwner = !!(currentUserId && (demand as any)?.user_id === currentUserId);
 
   /* ── Table DB pas encore créée OU demande introuvable ── */
   if (!demand) {

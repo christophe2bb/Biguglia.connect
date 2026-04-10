@@ -454,3 +454,48 @@ export async function getRecentJobDemands(
     freshness_score: demand.published_at ? calculateFreshnessScore(demand.published_at) : 0,
   }));
 }
+
+// ============================================================================
+// CHECK OWNERSHIP — vérifie si l'utilisateur connecté est propriétaire
+// ============================================================================
+
+/**
+ * Retourne true si l'utilisateur actuellement connecté est le créateur
+ * de l'offre ou de la demande identifiée par son slug.
+ * Utilise le client serveur (cookies session) → fiable même sans RLS sur user_id.
+ */
+export async function checkJobOwnership(
+  table: 'job_offers' | 'job_demands',
+  slug: string
+): Promise<boolean> {
+  try {
+    const supabase = createClient();
+
+    // 1. Récupérer l'utilisateur connecté
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+
+    // 2. Chercher une ligne qui correspond à SLUG + USER_ID
+    //    Si RLS est actif et que l'utilisateur est proprio → 1 ligne retournée
+    //    Sinon → 0 lignes (count = 0)
+    const { count, error } = await supabase
+      .from(table)
+      .select('id', { count: 'exact', head: true })
+      .eq('slug', slug)
+      .eq('user_id', user.id);
+
+    if (error) {
+      // Fallback : essai direct sans filtre user_id pour comparer
+      const { data } = await supabase
+        .from(table)
+        .select('user_id')
+        .eq('slug', slug)
+        .single();
+      return !!(data && (data as any).user_id === user.id);
+    }
+
+    return (count ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}

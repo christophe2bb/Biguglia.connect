@@ -10,7 +10,7 @@ import {
   Car, ArrowLeft, Eye, Flame, CheckCircle,
   Star, GraduationCap, Wifi, Building2, ChevronRight, FileText,
 } from 'lucide-react';
-import { getJobOfferBySlug } from '@/services/jobs/queries';
+import { getJobOfferBySlug, checkJobOwnership } from '@/services/jobs/queries';
 import {
   CONTRACT_TYPE_LABELS,
   JOB_CATEGORY_LABELS,
@@ -20,7 +20,6 @@ import {
   getContractTypeColor,
   SECTOR_LABELS,
 } from '@/types/jobs/constants';
-import { createClient } from '@/lib/supabase/server';
 import ProtectedContact from '@/components/jobs/ProtectedContact';
 import OwnerActions from '@/components/jobs/OwnerActions';
 
@@ -50,18 +49,10 @@ const CONTRACT_COLOR_MAP: Record<string, { bg: string; text: string; border: str
 
 
 export default async function OffreDetailPage({ params }: PageProps) {
-  const [offer, currentUserId] = await Promise.all([
+  const [offer, isOwner] = await Promise.all([
     getJobOfferBySlug(params.slug),
-    (async () => {
-      try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        return user?.id ?? null;
-      } catch { return null; }
-    })(),
+    checkJobOwnership('job_offers', params.slug),
   ]);
-
-  const isOwner = !!(currentUserId && (offer as any)?.user_id === currentUserId);
 
   /* ── Table DB pas encore créée OU annonce introuvable ── */
   if (!offer) {
