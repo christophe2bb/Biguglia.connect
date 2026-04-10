@@ -20,7 +20,9 @@ import {
   getContractTypeColor,
   SECTOR_LABELS,
 } from '@/types/jobs/constants';
+import { createClient } from '@/lib/supabase/server';
 import ProtectedContact from '@/components/jobs/ProtectedContact';
+import OwnerActions from '@/components/jobs/OwnerActions';
 
 interface PageProps {
   params: { slug: string };
@@ -48,7 +50,18 @@ const CONTRACT_COLOR_MAP: Record<string, { bg: string; text: string; border: str
 
 
 export default async function OffreDetailPage({ params }: PageProps) {
-  const offer = await getJobOfferBySlug(params.slug);
+  const [offer, currentUserId] = await Promise.all([
+    getJobOfferBySlug(params.slug),
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        return user?.id ?? null;
+      } catch { return null; }
+    })(),
+  ]);
+
+  const isOwner = !!(currentUserId && (offer as any)?.user_id === currentUserId);
 
   /* ── Table DB pas encore créée OU annonce introuvable ── */
   if (!offer) {
@@ -543,6 +556,16 @@ export default async function OffreDetailPage({ params }: PageProps) {
                     </div>
                   </div>
                 </div>
+              )}
+
+              {/* Boutons Modifier / Supprimer (propriétaire uniquement) */}
+              {isOwner && (
+                <OwnerActions
+                  type="offer"
+                  slug={offer.slug}
+                  editHref={`/emploi/offres/${offer.slug}/modifier`}
+                  colorScheme="cyan"
+                />
               )}
 
               {/* Voir les demandes */}

@@ -11,6 +11,8 @@ import {
   ChevronRight, Flame, Building2, Briefcase,
 } from 'lucide-react';
 import { getJobDemandBySlug } from '@/services/jobs/queries';
+import { createClient } from '@/lib/supabase/server';
+import OwnerActions from '@/components/jobs/OwnerActions';
 import {
   CONTRACT_TYPE_LABELS,
   JOB_CATEGORY_LABELS,
@@ -44,7 +46,18 @@ const AVAILABILITY_LABELS: Record<string, { label: string; color: string; bg: st
 
 
 export default async function DemandDetailPage({ params }: PageProps) {
-  const demand = await getJobDemandBySlug(params.slug);
+  const [demand, currentUserId] = await Promise.all([
+    getJobDemandBySlug(params.slug),
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        return user?.id ?? null;
+      } catch { return null; }
+    })(),
+  ]);
+
+  const isOwner = !!(currentUserId && (demand as any)?.user_id === currentUserId);
 
   /* ── Table DB pas encore créée OU demande introuvable ── */
   if (!demand) {
@@ -472,6 +485,16 @@ export default async function DemandDetailPage({ params }: PageProps) {
                     </div>
                   </div>
                 </div>
+              )}
+
+              {/* Boutons Modifier / Supprimer (propriétaire uniquement) */}
+              {isOwner && (
+                <OwnerActions
+                  type="demand"
+                  slug={demand.slug}
+                  editHref={`/emploi/demandes/${demand.slug}/modifier`}
+                  colorScheme="purple"
+                />
               )}
 
               {/* Lien retour offres */}

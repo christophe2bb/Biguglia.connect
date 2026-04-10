@@ -153,13 +153,13 @@ export default function ProtectedContact({
           <p className="text-white/70">C&apos;est gratuit et rapide !</p>
           <div className="flex items-center justify-center gap-3 pt-1">
             <Link
-              href={`/auth/connexion?redirect=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname : '')}`}
+              href={`/connexion?redirect=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname : '')}`}
               className="inline-flex items-center gap-1 bg-white text-gray-800 font-bold px-3 py-1.5 rounded-lg text-xs hover:bg-gray-100 transition-colors"
             >
               Se connecter
             </Link>
             <Link
-              href="/auth/inscription"
+              href="/inscription"
               className="inline-flex items-center gap-1 underline underline-offset-2 text-white/80 hover:text-white text-xs"
             >
               S&apos;inscrire <ExternalLink className="w-3 h-3" />
