@@ -1,0 +1,97 @@
+'use client';
+
+import { useRef } from 'react';
+import Link from 'next/link';
+import { ChevronDown, ArrowRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { UniversItem } from './univers';
+
+interface Props {
+  univers: UniversItem;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  isActive: boolean;
+}
+
+/**
+ * Bouton desktop + dropdown panel pour un univers (Services / Vie pratique / Vie locale).
+ */
+export default function UniversDropdown({ univers, isOpen, onToggle, onClose, isActive }: Props) {
+  const Icon = univers.icon;
+  const ref = useRef<HTMLDivElement>(null);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={onToggle}
+        className={cn(
+          'flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200',
+          isActive ? univers.activeBg : `text-gray-600 ${univers.hoverBg}`
+        )}
+      >
+        <Icon className={cn('w-4 h-4', isActive ? '' : univers.color)} />
+        {univers.label}
+        <ChevronDown className={cn(
+          'w-3.5 h-3.5 transition-transform duration-200',
+          isOpen ? 'rotate-180' : '',
+          isActive ? 'opacity-70' : 'text-gray-400'
+        )} />
+      </button>
+
+      {isOpen && (
+        <>
+          {/* Overlay fermeture */}
+          <div className="fixed inset-0 z-10" onClick={onClose} />
+
+          {/* Panel */}
+          <div className="absolute left-0 mt-2.5 w-[320px] bg-white rounded-2xl shadow-2xl border border-gray-100 z-20 overflow-hidden animate-fade-in-down">
+
+            {/* Header univers */}
+            <div className={cn('px-5 py-4 border-b', univers.headerBg)}>
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  'w-9 h-9 rounded-xl flex items-center justify-center bg-gradient-to-br shadow-sm',
+                  univers.gradFrom, univers.gradTo
+                )}>
+                  <Icon className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Espace</p>
+                  <p className="text-sm font-black text-gray-900">{univers.label}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Items */}
+            <div className="p-2">
+              {univers.items.map((item) => {
+                const ItemIcon = item.icon;
+                return (
+                  <Link
+                    key={`${item.href}-${item.label}`}
+                    href={item.href}
+                    onClick={onClose}
+                    className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition-all duration-150 group"
+                  >
+                    <div className={cn(
+                      'w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110',
+                      item.iconBg
+                    )}>
+                      <ItemIcon className={cn('w-4 h-4', item.iconColor)} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-gray-900 group-hover:text-gray-700">{item.label}</p>
+                      <p className="text-xs text-gray-500 truncate">{item.desc}</p>
+                    </div>
+                    <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-400 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
