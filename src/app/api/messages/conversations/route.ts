@@ -48,31 +48,108 @@ export async function GET(req: NextRequest) {
 
   const admin = createAdminClient();
 
-  // Récupérer les participations + conversations + participants + derniers messages
-  // via admin client (bypass RLS recursion)
-  const { data: participations, error } = await admin
+  // Étape 1 : participations de l'utilisateur
+  const { data: myParticipations, error: partErr } = await admin
     .from('conversation_participants')
-    .select(`
-      conversation_id,
-      last_read_at,
-      joined_at,
-      conversation:conversations(
-        id, subject, related_type, related_id, updated_at,
-        participants:conversation_participants(
-          user_id,
-          profile:profiles(id, full_name, avatar_url)
-        ),
-        last_msg:messages(content, created_at, sender_id)
-      )
-    `)
+    .select('conversation_id, last_read_at, joined_at')
     .eq('user_id', userId);
 
-  if (error) {
-    console.error('[api/messages/conversations] DB error:', error.message);
-    return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
+  if (partErr) {
+    console.error('[api/messages/conversations] participations error:', partErr.message);
+    return NextResponse.json({ error: partErr.message, code: partErr.code }, { status: 500 });
   }
 
-  return NextResponse.json({ participations: participations ?? [] });
+  if (!myParticipations || myParticipations.length === 0) {
+    return NextResponse.json({ participations: [] });
+  }
+
+  const convIds = myParticipations.map((p: { conversation_id: string }) => p.conversation_id);
+
+  // Étape 2 : conversations + tous participants + derniers messages (requêtes parallèles)
+  const [
+    { data: conversations, error: convErr },
+    { data: allParticipants },
+    { data: recentMessages },
+  ] = await Promise.all([
+    // Données de la conversation
+    admin
+      .from('conversations')
+      .select('id, subject, related_type, related_id, updated_at')
+      .in('id', convIds),
+    // Tous les participants de toutes les conversations
+    admin
+      .from('conversation_participants')
+      .select('conversation_id, user_id')
+      .in('conversation_id', convIds),
+    // Derniers messages pour le preview (max 10 par conv, cap global à 500)
+    admin
+      .from('messages')
+      .select('id, conversation_id, sender_id, content, created_at')
+      .in('conversation_id', convIds)
+      .order('created_at', { ascending: false })
+      .limit(Math.min(convIds.length * 10, 500)),
+  ]);
+
+  if (convErr) {
+    console.error('[api/messages/conversations] conversations error:', convErr.message);
+    return NextResponse.json({ error: convErr.message, code: convErr.code }, { status: 500 });
+  }
+
+  // Étape 3 : profils de tous les participants
+  const allUserIds = Array.from(new Set(
+    (allParticipants ?? []).map((p: { user_id: string }) => p.user_id)
+  ));
+  let profiles: Array<{ id: string; full_name: string | null; avatar_url: string | null }> = [];
+  if (allUserIds.length > 0) {
+    const { data: profileData } = await admin
+      .from('profiles')
+      .select('id, full_name, avatar_url')
+      .in('id', allUserIds);
+    profiles = profileData ?? [];
+  }
+
+  // Construire un index rapide
+  const profileMap = new Map(profiles.map(p => [p.id, p]));
+  const convMap    = new Map((conversations ?? []).map(c => [c.id, c]));
+  const msgsByConv = new Map<string, Array<{ id: string; conversation_id: string; sender_id: string; content: string; created_at: string }>>();
+  for (const msg of (recentMessages ?? [])) {
+    const arr = msgsByConv.get(msg.conversation_id) ?? [];
+    arr.push(msg);
+    msgsByConv.set(msg.conversation_id, arr);
+  }
+  const partsByConv = new Map<string, Array<{ conversation_id: string; user_id: string }>>();
+  for (const p of (allParticipants ?? [])) {
+    const arr = partsByConv.get(p.conversation_id) ?? [];
+    arr.push(p);
+    partsByConv.set(p.conversation_id, arr);
+  }
+
+  // Assembler la réponse dans le même format attendu par le client
+  const participations = myParticipations.map((mp: { conversation_id: string; last_read_at: string | null; joined_at: string | null }) => {
+    const conv = convMap.get(mp.conversation_id);
+    if (!conv) return null;
+
+    const convParticipants = (partsByConv.get(mp.conversation_id) ?? []).map(p => ({
+      user_id: p.user_id,
+      profile: profileMap.get(p.user_id) ?? null,
+    }));
+    const msgs = msgsByConv.get(mp.conversation_id) ?? [];
+    // Déjà trié DESC par la requête; ré-assurer le tri côté serveur
+    msgs.sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+    return {
+      conversation_id: mp.conversation_id,
+      last_read_at: mp.last_read_at,
+      joined_at: mp.joined_at,
+      conversation: {
+        ...conv,
+        participants: convParticipants,
+        last_msg: msgs,
+      },
+    };
+  }).filter(Boolean);
+
+  return NextResponse.json({ participations });
 }
 
 /**

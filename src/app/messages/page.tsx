@@ -156,13 +156,19 @@ export default function MessagesPage() {
       joined_at: string | null;
       conversation: unknown;
     }>).map((p) => {
-      const conv = p.conversation as unknown as Conversation & {
-        participants?: Array<{ user_id: string; profile?: Profile }>;
+      // conversation peut être un objet ou null
+      const rawConv = p.conversation;
+      const conv = (Array.isArray(rawConv) ? rawConv[0] : rawConv) as unknown as Conversation & {
+        participants?: Array<{ user_id: string; profile?: Profile | null }>;
         last_msg?: Array<{ content: string; created_at: string; sender_id: string }>;
       };
       if (!conv) return null;
 
-      const other = conv.participants?.find(pp => pp.user_id !== profile.id)?.profile;
+      // Chercher l'autre utilisateur parmi les participants
+      const other = conv.participants
+        ?.find(pp => pp.user_id !== profile.id)
+        ?.profile ?? null;
+
       const msgs = conv.last_msg || [];
       msgs.sort((a, b) => b.created_at.localeCompare(a.created_at));
 
@@ -768,16 +774,16 @@ export default function MessagesPage() {
                     </div>
                   </div>
 
-                  {/* Bouton supprimer */}
+                  {/* Bouton supprimer — toujours visible sur mobile, hover sur desktop */}
                   <button
                     data-conv-menu
-                    onClick={() => setConfirmConv(isConfirm ? null : conv.id)}
+                    onClick={(e) => { e.stopPropagation(); setConfirmConv(isConfirm ? null : conv.id); }}
                     className={cn(
                       'flex-shrink-0 w-9 h-9 rounded-xl mr-3 flex items-center justify-center transition-all',
-                      'opacity-0 group-hover:opacity-100',
+                      'opacity-100 sm:opacity-0 sm:group-hover:opacity-100',
                       isConfirm
-                        ? 'bg-red-500 text-white opacity-100'
-                        : 'text-gray-300 hover:text-red-500 hover:bg-red-50'
+                        ? 'bg-red-500 text-white'
+                        : 'text-gray-300 hover:text-red-500 hover:bg-red-50 active:text-red-500 active:bg-red-50'
                     )}
                     title="Supprimer la conversation"
                   >
