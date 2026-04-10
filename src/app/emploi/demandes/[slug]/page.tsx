@@ -10,7 +10,25 @@ import {
   FileText, Eye, CheckCircle, Star, GraduationCap,
   ChevronRight, Flame, Building2, Briefcase,
 } from 'lucide-react';
-import { getJobDemandBySlug } from '@/services/jobs/queries';
+import { createAdminClient } from '@/lib/supabase/server';
+import type { JobDemandSearchResult } from '@/types/jobs';
+
+async function getDemand(slug: string): Promise<JobDemandSearchResult | null> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from('job_demands')
+      .select('*')
+      .eq('slug', slug)
+      .single();
+    if (error || !data) return null;
+    const d = data as Record<string, unknown>;
+    if (!['published', 'active'].includes(d.status as string)) return null;
+    return d as unknown as JobDemandSearchResult;
+  } catch {
+    return null;
+  }
+}
 import OwnerActions from '@/components/jobs/OwnerActions';
 import {
   CONTRACT_TYPE_LABELS,
@@ -27,7 +45,7 @@ interface PageProps {
 }
 
 export async function generateMetadata({ params }: PageProps) {
-  const demand = await getJobDemandBySlug(params.slug);
+  const demand = await getDemand(params.slug);
   if (!demand) return { title: 'Demande non trouvée - Biguglia Connect' };
   return {
     title: `${demand.title} – ${demand.location_label} | Biguglia Connect`,
@@ -45,7 +63,7 @@ const AVAILABILITY_LABELS: Record<string, { label: string; color: string; bg: st
 
 
 export default async function DemandDetailPage({ params }: PageProps) {
-  const demand = await getJobDemandBySlug(params.slug);
+  const demand = await getDemand(params.slug);
 
   /* ── Table DB pas encore créée OU demande introuvable ── */
   if (!demand) {
