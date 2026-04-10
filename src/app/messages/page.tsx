@@ -93,7 +93,7 @@ function ConvSkeleton() {
 }
 
 export default function MessagesPage() {
-  const { profile } = useAuthStore();
+  const { profile, loading: authLoading } = useAuthStore();
   const router = useRouter();
   const supabase = createClient();
 
@@ -135,12 +135,17 @@ export default function MessagesPage() {
   const fetchConversations = useCallback(async () => {
     if (!profile) return;
 
-    // Récupérer le token pour l'authentification Bearer
-    const { data: { session } } = await supabase.auth.getSession();
+    // Récupérer le token avec refresh automatique si la session est expirée
+    let { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      const refreshResult = await supabase.auth.refreshSession();
+      session = refreshResult.data.session;
+    }
     const token = session?.access_token;
+    if (!token) { setLoading(false); return; } // Session définitivement invalide
 
     const res = await fetch('/api/messages/conversations', {
-      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      headers: { 'Authorization': `Bearer ${token}` },
     }).catch(() => null);
 
     if (!res || !res.ok) { setLoading(false); return; }
@@ -321,6 +326,9 @@ export default function MessagesPage() {
 
   useEffect(() => {
     mountedRef.current = true;
+    // Attendre la fin de l'initialisation auth avant d'agir
+    // (évite la redirection prématurée si profile est encore null au premier render)
+    if (authLoading) return;
     if (!profile) { router.push('/connexion'); return; }
     fetchConversations();
     connectRealtime();
@@ -365,7 +373,7 @@ export default function MessagesPage() {
       document.removeEventListener('visibilitychange', handleVis);
       window.removeEventListener('messages-read', handleMessagesRead);
     };
-  }, [profile, router, fetchConversations, connectRealtime]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authLoading, profile, router, fetchConversations, connectRealtime]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Supprimer une conversation ────────────────────────────────────────────
   const handleDeleteConversation = async (convId: string) => {

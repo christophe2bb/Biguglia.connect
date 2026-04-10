@@ -386,7 +386,7 @@ const FALLBACK_POLL_INTERVAL = 5000;
 export default function ConversationPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { profile } = useAuthStore();
+  const { profile, loading: authLoading } = useAuthStore();
   // Ref stable pour supabase — évite de recréer l'instance à chaque render
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
   if (!supabaseRef.current) supabaseRef.current = createClient();
@@ -446,11 +446,16 @@ export default function ConversationPage() {
     if (!mountedRef.current || !profile) return;
     try {
       // Utilise l'API admin pour contourner la récursion RLS sur messages
-      const { data: { session } } = await supabase.auth.getSession();
+      let { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        const refreshResult = await supabase.auth.refreshSession();
+        session = refreshResult.data.session;
+      }
       const token = session?.access_token;
+      if (!token) return; // Session définitivement invalide — ne pas continuer
 
       const apiRes = await fetch(`/api/messages/conversation/${id}`, {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        headers: { 'Authorization': `Bearer ${token}` },
       }).catch(() => null);
 
       if (!apiRes || !apiRes.ok) return;
@@ -540,6 +545,9 @@ export default function ConversationPage() {
 
   useEffect(() => {
     mountedRef.current = true;
+    // Attendre la fin de l'initialisation auth — évite un 401 si le token n'est
+    // pas encore disponible au premier render (race condition AuthProvider)
+    if (authLoading) return;
     if (!profile) { router.push('/connexion'); return; }
 
     // Marquer comme lu IMMÉDIATEMENT dès l'ouverture de la page
@@ -549,11 +557,23 @@ export default function ConversationPage() {
     const init = async () => {
       // Utilise l'API admin pour contourner la récursion infinie dans les RLS
       // de conversation_participants, messages et conversations.
-      const { data: { session } } = await supabase.auth.getSession();
+      //
+      // Obtenir le token avec refresh automatique si la session est expirée.
+      // getSession() peut retourner un token expiré depuis le cache local ;
+      // refreshSession() garantit un token valide ou redirige vers /connexion.
+      let { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        const refreshResult = await supabase.auth.refreshSession();
+        session = refreshResult.data.session;
+      }
       const token = session?.access_token;
 
+      if (!token) {
+        router.push('/connexion'); return;
+      }
+
       const apiRes = await fetch(`/api/messages/conversation/${id}`, {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        headers: { 'Authorization': `Bearer ${token}` },
       }).catch(() => null);
 
       if (!apiRes) {
@@ -669,7 +689,7 @@ export default function ConversationPage() {
       if (pollRef.current) clearInterval(pollRef.current);
       document.removeEventListener('visibilitychange', handleVis);
     };
-  }, [id, profile, router]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authLoading, id, profile, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -808,7 +828,11 @@ export default function ConversationPage() {
         </Link>
 
         <div className="relative flex-shrink-0">
-          <Avatar src={otherUser?.avatar_url} name={otherUser?.full_name || '?'} size="md" />
+          {loading && !otherUser ? (
+            <div className="w-10 h-10 rounded-full bg-gray-200 animate-pulse" />
+          ) : (
+            <Avatar src={otherUser?.avatar_url} name={otherUser?.full_name || subject || '?'} size="md" />
+          )}
           {isFavorite && (
             <span className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center text-[9px]">⭐</span>
           )}
@@ -819,7 +843,9 @@ export default function ConversationPage() {
             <span className="font-bold text-gray-900 truncate">
               {otherUser?.full_name
                 ? otherUser.full_name
-                : loading ? <span className="inline-block w-28 h-4 bg-gray-200 animate-pulse rounded" /> : (subject || '—')}
+                : loading
+                  ? <span className="inline-block w-28 h-4 bg-gray-200 animate-pulse rounded" />
+                  : (subject && subject !== 'Conversation' ? subject : '—')}
             </span>
             {isBlocked && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">Bloqué</span>}
           </div>
