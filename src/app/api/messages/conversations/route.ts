@@ -10,38 +10,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-
-async function getUserId(req: NextRequest): Promise<string | null> {
-  // Priorité 1 : Bearer token
-  const authHeader = req.headers.get('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-
-  if (token) {
-    try {
-      const client = createSupabaseClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { auth: { autoRefreshToken: false, persistSession: false } }
-      );
-      const { data: { user } } = await client.auth.getUser(token);
-      if (user) return user.id;
-    } catch { /* ignore */ }
-  }
-
-  // Priorité 2 : cookies SSR
-  try {
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) return user.id;
-  } catch { /* ignore */ }
-
-  return null;
-}
+import { getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
 
 export async function GET(req: NextRequest) {
-  const userId = await getUserId(req);
+  const userId = await getUserIdBearerFirst(req);
   if (!userId) {
     return NextResponse.json({ error: 'Non authentifié', status: 'guest' }, { status: 401 });
   }
@@ -182,7 +154,7 @@ export async function GET(req: NextRequest) {
  * Met à jour le last_read_at d'une participation (marquer comme lu)
  */
 export async function PATCH(req: NextRequest) {
-  const userId = await getUserId(req);
+  const userId = await getUserIdBearerFirst(req);
   if (!userId) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
@@ -215,7 +187,11 @@ export async function PATCH(req: NextRequest) {
 
 /**
  * DELETE /api/messages/conversations?conversationId=xxx
- * Quitter une conversation (supprime la participation + messages de l'utilisateur)
+ * Quitter une conversation (supprime la participation + messages envoyés par l'utilisateur).
+ *
+ * SÉCURITÉ : vérifier que l'utilisateur est bien participant avant toute suppression.
+ * Sans cette vérification, un userId authentifié pourrait supprimer ses messages
+ * dans n'importe quelle conversation en forgeant la requête.
  */
 export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -225,12 +201,24 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'conversationId requis' }, { status: 400 });
   }
 
-  const userId = await getUserId(req);
+  const userId = await getUserIdBearerFirst(req);
   if (!userId) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
 
   const admin = createAdminClient();
+
+  // Vérifier que l'utilisateur est bien participant à cette conversation
+  const { data: participation } = await admin
+    .from('conversation_participants')
+    .select('user_id')
+    .eq('conversation_id', conversationId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (!participation) {
+    return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+  }
 
   // Supprimer la participation et les messages de l'utilisateur
   await Promise.all([

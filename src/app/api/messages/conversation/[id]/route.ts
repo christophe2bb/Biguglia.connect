@@ -14,33 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-
-async function getUserId(req: NextRequest): Promise<string | null> {
-  const authHeader = req.headers.get('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-
-  if (token) {
-    try {
-      const client = createSupabaseClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { auth: { autoRefreshToken: false, persistSession: false } }
-      );
-      const { data: { user } } = await client.auth.getUser(token);
-      if (user) return user.id;
-    } catch { /* ignore */ }
-  }
-
-  try {
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) return user.id;
-  } catch { /* ignore */ }
-
-  return null;
-}
+import { getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
 
 export async function GET(
   req: NextRequest,
@@ -51,7 +25,7 @@ export async function GET(
     return NextResponse.json({ error: 'ID manquant' }, { status: 400 });
   }
 
-  const userId = await getUserId(req);
+  const userId = await getUserIdBearerFirst(req);
   if (!userId) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
@@ -133,7 +107,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   const conversationId = params.id;
-  const userId = await getUserId(req);
+  const userId = await getUserIdBearerFirst(req);
   if (!userId) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
@@ -194,7 +168,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   const conversationId = params.id;
-  const userId = await getUserId(req);
+  const userId = await getUserIdBearerFirst(req);
   if (!userId) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
@@ -292,7 +266,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'messageId requis' }, { status: 400 });
   }
 
-  const userId = await getUserId(req);
+  const userId = await getUserIdBearerFirst(req);
   if (!userId) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }

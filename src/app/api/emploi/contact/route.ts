@@ -13,35 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-
-async function getUserId(req: NextRequest): Promise<string | null> {
-  // ── Priorité 1 : Bearer token dans le header Authorization
-  const authHeader = req.headers.get('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-
-  if (token) {
-    try {
-      const client = createSupabaseClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { auth: { autoRefreshToken: false, persistSession: false } }
-      );
-      const { data: { user } } = await client.auth.getUser(token);
-      if (user) return user.id;
-    } catch { /* ignore */ }
-  }
-
-  // ── Priorité 2 : cookies SSR (fallback)
-  try {
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) return user.id;
-  } catch { /* ignore */ }
-
-  return null;
-}
+import { getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
 
 export async function POST(req: NextRequest) {
   /* 1. Lire le body */
@@ -58,7 +30,7 @@ export async function POST(req: NextRequest) {
   }
 
   /* 2. Authentification */
-  const userId = await getUserId(req);
+  const userId = await getUserIdBearerFirst(req);
   if (!userId) {
     return NextResponse.json({ status: 'guest' }, { status: 401 });
   }
