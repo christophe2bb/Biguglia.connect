@@ -462,7 +462,12 @@ export async function getRecentJobDemands(
 /**
  * Retourne true si l'utilisateur actuellement connecté est le créateur
  * de l'offre ou de la demande identifiée par son slug.
- * Utilise le client serveur (cookies session) → fiable même sans RLS sur user_id.
+ *
+ * Stratégie en 3 niveaux :
+ * 1. Client admin (service role) → bypass RLS complet, lit user_id directement
+ * 2. Sinon, client utilisateur authentifié avec filtre user_id (RLS own_crud)
+ * 3. Sinon, compter les lignes via le client anon avec filtre user_id
+ *    (fonctionne si la politique "own_crud" autorise SELECT WHERE user_id = auth.uid())
  */
 export async function checkJobOwnership(
   table: 'job_offers' | 'job_demands',
@@ -474,18 +479,52 @@ export async function checkJobOwnership(
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
 
-    // 2. Vérifier la propriété via le client ADMIN (service role = bypass RLS total)
-    //    → lit user_id sans aucune restriction RLS
-    const admin = createAdminClient();
-    const { data, error } = await admin
+    // 2. Essayer via le client ADMIN (service role = bypass RLS total)
+    //    Disponible uniquement si SUPABASE_SERVICE_ROLE_KEY est défini dans Vercel
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (serviceKey) {
+      try {
+        const admin = createAdminClient();
+        const { data, error } = await admin
+          .from(table)
+          .select('user_id')
+          .eq('slug', slug)
+          .single();
+
+        if (!error && data) {
+          return (data as any).user_id === user.id;
+        }
+      } catch {
+        // Continuer vers le fallback
+      }
+    }
+
+    // 3. Fallback : utiliser le client utilisateur authentifié
+    //    La politique RLS "own_crud FOR ALL" permet à auth.uid() de lire ses propres lignes
+    //    → SELECT count(*) WHERE slug=? AND user_id=? devrait retourner 1 si propriétaire
+    const { count, error: countErr } = await supabase
+      .from(table)
+      .select('id', { count: 'exact', head: true })
+      .eq('slug', slug)
+      .eq('user_id', user.id);
+
+    if (!countErr && count !== null && count > 0) {
+      return true;
+    }
+
+    // 4. Dernier recours : lire user_id via le client authentifié (sans filtre user_id)
+    //    Fonctionne si la politique RLS autorise SELECT sur ses propres lignes
+    const { data: row } = await supabase
       .from(table)
       .select('user_id')
       .eq('slug', slug)
       .single();
 
-    if (error || !data) return false;
+    if (row && (row as any).user_id === user.id) {
+      return true;
+    }
 
-    return (data as any).user_id === user.id;
+    return false;
   } catch {
     return false;
   }
