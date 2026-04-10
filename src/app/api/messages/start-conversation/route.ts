@@ -21,12 +21,68 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
 
-function isValidUUID(s: string | null | undefined): boolean {
-  if (!s) return false;
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+// ── Schéma de validation ────────────────────────────────────────────────────
+
+/**
+ * Valeurs autorisées pour related_type.
+ * Union de ContactSourceType + InteractionSourceType + valeurs spéciales.
+ * Si une nouvelle source est ajoutée côté client, l'ajouter ici aussi.
+ */
+const RELATED_TYPES = [
+  'listing', 'equipment', 'help_request', 'association',
+  'collection_item', 'outing', 'event', 'service_request',
+  'lost_found', 'artisan', 'community', 'general',
+] as const;
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const StartConversationSchema = z.object({
+  /** UUID du profil destinataire — doit exister en base */
+  ownerId: z.string().regex(UUID_REGEX, 'ownerId doit être un UUID valide'),
+
+  /** Sujet de la conversation */
+  subject: z
+    .string()
+    .trim()
+    .min(1, 'subject requis')
+    .max(200, 'subject trop long (max 200)')
+    .optional()
+    .default('Conversation'),
+
+  /** Type de contexte métier — whitelist stricte */
+  relatedType: z
+    .enum(RELATED_TYPES)
+    .nullable()
+    .optional()
+    .default('general'),
+
+  /** UUID de l'objet lié — null si pas de contexte */
+  relatedId: z
+    .string()
+    .regex(UUID_REGEX, 'relatedId doit être un UUID valide')
+    .nullable()
+    .optional()
+    .default(null),
+
+  /** Message d'ouverture facultatif */
+  initialMsg: z
+    .string()
+    .trim()
+    .max(5_000, 'initialMsg trop long (max 5000)')
+    .nullable()
+    .optional()
+    .default(null),
+});
+
+function zodError(err: z.ZodError) {
+  return NextResponse.json(
+    { error: 'Paramètres invalides', details: err.flatten().fieldErrors },
+    { status: 400 }
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -35,27 +91,38 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
 
-  let body: {
-    ownerId?: string;
-    subject?: string;
-    relatedType?: string | null;
-    relatedId?: string | null;
-    initialMsg?: string | null;
-  };
+  let raw: unknown;
   try {
-    body = await req.json();
+    raw = await req.json();
   } catch {
     return NextResponse.json({ error: 'Corps invalide' }, { status: 400 });
   }
 
-  const { ownerId, subject, relatedType, relatedId, initialMsg } = body;
+  const parsed = StartConversationSchema.safeParse(raw);
+  if (!parsed.success) return zodError(parsed.error);
 
-  if (!ownerId) {
-    return NextResponse.json({ error: 'ownerId requis' }, { status: 400 });
+  const { ownerId, subject, relatedType, relatedId, initialMsg } = parsed.data;
+
+  // Empêcher une conversation avec soi-même
+  if (ownerId === userId) {
+    return NextResponse.json({ error: 'Impossible de démarrer une conversation avec soi-même' }, { status: 400 });
   }
 
   const admin = createAdminClient();
-  const safeRelatedId = isValidUUID(relatedId) ? relatedId : null;
+
+  // Vérifier que le destinataire (ownerId) existe réellement dans profiles
+  const { data: ownerProfile } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('id', ownerId)
+    .maybeSingle();
+
+  if (!ownerProfile) {
+    return NextResponse.json({ error: 'Destinataire introuvable' }, { status: 404 });
+  }
+
+  // relatedId est déjà validé UUID par Zod ou null
+  const safeRelatedId = relatedId ?? null;
 
   // ── 1. Chercher une conversation existante entre les deux utilisateurs ─────
   // Trouver les conversations où les deux participent (userId ET ownerId)
@@ -117,8 +184,8 @@ export async function POST(req: NextRequest) {
 
   // ── 2. Créer une nouvelle conversation ────────────────────────────────────
   const convPayload: Record<string, unknown> = {
-    subject: subject || 'Conversation',
-    related_type: relatedType || 'general',
+    subject,                              // défaut 'Conversation' appliqué par Zod
+    related_type: relatedType ?? 'general',
     updated_at: new Date().toISOString(),
   };
   if (safeRelatedId) {
@@ -139,12 +206,11 @@ export async function POST(req: NextRequest) {
   const convId = newConv.id;
 
   // ── 3. Ajouter les participants ──────────────────────────────────────────────
+  // ownerId !== userId est garanti par le guard en amont
   const participantRows: { conversation_id: string; user_id: string }[] = [
     { conversation_id: convId, user_id: userId },
+    { conversation_id: convId, user_id: ownerId },
   ];
-  if (ownerId !== userId) {
-    participantRows.push({ conversation_id: convId, user_id: ownerId });
-  }
 
   const { error: partError } = await admin
     .from('conversation_participants')
@@ -156,20 +222,21 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 4. Envoyer le message initial ────────────────────────────────────────────
-  if (initialMsg?.trim()) {
+  // initialMsg est déjà trimmé par Zod (.trim()) et null si absent/vide
+  if (initialMsg) {
     const { error: msgError } = await admin
       .from('messages')
       .insert({
         conversation_id: convId,
         sender_id: userId,
-        content: initialMsg.trim(),
+        content: initialMsg,
       });
 
     if (msgError) {
       console.warn('[start-conversation] Failed to send initial message:', msgError.message);
     }
 
-    // Notification pour l'autre participant
+    // Notification pour le destinataire
     const { data: senderProfile } = await admin
       .from('profiles')
       .select('full_name')
@@ -179,17 +246,16 @@ export async function POST(req: NextRequest) {
     const senderName = (senderProfile as { full_name: string | null } | null)?.full_name || 'Quelqu\'un';
     const preview = initialMsg.length > 60 ? initialMsg.slice(0, 60) + '…' : initialMsg;
 
-    if (ownerId !== userId) {
-      await admin.from('notifications').insert({
-        user_id: ownerId,
-        type: 'new_message',
-        title: `Message de ${senderName}`,
-        message: preview,
-        link: `/messages/${convId}`,
-      }).then(({ error: ne }) => {
-        if (ne) console.warn('[start-conversation] notification error:', ne.message);
-      });
-    }
+    // ownerId !== userId garanti en amont
+    await admin.from('notifications').insert({
+      user_id: ownerId,
+      type: 'new_message',
+      title: `Message de ${senderName}`,
+      message: preview,
+      link: `/messages/${convId}`,
+    }).then(({ error: ne }) => {
+      if (ne) console.warn('[start-conversation] notification error:', ne.message);
+    });
   }
 
   return NextResponse.json({ conversationId: convId, isNew: true });
