@@ -13,8 +13,43 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
+
+// ── Schémas de validation ───────────────────────────────────────────────────
+
+/** Valeurs autorisées pour exchange_status (contrainte SQL + logique métier) */
+const EXCHANGE_STATUS_VALUES = ['pending_confirmation', 'done'] as const;
+type ExchangeStatusValue = typeof EXCHANGE_STATUS_VALUES[number];
+
+const PatchMarkReadSchema = z.object({
+  action: z.literal('mark_read'),
+  lastReadAt: z.string().datetime({ offset: true }).optional(),
+});
+
+const PatchExchangeStatusSchema = z.object({
+  action: z.literal('update_exchange_status'),
+  exchangeStatus: z.enum(EXCHANGE_STATUS_VALUES),
+});
+
+/** Union discriminée — chaque action a son propre schéma */
+const PatchBodySchema = z.discriminatedUnion('action', [
+  PatchMarkReadSchema,
+  PatchExchangeStatusSchema,
+]);
+
+const PostMessageSchema = z.object({
+  content: z.string().trim().min(1, 'Message vide').max(10_000, 'Message trop long'),
+});
+
+/** Helper : retourne une 400 avec le détail Zod formaté */
+function zodError(err: z.ZodError) {
+  return NextResponse.json(
+    { error: 'Paramètres invalides', details: err.flatten().fieldErrors },
+    { status: 400 }
+  );
+}
 
 export async function GET(
   req: NextRequest,
@@ -112,13 +147,17 @@ export async function PATCH(
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
 
-  let body: { action?: string; lastReadAt?: string; exchangeStatus?: string };
+  let raw: unknown;
   try {
-    body = await req.json();
+    raw = await req.json();
   } catch {
     return NextResponse.json({ error: 'Corps invalide' }, { status: 400 });
   }
 
+  const parsed = PatchBodySchema.safeParse(raw);
+  if (!parsed.success) return zodError(parsed.error);
+
+  const body = parsed.data;
   const admin = createAdminClient();
 
   if (body.action === 'mark_read') {
@@ -143,10 +182,13 @@ export async function PATCH(
 
     if (!part) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
 
+    // exchangeStatus est garanti dans EXCHANGE_STATUS_VALUES par le schéma Zod
+    const newStatus: ExchangeStatusValue = body.exchangeStatus;
+
     const { error } = await admin
       .from('conversations')
       .update({
-        exchange_status: body.exchangeStatus,
+        exchange_status: newStatus,
         exchange_confirmed_by: userId,
         exchange_confirmed_at: new Date().toISOString(),
       })
@@ -156,6 +198,7 @@ export async function PATCH(
     return NextResponse.json({ ok: true });
   }
 
+  // TypeScript exhaustiveness — ne devrait jamais être atteint grâce à z.discriminatedUnion
   return NextResponse.json({ error: 'Action inconnue' }, { status: 400 });
 }
 
@@ -173,16 +216,17 @@ export async function POST(
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
 
-  let body: { content?: string };
+  let raw: unknown;
   try {
-    body = await req.json();
+    raw = await req.json();
   } catch {
     return NextResponse.json({ error: 'Corps invalide' }, { status: 400 });
   }
 
-  if (!body.content?.trim()) {
-    return NextResponse.json({ error: 'Message vide' }, { status: 400 });
-  }
+  const parsed = PostMessageSchema.safeParse(raw);
+  if (!parsed.success) return zodError(parsed.error);
+
+  const { content } = parsed.data; // déjà trimmé par z.string().trim()
 
   const admin = createAdminClient();
 
@@ -201,7 +245,7 @@ export async function POST(
     .insert({
       conversation_id: conversationId,
       sender_id: userId,
-      content: body.content.trim(),
+      content,
     })
     .select()
     .single();
@@ -230,11 +274,10 @@ export async function POST(
   ]);
 
   // Envoyer une notification aux autres participants (pas pour les messages système)
-  const contentTrimmed = body.content!.trim();
-  const isSystem = contentTrimmed.startsWith('👋') || contentTrimmed.startsWith('✅') || contentTrimmed.startsWith('🤝');
+  const isSystem = content.startsWith('👋') || content.startsWith('✅') || content.startsWith('🤝');
   if (!isSystem && participantsRes.data && participantsRes.data.length > 0) {
     const senderName = (senderProfileRes.data as { full_name: string | null } | null)?.full_name || 'Quelqu\'un';
-    const preview = contentTrimmed.length > 60 ? contentTrimmed.slice(0, 60) + '…' : contentTrimmed;
+    const preview = content.length > 60 ? content.slice(0, 60) + '…' : content;
     const notifications = participantsRes.data.map((p: { user_id: string }) => ({
       user_id: p.user_id,
       type: 'new_message',
