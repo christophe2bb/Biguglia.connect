@@ -8,7 +8,7 @@ import {
   Package, Heart, Footprints, Calendar, BookOpen, Handshake,
   MapPin, Euro, Star, Clock, TrendingUp, ChevronRight,
   Loader2, AlertCircle, LayoutGrid, List, ArrowUpDown,
-  CheckCircle2, Tag, Trophy, HelpCircle,
+  CheckCircle2, Tag, Trophy, HelpCircle, Briefcase,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
@@ -61,6 +61,7 @@ const THEMES = {
   association:    { label: 'Associations',    color: 'text-teal-700',    bg: 'bg-teal-50',     border: 'border-teal-200',    icon: <Handshake className="w-4 h-4" />,   activeBg: 'bg-teal-100',   activeText: 'text-teal-700' },
   collectionneur: { label: 'Collections',     color: 'text-amber-700',   bg: 'bg-amber-50',    border: 'border-amber-200',   icon: <Trophy className="w-4 h-4" />,      activeBg: 'bg-amber-100',  activeText: 'text-amber-700' },
   perdu_trouve:   { label: 'Perdu/Trouvé',    color: 'text-red-700',     bg: 'bg-red-50',      border: 'border-red-200',     icon: <HelpCircle className="w-4 h-4" />,  activeBg: 'bg-red-100',    activeText: 'text-red-700' },
+  emploi:         { label: 'Emploi',           color: 'text-indigo-700',  bg: 'bg-indigo-50',   border: 'border-indigo-200',  icon: <Briefcase className="w-4 h-4" />,   activeBg: 'bg-indigo-100', activeText: 'text-indigo-700' },
 } as const;
 
 type ThemeKey = keyof typeof THEMES;
@@ -297,7 +298,12 @@ function RechercheContent() {
 
     try {
       const supabase = createClient();
-      const pattern = `%${q.trim()}%`;
+      // Normaliser : supprimer accents pour chercher "serveuse" même si tapé sans/avec accent
+      const qNorm = q.trim()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+      const pattern = `%${qNorm}%`;
+      const patternOrig = `%${q.trim()}%`;
       const today = new Date().toISOString().split('T')[0];
 
       const [
@@ -311,67 +317,83 @@ function RechercheContent() {
         { data: associations },
         { data: collections },
         { data: lostFound },
+        { data: jobOffers },
+        { data: jobDemands },
       ] = await Promise.all([
         supabase
           .from('artisan_profiles')
           .select('id, business_name, service_area, description, trade_category:trade_categories(name)')
-          .or(`business_name.ilike.${pattern},description.ilike.${pattern},service_area.ilike.${pattern}`)
+          .or(`business_name.ilike.${pattern},description.ilike.${pattern},service_area.ilike.${pattern},business_name.ilike.${patternOrig},description.ilike.${patternOrig}`)
           .limit(20),
         supabase
           .from('listings')
           .select('id, title, description, listing_type, price, location, status, created_at, photos:listing_photos(url)')
-          .or(`title.ilike.${pattern},description.ilike.${pattern},location.ilike.${pattern}`)
+          .or(`title.ilike.${pattern},description.ilike.${pattern},location.ilike.${pattern},title.ilike.${patternOrig},description.ilike.${patternOrig}`)
           .in('status', ['active', 'reserved'])
           .limit(20),
         supabase
           .from('equipment_items')
           .select('id, title, description, is_free, daily_rate, pickup_location, photos:equipment_photos(url)')
-          .or(`title.ilike.${pattern},description.ilike.${pattern}`)
+          .or(`title.ilike.${pattern},description.ilike.${pattern},title.ilike.${patternOrig},description.ilike.${patternOrig}`)
           .eq('is_available', true)
           .limit(20),
         supabase
           .from('help_requests')
           .select('id, title, description, location_city, help_type, urgency')
-          .or(`title.ilike.${pattern},description.ilike.${pattern},location_city.ilike.${pattern}`)
+          .or(`title.ilike.${pattern},description.ilike.${pattern},location_city.ilike.${pattern},title.ilike.${patternOrig},description.ilike.${patternOrig}`)
           .eq('status', 'active')
           .limit(20),
         supabase
           .from('group_outings')
           .select('id, title, description, meeting_point, location_city, outing_date, difficulty, photos:outing_photos(url)')
-          .or(`title.ilike.${pattern},description.ilike.${pattern},meeting_point.ilike.${pattern},location_city.ilike.${pattern}`)
+          .or(`title.ilike.${pattern},description.ilike.${pattern},meeting_point.ilike.${pattern},location_city.ilike.${pattern},title.ilike.${patternOrig}`)
           .gte('outing_date', today)
           .limit(20),
         supabase
           .from('events')
           .select('id, title, description, location, event_date, is_free, price, photos:event_photos(url)')
-          .or(`title.ilike.${pattern},description.ilike.${pattern},location.ilike.${pattern}`)
+          .or(`title.ilike.${pattern},description.ilike.${pattern},location.ilike.${pattern},title.ilike.${patternOrig},description.ilike.${patternOrig}`)
           .gte('event_date', today)
           .limit(20),
         supabase
           .from('forum_posts')
           .select('id, title, content, created_at, category:forum_categories(name), author:profiles(full_name, avatar_url)')
-          .or(`title.ilike.${pattern},content.ilike.${pattern}`)
+          .or(`title.ilike.${pattern},content.ilike.${pattern},title.ilike.${patternOrig},content.ilike.${patternOrig}`)
           .limit(20),
         supabase
           .from('associations')
           .select('id, name, description_short, location, category')
-          .or(`name.ilike.${pattern},description_short.ilike.${pattern},location.ilike.${pattern},category.ilike.${pattern}`)
+          .or(`name.ilike.${pattern},description_short.ilike.${pattern},location.ilike.${pattern},category.ilike.${pattern},name.ilike.${patternOrig}`)
           .eq('status', 'active')
           .limit(20),
         // Collectionneurs
         supabase
           .from('collection_items')
           .select('id, title, description, price, location, status, category, photos:collection_item_photos(url)')
-          .or(`title.ilike.${pattern},description.ilike.${pattern},category.ilike.${pattern},location.ilike.${pattern}`)
+          .or(`title.ilike.${pattern},description.ilike.${pattern},category.ilike.${pattern},location.ilike.${pattern},title.ilike.${patternOrig}`)
           .eq('status', 'active')
           .limit(20),
         // Perdu / Trouvé
         supabase
           .from('lost_found_items')
           .select('id, title, description, location_area, type, status, category, created_at')
-          .or(`title.ilike.${pattern},description.ilike.${pattern},location_area.ilike.${pattern},category.ilike.${pattern}`)
+          .or(`title.ilike.${pattern},description.ilike.${pattern},location_area.ilike.${pattern},category.ilike.${pattern},title.ilike.${patternOrig}`)
           .neq('status', 'draft')
           .neq('status', 'resolved')
+          .limit(20),
+        // Offres d'emploi
+        supabase
+          .from('job_offers')
+          .select('id, title, short_description, job_category, location_label, slug, status')
+          .or(`title.ilike.${pattern},short_description.ilike.${pattern},job_category.ilike.${pattern},title.ilike.${patternOrig},short_description.ilike.${patternOrig}`)
+          .in('status', ['published', 'active'])
+          .limit(20),
+        // Demandes d'emploi
+        supabase
+          .from('job_demands')
+          .select('id, title, short_description, location_label, slug, status')
+          .or(`title.ilike.${pattern},short_description.ilike.${pattern},location_label.ilike.${pattern},title.ilike.${patternOrig},short_description.ilike.${patternOrig}`)
+          .in('status', ['published', 'active'])
           .limit(20),
       ]);
 
@@ -541,6 +563,35 @@ function RechercheContent() {
         };
       });
 
+      const jobOfferResults: SearchResult[] = (jobOffers || []).map((j: Record<string, unknown>) => ({
+        id: `joboffer-${j.id}`,
+        title: j.title as string,
+        description: j.short_description as string,
+        href: `/emploi/offres/${j.slug}`,
+        theme: 'emploi',
+        themeLabel: THEMES.emploi.label,
+        themeColor: THEMES.emploi.color,
+        themeBg: THEMES.emploi.bg,
+        themeIcon: THEMES.emploi.icon,
+        location: j.location_label as string,
+        subtitle: j.job_category as string,
+        badge: '💼 Offre',
+      }));
+
+      const jobDemandResults: SearchResult[] = (jobDemands || []).map((j: Record<string, unknown>) => ({
+        id: `jobdemand-${j.id}`,
+        title: j.title as string,
+        description: j.short_description as string,
+        href: `/emploi/demandes/${j.slug}`,
+        theme: 'emploi',
+        themeLabel: THEMES.emploi.label,
+        themeColor: THEMES.emploi.color,
+        themeBg: THEMES.emploi.bg,
+        themeIcon: THEMES.emploi.icon,
+        location: j.location_label as string,
+        badge: '🙋 Demande',
+      }));
+
       const lostFoundResults: SearchResult[] = (lostFound || []).map((lf: Record<string, unknown>) => ({
         id: `lf-${lf.id}`,
         title: lf.title as string,
@@ -561,6 +612,7 @@ function RechercheContent() {
       const allBlocks: [ThemeKey, SearchResult[]][] = [
         ['artisan', artisanResults],
         ['annonce', listingResults],
+        ['emploi', [...jobOfferResults, ...jobDemandResults]],
         ['materiel', equipResults],
         ['aide', helpResults],
         ['promenade', outingResults],
