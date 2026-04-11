@@ -200,7 +200,7 @@ function MesContenusContent() {
         ...(associations || []).map((a: Record<string, unknown>) => ({
           id: a.id as string, type: 'association' as ContentTheme, title: a.name as string,
           status: a.status as string, createdAt: a.created_at as string,
-          href: `/associations#${a.id}`, image: undefined, location: a.location as string,
+          href: `/associations/${a.id}`, image: undefined, location: a.location as string,
           isClosed: ['inactive', 'draft'].includes(a.status as string),
         })),
       ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

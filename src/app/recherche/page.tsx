@@ -530,7 +530,7 @@ function RechercheContent() {
         id: `asso-${a.id}`,
         title: a.name,
         description: a.description_short,
-        href: `/associations`,
+        href: `/associations/${a.id}`,
         theme: 'association',
         themeLabel: THEMES.association.label,
         themeColor: THEMES.association.color,

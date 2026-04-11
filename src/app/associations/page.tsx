@@ -16,10 +16,14 @@ import {
   Pencil, Trash2, Share2, ChevronDown, ChevronUp, Heart, Star,
   Send, Calendar, Tag, Info, Handshake, Flag, BookOpen,
   Music, Leaf, Dumbbell, Baby, Dog, ParkingSquare, Accessibility,
-  Building2, ArrowRight, Eye,
+  Building2, ArrowRight, Eye, Bookmark, BookmarkCheck, Zap,
+  TrendingUp, Gift, Package, UserCheck, Sparkles, Filter,
+  ChevronRight, Bell,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SectorFilter, { SectorBadge } from '@/components/ui/SectorFilter';
+import { cn } from '@/lib/utils';
+import { SECTORS } from '@/lib/sectors';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type AssoCategory =
@@ -79,6 +83,12 @@ type Association = {
   registration_required: boolean;
   places_limited: boolean;
   urgent_need: boolean;
+  sector_id?: string | null;
+  is_accepting_members?: boolean;
+  is_accepting_volunteers?: boolean;
+  is_accepting_donations?: boolean;
+  is_accepting_partners?: boolean;
+  last_activity_at?: string | null;
   photos?: { url: string; display_order: number }[];
   created_at: string;
   updated_at: string;
@@ -92,30 +102,30 @@ type AssoComment = {
 };
 
 // ─── Configs ──────────────────────────────────────────────────────────────────
-const CAT_CONFIG: Record<AssoCategory, { label: string; icon: React.ElementType; color: string; bg: string }> = {
-  sport:        { label: 'Sport',         icon: Dumbbell,   color: 'text-orange-600',  bg: 'bg-orange-50 border-orange-200' },
-  culture:      { label: 'Culture',       icon: Music,      color: 'text-purple-600',  bg: 'bg-purple-50 border-purple-200' },
-  solidarite:   { label: 'Solidarité',    icon: Handshake,  color: 'text-rose-600',    bg: 'bg-rose-50 border-rose-200' },
-  jeunesse:     { label: 'Jeunesse',      icon: Baby,       color: 'text-sky-600',     bg: 'bg-sky-50 border-sky-200' },
-  environnement:{ label: 'Environnement', icon: Leaf,       color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
-  loisirs:      { label: 'Loisirs',       icon: Star,       color: 'text-amber-600',   bg: 'bg-amber-50 border-amber-200' },
-  animaux:      { label: 'Animaux',       icon: Dog,        color: 'text-lime-600',    bg: 'bg-lime-50 border-lime-200' },
-  patrimoine:   { label: 'Patrimoine',    icon: Flag,       color: 'text-stone-600',   bg: 'bg-stone-50 border-stone-200' },
-  sante:        { label: 'Santé',         icon: Heart,      color: 'text-red-600',     bg: 'bg-red-50 border-red-200' },
-  education:    { label: 'Éducation',     icon: BookOpen,   color: 'text-blue-600',    bg: 'bg-blue-50 border-blue-200' },
-  seniors:      { label: 'Seniors',       icon: Users,      color: 'text-teal-600',    bg: 'bg-teal-50 border-teal-200' },
-  autre:        { label: 'Autre',         icon: Building2,  color: 'text-gray-600',    bg: 'bg-gray-50 border-gray-200' },
+const CAT_CONFIG: Record<AssoCategory, { label: string; icon: React.ElementType; color: string; bg: string; emoji: string }> = {
+  sport:        { label: 'Sport',         icon: Dumbbell,   color: 'text-orange-600',  bg: 'bg-orange-50 border-orange-200',   emoji: '⚽' },
+  culture:      { label: 'Culture',       icon: Music,      color: 'text-purple-600',  bg: 'bg-purple-50 border-purple-200',   emoji: '🎭' },
+  solidarite:   { label: 'Solidarité',    icon: Handshake,  color: 'text-rose-600',    bg: 'bg-rose-50 border-rose-200',       emoji: '🤝' },
+  jeunesse:     { label: 'Jeunesse',      icon: Baby,       color: 'text-sky-600',     bg: 'bg-sky-50 border-sky-200',         emoji: '🧒' },
+  environnement:{ label: 'Environnement', icon: Leaf,       color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200', emoji: '🌿' },
+  loisirs:      { label: 'Loisirs',       icon: Star,       color: 'text-amber-600',   bg: 'bg-amber-50 border-amber-200',     emoji: '🎯' },
+  animaux:      { label: 'Animaux',       icon: Dog,        color: 'text-lime-600',    bg: 'bg-lime-50 border-lime-200',       emoji: '🐾' },
+  patrimoine:   { label: 'Patrimoine',    icon: Flag,       color: 'text-stone-600',   bg: 'bg-stone-50 border-stone-200',     emoji: '🏛️' },
+  sante:        { label: 'Santé',         icon: Heart,      color: 'text-red-600',     bg: 'bg-red-50 border-red-200',         emoji: '❤️' },
+  education:    { label: 'Éducation',     icon: BookOpen,   color: 'text-blue-600',    bg: 'bg-blue-50 border-blue-200',       emoji: '📚' },
+  seniors:      { label: 'Seniors',       icon: Users,      color: 'text-teal-600',    bg: 'bg-teal-50 border-teal-200',       emoji: '🧓' },
+  autre:        { label: 'Autre',         icon: Building2,  color: 'text-gray-600',    bg: 'bg-gray-50 border-gray-200',       emoji: '🏢' },
 };
 
-const PUB_TYPE_CONFIG: Record<PubType, { label: string; emoji: string; color: string }> = {
-  vitrine:     { label: 'Présentation',       emoji: '🏛️', color: 'bg-blue-100 text-blue-700' },
-  benevoles:   { label: 'Cherche bénévoles',  emoji: '🙋', color: 'bg-rose-100 text-rose-700' },
-  activite:    { label: 'Activité',           emoji: '🎯', color: 'bg-amber-100 text-amber-700' },
-  adherents:   { label: 'Cherche adhérents',  emoji: '👥', color: 'bg-purple-100 text-purple-700' },
-  materiel:    { label: 'Cherche matériel',   emoji: '📦', color: 'bg-teal-100 text-teal-700' },
-  evenement:   { label: 'Événement',          emoji: '🎉', color: 'bg-pink-100 text-pink-700' },
-  dons:        { label: 'Appel aux dons',     emoji: '💝', color: 'bg-red-100 text-red-700' },
-  partenaires: { label: 'Cherche partenaires',emoji: '🤝', color: 'bg-emerald-100 text-emerald-700' },
+const PUB_TYPE_CONFIG: Record<PubType, { label: string; emoji: string; color: string; icon: React.ElementType }> = {
+  vitrine:     { label: 'Présentation',       emoji: '🏛️', color: 'bg-blue-100 text-blue-700',       icon: Building2 },
+  benevoles:   { label: 'Cherche bénévoles',  emoji: '🙋', color: 'bg-rose-100 text-rose-700',        icon: UserCheck },
+  activite:    { label: 'Activité',           emoji: '🎯', color: 'bg-amber-100 text-amber-700',      icon: Zap },
+  adherents:   { label: 'Cherche adhérents',  emoji: '👥', color: 'bg-purple-100 text-purple-700',    icon: Users },
+  materiel:    { label: 'Cherche matériel',   emoji: '📦', color: 'bg-teal-100 text-teal-700',        icon: Package },
+  evenement:   { label: 'Événement',          emoji: '🎉', color: 'bg-pink-100 text-pink-700',        icon: Calendar },
+  dons:        { label: 'Appel aux dons',     emoji: '💝', color: 'bg-red-100 text-red-700',          icon: Gift },
+  partenaires: { label: 'Cherche partenaires',emoji: '🤝', color: 'bg-emerald-100 text-emerald-700',  icon: Handshake },
 };
 
 const NEEDS_OPTIONS = [
@@ -136,15 +146,44 @@ const TAG_OPTIONS = [
   'quartier', 'patrimoine', 'seniors', 'culture', 'solidarité', 'loisirs',
 ];
 
+// ─── Composant NeedPicto ──────────────────────────────────────────────────────
+function NeedPicto({ needs, isAcceptingMembers, isAcceptingVolunteers, isAcceptingDonations, isAcceptingPartners, urgent }:
+  { needs: string[]; isAcceptingMembers?: boolean; isAcceptingVolunteers?: boolean; isAcceptingDonations?: boolean; isAcceptingPartners?: boolean; urgent?: boolean }) {
+  const pictos = [];
+  if (isAcceptingMembers || needs.includes('Nouveaux adhérents'))
+    pictos.push({ icon: '👥', label: 'Adhérents', color: 'bg-purple-50 text-purple-700 border-purple-200' });
+  if (isAcceptingVolunteers || needs.includes('Bénévoles'))
+    pictos.push({ icon: '🙋', label: 'Bénévoles', color: 'bg-rose-50 text-rose-700 border-rose-200' });
+  if (needs.includes('Matériel'))
+    pictos.push({ icon: '📦', label: 'Matériel', color: 'bg-teal-50 text-teal-700 border-teal-200' });
+  if (isAcceptingPartners || needs.includes('Sponsors'))
+    pictos.push({ icon: '🤝', label: 'Partenaires', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' });
+  if (isAcceptingDonations || needs.includes('Dons'))
+    pictos.push({ icon: '💝', label: 'Dons', color: 'bg-red-50 text-red-700 border-red-200' });
+  if (!pictos.length) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {urgent && <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-red-500 text-white animate-pulse">🚨 Urgent</span>}
+      {pictos.map(p => (
+        <span key={p.label} className={cn('inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border', p.color)}>
+          {p.icon} {p.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // ─── AssociationCard ──────────────────────────────────────────────────────────
 function AssociationCard({
-  asso, userId, isAuthor, onEdit, onDelete,
+  asso, userId, isAuthor, onEdit, onDelete, saved, onToggleSave,
 }: {
   asso: Association;
   userId?: string;
   isAuthor: boolean;
   onEdit: (a: Association) => void;
   onDelete: (id: string) => void;
+  saved: boolean;
+  onToggleSave: (id: string) => void;
 }) {
   const supabaseRef = useRef(createClient());
   const supabase = supabaseRef.current;
@@ -155,7 +194,6 @@ function AssociationCard({
   const [chatText, setChatText] = useState('');
   const [sending, setSending] = useState(false);
   const [chatCount, setChatCount] = useState(0);
-  const [liked, setLiked] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const shareRef = useRef<HTMLDivElement>(null);
 
@@ -166,6 +204,11 @@ function AssociationCard({
   const allPhotos = toPhotoItems(asso.photos ?? []);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(0);
+
+  // Indicateur activité récente
+  const lastAct = asso.last_activity_at ?? asso.updated_at;
+  const daysSince = Math.floor((Date.now() - new Date(lastAct).getTime()) / 86400000);
+  const actLabel = daysSince <= 7 ? '🟢 Active récemment' : daysSince <= 30 ? '🟡 Active ce mois' : '🔵 À suivre';
 
   useEffect(() => {
     supabase.from('asso_comments').select('id', { count: 'exact', head: true })
@@ -203,13 +246,13 @@ function AssociationCard({
     setSending(false);
   };
 
-  const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/associations#${asso.id}`;
+  const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/associations/${asso.id}`;
   const shareText = encodeURIComponent(`${asso.name} — ${asso.description_short}\n${shareUrl}`);
 
   return (
     <div id={asso.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden group">
 
-      {/* Cover photo ou header coloré — hauteur fixe 44 */}
+      {/* Cover photo ou header coloré */}
       <div className="relative h-44 overflow-hidden">
         {coverPhoto ? (
           <div className="w-full h-full cursor-pointer" onClick={() => { setLightboxIdx(0); setLightboxOpen(true); }}>
@@ -217,34 +260,39 @@ function AssociationCard({
             <img src={coverPhoto} alt={asso.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
             {allPhotos.length > 1 && (
               <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs font-bold px-2 py-0.5 rounded-full backdrop-blur-sm z-10">
-                +{allPhotos.length - 1} photo{allPhotos.length > 2 ? 's' : ''}
+                📷 +{allPhotos.length - 1}
               </div>
             )}
           </div>
         ) : (
-          <div className={`w-full h-full ${cat.bg} flex items-center justify-center`}>
-            <CatIcon className={`w-16 h-16 opacity-15 ${cat.color}`} />
+          <div className={cn('w-full h-full flex items-center justify-center', cat.bg)}>
+            <CatIcon className={cn('w-16 h-16 opacity-15', cat.color)} />
           </div>
         )}
-        {/* Overlay gradient bas */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-        {/* Badges flottants haut gauche */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
+
+        {/* Badges haut gauche */}
         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-          <span className={`text-xs font-black px-2.5 py-1 rounded-full shadow ${pubConf.color}`}>{pubConf.emoji} {pubConf.label}</span>
+          <span className={cn('text-xs font-black px-2.5 py-1 rounded-full shadow', pubConf.color)}>{pubConf.emoji} {pubConf.label}</span>
           {asso.urgent_need && <span className="text-xs font-black px-2.5 py-1 rounded-full bg-red-500 text-white shadow animate-pulse">🚨 Urgent</span>}
-          <StatusBadge
-            status={asso.status || 'active'}
-            contentType="association"
-            size="xs" showIcon showDot={asso.status === 'active'} className="shadow"
-          />
+          <StatusBadge status={asso.status || 'active'} contentType="association" size="xs" showIcon showDot={asso.status === 'active'} className="shadow" />
         </div>
-        {/* Boutons auteur haut droite */}
-        {isAuthor && (
-          <div className="absolute top-3 right-3 flex gap-1">
-            <button type="button" onClick={() => onEdit(asso)} className="p-1.5 bg-white/80 text-gray-600 hover:text-blue-600 rounded-lg transition-all backdrop-blur-sm shadow"><Pencil className="w-3.5 h-3.5" /></button>
-            <button type="button" onClick={() => onDelete(asso.id)} className="p-1.5 bg-white/80 text-gray-600 hover:text-red-600 rounded-lg transition-all backdrop-blur-sm shadow"><Trash2 className="w-3.5 h-3.5" /></button>
-          </div>
-        )}
+
+        {/* Bouton favori + auteur haut droite */}
+        <div className="absolute top-3 right-3 flex gap-1">
+          <button type="button" onClick={() => onToggleSave(asso.id)}
+            className={cn('p-1.5 rounded-lg backdrop-blur-sm shadow transition-all',
+              saved ? 'bg-yellow-400/90 text-white' : 'bg-white/80 text-gray-500 hover:text-yellow-500')}>
+            {saved ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+          </button>
+          {isAuthor && (
+            <>
+              <button type="button" onClick={() => onEdit(asso)} className="p-1.5 bg-white/80 text-gray-600 hover:text-blue-600 rounded-lg transition-all backdrop-blur-sm shadow"><Pencil className="w-3.5 h-3.5" /></button>
+              <button type="button" onClick={() => onDelete(asso.id)} className="p-1.5 bg-white/80 text-gray-600 hover:text-red-600 rounded-lg transition-all backdrop-blur-sm shadow"><Trash2 className="w-3.5 h-3.5" /></button>
+            </>
+          )}
+        </div>
+
         {/* Nom + slogan en bas */}
         <div className="absolute bottom-3 left-3 right-3">
           <p className="text-white font-black text-base leading-tight drop-shadow">{asso.name}</p>
@@ -253,38 +301,44 @@ function AssociationCard({
       </div>
 
       <div className="p-5">
-        {/* Badges catégorie + infos rapides */}
+        {/* Badges catégorie + secteur + activité */}
         <div className="flex flex-wrap gap-1.5 mb-3">
-          <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border ${cat.bg} ${cat.color}`}>
+          <span className={cn('inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border', cat.bg, cat.color)}>
             <CatIcon className="w-3 h-3" />{cat.label}
           </span>
           <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
             <MapPin className="w-3 h-3 text-gray-400" />{asso.location}
           </span>
-          {(asso as Association & { sector_id?: string }).sector_id && (
-            <SectorBadge sectorId={(asso as Association & { sector_id?: string }).sector_id} size="xs" />
-          )}
+          {asso.sector_id && <SectorBadge sectorId={asso.sector_id} size="xs" />}
           {asso.declared && (
             <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
               <CheckCircle2 className="w-3 h-3" />Déclarée
             </span>
           )}
-          {asso.places_limited && asso.capacity && (
-            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700">
-              👥 {asso.capacity} places
-            </span>
-          )}
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-50 text-gray-500">{actLabel}</span>
         </div>
 
         {/* Description courte */}
         <p className="text-sm text-gray-600 leading-relaxed mb-3">{asso.description_short}</p>
 
-        {/* Badges besoins */}
-        {asso.needs.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            {asso.needs.map(n => (
-              <span key={n} className="text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200">
-                🔎 {n}
+        {/* Pictos besoins actifs — CDC §6.2 */}
+        <div className="mb-3">
+          <NeedPicto
+            needs={asso.needs}
+            isAcceptingMembers={asso.is_accepting_members}
+            isAcceptingVolunteers={asso.is_accepting_volunteers}
+            isAcceptingDonations={asso.is_accepting_donations}
+            isAcceptingPartners={asso.is_accepting_partners}
+            urgent={asso.urgent_need}
+          />
+        </div>
+
+        {/* Publics concernés */}
+        {asso.public_target.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-3">
+            {asso.public_target.map(p => (
+              <span key={p} className="text-xs font-semibold px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-100">
+                {p === 'Enfants' ? '🧒' : p === 'Seniors' ? '🧓' : p === 'Familles' ? '👨‍👩‍👧' : p === 'Ados' ? '🧑' : '👤'} {p}
               </span>
             ))}
           </div>
@@ -309,11 +363,8 @@ function AssociationCard({
               💶 {asso.price_type === 'gratuit' ? 'Gratuit' : asso.price_type === 'cotisation' ? `Cotisation${asso.price_detail ? ` · ${asso.price_detail}` : ''}` : asso.price_detail || 'Voir conditions'}
             </span>
           )}
-          {asso.public_target.length > 0 && (
-            <span className="flex items-center gap-1"><Users className="w-3 h-3 text-purple-400" />{asso.public_target.join(', ')}</span>
-          )}
           {asso.contact_email && (
-            <span className="flex items-center gap-1"><Mail className="w-3 h-3 text-gray-400" />{asso.contact_email}</span>
+            <span className="flex items-center gap-1 col-span-2 truncate"><Mail className="w-3 h-3 text-gray-400 flex-shrink-0" />{asso.contact_email}</span>
           )}
         </div>
 
@@ -323,14 +374,12 @@ function AssociationCard({
           {asso.families_welcome && <span className="text-xs px-2 py-0.5 rounded-full bg-sky-50 text-sky-600 border border-sky-200"><Baby className="w-3 h-3 inline mr-1" />Familles</span>}
           {asso.animals_ok && <span className="text-xs px-2 py-0.5 rounded-full bg-lime-50 text-lime-600 border border-lime-200"><Dog className="w-3 h-3 inline mr-1" />Animaux</span>}
           {asso.parking_nearby && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-50 text-gray-600 border border-gray-200"><ParkingSquare className="w-3 h-3 inline mr-1" />Parking</span>}
-          {asso.material_provided && <span className="text-xs px-2 py-0.5 rounded-full bg-teal-50 text-teal-600 border border-teal-200">✓ Matériel fourni</span>}
-          {asso.registration_required && <span className="text-xs px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 border border-orange-200">📝 Inscription requise</span>}
         </div>
 
-        {/* Expandable */}
+        {/* Bouton détails */}
         <button type="button" onClick={() => setExpanded(!expanded)}
-          className="text-xs text-blue-500 hover:text-blue-700 font-semibold flex items-center gap-1 mb-3">
-          {expanded ? <><ChevronUp className="w-3.5 h-3.5" />Moins de détails</> : <><ChevronDown className="w-3.5 h-3.5" />Voir la présentation complète</>}
+          className="text-xs text-violet-600 hover:text-violet-800 font-semibold flex items-center gap-1 mb-3 transition-colors">
+          {expanded ? <><ChevronUp className="w-3.5 h-3.5" />Réduire</> : <><ChevronDown className="w-3.5 h-3.5" />Voir la présentation complète</>}
         </button>
 
         {expanded && (
@@ -374,86 +423,141 @@ function AssociationCard({
                 {asso.contact_instagram && <a href={asso.contact_instagram} target="_blank" rel="noopener noreferrer" className="text-xs text-pink-600 hover:underline font-semibold">Instagram →</a>}
               </div>
             </div>
-            {asso.rna_number && (
-              <p className="text-xs text-gray-400">N° RNA : {asso.rna_number}</p>
-            )}
+            {asso.rna_number && <p className="text-xs text-gray-400">N° RNA : {asso.rna_number}</p>}
+
+            {/* Événements liés — lien vers agenda filtré */}
+            <Link href={`/evenements?q=${encodeURIComponent(asso.name)}`}
+              className="flex items-center gap-2 bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 hover:bg-purple-100 transition-colors group/ev">
+              <Calendar className="w-4 h-4 text-purple-500 flex-shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-purple-700">Voir les événements de cette association</p>
+                <p className="text-xs text-purple-500">Agenda · Biguglia Connect</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-purple-400 ml-auto group-hover/ev:translate-x-0.5 transition-transform" />
+            </Link>
+
+            {/* Lien forum */}
+            <Link href={`/forum?q=${encodeURIComponent(asso.name)}`}
+              className="flex items-center gap-2 bg-violet-50 border border-violet-100 rounded-xl px-4 py-3 hover:bg-violet-100 transition-colors group/fr">
+              <MessageSquare className="w-4 h-4 text-violet-500 flex-shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-violet-700">Discussions liées sur le forum</p>
+                <p className="text-xs text-violet-500">Forum · Biguglia Connect</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-violet-400 ml-auto group-hover/fr:translate-x-0.5 transition-transform" />
+            </Link>
           </div>
         )}
 
-        {/* Galerie photos supplémentaires — miniatures cliquables */}
+        {/* Galerie photos miniatures */}
         {allPhotos.length > 1 && (
           <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1">
             {allPhotos.slice(1).map((p, i) => (
               <button key={i} onClick={() => { setLightboxIdx(i + 1); setLightboxOpen(true); }}
                 className="flex-shrink-0 focus:outline-none">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.url} alt="" className="w-16 h-16 object-cover rounded-lg border border-gray-100 hover:border-brand-300 transition-colors" />
+                <img src={p.url} alt="" className="w-16 h-16 object-cover rounded-lg border border-gray-100 hover:border-violet-300 transition-colors" />
               </button>
             ))}
           </div>
         )}
 
-        {/* Actions */}
-        <div className="flex gap-2 flex-wrap">
-          {/* CTA principal via ContactButton */}
-          {isAuthor ? (
-            <span className="text-xs text-gray-400 italic">✉️ Les membres vous contacteront ici</span>
-          ) : (
-            <ContactButton
-              sourceType="association"
-              sourceId={asso.id}
-              sourceTitle={asso.name}
-              ownerId={asso.author_id}
-              userId={userId}
-              size="sm"
-              ctaLabel={
-                asso.pub_type === 'benevoles' ? 'Devenir bénévole' :
-                asso.pub_type === 'evenement' ? 'Participer' :
-                asso.pub_type === 'dons' ? 'Faire un don' :
-                asso.pub_type === 'adherents' ? 'Adhérer' :
-                undefined
-              }
-            />
-          )}
-          {/* Discussion */}
-          <button type="button" onClick={handleOpenChat}
-            className={`inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm transition-all border ${
-              openChat ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
-            }`}>
-            <MessageSquare className="w-4 h-4" />Forum
-            {chatCount > 0 && <span className="bg-violet-100 text-violet-700 text-xs font-black px-1.5 py-0.5 rounded-full">{chatCount}</span>}
-          </button>
-          {/* Partager */}
-          <div ref={shareRef} className="relative">
-            <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenShare(v => !v); }}
-              className={`inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm border transition-all ${
-                openShare ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
-              }`}>
-              <Share2 className="w-4 h-4" />
-            </button>
-            {openShare && (
-              <div className="absolute bottom-full left-0 mb-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden min-w-[150px]">
-                <button type="button" onClick={() => { window.open(`sms:?body=${shareText}`, '_self'); setOpenShare(false); }}
-                  className="flex items-center gap-2.5 w-full px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">
-                  💬 Par SMS
-                </button>
-                <div className="border-t border-gray-100" />
-                <button type="button" onClick={() => { window.open(`mailto:?subject=${encodeURIComponent(asso.name)}&body=${shareText}`, '_self'); setOpenShare(false); }}
-                  className="flex items-center gap-2.5 w-full px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">
-                  📧 Par Email
-                </button>
-              </div>
+        {/* ── ACTIONS PRINCIPALES CDC §5.2 & §9 ── */}
+        <div className="space-y-2">
+          {/* Ligne 1 : CTA principal + Action secondaire */}
+          <div className="flex gap-2 flex-wrap">
+            {!isAuthor && (
+              <ContactButton
+                sourceType="association"
+                sourceId={asso.id}
+                sourceTitle={asso.name}
+                ownerId={asso.author_id}
+                userId={userId}
+                size="sm"
+                ctaLabel={
+                  asso.pub_type === 'benevoles' ? '🙋 Devenir bénévole' :
+                  asso.pub_type === 'dons' ? '💝 Faire un don' :
+                  asso.pub_type === 'adherents' ? '👥 Adhérer' :
+                  asso.pub_type === 'partenaires' ? '🤝 Devenir partenaire' :
+                  asso.pub_type === 'materiel' ? '📦 Proposer du matériel' :
+                  '✉️ Contacter'
+                }
+              />
+            )}
+            {/* Rejoindre si accepte membres */}
+            {!isAuthor && (asso.is_accepting_members || asso.needs.includes('Nouveaux adhérents')) && (
+              <ContactButton
+                sourceType="association"
+                sourceId={asso.id}
+                sourceTitle={asso.name}
+                ownerId={asso.author_id}
+                userId={userId}
+                size="sm"
+                ctaLabel="👥 Rejoindre"
+              />
+            )}
+            {/* Bénévole si accepte volontaires */}
+            {!isAuthor && (asso.is_accepting_volunteers || asso.needs.includes('Bénévoles')) && asso.pub_type !== 'benevoles' && (
+              <ContactButton
+                sourceType="association"
+                sourceId={asso.id}
+                sourceTitle={asso.name}
+                ownerId={asso.author_id}
+                userId={userId}
+                size="sm"
+                ctaLabel="🙋 Je veux aider"
+              />
             )}
           </div>
-          {/* Like */}
-          <button type="button" onClick={() => setLiked(v => !v)}
-            className={`inline-flex items-center gap-1.5 font-bold px-3 py-2 rounded-xl text-sm border transition-all ${liked ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'}`}>
-            <Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />
-          </button>
-          {/* Signaler */}
-          {!isAuthor && (
-            <ReportButton targetType="association" targetId={asso.id} targetTitle={asso.name} variant="icon" />
-          )}
+
+          {/* Ligne 2 : Discussion + Partager + Signaler */}
+          <div className="flex gap-2 flex-wrap">
+            {/* Discussion */}
+            <button type="button" onClick={handleOpenChat}
+              className={cn('inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm transition-all border',
+                openChat ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100')}>
+              <MessageSquare className="w-4 h-4" />Forum
+              {chatCount > 0 && <span className="bg-violet-100 text-violet-700 text-xs font-black px-1.5 py-0.5 rounded-full">{chatCount}</span>}
+            </button>
+
+            {/* Voir les événements (raccourci) */}
+            <Link href={`/evenements?q=${encodeURIComponent(asso.name)}`}
+              className="inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm transition-all border bg-gray-50 text-gray-500 border-gray-200 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200">
+              <Calendar className="w-4 h-4" />Événements
+            </Link>
+
+            {/* Partager */}
+            <div ref={shareRef} className="relative">
+              <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenShare(v => !v); }}
+                className={cn('inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm border transition-all',
+                  openShare ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100')}>
+                <Share2 className="w-4 h-4" />
+              </button>
+              {openShare && (
+                <div className="absolute bottom-full left-0 mb-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden min-w-[150px]">
+                  <button type="button" onClick={() => { window.open(`sms:?body=${shareText}`, '_self'); setOpenShare(false); }}
+                    className="flex items-center gap-2.5 w-full px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+                    💬 Par SMS
+                  </button>
+                  <div className="border-t border-gray-100" />
+                  <button type="button" onClick={() => { window.open(`mailto:?subject=${encodeURIComponent(asso.name)}&body=${shareText}`, '_self'); setOpenShare(false); }}
+                    className="flex items-center gap-2.5 w-full px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+                    📧 Par Email
+                  </button>
+                  <div className="border-t border-gray-100" />
+                  <button type="button" onClick={() => { if (navigator.clipboard) { navigator.clipboard.writeText(shareUrl); toast.success('Lien copié !'); } setOpenShare(false); }}
+                    className="flex items-center gap-2.5 w-full px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+                    🔗 Copier le lien
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Signaler */}
+            {!isAuthor && (
+              <ReportButton targetType="association" targetId={asso.id} targetTitle={asso.name} variant="icon" />
+            )}
+          </div>
         </div>
 
         {/* Mini-forum */}
@@ -502,29 +606,24 @@ function AssociationCard({
         )}
 
         {/* Footer */}
-        <p className="text-xs text-gray-400 mt-3 border-t border-gray-50 pt-2">
-          Publié par {asso.author?.full_name ?? 'Membre'} · {formatRelative(asso.created_at)}
-        </p>
-        {/* Notation association — compact par défaut, complet si étendu */}
+        <div className="mt-3 pt-2 border-t border-gray-50 flex items-center justify-between gap-2">
+          <p className="text-xs text-gray-400">
+            {asso.author?.full_name ?? 'Membre'} · {formatRelative(asso.created_at)}
+          </p>
+          <Link href={`/associations/${asso.id}`}
+            className="inline-flex items-center gap-1 text-xs font-bold text-violet-600 hover:text-violet-700 hover:underline transition-colors flex-shrink-0">
+            Fiche complète <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
         <div className="mt-3 pt-3 border-t border-gray-50">
-          {expanded ? (
-            <RatingWidget
-              targetType="association"
-              targetId={asso.id}
-              authorId={asso.author_id}
-              userId={userId}
-              compact={false}
-              showPoll
-            />
-          ) : (
-            <RatingWidget
-              targetType="association"
-              targetId={asso.id}
-              authorId={asso.author_id}
-              userId={userId}
-              compact
-            />
-          )}
+          <RatingWidget
+            targetType="association"
+            targetId={asso.id}
+            authorId={asso.author_id}
+            userId={userId}
+            compact={!expanded}
+            showPoll={expanded}
+          />
         </div>
       </div>
 
@@ -580,6 +679,10 @@ const EMPTY_FORM = {
   places_limited: false,
   urgent_need: false,
   sector_id: '',
+  is_accepting_members: false,
+  is_accepting_volunteers: false,
+  is_accepting_donations: false,
+  is_accepting_partners: false,
 };
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -593,6 +696,8 @@ export default function AssociationsPage() {
   const [filterCat, setFilterCat] = useState<AssoCategory | 'all'>('all');
   const [filterType, setFilterType] = useState<PubType | 'all'>('all');
   const [filterSector, setFilterSector] = useState<string | null>(null);
+  const [filterNeed, setFilterNeed] = useState<string>('');
+  const [filterPublic, setFilterPublic] = useState<string>('');
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingAsso, setEditingAsso] = useState<Association | null>(null);
@@ -603,21 +708,43 @@ export default function AssociationsPage() {
   const [dbReady, setDbReady] = useState(true);
   const [step, setStep] = useState(1);
   const photoRef = useRef<HTMLInputElement>(null);
+  const [showAdvFilters, setShowAdvFilters] = useState(false);
+  // Favoris localStorage
+  const [savedAssos, setSavedAssos] = useState<Set<string>>(new Set());
+  const [showSavedOnly, setShowSavedOnly] = useState(false);
+
+  // Charger favoris au montage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('biguglia_saved_assos');
+      if (raw) setSavedAssos(new Set(JSON.parse(raw)));
+    } catch { /* ignore */ }
+  }, []);
+
+  const toggleSaved = (id: string) => {
+    setSavedAssos(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); toast('Association retirée des favoris'); }
+      else { next.add(id); toast.success('⭐ Ajoutée aux favoris !'); }
+      try { localStorage.setItem('biguglia_saved_assos', JSON.stringify(Array.from(next))); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchAssos = useCallback(async () => {
     setLoading(true);
     let query = supabase
       .from('associations')
-      .select(`*, author:profiles!associations_author_id_fkey(full_name, avatar_url), photos:asso_photos(url, display_order)`)
+      .select('*, author:profiles!associations_author_id_fkey(full_name, avatar_url), photos:asso_photos(url, display_order)')
       .eq('status', 'active')
       .order('created_at', { ascending: false })
-      .limit(50);
+      .limit(60);
 
     if (filterCat !== 'all') query = query.eq('category', filterCat);
     if (filterType !== 'all') query = query.eq('pub_type', filterType);
     if (filterSector) {
-      try { query = query.eq('sector_id', filterSector); } catch { /* colonne optionnelle */ }
+      try { query = query.eq('sector_id', filterSector); } catch { /* optionnel */ }
     }
 
     const { data, error } = await query;
@@ -628,22 +755,45 @@ export default function AssociationsPage() {
     }
     setDbReady(true);
 
-    const enriched = (data || []).map((a: Association & { photos?: { url: string; display_order: number }[] }) => ({
+    let enriched = (data || []).map((a: Association & { photos?: { url: string; display_order: number }[] }) => ({
       ...a,
       photos: (a.photos || []).sort((x, y) => (x.display_order ?? 0) - (y.display_order ?? 0)),
     }));
 
-    const filtered = search.trim()
-      ? enriched.filter(a =>
-          a.name.toLowerCase().includes(search.toLowerCase()) ||
-          a.description_short.toLowerCase().includes(search.toLowerCase()) ||
-          a.tags.some((t: string) => t.toLowerCase().includes(search.toLowerCase()))
-        )
-      : enriched;
+    // Recherche plein texte enrichie (CDC §7.1 — nom, desc, activités, publics, besoins, tags, secteur)
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      enriched = enriched.filter(a =>
+        a.name.toLowerCase().includes(q) ||
+        a.description_short.toLowerCase().includes(q) ||
+        (a.description_full ?? '').toLowerCase().includes(q) ||
+        a.tags.some((t: string) => t.toLowerCase().includes(q)) ||
+        a.needs.some((n: string) => n.toLowerCase().includes(q)) ||
+        a.activities.some((ac: string) => ac.toLowerCase().includes(q)) ||
+        a.public_target.some((p: string) => p.toLowerCase().includes(q)) ||
+        (a.contact_name ?? '').toLowerCase().includes(q)
+      );
+    }
 
-    setAssos(filtered as Association[]);
+    // Filtre besoin actif
+    if (filterNeed) {
+      enriched = enriched.filter(a =>
+        a.needs.some((n: string) => n.toLowerCase().includes(filterNeed.toLowerCase())) ||
+        (filterNeed === 'benevoles' && (a.is_accepting_volunteers || a.pub_type === 'benevoles')) ||
+        (filterNeed === 'dons' && (a.is_accepting_donations || a.pub_type === 'dons')) ||
+        (filterNeed === 'adherents' && (a.is_accepting_members || a.pub_type === 'adherents')) ||
+        (filterNeed === 'partenaires' && (a.is_accepting_partners || a.pub_type === 'partenaires'))
+      );
+    }
+
+    // Filtre public
+    if (filterPublic) {
+      enriched = enriched.filter(a => a.public_target.some((p: string) => p === filterPublic));
+    }
+
+    setAssos(enriched as Association[]);
     setLoading(false);
-  }, [filterCat, filterType, filterSector, search]);
+  }, [filterCat, filterType, filterSector, search, filterNeed, filterPublic]);
 
   useEffect(() => { fetchAssos(); }, [fetchAssos]);
 
@@ -703,7 +853,11 @@ export default function AssociationsPage() {
       animals_ok: a.animals_ok, indoor: a.indoor, parking_nearby: a.parking_nearby,
       material_provided: a.material_provided, registration_required: a.registration_required,
       places_limited: a.places_limited, urgent_need: a.urgent_need,
-      sector_id: (a as Association & { sector_id?: string }).sector_id ?? '',
+      sector_id: a.sector_id ?? '',
+      is_accepting_members: a.is_accepting_members ?? false,
+      is_accepting_volunteers: a.is_accepting_volunteers ?? false,
+      is_accepting_donations: a.is_accepting_donations ?? false,
+      is_accepting_partners: a.is_accepting_partners ?? false,
     });
     setPhotos([]); setPreviews([]);
     setShowForm(true); setStep(1);
@@ -762,6 +916,10 @@ export default function AssociationsPage() {
       places_limited: form.places_limited,
       urgent_need: form.urgent_need,
       sector_id: form.sector_id || null,
+      is_accepting_members: form.is_accepting_members,
+      is_accepting_volunteers: form.is_accepting_volunteers,
+      is_accepting_donations: form.is_accepting_donations,
+      is_accepting_partners: form.is_accepting_partners,
     };
 
     let assoId: string | null = null;
@@ -783,11 +941,7 @@ export default function AssociationsPage() {
         const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
         const path = `associations/${assoId}/${Date.now()}_${i}.${ext}`;
         const { data: up, error: upErr } = await supabase.storage.from('photos').upload(path, file, { upsert: true, contentType: file.type });
-        if (upErr) {
-          console.error('[storage] asso photo upload error:', upErr.message);
-          toast.error(`Photo ${i+1} non sauvegardée : ${upErr.message}`);
-          continue;
-        }
+        if (upErr) { console.error('[storage] asso photo upload error:', upErr.message); toast.error(`Photo ${i+1} non sauvegardée`); continue; }
         if (up?.path) {
           const { data: u } = supabase.storage.from('photos').getPublicUrl(up.path);
           const { error: dbErr } = await supabase.from('asso_photos').insert({ asso_id: assoId, url: u.publicUrl, display_order: i });
@@ -808,8 +962,26 @@ export default function AssociationsPage() {
     fetchAssos();
   };
 
+  // ── Filtres appliqués ─────────────────────────────────────────────────────
+  const displayedAssos = showSavedOnly ? assos.filter(a => savedAssos.has(a.id)) : assos;
+
+  // KPIs pour le hero
+  const urgentCount = assos.filter(a => a.urgent_need).length;
+  const needsCount = assos.filter(a => a.needs.length > 0).length;
+  const sectorCounts = SECTORS.map(s => ({
+    ...s,
+    count: assos.filter(a => a.sector_id === s.id || a.sector_id === s.slug).length,
+  }));
+
+  const activeFiltersCount = [filterCat !== 'all', filterType !== 'all', !!filterSector, !!filterNeed, !!filterPublic, !!search.trim(), showSavedOnly].filter(Boolean).length;
+
+  // ── KPIs ──────────────────────────────────────────────────────────────────
+  const totalActive = assos.length;
+  const volunteerCount = assos.filter(a => a.needs.includes('Bénévoles') || a.is_accepting_volunteers).length;
+  const eventsAssosCount = assos.filter(a => a.pub_type === 'evenement').length;
+
   // ── Form render ───────────────────────────────────────────────────────────
-  const STEPS = ['Type', 'Identité', 'Activités', 'Besoins', 'Photos', 'Contact & Options'];
+  const STEPS = ['Type', 'Identité', 'Activités', 'Besoins & CDC', 'Photos', 'Contact & Options'];
   const catConf = CAT_CONFIG[form.category];
 
   const renderForm = () => (
@@ -826,10 +998,9 @@ export default function AssociationsPage() {
       <div className="flex gap-1.5 mb-6 overflow-x-auto pb-1">
         {STEPS.map((s, i) => (
           <button key={i} type="button" onClick={() => setStep(i + 1)}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+            className={cn('flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all',
               step === i + 1 ? 'bg-violet-500 text-white' :
-              step > i + 1 ? 'bg-violet-100 text-violet-600' : 'bg-gray-100 text-gray-400'
-            }`}>
+              step > i + 1 ? 'bg-violet-100 text-violet-600' : 'bg-gray-100 text-gray-400')}>
             {step > i + 1 ? '✓ ' : `${i + 1}. `}{s}
           </button>
         ))}
@@ -840,15 +1011,18 @@ export default function AssociationsPage() {
         <div className="space-y-4">
           <p className="text-sm font-bold text-gray-700">Quel est l&apos;objet de cette fiche ?</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {(Object.entries(PUB_TYPE_CONFIG) as [PubType, typeof PUB_TYPE_CONFIG[PubType]][]).map(([key, conf]) => (
-              <button key={key} type="button" onClick={() => setForm(f => ({ ...f, pub_type: key }))}
-                className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 text-xs font-bold transition-all text-center ${
-                  form.pub_type === key ? 'border-violet-400 bg-violet-50 text-violet-700' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
-                }`}>
-                <span className="text-2xl">{conf.emoji}</span>
-                <span>{conf.label}</span>
-              </button>
-            ))}
+            {(Object.entries(PUB_TYPE_CONFIG) as [PubType, typeof PUB_TYPE_CONFIG[PubType]][]).map(([key, conf]) => {
+              const PubIcon = conf.icon;
+              return (
+                <button key={key} type="button" onClick={() => setForm(f => ({ ...f, pub_type: key }))}
+                  className={cn('flex flex-col items-center gap-2 p-3 rounded-xl border-2 text-xs font-bold transition-all text-center',
+                    form.pub_type === key ? 'border-violet-400 bg-violet-50 text-violet-700' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300')}>
+                  <span className="text-2xl">{conf.emoji}</span>
+                  <PubIcon className="w-4 h-4 opacity-60" />
+                  <span>{conf.label}</span>
+                </button>
+              );
+            })}
           </div>
           <div className="flex justify-end">
             <button type="button" onClick={() => setStep(2)} className="px-6 py-2.5 rounded-xl font-bold text-white text-sm bg-violet-500 hover:bg-violet-600">Suivant →</button>
@@ -876,10 +1050,10 @@ export default function AssociationsPage() {
                 const Icon = conf.icon;
                 return (
                   <button key={key} type="button" onClick={() => setForm(f => ({ ...f, category: key }))}
-                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-xs font-semibold transition-all ${
-                      form.category === key ? `border-violet-400 bg-violet-50 text-violet-700` : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
-                    }`}>
-                    <Icon className={`w-4 h-4 ${form.category === key ? 'text-violet-600' : conf.color}`} />
+                    className={cn('flex flex-col items-center gap-1 p-2 rounded-xl border text-xs font-semibold transition-all',
+                      form.category === key ? 'border-violet-400 bg-violet-50 text-violet-700' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300')}>
+                    <span className="text-lg">{conf.emoji}</span>
+                    <Icon className={cn('w-4 h-4', form.category === key ? 'text-violet-600' : conf.color)} />
                     <span className="text-center leading-tight">{conf.label}</span>
                   </button>
                 );
@@ -909,12 +1083,7 @@ export default function AssociationsPage() {
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Secteur principal <span className="font-normal text-gray-400">(recommandé)</span></label>
-            <SectorFilter
-              value={form.sector_id || null}
-              onChange={id => setForm(f => ({ ...f, sector_id: id || '' }))}
-              allowCitywide
-              compact
-            />
+            <SectorFilter value={form.sector_id || null} onChange={id => setForm(f => ({ ...f, sector_id: id || '' }))} allowCitywide compact />
           </div>
           <div className="flex justify-between">
             <button type="button" onClick={() => setStep(1)} className="px-5 py-2.5 rounded-xl text-sm text-gray-500 hover:bg-gray-100">← Retour</button>
@@ -927,19 +1096,18 @@ export default function AssociationsPage() {
       {step === 3 && (
         <div className="space-y-4">
           <p className="text-sm font-bold text-gray-700">Bloc 3 — Ce que vous proposez</p>
-          {/* Public */}
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Public concerné</label>
             <div className="flex flex-wrap gap-2">
               {PUBLIC_OPTIONS.map(p => (
                 <button key={p} type="button" onClick={() => toggle('public_target', p)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-                    form.public_target.includes(p) ? 'bg-violet-100 text-violet-700 border-violet-300' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                  }`}>{p}</button>
+                  className={cn('px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all',
+                    form.public_target.includes(p) ? 'bg-violet-100 text-violet-700 border-violet-300' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
+                  {p}
+                </button>
               ))}
             </div>
           </div>
-          {/* Ages */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Âge minimum</label>
@@ -956,19 +1124,18 @@ export default function AssociationsPage() {
               />
             </div>
           </div>
-          {/* Activités */}
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Activités proposées</label>
             <div className="flex flex-wrap gap-2">
               {ACTIVITY_OPTIONS.map(a => (
                 <button key={a} type="button" onClick={() => toggle('activities', a)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-                    form.activities.includes(a) ? 'bg-violet-100 text-violet-700 border-violet-300' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                  }`}>{a}</button>
+                  className={cn('px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all',
+                    form.activities.includes(a) ? 'bg-violet-100 text-violet-700 border-violet-300' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
+                  {a}
+                </button>
               ))}
             </div>
           </div>
-          {/* Fréquence + Horaires */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Fréquence</label>
@@ -983,13 +1150,15 @@ export default function AssociationsPage() {
               className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 mt-5"
             />
           </div>
-          {/* Tarif */}
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Adhésion / tarif</label>
             <div className="flex gap-2 flex-wrap mb-2">
               {[['gratuit','Gratuit'],['cotisation','Cotisation annuelle'],['libre','Participation libre'],['autre','Autre']].map(([v,l]) => (
                 <button key={v} type="button" onClick={() => setForm(f => ({ ...f, price_type: v }))}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${form.price_type === v ? 'bg-violet-100 text-violet-700 border-violet-300' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}>{l}</button>
+                  className={cn('px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all',
+                    form.price_type === v ? 'bg-violet-100 text-violet-700 border-violet-300' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
+                  {l}
+                </button>
               ))}
             </div>
             {form.price_type !== 'gratuit' && (
@@ -999,15 +1168,15 @@ export default function AssociationsPage() {
               />
             )}
           </div>
-          {/* Tags */}
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Tags</label>
             <div className="flex flex-wrap gap-2">
               {TAG_OPTIONS.map(t => (
                 <button key={t} type="button" onClick={() => toggle('tags', t)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-                    form.tags.includes(t) ? 'bg-violet-100 text-violet-700 border-violet-300' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                  }`}># {t}</button>
+                  className={cn('px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all',
+                    form.tags.includes(t) ? 'bg-violet-100 text-violet-700 border-violet-300' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
+                  # {t}
+                </button>
               ))}
             </div>
           </div>
@@ -1018,27 +1187,54 @@ export default function AssociationsPage() {
         </div>
       )}
 
-      {/* ── STEP 4 : Besoins ── */}
+      {/* ── STEP 4 : Besoins & CDC ── */}
       {step === 4 && (
         <div className="space-y-4">
-          <p className="text-sm font-bold text-gray-700">Bloc 4 — Besoins actuels</p>
-          <p className="text-xs text-gray-500">L&apos;association recherche actuellement :</p>
-          <div className="flex flex-wrap gap-2">
-            {NEEDS_OPTIONS.map(n => (
-              <button key={n} type="button" onClick={() => toggle('needs', n)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-                  form.needs.includes(n) ? 'bg-rose-100 text-rose-700 border-rose-300' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                }`}>{n}</button>
-            ))}
+          <p className="text-sm font-bold text-gray-700">Bloc 4 — Besoins actuels & engagements (CDC §7.2-7.3)</p>
+
+          {/* Besoins structurés */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">L&apos;association recherche actuellement :</label>
+            <div className="flex flex-wrap gap-2">
+              {NEEDS_OPTIONS.map(n => (
+                <button key={n} type="button" onClick={() => toggle('needs', n)}
+                  className={cn('px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all',
+                    form.needs.includes(n) ? 'bg-rose-100 text-rose-700 border-rose-300' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
+                  {n}
+                </button>
+              ))}
+            </div>
           </div>
+
           <textarea placeholder="Détail du besoin (ex: Nous cherchons 4 bénévoles pour notre tournoi le 15 juin…)" rows={3}
             value={form.need_detail} onChange={e => setForm(f => ({ ...f, need_detail: e.target.value }))}
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-300"
           />
+
+          {/* Drapeaux CDC — CDC §10 */}
+          <div className="bg-violet-50 rounded-xl p-4 border border-violet-100">
+            <p className="text-xs font-bold text-violet-700 mb-3">Acceptations (visible sur la fiche)</p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { key: 'is_accepting_members',    label: '👥 Accepte de nouveaux adhérents', color: 'text-purple-700' },
+                { key: 'is_accepting_volunteers', label: '🙋 Accepte des bénévoles',          color: 'text-rose-700' },
+                { key: 'is_accepting_donations',  label: '💝 Accepte les dons',               color: 'text-red-700' },
+                { key: 'is_accepting_partners',   label: '🤝 Cherche des partenaires',        color: 'text-emerald-700' },
+              ].map(({ key, label, color }) => (
+                <label key={key} className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form[key as keyof typeof form] as boolean}
+                    onChange={e => setForm(f => ({ ...f, [key]: e.target.checked }))} className="rounded accent-violet-600" />
+                  <span className={cn('text-xs font-semibold', color)}>{label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={form.urgent_need} onChange={e => setForm(f => ({ ...f, urgent_need: e.target.checked }))} className="rounded" />
             <span className="text-sm font-semibold text-red-600">🚨 Besoin urgent</span>
           </label>
+
           <div className="flex justify-between">
             <button type="button" onClick={() => setStep(3)} className="px-5 py-2.5 rounded-xl text-sm text-gray-500 hover:bg-gray-100">← Retour</button>
             <button type="button" onClick={() => setStep(5)} className="px-6 py-2.5 rounded-xl font-bold text-white text-sm bg-violet-500 hover:bg-violet-600">Suivant →</button>
@@ -1180,8 +1376,6 @@ export default function AssociationsPage() {
     </div>
   );
 
-  const totalActive = assos.length;
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-purple-50">
 
@@ -1197,43 +1391,62 @@ export default function AssociationsPage() {
         </div>
       )}
 
-      {/* ── HERO ── */}
+      {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <div className="relative overflow-hidden bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-600 text-white">
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 relative z-10">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 bg-white/20 rounded-xl">
-                  <Handshake className="w-5 h-5" />
-                </div>
+                <div className="p-2 bg-white/20 rounded-xl"><Handshake className="w-5 h-5" /></div>
                 <span className="text-violet-200 text-sm font-semibold">Vie locale · Associations</span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-black mb-3 leading-tight">
                 🏛️ Associations de Biguglia
               </h1>
               <p className="text-violet-200 text-base sm:text-lg max-w-xl leading-relaxed">
-                Découvrez, rejoignez et soutenez les associations locales. Ensemble, faisons vivre la communauté.
+                Découvrez, rejoignez et soutenez les associations locales. Bénévolat, dons, adhésion, événements — tout en un seul endroit.
               </p>
+
+              {/* KPIs — CDC §6.1 */}
               <div className="flex flex-wrap gap-3 mt-5">
                 <span className="inline-flex items-center gap-1.5 bg-white/15 border border-white/25 rounded-full px-3 py-1.5 text-sm font-medium">
                   <Building2 className="w-3.5 h-3.5" /> {totalActive} association{totalActive !== 1 ? 's' : ''}
                 </span>
-                <span className="inline-flex items-center gap-1.5 bg-white/15 border border-white/25 rounded-full px-3 py-1.5 text-sm font-medium">
-                  <Heart className="w-3.5 h-3.5" /> Sport, culture, solidarité…
-                </span>
-                <span className="inline-flex items-center gap-1.5 bg-white/15 border border-white/25 rounded-full px-3 py-1.5 text-sm font-medium">
-                  <Users className="w-3.5 h-3.5" /> Bénévoles bienvenus
-                </span>
+                {needsCount > 0 && (
+                  <span className="inline-flex items-center gap-1.5 bg-rose-500/30 border border-rose-400/40 rounded-full px-3 py-1.5 text-sm font-medium">
+                    <Zap className="w-3.5 h-3.5" /> {needsCount} ont des besoins ouverts
+                  </span>
+                )}
+                {urgentCount > 0 && (
+                  <span className="inline-flex items-center gap-1.5 bg-red-500/30 border border-red-400/40 rounded-full px-3 py-1.5 text-sm font-bold animate-pulse">
+                    🚨 {urgentCount} urgent{urgentCount > 1 ? 's' : ''}
+                  </span>
+                )}
+                {volunteerCount > 0 && (
+                  <span className="inline-flex items-center gap-1.5 bg-white/15 border border-white/25 rounded-full px-3 py-1.5 text-sm font-medium">
+                    <UserCheck className="w-3.5 h-3.5" /> {volunteerCount} cherchent des bénévoles
+                  </span>
+                )}
               </div>
-              <div className="mt-4">
+
+              <div className="flex flex-wrap gap-3 mt-4">
                 <Link href="/communaute/associations"
                   className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 border border-white/30 text-white rounded-xl px-4 py-2 text-sm font-semibold transition backdrop-blur-sm">
-                  <Users className="w-4 h-4" /> Voir la communauté →
+                  <Users className="w-4 h-4" /> Communauté →
+                </Link>
+                <Link href="/evenements"
+                  className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 border border-white/30 text-white rounded-xl px-4 py-2 text-sm font-semibold transition backdrop-blur-sm">
+                  <Calendar className="w-4 h-4" /> Événements →
+                </Link>
+                <Link href="/forum"
+                  className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 border border-white/30 text-white rounded-xl px-4 py-2 text-sm font-semibold transition backdrop-blur-sm">
+                  <MessageSquare className="w-4 h-4" /> Forum →
                 </Link>
               </div>
             </div>
+
             {profile && (
               <button type="button" onClick={() => { resetForm(); setShowForm(true); }}
                 className="inline-flex items-center gap-2 bg-white text-violet-700 font-black px-6 py-3 rounded-2xl hover:bg-violet-50 transition-all shadow-lg text-sm flex-shrink-0">
@@ -1244,101 +1457,461 @@ export default function AssociationsPage() {
         </div>
       </div>
 
+      {/* ── CONTENU PRINCIPAL ─────────────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {showForm && profile && renderForm()}
 
-        {/* ── Filtres ── */}
-        <div className="flex flex-wrap gap-3 mb-6">
-          <div className="flex-1 min-w-56 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input type="text" placeholder="Rechercher une association…" value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 bg-white"
-            />
-          </div>
-          {/* Filtre type publication */}
-          <select value={filterType} onChange={e => setFilterType(e.target.value as PubType | 'all')}
-            className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-300">
-            <option value="all">Tous les types</option>
-            {(Object.entries(PUB_TYPE_CONFIG) as [PubType, typeof PUB_TYPE_CONFIG[PubType]][]).map(([key, conf]) => (
-              <option key={key} value={key}>{conf.emoji} {conf.label}</option>
-            ))}
-          </select>
-        </div>
+        {/* Layout 2 colonnes */}
+        <div className="flex gap-8 items-start">
 
-        {/* Filtre secteur */}
-        <SectorFilter
-          value={filterSector}
-          onChange={setFilterSector}
-          compact
-          label="Secteur"
-          className="mb-4"
-        />
+          {/* ── COLONNE PRINCIPALE ── */}
+          <div className="flex-1 min-w-0">
 
-        {/* Filtre catégories — pills horizontales */}
-        <div className="flex gap-2 flex-wrap mb-6">
-          <button type="button" onClick={() => setFilterCat('all')}
-            className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${filterCat === 'all' ? 'bg-violet-500 text-white border-violet-500' : 'bg-white text-gray-600 border-gray-200 hover:border-violet-300'}`}>
-            Toutes
-          </button>
-          {(Object.entries(CAT_CONFIG) as [AssoCategory, typeof CAT_CONFIG[AssoCategory]][]).map(([key, conf]) => {
-            const Icon = conf.icon;
-            return (
-              <button key={key} type="button" onClick={() => setFilterCat(key)}
-                className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                  filterCat === key ? `bg-violet-500 text-white border-violet-500` : `bg-white ${conf.color} border-gray-200 hover:border-violet-300`
-                }`}>
-                <Icon className="w-3 h-3" />{conf.label}
-              </button>
-            );
-          })}
-        </div>
+            {/* Blocs contextuels rapides — CDC §6.1 */}
+            {!loading && assos.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                {/* Besoins urgents */}
+                {urgentCount > 0 && (
+                  <button onClick={() => { setFilterNeed('urgent'); }}
+                    className="bg-red-50 border border-red-200 rounded-2xl p-4 text-left hover:shadow-sm transition-all group">
+                    <p className="text-2xl font-black text-red-600 mb-1">{urgentCount}</p>
+                    <p className="text-xs font-bold text-red-700">Besoins urgents</p>
+                    <p className="text-xs text-red-400 mt-0.5">Action immédiate</p>
+                  </button>
+                )}
+                {/* Cherchent bénévoles */}
+                {volunteerCount > 0 && (
+                  <button onClick={() => setFilterNeed('benevoles')}
+                    className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-left hover:shadow-sm transition-all">
+                    <p className="text-2xl font-black text-rose-600 mb-1">{volunteerCount}</p>
+                    <p className="text-xs font-bold text-rose-700">Cherchent bénévoles</p>
+                    <p className="text-xs text-rose-400 mt-0.5">Engagez-vous !</p>
+                  </button>
+                )}
+                {/* Événements */}
+                {eventsAssosCount > 0 && (
+                  <button onClick={() => setFilterType('evenement')}
+                    className="bg-pink-50 border border-pink-200 rounded-2xl p-4 text-left hover:shadow-sm transition-all">
+                    <p className="text-2xl font-black text-pink-600 mb-1">{eventsAssosCount}</p>
+                    <p className="text-xs font-bold text-pink-700">Événements</p>
+                    <p className="text-xs text-pink-400 mt-0.5">À venir</p>
+                  </button>
+                )}
+                {/* Acceptent dons */}
+                {assos.filter(a => a.is_accepting_donations || a.pub_type === 'dons').length > 0 && (
+                  <button onClick={() => setFilterNeed('dons')}
+                    className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-left hover:shadow-sm transition-all">
+                    <p className="text-2xl font-black text-amber-600 mb-1">{assos.filter(a => a.is_accepting_donations || a.pub_type === 'dons').length}</p>
+                    <p className="text-xs font-bold text-amber-700">Acceptent les dons</p>
+                    <p className="text-xs text-amber-400 mt-0.5">Soutenez-les</p>
+                  </button>
+                )}
+              </div>
+            )}
 
-        {/* ── Grid ── */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-violet-400 animate-spin" />
-          </div>
-        ) : assos.length === 0 ? (
-          <div className="text-center py-20">
-            <Building2 className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-            <p className="text-gray-500 font-medium text-lg">Aucune association pour le moment</p>
-            <p className="text-gray-400 text-sm mt-1">Soyez la première association à se référencer !</p>
-            {profile ? (
-              <button type="button" onClick={() => { resetForm(); setShowForm(true); }}
-                className="mt-5 inline-flex items-center gap-2 bg-violet-500 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-violet-600 transition-all">
-                <Plus className="w-4 h-4" /> Référencer une association
-              </button>
+            {/* ── FILTRES ── */}
+            <div className="space-y-3 mb-6">
+              {/* Barre de recherche enrichie */}
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input type="text" placeholder="Rechercher (nom, activité, besoin, public, tag…)" value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 bg-white"
+                  />
+                  {search && (
+                    <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                <button onClick={() => setShowAdvFilters(v => !v)}
+                  className={cn('flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all',
+                    showAdvFilters || activeFiltersCount > 0 ? 'bg-violet-100 text-violet-700 border-violet-200' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
+                  <Filter className="w-4 h-4" />
+                  {activeFiltersCount > 0 && <span className="w-5 h-5 bg-violet-500 text-white text-[10px] font-black rounded-full flex items-center justify-center">{activeFiltersCount}</span>}
+                </button>
+              </div>
+
+              {/* Filtres actifs pills */}
+              {activeFiltersCount > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {filterNeed && (
+                    <span className="inline-flex items-center gap-1.5 bg-rose-100 text-rose-700 text-xs font-bold px-3 py-1.5 rounded-full">
+                      🙋 {filterNeed === 'benevoles' ? 'Bénévoles' : filterNeed === 'dons' ? 'Dons' : filterNeed === 'adherents' ? 'Adhérents' : filterNeed === 'partenaires' ? 'Partenaires' : filterNeed}
+                      <button onClick={() => setFilterNeed('')}><X className="w-3 h-3 ml-0.5" /></button>
+                    </span>
+                  )}
+                  {filterPublic && (
+                    <span className="inline-flex items-center gap-1.5 bg-sky-100 text-sky-700 text-xs font-bold px-3 py-1.5 rounded-full">
+                      👤 {filterPublic}
+                      <button onClick={() => setFilterPublic('')}><X className="w-3 h-3 ml-0.5" /></button>
+                    </span>
+                  )}
+                  {showSavedOnly && (
+                    <span className="inline-flex items-center gap-1.5 bg-yellow-100 text-yellow-700 text-xs font-bold px-3 py-1.5 rounded-full">
+                      <BookmarkCheck className="w-3 h-3" /> Mes favoris
+                      <button onClick={() => setShowSavedOnly(false)}><X className="w-3 h-3 ml-0.5" /></button>
+                    </span>
+                  )}
+                  <button onClick={() => { setFilterCat('all'); setFilterType('all'); setFilterSector(null); setFilterNeed(''); setFilterPublic(''); setSearch(''); setShowSavedOnly(false); }}
+                    className="text-xs text-gray-400 hover:text-red-500 font-semibold flex items-center gap-1 transition-colors">
+                    <X className="w-3 h-3" /> Tout réinitialiser
+                  </button>
+                </div>
+              )}
+
+              {/* Filtres avancés */}
+              {showAdvFilters && (
+                <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3 shadow-sm">
+                  {/* Secteur */}
+                  <SectorFilter value={filterSector} onChange={setFilterSector} compact label="Secteur" allowCitywide showAll />
+
+                  {/* Type de publication */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-2">Type de fiche</label>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={() => setFilterType('all')}
+                        className={cn('px-3 py-1.5 rounded-full text-xs font-bold border transition-all',
+                          filterType === 'all' ? 'bg-violet-500 text-white border-violet-500' : 'bg-white text-gray-500 border-gray-200 hover:border-violet-300')}>
+                        Tous
+                      </button>
+                      {(Object.entries(PUB_TYPE_CONFIG) as [PubType, typeof PUB_TYPE_CONFIG[PubType]][]).map(([key, conf]) => (
+                        <button key={key} onClick={() => setFilterType(filterType === key ? 'all' : key)}
+                          className={cn('px-3 py-1.5 rounded-full text-xs font-bold border transition-all',
+                            filterType === key ? 'bg-violet-500 text-white border-violet-500' : 'bg-white text-gray-500 border-gray-200 hover:border-violet-300')}>
+                          {conf.emoji} {conf.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Besoins */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-2">Besoin actif</label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { id: 'benevoles', label: '🙋 Bénévoles' },
+                        { id: 'adherents', label: '👥 Adhérents' },
+                        { id: 'dons',      label: '💝 Dons' },
+                        { id: 'partenaires', label: '🤝 Partenaires' },
+                        { id: 'Matériel',  label: '📦 Matériel' },
+                      ].map(({ id, label }) => (
+                        <button key={id} onClick={() => setFilterNeed(filterNeed === id ? '' : id)}
+                          className={cn('px-3 py-1.5 rounded-full text-xs font-bold border transition-all',
+                            filterNeed === id ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-gray-500 border-gray-200 hover:border-rose-300')}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Public */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-2">Public cible</label>
+                    <div className="flex flex-wrap gap-2">
+                      {PUBLIC_OPTIONS.map(p => (
+                        <button key={p} onClick={() => setFilterPublic(filterPublic === p ? '' : p)}
+                          className={cn('px-3 py-1.5 rounded-full text-xs font-bold border transition-all',
+                            filterPublic === p ? 'bg-sky-500 text-white border-sky-500' : 'bg-white text-gray-500 border-gray-200 hover:border-sky-300')}>
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Favoris */}
+                  {savedAssos.size > 0 && (
+                    <button onClick={() => setShowSavedOnly(v => !v)}
+                      className={cn('inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border transition-all',
+                        showSavedOnly ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : 'bg-white text-gray-500 border-gray-200 hover:bg-yellow-50')}>
+                      <BookmarkCheck className="w-4 h-4" /> Mes favoris ({savedAssos.size})
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Catégories — pills horizontales */}
+              <div className="flex gap-2 flex-wrap">
+                <button type="button" onClick={() => setFilterCat('all')}
+                  className={cn('px-4 py-1.5 rounded-full text-xs font-bold border transition-all',
+                    filterCat === 'all' ? 'bg-violet-500 text-white border-violet-500' : 'bg-white text-gray-600 border-gray-200 hover:border-violet-300')}>
+                  Toutes
+                </button>
+                {(Object.entries(CAT_CONFIG) as [AssoCategory, typeof CAT_CONFIG[AssoCategory]][]).map(([key, conf]) => {
+                  const Icon = conf.icon;
+                  const count = assos.filter(a => a.category === key).length;
+                  return (
+                    <button key={key} type="button" onClick={() => setFilterCat(filterCat === key ? 'all' : key)}
+                      className={cn('inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold border transition-all',
+                        filterCat === key ? 'bg-violet-500 text-white border-violet-500' : `bg-white ${conf.color} border-gray-200 hover:border-violet-300`)}>
+                      <span>{conf.emoji}</span>
+                      <Icon className="w-3 h-3" />{conf.label}
+                      {count > 0 && <span className={cn('text-[10px]', filterCat === key ? 'text-white/70' : 'text-gray-400')}>{count}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Compteur résultats */}
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-bold text-gray-600">
+                  {loading ? 'Chargement…' : `${displayedAssos.length} association${displayedAssos.length !== 1 ? 's' : ''}`}
+                  {activeFiltersCount > 0 && <span className="text-violet-500 ml-1 font-normal">({activeFiltersCount} filtre{activeFiltersCount > 1 ? 's' : ''})</span>}
+                </p>
+              </div>
+            </div>
+
+            {/* ── GRILLE ASSOCIATIONS ── */}
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 text-violet-400 animate-spin" />
+              </div>
+            ) : displayedAssos.length === 0 ? (
+              <div className="text-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <Building2 className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                <p className="text-gray-500 font-medium text-lg">Aucune association trouvée</p>
+                <p className="text-gray-400 text-sm mt-1 mb-4">
+                  {activeFiltersCount > 0 ? 'Modifiez les filtres pour élargir la recherche.' : 'Soyez la première association à se référencer !'}
+                </p>
+                {activeFiltersCount > 0 && (
+                  <button onClick={() => { setFilterCat('all'); setFilterType('all'); setFilterSector(null); setFilterNeed(''); setFilterPublic(''); setSearch(''); setShowSavedOnly(false); }}
+                    className="mr-2 inline-flex items-center gap-2 bg-gray-100 text-gray-600 font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-gray-200 transition-all">
+                    <X className="w-4 h-4" /> Réinitialiser
+                  </button>
+                )}
+                {profile ? (
+                  <button type="button" onClick={() => { resetForm(); setShowForm(true); }}
+                    className="inline-flex items-center gap-2 bg-violet-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-violet-600 transition-all">
+                    <Plus className="w-4 h-4" /> Référencer une association
+                  </button>
+                ) : (
+                  <Link href="/connexion" className="inline-flex items-center gap-2 bg-violet-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-violet-600 transition-all">
+                    Se connecter pour publier
+                  </Link>
+                )}
+              </div>
             ) : (
-              <Link href="/connexion" className="mt-5 inline-flex items-center gap-2 bg-violet-500 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-violet-600 transition-all">
-                Se connecter pour publier
-              </Link>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5">
+                {displayedAssos.map(asso => (
+                  <AssociationCard
+                    key={asso.id}
+                    asso={asso}
+                    userId={profile?.id}
+                    isAuthor={profile?.id === asso.author_id}
+                    onEdit={startEdit}
+                    onDelete={handleDelete}
+                    saved={savedAssos.has(asso.id)}
+                    onToggleSave={toggleSaved}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* CTA connexion bas de page */}
+            {!profile && assos.length > 0 && (
+              <div className="mt-8 bg-violet-50 border border-violet-200 rounded-2xl p-6 text-center">
+                <p className="text-violet-700 font-medium mb-3">Connectez-vous pour contacter, rejoindre ou soutenir une association</p>
+                <Link href="/connexion" className="inline-flex items-center gap-2 bg-violet-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-violet-600 transition-all">
+                  Se connecter
+                </Link>
+              </div>
             )}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {assos.map(asso => (
-              <AssociationCard
-                key={asso.id}
-                asso={asso}
-                userId={profile?.id}
-                isAuthor={profile?.id === asso.author_id}
-                onEdit={startEdit}
-                onDelete={handleDelete}
-              />
-            ))}
-          </div>
-        )}
 
-        {!profile && assos.length > 0 && (
-          <div className="mt-8 bg-violet-50 border border-violet-200 rounded-2xl p-6 text-center">
-            <p className="text-violet-700 font-medium mb-3">Connectez-vous pour publier, contacter ou rejoindre une association</p>
-            <Link href="/connexion" className="inline-flex items-center gap-2 bg-violet-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-violet-600 transition-all">
-              Se connecter
-            </Link>
-          </div>
-        )}
+          {/* ── SIDEBAR (desktop only) ─────────────────────────────────── */}
+          <aside className="hidden lg:flex flex-col gap-5 w-72 flex-shrink-0">
+
+            {/* Besoins urgents */}
+            {urgentCount > 0 && (
+              <div className="bg-red-50 rounded-2xl border border-red-200 p-5 shadow-sm">
+                <h3 className="text-sm font-black text-red-800 mb-3 flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-red-500 animate-pulse" /> Besoins urgents
+                </h3>
+                <div className="space-y-2">
+                  {assos.filter(a => a.urgent_need).slice(0, 4).map(a => {
+                    const cat = CAT_CONFIG[a.category];
+                    return (
+                      <a key={a.id} href={`#${a.id}`}
+                        className="flex items-start gap-2.5 p-2.5 bg-white rounded-xl border border-red-100 hover:border-red-300 transition-colors group">
+                        <span className="text-lg flex-shrink-0">{cat.emoji}</span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-gray-800 line-clamp-1 group-hover:text-red-600">{a.name}</p>
+                          <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-1">{a.needs.slice(0, 2).join(', ')}</p>
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Favoris */}
+            {savedAssos.size > 0 && (
+              <div className="bg-yellow-50 rounded-2xl border border-yellow-200 p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-black text-yellow-800 flex items-center gap-2">
+                    <BookmarkCheck className="w-4 h-4 text-yellow-500" /> Mes favoris
+                  </h3>
+                  <span className="text-xs font-bold text-yellow-600 bg-yellow-100 px-2 py-0.5 rounded-full">{savedAssos.size}</span>
+                </div>
+                <button onClick={() => { setShowSavedOnly(true); setShowAdvFilters(false); }}
+                  className="w-full text-xs font-bold text-yellow-700 bg-yellow-100 hover:bg-yellow-200 border border-yellow-300 py-2 rounded-xl transition-colors flex items-center justify-center gap-1.5">
+                  <Eye className="w-3.5 h-3.5" /> Voir mes associations sauvegardées
+                </button>
+              </div>
+            )}
+
+            {/* Explorer par catégorie */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+              <h3 className="text-sm font-black text-gray-800 mb-4 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-violet-500" /> Explorer par catégorie
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                {(Object.entries(CAT_CONFIG) as [AssoCategory, typeof CAT_CONFIG[AssoCategory]][]).map(([key, conf]) => {
+                  const Icon = conf.icon;
+                  const count = assos.filter(a => a.category === key).length;
+                  const isActive = filterCat === key;
+                  return (
+                    <button key={key}
+                      onClick={() => { setFilterCat(filterCat === key ? 'all' : key); }}
+                      className={cn('flex flex-col items-center gap-1 p-3 rounded-xl border text-center transition-all hover:shadow-sm text-xs font-bold',
+                        isActive ? `${conf.bg} ${conf.color}` : 'bg-gray-50 border-gray-100 text-gray-500 hover:bg-white hover:border-gray-200')}>
+                      <span className="text-xl leading-none">{conf.emoji}</span>
+                      <Icon className="w-3.5 h-3.5" />
+                      <span className="leading-tight">{conf.label}</span>
+                      {count > 0 && <span className={cn('text-[10px] font-semibold', isActive ? conf.color : 'text-gray-400')}>{count}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Secteurs — CDC §8 */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+              <h3 className="text-sm font-black text-gray-800 mb-4 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-violet-500" /> Par quartier
+              </h3>
+              <div className="space-y-2">
+                {sectorCounts.filter(s => s.count > 0).length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-2">Aucun secteur renseigné</p>
+                ) : (
+                  sectorCounts.map(s => (
+                    <button key={s.id} onClick={() => setFilterSector(filterSector === s.slug ? null : s.slug)}
+                      className={cn('w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold border transition-all',
+                        filterSector === s.slug ? 'bg-violet-100 text-violet-700 border-violet-200' : 'bg-gray-50 text-gray-600 border-gray-100 hover:bg-white hover:border-gray-200')}>
+                      <span>{s.name}</span>
+                      <span className={cn('font-black', filterSector === s.slug ? 'text-violet-600' : 'text-gray-400')}>{s.count}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Blocs intelligents — CDC §12 */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+              <h3 className="text-sm font-black text-gray-800 mb-4 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-violet-500" /> Vie associative
+              </h3>
+              <div className="space-y-3">
+                {[
+                  { icon: Building2,  label: `${totalActive} actives`,         sub: 'à Biguglia',           color: 'text-violet-500', bg: 'bg-violet-50' },
+                  { icon: UserCheck,  label: `${volunteerCount} bénévolat`,     sub: 'places ouvertes',       color: 'text-rose-500',   bg: 'bg-rose-50' },
+                  { icon: Gift,       label: `${assos.filter(a=>a.is_accepting_donations||a.pub_type==='dons').length} dons`,
+                                                                                sub: 'associations soutenues',color: 'text-amber-500',  bg: 'bg-amber-50' },
+                  { icon: Calendar,   label: `${eventsAssosCount} événements`,  sub: 'en préparation',        color: 'text-pink-500',   bg: 'bg-pink-50' },
+                ].map(({ icon: I, label, sub, color, bg }) => (
+                  <div key={label} className="flex items-center gap-3">
+                    <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0', bg)}>
+                      <I className={cn('w-4 h-4', color)} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-800">{label}</p>
+                      <p className="text-xs text-gray-400">{sub}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Liens rapides vers modules liés — CDC §8 */}
+            <div className="bg-violet-50 rounded-2xl border border-violet-100 p-5 shadow-sm">
+              <h3 className="text-sm font-black text-violet-800 mb-3 flex items-center gap-2">
+                <ArrowRight className="w-4 h-4 text-violet-500" /> Modules liés
+              </h3>
+              <div className="space-y-2">
+                {[
+                  { href: '/evenements',      icon: Calendar,      label: 'Événements',    sub: 'Agenda communautaire' },
+                  { href: '/forum',           icon: MessageSquare, label: 'Forum',          sub: 'Discussions locales' },
+                  { href: '/coups-de-main',   icon: Handshake,     label: 'Coups de main',  sub: 'Entraide & bénévolat' },
+                  { href: '/annonces',        icon: Tag,           label: 'Annonces',        sub: 'Matériel & dons' },
+                  { href: '/messages',        icon: Send,          label: 'Messages',        sub: 'Contacter une asso' },
+                ].map(({ href, icon: Icon, label, sub }) => (
+                  <Link key={href} href={href}
+                    className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white transition-colors group">
+                    <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <Icon className="w-4 h-4 text-violet-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-violet-800 group-hover:text-violet-600">{label}</p>
+                      <p className="text-[10px] text-violet-500">{sub}</p>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-violet-300 ml-auto group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Charte — CDC §11 */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+              <h3 className="text-sm font-black text-gray-800 mb-3 flex items-center gap-2">
+                <Shield className="w-4 h-4 text-violet-500" /> Charte associations
+              </h3>
+              <ul className="space-y-2">
+                {[
+                  'Nom, catégorie, description et contact obligatoires',
+                  'Un seul besoin actif à la fois par type',
+                  'Dons et sponsors distincts des adhésions',
+                  'Modération légère — signalement possible',
+                  "Mise à jour requise si changement d'activité",
+                ].map(rule => (
+                  <li key={rule} className="flex items-start gap-2 text-xs text-gray-600">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-violet-400 flex-shrink-0 mt-0.5" />{rule}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* CTA non connecté */}
+            {!profile && (
+              <div className="bg-gradient-to-br from-violet-600 to-purple-700 rounded-2xl p-5 text-white shadow-lg">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-3">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-black mb-1">Rejoignez la communauté</h3>
+                <p className="text-xs text-purple-200 mb-4 leading-relaxed">Inscrivez-vous pour contacter des associations, proposer votre aide et suivre les besoins locaux.</p>
+                <Link href="/connexion"
+                  className="inline-flex items-center gap-2 bg-white text-violet-700 font-bold px-4 py-2.5 rounded-xl text-xs hover:bg-purple-50 transition-all w-full justify-center shadow-sm">
+                  <Plus className="w-3.5 h-3.5" /> Se connecter & participer
+                </Link>
+              </div>
+            )}
+
+            {/* Notification nouveaux besoins */}
+            <div className="bg-emerald-50 rounded-2xl border border-emerald-200 p-5 shadow-sm">
+              <h3 className="text-sm font-black text-emerald-800 mb-2 flex items-center gap-2">
+                <Bell className="w-4 h-4 text-emerald-500" /> Rester informé
+              </h3>
+              <p className="text-xs text-emerald-700 mb-3">Activez les notifications pour être alerté des nouveaux besoins et événements associatifs.</p>
+              <Link href={profile ? '/notifications' : '/connexion'}
+                className="w-full text-xs font-bold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 py-2 rounded-xl transition-colors flex items-center justify-center gap-1.5">
+                <Bell className="w-3.5 h-3.5" /> {profile ? 'Gérer mes alertes' : 'Se connecter pour les alertes'}
+              </Link>
+            </div>
+
+          </aside>
+        </div>
       </div>
     </div>
   );
