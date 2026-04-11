@@ -326,10 +326,14 @@ export default function MessagesPage() {
 
   useEffect(() => {
     mountedRef.current = true;
-    // Attendre la fin de l'initialisation auth avant d'agir
-    // (évite la redirection prématurée si profile est encore null au premier render)
+    // Attendre la fin de l'initialisation auth avant d'agir.
+    // ⚠️  On n'effectue PLUS de redirection côté client ici :
+    //   • Le middleware src/middleware.ts protège déjà /messages/** côté serveur.
+    //   • Si le middleware a laissé passer la requête, l'utilisateur EST authentifié.
+    //   • Rediriger ici créait une fausse redirection lors du TOKEN_REFRESHED
+    //     (profile = null pendant ~200ms entre authLoading=false et TOKEN_REFRESHED).
     if (authLoading) return;
-    if (!profile) { router.push(`/connexion?next=${encodeURIComponent('/messages')}`); return; }
+    if (!profile) return; // Attendre TOKEN_REFRESHED — le middleware gère la vraie garde
     fetchConversations();
     connectRealtime();
 
