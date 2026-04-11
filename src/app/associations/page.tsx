@@ -1537,6 +1537,18 @@ export default function AssociationsPage() {
               {/* Filtres actifs pills */}
               {activeFiltersCount > 0 && (
                 <div className="flex flex-wrap gap-2">
+                  {filterCat !== 'all' && (
+                    <span className="inline-flex items-center gap-1.5 bg-violet-100 text-violet-700 text-xs font-bold px-3 py-1.5 rounded-full">
+                      {CAT_CONFIG[filterCat as AssoCategory]?.emoji} {CAT_CONFIG[filterCat as AssoCategory]?.label ?? filterCat}
+                      <button onClick={() => setFilterCat('all')}><X className="w-3 h-3 ml-0.5" /></button>
+                    </span>
+                  )}
+                  {filterSector && (
+                    <span className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-full">
+                      📍 {SECTORS.find(s => s.slug === filterSector || s.id === filterSector)?.name ?? filterSector}
+                      <button onClick={() => setFilterSector(null)}><X className="w-3 h-3 ml-0.5" /></button>
+                    </span>
+                  )}
                   {filterNeed && (
                     <span className="inline-flex items-center gap-1.5 bg-rose-100 text-rose-700 text-xs font-bold px-3 py-1.5 rounded-full">
                       🙋 {filterNeed === 'benevoles' ? 'Bénévoles' : filterNeed === 'dons' ? 'Dons' : filterNeed === 'adherents' ? 'Adhérents' : filterNeed === 'partenaires' ? 'Partenaires' : filterNeed}

@@ -1,10 +1,10 @@
--- ═══════════════════════════════════════════════════════════════════════════
--- MIGRATION : group_outings — colonnes enrichies pour la page Promenades
--- Biguglia Connect — 2026-04-11
--- À exécuter dans Supabase → SQL Editor
--- ═══════════════════════════════════════════════════════════════════════════
+-- ===========================================================================
+-- MIGRATION : group_outings -- colonnes enrichies pour la page Promenades
+-- Biguglia Connect -- 2026-04-11
+-- A executer dans Supabase -> SQL Editor
+-- ===========================================================================
 
--- ── 1. Colonnes amenities / options sorties ────────────────────────────────
+-- 1. Colonnes amenities / options sorties
 ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS difficulty TEXT
   CHECK (difficulty IN ('facile', 'moyen', 'difficile'));
 
@@ -12,16 +12,15 @@ ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS kids_friendly   BOOLEAN NOT N
 ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS dogs_allowed    BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS parking_info    TEXT;
 
--- stroller_accessible & parking_available (déjà présents dans OUTINGS_LIFECYCLE_SQL,
--- ajoutés ici en sécurité avec IF NOT EXISTS)
+-- stroller_accessible & parking_available (ajoutes ici en securite avec IF NOT EXISTS)
 ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS stroller_accessible BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS parking_available   BOOLEAN NOT NULL DEFAULT false;
 
--- ── 2. Secteur géographique ────────────────────────────────────────────────
--- Secteur stocké en TEXT (correspond aux IDs de src/lib/sectors.ts : 'village', 'figabruna', etc.)
+-- 2. Secteur geographique
+-- Secteur stocke en TEXT (correspond aux IDs de src/lib/sectors.ts : 'village', 'figabruna', etc.)
 ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS sector_id TEXT;
 
--- ── 3. Table photos sortie ─────────────────────────────────────────────────
+-- 3. Table photos sortie
 CREATE TABLE IF NOT EXISTS outing_photos (
   id            UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   outing_id     UUID REFERENCES group_outings(id) ON DELETE CASCADE NOT NULL,
@@ -49,7 +48,7 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- ── 4. Migrer statuts anglais → français (idempotent) ─────────────────────
+-- 4. Migrer statuts anglais -> francais (idempotent)
 DO $$
 BEGIN
   IF EXISTS (
@@ -71,18 +70,18 @@ BEGIN
       ELSE 'ouverte'
     END;
 
-    -- Ajouter la nouvelle contrainte CHECK française
+    -- Ajouter la nouvelle contrainte CHECK francaise
     ALTER TABLE group_outings
       ADD CONSTRAINT group_outings_status_check
       CHECK (status IN ('ouverte','complete','terminee','annulee','archivee'));
   END IF;
 END $$;
 
--- ── 5. Index performances ──────────────────────────────────────────────────
+-- 5. Index performances
 -- sector_id est TEXT, index standard
 CREATE INDEX IF NOT EXISTS group_outings_sector_idx  ON group_outings(sector_id);
 CREATE INDEX IF NOT EXISTS group_outings_date_idx    ON group_outings(outing_date);
 CREATE INDEX IF NOT EXISTS group_outings_status_idx  ON group_outings(status);
 CREATE INDEX IF NOT EXISTS outing_photos_outing_idx  ON outing_photos(outing_id, display_order);
 
--- ✅ Migration group_outings enrichie terminée !
+-- Migration group_outings enrichie terminee !
