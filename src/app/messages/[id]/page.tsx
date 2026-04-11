@@ -17,7 +17,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { Message, Profile } from '@/types';
 import Link from 'next/link';
 import Avatar from '@/components/ui/Avatar';
-import { cn, formatRelative } from '@/lib/utils';
+import { cn, formatRelative, displayName as libDisplayName } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import RatingWidget from '@/components/ui/RatingWidget';
 import type { RatingTargetType } from '@/components/ui/RatingWidget';
@@ -384,26 +384,18 @@ const FALLBACK_POLL_INTERVAL = 5000;
 
 // ─── Type étendu + helper d'affichage du nom ──────────────────────────────────
 
-/** Profile enrichi avec l'email retourné par l'API (fallback si full_name null) */
+/** Profile enrichi avec l'email retourné par l'API (fallback si full_name null ou vide) */
 type ProfileWithEmail = Profile & { email?: string | null };
 
 /**
- * Retourne le meilleur nom d'affichage disponible :
- *   1. full_name  (ex : "Albertini Jean")
- *   2. partie locale de l'email (ex : "albertini" si email = "albertini@…")
- *   3. fallback fourni (par défaut "Utilisateur")
- *
- * Évite l'affichage de "?" ou "—" quand le profil est chargé mais sans nom.
+ * Alias local — délègue à libDisplayName (src/lib/utils.ts).
+ * Centralise la logique : full_name → email local-part → fallback.
+ * Gère full_name = '' (DEFAULT BDD) ET full_name = null.
  */
-function getDisplayName(user: ProfileWithEmail | null, fallback = 'Utilisateur'): string {
-  if (!user) return fallback;
-  if (user.full_name?.trim()) return user.full_name.trim();
-  if ((user as ProfileWithEmail).email?.trim()) {
-    const localPart = ((user as ProfileWithEmail).email as string).split('@')[0];
-    if (localPart) return localPart;
-  }
-  return fallback;
-}
+const getDisplayName = (
+  user: ProfileWithEmail | null,
+  fallback = 'Utilisateur'
+): string => libDisplayName(user, fallback);
 
 // ─── Page conversation ─────────────────────────────────────────────────────────
 export default function ConversationPage() {
@@ -453,7 +445,7 @@ export default function ConversationPage() {
 
   const getSenderProfile = useCallback(async (senderId: string): Promise<Profile | undefined> => {
     if (profileCacheRef.current[senderId]) return profileCacheRef.current[senderId];
-    const { data } = await supabase.from('profiles').select('id, full_name, avatar_url').eq('id', senderId).single();
+    const { data } = await supabase.from('profiles').select('id, full_name, avatar_url, email').eq('id', senderId).single();
     if (data) { profileCacheRef.current[senderId] = data as Profile; return data as Profile; }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1026,7 +1018,7 @@ export default function ConversationPage() {
                       {/* Avatar */}
                       {!isMe && (
                         <div className={cn('flex-shrink-0 w-8', !showAvatar && 'invisible')}>
-                          <Avatar src={msg.sender?.avatar_url} name={msg.sender?.full_name || '?'} size="sm" />
+                          <Avatar src={msg.sender?.avatar_url} name={getDisplayName(msg.sender as ProfileWithEmail | null, '?')} size="sm" />
                         </div>
                       )}
 

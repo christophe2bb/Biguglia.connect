@@ -111,12 +111,37 @@ export const ROLE_LABELS: Record<string, string> = {
 };
 
 export function getInitials(name: string): string {
-  return name
-    .split(' ')
+  const cleaned = name.trim();
+  if (!cleaned) return '?';
+  return cleaned
+    .split(/\s+/)
+    .filter(Boolean)
     .map(n => n[0])
     .join('')
     .toUpperCase()
     .slice(0, 2);
+}
+
+/**
+ * Retourne le meilleur nom d'affichage pour un utilisateur :
+ *   1. full_name non vide
+ *   2. partie locale de l'email  (ex: "albertini" pour "albertini@gmail.com")
+ *   3. fallback fourni (défaut : "Utilisateur")
+ *
+ * Gère les cas : full_name = null, full_name = '' (DEFAULT BDD), email absent.
+ * À utiliser partout à la place de `user.full_name || '?'`.
+ */
+export function displayName(
+  user: { full_name?: string | null; email?: string | null } | null | undefined,
+  fallback = 'Utilisateur'
+): string {
+  if (!user) return fallback;
+  if (user.full_name?.trim()) return user.full_name.trim();
+  if (user.email?.trim()) {
+    const local = user.email.trim().split('@')[0];
+    if (local) return local;
+  }
+  return fallback;
 }
 
 export function slugify(text: string): string {
