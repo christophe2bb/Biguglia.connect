@@ -470,7 +470,7 @@ export default function GlobalSearch({
             id: `asso-${a.id}`,
             title: a.name,
             subtitle: a.location,
-            href: `/associations`,
+            href: `/associations/${a.id}`,
             theme: 'association',
             themeLabel: THEME_CONFIG.association.label,
             themeColor: THEME_CONFIG.association.color,
