@@ -79,26 +79,18 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Lire la session depuis le cookie JWT (lecture locale, pas d'appel réseau).
+  // ⚠️  DIAGNOSTIC : le cookie sb-*-auth-token contient du JSON brut
+  //  (format {"access_token":"eyJ..."}) — @supabase/ssr v0.3.0 en Edge Runtime
+  //  ne parse pas ce format avec getSession() (retourne null).
   //
-  // ⚠️  Choix délibéré : getSession() au lieu de getUser()
+  //  Solution : getUser() qui extrait le token du cookie JSON et le valide
+  //  via un appel réseau à Supabase Auth. Plus fiable que getSession() pour
+  //  les cookies au format JSON (createBrowserClient → document.cookie).
   //
-  //  - getUser()    : valide le JWT auprès du serveur Supabase Auth → appel réseau.
-  //                   En Edge Runtime Vercel, ce call peut timeout ou échouer →
-  //                   user = null → redirection vers /connexion pour un utilisateur
-  //                   pourtant connecté (bug signalé).
-  //
-  //  - getSession() : lit et décode le JWT depuis le cookie httpOnly → instantané,
-  //                   aucun appel réseau. Suffisant pour les guards de navigation
-  //                   (l'objectif est d'empêcher l'affichage de pages privées, pas
-  //                   de valider cryptographiquement le token à chaque requête).
-  //                   La validation réelle du token se fait dans chaque API Route
-  //                   via getUserIdBearerFirst / getUserFromRequest.
-  //
-  //  Le appel getSession() déclenche quand même le rafraîchissement automatique
-  //  du token via setAll() si le cookie est expiré — comportement conservé.
-  const { data: { session } } = await supabase.auth.getSession();
-  const user = session?.user ?? null;
+  //  Le risque de timeout getUser() est réel mais acceptable : si timeout →
+  //  user = null → redirection /connexion → l'utilisateur se reconnecte.
+  //  C'est préférable à une redirection permanente causée par getSession() = null.
+  const { data: { user } } = await supabase.auth.getUser();
 
   // ── Guards : rediriger vers /connexion si non authentifié ──────────────────
   const { pathname } = request.nextUrl;
