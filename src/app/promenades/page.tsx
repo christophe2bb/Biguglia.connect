@@ -11,7 +11,7 @@ import {
   Leaf, X, AlertCircle, Loader2, RefreshCw,
   Send, Pencil, Trash2, Baby, Dog, ParkingSquare, BarChart3,
   Droplets, Bike, Star, Bookmark,
-  Flag, Share2, ArrowRight, Search, SlidersHorizontal, Filter,
+  Flag, Share2, ArrowRight, SlidersHorizontal, Filter,
   Shield, CheckCircle2, Waves,
   Thermometer, Wind, CloudRain, AlertTriangle,
   TrendingUp, Zap, Info, ChevronDown, ChevronUp,
@@ -1931,24 +1931,14 @@ export default function PromenadePage() {
                   { onClick: () => { setActiveTab('itineraires'); setShowForm(true); }, icon: Plus, label: 'Partager un itinéraire', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
                   { onClick: () => { setActiveTab('agenda'); setShowOutingForm(true); }, icon: Users, label: 'Organiser une sortie', color: 'text-teal-600', bg: 'bg-teal-50', border: 'border-teal-100' },
                   { onClick: () => { setActiveTab('forum'); setShowPostForm(true); }, icon: MessageSquare, label: 'Poser une question', color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-100' },
-                  { href: '/recherche?q=promenade', icon: Search, label: 'Rechercher une balade', color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-100' },
-                ].map(({ onClick, href, icon: I, label, color, bg, border }) =>
-                  href ? (
-                    <Link key={label} href={href}
-                      className={cn('flex items-center gap-3 p-3 rounded-xl transition-all group border', bg, border, 'hover:shadow-sm')}>
-                      <I className={cn('w-4 h-4 flex-shrink-0', color)} />
-                      <span className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 flex-1">{label}</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500 transition-colors" />
-                    </Link>
-                  ) : (
+                ].map(({ onClick, icon: I, label, color, bg, border }) => (
                     <button key={label} onClick={() => { if (!profile) { window.location.href = '/connexion'; return; } onClick?.(); }}
                       className={cn('flex items-center gap-3 p-3 rounded-xl transition-all group border w-full text-left', bg, border, 'hover:shadow-sm')}>
                       <I className={cn('w-4 h-4 flex-shrink-0', color)} />
                       <span className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 flex-1">{label}</span>
                       <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500 transition-colors" />
                     </button>
-                  )
-                )}
+                ))}
               </div>
             </div>
 
