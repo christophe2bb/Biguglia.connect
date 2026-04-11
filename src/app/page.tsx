@@ -17,8 +17,7 @@ import { getRecentJobOffers, getRecentJobDemands } from '@/services/jobs/queries
 import HomeHero from '@/components/home/HomeHero';
 import HomeSection from '@/components/home/HomeSection';
 import GlobalSearchWrapper from '@/components/home/GlobalSearchWrapper';
-import { JobOfferCard } from '@/components/jobs/JobOfferCard';
-import { JobDemandCard } from '@/components/jobs/JobDemandCard';
+import { JobOfferHomeCard, JobDemandHomeCard } from '@/components/home/JobHomeCard';
 
 // ─── Données statiques ────────────────────────────────────────────────────────
 
@@ -235,45 +234,60 @@ export default async function HomePage() {
             </div>
           </div>
 
-          {/* ── Dernières offres publiées ──────────────────────────────── */}
-          {recentOffers.length > 0 && (
-            <div className="mb-10">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-black text-gray-800 flex items-center gap-2">
-                  <span className="w-2 h-2 bg-cyan-500 rounded-full animate-pulse" />
-                  Dernières offres
-                </h3>
-                <Link href="/emploi/offres"
-                  className="text-sm font-bold text-cyan-600 hover:text-cyan-800 flex items-center gap-1">
-                  Voir tout <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {recentOffers.map(offer => (
-                  <JobOfferCard key={offer.id} offer={offer} variant="compact" />
-                ))}
-              </div>
-            </div>
-          )}
+          {/* ── Offres + Demandes en deux colonnes côte à côte ─────────── */}
+          {(recentOffers.length > 0 || recentDemands.length > 0) && (
+            <div className="grid md:grid-cols-2 gap-8 mb-10">
 
-          {/* ── Dernières demandes publiées ───────────────────────────────── */}
-          {recentDemands.length > 0 && (
-            <div className="mb-10">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-black text-gray-800 flex items-center gap-2">
-                  <span className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
-                  Derniers candidats
-                </h3>
-                <Link href="/emploi/demandes"
-                  className="text-sm font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1">
-                  Voir tout <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+              {/* Colonne Offres */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-base font-black text-gray-800 flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-xl bg-cyan-100 flex items-center justify-center text-lg">💼</span>
+                    Dernières offres
+                  </h3>
+                  <Link href="/emploi/offres"
+                    className="text-xs font-bold text-cyan-600 hover:text-cyan-800 flex items-center gap-1">
+                    Voir tout <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+                {recentOffers.length > 0 ? (
+                  <div className="flex flex-col gap-2">
+                    {recentOffers.slice(0, 3).map(offer => (
+                      <JobOfferHomeCard key={offer.id} offer={offer} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center py-8 rounded-2xl border-2 border-dashed border-cyan-100 bg-cyan-50/40 text-cyan-400 text-sm font-medium">
+                    Aucune offre pour l&apos;instant
+                  </div>
+                )}
               </div>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {recentDemands.map(demand => (
-                  <JobDemandCard key={demand.id} demand={demand} variant="compact" />
-                ))}
+
+              {/* Colonne Candidatures */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-base font-black text-gray-800 flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-xl bg-purple-100 flex items-center justify-center text-lg">🙋</span>
+                    Candidatures
+                  </h3>
+                  <Link href="/emploi/demandes"
+                    className="text-xs font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1">
+                    Voir tout <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+                {recentDemands.length > 0 ? (
+                  <div className="flex flex-col gap-2">
+                    {recentDemands.slice(0, 3).map(demand => (
+                      <JobDemandHomeCard key={demand.id} demand={demand} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center py-8 rounded-2xl border-2 border-dashed border-purple-100 bg-purple-50/40 text-purple-400 text-sm font-medium">
+                    Aucune candidature pour l&apos;instant
+                  </div>
+                )}
               </div>
+
             </div>
           )}
 
