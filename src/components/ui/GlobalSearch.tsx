@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Search, X, Clock, TrendingUp, Wrench, ShoppingBag, Package,
-  Heart, Footprints, Calendar, BookOpen, Handshake,
+  Heart, Footprints, Calendar, BookOpen, Handshake, Briefcase,
   ArrowRight, Loader2, AlertCircle, ScanSearch,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -84,6 +84,8 @@ const THEME_CONFIG = {
 } as const;
 
 type ThemeKey = keyof typeof THEME_CONFIG;
+// 'emploi' est dans THEME_CONFIG mais TypeScript le voit pas toujours — cast explicite
+type AnyThemeKey = ThemeKey | 'emploi';
 
 // ─── Recherches populaires par défaut ──────────────────────────────────────────
 const POPULAR_SEARCHES = [
@@ -163,8 +165,8 @@ function scoreResult(result: QuickResult, words: string[]): number {
 }
 
 // ─── Composant ThemeBadge ───────────────────────────────────────────────────────
-function ThemeBadge({ theme }: { theme: ThemeKey }) {
-  const cfg = THEME_CONFIG[theme];
+function ThemeBadge({ theme }: { theme: AnyThemeKey }) {
+  const cfg = THEME_CONFIG[theme as ThemeKey];
   return (
     <span className={cn('inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md', cfg.bg, cfg.color)}>
       {cfg.icon}
@@ -258,9 +260,15 @@ export default function GlobalSearch({
         .split(/\s+/)
         .filter(w => w.length >= 2);
 
-      // Patterns ilike avec accents originaux (pour que Supabase filtre bien)
+      // Patterns normalisés (sans accents) + originaux pour couvrir les deux
       const wordPatterns = buildWordPatterns(debouncedQuery);
-      if (wordPatterns.length === 0) { setLoading(false); return; }
+      const wordPatternsOrig = debouncedQuery
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(w => w.length >= 2)
+        .map(w => `%${w}%`);
+      const allPatterns = Array.from(new Set([...wordPatterns, ...wordPatternsOrig]));
+      if (allPatterns.length === 0) { setLoading(false); return; }
 
       try {
         const supabase = createClient();
@@ -276,83 +284,101 @@ export default function GlobalSearch({
           { data: forumTopics },
           { data: associations },
           { data: lostFound },
+          { data: jobOffers },
+          { data: jobDemands },
         ] = await Promise.all([
-          // Artisans — nom + description
+          // Artisans
           supabase
             .from('artisan_profiles')
             .select('id, business_name, service_area, trade_category:trade_categories(name)')
-            .or(buildOrFilter(['business_name', 'description'], wordPatterns))
+            .or(buildOrFilter(['business_name', 'description'], allPatterns))
             .limit(4),
 
-          // Annonces — titre + description
+          // Annonces
           supabase
             .from('listings')
             .select('id, title, listing_type, price, location')
-            .or(buildOrFilter(['title', 'description'], wordPatterns))
+            .or(buildOrFilter(['title', 'description'], allPatterns))
             .in('status', ['active', 'reserved'])
             .limit(4),
 
-          // Matériel — titre + description
+          // Matériel
           supabase
             .from('equipment_items')
             .select('id, title, description, is_free, pickup_location')
-            .or(buildOrFilter(['title', 'description'], wordPatterns))
+            .or(buildOrFilter(['title', 'description'], allPatterns))
             .eq('is_available', true)
             .limit(4),
 
-          // Coups de main — titre + description
+          // Coups de main
           supabase
             .from('help_requests')
             .select('id, title, description')
-            .or(buildOrFilter(['title', 'description'], wordPatterns))
+            .or(buildOrFilter(['title', 'description'], allPatterns))
             .neq('status', 'draft')
             .neq('status', 'resolved')
             .neq('status', 'archived')
             .limit(4),
 
-          // Promenades — titre + description
+          // Promenades
           supabase
             .from('group_outings')
             .select('id, title, description, meeting_point, outing_date')
-            .or(buildOrFilter(['title', 'description'], wordPatterns))
+            .or(buildOrFilter(['title', 'description'], allPatterns))
             .gte('outing_date', today)
             .limit(3),
 
-          // Événements — titre + description
+          // Événements
           supabase
             .from('events')
             .select('id, title, description, location, event_date')
-            .or(buildOrFilter(['title', 'description'], wordPatterns))
+            .or(buildOrFilter(['title', 'description'], allPatterns))
             .gte('event_date', today)
             .not('status', 'eq', 'annule')
             .not('status', 'eq', 'draft')
             .limit(4),
 
-          // Forum topics — titre + contenu
+          // Forum topics
           supabase
             .from('forum_topics')
             .select('id, title, content')
-            .or(buildOrFilter(['title', 'content'], wordPatterns))
+            .or(buildOrFilter(['title', 'content'], allPatterns))
             .neq('status', 'masque')
             .neq('status', 'archive')
             .limit(4),
 
-          // Associations — nom + description
+          // Associations
           supabase
             .from('associations')
             .select('id, name, location, category, description')
-            .or(buildOrFilter(['name', 'description'], wordPatterns))
+            .or(buildOrFilter(['name', 'description'], allPatterns))
             .eq('status', 'active')
             .limit(3),
 
-          // Perdu / Trouvé — titre + description
+          // Perdu / Trouvé
           supabase
             .from('lost_found_items')
             .select('id, title, description, type, location_area')
-            .or(buildOrFilter(['title', 'description'], wordPatterns))
+            .or(buildOrFilter(['title', 'description'], allPatterns))
             .neq('status', 'resolved')
             .neq('status', 'returned')
             .limit(4),
+
+          // Offres d'emploi
+          supabase
+            .from('job_offers')
+            .select('id, title, short_description, job_category, location_label, slug')
+            .or(buildOrFilter(['title', 'short_description', 'job_category'], allPatterns))
+            .in('status', ['published', 'active'])
+            .limit(3),
+
+          // Demandes d'emploi
+          supabase
+            .from('job_demands')
+            .select('id, title, short_description, location_label, slug')
+            .or(buildOrFilter(['title', 'short_description'], allPatterns))
+            .in('status', ['published', 'active'])
+            .limit(3),
         ]);
 
         if (cancelled) return;
@@ -457,6 +483,28 @@ export default function GlobalSearch({
             themeColor: THEME_CONFIG.perdu.color,
             themeBg: THEME_CONFIG.perdu.bg,
             icon: THEME_CONFIG.perdu.icon,
+          })),
+          ...(jobOffers || []).map((j: Record<string, unknown>) => ({
+            id: `joboffer-${j.id}`,
+            title: j.title as string,
+            subtitle: (j.location_label as string) || (j.job_category as string),
+            href: `/emploi/offres/${j.slug}`,
+            theme: 'emploi' as AnyThemeKey,
+            themeLabel: 'Emploi',
+            themeColor: 'text-indigo-600',
+            themeBg: 'bg-indigo-100',
+            icon: <Briefcase className="w-3.5 h-3.5" />,
+          })),
+          ...(jobDemands || []).map((j: Record<string, unknown>) => ({
+            id: `jobdemand-${j.id}`,
+            title: j.title as string,
+            subtitle: j.location_label as string,
+            href: `/emploi/demandes/${j.slug}`,
+            theme: 'emploi' as AnyThemeKey,
+            themeLabel: 'Emploi',
+            themeColor: 'text-indigo-600',
+            themeBg: 'bg-indigo-100',
+            icon: <Briefcase className="w-3.5 h-3.5" />,
           })),
         ];
 
@@ -668,7 +716,7 @@ export default function GlobalSearch({
                             <p className="text-xs text-gray-500 truncate">{r.subtitle}</p>
                           )}
                         </div>
-                        <ThemeBadge theme={r.theme as ThemeKey} />
+                        <ThemeBadge theme={r.theme as AnyThemeKey} />
                       </button>
                     ))}
                   </div>
