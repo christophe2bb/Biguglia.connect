@@ -94,6 +94,7 @@ type GroupOuting = {
   participants_count?: number;
   user_joined?: boolean;
   cover_photo?: string | null;
+  sector_id?: string | null;
 };
 
 type OutingComment = {
@@ -549,6 +550,12 @@ function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit, onDelete, onS
               <ParkingSquare className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" /> {outing.parking_info}
             </p>
           )}
+          {outing.sector_id && (
+            <p className="text-xs text-gray-500 flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-teal-400 flex-shrink-0" />
+              <SectorBadge sectorId={outing.sector_id} size="xs" />
+            </p>
+          )}
           <p className="text-xs text-gray-400">Organisé par <span className="font-semibold text-gray-600">{outing.organizer?.full_name ?? 'Membre'}</span></p>
         </div>
 
@@ -726,6 +733,7 @@ export default function PromenadePage() {
     water_access: false, shade_level: 'none' as 'none' | 'partial' | 'full',
     best_time_of_day: 'anytime' as 'morning' | 'sunset' | 'anytime',
     route_loop: false, practical_tips: '', safety_notes: '',
+    sector_id: '',
   });
 
   const [showPostForm, setShowPostForm] = useState(false);
@@ -740,6 +748,7 @@ export default function PromenadePage() {
     parking_info: '', parking_available: false, stroller_accessible: false,
     difficulty: 'facile' as 'facile'|'moyen'|'difficile',
     kids_friendly: false, dogs_allowed: false,
+    sector_id: '',
   });
   const [outingPhotos,   setOutingPhotos]     = useState<File[]>([]);
   const [outingPreviews, setOutingPreviews]   = useState<string[]>([]);
@@ -847,8 +856,8 @@ export default function PromenadePage() {
     setLoadingOutings(true);
     const { data } = await supabase
       .from('group_outings')
-      .select(`*, organizer:profiles!group_outings_organizer_id_fkey(full_name), participants:outing_participants(count)`)
-      .in('status', ['open', 'full', 'ouverte', 'complete', 'active'])
+      .select(`*, organizer:profiles!group_outings_organizer_id_fkey(full_name), participants:outing_participants(count), sector_id`)
+      .in('status', ['ouverte', 'complete'])
       .gte('outing_date', new Date().toISOString().split('T')[0])
       .order('outing_date', { ascending: true }).limit(20);
     const enriched = (data || []).map((o: GroupOuting & { participants?: { count: number }[] }) => ({
@@ -895,7 +904,7 @@ export default function PromenadePage() {
     if (!form.title.trim() || !form.description.trim()) { toast.error('Titre et description obligatoires'); return; }
     setSubmitting(true);
     const tags = form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
-    const { data: prom, error } = await supabase.from('promenades').insert({
+    const promPayload: Record<string, unknown> = {
       author_id: profile.id,
       title: form.title.trim(),
       description: form.description.trim(),
@@ -914,8 +923,10 @@ export default function PromenadePage() {
       route_loop: form.route_loop,
       practical_tips: form.practical_tips.trim() || null,
       safety_notes: form.safety_notes.trim() || null,
-    }).select().single();
-    if (error) { toast.error('Erreur lors de la publication'); console.error(error); setSubmitting(false); return; }
+    };
+    if (form.sector_id) promPayload.sector_id = form.sector_id;
+    const { data: prom, error } = await supabase.from('promenades').insert(promPayload).select().single();
+    if (error) { toast.error(`Erreur : ${error.message}`); console.error('Promenade insert error:', error); setSubmitting(false); return; }
     if (photos.length > 0 && prom) {
       for (let i = 0; i < photos.length; i++) {
         const photo = photos[i];
@@ -930,7 +941,7 @@ export default function PromenadePage() {
       }
     }
     toast.success('🌿 Itinéraire publié !', { duration: 4000 });
-    setForm({ title:'', description:'', distance_km:'', duration_min:'', difficulty:'facile', type:'balade', tags:'', start_point:'', dogs_allowed:false, stroller_friendly:false, parking_available:false, water_access:false, shade_level:'none', best_time_of_day:'anytime', route_loop:false, practical_tips:'', safety_notes:'' });
+    setForm({ title:'', description:'', distance_km:'', duration_min:'', difficulty:'facile', type:'balade', tags:'', start_point:'', dogs_allowed:false, stroller_friendly:false, parking_available:false, water_access:false, shade_level:'none', best_time_of_day:'anytime', route_loop:false, practical_tips:'', safety_notes:'', sector_id:'' });
     setPhotos([]); setShowForm(false); fetchPromenades(); setSubmitting(false);
   };
 
@@ -962,12 +973,12 @@ export default function PromenadePage() {
   };
   const removeOutingPhoto = (i: number) => { setOutingPhotos(p => p.filter((_, idx) => idx !== i)); setOutingPreviews(p => p.filter((_, idx) => idx !== i)); };
   const resetOutingForm = () => {
-    setOutingForm({ title:'', description:'', outing_date:'', outing_time:'09:00', max_participants:'10', meeting_point:'', parking_info:'', parking_available:false, stroller_accessible:false, difficulty:'facile', kids_friendly:false, dogs_allowed:false });
+    setOutingForm({ title:'', description:'', outing_date:'', outing_time:'09:00', max_participants:'10', meeting_point:'', parking_info:'', parking_available:false, stroller_accessible:false, difficulty:'facile', kids_friendly:false, dogs_allowed:false, sector_id:'' });
     setOutingPhotos([]); setOutingPreviews([]); setEditingOuting(null); setShowOutingForm(false);
   };
   const startEditOuting = (o: GroupOuting) => {
     setEditingOuting(o);
-    setOutingForm({ title:o.title, description:o.description||'', outing_date:o.outing_date, outing_time:o.outing_time, max_participants:String(o.max_participants), meeting_point:o.meeting_point||'', parking_info:o.parking_info||'', parking_available:o.parking_available||false, stroller_accessible:o.stroller_accessible||false, difficulty:o.difficulty||'facile', kids_friendly:o.kids_friendly||false, dogs_allowed:o.dogs_allowed||false });
+    setOutingForm({ title:o.title, description:o.description||'', outing_date:o.outing_date, outing_time:o.outing_time, max_participants:String(o.max_participants), meeting_point:o.meeting_point||'', parking_info:o.parking_info||'', parking_available:o.parking_available||false, stroller_accessible:o.stroller_accessible||false, difficulty:o.difficulty||'facile', kids_friendly:o.kids_friendly||false, dogs_allowed:o.dogs_allowed||false, sector_id:o.sector_id||'' });
     setOutingPhotos([]); setOutingPreviews([]); setShowOutingForm(true);
     setTimeout(() => window.scrollTo({ top: 0, behavior:'smooth' }), 100);
   };
@@ -989,15 +1000,16 @@ export default function PromenadePage() {
     if (!profile) return;
     if (!outingForm.title.trim() || !outingForm.outing_date) { toast.error('Titre et date obligatoires'); return; }
     setSubmittingOuting(true);
-    const payload = { organizer_id:profile.id, title:outingForm.title.trim(), description:outingForm.description.trim()||null, outing_date:outingForm.outing_date, outing_time:outingForm.outing_time, max_participants:parseInt(outingForm.max_participants)||10, meeting_point:outingForm.meeting_point.trim()||null, parking_info:outingForm.parking_info.trim()||null, parking_available:outingForm.parking_available, stroller_accessible:outingForm.stroller_accessible, difficulty:outingForm.difficulty, kids_friendly:outingForm.kids_friendly, dogs_allowed:outingForm.dogs_allowed };
+    const payload: Record<string, unknown> = { organizer_id:profile.id, title:outingForm.title.trim(), description:outingForm.description.trim()||null, outing_date:outingForm.outing_date, outing_time:outingForm.outing_time||null, max_participants:parseInt(outingForm.max_participants)||10, meeting_point:outingForm.meeting_point.trim()||null, parking_info:outingForm.parking_info.trim()||null, parking_available:outingForm.parking_available, stroller_accessible:outingForm.stroller_accessible, difficulty:outingForm.difficulty, kids_friendly:outingForm.kids_friendly, dogs_allowed:outingForm.dogs_allowed };
+    if (outingForm.sector_id) payload.sector_id = outingForm.sector_id;
     let outingId: string | null = null;
     if (editingOuting) {
       const { error } = await supabase.from('group_outings').update(payload).eq('id', editingOuting.id);
-      if (error) { toast.error('Erreur modification'); setSubmittingOuting(false); return; }
+      if (error) { toast.error(`Erreur modification : ${error.message}`); console.error('Outing update error:', error); setSubmittingOuting(false); return; }
       outingId = editingOuting.id; toast.success('Sortie modifiée ✓');
     } else {
       const { data: inserted, error } = await supabase.from('group_outings').insert(payload).select('id').single();
-      if (error) { toast.error('Erreur création'); setSubmittingOuting(false); return; }
+      if (error) { toast.error(`Erreur création : ${error.message}`); console.error('Outing insert error:', error); setSubmittingOuting(false); return; }
       outingId = inserted?.id ?? null; toast.success('🥾 Sortie créée !', { duration: 4000 });
     }
     if (outingPhotos.length > 0 && outingId) {
@@ -1395,6 +1407,17 @@ export default function PromenadePage() {
                       <input type="text" placeholder="Point de départ / RDV (ex: parking du lac de Biguglia)"
                         value={form.start_point} onChange={e => setForm(f => ({ ...f, start_point: e.target.value }))}
                         className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" />
+
+                      {/* Secteur */}
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1.5">Secteur géographique</label>
+                        <SectorFilter
+                          value={form.sector_id || null}
+                          onChange={v => setForm(f => ({ ...f, sector_id: v || '' }))}
+                          showAll compact
+                          label=""
+                        />
+                      </div>
 
                       {/* Description */}
                       <textarea placeholder="Description : points d'intérêt, ambiance, panoramas, conseils pratiques…" required
@@ -1812,6 +1835,15 @@ export default function PromenadePage() {
                           onChange={e => setOutingForm(f => ({ ...f, parking_info: e.target.value }))}
                           className="w-full border border-blue-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-blue-50/40" />
                       )}
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1.5">Secteur géographique</label>
+                        <SectorFilter
+                          value={outingForm.sector_id || null}
+                          onChange={v => setOutingForm(f => ({ ...f, sector_id: v || '' }))}
+                          showAll compact
+                          label=""
+                        />
+                      </div>
                       <textarea placeholder="Description : itinéraire, points d'intérêt, équipement recommandé, conseils…" rows={3}
                         value={outingForm.description} onChange={e => setOutingForm(f => ({ ...f, description: e.target.value }))}
                         className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-300" />
@@ -1911,7 +1943,7 @@ export default function PromenadePage() {
                   </div>
                 </div>
                 <p className="text-emerald-100 text-xs leading-relaxed mb-3">
-                  Réserve naturelle classée, 1 456 ha. Sentier découverte, observation oiseaux migrateurs, coucher de soleil exceptionnel sur le lagon.
+                  Réserve naturelle classée, 1 456 ha. Sentier découverte, observation des oiseaux migrateurs, coucher de soleil exceptionnel — chiens admis en laisse.
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {['🦅 Oiseaux', '🌅 Sunset', '🚶 Sentier', '🐕 Chiens OK'].map(t => (
@@ -1953,7 +1985,10 @@ export default function PromenadePage() {
                   const isActive = quickFilter === key && activeTab === 'itineraires';
                   return (
                     <button key={key}
-                      onClick={() => { setActiveTab('itineraires'); setQuickFilter(quickFilter === key ? null : key); }}
+                      onClick={() => {
+                        setActiveTab('itineraires');
+                        setQuickFilter(prev => (prev === key && activeTab === 'itineraires') ? null : key);
+                      }}
                       className={cn(
                         'flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-center hover:shadow-sm',
                         isActive ? cn(cfg.bg, cfg.border, cfg.color, 'shadow-sm') : 'bg-gray-50 border-gray-100 text-gray-500 hover:bg-white hover:border-gray-200'
