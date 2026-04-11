@@ -298,12 +298,9 @@ function RechercheContent() {
 
     try {
       const supabase = createClient();
-      // Normaliser : supprimer accents pour chercher "serveuse" même si tapé sans/avec accent
-      const qNorm = q.trim()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase();
-      const pattern = `%${qNorm}%`;
-      const patternOrig = `%${q.trim()}%`;
+      // Pattern unique : ilike est insensible à la casse, la normalisation NFD
+      // retire les accents pour matcher "serveuse" même si tapé "servèuse"
+      const pattern = `%${q.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()}%`;
       const today = new Date().toISOString().split('T')[0];
 
       const [
@@ -323,61 +320,61 @@ function RechercheContent() {
         supabase
           .from('artisan_profiles')
           .select('id, business_name, service_area, description, trade_category:trade_categories(name)')
-          .or(`business_name.ilike.${pattern},description.ilike.${pattern},service_area.ilike.${pattern},business_name.ilike.${patternOrig},description.ilike.${patternOrig}`)
+          .or(`business_name.ilike.${pattern},description.ilike.${pattern},service_area.ilike.${pattern}`)
           .limit(20),
         supabase
           .from('listings')
           .select('id, title, description, listing_type, price, location, status, created_at, photos:listing_photos(url)')
-          .or(`title.ilike.${pattern},description.ilike.${pattern},location.ilike.${pattern},title.ilike.${patternOrig},description.ilike.${patternOrig}`)
+          .or(`title.ilike.${pattern},description.ilike.${pattern},location.ilike.${pattern}`)
           .in('status', ['active', 'reserved'])
           .limit(20),
         supabase
           .from('equipment_items')
           .select('id, title, description, is_free, daily_rate, pickup_location, photos:equipment_photos(url)')
-          .or(`title.ilike.${pattern},description.ilike.${pattern},title.ilike.${patternOrig},description.ilike.${patternOrig}`)
+          .or(`title.ilike.${pattern},description.ilike.${pattern}`)
           .eq('is_available', true)
           .limit(20),
         supabase
           .from('help_requests')
           .select('id, title, description, location_city, help_type, urgency')
-          .or(`title.ilike.${pattern},description.ilike.${pattern},location_city.ilike.${pattern},title.ilike.${patternOrig},description.ilike.${patternOrig}`)
+          .or(`title.ilike.${pattern},description.ilike.${pattern},location_city.ilike.${pattern}`)
           .eq('status', 'active')
           .limit(20),
         supabase
           .from('group_outings')
           .select('id, title, description, meeting_point, location_city, outing_date, difficulty, photos:outing_photos(url)')
-          .or(`title.ilike.${pattern},description.ilike.${pattern},meeting_point.ilike.${pattern},location_city.ilike.${pattern},title.ilike.${patternOrig}`)
+          .or(`title.ilike.${pattern},description.ilike.${pattern},meeting_point.ilike.${pattern},location_city.ilike.${pattern}`)
           .gte('outing_date', today)
           .limit(20),
         supabase
           .from('events')
           .select('id, title, description, location, event_date, is_free, price, photos:event_photos(url)')
-          .or(`title.ilike.${pattern},description.ilike.${pattern},location.ilike.${pattern},title.ilike.${patternOrig},description.ilike.${patternOrig}`)
+          .or(`title.ilike.${pattern},description.ilike.${pattern},location.ilike.${pattern}`)
           .gte('event_date', today)
           .limit(20),
         supabase
           .from('forum_posts')
           .select('id, title, content, created_at, category:forum_categories(name), author:profiles(full_name, avatar_url)')
-          .or(`title.ilike.${pattern},content.ilike.${pattern},title.ilike.${patternOrig},content.ilike.${patternOrig}`)
+          .or(`title.ilike.${pattern},content.ilike.${pattern}`)
           .limit(20),
         supabase
           .from('associations')
           .select('id, name, description_short, location, category')
-          .or(`name.ilike.${pattern},description_short.ilike.${pattern},location.ilike.${pattern},category.ilike.${pattern},name.ilike.${patternOrig}`)
+          .or(`name.ilike.${pattern},description_short.ilike.${pattern},location.ilike.${pattern},category.ilike.${pattern}`)
           .eq('status', 'active')
           .limit(20),
         // Collectionneurs
         supabase
           .from('collection_items')
           .select('id, title, description, price, location, status, category, photos:collection_item_photos(url)')
-          .or(`title.ilike.${pattern},description.ilike.${pattern},category.ilike.${pattern},location.ilike.${pattern},title.ilike.${patternOrig}`)
+          .or(`title.ilike.${pattern},description.ilike.${pattern},category.ilike.${pattern},location.ilike.${pattern}`)
           .eq('status', 'active')
           .limit(20),
         // Perdu / Trouvé
         supabase
           .from('lost_found_items')
           .select('id, title, description, location_area, type, status, category, created_at')
-          .or(`title.ilike.${pattern},description.ilike.${pattern},location_area.ilike.${pattern},category.ilike.${pattern},title.ilike.${patternOrig}`)
+          .or(`title.ilike.${pattern},description.ilike.${pattern},location_area.ilike.${pattern},category.ilike.${pattern}`)
           .neq('status', 'draft')
           .neq('status', 'resolved')
           .limit(20),
@@ -385,14 +382,14 @@ function RechercheContent() {
         supabase
           .from('job_offers')
           .select('id, title, short_description, job_category, location_label, slug, status')
-          .or(`title.ilike.${pattern},short_description.ilike.${pattern},job_category.ilike.${pattern},title.ilike.${patternOrig},short_description.ilike.${patternOrig}`)
+          .or(`title.ilike.${pattern},short_description.ilike.${pattern},job_category.ilike.${pattern}`)
           .in('status', ['published', 'active'])
           .limit(20),
         // Demandes d'emploi
         supabase
           .from('job_demands')
           .select('id, title, short_description, location_label, slug, status')
-          .or(`title.ilike.${pattern},short_description.ilike.${pattern},location_label.ilike.${pattern},title.ilike.${patternOrig},short_description.ilike.${patternOrig}`)
+          .or(`title.ilike.${pattern},short_description.ilike.${pattern},location_label.ilike.${pattern}`)
           .in('status', ['published', 'active'])
           .limit(20),
       ]);
