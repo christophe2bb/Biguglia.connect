@@ -90,7 +90,6 @@ const THEME_CONFIG = {
 } as const;
 
 type ThemeKey = keyof typeof THEME_CONFIG;
-type AnyThemeKey = ThemeKey;
 
 // ─── Recherches populaires par défaut ──────────────────────────────────────────
 const POPULAR_SEARCHES = [
@@ -170,8 +169,13 @@ function scoreResult(result: QuickResult, words: string[]): number {
 }
 
 // ─── Composant ThemeBadge ───────────────────────────────────────────────────────
-function ThemeBadge({ theme }: { theme: AnyThemeKey }) {
-  const cfg = THEME_CONFIG[theme];
+function ThemeBadge({ theme }: { theme: string }) {
+  const cfg = THEME_CONFIG[theme as ThemeKey] ?? {
+    label: 'Autre',
+    color: 'text-gray-600',
+    bg: 'bg-gray-100',
+    icon: <Search className="w-3.5 h-3.5" />,
+  };
   return (
     <span className={cn('inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md', cfg.bg, cfg.color)}>
       {cfg.icon}
@@ -265,15 +269,10 @@ export default function GlobalSearch({
         .split(/\s+/)
         .filter(w => w.length >= 2);
 
-      // Patterns normalisés (sans accents) + originaux pour couvrir les deux
+      // Pattern normalisé sans accents (ilike insensible à la casse)
       const wordPatterns = buildWordPatterns(debouncedQuery);
-      const wordPatternsOrig = debouncedQuery
-        .toLowerCase()
-        .split(/\s+/)
-        .filter(w => w.length >= 2)
-        .map(w => `%${w}%`);
-      const allPatterns = Array.from(new Set([...wordPatterns, ...wordPatternsOrig]));
-      if (allPatterns.length === 0) { setLoading(false); return; }
+      if (wordPatterns.length === 0) { setLoading(false); return; }
+      const allPatterns = wordPatterns;
 
       try {
         const supabase = createClient();
@@ -721,7 +720,7 @@ export default function GlobalSearch({
                             <p className="text-xs text-gray-500 truncate">{r.subtitle}</p>
                           )}
                         </div>
-                        <ThemeBadge theme={r.theme as ThemeKey} />
+                        <ThemeBadge theme={r.theme} />
                       </button>
                     ))}
                   </div>
