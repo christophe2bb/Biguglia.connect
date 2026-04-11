@@ -6,7 +6,8 @@ import {
   ChevronLeft, MessageCircle, Flag, Trash2, Pencil, Lock, Unlock,
   Archive, Pin, Share2, Bell, BellOff, Copy, Check, MoreHorizontal,
   ThumbsUp, Heart, Laugh, Frown, Flame, Quote, AlertTriangle,
-  Eye, Calendar, MapPin, Tag, CheckCircle2, Users
+  Eye, Calendar, MapPin, Tag, CheckCircle2, Users, Megaphone,
+  Lightbulb, BookOpen, Star, HelpCircle, XCircle
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -21,6 +22,25 @@ import EmptyState from '@/components/ui/EmptyState';
 import { formatRelative } from '@/lib/utils';
 import ReportButton from '@/components/ui/ReportButton';
 import ContactButton from '@/components/ui/ContactButton';
+
+// ─── Types de post config (pour badge) ──────────────────────────────────────
+const POST_TYPE_BADGE: Record<string, { icon: React.ElementType; label: string; color: string; bg: string }> = {
+  question:      { icon: HelpCircle,    label: 'Question',         color: 'text-sky-700',    bg: 'bg-sky-100'    },
+  information:   { icon: Megaphone,     label: 'Info',             color: 'text-blue-700',   bg: 'bg-blue-100'   },
+  idee:          { icon: Lightbulb,     label: 'Idée',             color: 'text-violet-700', bg: 'bg-violet-100' },
+  avis:          { icon: ThumbsUp,      label: 'Avis',             color: 'text-amber-700',  bg: 'bg-amber-100'  },
+  besoin:        { icon: Heart,         label: 'Besoin',           color: 'text-rose-700',   bg: 'bg-rose-100'   },
+  alerte:        { icon: AlertTriangle, label: 'Alerte douce',     color: 'text-orange-700', bg: 'bg-orange-100' },
+  retour:        { icon: BookOpen,      label: "Retour d'exp.",    color: 'text-teal-700',   bg: 'bg-teal-100'   },
+  recommandation:{ icon: Star,          label: 'Recommandation',   color: 'text-yellow-700', bg: 'bg-yellow-100' },
+};
+
+// ─── Urgence config ───────────────────────────────────────────────────────────
+const URGENCY_BADGE: Record<string, { label: string; color: string; bg: string }> = {
+  haute:  { label: 'Urgent',  color: 'text-red-700',   bg: 'bg-red-100'   },
+  normal: { label: 'Normal',  color: 'text-amber-700', bg: 'bg-amber-100' },
+  basse:  { label: '',        color: '',               bg: ''             },
+};
 
 // ─── Secteurs couleurs ────────────────────────────────────────────────────────
 const SECTOR_COLORS: Record<string, string> = {
@@ -647,12 +667,27 @@ export default function ForumTopicPage() {
   );
   if (!topic) return null;
 
-  const canDelete = !authLoading && profile && (profile.id === topic.author_id || isModerator());
-  const canEdit   = !authLoading && profile && profile.id === topic.author_id;
-  const isMod     = !authLoading && isModerator();
-  const isLocked  = topic.status === 'verrouille' || topic.status === 'archive';
-  const sector    = topic.sector as ForumSector | null;
+  const canDelete  = !authLoading && profile && (profile.id === topic.author_id || isModerator());
+  const canEdit    = !authLoading && profile && profile.id === topic.author_id;
+  const isMod      = !authLoading && isModerator();
+  const isLocked   = topic.status === 'verrouille' || topic.status === 'archive';
+  const sector     = topic.sector as ForumSector | null;
   const sectorColors = SECTOR_COLORS[(sector as { color?: string })?.color || 'gray'];
+  const postType   = (topic as ForumTopic & { post_type?: string }).post_type;
+  const postTypeCfg = postType ? POST_TYPE_BADGE[postType] : null;
+  const PostTypeIcon = postTypeCfg?.icon;
+  const urgency    = (topic as ForumTopic & { urgency?: string }).urgency;
+  const urgencyCfg = urgency && urgency !== 'basse' ? URGENCY_BADGE[urgency] : null;
+  const isResolved = (topic as ForumTopic & { is_resolved?: boolean }).is_resolved;
+
+  // Marquer le sujet comme résolu (auteur ou modérateur)
+  const toggleResolved = async () => {
+    const supabase = createClient();
+    const newVal = !isResolved;
+    await supabase.from('forum_topics').update({ is_resolved: newVal }).eq('id', id as string);
+    setTopic(prev => prev ? { ...prev, is_resolved: newVal } as unknown as ForumTopic : prev);
+    toast.success(newVal ? '✅ Sujet marqué comme résolu !' : 'Statut résolu retiré');
+  };
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -665,23 +700,45 @@ export default function ForumTopicPage() {
       {/* ── Sujet principal ── */}
       <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-5">
 
-        {/* Badges */}
+        {/* Badges enrichis */}
         <div className="flex items-center gap-2 mb-4 flex-wrap">
+          {/* Résolu */}
+          {isResolved && (
+            <span className="inline-flex items-center gap-1.5 text-xs bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full font-bold border border-emerald-200">
+              <CheckCircle2 className="w-3.5 h-3.5" /> Résolu
+            </span>
+          )}
+          {/* Épinglé */}
           {topic.is_pinned && (
-            <span className="inline-flex items-center gap-1 text-xs text-brand-600 font-medium">
+            <span className="inline-flex items-center gap-1 text-xs text-violet-600 font-semibold">
               <Pin className="w-3 h-3" /> Épinglé
             </span>
           )}
-          {topic.is_hot && (
-            <span className="inline-flex items-center gap-1 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
-              <Flame className="w-3 h-3" /> Chaud
+          {/* Type de post */}
+          {postTypeCfg && PostTypeIcon && (
+            <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-semibold ${postTypeCfg.bg} ${postTypeCfg.color}`}>
+              <PostTypeIcon className="w-3 h-3" /> {postTypeCfg.label}
             </span>
           )}
+          {/* Urgence */}
+          {urgencyCfg && (
+            <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-bold ${urgencyCfg.bg} ${urgencyCfg.color}`}>
+              🚨 {urgencyCfg.label}
+            </span>
+          )}
+          {/* Chaud */}
+          {topic.is_hot && (
+            <span className="inline-flex items-center gap-1 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
+              <Flame className="w-3 h-3" /> Actif
+            </span>
+          )}
+          {/* Secteur */}
           {sector && (
             <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium ${sectorColors}`}>
               {(sector as ForumSector & { icon?: string }).icon} {sector.name}
             </span>
           )}
+          {/* Catégorie */}
           {topic.category && (
             <span className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">
               {(topic.category as ForumCategory & { icon?: string }).icon} {(topic.category as ForumCategory).name}
@@ -886,6 +943,20 @@ export default function ForumTopicPage() {
               {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
               {copied ? 'Copié !' : 'Partager'}
             </button>
+            {/* Bouton résolu (auteur ou modérateur) */}
+            {(canEdit || isMod) && (
+              <button
+                onClick={toggleResolved}
+                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border transition-colors font-semibold ${
+                  isResolved
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                    : 'border-gray-200 text-gray-500 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200'
+                }`}
+              >
+                {isResolved ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                {isResolved ? 'Non résolu' : 'Marquer résolu'}
+              </button>
+            )}
             {profile && profile.id !== topic.author_id && (
               <>
                 <ContactButton
