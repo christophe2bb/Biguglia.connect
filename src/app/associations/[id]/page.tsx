@@ -13,7 +13,7 @@ import {
   Handshake, Shield, CheckCircle2, Loader2, AlertCircle, Share2,
   Bookmark, BookmarkCheck, ExternalLink, Star,
   Zap, MessageSquare, Bell, BookOpen, Dumbbell, Music, Leaf,
-  Baby, Dog, Building2, Clock, Tag, Heart, ChevronRight, Camera,
+  Baby, Dog, Building2, Clock, Tag, Heart, ChevronRight, Camera, Flag,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';

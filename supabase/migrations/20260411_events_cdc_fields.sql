@@ -1,20 +1,20 @@
--- ═══════════════════════════════════════════════════════════════════════════
--- MIGRATION : events — champs complémentaires CDC Biguglia Connect
--- 2026-04-11 — À exécuter dans Supabase → SQL Editor
--- ═══════════════════════════════════════════════════════════════════════════
+-- ===========================================================================
+-- MIGRATION : events -- champs complementaires CDC Biguglia Connect
+-- 2026-04-11 -- A executer dans Supabase -> SQL Editor
+-- ===========================================================================
 
--- ── 1. Champs CDC manquants ─────────────────────────────────────────────────
-ALTER TABLE events ADD COLUMN IF NOT EXISTS sector_id       TEXT;
+-- 1. Champs CDC manquants
+ALTER TABLE events ADD COLUMN IF NOT EXISTS sector_id            TEXT;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS registration_required BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE events ADD COLUMN IF NOT EXISTS audience        TEXT DEFAULT 'Tout public';
-ALTER TABLE events ADD COLUMN IF NOT EXISTS subtitle        TEXT;
-ALTER TABLE events ADD COLUMN IF NOT EXISTS location_detail TEXT;
-ALTER TABLE events ADD COLUMN IF NOT EXISTS external_link   TEXT;
-ALTER TABLE events ADD COLUMN IF NOT EXISTS contact_info    TEXT;
-ALTER TABLE events ADD COLUMN IF NOT EXISTS source_type     TEXT; -- 'mairie', 'association', 'particulier', etc.
-ALTER TABLE events ADD COLUMN IF NOT EXISTS source_id       TEXT; -- ID de l'association ou org liée
+ALTER TABLE events ADD COLUMN IF NOT EXISTS audience             TEXT DEFAULT 'Tout public';
+ALTER TABLE events ADD COLUMN IF NOT EXISTS subtitle             TEXT;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS location_detail      TEXT;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS external_link        TEXT;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS contact_info         TEXT;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS source_type          TEXT; -- 'mairie', 'association', 'particulier', etc.
+ALTER TABLE events ADD COLUMN IF NOT EXISTS source_id            TEXT; -- ID de l'association ou org liee
 
--- ── 2. Table event_saves (favoris) ─────────────────────────────────────────
+-- 2. Table event_saves (favoris)
 CREATE TABLE IF NOT EXISTS event_saves (
   id         UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   event_id   UUID REFERENCES events(id) ON DELETE CASCADE NOT NULL,
@@ -37,7 +37,7 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- ── 3. Table event_comments (si pas encore créée) ──────────────────────────
+-- 3. Table event_comments (si pas encore creee)
 CREATE TABLE IF NOT EXISTS event_comments (
   id         UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   event_id   UUID REFERENCES events(id) ON DELETE CASCADE NOT NULL,
@@ -57,11 +57,11 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- ── 4. Index performances ──────────────────────────────────────────────────
+-- 4. Index performances
 CREATE INDEX IF NOT EXISTS events_sector_idx      ON events(sector_id);
 CREATE INDEX IF NOT EXISTS events_date_cat_idx    ON events(event_date, category);
 CREATE INDEX IF NOT EXISTS events_status_date_idx ON events(status, event_date);
 CREATE INDEX IF NOT EXISTS event_saves_user_idx   ON event_saves(user_id);
 CREATE INDEX IF NOT EXISTS event_comments_evt_idx ON event_comments(event_id);
 
--- ✅ Migration events CDC terminée !
+-- Migration events CDC terminee !

@@ -1,7 +1,8 @@
--- ─── Migration CDC Associations — Biguglia Connect ───────────────────────────
+-- ===========================================================================
+-- Migration CDC Associations -- Biguglia Connect
 -- Ajoute les colonnes manquantes du Cahier des Charges Associations
--- Phase 1 MVP : colonnes d'engagement + activité + CDC §10
--- ─────────────────────────────────────────────────────────────────────────────
+-- Phase 1 MVP : colonnes d'engagement + activite + CDC §10
+-- ===========================================================================
 
 -- 1. Colonnes d'acceptation (CDC §6.2, §7.3, §10)
 ALTER TABLE associations
@@ -10,11 +11,11 @@ ALTER TABLE associations
   ADD COLUMN IF NOT EXISTS is_accepting_donations  BOOLEAN DEFAULT false,
   ADD COLUMN IF NOT EXISTS is_accepting_partners   BOOLEAN DEFAULT false;
 
--- 2. Horodatage dernière activité (CDC §7.4 — preuve d'activité)
+-- 2. Horodatage derniere activite (CDC §7.4 -- preuve d'activite)
 ALTER TABLE associations
   ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMPTZ DEFAULT now();
 
--- 3. Index pour les requêtes fréquentes (CDC §7.1 — recherche et filtres)
+-- 3. Index pour les requetes frequentes (CDC §7.1 -- recherche et filtres)
 CREATE INDEX IF NOT EXISTS idx_associations_category ON associations(category);
 CREATE INDEX IF NOT EXISTS idx_associations_sector_id ON associations(sector_id);
 CREATE INDEX IF NOT EXISTS idx_associations_status ON associations(status);
@@ -23,7 +24,7 @@ CREATE INDEX IF NOT EXISTS idx_associations_is_accepting_volunteers ON associati
 CREATE INDEX IF NOT EXISTS idx_associations_is_accepting_donations ON associations(is_accepting_donations) WHERE is_accepting_donations = true;
 CREATE INDEX IF NOT EXISTS idx_associations_created_at ON associations(created_at DESC);
 
--- 4. Mise à jour automatique de last_activity_at sur modification
+-- 4. Mise a jour automatique de last_activity_at sur modification
 CREATE OR REPLACE FUNCTION update_asso_last_activity()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -38,7 +39,7 @@ CREATE TRIGGER trg_asso_last_activity
   FOR EACH ROW
   EXECUTE FUNCTION update_asso_last_activity();
 
--- 5. Table association_needs structurés (CDC §7.2, §10)
+-- 5. Table association_needs structures (CDC §7.2, §10)
 CREATE TABLE IF NOT EXISTS association_needs (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   association_id UUID NOT NULL REFERENCES associations(id) ON DELETE CASCADE,
@@ -89,7 +90,7 @@ CREATE POLICY "asso_needs_delete" ON association_needs
     OR auth.uid() IN (SELECT author_id FROM associations WHERE id = association_needs.association_id)
   );
 
--- 6. Table association_memberships_interest (CDC §7.3 — demandes structurées)
+-- 6. Table association_memberships_interest (CDC §7.3 -- demandes structurees)
 CREATE TABLE IF NOT EXISTS association_memberships_interest (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   association_id UUID NOT NULL REFERENCES associations(id) ON DELETE CASCADE,
@@ -124,5 +125,4 @@ DROP POLICY IF EXISTS "asso_interest_delete" ON association_memberships_interest
 CREATE POLICY "asso_interest_delete" ON association_memberships_interest
   FOR DELETE USING (auth.uid() = user_id);
 
--- ─── Fin migration CDC Associations ──────────────────────────────────────────
--- COMMENT ON TABLE associations IS 'CDC Associations v1 — Biguglia Connect PRO';
+-- Fin migration CDC Associations
