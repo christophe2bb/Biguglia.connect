@@ -561,13 +561,14 @@ export default function ConversationPage() {
   useEffect(() => {
     mountedRef.current = true;
     // Attendre la fin de l'initialisation auth — évite un 401 si le token n'est
-    // pas encore disponible au premier render (race condition AuthProvider)
+    // pas encore disponible au premier render (race condition AuthProvider).
+    // ⚠️  Pas de redirection côté client ici :
+    //   • Le middleware protège déjà /messages/** côté serveur.
+    //   • Si le middleware a laissé passer la requête, l'utilisateur EST authentifié.
+    //   • Rediriger ici créait une fausse redirection lors du TOKEN_REFRESHED
+    //     (profile = null pendant ~200ms entre authLoading=false et TOKEN_REFRESHED).
     if (authLoading) return;
-    if (!profile) {
-      const dest = `/messages/${id}`;
-      router.push(`/connexion?next=${encodeURIComponent(dest)}`);
-      return;
-    }
+    if (!profile) return; // Attendre TOKEN_REFRESHED — le middleware gère la vraie garde
 
     // Marquer comme lu IMMÉDIATEMENT dès l'ouverture de la page
     // (avant même que les données soient chargées)
