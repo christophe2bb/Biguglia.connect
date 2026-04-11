@@ -15,6 +15,7 @@ import NeedCard from './NeedCard';
 import EventCard from './EventCard';
 import DiscussionCard from './DiscussionCard';
 import HomeEmptyState from './HomeEmptyState';
+import { JobFeedCard } from './JobHomeCard';
 import { cn } from '@/lib/utils';
 
 interface HomeSectionProps {
@@ -96,7 +97,7 @@ function renderCard(section: HomeSectionType, index: number) {
   if (item.type === 'help_request') return <NeedCard key={item.id} item={item} />;
   if (item.type === 'event' || item.type === 'outing') return <EventCard key={item.id} item={item} />;
   if (item.type === 'forum_topic') return <DiscussionCard key={item.id} item={item} />;
-  if (item.type === 'job_offer' || item.type === 'job_demand') return <FeedCard key={item.id} item={item} />;
+  if (item.type === 'job_offer' || item.type === 'job_demand') return <JobFeedCard key={item.id} item={item} />;
 
   return <FeedCard key={item.id} item={item} />;
 }
@@ -108,7 +109,8 @@ const GRID_CLASS: Record<string, string> = {
   needs:       'grid grid-cols-1 sm:grid-cols-2 gap-3',
   upcoming:    'grid grid-cols-1 sm:grid-cols-2 gap-3',
   discussions: 'grid grid-cols-1 sm:grid-cols-2 gap-3',
-  emploi:      'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3',
+  // Emploi : liste 1 colonne — cartes horizontales, pas de grille dense
+  emploi:      'flex flex-col gap-2.5',
   foryou:      'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3',
 };
 
