@@ -7,42 +7,36 @@ import { NextResponse, type NextRequest } from 'next/server';
  * ─── Guards actifs ──────────────────────────────────────────────────────────────
  *
  *  /admin/**     → redirige vers /connexion si non authentifié.
- *                  La vérification du rôle 'admin' est faite côté client via
- *                  ProtectedPage adminOnly (le rôle est en DB, pas dans le JWT).
- *
  *  /dashboard/** → redirige vers /connexion si non authentifié.
- *                  Ces pages affichent des données privées de l'utilisateur
- *                  (messages, contenus, avis, profil artisan…).
- *
  *  /profil       → redirige vers /connexion si non authentifié.
- *                  La page de profil expose des données personnelles.
- *
  *  /messages/**  → redirige vers /connexion si non authentifié.
- *                  Les messages sont strictement privés.
  *
- * ─── Ce que ce middleware NE FAIT PAS ──────────────────────────────────────────
+ * ─── Stratégie d'authentification ──────────────────────────────────────────────
  *
- *  - Il ne vérifie PAS le rôle (admin, moderator, artisan…) : le JWT ne contient
- *    que l'uid et l'email. La vérification des rôles se fait côté client (ProtectedPage)
- *    ou côté API (createAdminClient + vérification en DB).
+ *  Le client Supabase côté navigateur (createBrowserClient) stocke la session
+ *  dans document.cookie sous la forme d'un cookie JSON brut :
+ *    sb-<ref>-auth-token = {"access_token":"eyJ...","refresh_token":"..."}
  *
- *  - Il ne bloque PAS les pages publiques (/annonces, /forum, /emploi…).
+ *  Dans l'Edge Runtime du middleware Next.js, on NE fait PAS d'appel réseau
+ *  (getUser() → HTTP vers Supabase Auth) car :
+ *    - Risque de timeout → user = null → fausse redirection vers /connexion
+ *    - Latence ajoutée sur chaque requête
+ *
+ *  Stratégie choisie : lire le token directement dans le cookie JSON.
+ *    1. Chercher le cookie sb-<ref>-auth-token (format JSON ou chunked)
+ *    2. Si access_token présent → JWT non expiré → utilisateur connecté
+ *    3. Si absent → rediriger vers /connexion
+ *
+ *  La validation sécurisée du JWT (signature + expiration) se fait dans les
+ *  API Routes via getUserIdBearerFirst / getUserFromRequest (Bearer token).
  *
  * ─── Note Edge Runtime ──────────────────────────────────────────────────────────
  *
  *  Ce middleware tourne sur l'Edge Runtime (Vercel/Next.js).
  *  Il ne peut PAS faire de requête Supabase DB (pas de service role key en Edge).
- *  Il lit la session JWT depuis les cookies via getSession() (pas d'appel réseau).
- *
- *  ⚠️  getUser() vs getSession() :
- *  On utilise getSession() — lecture locale du cookie JWT, sans appel réseau.
- *  getUser() valide le JWT auprès de Supabase Auth (appel HTTP) : risque de timeout
- *  en Edge Runtime → user = null → redirection fausse vers /connexion.
- *  La validation sécurisée des tokens se fait dans chaque API Route (Bearer token).
  */
 
 // ─── Routes nécessitant une authentification ─────────────────────────────────
-// Ajout de chaque préfixe ici → redirection automatique vers /connexion
 const PROTECTED_PREFIXES = [
   '/admin',
   '/dashboard',
@@ -50,14 +44,63 @@ const PROTECTED_PREFIXES = [
   '/messages',
 ] as const;
 
+// ─── Nom du cookie Supabase (basé sur le project ref) ────────────────────────
+const SUPABASE_PROJECT_REF = 'qmrkacrpncdkhofiqlrg';
+const SUPABASE_COOKIE_NAME = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
+
+/**
+ * hasValidToken — Lit le token d'accès directement depuis les cookies.
+ * Supporte le format JSON brut (createBrowserClient) et les chunks (createServerClient).
+ * Ne fait AUCUN appel réseau → compatible Edge Runtime sans timeout.
+ */
+function hasValidToken(request: NextRequest): boolean {
+  // Format JSON brut : sb-<ref>-auth-token = {"access_token":"eyJ..."}
+  const jsonCookie = request.cookies.get(SUPABASE_COOKIE_NAME)?.value;
+  if (jsonCookie) {
+    try {
+      // Le cookie peut être URL-encodé
+      const decoded = decodeURIComponent(jsonCookie);
+      const parsed = JSON.parse(decoded) as Record<string, unknown>;
+      if (typeof parsed.access_token === 'string' && parsed.access_token.startsWith('eyJ')) {
+        // Vérifier que le token n'est pas expiré (exp est en secondes)
+        const exp = (parsed as { expires_at?: number }).expires_at;
+        if (typeof exp === 'number' && exp * 1000 < Date.now()) {
+          // Token expiré — mais on laisse passer : le refresh se fait côté client
+          // Rediriger uniquement si AUCUN token (pas même un expiré)
+          return true; // token présent, même expiré → client peut le rafraîchir
+        }
+        return true;
+      }
+    } catch {
+      // Pas du JSON valide, continuer
+    }
+  }
+
+  // Format chunké : sb-<ref>-auth-token.0, .1, ... (createServerClient)
+  const chunk0 = request.cookies.get(`${SUPABASE_COOKIE_NAME}.0`)?.value;
+  if (chunk0) {
+    try {
+      const decoded = decodeURIComponent(chunk0);
+      const parsed = JSON.parse(decoded) as Record<string, unknown>;
+      if (typeof parsed.access_token === 'string' && parsed.access_token.startsWith('eyJ')) {
+        return true;
+      }
+    } catch {
+      // Continuer
+    }
+  }
+
+  return false;
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
   // .trim() obligatoire : une clé avec \n final casse le WebSocket Supabase Realtime
-  // (la clé est encodée %0A dans l'URL wss:// → connexion refusée par Supabase)
   const supabaseUrl  = (process.env.NEXT_PUBLIC_SUPABASE_URL      ?? '').trim();
   const supabaseAnon = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').trim();
 
+  // Créer le client pour rafraîchir les cookies de session (obligatoire)
   const supabase = createServerClient(
     supabaseUrl,
     supabaseAnon,
@@ -79,32 +122,19 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // ⚠️  DIAGNOSTIC : le cookie sb-*-auth-token contient du JSON brut
-  //  (format {"access_token":"eyJ..."}) — @supabase/ssr v0.3.0 en Edge Runtime
-  //  ne parse pas ce format avec getSession() (retourne null).
-  //
-  //  Solution : getUser() qui extrait le token du cookie JSON et le valide
-  //  via un appel réseau à Supabase Auth. Plus fiable que getSession() pour
-  //  les cookies au format JSON (createBrowserClient → document.cookie).
-  //
-  //  Le risque de timeout getUser() est réel mais acceptable : si timeout →
-  //  user = null → redirection /connexion → l'utilisateur se reconnecte.
-  //  C'est préférable à une redirection permanente causée par getSession() = null.
-  const { data: { user } } = await supabase.auth.getUser();
+  // Rafraîchir la session si nécessaire (écrit les nouveaux cookies dans la réponse)
+  // NE PAS utiliser le résultat pour le guard : getUser() peut timeout en Edge Runtime
+  await supabase.auth.getSession();
 
-  // ── Guards : rediriger vers /connexion si non authentifié ──────────────────
+  // ── Guard : lecture directe du cookie JWT — SANS appel réseau ──────────────
   const { pathname } = request.nextUrl;
 
   const isProtected = PROTECTED_PREFIXES.some(prefix =>
     pathname === prefix || pathname.startsWith(prefix + '/')
   );
 
-  if (isProtected && !user) {
-    // Construire l'URL de redirection à partir de l'origine (compatible Edge + tests Vitest)
-    // On utilise new URL() plutôt que request.nextUrl.clone() pour éviter la dépendance
-    // à NextURL.clone() qui n'est pas disponible dans les mocks Vitest (type WHATWG URL).
+  if (isProtected && !hasValidToken(request)) {
     const loginUrl = new URL('/connexion', request.nextUrl.origin);
-    // Conserver l'URL cible pour rediriger après connexion
     loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
   }

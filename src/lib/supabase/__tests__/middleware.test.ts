@@ -11,8 +11,9 @@
  *
  * ─── Stratégie de mock ────────────────────────────────────────────────────────
  *
- *  @supabase/ssr est mocké pour simuler auth.getUser() avec ou sans session.
- *  NextResponse est partiellement mocké pour capturer redirect() et next().
+ *  Le middleware lit le token directement depuis le cookie JSON (sans appel réseau).
+ *  Les tests simulent la présence/absence du cookie sb-<ref>-auth-token.
+ *  @supabase/ssr est mocké pour getSession() (refresh) sans appel réseau.
  *
  * ─── Routes protégées couvertes ───────────────────────────────────────────────
  *
@@ -28,28 +29,24 @@ import { join } from 'path';
 
 // ─── Mock @supabase/ssr ────────────────────────────────────────────────────────
 
-let mockUser: { id: string; email: string } | null = null;
-
 vi.mock('@supabase/ssr', () => ({
   createServerClient: () => ({
     auth: {
-      // Le middleware utilise getUser() — appel réseau qui valide le token
-      // et parse correctement le cookie JSON {"access_token":"eyJ..."}.
-      getUser: async () => ({ data: { user: mockUser }, error: null }),
-      // getSession conservé pour compatibilité avec d'autres appels éventuels
-      getSession: async () => ({
-        data: { session: mockUser ? { user: mockUser, access_token: 'mock-token' } : null },
-        error: null,
-      }),
+      // getSession est appelé pour rafraîchir les cookies — résultat non utilisé pour le guard
+      getSession: async () => ({ data: { session: null }, error: null }),
+      getUser:    async () => ({ data: { user: null }, error: null }),
     },
   }),
 }));
 
 // ─── Mock next/server ─────────────────────────────────────────────────────────
 
-// Capture les appels à NextResponse.redirect() et NextResponse.next()
 const redirectCalls: URL[] = [];
 let nextCalled = false;
+
+// Cookie simulé dans la requête
+let mockCookieValue: string | null = null;
+const COOKIE_NAME = 'sb-qmrkacrpncdkhofiqlrg-auth-token';
 
 vi.mock('next/server', () => {
   class MockNextResponse {
@@ -85,12 +82,28 @@ vi.mock('next/server', () => {
     NextRequest: class MockNextRequest {
       nextUrl: URL;
       headers: Headers;
-      cookies: { getAll: () => Array<{ name: string; value: string }> };
+      cookies: {
+        getAll: () => Array<{ name: string; value: string }>;
+        get: (name: string) => { value: string } | undefined;
+        set: (name: string, value: string) => void;
+      };
 
       constructor(url: string, init?: { headers?: Record<string, string> }) {
         this.nextUrl = new URL(url);
         this.headers = new Headers(init?.headers ?? {});
-        this.cookies = { getAll: () => [] };
+        // Simuler les cookies de la requête
+        this.cookies = {
+          getAll: () => mockCookieValue
+            ? [{ name: COOKIE_NAME, value: mockCookieValue }]
+            : [],
+          get: (name: string) => {
+            if (name === COOKIE_NAME && mockCookieValue) {
+              return { value: mockCookieValue };
+            }
+            return undefined;
+          },
+          set: vi.fn(),
+        };
       }
     },
   };
@@ -103,6 +116,13 @@ import { NextRequest } from 'next/server';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// Token JWT valide (non expiré) dans un cookie JSON brut
+const VALID_COOKIE = JSON.stringify({
+  access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.signature',
+  refresh_token: 'mock-refresh-token',
+  expires_at: Math.floor(Date.now() / 1000) + 3600, // expire dans 1h
+});
+
 function makeRequest(path: string): NextRequest {
   return new NextRequest(`https://biguglia-connect.fr${path}`);
 }
@@ -112,7 +132,7 @@ function makeRequest(path: string): NextRequest {
 describe('updateSession — guards d\'authentification', () => {
 
   beforeEach(() => {
-    mockUser = null;
+    mockCookieValue = null;
     redirectCalls.length = 0;
     nextCalled = false;
   });
@@ -158,15 +178,13 @@ describe('updateSession — guards d\'authentification', () => {
     ];
 
     it.each(protectedRoutes)(
-      '%s → redirige vers /connexion (non authentifié)',
+      '%s → redirige vers /connexion (pas de cookie)',
       async (path) => {
-        mockUser = null;
+        mockCookieValue = null; // Pas de cookie → non connecté
         const req = makeRequest(path);
         const res = await updateSession(req);
 
-        // Doit avoir déclenché une redirection
         expect(redirectCalls.length, `Pas de redirection pour ${path}`).toBe(1);
-
         const redirectUrl = redirectCalls[0];
         expect(redirectUrl.pathname).toBe('/connexion');
         expect(redirectUrl.searchParams.get('next')).toBe(path);
@@ -188,13 +206,13 @@ describe('updateSession — guards d\'authentification', () => {
     ];
 
     it.each(protectedRoutes)(
-      '%s → accès accordé (authentifié)',
+      '%s → accès accordé (cookie valide présent)',
       async (path) => {
-        mockUser = { id: 'user-123', email: 'test@example.com' };
+        mockCookieValue = VALID_COOKIE; // Cookie JWT valide → connecté
         const req = makeRequest(path);
         await updateSession(req);
 
-        expect(redirectCalls.length, `Redirection inattendue pour ${path} (utilisateur connecté)`).toBe(0);
+        expect(redirectCalls.length, `Redirection inattendue pour ${path} (cookie valide)`).toBe(0);
         expect(nextCalled).toBe(true);
       }
     );
@@ -225,7 +243,7 @@ describe('updateSession — guards d\'authentification', () => {
     it.each(publicRoutes)(
       '%s → accessible sans session (route publique)',
       async (path) => {
-        mockUser = null;
+        mockCookieValue = null;
         const req = makeRequest(path);
         await updateSession(req);
 
@@ -238,7 +256,7 @@ describe('updateSession — guards d\'authentification', () => {
 
   describe('Paramètre ?next= dans l\'URL de redirection', () => {
     it('/dashboard/avis → /connexion?next=%2Fdashboard%2Favis', async () => {
-      mockUser = null;
+      mockCookieValue = null;
       const req = makeRequest('/dashboard/avis');
       await updateSession(req);
 
@@ -249,7 +267,7 @@ describe('updateSession — guards d\'authentification', () => {
     });
 
     it('/messages/abc-123 → /connexion?next=%2Fmessages%2Fabc-123', async () => {
-      mockUser = null;
+      mockCookieValue = null;
       const req = makeRequest('/messages/abc-123');
       await updateSession(req);
 
@@ -260,7 +278,7 @@ describe('updateSession — guards d\'authentification', () => {
     });
 
     it('/admin/stats → /connexion?next=%2Fadmin%2Fstats', async () => {
-      mockUser = null;
+      mockCookieValue = null;
       const req = makeRequest('/admin/stats');
       await updateSession(req);
 
@@ -272,22 +290,22 @@ describe('updateSession — guards d\'authentification', () => {
   // ── 6. Cas limites ───────────────────────────────────────────────────────────
 
   describe('Cas limites', () => {
-    it('/connexion (non protégé) → pas de redirection même sans session', async () => {
-      mockUser = null;
+    it('/connexion (non protégé) → pas de redirection même sans cookie', async () => {
+      mockCookieValue = null;
       const req = makeRequest('/connexion');
       await updateSession(req);
       expect(redirectCalls.length).toBe(0);
     });
 
     it('/connexion?next=/dashboard → pas de redirection (page de login elle-même)', async () => {
-      mockUser = null;
+      mockCookieValue = null;
       const req = makeRequest('/connexion?next=/dashboard');
       await updateSession(req);
       expect(redirectCalls.length).toBe(0);
     });
 
-    it('/profil (exact, sans slash final) → redirige si non authentifié', async () => {
-      mockUser = null;
+    it('/profil (exact, sans slash final) → redirige si pas de cookie', async () => {
+      mockCookieValue = null;
       const req = makeRequest('/profil');
       await updateSession(req);
       expect(redirectCalls.length).toBe(1);
@@ -295,19 +313,29 @@ describe('updateSession — guards d\'authentification', () => {
     });
 
     it('/profilartisan (commence par /profil mais différent) → PAS redirigé', async () => {
-      // /profilartisan n'est pas dans la liste protégée
-      // Ce test garantit que le préfixe matching est précis (= + startsWith('/'))
-      mockUser = null;
+      mockCookieValue = null;
       const req = makeRequest('/profilartisan');
       await updateSession(req);
-      // Pas de redirection car /profilartisan !== /profil et ne commence pas par /profil/
       expect(redirectCalls.length).toBe(0);
     });
 
     it('/dashboard-public (non protégé) → pas de redirection', async () => {
-      mockUser = null;
+      mockCookieValue = null;
       const req = makeRequest('/dashboard-public');
       await updateSession(req);
+      expect(redirectCalls.length).toBe(0);
+    });
+
+    it('Cookie expiré → accès autorisé (refresh côté client)', async () => {
+      // Token avec expires_at dans le passé → on laisse passer (le client rafraîchit)
+      mockCookieValue = JSON.stringify({
+        access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.expired.signature',
+        refresh_token: 'mock-refresh-token',
+        expires_at: Math.floor(Date.now() / 1000) - 3600, // expiré il y a 1h
+      });
+      const req = makeRequest('/messages');
+      await updateSession(req);
+      // On laisse passer — le refresh_token permet de renouveler côté client
       expect(redirectCalls.length).toBe(0);
     });
   });
