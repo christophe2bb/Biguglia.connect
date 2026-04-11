@@ -24,6 +24,7 @@ import { PhotoViewer } from '@/components/ui/PhotoViewer';
 import ContactButton from '@/components/ui/ContactButton';
 import StatusBadge from '@/components/ui/StatusBadge';
 import SectorFilter, { SectorBadge } from '@/components/ui/SectorFilter';
+import { SECTORS, SECTOR_COLORS } from '@/lib/sectors';
 import toast from 'react-hot-toast';
 import { legacyToFrenchStatus, computeDisplayStatus, OUTING_STATUS_CONFIG } from '@/lib/outings';
 import { cn } from '@/lib/utils';
@@ -857,7 +858,7 @@ export default function PromenadePage() {
     const { data } = await supabase
       .from('group_outings')
       .select(`*, organizer:profiles!group_outings_organizer_id_fkey(full_name), participants:outing_participants(count), sector_id`)
-      .in('status', ['ouverte', 'complete'])
+      .in('status', ['ouverte', 'complete', 'open', 'active', 'full'])
       .gte('outing_date', new Date().toISOString().split('T')[0])
       .order('outing_date', { ascending: true }).limit(20);
     const enriched = (data || []).map((o: GroupOuting & { participants?: { count: number }[] }) => ({
@@ -1000,17 +1001,62 @@ export default function PromenadePage() {
     if (!profile) return;
     if (!outingForm.title.trim() || !outingForm.outing_date) { toast.error('Titre et date obligatoires'); return; }
     setSubmittingOuting(true);
-    const payload: Record<string, unknown> = { organizer_id:profile.id, title:outingForm.title.trim(), description:outingForm.description.trim()||null, outing_date:outingForm.outing_date, outing_time:outingForm.outing_time||null, max_participants:parseInt(outingForm.max_participants)||10, meeting_point:outingForm.meeting_point.trim()||null, parking_info:outingForm.parking_info.trim()||null, parking_available:outingForm.parking_available, stroller_accessible:outingForm.stroller_accessible, difficulty:outingForm.difficulty, kids_friendly:outingForm.kids_friendly, dogs_allowed:outingForm.dogs_allowed };
-    if (outingForm.sector_id) payload.sector_id = outingForm.sector_id;
+
+    // Payload enrichi (après migration)
+    const fullPayload: Record<string, unknown> = {
+      organizer_id: profile.id,
+      title: outingForm.title.trim(),
+      description: outingForm.description.trim() || null,
+      outing_date: outingForm.outing_date,
+      outing_time: outingForm.outing_time || null,
+      max_participants: parseInt(outingForm.max_participants) || 10,
+      meeting_point: outingForm.meeting_point.trim() || null,
+      parking_info: outingForm.parking_info.trim() || null,
+      parking_available: outingForm.parking_available,
+      stroller_accessible: outingForm.stroller_accessible,
+      difficulty: outingForm.difficulty,
+      kids_friendly: outingForm.kids_friendly,
+      dogs_allowed: outingForm.dogs_allowed,
+    };
+    if (outingForm.sector_id) fullPayload.sector_id = outingForm.sector_id;
+
+    // Payload minimal (avant migration, colonnes enrichies absentes)
+    const minPayload: Record<string, unknown> = {
+      organizer_id: profile.id,
+      title: outingForm.title.trim(),
+      description: outingForm.description.trim() || null,
+      outing_date: outingForm.outing_date,
+      outing_time: outingForm.outing_time || null,
+      max_participants: parseInt(outingForm.max_participants) || 10,
+      meeting_point: outingForm.meeting_point.trim() || null,
+    };
+
     let outingId: string | null = null;
     if (editingOuting) {
-      const { error } = await supabase.from('group_outings').update(payload).eq('id', editingOuting.id);
-      if (error) { toast.error(`Erreur modification : ${error.message}`); console.error('Outing update error:', error); setSubmittingOuting(false); return; }
+      // Essai enrichi, fallback minimal
+      let { error } = await supabase.from('group_outings').update(fullPayload).eq('id', editingOuting.id);
+      if (error) {
+        console.warn('Update enrichi échoué, fallback minimal:', error.message);
+        const { error: err2 } = await supabase.from('group_outings').update(minPayload).eq('id', editingOuting.id);
+        if (err2) { toast.error(`Erreur modification : ${err2.message}`); setSubmittingOuting(false); return; }
+      }
       outingId = editingOuting.id; toast.success('Sortie modifiée ✓');
     } else {
-      const { data: inserted, error } = await supabase.from('group_outings').insert(payload).select('id').single();
-      if (error) { toast.error(`Erreur création : ${error.message}`); console.error('Outing insert error:', error); setSubmittingOuting(false); return; }
-      outingId = inserted?.id ?? null; toast.success('🥾 Sortie créée !', { duration: 4000 });
+      // Essai enrichi, fallback minimal
+      const { data: inserted, error } = await supabase.from('group_outings').insert(fullPayload).select('id').single();
+      if (error) {
+        console.warn('Insert enrichi échoué, fallback minimal. Erreur:', error.message);
+        // Indice migration manquante
+        if (error.message?.includes('column') || error.code === '42703') {
+          toast('ℹ️ Migration SQL requise pour les options avancées — sortie créée en mode simplifié', { icon: '⚠️', duration: 5000 });
+        }
+        const { data: ins2, error: err2 } = await supabase.from('group_outings').insert(minPayload).select('id').single();
+        if (err2) { toast.error(`Erreur création : ${err2.message}`); setSubmittingOuting(false); return; }
+        outingId = ins2?.id ?? null;
+      } else {
+        outingId = inserted?.id ?? null;
+      }
+      toast.success('🥾 Sortie créée !', { duration: 4000 });
     }
     if (outingPhotos.length > 0 && outingId) {
       for (let i = 0; i < outingPhotos.length; i++) {
@@ -1995,6 +2041,38 @@ export default function PromenadePage() {
                       )}>
                       <span className="text-xl leading-none">{cfg.emoji}</span>
                       <span className="text-[11px] font-bold leading-tight">{cfg.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Explorer par secteur */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+              <h3 className="text-sm font-black text-gray-800 mb-4 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-emerald-500" /> Explorer par secteur
+              </h3>
+              <div className="space-y-1.5">
+                <button
+                  onClick={() => { setFilterSector(null); setActiveTab('itineraires'); }}
+                  className={cn('flex items-center gap-2 w-full px-3 py-2 rounded-xl text-xs font-bold border transition-all',
+                    !filterSector ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50')}>
+                  <span className="text-base">🗺️</span>
+                  <span>Tous les secteurs</span>
+                  <span className={cn('ml-auto text-[10px] font-semibold', !filterSector ? 'text-emerald-500' : 'text-gray-400')}>{promenades.length}</span>
+                </button>
+                {SECTORS.map(sector => {
+                  const colors = SECTOR_COLORS[sector.color];
+                  const count = promenades.filter(p => p.sector_id === sector.id).length;
+                  const isActive = filterSector === sector.id;
+                  return (
+                    <button key={sector.id}
+                      onClick={() => { setFilterSector(isActive ? null : sector.id); setActiveTab('itineraires'); }}
+                      className={cn('flex items-center gap-2 w-full px-3 py-2 rounded-xl text-xs font-bold border transition-all',
+                        isActive ? `${colors.bg} ${colors.text} ${colors.border}` : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50')}>
+                      <span className="text-base">{sector.icon}</span>
+                      <span className="flex-1 text-left truncate">{sector.name}</span>
+                      {count > 0 && <span className={cn('text-[10px] font-semibold', isActive ? colors.text : 'text-gray-400')}>{count}</span>}
                     </button>
                   );
                 })}

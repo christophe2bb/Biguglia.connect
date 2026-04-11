@@ -18,8 +18,8 @@ ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS stroller_accessible BOOLEAN N
 ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS parking_available   BOOLEAN NOT NULL DEFAULT false;
 
 -- ── 2. Secteur géographique ────────────────────────────────────────────────
-ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS sector_id UUID
-  REFERENCES forum_sectors(id) ON DELETE SET NULL;
+-- Secteur stocké en TEXT (correspond aux IDs de src/lib/sectors.ts : 'village', 'figabruna', etc.)
+ALTER TABLE group_outings ADD COLUMN IF NOT EXISTS sector_id TEXT;
 
 -- ── 3. Table photos sortie ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS outing_photos (
@@ -79,6 +79,7 @@ BEGIN
 END $$;
 
 -- ── 5. Index performances ──────────────────────────────────────────────────
+-- sector_id est TEXT, index standard
 CREATE INDEX IF NOT EXISTS group_outings_sector_idx  ON group_outings(sector_id);
 CREATE INDEX IF NOT EXISTS group_outings_date_idx    ON group_outings(outing_date);
 CREATE INDEX IF NOT EXISTS group_outings_status_idx  ON group_outings(status);
