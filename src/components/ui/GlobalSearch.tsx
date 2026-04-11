@@ -81,11 +81,16 @@ const THEME_CONFIG = {
     bg: 'bg-rose-100',
     icon: <ScanSearch className="w-3.5 h-3.5" />,
   },
+  emploi: {
+    label: 'Emploi',
+    color: 'text-indigo-600',
+    bg: 'bg-indigo-100',
+    icon: <Briefcase className="w-3.5 h-3.5" />,
+  },
 } as const;
 
 type ThemeKey = keyof typeof THEME_CONFIG;
-// 'emploi' est dans THEME_CONFIG mais TypeScript le voit pas toujours — cast explicite
-type AnyThemeKey = ThemeKey | 'emploi';
+type AnyThemeKey = ThemeKey;
 
 // ─── Recherches populaires par défaut ──────────────────────────────────────────
 const POPULAR_SEARCHES = [
@@ -166,7 +171,7 @@ function scoreResult(result: QuickResult, words: string[]): number {
 
 // ─── Composant ThemeBadge ───────────────────────────────────────────────────────
 function ThemeBadge({ theme }: { theme: AnyThemeKey }) {
-  const cfg = THEME_CONFIG[theme as ThemeKey];
+  const cfg = THEME_CONFIG[theme];
   return (
     <span className={cn('inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md', cfg.bg, cfg.color)}>
       {cfg.icon}
@@ -489,22 +494,22 @@ export default function GlobalSearch({
             title: j.title as string,
             subtitle: (j.location_label as string) || (j.job_category as string),
             href: `/emploi/offres/${j.slug}`,
-            theme: 'emploi' as AnyThemeKey,
-            themeLabel: 'Emploi',
-            themeColor: 'text-indigo-600',
-            themeBg: 'bg-indigo-100',
-            icon: <Briefcase className="w-3.5 h-3.5" />,
+            theme: 'emploi' as ThemeKey,
+            themeLabel: THEME_CONFIG.emploi.label,
+            themeColor: THEME_CONFIG.emploi.color,
+            themeBg: THEME_CONFIG.emploi.bg,
+            icon: THEME_CONFIG.emploi.icon,
           })),
           ...(jobDemands || []).map((j: Record<string, unknown>) => ({
             id: `jobdemand-${j.id}`,
             title: j.title as string,
             subtitle: j.location_label as string,
             href: `/emploi/demandes/${j.slug}`,
-            theme: 'emploi' as AnyThemeKey,
-            themeLabel: 'Emploi',
-            themeColor: 'text-indigo-600',
-            themeBg: 'bg-indigo-100',
-            icon: <Briefcase className="w-3.5 h-3.5" />,
+            theme: 'emploi' as ThemeKey,
+            themeLabel: THEME_CONFIG.emploi.label,
+            themeColor: THEME_CONFIG.emploi.color,
+            themeBg: THEME_CONFIG.emploi.bg,
+            icon: THEME_CONFIG.emploi.icon,
           })),
         ];
 
@@ -716,7 +721,7 @@ export default function GlobalSearch({
                             <p className="text-xs text-gray-500 truncate">{r.subtitle}</p>
                           )}
                         </div>
-                        <ThemeBadge theme={r.theme as AnyThemeKey} />
+                        <ThemeBadge theme={r.theme as ThemeKey} />
                       </button>
                     ))}
                   </div>
@@ -810,6 +815,7 @@ export default function GlobalSearch({
                       forum: '/forum',
                       association: '/associations',
                       perdu: '/perdu-trouve',
+                      emploi: '/emploi',
                     };
                     return (
                       <button
