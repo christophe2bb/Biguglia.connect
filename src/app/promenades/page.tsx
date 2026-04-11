@@ -1034,7 +1034,7 @@ export default function PromenadePage() {
     let outingId: string | null = null;
     if (editingOuting) {
       // Essai enrichi, fallback minimal
-      let { error } = await supabase.from('group_outings').update(fullPayload).eq('id', editingOuting.id);
+      const { error } = await supabase.from('group_outings').update(fullPayload).eq('id', editingOuting.id);
       if (error) {
         console.warn('Update enrichi échoué, fallback minimal:', error.message);
         const { error: err2 } = await supabase.from('group_outings').update(minPayload).eq('id', editingOuting.id);
