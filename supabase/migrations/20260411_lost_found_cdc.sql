@@ -173,7 +173,7 @@ CREATE TABLE IF NOT EXISTS lf_matches (
   match_score     INT NOT NULL DEFAULT 0 CHECK (match_score >= 0 AND match_score <= 100),
   match_status    TEXT NOT NULL DEFAULT 'suggested'
                   CHECK (match_status IN ('suggested', 'confirmed', 'rejected')),
-  created_by      UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  suggested_by    UUID REFERENCES profiles(id) ON DELETE SET NULL,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (lost_item_id, found_item_id)
 );
@@ -189,7 +189,7 @@ CREATE POLICY "lf_matches_select" ON lf_matches
 
 DROP POLICY IF EXISTS "lf_matches_insert" ON lf_matches;
 CREATE POLICY "lf_matches_insert" ON lf_matches
-  FOR INSERT WITH CHECK (auth.uid() = created_by OR auth.uid() IS NOT NULL);
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 
 -- 7. Trigger auto-update updated_at sur lost_found_items
 -- ---------------------------------------------------------------------------
