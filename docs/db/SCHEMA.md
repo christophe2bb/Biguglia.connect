@@ -18,6 +18,7 @@
 | `20260411_help_requests_cdc.sql` | 2026-04-11 | Module Coups de main : `help_requests`, `help_photos`, `help_comments`, `help_request_participants`, `help_request_status_history` |
 | `20260411_lost_found_cdc.sql` | 2026-04-11 | Module Perdu/Trouvé : `lost_found_items`, `lf_photos`, `lf_comments`, `lf_matches` |
 | `20260411_annonces_cdc.sql` | 2026-04-11 | Enrichissement `listings` (6 types, 10 statuts, 12 colonnes CDC) + `listing_favorites`, `listing_saved_searches`, `listing_reports`, `listing_status_history` |
+| `20260412_conversations_unique.sql` | 2026-04-12 | ⚠️ **À appliquer** — Anti-duplication messagerie : `conversation_pairs` (UNIQUE par paire canonique + contexte), trigger `trg_maintain_conversation_pairs`, élargissement contrainte `related_type`, ajout colonne `joined_at` |
 
 > **Règle** : `supabase/migrations/` est la **seule source de vérité**.
 > Le dossier `sql/` a été supprimé. Ne plus créer de fichiers SQL à la racine.
@@ -72,8 +73,57 @@
 | id (slug) | name | slug | icon | color | display_order | description | is_active |
 Valeurs : `les-collines`, `figabruna`, `village`, `casatorra`, `ortale`, `la-plaine`, `la-marana`
 
-#### `messages` / `conversations` / `conversation_participants`
-Tables de messagerie interne. Voir code `src/app/messages/`.
+#### `conversations`
+| Colonne | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| subject | text | Sujet affiché, défaut `'Conversation'` |
+| related_type | text | Contexte métier — voir whitelist CHECK ci-dessous |
+| related_id | uuid | nullable — UUID de l'objet lié (listing, équipement…) |
+| exchange_status | text | nullable — `pending_confirmation` \| `done` |
+| exchange_confirmed_by | uuid[] | nullable — participants ayant confirmé |
+| exchange_confirmed_at | timestamptz | nullable |
+| owner_id | uuid | nullable — FK `profiles` |
+| created_by | uuid | nullable — FK `profiles` |
+| created_at | timestamptz | |
+| updated_at | timestamptz | mis à jour par trigger à chaque INSERT message |
+
+**Contrainte CHECK `related_type`** (après migration `20260412`) :
+`service_request`, `listing`, `equipment`, `general`, `help_request`,
+`collection_item`, `lost_found`, `association`, `outing`, `event`, `artisan`, `community`
+
+#### `conversation_participants`
+| Colonne | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| conversation_id | uuid | FK → `conversations` ON DELETE CASCADE |
+| user_id | uuid | FK → `profiles` ON DELETE CASCADE |
+| last_read_at | timestamptz | nullable |
+| joined_at | timestamptz | ⚠️ Ajouté par migration `20260412` |
+
+Contrainte : `UNIQUE(conversation_id, user_id)`
+
+#### `conversation_pairs` ⚠️ *créée par migration `20260412`*
+Table de normalisation pour la contrainte d'unicité anti-doublon.
+| Colonne | Type | Notes |
+|---|---|---|
+| conversation_id | uuid | PK, FK → `conversations` ON DELETE CASCADE |
+| participant_a | uuid | `LEAST(user_a, user_b)` — ordre lexicographique |
+| participant_b | uuid | `GREATEST(user_a, user_b)` |
+| related_type | text | Copie de `conversations.related_type` |
+| related_id | uuid | nullable — copie de `conversations.related_id` |
+
+Contrainte : `UNIQUE(participant_a, participant_b, related_type, related_id)`
+Trigger : `trg_maintain_conversation_pairs` (AFTER INSERT sur `conversation_participants`)
+
+> **Anti-duplication** : le garde applicatif dans `src/app/api/messages/start-conversation/route.ts`
+> détecte les doublons en amont. La table `conversation_pairs` + la contrainte UNIQUE
+> constitue le filet de sécurité DB pour les cas de race condition.
+> En cas de `unique_violation` (code `23505`), la route retourne la conversation existante
+> plutôt qu'une erreur.
+
+#### `messages`
+Table de messagerie interne. Voir code `src/app/messages/`.
 
 #### `notifications`
 | id | user_id | type | title | message | link | is_read | created_at |
