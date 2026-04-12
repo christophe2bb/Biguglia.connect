@@ -7,7 +7,8 @@
  * historique de modération, score de risque, actions.
  */
 
-import { useState, useEffect } from 'react';
+import Image from 'next/image';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -108,7 +109,7 @@ function ModerationDetailContent() {
   const router = useRouter();
   const params = useParams();
   const queueId = params.id as string;
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [item, setItem]               = useState<QueueDetail | null>(null);
   const [history, setHistory]         = useState<ModerationHistoryEntry[]>([]);
@@ -120,13 +121,15 @@ function ModerationDetailContent() {
   const [selectedDecision, setSelectedDecision] = useState<'accepter' | 'refuser' | 'demander_correction' | null>(null);
   const [selectedReason, setSelectedReason]     = useState('');
   const [moderatorNote, setModeratorNote]       = useState('');
+  const moderatorNoteRef = useRef(moderatorNote);
+  moderatorNoteRef.current = moderatorNote;
   const [photoIndex, setPhotoIndex]             = useState(0);
 
   useEffect(() => {
     if (profile && !isModerator()) router.push('/admin');
   }, [profile, isModerator, router]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
       .from('moderation_queue')
@@ -142,7 +145,7 @@ function ModerationDetailContent() {
 
     if (data) {
       setItem(data as QueueDetail);
-      if (moderatorNote === '') setModeratorNote(data.moderator_note || '');
+      if (moderatorNoteRef.current === '') setModeratorNote(data.moderator_note || '');
 
       // Historique
       const { data: hist } = await supabase
@@ -167,9 +170,9 @@ function ModerationDetailContent() {
       }
     }
     setLoading(false);
-  };
+  }, [queueId, supabase]);
 
-  useEffect(() => { fetchData(); }, [queueId]); // eslint-disable-line
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   // Soumission décision
   const handleDecision = async () => {
@@ -417,7 +420,6 @@ function ModerationDetailContent() {
             <Section title={`Photos (${item.content_photos.length})`} icon={ImageIcon}>
               <div className="space-y-3">
                 <div className="relative aspect-video rounded-xl overflow-hidden bg-gray-100">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={item.content_photos[photoIndex]}
                     alt={`Photo ${photoIndex + 1}`}
@@ -434,8 +436,7 @@ function ModerationDetailContent() {
                           i === photoIndex ? 'border-brand-500' : 'border-transparent'
                         }`}
                       >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={url} alt="" className="w-full h-full object-cover" />
+                        <Image src={url} alt="" fill className="object-cover" />
                       </button>
                     ))}
                   </div>

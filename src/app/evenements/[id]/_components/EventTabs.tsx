@@ -5,6 +5,7 @@
  * Reçoit toutes les données via props ; aucun fetch ici.
  */
 
+import Image from 'next/image';
 import Link from 'next/link';
 import {
   Trash2, Send, Loader2, UserCheck, UserX, ChevronRight, MessageSquare,
@@ -121,8 +122,7 @@ export default function EventTabs({
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                   {allPhotos.map((p, i) => (
                     <div key={p.id} className="aspect-square rounded-xl overflow-hidden border border-gray-100">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={p.url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                      <Image src={p.url} alt="" fill className="object-cover" />
                     </div>
                   ))}
                 </div>

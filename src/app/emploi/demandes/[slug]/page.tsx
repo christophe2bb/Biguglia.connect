@@ -3,6 +3,7 @@
  * Route: /emploi/demandes/[slug]
  */
 
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -473,8 +474,7 @@ export default async function DemandDetailPage({ params }: PageProps) {
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Profil publié par</p>
                   <div className="flex items-center gap-3">
                     {demand.author_profile.avatar_url ? (
-                      <img src={demand.author_profile.avatar_url} alt={demand.author_profile.display_name}
-                        className="w-12 h-12 rounded-full object-cover" />
+                      <Image src={demand.author_profile.avatar_url} alt={demand.author_profile.display_name} fill className="rounded-full object-cover" />
                     ) : (
                       <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-lg">
                         {demand.author_profile.display_name[0].toUpperCase()}

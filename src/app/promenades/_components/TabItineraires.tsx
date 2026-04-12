@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import {
   Plus, X, Filter, Camera, Loader2, RefreshCw, MapPin, Clock, Heart, TreePine,
@@ -228,8 +229,7 @@ export default function TabItineraires({
                   const url = URL.createObjectURL(file);
                   return (
                     <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={url} alt="" className="w-full h-full object-cover" />
+                      <Image src={url} alt="" fill className="object-cover" />
                       <button type="button" onClick={() => setPhotos(p => p.filter((_, idx) => idx !== i))}
                         className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-black/80">
                         <X className="w-3 h-3" />
@@ -318,8 +318,7 @@ export default function TabItineraires({
               <div key={p.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden flex gap-0">
                 <div className={`relative w-24 h-24 flex-shrink-0 ${firstPhoto ? '' : `bg-gradient-to-br ${type.gradient}`} flex items-center justify-center`}>
                   {firstPhoto ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={firstPhoto} alt="" className="w-full h-full object-cover" />
+                    <Image src={firstPhoto} alt="" fill className="object-cover" />
                   ) : (
                     <TypeIcon className="w-8 h-8 text-white opacity-40" />
                   )}

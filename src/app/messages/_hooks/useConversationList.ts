@@ -102,8 +102,7 @@ export function useConversationList({
       document.removeEventListener('visibilitychange', handleVis);
       window.removeEventListener('messages-read', handleMessagesRead);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, profileId]);
+  }, [authLoading, profileId, fetch.fetchConversations, fetch.conversationsRef, fetch.localReadMapRef, fetch.setConversations, realtime.connect, realtime.cleanup]);
 
   return {
     conversations:           fetch.conversations,

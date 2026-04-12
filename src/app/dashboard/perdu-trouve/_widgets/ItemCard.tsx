@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { MapPin, Clock, MessageSquare, Shield, Package, Eye, Pencil, Trash2 } from 'lucide-react';
 import { formatRelative } from '@/lib/utils';
@@ -43,10 +44,9 @@ export default function ItemCard({ item, onStatusChange, onDelete }: Props) {
     }`}>
       <div className="flex gap-0">
         {/* Photo */}
-        <div className="w-20 h-20 flex-shrink-0 overflow-hidden">
+        <div className="relative w-20 h-20 flex-shrink-0 overflow-hidden">
           {coverPhoto ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={coverPhoto.url} alt={item.title} className="w-full h-full object-cover" />
+            <Image src={coverPhoto.url} alt={item.title} fill className="object-cover" />
           ) : (
             <div className={`w-full h-full flex items-center justify-center ${
               item.type === 'perdu' ? 'bg-orange-50' : 'bg-emerald-50'

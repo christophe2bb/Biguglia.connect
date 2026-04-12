@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import {
   Calendar, Clock, MapPin, Users, Bell, ArrowRight,
@@ -56,9 +57,8 @@ export default function EventCard({
         isAnnule && 'opacity-60',
       )}>
         {event.cover_photo && !isPastEvent && (
-          <div className="cursor-pointer" onClick={() => setLightboxOpen(true)}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={event.cover_photo} alt={event.title} className="w-full h-28 object-cover" />
+          <div className="relative h-28 cursor-pointer" onClick={() => setLightboxOpen(true)}>
+            <Image src={event.cover_photo} alt={event.title} fill className="object-cover" />
           </div>
         )}
         <div className="p-3">
@@ -136,9 +136,8 @@ export default function EventCard({
       {/* Zone photo */}
       <div className="relative h-44 overflow-hidden">
         {event.cover_photo ? (
-          <div className="w-full h-full cursor-pointer" onClick={() => setLightboxOpen(true)}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={event.cover_photo} alt={event.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <div className="relative w-full h-full cursor-pointer" onClick={() => setLightboxOpen(true)}>
+            <Image src={event.cover_photo} alt={event.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
           </div>
         ) : (
           <div className={cn('w-full h-full flex items-center justify-center', cat.bg)}>
@@ -233,8 +232,7 @@ export default function EventCard({
                   <div key={p.user_id ?? i} title={p.user?.full_name ?? 'Participant'}
                     className="w-7 h-7 rounded-full border-2 border-white shadow-sm bg-purple-100 flex items-center justify-center overflow-hidden flex-shrink-0">
                     {p.user?.avatar_url
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      ? <img src={p.user.avatar_url} alt={p.user.full_name} className="w-full h-full object-cover" />
+                      ? <Image src={p.user.avatar_url} alt={p.user.full_name ?? ''} fill className="object-cover" />
                       : <span className="text-xs font-bold text-purple-600">{(p.user?.full_name ?? '?').charAt(0).toUpperCase()}</span>
                     }
                   </div>

@@ -47,7 +47,6 @@ export default function PerduTrouvePage() {
     if (profile?.home_sector_id) {
       setFilterSector(profile.home_sector_id);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.home_sector_id]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);

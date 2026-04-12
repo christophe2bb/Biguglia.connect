@@ -4,6 +4,7 @@
  * StepPreview — Étape 5 : aperçu de l'annonce + checklist + raccourcis édition.
  */
 
+import Image from 'next/image';
 import { Check, AlertCircle, ArrowLeftRight, MapPin, Truck, Eye, Pencil } from 'lucide-react';
 import { Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -48,8 +49,7 @@ export default function StepPreview({ form, categories, onJumpToStep }: Props) {
         {/* Photo couverture */}
         <div className="aspect-video bg-gray-100 overflow-hidden">
           {coverSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={coverSrc} alt={form.title} className="w-full h-full object-cover" />
+            <Image src={coverSrc} alt={form.title} fill className="object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <ImageIcon className="w-12 h-12 text-gray-300" />

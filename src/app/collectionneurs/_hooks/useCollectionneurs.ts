@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
@@ -12,7 +12,7 @@ import { STATIC_CATEGORIES, PAGE_SIZE } from '../_constants';
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 export function useCollectionneurs(profileId?: string) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const router   = useRouter();
 
   // ── Category list ─────────────────────────────────────────────────────────
@@ -29,8 +29,7 @@ export function useCollectionneurs(profileId?: string) {
       } catch { /* keep static fallback */ }
     };
     load();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [supabase]);
 
   // ── Favorites ─────────────────────────────────────────────────────────────
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
@@ -47,8 +46,7 @@ export function useCollectionneurs(profileId?: string) {
       } catch { /* table might not exist yet */ }
     };
     load();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileId]);
+  }, [profileId, supabase]);
 
   // ── Filter state ──────────────────────────────────────────────────────────
   const [search,         setSearch]         = useState('');
@@ -198,32 +196,28 @@ export function useCollectionneurs(profileId?: string) {
     } finally {
       setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStatus, selectedMode, selectedCat, selectedCond, selectedRarity,
       shippingOnly, localOnly, priceMin, priceMax, search, sortBy, page,
-      favorites, filterSector]);
+      favorites, filterSector, supabase]);
 
   // Refetch on filter changes (except search — debounced below)
   useEffect(() => {
     setItems([]);
     setPage(0);
     fetchItems(true);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStatus, selectedMode, selectedCat, selectedCond, selectedRarity,
-      shippingOnly, localOnly, priceMin, priceMax, sortBy, filterSector]);
+      shippingOnly, localOnly, priceMin, priceMax, sortBy, filterSector, fetchItems]);
 
   // Debounced search
   useEffect(() => {
     const t = setTimeout(() => { setItems([]); setPage(0); fetchItems(true); }, 400);
     return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search]);
+  }, [search, fetchItems]);
 
   // Fetch next page when `page` increments
   useEffect(() => {
     if (page > 0) fetchItems(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, fetchItems]);
 
   // ── Toggle favorite ───────────────────────────────────────────────────────
   const handleFavoriteToggle = async (itemId: string, isFav: boolean) => {

@@ -3,6 +3,7 @@
  * Route: /emploi/offres/[slug]
  */
 
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -522,8 +523,7 @@ export default async function OffreDetailPage({ params }: PageProps) {
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Publiée par</p>
                   <div className="flex items-center gap-3">
                     {offer.author_profile.avatar_url ? (
-                      <img src={offer.author_profile.avatar_url} alt={offer.author_profile.display_name}
-                        className="w-12 h-12 rounded-full object-cover" />
+                      <Image src={offer.author_profile.avatar_url} alt={offer.author_profile.display_name} fill className="rounded-full object-cover" />
                     ) : (
                       <div className="w-12 h-12 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-lg">
                         {offer.author_profile.display_name[0].toUpperCase()}

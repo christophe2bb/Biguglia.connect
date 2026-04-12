@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useRef } from 'react';
 import { X, Camera, Loader2 } from 'lucide-react';
 import SectorFilter from '@/components/ui/SectorFilter';
@@ -288,8 +289,7 @@ export default function AssociationForm({
           <div className="flex flex-wrap gap-2">
             {previews.map((src, i) => (
               <div key={i} className="relative w-24 h-24 rounded-xl overflow-hidden border border-gray-200">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="" className="w-full h-full object-cover" />
+                <Image src={src} alt="" fill className="object-cover" />
                 <button type="button" onClick={() => onRemovePhoto(i)}
                   className="absolute top-1 right-1 bg-black/50 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-black/70">
                   <X className="w-3 h-3" />

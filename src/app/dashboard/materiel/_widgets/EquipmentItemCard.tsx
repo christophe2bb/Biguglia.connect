@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import Link from 'next/link';
 import { ChevronRight, Copy, EyeOff, Eye, RotateCcw } from 'lucide-react';
@@ -38,10 +39,9 @@ export default function EquipmentItemCard({
     <div className={`bg-white rounded-2xl border overflow-hidden ${item.pending_count && item.pending_count > 0 ? 'border-orange-200' : 'border-gray-100'}`}>
       <div className="flex items-center gap-4 p-4">
         {/* Photo miniature */}
-        <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
+        <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
           {photos && photos.length > 0 ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={photos[0].url} alt={item.title} className="w-full h-full object-cover" />
+            <Image src={photos[0].url} alt={item.title} fill className="object-cover" />
           ) : (
             <div className="w-full h-full bg-gray-100 flex items-center justify-center">
               <span className="text-2xl">{(item.category as { icon?: string })?.icon || '🔧'}</span>

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import React from 'react';
 import Link from 'next/link';
 import { PartyPopper, Loader2, ArrowRight, ImageIcon, X, Tag } from 'lucide-react';
@@ -183,8 +184,7 @@ export default function TabCreer({
                 <div className="flex gap-2 flex-wrap mb-2">
                   {eventPhotoPreviews.map((src, i) => (
                     <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200 group/img">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={src} alt={`photo ${i + 1}`} className="w-full h-full object-cover" />
+                      <Image src={src} alt={`photo ${i + 1}`} fill className="object-cover" />
                       <button type="button" onClick={() => onPhotoRemove(i)}
                         className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5 opacity-0 group-hover/img:opacity-100 transition-opacity">
                         <X className="w-3 h-3 text-white" />

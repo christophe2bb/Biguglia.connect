@@ -32,6 +32,7 @@ const ZERO: UnreadCounts = { messages: 0, notifications: 0, total: 0 };
 
 export function useUnreadCounts(): UnreadCounts {
   const { profile } = useAuthStore();
+  const profileId = profile?.id ?? null;
   const [counts, setCounts] = useState<UnreadCounts>(ZERO);
 
   // ── Refs partagées entre fetch, realtime et l'effet ──────────────────────
@@ -53,10 +54,10 @@ export function useUnreadCounts(): UnreadCounts {
     readMapRef.current    = {};
     unreadMapRef.current  = {};
 
-    if (!profile?.id) { setCounts(ZERO); return; }
+    if (!profileId) { setCounts(ZERO); return; }
 
     const supabase = createClient();
-    const userId   = profile.id;
+    const userId   = profileId;
     const refs     = {
       fetchingRef, mountedRef, readMapRef, unreadMapRef,
       channelRef, reconnectRef, reconnectIdx, realtimePollRef, hookStartRef,
@@ -132,7 +133,7 @@ export function useUnreadCounts(): UnreadCounts {
       window.removeEventListener('messages-read',    handleMessagesRead);
       window.removeEventListener('new-notification', handleNewNotif);
     };
-  }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profileId]);
 
   return counts;
 }

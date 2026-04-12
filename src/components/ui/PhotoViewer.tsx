@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import {
   X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut,
   Star, GripVertical, Trash2, ImagePlus, Crown,
@@ -178,13 +179,12 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
             {photos.map((p, i) => (
               <button key={i} onClick={() => setIdx(i)}
                 className={cn(
-                  'flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all',
+                  'relative flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all',
                   i === idx
                     ? 'border-white scale-110 shadow-lg'
                     : 'border-white/20 opacity-60 hover:opacity-100 hover:border-white/50'
                 )}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.url} alt="" className="w-full h-full object-cover" />
+                <Image src={p.url} alt="" fill className="object-cover" />
                 {(p.isPrimary || i === 0) && (
                   <div className="absolute top-0.5 left-0.5">
                     <Crown className="w-2.5 h-2.5 text-amber-400 drop-shadow" />
@@ -231,8 +231,7 @@ export function PhotoGallery({
       <>
         <div className={cn('relative overflow-hidden rounded-xl cursor-pointer group', className)}
           onClick={() => openAt(0)}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={primary.url} alt={title || 'Photo'} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+          <Image src={primary.url} alt={title || 'Photo'} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
           {extra > 0 && (
             <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs font-bold px-2 py-1 rounded-full backdrop-blur-sm">
               +{extra} photo{extra > 1 ? 's' : ''}
@@ -258,8 +257,7 @@ export function PhotoGallery({
         {/* Photo principale */}
         <div className={cn('relative rounded-2xl overflow-hidden bg-gray-100 cursor-pointer group', mainHeight)}
           onClick={() => openAt(0)}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={primary.url} alt={title || 'Photo principale'} className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300" />
+          <Image src={primary.url} alt={title || 'Photo principale'} fill className="object-cover group-hover:scale-[1.02] transition-transform duration-300" />
 
           {/* Overlay hover */}
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors flex items-center justify-center">
@@ -290,8 +288,7 @@ export function PhotoGallery({
               return (
                 <div key={i} className="relative h-20 sm:h-24 rounded-xl overflow-hidden bg-gray-100 cursor-pointer group"
                   onClick={() => openAt(i + 1)}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={p.url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                  <Image src={p.url} alt="" fill className="object-cover group-hover:scale-105 transition-transform duration-200" />
                   {isLast && (
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                       <span className="text-white font-black text-lg">+{remaining + 1}</span>
@@ -442,9 +439,8 @@ export function PhotoUploaderField({
               )}
             >
               {/* Image */}
-              <div className="aspect-square">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photo.url} alt="" className="w-full h-full object-cover" />
+              <div className="relative aspect-square">
+                <Image src={photo.url} alt="" fill className="object-cover" />
               </div>
 
               {/* Overlay actions */}

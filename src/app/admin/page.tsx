@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Users, CheckCircle, AlertTriangle, MessageSquare, Package, Wrench, Flag, TrendingUp, Shield } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -22,51 +22,51 @@ interface AdminStats {
 
 function AdminContent() {
   const { profile } = useAuthStore();
+  const profileId = profile?.id;
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!profile) return;
-    const fetchData = async () => {
-      const supabase = createClient();
-      const [
-        { count: totalUsers },
-        { count: pendingArtCount },
-        { count: verifiedArtCount },
-        { count: totalListings },
-        { count: totalPosts },
-        { count: pendingReports },
-        { count: totalEquip },
-        { count: totalMsgs },
-        { count: pendingMod },
-      ] = await Promise.all([
-        supabase.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
-        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'artisan_pending'),
-        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'artisan_verified'),
-        supabase.from('listings').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-        supabase.from('forum_posts').select('*', { count: 'exact', head: true }),
-        supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('equipment_items').select('*', { count: 'exact', head: true }).eq('is_available', true),
-        supabase.from('messages').select('*', { count: 'exact', head: true }),
-        supabase.from('moderation_queue').select('*', { count: 'exact', head: true }).eq('status', 'en_attente_validation'),
-      ]);
+  const fetchData = useCallback(async () => {
+    if (!profileId) return;
+    const supabase = createClient();
+    const [
+      { count: totalUsers },
+      { count: pendingArtCount },
+      { count: verifiedArtCount },
+      { count: totalListings },
+      { count: totalPosts },
+      { count: pendingReports },
+      { count: totalEquip },
+      { count: totalMsgs },
+      { count: pendingMod },
+    ] = await Promise.all([
+      supabase.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
+      supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'artisan_pending'),
+      supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'artisan_verified'),
+      supabase.from('listings').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+      supabase.from('forum_posts').select('*', { count: 'exact', head: true }),
+      supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('equipment_items').select('*', { count: 'exact', head: true }).eq('is_available', true),
+      supabase.from('messages').select('*', { count: 'exact', head: true }),
+      supabase.from('moderation_queue').select('*', { count: 'exact', head: true }).eq('status', 'en_attente_validation'),
+    ]);
 
-      setStats({
-        total_users: totalUsers || 0,
-        pending_artisans: pendingArtCount || 0,
-        verified_artisans: verifiedArtCount || 0,
-        total_listings: totalListings || 0,
-        total_forum_posts: totalPosts || 0,
-        pending_reports: pendingReports || 0,
-        total_equipment: totalEquip || 0,
-        total_messages: totalMsgs || 0,
-        pending_moderation: pendingMod || 0,
-      });
+    setStats({
+      total_users: totalUsers || 0,
+      pending_artisans: pendingArtCount || 0,
+      verified_artisans: verifiedArtCount || 0,
+      total_listings: totalListings || 0,
+      total_forum_posts: totalPosts || 0,
+      pending_reports: pendingReports || 0,
+      total_equipment: totalEquip || 0,
+      total_messages: totalMsgs || 0,
+      pending_moderation: pendingMod || 0,
+    });
 
-      setLoading(false);
-    };
-    fetchData();
-  }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    setLoading(false);
+  }, [profileId]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const statCards = [
     { icon: Users, label: 'Utilisateurs', value: stats?.total_users ?? 0, color: 'text-blue-600', bg: 'bg-blue-50' },

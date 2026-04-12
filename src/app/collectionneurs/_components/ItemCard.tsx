@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import Link from 'next/link';
 import {
@@ -168,9 +169,7 @@ export default function ItemCard({ item, currentUserId, onFavoriteToggle, viewMo
       >
         {coverUrl ? (
           <>
-            <img src={coverUrl} alt={item.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              loading="lazy" />
+            <Image src={coverUrl} alt={item.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
             {photoCount > 1 && (
               <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">
                 <Camera className="w-3 h-3" /> {photoCount}

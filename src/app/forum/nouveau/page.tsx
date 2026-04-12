@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -624,8 +625,7 @@ export default function NouveauSujetPage() {
                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-3">
                     {photoPreviews.map((src, i) => (
                       <div key={i} className="relative group aspect-square">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={src} alt={`Photo ${i + 1}`} className="w-full h-full object-cover rounded-xl border border-gray-200" />
+                        <Image src={src} alt="" fill className="object-cover rounded-xl border border-gray-200" />
                         {i === 0 && (
                           <span className="absolute bottom-1 left-1 bg-violet-600/80 text-white text-[10px] px-1.5 py-0.5 rounded-md">
                             Couverture
@@ -799,8 +799,7 @@ export default function NouveauSujetPage() {
                     <dt className="text-gray-400 w-28 flex-shrink-0 text-xs mt-0.5">Photos</dt>
                     <dd className="flex gap-1.5 flex-wrap">
                       {photoPreviews.map((src, i) => (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img key={i} src={src} alt="" className="w-10 h-10 rounded-lg object-cover border border-gray-200" />
+                        <Image src={src} alt="" key={i} fill className="rounded-lg object-cover border border-gray-200" />
                       ))}
                     </dd>
                   </div>

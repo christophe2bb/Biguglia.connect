@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { LFItem, LFStatus, LFType } from '../_types';
 import {
@@ -30,7 +30,7 @@ export type LFDataReturn = {
 };
 
 export function useLFData(filters: Filters): LFDataReturn {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [items, setItems]     = useState<LFItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [dbReady, setDbReady] = useState(true);
@@ -82,7 +82,6 @@ export function useLFData(filters: Filters): LFDataReturn {
     }
     setDbReady(true);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rawData = (data || []) as unknown as (LFItem & { photos?: { url: string; display_order?: number; is_cover?: boolean }[] })[];
     const enriched = rawData.map(it => ({
       ...it,
@@ -103,8 +102,7 @@ export function useLFData(filters: Filters): LFDataReturn {
 
     setItems(filtered as LFItem[]);
     setLoading(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flux, filterType, filterCat, filterStatus, filterSector, search]);
+  }, [flux, filterType, filterCat, filterStatus, filterSector, search, supabase]);
 
   const perdusCount    = items.filter(i => i.status === 'perdu').length;
   const trouveCount    = items.filter(i => i.status === 'trouve').length;

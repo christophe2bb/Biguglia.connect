@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import {
   MapPin, Clock, Info, Bookmark, Heart, Eye, Share2, Flag,
@@ -49,8 +50,7 @@ export default function PromenadeCard({ p, userId, onLike, onSave }: Props) {
       {/* ── Zone photo ── */}
       <div className="relative h-52 overflow-hidden flex-shrink-0">
         {firstPhoto ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={firstPhoto} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+          <Image src={firstPhoto} alt={p.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
         ) : (
           <div className={`w-full h-full bg-gradient-to-br ${type.gradient} opacity-90 flex items-center justify-center`}>
             <TypeIcon className="w-20 h-20 opacity-20 text-white" />

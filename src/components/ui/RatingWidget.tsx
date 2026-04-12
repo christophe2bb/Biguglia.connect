@@ -17,7 +17,7 @@
  * visiteurs non connectés ne voient PAS d'invitation à noter.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Star, ThumbsUp, ChevronDown, ChevronUp, MessageSquare, Lock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
@@ -229,7 +229,7 @@ export default function RatingWidget({
   const [votingPoll, setVotingPoll]   = useState(false);
   const [tableExists, setTableExists] = useState(true);
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   // ── Charger les données ──────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -262,7 +262,7 @@ export default function RatingWidget({
       setMyVote(myP);
       if (myR) setSelected(myR);
     } finally { setLoading(false); }
-  }, [targetType, targetId, userId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [targetType, targetId, userId, supabase]);
 
   // ── Vérifier l'éligibilité ───────────────────────────────────────────────────
   useEffect(() => {
@@ -274,7 +274,7 @@ export default function RatingWidget({
       checkEligibility(supabase, targetType, targetId, userId, authorId, token)
         .then(setEligible);
     });
-  }, [load, targetType, targetId, userId, authorId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [load, targetType, targetId, userId, authorId, supabase]);
 
   // ── Soumettre note ──────────────────────────────────────────────────────────
   const submitRating = async () => {
@@ -587,7 +587,7 @@ export function UserRatingBadge({
 }) {
   const [avg, setAvg] = useState<number | null>(null);
   const [count, setCount] = useState(0);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     if (!userId) return;
@@ -598,7 +598,7 @@ export function UserRatingBadge({
         setAvg(sum / data.length);
         setCount(data.length);
       });
-  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [userId, supabase]);
 
   const isPro = artisanType === 'professionnel';
 

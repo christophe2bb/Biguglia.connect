@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import type { LocalEvent } from '../_types';
 
 export function useEvents(profileId?: string) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [events, setEvents]             = useState<LocalEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
@@ -109,7 +109,7 @@ export function useEvents(profileId?: string) {
       setDbReady(false);
     }
     setLoadingEvents(false);
-  }, [profileId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profileId, supabase]);
 
   const handleJoin = async (eventId: string, joined: boolean) => {
     if (!profileId) { toast.error('Connectez-vous pour participer'); return; }

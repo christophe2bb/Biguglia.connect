@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, Heart, Tag, Zap, Gift, ArrowLeftRight, Key, Star, Filter, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -612,8 +613,7 @@ function ListingCard({ listing, currentUserId, isSaved, onToggleSave }: ListingC
         {/* Photo zone */}
         <div className="relative h-44 overflow-hidden">
           {photos && photos.length > 0 ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={photos[0].url} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+            <Image src={photos[0].url} alt={listing.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
               <span className="text-5xl opacity-20">{listing.category?.icon || '📦'}</span>

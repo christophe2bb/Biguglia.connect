@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useRef } from 'react';
 import {
   X, Loader2, Camera, Shield, Eye, EyeOff,
@@ -345,8 +346,7 @@ export default function HelpForm({
             <div className="flex flex-wrap gap-2 mb-2">
               {previews.map((src, i) => (
                 <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200 group/p">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt="" className="w-full h-full object-cover" />
+                  <Image src={src} alt="" fill className="object-cover" />
                   {i === 0 && (
                     <span className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs text-center py-0.5">Principal</span>
                   )}

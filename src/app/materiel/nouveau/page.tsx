@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Camera, X, ChevronLeft, Info } from 'lucide-react';
@@ -288,8 +289,7 @@ export default function NouveauMaterielPage() {
                 <div className="flex flex-wrap gap-3 mt-4">
                   {photos.map((photo, i) => (
                     <div key={i} className="relative w-20 h-20 group">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={URL.createObjectURL(photo)} alt="" className="w-full h-full object-cover rounded-xl" />
+                      <Image src={URL.createObjectURL(photo)} alt="" fill className="object-cover rounded-xl" />
                       {i === 0 && (
                         <span className="absolute bottom-1 left-1 text-[9px] bg-teal-600 text-white px-1 rounded">Photo principale</span>
                       )}

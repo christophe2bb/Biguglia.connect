@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -492,8 +493,7 @@ export default function AnnonceDetailPage() {
                         <div className="rounded-xl border border-gray-100 overflow-hidden hover:shadow-sm hover:border-gray-200 transition-all">
                           <div className="relative h-28 overflow-hidden bg-gray-100">
                             {simPhotos && simPhotos.length > 0 ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={simPhotos[0].url} alt={sim.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                              <Image src={simPhotos[0].url} alt={sim.title} fill className="object-cover group-hover:scale-105 transition-transform" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
                                 <span className="text-3xl opacity-20">{sim.category?.icon || '📦'}</span>

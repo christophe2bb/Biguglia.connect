@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -105,8 +106,7 @@ export default function HelpCard({
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.id]);
+  }, [item.id, supabase]);
 
   const fetchComments = useCallback(async () => {
     const { data } = await supabase.from('help_comments')
@@ -114,8 +114,7 @@ export default function HelpCard({
       .eq('help_id', item.id).order('created_at', { ascending: true }).limit(50);
     setComments((data ?? []) as HelpComment[]);
     setChatCount((data ?? []).length);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.id]);
+  }, [item.id, supabase]);
 
   const handleOpenChat = () => {
     const will = !openChat;
@@ -169,8 +168,7 @@ export default function HelpCard({
       <div className="relative h-44 overflow-hidden">
         {coverPhoto ? (
           <div className="w-full h-full cursor-pointer" onClick={() => { setLightboxIdx(0); setLightboxOpen(true); }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={coverPhoto} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            <Image src={coverPhoto} alt={item.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
             {allPhotos.length > 1 && (
               <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs font-bold px-2 py-0.5 rounded-full backdrop-blur-sm">
                 +{allPhotos.length - 1} photo{allPhotos.length > 2 ? 's' : ''}
@@ -334,8 +332,7 @@ export default function HelpCard({
             {allPhotos.slice(1).map((ph, i) => (
               <button key={i} onClick={() => { setLightboxIdx(i + 1); setLightboxOpen(true); }}
                 className="flex-shrink-0 focus:outline-none">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={ph.url} alt="" className="h-14 w-20 object-cover rounded-lg border border-gray-100 hover:border-orange-300 transition-colors" />
+                <Image src={ph.url} alt="" fill className="object-cover rounded-lg border border-gray-100 hover:border-orange-300 transition-colors" />
               </button>
             ))}
           </div>

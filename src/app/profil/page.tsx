@@ -32,7 +32,7 @@ function ProfilContent() {
       setPhone(profile.phone || '');
       setHomeSector(profile.home_sector_id ?? null);
     }
-  }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profile]);
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

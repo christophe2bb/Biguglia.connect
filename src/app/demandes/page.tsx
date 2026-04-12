@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -202,8 +203,7 @@ export default function DemandesPage() {
                     {/* Photo ou icône catégorie */}
                     <div className="flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-blue-50 flex items-center justify-center">
                       {firstPhoto
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        ? <img src={firstPhoto} alt="" className="w-full h-full object-cover" />
+                        ? <Image src={firstPhoto} alt="" fill className="object-cover" />
                         : <span className="text-2xl">{req.category?.icon ?? '🔧'}</span>
                       }
                     </div>

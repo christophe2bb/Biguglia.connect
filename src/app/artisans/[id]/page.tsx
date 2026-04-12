@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { MapPin, Clock, Shield, Star, Phone, Calendar, ChevronLeft, Heart, HardHat, Users, CheckCircle, FileCheck } from 'lucide-react';
@@ -152,12 +153,7 @@ export default function ArtisanDetailPage() {
           {artisan.gallery && artisan.gallery.length > 0 ? (
             <div className="bg-gray-100 rounded-2xl overflow-hidden">
               <div className="h-72">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={artisan.gallery[activePhoto]?.url}
-                  alt="Réalisation"
-                  className="w-full h-full object-cover"
-                />
+                <Image src={artisan.gallery[activePhoto]?.url} alt="Réalisation" fill className="object-cover" />
               </div>
               {artisan.gallery.length > 1 && (
                 <div className="flex gap-2 p-3 overflow-x-auto">
@@ -165,8 +161,7 @@ export default function ArtisanDetailPage() {
                     <button key={photo.id} onClick={() => setActivePhoto(i)}
                       className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-colors ${i === activePhoto ? 'border-brand-500' : 'border-transparent'}`}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={photo.url} alt="" className="w-full h-full object-cover" />
+                      <Image src={photo.url} alt="" fill className="object-cover" />
                     </button>
                   ))}
                 </div>

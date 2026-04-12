@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -532,8 +533,7 @@ export default function NouvelEvenementPage() {
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                     {photoPreviews.map((src, i) => (
                       <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 group/img">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={src} alt={`photo ${i+1}`} className="w-full h-full object-cover" />
+                        <Image src={src} alt="" fill className="object-cover" />
                         {i === 0 && (
                           <div className="absolute top-1 left-1 bg-purple-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-lg">
                             Couverture

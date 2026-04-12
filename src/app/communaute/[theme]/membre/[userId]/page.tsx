@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
@@ -167,7 +167,7 @@ export default function MemberProfilePage() {
   const userId = (Array.isArray(rawParams?.userId) ? rawParams.userId[0] : rawParams?.userId) ?? '';
 
   const { profile: currentUser } = useAuthStore();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const themeConfig = THEME_CONFIG[themeSlug] ?? DEFAULT_THEME;
 
   const [loading, setLoading] = useState(true);
@@ -228,8 +228,7 @@ export default function MemberProfilePage() {
     };
 
     load();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, themeSlug]);
+  }, [userId, themeSlug, supabase]);
 
   const isMe = currentUser?.id === userId;
 

@@ -119,8 +119,10 @@ interface ProfileRow {
   email:      string | null;
 }
 
+type ParticipationRow = Omit<typeof PARTICIPATION, 'last_read_at'> & { last_read_at: string | null };
+
 interface AdminMockOptions {
-  participationRow?:    typeof PARTICIPATION | null;
+  participationRow?:    ParticipationRow | null;
   participationError?:  { message: string } | null;
   participantRows?:     Array<{ user_id: string }>;
   participantsError?:   { message: string } | null;

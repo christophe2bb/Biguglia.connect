@@ -126,8 +126,7 @@ export default function ModifierDemandePage() {
       setLoading(false);
     }
     loadDemand();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug]);
+  }, [slug, router]);
 
   function set(key: string, value: unknown) {
     setForm(prev => ({ ...prev, [key]: value }));

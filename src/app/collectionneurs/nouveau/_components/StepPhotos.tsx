@@ -4,6 +4,7 @@
  * StepPhotos — Étape 4 : zone de dépôt, grille photos, conseils.
  */
 
+import Image from 'next/image';
 import { Camera, Star, X, Plus, Loader2, AlertCircle, Check, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MAX_PHOTOS, MAX_FILE_MB } from '../_config';
@@ -75,8 +76,7 @@ export default function StepPhotos({
                 photo.error    ? 'border-red-400'             : '',
               )}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photo.preview} alt="" className="w-full h-full object-cover" />
+              <Image src={photo.preview} alt="" fill className="object-cover" />
 
               {/* Overlay au survol */}
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">

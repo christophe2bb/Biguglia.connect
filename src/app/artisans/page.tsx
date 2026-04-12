@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Search, Filter, Star, MapPin, Shield, Clock } from 'lucide-react';
@@ -181,12 +182,7 @@ function ArtisanCard({ artisan }: { artisan: ArtisanProfile & { avg_rating?: num
         {/* Photo de galerie si disponible */}
         {artisan.gallery && artisan.gallery.length > 0 ? (
           <div className="h-40 bg-gray-100 overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={artisan.gallery[0].url}
-              alt={artisan.business_name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            />
+            <Image src={artisan.gallery[0].url} alt={artisan.business_name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
           </div>
         ) : (
           <div className="h-40 gradient-hero flex items-center justify-center">

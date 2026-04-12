@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Users, UserPlus, UserMinus, Loader2 } from 'lucide-react';
@@ -24,7 +24,7 @@ export default function CommunityJoinButton({
   onLeft,
   className,
 }: CommunityJoinButtonProps) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const [isMember, setIsMember] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -42,8 +42,7 @@ export default function CommunityJoinButton({
         setIsMember((count ?? 0) > 0);
         setLoading(false);
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, themeSlug]);
+  }, [userId, themeSlug, supabase]);
 
   const sizeClasses = {
     sm:  'px-3 py-1.5 text-xs gap-1.5',

@@ -232,8 +232,7 @@ export function useMigration() {
   useEffect(() => {
     checkTables();
     checkStorage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [checkTables, checkStorage]);
 
   // ── Derived state ────────────────────────────────────────────────────────────
   const allOk        = tables.length > 0 && tables.every((t) => t.exists);

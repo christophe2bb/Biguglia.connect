@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import {
   PartyPopper, Calendar, CalendarDays, ListFilter, MessageSquare, Plus,
@@ -69,10 +70,9 @@ export default function EvenementsPage() {
   return (
     <div className="min-h-screen relative">
       {/* Background */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/images/biguglia-etang.jpg" alt="" aria-hidden="true"
-        style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
-          objectPosition: 'center top', zIndex: 0, opacity: 0.2, pointerEvents: 'none' }} />
+      <Image src="/images/biguglia-etang.jpg" alt="" aria-hidden fill
+        style={{ objectFit: 'cover', objectPosition: 'center top',
+          position: 'fixed', zIndex: 0, opacity: 0.2, pointerEvents: 'none' }} />
 
       <div className="relative" style={{ zIndex: 1 }}>
         {!dbReady && (

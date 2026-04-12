@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -78,7 +79,7 @@ function ContentCard({ item }: { item: ContentItem }) {
     )}>
       {item.image ? (
         <div className="h-28 overflow-hidden">
-          <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+          <Image src={item.image} alt={item.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
         </div>
       ) : (
         <div className={cn('h-16 flex items-center justify-center', theme.bg)}>
