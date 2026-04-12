@@ -78,6 +78,14 @@ export const STATUS_LABELS: Record<string, string> = {
   rejected: 'Refusée',
   borrowed: 'En prêt',
   returned: 'Retourné',
+  // Listing statuses (CDC)
+  draft: 'Brouillon',
+  reserved: 'Réservé',
+  given: 'Donné',
+  exchanged: 'Échangé',
+  closed: 'Clôturé',
+  expired: 'Expiré',
+  hidden: 'Masqué',
 };
 
 export const CONDITION_LABELS: Record<string, string> = {
@@ -93,6 +101,8 @@ export const LISTING_TYPE_LABELS: Record<string, string> = {
   wanted: 'Recherché',
   free: 'Gratuit',
   service: 'Service',
+  exchange: 'Échange',
+  rental: 'Location',
 };
 
 export const LISTING_TYPE_COLORS: Record<string, string> = {
@@ -100,6 +110,8 @@ export const LISTING_TYPE_COLORS: Record<string, string> = {
   wanted: 'bg-purple-100 text-purple-700',
   free: 'bg-green-100 text-green-700',
   service: 'bg-orange-100 text-orange-700',
+  exchange: 'bg-amber-100 text-amber-700',
+  rental: 'bg-cyan-100 text-cyan-700',
 };
 
 export const ROLE_LABELS: Record<string, string> = {

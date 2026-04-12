@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Camera, X, ChevronLeft, Trash2 } from 'lucide-react';
+import { Camera, X, ChevronLeft, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { ListingCategory } from '@/types';
@@ -12,12 +12,23 @@ import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Select from '@/components/ui/Select';
 import Link from 'next/link';
+import SectorFilter from '@/components/ui/SectorFilter';
 
 interface ExistingPhoto {
   id: string;
   url: string;
   display_order: number;
 }
+
+const CONDITION_OPTIONS = [
+  { value: '', label: 'Sélectionner…' },
+  { value: 'neuf', label: '✨ Neuf' },
+  { value: 'tres_bon', label: '👍 Très bon état' },
+  { value: 'bon', label: '👌 Bon état' },
+  { value: 'usage', label: '🔧 Usagé' },
+  { value: 'a_reparer', label: '🔨 À réparer' },
+  { value: 'lot', label: '📦 Lot' },
+];
 
 export default function ModifierAnnoncePage() {
   const { id } = useParams();
@@ -28,6 +39,7 @@ export default function ModifierAnnoncePage() {
   const [categories, setCategories] = useState<ListingCategory[]>([]);
   const [existingPhotos, setExistingPhotos] = useState<ExistingPhoto[]>([]);
   const [newPhotos, setNewPhotos] = useState<File[]>([]);
+  const [newPreviews, setNewPreviews] = useState<string[]>([]);
   const [deletedPhotoIds, setDeletedPhotoIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -37,8 +49,14 @@ export default function ModifierAnnoncePage() {
     category_id: '',
     listing_type: 'sale',
     price: '',
+    is_negotiable: false,
+    is_urgent: false,
     condition: '',
+    exchange_preferences: '',
+    pickup_notes: '',
+    availability_window: '',
     location: 'Biguglia',
+    sector_id: '',
     status: 'active',
   });
 
@@ -49,14 +67,12 @@ export default function ModifierAnnoncePage() {
     const fetchData = async () => {
       const supabase = createClient();
 
-      // Charger les catégories
       const { data: cats } = await supabase
         .from('listing_categories')
         .select('*')
         .order('display_order');
       setCategories(cats || []);
 
-      // Charger l'annonce
       const { data, error } = await supabase
         .from('listings')
         .select('*, photos:listing_photos(id, url, display_order)')
@@ -69,7 +85,6 @@ export default function ModifierAnnoncePage() {
         return;
       }
 
-      // Vérifier que c'est bien l'auteur (ou admin)
       if (data.user_id !== profile.id && profile.role !== 'admin') {
         toast.error('Vous n\'êtes pas autorisé à modifier cette annonce');
         router.push(`/annonces/${id}`);
@@ -82,8 +97,14 @@ export default function ModifierAnnoncePage() {
         category_id: data.category_id || '',
         listing_type: data.listing_type || 'sale',
         price: data.price?.toString() || '',
+        is_negotiable: data.is_negotiable ?? false,
+        is_urgent: data.is_urgent ?? false,
         condition: data.condition || '',
+        exchange_preferences: data.exchange_preferences || '',
+        pickup_notes: data.pickup_notes || '',
+        availability_window: data.availability_window || '',
         location: data.location || 'Biguglia',
+        sector_id: data.sector_id || '',
         status: data.status || 'active',
       });
 
@@ -96,6 +117,25 @@ export default function ModifierAnnoncePage() {
     fetchData();
   }, [id, profile, authLoading, router]);
 
+  const addNewPhotos = (files: File[]) => {
+    const total = existingPhotos.length + newPhotos.length;
+    const remaining = 5 - total;
+    const toAdd = files.slice(0, remaining);
+    setNewPhotos(p => [...p, ...toAdd]);
+    setNewPreviews(p => [...p, ...toAdd.map(f => URL.createObjectURL(f))]);
+  };
+
+  const removeNewPhoto = (i: number) => {
+    URL.revokeObjectURL(newPreviews[i]);
+    setNewPhotos(p => p.filter((_, j) => j !== i));
+    setNewPreviews(p => p.filter((_, j) => j !== i));
+  };
+
+  const removeExistingPhoto = (photoId: string) => {
+    setDeletedPhotoIds(prev => [...prev, photoId]);
+    setExistingPhotos(prev => prev.filter(p => p.id !== photoId));
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile || !form.title.trim() || !form.description.trim() || !form.category_id) {
@@ -106,7 +146,6 @@ export default function ModifierAnnoncePage() {
     setSaving(true);
     const supabase = createClient();
 
-    // Mettre à jour l'annonce
     const { error } = await supabase
       .from('listings')
       .update({
@@ -115,8 +154,14 @@ export default function ModifierAnnoncePage() {
         category_id: form.category_id,
         listing_type: form.listing_type,
         price: form.price ? parseFloat(form.price) : null,
+        is_negotiable: form.is_negotiable,
+        is_urgent: form.is_urgent,
         condition: form.condition || null,
+        exchange_preferences: form.exchange_preferences.trim() || null,
+        pickup_notes: form.pickup_notes.trim() || null,
+        availability_window: form.availability_window.trim() || null,
         location: form.location || 'Biguglia',
+        sector_id: form.sector_id || null,
         status: form.status,
         updated_at: new Date().toISOString(),
       })
@@ -128,15 +173,16 @@ export default function ModifierAnnoncePage() {
       return;
     }
 
-    // Supprimer les photos marquées pour suppression
+    // Delete removed photos
     for (const photoId of deletedPhotoIds) {
       await supabase.from('listing_photos').delete().eq('id', photoId);
     }
 
-    // Uploader les nouvelles photos
-    for (const photo of newPhotos) {
+    // Upload new photos
+    for (let i = 0; i < newPhotos.length; i++) {
+      const photo = newPhotos[i];
       const ext = photo.name.split('.').pop() || 'jpg';
-      const fileName = `listings/${id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const fileName = `listings/${id}/${Date.now()}_${i}.${ext}`;
       const { data: up, error: upErr } = await supabase.storage
         .from('photos')
         .upload(fileName, photo, { upsert: true });
@@ -146,18 +192,13 @@ export default function ModifierAnnoncePage() {
         await supabase.from('listing_photos').insert({
           listing_id: id,
           url: publicUrl,
-          display_order: existingPhotos.length,
+          display_order: existingPhotos.length + i,
         });
       }
     }
 
     toast.success('Annonce modifiée !');
     router.push(`/annonces/${id}`);
-  };
-
-  const removeExistingPhoto = (photoId: string) => {
-    setDeletedPhotoIds(prev => [...prev, photoId]);
-    setExistingPhotos(prev => prev.filter(p => p.id !== photoId));
   };
 
   if (loading) {
@@ -171,6 +212,9 @@ export default function ModifierAnnoncePage() {
     );
   }
 
+  const isExchange = form.listing_type === 'exchange';
+  const hasPricing = form.listing_type === 'sale' || form.listing_type === 'rental';
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
       {/* Header */}
@@ -182,37 +226,40 @@ export default function ModifierAnnoncePage() {
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
+        {/* Main fields */}
         <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
-          {/* Statut */}
           <Select
             label="Statut de l'annonce"
             value={form.status}
-            onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}
+            onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
           >
             <option value="active">✅ Active — visible par tous</option>
-            <option value="sold">🏷️ Vendu / Donné</option>
-            <option value="reserved">⏳ Réservé</option>
-            <option value="inactive">👁️ Masquée</option>
+            <option value="reserved">🔒 Réservée</option>
+            <option value="sold">🏷️ Vendu / Donné / Échangé</option>
+            <option value="draft">📝 Brouillon</option>
+            <option value="archived">📦 Archivée</option>
           </Select>
 
           <Select
             label="Type d'annonce"
             value={form.listing_type}
-            onChange={(e) => setForm(f => ({ ...f, listing_type: e.target.value }))}
+            onChange={e => setForm(f => ({ ...f, listing_type: e.target.value }))}
           >
-            <option value="sale">À vendre</option>
-            <option value="wanted">Je recherche</option>
-            <option value="free">Je donne (gratuit)</option>
-            <option value="service">Service proposé</option>
+            <option value="sale">🏷️ À vendre</option>
+            <option value="free">🎁 Je donne (gratuit)</option>
+            <option value="wanted">🔍 Je recherche</option>
+            <option value="exchange">🔄 Échange</option>
+            <option value="service">🛠️ Service</option>
+            <option value="rental">🔑 Location courte durée</option>
           </Select>
 
           <Select
             label="Catégorie *"
             value={form.category_id}
-            onChange={(e) => setForm(f => ({ ...f, category_id: e.target.value }))}
+            onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
             required
           >
-            <option value="">Sélectionner une catégorie...</option>
+            <option value="">Sélectionner une catégorie…</option>
             {categories.map(c => (
               <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
             ))}
@@ -221,64 +268,123 @@ export default function ModifierAnnoncePage() {
           <Input
             label="Titre *"
             value={form.title}
-            onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))}
+            onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
             required
           />
 
           <Textarea
             label="Description *"
             value={form.description}
-            onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
+            onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             required
           />
 
-          {form.listing_type === 'sale' && (
+          {/* Price fields */}
+          {hasPricing && (
             <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Prix (€)"
-                type="number"
-                min="0"
-                value={form.price}
-                onChange={(e) => setForm(f => ({ ...f, price: e.target.value }))}
-                placeholder="0"
-              />
+              <div>
+                <Input
+                  label={form.listing_type === 'rental' ? 'Prix / jour (€)' : 'Prix (€)'}
+                  type="number"
+                  min="0"
+                  value={form.price}
+                  onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
+                  placeholder="0"
+                />
+                <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.is_negotiable}
+                    onChange={e => setForm(f => ({ ...f, is_negotiable: e.target.checked }))}
+                    className="w-4 h-4 rounded accent-blue-600"
+                  />
+                  <span className="text-xs text-gray-600">Prix négociable</span>
+                </label>
+              </div>
               <Select
                 label="État"
                 value={form.condition}
-                onChange={(e) => setForm(f => ({ ...f, condition: e.target.value }))}
+                onChange={e => setForm(f => ({ ...f, condition: e.target.value }))}
               >
-                <option value="">Sélectionner...</option>
-                <option value="neuf">Neuf</option>
-                <option value="tres_bon">Très bon état</option>
-                <option value="bon">Bon état</option>
-                <option value="usage">Usagé</option>
+                {CONDITION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </Select>
             </div>
           )}
 
+          {/* Exchange preferences */}
+          {isExchange && (
+            <Input
+              label="Contre quoi souhaitez-vous échanger ?"
+              value={form.exchange_preferences}
+              onChange={e => setForm(f => ({ ...f, exchange_preferences: e.target.value }))}
+              placeholder="Ex : vélo, livres, outils…"
+            />
+          )}
+
+          {/* Urgent */}
+          <label className="flex items-center gap-3 p-3 rounded-xl bg-red-50 border border-red-100 cursor-pointer hover:bg-red-100 transition-colors">
+            <input
+              type="checkbox"
+              checked={form.is_urgent}
+              onChange={e => setForm(f => ({ ...f, is_urgent: e.target.checked }))}
+              className="w-4 h-4 rounded accent-red-500"
+            />
+            <div>
+              <span className="text-sm font-semibold text-red-700 flex items-center gap-1">
+                <Zap className="w-3.5 h-3.5" /> Annonce urgente
+              </span>
+              <p className="text-xs text-red-600">Je souhaite conclure rapidement</p>
+            </div>
+          </label>
+        </div>
+
+        {/* Localisation */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+          <h2 className="font-bold text-gray-900">Localisation</h2>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Secteur</label>
+            <SectorFilter
+              value={form.sector_id || null}
+              onChange={sid => setForm(f => ({ ...f, sector_id: sid || '' }))}
+              allowCitywide
+              compact
+            />
+          </div>
+
           <Input
-            label="Lieu"
+            label="Lieu / Ville"
             value={form.location}
-            onChange={(e) => setForm(f => ({ ...f, location: e.target.value }))}
+            onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
+          />
+
+          <Input
+            label="Disponibilité pour la remise"
+            value={form.availability_window}
+            onChange={e => setForm(f => ({ ...f, availability_window: e.target.value }))}
+            placeholder="Ex : week-ends, soirs après 19h"
+          />
+
+          <Textarea
+            label="Notes de remise / retrait"
+            value={form.pickup_notes}
+            onChange={e => setForm(f => ({ ...f, pickup_notes: e.target.value }))}
+            placeholder="Lieu de rendez-vous, instructions particulières…"
           />
         </div>
 
         {/* Photos */}
         <div className="bg-white rounded-2xl border border-gray-100 p-6">
-          <h3 className="font-medium text-gray-800 mb-4">
+          <h3 className="font-bold text-gray-900 mb-4">
             Photos ({existingPhotos.length + newPhotos.length}/5)
           </h3>
 
           <div className="flex flex-wrap gap-3 mb-4">
-            {/* Photos existantes */}
-            {existingPhotos.map((photo) => (
+            {/* Existing photos */}
+            {existingPhotos.map(photo => (
               <div key={photo.id} className="relative w-24 h-24 group">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photo.url}
-                  alt="Photo annonce"
-                  className="w-full h-full object-cover rounded-xl border border-gray-200"
-                />
+                <img src={photo.url} alt="Photo" className="w-full h-full object-cover rounded-xl border border-gray-200" />
                 <button
                   type="button"
                   onClick={() => removeExistingPhoto(photo.id)}
@@ -290,32 +396,27 @@ export default function ModifierAnnoncePage() {
               </div>
             ))}
 
-            {/* Nouvelles photos */}
-            {newPhotos.map((photo, i) => (
+            {/* New photos */}
+            {newPreviews.map((src, i) => (
               <div key={i} className="relative w-24 h-24 group">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={URL.createObjectURL(photo)}
-                  alt={`Nouvelle photo ${i + 1}`}
-                  className="w-full h-full object-cover rounded-xl border-2 border-brand-300"
-                />
+                <img src={src} alt={`Nouvelle ${i + 1}`} className="w-full h-full object-cover rounded-xl border-2 border-blue-300" />
                 <button
                   type="button"
-                  onClick={() => setNewPhotos(prev => prev.filter((_, j) => j !== i))}
+                  onClick={() => removeNewPhoto(i)}
                   className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
-                <span className="absolute bottom-1 left-1 text-[10px] bg-brand-500/80 text-white px-1 rounded">nouvelle</span>
+                <span className="absolute bottom-1 left-1 text-[10px] bg-blue-500/80 text-white px-1 rounded">nouvelle</span>
               </div>
             ))}
 
-            {/* Bouton ajouter */}
             {existingPhotos.length + newPhotos.length < 5 && (
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-24 h-24 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center hover:border-brand-300 hover:bg-brand-50 transition-all"
+                className="w-24 h-24 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center hover:border-blue-300 hover:bg-blue-50 transition-all"
               >
                 <Camera className="w-5 h-5 text-gray-400 mb-1" />
                 <span className="text-xs text-gray-400">Ajouter</span>
@@ -329,19 +430,16 @@ export default function ModifierAnnoncePage() {
             accept="image/*"
             multiple
             className="hidden"
-            onChange={(e) => {
+            onChange={e => {
               const files = Array.from(e.target.files || []);
               const total = existingPhotos.length + newPhotos.length + files.length;
-              if (total > 5) {
-                toast.error('Maximum 5 photos autorisées');
-                return;
-              }
-              setNewPhotos(prev => [...prev, ...files]);
+              if (total > 5) { toast.error('Maximum 5 photos autorisées'); return; }
+              addNewPhotos(files);
             }}
           />
         </div>
 
-        {/* Boutons */}
+        {/* Actions */}
         <div className="flex gap-3">
           <Link
             href={`/annonces/${id}`}
@@ -350,7 +448,7 @@ export default function ModifierAnnoncePage() {
             Annuler
           </Link>
           <Button type="submit" className="flex-2" loading={saving} disabled={saving}>
-            {saving ? 'Sauvegarde...' : 'Enregistrer les modifications'}
+            {saving ? 'Sauvegarde…' : '✅ Enregistrer les modifications'}
           </Button>
         </div>
       </form>

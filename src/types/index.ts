@@ -152,12 +152,12 @@ export interface Listing {
   category_id: string;
   title: string;
   description: string;
-  listing_type: 'sale' | 'wanted' | 'free' | 'service';
+  listing_type: 'sale' | 'wanted' | 'free' | 'service' | 'exchange' | 'rental';
   price?: number;
-  condition?: 'neuf' | 'tres_bon' | 'bon' | 'usage';
+  condition?: 'neuf' | 'tres_bon' | 'bon' | 'usage' | 'a_reparer' | 'lot' | 'excellent' | 'passable';
   location: string;
   sector_id?: string | null;        // couche territoriale (recommandé)
-  status: 'active' | 'sold' | 'archived';
+  status: 'draft' | 'active' | 'reserved' | 'sold' | 'given' | 'exchanged' | 'closed' | 'expired' | 'archived' | 'hidden';
   views?: number;
   created_at: string;
   updated_at: string;
