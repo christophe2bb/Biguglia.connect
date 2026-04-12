@@ -49,11 +49,14 @@ export interface MessageApi {
   conversation_id: string;
   /** sender_id peut être null pour les messages système auto-générés */
   sender_id: string | null;
-  /** content peut être null pour les messages supprimés (is_deleted=true) */
+  /**
+   * content peut être null si la colonne est nullable en base.
+   * Note : les colonnes is_deleted / deleted_at sont optionnelles côté schema BDD
+   * et ne sont PAS sélectionnées par la route pour éviter les erreurs Postgrest
+   * sur les environnements où elles n'existent pas encore.
+   */
   content: string | null;
   created_at: string;
-  is_deleted?: boolean;
-  deleted_at?: string | null;
 }
 
 /**
@@ -98,11 +101,12 @@ export interface ExchangeInfo {
 
 /** Message enrichi avec le profil de l'expéditeur (optionnel, chargé async) */
 export type MessageWithSender = Omit<Message, 'content' | 'sender_id'> & {
-  /** Peut être null pour les messages supprimés ou auto-générés */
+  /** Peut être null si la colonne est nullable en base */
   content: string | null;
-  /** Peut être null pour les messages système auto-générés */
+  /** Peut être null pour les messages système auto-générés (sans expéditeur humain) */
   sender_id: string | null;
   sender?: Profile;
+  /** Positionné par la logique client (realtime / détection contenu) */
   is_system?: boolean;
 };
 
