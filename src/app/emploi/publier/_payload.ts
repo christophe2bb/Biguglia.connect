@@ -7,6 +7,7 @@
 import type { PublishOfferInput } from '@/services/jobs/publish-offer';
 import { BENEFIT_OPTIONS } from './_config';
 import type { FormData } from './_types';
+import type { ContractType, ExperienceLevel } from '@/types/jobs/constants';
 
 /**
  * Resolve human-readable labels for the selected benefit IDs, then build the
@@ -34,11 +35,16 @@ function enrichDescription(form: FormData): string {
 }
 
 export function buildPayload(form: FormData): PublishOfferInput {
+  // contract_type et experience_level sont des string dans l'état brut du formulaire.
+  // À ce stade, la validation de l'étape 1 garantit que contract_type est un
+  // ContractType valide (sélectionné depuis CONTRACT_TYPES). Le cast narrow
+  // ici est le seul endroit de l'app où string → ContractType / ExperienceLevel
+  // se fait — centralisé et documenté plutôt que dispersé dans les composants.
   return {
     /* Étape 1 */
     title:               form.title,
     job_category:        form.job_category,
-    contract_type:       form.contract_type,
+    contract_type:       form.contract_type as ContractType,
     description:         enrichDescription(form),
     required_skills:     form.required_skills     || undefined,
     nice_to_have_skills: form.nice_to_have_skills  || undefined,
@@ -59,7 +65,9 @@ export function buildPayload(form: FormData): PublishOfferInput {
     is_flexible_schedule: form.is_flexible_schedule,
     start_date:          form.start_date           || undefined,
     end_date:            form.end_date             || undefined,
-    experience_level:    form.experience_level     || undefined,
+    experience_level:    form.experience_level
+      ? form.experience_level as ExperienceLevel
+      : undefined,
     provides_housing:    form.provides_housing,
     housing_details:     form.housing_details      || undefined,
     provides_meals:      form.provides_meals,
