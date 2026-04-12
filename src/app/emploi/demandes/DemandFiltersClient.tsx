@@ -14,6 +14,7 @@ import {
   JOB_CATEGORY_LABELS,
   JOB_CATEGORY_ICONS,
   JOB_SECTORS,
+  type JobCategory,
 } from '@/types/jobs/constants';
 
 /* ── Secteurs de Biguglia ─────────────────────────────────────────── */
@@ -50,11 +51,11 @@ export function DemandFiltersClient({ filters, totalResults }: Props) {
     push(next);
   };
 
-  const toggleCategory = (cat: string) => {
+  const toggleCategory = (cat: JobCategory) => {
     const cur = local.categories ?? [];
-    const updated = cur.includes(cat as any)
+    const updated = cur.includes(cat)
       ? cur.filter(c => c !== cat)
-      : [...cur, cat as any];
+      : [...cur, cat];
     update({ categories: updated.length ? updated : undefined });
   };
 
@@ -199,7 +200,7 @@ export function DemandFiltersClient({ filters, totalResults }: Props) {
         >
           <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
             {JOB_CATEGORIES.map((cat) => {
-              const checked = local.categories?.includes(cat as any) ?? false;
+              const checked = local.categories?.includes(cat) ?? false;
               return (
                 <label key={cat} className="flex items-center gap-2 cursor-pointer group">
                   <input
@@ -209,8 +210,8 @@ export function DemandFiltersClient({ filters, totalResults }: Props) {
                     className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                   />
                   <span className={`text-sm transition-colors flex items-center gap-1.5 ${checked ? 'text-purple-700 font-semibold' : 'text-gray-700 group-hover:text-purple-600'}`}>
-                    <span>{JOB_CATEGORY_ICONS[cat as keyof typeof JOB_CATEGORY_ICONS] ?? '💼'}</span>
-                    {JOB_CATEGORY_LABELS[cat as keyof typeof JOB_CATEGORY_LABELS]}
+                    <span>{JOB_CATEGORY_ICONS[cat] ?? '💼'}</span>
+                    {JOB_CATEGORY_LABELS[cat]}
                   </span>
                 </label>
               );

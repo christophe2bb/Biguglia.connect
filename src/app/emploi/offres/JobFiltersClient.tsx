@@ -17,6 +17,8 @@ import {
   JOB_CATEGORY_LABELS,
   JOB_CATEGORY_ICONS,
   JOB_SECTORS,
+  type ContractType,
+  type JobCategory,
 } from '@/types/jobs/constants';
 
 /* ── Secteurs de Biguglia (à adapter selon table DB) ─────────────── */
@@ -57,19 +59,19 @@ export function JobFiltersClient({ filters, totalResults }: Props) {
   };
 
   /* ── Toggle helpers ──────────────────────────────────────────── */
-  const toggleContractType = (type: string) => {
+  const toggleContractType = (type: ContractType) => {
     const cur = local.contractTypes ?? [];
-    const updated = cur.includes(type as any)
+    const updated = cur.includes(type)
       ? cur.filter(c => c !== type)
-      : [...cur, type as any];
+      : [...cur, type];
     update({ contractTypes: updated.length ? updated : undefined });
   };
 
-  const toggleCategory = (cat: string) => {
+  const toggleCategory = (cat: JobCategory) => {
     const cur = local.categories ?? [];
-    const updated = cur.includes(cat as any)
+    const updated = cur.includes(cat)
       ? cur.filter(c => c !== cat)
-      : [...cur, cat as any];
+      : [...cur, cat];
     update({ categories: updated.length ? updated : undefined });
   };
 
@@ -215,7 +217,7 @@ export function JobFiltersClient({ filters, totalResults }: Props) {
         >
           <div className="space-y-1.5">
             {CONTRACT_TYPES.map((type) => {
-              const checked = local.contractTypes?.includes(type as any) ?? false;
+              const checked = local.contractTypes?.includes(type) ?? false;
               return (
                 <label key={type} className="flex items-center gap-2 cursor-pointer group">
                   <input
@@ -225,7 +227,7 @@ export function JobFiltersClient({ filters, totalResults }: Props) {
                     className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                   />
                   <span className={`text-sm transition-colors ${checked ? 'text-brand-700 font-semibold' : 'text-gray-700 group-hover:text-brand-600'}`}>
-                    {CONTRACT_TYPE_LABELS[type as keyof typeof CONTRACT_TYPE_LABELS]}
+                    {CONTRACT_TYPE_LABELS[type]}
                   </span>
                 </label>
               );
@@ -241,7 +243,7 @@ export function JobFiltersClient({ filters, totalResults }: Props) {
         >
           <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
             {JOB_CATEGORIES.map((cat) => {
-              const checked = local.categories?.includes(cat as any) ?? false;
+              const checked = local.categories?.includes(cat) ?? false;
               return (
                 <label key={cat} className="flex items-center gap-2 cursor-pointer group">
                   <input
@@ -251,8 +253,8 @@ export function JobFiltersClient({ filters, totalResults }: Props) {
                     className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                   />
                   <span className={`text-sm transition-colors flex items-center gap-1.5 ${checked ? 'text-brand-700 font-semibold' : 'text-gray-700 group-hover:text-brand-600'}`}>
-                    <span>{JOB_CATEGORY_ICONS[cat as keyof typeof JOB_CATEGORY_ICONS] ?? '💼'}</span>
-                    {JOB_CATEGORY_LABELS[cat as keyof typeof JOB_CATEGORY_LABELS]}
+                    <span>{JOB_CATEGORY_ICONS[cat] ?? '💼'}</span>
+                    {JOB_CATEGORY_LABELS[cat]}
                   </span>
                 </label>
               );
