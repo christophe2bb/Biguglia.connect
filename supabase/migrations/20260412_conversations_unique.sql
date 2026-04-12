@@ -12,6 +12,18 @@
 --   2. Si des doublons existent, les dédupliquer manuellement (section B).
 --   3. Tester sur un dump de staging avant de passer en production.
 --   4. Mettre à jour docs/db/SCHEMA.md après déploiement réussi.
+--
+-- IMPORTANT — related_type est un ENUM PostgreSQL, pas un TEXT+CHECK.
+-- ---------------------------------------------------------------------------
+--   Le schéma initial déclare :
+--     CREATE TYPE related_type AS ENUM ('service_request','listing','equipment','general');
+--   Et la colonne :
+--     conversations.related_type  related_type  DEFAULT 'general'
+--
+--   Pour ajouter des valeurs à un ENUM on utilise EXCLUSIVELY :
+--     ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'nouvelle_valeur';
+--   — NE JAMAIS utiliser ALTER TABLE … ADD CONSTRAINT CHECK sur une colonne ENUM —
+--   (c'est ce qui causait l'erreur : 22P02 invalid input value for enum related_type)
 -- ===========================================================================
 
 -- ===========================================================================
@@ -21,7 +33,7 @@
 
 /*
   Trouve les paires (participant_a, participant_b, related_type, related_id)
-  qui ont plus d'une conversation. Une seule ligne = pas de doublon.
+  qui ont plus d'une conversation. Résultat vide = pas de doublon.
 
   SELECT
     LEAST(cp1.user_id, cp2.user_id)    AS participant_a,
@@ -49,7 +61,6 @@
   et supprimer les autres. ATTENTION : les messages des convs supprimées
   seront perdus (ON DELETE CASCADE sur messages.conversation_id).
 
-  -- Identifier les ids à supprimer (garder la conv la plus récente)
   WITH ranked AS (
     SELECT
       c.id,
@@ -94,29 +105,31 @@ DO $$ BEGIN
 END $$;
 
 -- ---------------------------------------------------------------------------
--- C-2. Élargissement de la contrainte CHECK related_type
---      (ajoute les valeurs métier ajoutées après le schéma initial :
---       artisan, community, event — absentes de la contrainte d'origine)
+-- C-2. Extension de l'ENUM related_type
+--
+-- related_type est un TYPE ENUM PostgreSQL (CREATE TYPE related_type AS ENUM …).
+-- On ne peut PAS le modifier avec ADD CONSTRAINT CHECK.
+-- La seule syntaxe correcte est : ALTER TYPE … ADD VALUE IF NOT EXISTS '…'
+--
+-- Valeurs initiales (schéma de base) :
+--   'service_request', 'listing', 'equipment', 'general'
+--
+-- Valeurs à ajouter (utilisées par l'application mais absentes du type initial) :
+--   'help_request', 'collection_item', 'lost_found', 'association',
+--   'outing', 'event', 'artisan', 'community'
+--
+-- IF NOT EXISTS : idempotent — peut être relancé sans erreur.
+-- ALTER TYPE ADD VALUE ne peut pas être exécuté dans un bloc DO $$ (transaction) ;
+-- ces instructions doivent être en dehors de tout bloc transactionnel.
 -- ---------------------------------------------------------------------------
-ALTER TABLE conversations
-  DROP CONSTRAINT IF EXISTS conversations_related_type_check;
-
-ALTER TABLE conversations
-  ADD CONSTRAINT conversations_related_type_check
-  CHECK (related_type IN (
-    'service_request',
-    'listing',
-    'equipment',
-    'general',
-    'help_request',
-    'collection_item',
-    'lost_found',
-    'association',
-    'outing',
-    'event',
-    'artisan',
-    'community'
-  ));
+ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'help_request';
+ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'collection_item';
+ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'lost_found';
+ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'association';
+ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'outing';
+ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'event';
+ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'artisan';
+ALTER TYPE related_type ADD VALUE IF NOT EXISTS 'community';
 
 -- ---------------------------------------------------------------------------
 -- C-3. Contrainte d'unicité sur les paires canoniques
@@ -128,18 +141,18 @@ ALTER TABLE conversations
 -- (vue matérialisée légère) plutôt qu'une contrainte directe sur
 -- conversation_participants, car la paire doit être triée (canonique).
 --
--- Alternative sans table : index fonctionnel partiel sur conversations
--- (nécessite que owner_id/created_by stockent les deux participants — voir C-4).
+-- NB : related_type dans cette table utilise le TYPE ENUM related_type
+--      (et non TEXT) pour être compatible avec la colonne conversations.related_type
+--      et éviter les erreurs de cast dans le trigger.
 -- ---------------------------------------------------------------------------
 
--- Table des paires canoniques (une ligne par conversation bipartite)
 CREATE TABLE IF NOT EXISTS conversation_pairs (
   conversation_id UUID PRIMARY KEY
     REFERENCES conversations(id) ON DELETE CASCADE,
-  participant_a   UUID NOT NULL,   -- LEAST(user_a, user_b)  — UUID lexicographique
-  participant_b   UUID NOT NULL,   -- GREATEST(user_a, user_b)
-  related_type    TEXT NOT NULL DEFAULT 'general',
-  related_id      UUID,            -- NULL pour conversations génériques
+  participant_a   UUID        NOT NULL,   -- LEAST(user_a, user_b)  — UUID lexicographique
+  participant_b   UUID        NOT NULL,   -- GREATEST(user_a, user_b)
+  related_type    related_type NOT NULL DEFAULT 'general',  -- ENUM, même type que conversations.related_type
+  related_id      UUID,                   -- NULL pour conversations génériques
 
   -- Canonicité : participant_a < participant_b (ordre lexicographique UUID)
   CONSTRAINT conversation_pairs_canonical
@@ -152,7 +165,8 @@ CREATE TABLE IF NOT EXISTS conversation_pairs (
 
 COMMENT ON TABLE conversation_pairs IS
   'Paires canoniques (participant_a < participant_b) pour la contrainte UNIQUE '
-  'anti-duplication de start-conversation. Une ligne = une conversation bipartite.';
+  'anti-duplication de start-conversation. Une ligne = une conversation bipartite. '
+  'related_type utilise l''ENUM related_type (même type que conversations.related_type).';
 
 -- Index de support pour les lookups fréquents depuis findExistingConversation
 CREATE INDEX IF NOT EXISTS idx_conv_pairs_lookup
@@ -172,7 +186,7 @@ SELECT
   c.id                               AS conversation_id,
   LEAST(cp1.user_id, cp2.user_id)    AS participant_a,
   GREATEST(cp1.user_id, cp2.user_id) AS participant_b,
-  COALESCE(c.related_type, 'general') AS related_type,
+  COALESCE(c.related_type, 'general'::related_type) AS related_type,  -- cast explicite ENUM
   c.related_id
 FROM conversations c
 JOIN conversation_participants cp1 ON cp1.conversation_id = c.id
@@ -180,11 +194,10 @@ JOIN conversation_participants cp2
   ON cp2.conversation_id = c.id
   AND cp1.user_id < cp2.user_id        -- une seule ligne par paire ordonnée
 WHERE (
-  -- Compter le nombre de participants — ne retenir que les conversations bipartites
   SELECT COUNT(*) FROM conversation_participants cp
   WHERE cp.conversation_id = c.id
 ) = 2
-ON CONFLICT DO NOTHING;              -- idempotent si relancé après correction de doublons
+ON CONFLICT DO NOTHING;               -- idempotent si relancé après correction de doublons
 
 -- ---------------------------------------------------------------------------
 -- C-5. Trigger pour maintenir conversation_pairs à jour automatiquement
@@ -194,9 +207,10 @@ CREATE OR REPLACE FUNCTION fn_maintain_conversation_pairs()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 DECLARE
   v_other_user UUID;
-  v_conv       RECORD;
+  v_conv_rtype related_type;   -- ENUM, même type que conversations.related_type
+  v_conv_rid   UUID;
 BEGIN
-  -- Trouver l'autre participant (si exactement 2 au total)
+  -- Trouver l'autre participant (si au moins 1 autre existe déjà)
   SELECT user_id INTO v_other_user
   FROM conversation_participants
   WHERE conversation_id = NEW.conversation_id
@@ -207,7 +221,8 @@ BEGIN
     RETURN NEW; -- Conversation pas encore bipartite, rien à faire
   END IF;
 
-  SELECT related_type, related_id INTO v_conv
+  SELECT related_type, related_id
+    INTO v_conv_rtype, v_conv_rid
   FROM conversations
   WHERE id = NEW.conversation_id;
 
@@ -217,8 +232,8 @@ BEGIN
     NEW.conversation_id,
     LEAST(NEW.user_id, v_other_user),
     GREATEST(NEW.user_id, v_other_user),
-    COALESCE(v_conv.related_type, 'general'),
-    v_conv.related_id
+    COALESCE(v_conv_rtype, 'general'::related_type),  -- cast explicite ENUM
+    v_conv_rid
   )
   ON CONFLICT ON CONSTRAINT conversation_pairs_unique DO NOTHING;
 
@@ -240,6 +255,9 @@ CREATE TRIGGER trg_maintain_conversation_pairs
 -- ---------------------------------------------------------------------------
 ALTER TABLE conversation_pairs ENABLE ROW LEVEL SECURITY;
 
+-- Idempotent : DROP + CREATE (pas de IF NOT EXISTS sur CREATE POLICY en PG < 15)
+DROP POLICY IF EXISTS "Voir ses paires de conversation" ON conversation_pairs;
+
 CREATE POLICY "Voir ses paires de conversation"
   ON conversation_pairs FOR SELECT
   USING (
@@ -255,16 +273,24 @@ CREATE POLICY "Voir ses paires de conversation"
 -- ===========================================================================
 
 /*
-  -- D-1. Vérifier que conversation_pairs est bien peuplée
+  -- D-1. Vérifier les valeurs de l'ENUM après extension
+  SELECT enumlabel
+  FROM pg_enum e
+  JOIN pg_type t ON t.oid = e.enumtypid
+  WHERE t.typname = 'related_type'
+  ORDER BY e.enumsortorder;
+  -- Doit lister les 12 valeurs.
+
+  -- D-2. Vérifier que conversation_pairs est bien peuplée
   SELECT COUNT(*) FROM conversation_pairs;
 
-  -- D-2. Vérifier qu'il n'y a plus de doublons
+  -- D-3. Vérifier qu'il n'y a plus de doublons dans conversation_pairs
   SELECT participant_a, participant_b, related_type, related_id, COUNT(*)
   FROM conversation_pairs
   GROUP BY 1, 2, 3, 4
   HAVING COUNT(*) > 1;
   -- Doit retourner 0 lignes.
 
-  -- D-3. Vérifier que le trigger fonctionne (créer une conv de test et inspecter)
+  -- D-4. Vérifier que le trigger fonctionne (créer une conv de test et inspecter)
   -- (à faire manuellement sur staging)
 */
