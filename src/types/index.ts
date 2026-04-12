@@ -1,700 +1,106 @@
-export type UserRole = 'resident' | 'artisan_pending' | 'artisan_verified' | 'moderator' | 'admin';
-export type AccountStatus = 'active' | 'pending' | 'rejected' | 'suspended';
+/**
+ * src/types/index.ts
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Barrel d'export — re-exporte tous les types par domaine.
+ *
+ * Les imports existants `from '@/types'` continuent de fonctionner sans
+ * modification. Pour les nouveaux fichiers, préférer l'import direct depuis
+ * le module concerné :
+ *
+ *   import type { Profile }     from '@/types/user';
+ *   import type { ForumTopic }  from '@/types/forum';
+ *   import type { Listing }     from '@/types/listings';
+ *   …
+ *
+ * Modules disponibles :
+ *  @/types/user        — Profile, UserRole, AccountStatus
+ *  @/types/artisans    — ArtisanProfile, TradeCategory, ServiceRequest, Appointment, Review, …
+ *  @/types/messages    — Conversation, ConversationParticipant, Message
+ *  @/types/listings    — Listing, ListingCategory, ListingPhoto
+ *  @/types/equipment   — EquipmentItem, EquipmentCategory, BorrowRequest, …
+ *  @/types/outings     — GroupOuting, OutingParticipant, OutingStatusFr, …
+ *  @/types/forum       — ForumTopic, ForumReply, ForumSector, ForumCategory, …
+ *  @/types/events      — Event, EventParticipant, EventStatusFr, …
+ *  @/types/community   — Sector, LostFoundItem, HelpRequest, Promenade,
+ *                        Association, CollectionItem, Report, Notification
+ */
 
-export interface Profile {
-  id: string;
-  email: string;
-  full_name: string;
-  avatar_url?: string;
-  phone?: string;
-  role: UserRole;
-  status: AccountStatus;
-  created_at: string;
-  updated_at: string;
-  legal_consent: boolean;
-  legal_consent_at?: string;
-  // ── Couche territoriale transversale ──────────────────────────────────────
-  home_sector_id?: string | null;  // secteur de résidence/référence de l'utilisateur
-}
+// ── Utilisateur ───────────────────────────────────────────────────────────────
+export type { UserRole, AccountStatus, Profile } from './user';
 
-export type ArtisanType = 'professionnel' | 'particulier';
+// ── Artisans ──────────────────────────────────────────────────────────────────
+export type {
+  ArtisanType,
+  TradeCategory,
+  ArtisanPhoto,
+  Review,
+  ArtisanProfile,
+  ServiceRequestPhoto,
+  ServiceRequest,
+  Appointment,
+} from './artisans';
 
-export interface ArtisanProfile {
-  id: string;
-  user_id: string;
-  business_name: string;
-  trade_category_id: string;
-  description: string;
-  service_area: string;
-  years_experience?: number;
-  siret?: string;
-  insurance?: string;
-  artisan_type?: ArtisanType;
-  doc_kbis_url?: string;
-  doc_insurance_url?: string;
-  doc_id_url?: string;
-  rejection_reason?: string;
-  verification_notes?: string;
-  is_featured: boolean;
-  created_at: string;
-  updated_at: string;
-  // Relations
-  profile?: Profile;
-  trade_category?: TradeCategory;
-  gallery?: ArtisanPhoto[];
-  reviews?: Review[];
-  avg_rating?: number;
-  review_count?: number;
-}
+// ── Messagerie ────────────────────────────────────────────────────────────────
+export type { Message, ConversationParticipant, Conversation } from './messages';
 
-export interface TradeCategory {
-  id: string;
-  name: string;
-  slug: string;
-  icon: string;
-  description?: string;
-  display_order: number;
-}
+// ── Annonces ──────────────────────────────────────────────────────────────────
+export type { ListingCategory, ListingPhoto, Listing } from './listings';
 
-export interface ArtisanPhoto {
-  id: string;
-  artisan_id: string;
-  url: string;
-  caption?: string;
-  display_order: number;
-  created_at: string;
-}
+// ── Matériel en prêt ──────────────────────────────────────────────────────────
+export type {
+  EquipmentCategory,
+  EquipmentPhoto,
+  EquipmentItem,
+  BorrowRequest,
+} from './equipment';
 
-export interface ServiceRequest {
-  id: string;
-  resident_id: string;
-  artisan_id?: string;
-  category_id: string;
-  title: string;
-  description: string;
-  urgency: 'normal' | 'urgent' | 'tres_urgent';
-  preferred_date?: string;
-  preferred_time?: string;
-  address: string;
-  status: 'submitted' | 'viewed' | 'replied' | 'scheduled' | 'completed' | 'cancelled';
-  created_at: string;
-  updated_at: string;
-  // Relations
-  resident?: Profile;
-  artisan?: ArtisanProfile;
-  category?: TradeCategory;
-  photos?: ServiceRequestPhoto[];
-}
+// ── Sorties groupées ──────────────────────────────────────────────────────────
+export type {
+  OutingStatusFr,
+  OutingStatus,
+  OutingParticipantStatus,
+  OutingPhoto,
+  GroupOuting,
+  OutingParticipant,
+  OutingStatusHistory,
+} from './outings';
 
-export interface ServiceRequestPhoto {
-  id: string;
-  request_id: string;
-  url: string;
-  created_at: string;
-}
+// ── Forum ─────────────────────────────────────────────────────────────────────
+export type {
+  ForumSector,
+  ForumCategory,
+  ForumTag,
+  ForumTopicStatus,
+  ForumReply,
+  ForumTopic,
+  ForumReaction,
+  ForumFollow,
+  ForumReport,
+  ForumModerationLog,
+  ForumPost,
+  ForumComment,
+} from './forum';
 
-export interface Appointment {
-  id: string;
-  request_id?: string;
-  resident_id: string;
-  artisan_id: string;
-  proposed_date: string;
-  proposed_time: string;
-  notes?: string;
-  status: 'pending' | 'accepted' | 'declined' | 'rescheduled' | 'completed' | 'cancelled';
-  created_at: string;
-  updated_at: string;
-  resident?: Profile;
-  artisan?: ArtisanProfile;
-}
+// ── Événements ────────────────────────────────────────────────────────────────
+export type {
+  EventStatusFr,
+  EventParticipantStatusFr,
+  EventPhoto,
+  EventParticipant,
+  Event,
+  EventStatusHistory,
+  EventDateHistory,
+} from './events';
 
-export interface Conversation {
-  id: string;
-  subject?: string;
-  related_type?: 'service_request' | 'listing' | 'equipment' | 'general' | 'help_request' | 'collection_item' | 'lost_found' | 'association' | 'outing' | null;
-  related_id?: string | null;
-  created_at: string;
-  updated_at: string;
-  last_message?: Message;
-  participants?: ConversationParticipant[];
-  unread_count?: number;
-}
-
-export interface ConversationParticipant {
-  id: string;
-  conversation_id: string;
-  user_id: string;
-  last_read_at?: string;
-  profile?: Profile;
-}
-
-export interface Message {
-  id: string;
-  conversation_id: string;
-  sender_id: string;
-  content: string;
-  attachment_url?: string;
-  created_at: string;
-  sender?: Profile;
-}
-
-export interface ListingCategory {
-  id: string;
-  name: string;
-  slug: string;
-  icon: string;
-  display_order: number;
-}
-
-export interface Listing {
-  id: string;
-  user_id: string;
-  category_id: string;
-  title: string;
-  description: string;
-  listing_type: 'sale' | 'wanted' | 'free' | 'service' | 'exchange' | 'rental';
-  price?: number;
-  condition?: 'neuf' | 'tres_bon' | 'bon' | 'usage' | 'a_reparer' | 'lot' | 'excellent' | 'passable';
-  location: string;
-  sector_id?: string | null;        // couche territoriale (recommandé)
-  status: 'draft' | 'active' | 'reserved' | 'sold' | 'given' | 'exchanged' | 'closed' | 'expired' | 'archived' | 'hidden';
-  views?: number;
-  created_at: string;
-  updated_at: string;
-  user?: Profile;
-  category?: ListingCategory;
-  photos?: ListingPhoto[];
-}
-
-export interface ListingPhoto {
-  id: string;
-  listing_id: string;
-  url: string;
-  display_order: number;
-}
-
-export interface EquipmentCategory {
-  id: string;
-  name: string;
-  slug: string;
-  icon: string;
-  display_order: number;
-}
-
-export interface EquipmentItem {
-  id: string;
-  owner_id: string;
-  category_id: string;
-  title: string;
-  description: string;
-  condition: 'neuf' | 'tres_bon' | 'excellent' | 'bon' | 'usage';
-  deposit_amount?: number;
-  is_free: boolean;
-  daily_rate?: number;
-  pickup_location: string;
-  location_area?: string;
-  sector_id?: string | null;        // couche territoriale (recommandé)
-  rules?: string;
-  availability_notes?: string;
-  is_available: boolean;
-  status?: string; // disponible | reserve | prete | rendu | indisponible | archive
-  status_changed_at?: string;
-  archived_at?: string;
-  created_at: string;
-  updated_at: string;
-  owner?: Profile;
-  category?: EquipmentCategory;
-  photos?: EquipmentPhoto[];
-}
-
-export interface EquipmentPhoto {
-  id: string;
-  item_id: string;
-  url: string;
-  display_order: number;
-}
-
-export interface BorrowRequest {
-  id: string;
-  item_id: string;
-  borrower_id: string;
-  start_date: string;
-  end_date: string;
-  message?: string;
-  status: 'pending' | 'approved' | 'rejected' | 'borrowed' | 'returned' | 'cancelled';
-  created_at: string;
-  updated_at: string;
-  item?: EquipmentItem;
-  borrower?: Profile;
-}
-
-// ── Promenades / Sorties groupées ────────────────────────────────────────────
-
-export type OutingStatusFr = 'ouverte' | 'complete' | 'terminee' | 'annulee' | 'archivee';
-export type OutingParticipantStatus = 'inscrit' | 'confirme' | 'annule' | 'present' | 'absent';
-
-export interface GroupOuting {
-  id: string;
-  organizer_id: string;
-  promenade_id?: string | null;
-  sector_id?: string | null;        // couche territoriale (recommandé)
-  title: string;
-  description: string | null;
-  outing_date: string;
-  outing_time: string;
-  max_participants: number;
-  meeting_point: string | null;
-  parking_info: string | null;
-  parking_available: boolean;
-  stroller_accessible: boolean;
-  difficulty: 'facile' | 'moyen' | 'difficile' | null;
-  kids_friendly: boolean;
-  dogs_allowed: boolean;
-  status: OutingStatusFr | string; // string fallback for legacy values
-  is_registration_open: boolean;
-  location_area: string | null;
-  location_city: string | null;
-  duration_estimate: string | null;
-  cover_photo_url: string | null;
-  notes: string | null;
-  archived_at: string | null;
-  created_at: string;
-  updated_at: string;
-  // Relations
-  organizer?: { full_name: string; avatar_url?: string } | null;
-  photos?: OutingPhoto[];
-  participants_count?: number;
-  user_joined?: boolean;
-}
-
-export interface OutingPhoto {
-  id: string;
-  outing_id: string;
-  url: string;
-  display_order: number;
-  is_cover: boolean;
-  created_at: string;
-}
-
-export interface OutingParticipant {
-  id: string;
-  outing_id: string;
-  user_id: string;
-  status: OutingParticipantStatus;
-  joined_at: string;
-  confirmed_at?: string;
-  cancelled_at?: string;
-  attendance_marked_at?: string;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-  // Relations
-  profile?: Profile;
-  outing?: GroupOuting;
-}
-
-export interface OutingStatusHistory {
-  id: string;
-  outing_id: string;
-  old_status: string | null;
-  new_status: string;
-  changed_by: string | null;
-  reason: string | null;
-  created_at: string;
-  // Relations
-  changed_by_profile?: Profile;
-}
-
-// ─── Forum v2 ─────────────────────────────────────────────────────────────────
-
-export interface ForumSector {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  icon: string;
-  color: string;
-  display_order: number;
-  topic_count?: number;
-}
-
-export interface ForumCategory {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  icon: string;
-  display_order: number;
-  post_count?: number;
-  topic_count?: number;
-}
-
-export interface ForumTag {
-  id: string;
-  name: string;
-  slug: string;
-  color: string;
-}
-
-export type ForumTopicStatus = 'ouvert' | 'verrouille' | 'masque' | 'archive';
-
-export interface ForumTopic {
-  id: string;
-  sector_id: string | null;
-  category_id: string | null;
-  author_id: string;
-  title: string;
-  content: string;
-  status: ForumTopicStatus;
-  is_pinned: boolean;
-  is_hot: boolean;
-  views: number;
-  reply_count: number;
-  reaction_count: number;
-  last_reply_at: string | null;
-  tags?: string[];
-  visibility: 'public' | 'secteur' | 'membres';
-  created_at: string;
-  updated_at: string;
-  // Relations
-  author?: Profile;
-  sector?: ForumSector;
-  category?: ForumCategory;
-  topic_tags?: { tag: ForumTag }[];
-  replies?: ForumReply[];
-}
-
-export interface ForumReply {
-  id: string;
-  topic_id: string;
-  author_id: string;
-  content: string;
-  quote_reply_id: string | null;
-  is_solution: boolean;
-  reaction_count: number;
-  created_at: string;
-  updated_at: string;
-  // Relations
-  author?: Profile;
-  quoted_reply?: ForumReply;
-  reactions?: ForumReaction[];
-}
-
-export interface ForumReaction {
-  id: string;
-  topic_id: string | null;
-  reply_id: string | null;
-  user_id: string;
-  emoji: string;
-  created_at: string;
-}
-
-export interface ForumFollow {
-  id: string;
-  topic_id: string;
-  user_id: string;
-  notify_replies: boolean;
-  created_at: string;
-}
-
-export interface ForumReport {
-  id: string;
-  reporter_id: string;
-  topic_id: string | null;
-  reply_id: string | null;
-  reason: 'hors_sujet' | 'insulte' | 'spam' | 'desinformation' | 'contenu_sensible' | 'autre';
-  description: string | null;
-  status: 'en_attente' | 'examine' | 'resolu' | 'rejete';
-  created_at: string;
-}
-
-export interface ForumModerationLog {
-  id: string;
-  moderator_id: string;
-  topic_id: string | null;
-  reply_id: string | null;
-  action: 'masquer' | 'verrouiller' | 'deplacer' | 'epingler' | 'archiver' | 'supprimer' | 'fusionner' | 'suspendre';
-  reason: string | null;
-  created_at: string;
-  moderator?: Profile;
-}
-
-// Legacy aliases (backward compat)
-export interface ForumPost {
-  id: string;
-  category_id: string;
-  author_id: string;
-  title: string;
-  content: string;
-  is_pinned: boolean;
-  is_closed: boolean;
-  views: number;
-  created_at: string;
-  updated_at: string;
-  author?: Profile;
-  category?: ForumCategory;
-  comments?: ForumComment[];
-  comment_count?: number;
-}
-
-export interface ForumComment {
-  id: string;
-  post_id: string;
-  author_id: string;
-  content: string;
-  created_at: string;
-  updated_at: string;
-  author?: Profile;
-}
-
-export interface Review {
-  id: string;
-  artisan_id: string;
-  reviewer_id: string;
-  rating: number;
-  comment: string;
-  created_at: string;
-  reviewer?: Profile;
-}
-
-export interface Report {
-  id: string;
-  reporter_id: string;
-  target_type: 'user' | 'post' | 'listing' | 'message' | 'equipment';
-  target_id: string;
-  reason: string;
-  description?: string;
-  status: 'pending' | 'reviewed' | 'resolved' | 'dismissed';
-  created_at: string;
-  reporter?: Profile;
-}
-
-export interface Notification {
-  id: string;
-  user_id: string;
-  type: string;
-  title: string;
-  message: string;
-  body?: string;
-  link?: string;
-  is_read: boolean;
-  created_at: string;
-}
-
-// OutingStatus alias (compatible with lib/outings.ts)
-export type OutingStatus = OutingStatusFr;
-
-// ─── Événements ───────────────────────────────────────────────────────────────
-
-export type EventStatusFr = 'a_venir' | 'complet' | 'reporte' | 'annule' | 'passe' | 'archive';
-export type EventParticipantStatusFr = 'inscrit' | 'confirme' | 'annule' | 'present' | 'absent' | 'liste_attente';
-
-export interface Event {
-  id: string;
-  author_id: string;
-  title: string;
-  subtitle: string;
-  description: string;
-  category: string;
-  sector_id?: string | null;        // couche territoriale (facultatif / multi possible)
-  is_citywide?: boolean;            // true = concerne toute la ville
-  event_date: string;
-  event_end_date?: string | null;
-  start_time: string;
-  end_time?: string | null;
-  location: string;
-  location_area: string;
-  location_city: string;
-  location_detail: string;
-  organizer_name: string;
-  price_type: 'gratuit' | 'payant' | 'libre';
-  price_amount?: number | null;
-  capacity?: number | null;
-  is_unlimited: boolean;
-  status: EventStatusFr | string;
-  registration_open: boolean;
-  cover_photo_url?: string | null;
-  tags: string[];
-  is_official: boolean;
-  report_reason?: string | null;
-  cancel_reason?: string | null;
-  postpone_reason?: string | null;
-  original_event_date?: string | null;
-  accessibility: string;
-  contact_info: string;
-  external_link: string;
-  target_audience: string;
-  created_at: string;
-  updated_at: string;
-  archived_at?: string | null;
-  // Relations
-  author?: { full_name: string; avatar_url?: string | null } | null;
-  photos?: EventPhoto[];
-  participants?: EventParticipant[];
-  participants_count?: number;
-  user_joined?: boolean;
-  user_participant_status?: EventParticipantStatusFr | null;
-  remaining_places?: number | null;
-  fill_percentage?: number | null;
-}
-
-export interface EventPhoto {
-  id: string;
-  event_id: string;
-  url: string;
-  display_order: number;
-  is_cover: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface EventParticipant {
-  id: string;
-  event_id: string;
-  user_id: string;
-  status: EventParticipantStatusFr;
-  joined_at: string;
-  confirmed_at?: string | null;
-  cancelled_at?: string | null;
-  attendance_marked_at?: string | null;
-  notes: string;
-  created_at: string;
-  updated_at: string;
-  // Relations
-  user?: { full_name: string; avatar_url?: string | null } | null;
-  event?: Event;
-}
-
-export interface EventStatusHistory {
-  id: string;
-  event_id: string;
-  old_status: string | null;
-  new_status: string;
-  changed_by: string | null;
-  reason: string | null;
-  created_at: string;
-  changed_by_profile?: { full_name: string; avatar_url?: string | null } | null;
-}
-
-export interface EventDateHistory {
-  id: string;
-  event_id: string;
-  old_event_date: string | null;
-  new_event_date: string | null;
-  old_start_time: string | null;
-  new_start_time: string | null;
-  changed_by: string | null;
-  reason: string | null;
-  created_at: string;
-  changed_by_profile?: { full_name: string; avatar_url?: string | null } | null;
-}
-
-// ── Couche territoriale transversale ─────────────────────────────────────────
-
-/** Secteur de Biguglia — miroir du type Sector de lib/sectors.ts */
-export interface Sector {
-  id: string;
-  name: string;
-  slug: string;
-  icon: string;
-  color: string;
-  display_order: number;
-  description?: string;
-  is_active?: boolean;
-}
-
-// ── Module Perdu/Trouvé ───────────────────────────────────────────────────────
-export interface LostFoundItem {
-  id: string;
-  author_id: string;
-  type: 'perdu' | 'trouve';
-  status: 'active' | 'resolved' | 'draft';
-  title: string;
-  category: string;
-  description: string;
-  sector_id: string;              // obligatoire
-  location_area?: string;
-  location_detail?: string;
-  lost_date: string;
-  created_at: string;
-  updated_at: string;
-  author?: { id: string; full_name: string; avatar_url?: string | null };
-  photos?: { url: string; display_order: number }[];
-}
-
-// ── Module Coups de main ──────────────────────────────────────────────────────
-export interface HelpRequest {
-  id: string;
-  author_id: string;
-  help_type: 'demande' | 'offre' | 'echange';
-  status: 'active' | 'paused' | 'resolved' | 'draft';
-  title: string;
-  category: string;
-  description: string;
-  sector_id: string;              // obligatoire
-  urgency: 'flexible' | 'cette_semaine' | 'rapidement' | 'urgent';
-  location_area?: string;
-  created_at: string;
-  updated_at: string;
-  author?: { id: string; full_name: string; avatar_url?: string | null };
-}
-
-// ── Module Promenades ─────────────────────────────────────────────────────────
-export interface Promenade {
-  id: string;
-  author_id: string;
-  title: string;
-  description: string;
-  distance_km?: number;
-  duration_min?: number;
-  difficulty: 'facile' | 'moyen' | 'difficile';
-  type: 'balade' | 'randonnee' | 'velo' | 'plage' | 'nature';
-  tags: string[];
-  start_point?: string;
-  sector_id?: string | null;      // fortement recommandé
-  status: 'active' | 'archived';
-  views: number;
-  created_at: string;
-  updated_at: string;
-  author?: { id: string; full_name: string; avatar_url?: string | null };
-  photos?: { url: string; display_order: number }[];
-  likes_count?: number;
-}
-
-// ── Module Associations ───────────────────────────────────────────────────────
-export interface Association {
-  id: string;
-  author_id: string;
-  name: string;
-  category: string;
-  description_short: string;
-  description_full?: string;
-  location: string;
-  sector_id?: string | null;      // fortement recommandé
-  is_citywide?: boolean;
-  status: 'active' | 'inactive' | 'draft';
-  created_at: string;
-  updated_at: string;
-  author?: { id: string; full_name: string; avatar_url?: string | null };
-  photos?: { url: string; display_order: number }[];
-}
-
-// ── Module Collectionneurs ────────────────────────────────────────────────────
-export interface CollectionItem {
-  id: string;
-  author_id: string;
-  category_id?: string;
-  title: string;
-  description: string;
-  item_type: 'vente' | 'troc' | 'don' | 'recherche';
-  price?: number;
-  condition: 'neuf' | 'excellent' | 'bon' | 'passable';
-  tags: string[];
-  sector_id?: string | null;      // fortement recommandé
-  status: 'active' | 'sold' | 'archived';
-  views: number;
-  created_at: string;
-  updated_at: string;
-  author?: { id: string; full_name: string; avatar_url?: string | null };
-  photos?: { url: string; display_order: number }[];
-}
+// ── Communauté (Sector, Perdu/Trouvé, Coups de main, Promenades,
+//               Associations, Collectionneurs, Signalements, Notifications) ───
+export type {
+  Sector,
+  LostFoundItem,
+  HelpRequest,
+  Promenade,
+  Association,
+  CollectionItem,
+  Report,
+  Notification,
+} from './community';
