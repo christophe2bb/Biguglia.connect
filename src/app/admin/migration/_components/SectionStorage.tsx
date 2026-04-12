@@ -10,6 +10,8 @@ import {
   Users, Shield, Eye,
 } from 'lucide-react';
 import type { StorageDiag } from '../_types';
+import type { SqlKey } from '../_hooks/useMigration';
+import { SQL_MAP } from '../_hooks/useMigration';
 import { CopyBlock } from './CopyBlock';
 
 interface Props {
@@ -20,35 +22,15 @@ interface Props {
   onCheckStorage: () => void;
   onTestUpload: (_file: File) => void;
   fileInputRef: React.RefObject<HTMLInputElement>;
-
-  // Copy handlers
-  copiedBucket: boolean;         onCopyBucket: () => void;
-  copiedArtisan: boolean;        onCopyArtisan: () => void;
-  copiedCollectionComments: boolean; onCopyCollectionComments: () => void;
-  copiedCommunity: boolean;      onCopyCommunity: () => void;
-  copiedDiscussions: boolean;    onCopyDiscussions: () => void;
-  copiedRLS: boolean;            onCopyRLS: () => void;
-
-  // SQL strings for previews
-  BUCKET_SQL: string;
-  ARTISAN_SQL: string;
-  COLLECTION_COMMENTS_SQL: string;
-  COMMUNITY_SQL: string;
-  DISCUSSIONS_SQL: string;
-  RLS_STATUS_SQL: string;
+  // Copy API
+  copied: (key: SqlKey) => boolean;
+  copy:   (key: SqlKey) => void;
 }
 
 export function SectionStorage({
   storageDiag, checkingStorage, testingUpload,
   onCheckStorage, onTestUpload, fileInputRef,
-  copiedBucket, onCopyBucket,
-  copiedArtisan, onCopyArtisan,
-  copiedCollectionComments, onCopyCollectionComments,
-  copiedCommunity, onCopyCommunity,
-  copiedDiscussions, onCopyDiscussions,
-  copiedRLS, onCopyRLS,
-  BUCKET_SQL, ARTISAN_SQL, COLLECTION_COMMENTS_SQL,
-  COMMUNITY_SQL, DISCUSSIONS_SQL, RLS_STATUS_SQL,
+  copied, copy,
 }: Props) {
   return (
     <>
@@ -186,10 +168,10 @@ export function SectionStorage({
         </div>
         <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
           <p className="text-xs text-gray-500">Ajoute : artisan_type, doc_kbis_url, doc_insurance_url, doc_id_url, rejection_reason, is_featured + bucket documents</p>
-          <CopyBlock sql={ARTISAN_SQL} copied={copiedArtisan} onCopy={onCopyArtisan} label="Copier SQL Artisans" color="orange" />
+          <CopyBlock sql={SQL_MAP.artisan} copied={copied('artisan')} onCopy={() => copy('artisan')} label="Copier SQL Artisans" color="orange" />
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-80">
-          <pre className="text-xs text-cyan-400 font-mono leading-relaxed whitespace-pre-wrap">{ARTISAN_SQL}</pre>
+          <pre className="text-xs text-cyan-400 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.artisan}</pre>
         </div>
       </div>
 
@@ -204,10 +186,10 @@ export function SectionStorage({
         </div>
         <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
           <p className="text-xs text-gray-500">Table collection_item_comments + policies RLS</p>
-          <CopyBlock sql={COLLECTION_COMMENTS_SQL} copied={copiedCollectionComments} onCopy={onCopyCollectionComments} label="Copier SQL Discussion Collection" color="red" />
+          <CopyBlock sql={SQL_MAP.collectionComments} copied={copied('collectionComments')} onCopy={() => copy('collectionComments')} label="Copier SQL Discussion Collection" color="red" />
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-80">
-          <pre className="text-xs text-cyan-400 font-mono leading-relaxed whitespace-pre-wrap">{COLLECTION_COMMENTS_SQL}</pre>
+          <pre className="text-xs text-cyan-400 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.collectionComments}</pre>
         </div>
       </div>
 
@@ -222,10 +204,10 @@ export function SectionStorage({
         </div>
         <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
           <p className="text-xs text-gray-500">2 tables · RLS complète · index performances · Phase 1 MVP communautés</p>
-          <CopyBlock sql={COMMUNITY_SQL} copied={copiedCommunity} onCopy={onCopyCommunity} label="Copier SQL Communautés" color="violet" />
+          <CopyBlock sql={SQL_MAP.community} copied={copied('community')} onCopy={() => copy('community')} label="Copier SQL Communautés" color="violet" />
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-80">
-          <pre className="text-xs text-violet-300 font-mono leading-relaxed whitespace-pre-wrap">{COMMUNITY_SQL}</pre>
+          <pre className="text-xs text-violet-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.community}</pre>
         </div>
       </div>
 
@@ -243,10 +225,10 @@ export function SectionStorage({
         </div>
         <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
           <p className="text-xs text-gray-500">2 tables · trigger compteur likes · RLS · index performances · Phase 2 communautés</p>
-          <CopyBlock sql={DISCUSSIONS_SQL} copied={copiedDiscussions} onCopy={onCopyDiscussions} label="Copier SQL Discussions" color="indigo" />
+          <CopyBlock sql={SQL_MAP.discussions} copied={copied('discussions')} onCopy={() => copy('discussions')} label="Copier SQL Discussions" color="indigo" />
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-80">
-          <pre className="text-xs text-indigo-300 font-mono leading-relaxed whitespace-pre-wrap">{DISCUSSIONS_SQL}</pre>
+          <pre className="text-xs text-indigo-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.discussions}</pre>
         </div>
       </div>
 
@@ -266,10 +248,10 @@ export function SectionStorage({
         </div>
         <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
           <p className="text-xs text-gray-500">4 fonctions SECURITY DEFINER · 6 politiques RLS · table status_history · 6 triggers audit</p>
-          <CopyBlock sql={RLS_STATUS_SQL} copied={copiedRLS} onCopy={onCopyRLS} label="Copier SQL RLS Statuts" color="violet" />
+          <CopyBlock sql={SQL_MAP.rls} copied={copied('rls')} onCopy={() => copy('rls')} label="Copier SQL RLS Statuts" color="violet" />
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-72">
-          <pre className="text-xs text-purple-300 font-mono leading-relaxed whitespace-pre-wrap">{RLS_STATUS_SQL}</pre>
+          <pre className="text-xs text-purple-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.rls}</pre>
         </div>
       </div>
 
@@ -284,10 +266,10 @@ export function SectionStorage({
         </div>
         <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
           <p className="text-xs text-gray-500">Crée le bucket public + 4 policies (SELECT, INSERT, UPDATE, DELETE)</p>
-          <CopyBlock sql={BUCKET_SQL} copied={copiedBucket} onCopy={onCopyBucket} label="Copier SQL Storage" color="blue" />
+          <CopyBlock sql={SQL_MAP.bucket} copied={copied('bucket')} onCopy={() => copy('bucket')} label="Copier SQL Storage" color="blue" />
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-64">
-          <pre className="text-xs text-cyan-400 font-mono leading-relaxed whitespace-pre-wrap">{BUCKET_SQL}</pre>
+          <pre className="text-xs text-cyan-400 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.bucket}</pre>
         </div>
       </div>
     </>

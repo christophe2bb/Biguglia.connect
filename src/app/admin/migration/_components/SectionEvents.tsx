@@ -5,20 +5,15 @@
 'use client';
 
 import { Copy, Check } from 'lucide-react';
+import type { SqlKey } from '../_hooks/useMigration';
+import { SQL_MAP } from '../_hooks/useMigration';
 
 interface Props {
-  copiedEventsBase: boolean; onCopyEventsBase: () => void; EVENTS_BASE_SQL: string;
-  copiedEvents: boolean;     onCopyEvents: () => void;     EVENT_LIFECYCLE_SQL: string;
-  copiedEventFix: boolean;   onCopyEventFix: () => void;   EVENT_FIX_SQL: string;
-  copiedCollectV2: boolean;  onCopyCollectV2: () => void;  COLLECTIONNEURS_V2_SQL: string;
+  copied: (key: SqlKey) => boolean;
+  copy:   (key: SqlKey) => void;
 }
 
-export function SectionEvents({
-  copiedEventsBase, onCopyEventsBase, EVENTS_BASE_SQL,
-  copiedEvents, onCopyEvents, EVENT_LIFECYCLE_SQL,
-  copiedEventFix, onCopyEventFix, EVENT_FIX_SQL,
-  copiedCollectV2, onCopyCollectV2, COLLECTIONNEURS_V2_SQL,
-}: Props) {
+export function SectionEvents({ copied, copy }: Props) {
   return (
     <>
       {/* ── Section divider ── */}
@@ -44,18 +39,18 @@ export function SectionEvents({
             </p>
           </div>
           <button
-            onClick={onCopyEventsBase}
+            onClick={() => copy('eventsBase')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
-              copiedEventsBase ? 'bg-emerald-500 text-white' : 'bg-emerald-500 text-gray-900 hover:bg-emerald-400'
+              copied('eventsBase') ? 'bg-emerald-500 text-white' : 'bg-emerald-500 text-gray-900 hover:bg-emerald-400'
             }`}
           >
-            {copiedEventsBase
+            {copied('eventsBase')
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier SQL Événements Base</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
-          <pre className="text-xs text-emerald-300 font-mono leading-relaxed whitespace-pre-wrap">{EVENTS_BASE_SQL}</pre>
+          <pre className="text-xs text-emerald-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.eventsBase}</pre>
         </div>
       </div>
 
@@ -75,18 +70,18 @@ export function SectionEvents({
             </p>
           </div>
           <button
-            onClick={onCopyEvents}
+            onClick={() => copy('events')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
-              copiedEvents ? 'bg-emerald-500 text-white' : 'bg-purple-700 text-white hover:bg-purple-800'
+              copied('events') ? 'bg-emerald-500 text-white' : 'bg-purple-700 text-white hover:bg-purple-800'
             }`}
           >
-            {copiedEvents
+            {copied('events')
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier SQL Cycle de vie</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
-          <pre className="text-xs text-purple-300 font-mono leading-relaxed whitespace-pre-wrap">{EVENT_LIFECYCLE_SQL}</pre>
+          <pre className="text-xs text-purple-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.events}</pre>
         </div>
       </div>
 
@@ -109,18 +104,18 @@ export function SectionEvents({
             </p>
           </div>
           <button
-            onClick={onCopyEventFix}
+            onClick={() => copy('eventFix')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
-              copiedEventFix ? 'bg-emerald-500 text-white' : 'bg-red-700 text-white hover:bg-red-800'
+              copied('eventFix') ? 'bg-emerald-500 text-white' : 'bg-red-700 text-white hover:bg-red-800'
             }`}
           >
-            {copiedEventFix
+            {copied('eventFix')
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier SQL Correctif Contrainte</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-72">
-          <pre className="text-xs text-red-300 font-mono leading-relaxed whitespace-pre-wrap">{EVENT_FIX_SQL}</pre>
+          <pre className="text-xs text-red-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.eventFix}</pre>
         </div>
       </div>
 
@@ -137,18 +132,18 @@ export function SectionEvents({
             </p>
           </div>
           <button
-            onClick={onCopyCollectV2}
+            onClick={() => copy('collectV2')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
-              copiedCollectV2 ? 'bg-emerald-500 text-white' : 'bg-amber-600 text-white hover:bg-amber-700'
+              copied('collectV2') ? 'bg-emerald-500 text-white' : 'bg-amber-600 text-white hover:bg-amber-700'
             }`}
           >
-            {copiedCollectV2
+            {copied('collectV2')
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier SQL Collectionneurs v2</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
-          <pre className="text-xs text-amber-200 font-mono leading-relaxed whitespace-pre-wrap">{COLLECTIONNEURS_V2_SQL}</pre>
+          <pre className="text-xs text-amber-200 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.collectV2}</pre>
         </div>
       </div>
     </>

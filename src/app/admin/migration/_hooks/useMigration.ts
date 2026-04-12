@@ -5,13 +5,16 @@
  *   - vérification des tables Supabase
  *   - diagnostic du bucket Storage
  *   - copie des scripts SQL dans le presse-papiers
+ *
+ * Refactorisé : les 30 paires [copiedX, handleCopyX] ont été remplacées par un
+ * seul useCopyMap(sqlMap) qui gère dynamiquement tous les boutons de copie.
  */
 
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { TABLES_TO_CHECK }  from '../_config';
+import { TABLES_TO_CHECK } from '../_config';
 import type { TableStatus, StorageDiag } from '../_types';
 import {
   MIGRATION_SQL, REALTIME_SQL, MESSAGING_SQL, INTERACTION_SQL,
@@ -27,21 +30,82 @@ import { EQUIPMENT_LIFECYCLE_SQL } from '@/lib/equipment';
 import { OUTINGS_LIFECYCLE_SQL }   from '@/lib/outings';
 import { EVENT_LIFECYCLE_SQL, EVENT_FIX_SQL } from '@/lib/events';
 
-// ─── Generic copy hook ────────────────────────────────────────────────────────
+// ─── SQL map ─────────────────────────────────────────────────────────────────
 
-/** Returns [isCopied, triggerCopy] — shows isCopied=true for 4 seconds. */
-function useCopy(sql: string): [boolean, () => void] {
-  const [copied, setCopied] = useState(false);
-  const trigger = useCallback(() => {
-    navigator.clipboard.writeText(sql).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 4000);
+/** Toutes les clés SQL disponibles dans la page Migration. */
+export const SQL_MAP = {
+  main:               MIGRATION_SQL,
+  notify:             "NOTIFY pgrst, 'reload schema';",
+  realtime:           REALTIME_SQL,
+  messaging:          MESSAGING_SQL,
+  interaction:        INTERACTION_SQL,
+  exchange:           EXCHANGE_SQL,
+  convFix1:           CONV_FIX_BLOC1,
+  convFix2:           CONV_FIX_BLOC2,
+  rating:             RATING_SQL,
+  bucket:             BUCKET_SQL,
+  artisan:            ARTISAN_SQL,
+  collectionComments: COLLECTION_COMMENTS_SQL,
+  community:          COMMUNITY_SQL,
+  discussions:        DISCUSSIONS_SQL,
+  rls:                RLS_STATUS_SQL,
+  trustFix:           TRUST_STATS_FIX_SQL,
+  trust:              TRUST_SQL,
+  collectV2:          COLLECTIONNEURS_V2_SQL,
+  roleFix:            USER_ROLE_FIX_SQL,
+  modFix:             MODERATION_FIX_SQL,
+  moderation:         MODERATION_SQL,
+  eventsBase:         EVENTS_BASE_SQL,
+  equipment:          EQUIPMENT_LIFECYCLE_SQL,
+  outings:            OUTINGS_LIFECYCLE_SQL,
+  events:             EVENT_LIFECYCLE_SQL,
+  eventFix:           EVENT_FIX_SQL,
+  reminder:           REMINDER_SQL,
+  forumV2:            FORUM_V2_SQL,
+  profilPublic:       PROFIL_PUBLIC_SQL,
+  lfHistory:          LF_HISTORY_SQL,
+  lfMatches:          LF_MATCHES_SQL,
+  lfExtras:           LF_EXTRAS_SQL,
+  sectors:            SECTORS_SQL,
+  search:             SEARCH_SQL,
+  status:             STATUS_SQL,
+} as const;
+
+export type SqlKey = keyof typeof SQL_MAP;
+
+// ─── useCopyMap ───────────────────────────────────────────────────────────────
+
+/**
+ * Gère l'état "copié" pour un ensemble de clés SQL.
+ * Retourne :
+ *   copied(key)  → true si la clé a été copiée dans les 4 dernières secondes
+ *   copy(key)    → copie SQL_MAP[key] dans le presse-papiers
+ */
+export function useCopyMap() {
+  const [copiedKeys, setCopiedKeys] = useState<Set<SqlKey>>(new Set());
+
+  const copy = useCallback((key: SqlKey) => {
+    navigator.clipboard.writeText(SQL_MAP[key]).then(() => {
+      setCopiedKeys(prev => new Set(prev).add(key));
+      setTimeout(() => {
+        setCopiedKeys(prev => {
+          const next = new Set(prev);
+          next.delete(key);
+          return next;
+        });
+      }, 4000);
     });
-  }, [sql]);
-  return [copied, trigger];
+  }, []);
+
+  const copied = useCallback(
+    (key: SqlKey) => copiedKeys.has(key),
+    [copiedKeys],
+  );
+
+  return { copied, copy };
 }
 
-// ─── Diagnostic functions (extracted from component) ─────────────────────────
+// ─── Diagnostic helpers ───────────────────────────────────────────────────────
 
 const MISSING_CODES = new Set(['42P01', 'PGRST116', 'PGRST205']);
 
@@ -62,8 +126,8 @@ export function useMigration() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Table diagnostic
-  const [checking, setChecking]   = useState(true);
-  const [tables,   setTables]     = useState<TableStatus[]>([]);
+  const [checking, setChecking] = useState(true);
+  const [tables,   setTables]   = useState<TableStatus[]>([]);
 
   // Storage diagnostic
   const [storageDiag,     setStorageDiag]     = useState<StorageDiag>({
@@ -73,44 +137,8 @@ export function useMigration() {
   const [checkingStorage, setCheckingStorage] = useState(false);
   const [testingUpload,   setTestingUpload]   = useState(false);
 
-  // ── Copy states (one per SQL script) ────────────────────────────────────────
-  const [copiedMain,                 handleCopyMain]                 = useCopy(MIGRATION_SQL);
-  const [copiedRealtime,             handleCopyRealtime]             = useCopy(REALTIME_SQL);
-  const [copiedMessaging,            handleCopyMessaging]            = useCopy(MESSAGING_SQL);
-  const [copiedInteraction,          handleCopyInteraction]          = useCopy(INTERACTION_SQL);
-  const [copiedExchange,             handleCopyExchange]             = useCopy(EXCHANGE_SQL);
-  const [copiedConvFix1,             handleCopyConvFix1]             = useCopy(CONV_FIX_BLOC1);
-  const [copiedConvFix2,             handleCopyConvFix2]             = useCopy(CONV_FIX_BLOC2);
-  const [copiedRating,               handleCopyRating]               = useCopy(RATING_SQL);
-  const [copiedBucket,               handleCopyBucket]               = useCopy(BUCKET_SQL);
-  const [copiedArtisan,              handleCopyArtisan]              = useCopy(ARTISAN_SQL);
-  const [copiedCollectionComments,   handleCopyCollectionComments]   = useCopy(COLLECTION_COMMENTS_SQL);
-  const [copiedCommunity,            handleCopyCommunity]            = useCopy(COMMUNITY_SQL);
-  const [copiedDiscussions,          handleCopyDiscussions]          = useCopy(DISCUSSIONS_SQL);
-  const [copiedRLS,                  handleCopyRLS]                  = useCopy(RLS_STATUS_SQL);
-  const [copiedTrustFix,             handleCopyTrustFix]             = useCopy(TRUST_STATS_FIX_SQL);
-  const [copiedTrust,                handleCopyTrust]                = useCopy(TRUST_SQL);
-  const [copiedCollectV2,            handleCopyCollectV2]            = useCopy(COLLECTIONNEURS_V2_SQL);
-  const [copiedRoleFix,              handleCopyRoleFix]              = useCopy(USER_ROLE_FIX_SQL);
-  const [copiedModFix,               handleCopyModFix]               = useCopy(MODERATION_FIX_SQL);
-  const [copiedModeration,           handleCopyModeration]           = useCopy(MODERATION_SQL);
-  const [copiedEventsBase,           handleCopyEventsBase]           = useCopy(EVENTS_BASE_SQL);
-  const [copiedEquipment,            handleCopyEquipment]            = useCopy(EQUIPMENT_LIFECYCLE_SQL);
-  const [copiedOutings,              handleCopyOutings]              = useCopy(OUTINGS_LIFECYCLE_SQL);
-  const [copiedEvents,               handleCopyEvents]               = useCopy(EVENT_LIFECYCLE_SQL);
-  const [copiedEventFix,             handleCopyEventFix]             = useCopy(EVENT_FIX_SQL);
-  const [copiedReminder,             handleCopyReminder]             = useCopy(REMINDER_SQL);
-  const [copiedForumV2,              handleCopyForumV2]              = useCopy(FORUM_V2_SQL);
-  const [copiedProfilPublic,         handleCopyProfilPublic]         = useCopy(PROFIL_PUBLIC_SQL);
-  const [copiedLfHistory,            handleCopyLfHistory]            = useCopy(LF_HISTORY_SQL);
-  const [copiedLfMatches,            handleCopyLfMatches]            = useCopy(LF_MATCHES_SQL);
-  const [copiedLfExtras,             handleCopyLfExtras]             = useCopy(LF_EXTRAS_SQL);
-  const [copiedSectors,              handleCopySectors]              = useCopy(SECTORS_SQL);
-  const [copiedSearch,               handleCopySearch]               = useCopy(SEARCH_SQL);
-  const [copiedStatus,               handleCopyStatus]               = useCopy(STATUS_SQL);
-
-  // Special: NOTIFY pgrst
-  const [copiedNotify, handleCopyNotify] = useCopy("NOTIFY pgrst, 'reload schema';");
+  // Single copy map replacing 30 individual useCopy() calls
+  const { copied, copy } = useCopyMap();
 
   // ── Table check ──────────────────────────────────────────────────────────────
   const checkTables = useCallback(async () => {
@@ -177,8 +205,7 @@ export function useMigration() {
         const { data: upData, error: upErr } = await supabase.storage
           .from('photos')
           .upload(testPath, new Blob([pngBytes], { type: 'image/png' }), {
-            upsert: true,
-            contentType: 'image/png',
+            upsert: true, contentType: 'image/png',
           });
 
         if (upErr) {
@@ -235,63 +262,18 @@ export function useMigration() {
   }, [checkTables, checkStorage]);
 
   // ── Derived state ────────────────────────────────────────────────────────────
-  const allOk        = tables.length > 0 && tables.every((t) => t.exists);
-  const missingCount = tables.filter((t) => !t.exists).length;
+  const allOk        = tables.length > 0 && tables.every(t => t.exists);
+  const missingCount = tables.filter(t => !t.exists).length;
 
   return {
-    // Diagnostic
-    checking, tables, allOk, missingCount,
-    checkTables,
+    // Diagnostic tables
+    checking, tables, allOk, missingCount, checkTables,
     // Storage
     storageDiag, checkingStorage, testingUpload,
-    checkStorage, testRealUpload,
-    fileInputRef,
-    // Copy handlers
-    copiedMain,               handleCopyMain,
-    copiedNotify,             handleCopyNotify,
-    copiedRealtime,           handleCopyRealtime,
-    copiedMessaging,          handleCopyMessaging,
-    copiedInteraction,        handleCopyInteraction,
-    copiedExchange,           handleCopyExchange,
-    copiedConvFix1,           handleCopyConvFix1,
-    copiedConvFix2,           handleCopyConvFix2,
-    copiedRating,             handleCopyRating,
-    copiedBucket,             handleCopyBucket,
-    copiedArtisan,            handleCopyArtisan,
-    copiedCollectionComments, handleCopyCollectionComments,
-    copiedCommunity,          handleCopyCommunity,
-    copiedDiscussions,        handleCopyDiscussions,
-    copiedRLS,                handleCopyRLS,
-    copiedTrustFix,           handleCopyTrustFix,
-    copiedTrust,              handleCopyTrust,
-    copiedCollectV2,          handleCopyCollectV2,
-    copiedRoleFix,            handleCopyRoleFix,
-    copiedModFix,             handleCopyModFix,
-    copiedModeration,         handleCopyModeration,
-    copiedEventsBase,         handleCopyEventsBase,
-    copiedEquipment,          handleCopyEquipment,
-    copiedOutings,            handleCopyOutings,
-    copiedEvents,             handleCopyEvents,
-    copiedEventFix,           handleCopyEventFix,
-    copiedReminder,           handleCopyReminder,
-    copiedForumV2,            handleCopyForumV2,
-    copiedProfilPublic,       handleCopyProfilPublic,
-    copiedLfHistory,          handleCopyLfHistory,
-    copiedLfMatches,          handleCopyLfMatches,
-    copiedLfExtras,           handleCopyLfExtras,
-    copiedSectors,            handleCopySectors,
-    copiedSearch,             handleCopySearch,
-    copiedStatus,             handleCopyStatus,
-    // SQL strings (needed by components that preview them)
-    MIGRATION_SQL, REALTIME_SQL, MESSAGING_SQL, INTERACTION_SQL,
-    EXCHANGE_SQL, CONV_FIX_BLOC1, CONV_FIX_BLOC2, RATING_SQL,
-    BUCKET_SQL, ARTISAN_SQL, COLLECTION_COMMENTS_SQL, COMMUNITY_SQL,
-    DISCUSSIONS_SQL, RLS_STATUS_SQL, TRUST_STATS_FIX_SQL, TRUST_SQL,
-    COLLECTIONNEURS_V2_SQL, USER_ROLE_FIX_SQL, MODERATION_FIX_SQL,
-    MODERATION_SQL, EVENTS_BASE_SQL, REMINDER_SQL, FORUM_V2_SQL,
-    PROFIL_PUBLIC_SQL, LF_HISTORY_SQL, LF_MATCHES_SQL, LF_EXTRAS_SQL,
-    SECTORS_SQL, SEARCH_SQL, STATUS_SQL,
-    EQUIPMENT_LIFECYCLE_SQL, OUTINGS_LIFECYCLE_SQL,
-    EVENT_LIFECYCLE_SQL, EVENT_FIX_SQL,
+    checkStorage, testRealUpload, fileInputRef,
+    // Copy API — un seul objet pour tous les SQL
+    copied, copy,
+    // SQL strings exposés pour les composants qui prévisualisent
+    SQL_MAP,
   };
 }

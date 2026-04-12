@@ -5,26 +5,15 @@
 'use client';
 
 import { AlertTriangle, MessageSquare, Tag, Search, Info, Copy, Check } from 'lucide-react';
+import type { SqlKey } from '../_hooks/useMigration';
+import { SQL_MAP } from '../_hooks/useMigration';
 
 interface Props {
-  // Conv fix blocs
-  copiedConvFix1: boolean;  onCopyConvFix1: () => void;  CONV_FIX_BLOC1: string;
-  copiedConvFix2: boolean;  onCopyConvFix2: () => void;  CONV_FIX_BLOC2: string;
-  // Messaging
-  copiedMessaging: boolean; onCopyMessaging: () => void; MESSAGING_SQL: string;
-  // Status
-  copiedStatus: boolean;    onCopyStatus: () => void;    STATUS_SQL: string;
-  // Search
-  copiedSearch: boolean;    onCopySearch: () => void;    SEARCH_SQL: string;
+  copied: (key: SqlKey) => boolean;
+  copy:   (key: SqlKey) => void;
 }
 
-export function SectionMessaging({
-  copiedConvFix1, onCopyConvFix1, CONV_FIX_BLOC1,
-  copiedConvFix2, onCopyConvFix2, CONV_FIX_BLOC2,
-  copiedMessaging, onCopyMessaging, MESSAGING_SQL,
-  copiedStatus, onCopyStatus, STATUS_SQL,
-  copiedSearch, onCopySearch, SEARCH_SQL,
-}: Props) {
+export function SectionMessaging({ copied, copy }: Props) {
   return (
     <>
       {/* ── Fix messagerie ── */}
@@ -75,17 +64,17 @@ export function SectionMessaging({
             </p>
             <p className="text-xs text-red-100 mt-1 ml-9">⚠️ À coller <strong>SEUL</strong> dans un <strong>nouvel onglet</strong> SQL Editor → Run</p>
           </div>
-          <button onClick={onCopyConvFix1}
+          <button onClick={() => copy('convFix1')}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow flex-shrink-0 ${
-              copiedConvFix1 ? 'bg-emerald-400 text-white' : 'bg-white text-red-700 hover:bg-red-50'
+              copied('convFix1') ? 'bg-emerald-400 text-white' : 'bg-white text-red-700 hover:bg-red-50'
             }`}>
-            {copiedConvFix1
+            {copied('convFix1')
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier BLOC 1</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-60">
-          <pre className="text-xs text-red-300 font-mono leading-relaxed whitespace-pre-wrap">{CONV_FIX_BLOC1}</pre>
+          <pre className="text-xs text-red-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.convFix1}</pre>
         </div>
       </div>
 
@@ -99,17 +88,17 @@ export function SectionMessaging({
             </p>
             <p className="text-xs text-orange-100 mt-1 ml-9">À coller dans un <strong>autre onglet</strong> SQL Editor → Run — <strong>après le BLOC 1</strong></p>
           </div>
-          <button onClick={onCopyConvFix2}
+          <button onClick={() => copy('convFix2')}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow flex-shrink-0 ${
-              copiedConvFix2 ? 'bg-emerald-400 text-white' : 'bg-white text-orange-700 hover:bg-orange-50'
+              copied('convFix2') ? 'bg-emerald-400 text-white' : 'bg-white text-orange-700 hover:bg-orange-50'
             }`}>
-            {copiedConvFix2
+            {copied('convFix2')
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier BLOC 2</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-60">
-          <pre className="text-xs text-orange-200 font-mono leading-relaxed whitespace-pre-wrap">{CONV_FIX_BLOC2}</pre>
+          <pre className="text-xs text-orange-200 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.convFix2}</pre>
         </div>
       </div>
 
@@ -136,18 +125,18 @@ export function SectionMessaging({
           </ul>
         </div>
         <button
-          onClick={onCopyMessaging}
+          onClick={() => copy('messaging')}
           className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-all ${
-            copiedMessaging ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'
+            copied('messaging') ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'
           }`}
         >
-          {copiedMessaging
+          {copied('messaging')
             ? <><Check className="w-4 h-4" /> SQL copié ! Collez dans Supabase SQL Editor</>
             : <><Copy className="w-4 h-4" /> Copier le SQL Messagerie universelle</>
           }
         </button>
         <div className="mt-3 bg-gray-900 rounded-xl p-4 overflow-x-auto">
-          <pre className="text-xs text-blue-300 font-mono leading-relaxed whitespace-pre-wrap">{MESSAGING_SQL}</pre>
+          <pre className="text-xs text-blue-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.messaging}</pre>
         </div>
       </div>
 
@@ -177,18 +166,18 @@ export function SectionMessaging({
             </div>
           </div>
           <button
-            onClick={onCopyStatus}
+            onClick={() => copy('status')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all mb-3 ${
-              copiedStatus ? 'bg-emerald-500 text-white' : 'bg-violet-600 text-white hover:bg-violet-700'
+              copied('status') ? 'bg-emerald-500 text-white' : 'bg-violet-600 text-white hover:bg-violet-700'
             }`}
           >
-            {copiedStatus
+            {copied('status')
               ? <><Check className="w-4 h-4" /> SQL copié ! Collez dans Supabase SQL Editor</>
               : <><Copy className="w-4 h-4" /> Copier le SQL Statuts enrichis</>
             }
           </button>
           <div className="mt-3 bg-gray-900 rounded-xl p-4 overflow-x-auto">
-            <pre className="text-xs text-violet-300 font-mono leading-relaxed whitespace-pre-wrap">{STATUS_SQL}</pre>
+            <pre className="text-xs text-violet-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.status}</pre>
           </div>
           <ol className="list-decimal list-inside text-xs text-gray-600 space-y-1 bg-gray-50 rounded-xl p-3 mt-3">
             <li>Copiez le SQL ci-dessus et allez dans Supabase → SQL Editor → New query</li>
@@ -221,18 +210,18 @@ export function SectionMessaging({
           </div>
         </div>
         <button
-          onClick={onCopySearch}
+          onClick={() => copy('search')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow ${
-            copiedSearch ? 'bg-emerald-500 text-white' : 'bg-violet-600 text-white hover:bg-violet-700'
+            copied('search') ? 'bg-emerald-500 text-white' : 'bg-violet-600 text-white hover:bg-violet-700'
           }`}
         >
-          {copiedSearch
+          {copied('search')
             ? <><Check className="w-4 h-4" /> SQL copié ! Collez dans Supabase SQL Editor</>
             : <><Copy className="w-4 h-4" /> Copier le SQL Recherche globale</>
           }
         </button>
         <div className="mt-3 bg-gray-900 rounded-xl p-4 overflow-x-auto">
-          <pre className="text-xs text-violet-300 font-mono leading-relaxed whitespace-pre-wrap">{SEARCH_SQL}</pre>
+          <pre className="text-xs text-violet-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.search}</pre>
         </div>
       </div>
     </>

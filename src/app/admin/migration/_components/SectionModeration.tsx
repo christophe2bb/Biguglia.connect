@@ -5,22 +5,15 @@
 'use client';
 
 import { Shield, Copy, Check } from 'lucide-react';
+import type { SqlKey } from '../_hooks/useMigration';
+import { SQL_MAP } from '../_hooks/useMigration';
 
 interface Props {
-  copiedModFix: boolean;     onCopyModFix: () => void;     MODERATION_FIX_SQL: string;
-  copiedModeration: boolean; onCopyModeration: () => void; MODERATION_SQL: string;
-  copiedEquipment: boolean;  onCopyEquipment: () => void;  EQUIPMENT_LIFECYCLE_SQL: string;
-  copiedOutings: boolean;    onCopyOutings: () => void;    OUTINGS_LIFECYCLE_SQL: string;
-  copiedRoleFix: boolean;    onCopyRoleFix: () => void;    USER_ROLE_FIX_SQL: string;
+  copied: (key: SqlKey) => boolean;
+  copy:   (key: SqlKey) => void;
 }
 
-export function SectionModeration({
-  copiedModFix, onCopyModFix, MODERATION_FIX_SQL,
-  copiedModeration, onCopyModeration, MODERATION_SQL,
-  copiedEquipment, onCopyEquipment, EQUIPMENT_LIFECYCLE_SQL,
-  copiedOutings, onCopyOutings, OUTINGS_LIFECYCLE_SQL,
-  copiedRoleFix, onCopyRoleFix, USER_ROLE_FIX_SQL,
-}: Props) {
+export function SectionModeration({ copied, copy }: Props) {
   return (
     <>
       {/* ── Correctif moderation_queue ── */}
@@ -41,18 +34,18 @@ export function SectionModeration({
             Corrige les colonnes manquantes sur <code className="text-xs bg-gray-100 px-1 rounded">moderation_queue</code> et recrée la vue KPI.
           </p>
           <button
-            onClick={onCopyModFix}
+            onClick={() => copy('modFix')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
-              copiedModFix ? 'bg-emerald-500 text-white' : 'bg-red-600 text-white hover:bg-red-700'
+              copied('modFix') ? 'bg-emerald-500 text-white' : 'bg-red-600 text-white hover:bg-red-700'
             }`}
           >
-            {copiedModFix
+            {copied('modFix')
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier SQL Correctif</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-64">
-          <pre className="text-xs text-red-300 font-mono leading-relaxed whitespace-pre-wrap">{MODERATION_FIX_SQL}</pre>
+          <pre className="text-xs text-red-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.modFix}</pre>
         </div>
       </div>
 
@@ -74,18 +67,18 @@ export function SectionModeration({
             colonnes <code className="text-xs bg-gray-100 px-1 rounded">trust_level</code> et vue KPI.
           </p>
           <button
-            onClick={onCopyModeration}
+            onClick={() => copy('moderation')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
-              copiedModeration ? 'bg-emerald-500 text-white' : 'bg-purple-700 text-white hover:bg-purple-800'
+              copied('moderation') ? 'bg-emerald-500 text-white' : 'bg-purple-700 text-white hover:bg-purple-800'
             }`}
           >
-            {copiedModeration
+            {copied('moderation')
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier SQL Modération</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
-          <pre className="text-xs text-purple-300 font-mono leading-relaxed whitespace-pre-wrap">{MODERATION_SQL}</pre>
+          <pre className="text-xs text-purple-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.moderation}</pre>
         </div>
       </div>
 
@@ -109,18 +102,18 @@ export function SectionModeration({
             <p className="text-xs text-gray-400">Nouvelles tables, statuts enrichis, historique, RLS propriétaire/emprunteur</p>
           </div>
           <button
-            onClick={onCopyEquipment}
+            onClick={() => copy('equipment')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
-              copiedEquipment ? 'bg-emerald-500 text-white' : 'bg-teal-700 text-white hover:bg-teal-800'
+              copied('equipment') ? 'bg-emerald-500 text-white' : 'bg-teal-700 text-white hover:bg-teal-800'
             }`}
           >
-            {copiedEquipment
+            {copied('equipment')
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier SQL Matériel</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
-          <pre className="text-xs text-teal-300 font-mono leading-relaxed whitespace-pre-wrap">{EQUIPMENT_LIFECYCLE_SQL}</pre>
+          <pre className="text-xs text-teal-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.equipment}</pre>
         </div>
       </div>
 
@@ -138,18 +131,18 @@ export function SectionModeration({
             <p className="text-xs text-gray-400">Nouveaux champs, historique statuts, participation enrichie, vue organisateur</p>
           </div>
           <button
-            onClick={onCopyOutings}
+            onClick={() => copy('outings')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
-              copiedOutings ? 'bg-emerald-500 text-white' : 'bg-emerald-700 text-white hover:bg-emerald-800'
+              copied('outings') ? 'bg-emerald-500 text-white' : 'bg-emerald-700 text-white hover:bg-emerald-800'
             }`}
           >
-            {copiedOutings
+            {copied('outings')
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier SQL Sorties</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
-          <pre className="text-xs text-emerald-300 font-mono leading-relaxed whitespace-pre-wrap">{OUTINGS_LIFECYCLE_SQL}</pre>
+          <pre className="text-xs text-emerald-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.outings}</pre>
         </div>
       </div>
 
@@ -169,18 +162,18 @@ export function SectionModeration({
             </p>
           </div>
           <button
-            onClick={onCopyRoleFix}
+            onClick={() => copy('roleFix')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
-              copiedRoleFix ? 'bg-emerald-500 text-white' : 'bg-orange-600 text-white hover:bg-orange-700'
+              copied('roleFix') ? 'bg-emerald-500 text-white' : 'bg-orange-600 text-white hover:bg-orange-700'
             }`}
           >
-            {copiedRoleFix
+            {copied('roleFix')
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier SQL Correctif</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-72">
-          <pre className="text-xs text-orange-300 font-mono leading-relaxed whitespace-pre-wrap">{USER_ROLE_FIX_SQL}</pre>
+          <pre className="text-xs text-orange-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.roleFix}</pre>
         </div>
       </div>
     </>

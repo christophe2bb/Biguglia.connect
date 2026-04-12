@@ -5,13 +5,15 @@
 'use client';
 
 import { Copy, Check } from 'lucide-react';
+import type { SqlKey } from '../_hooks/useMigration';
+import { SQL_MAP } from '../_hooks/useMigration';
 
 interface Props {
-  copiedTrustFix: boolean; onCopyTrustFix: () => void; TRUST_STATS_FIX_SQL: string;
-  copiedTrust: boolean;    onCopyTrust: () => void;    TRUST_SQL: string;
+  copied: (key: SqlKey) => boolean;
+  copy:   (key: SqlKey) => void;
 }
 
-export function SectionTrust({ copiedTrustFix, onCopyTrustFix, TRUST_STATS_FIX_SQL, copiedTrust, onCopyTrust, TRUST_SQL }: Props) {
+export function SectionTrust({ copied, copy }: Props) {
   return (
     <>
       {/* ── Section divider ── */}
@@ -37,18 +39,18 @@ export function SectionTrust({ copiedTrustFix, onCopyTrustFix, TRUST_STATS_FIX_S
             </p>
           </div>
           <button
-            onClick={onCopyTrustFix}
+            onClick={() => copy('trustFix')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
-              copiedTrustFix ? 'bg-emerald-500 text-white' : 'bg-yellow-500 text-gray-900 hover:bg-yellow-400'
+              copied('trustFix') ? 'bg-emerald-500 text-white' : 'bg-yellow-500 text-gray-900 hover:bg-yellow-400'
             }`}
           >
-            {copiedTrustFix
+            {copied('trustFix')
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier SQL Correctif Confiance</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
-          <pre className="text-xs text-yellow-200 font-mono leading-relaxed whitespace-pre-wrap">{TRUST_STATS_FIX_SQL}</pre>
+          <pre className="text-xs text-yellow-200 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.trustFix}</pre>
         </div>
       </div>
 
@@ -68,18 +70,18 @@ export function SectionTrust({ copiedTrustFix, onCopyTrustFix, TRUST_STATS_FIX_S
             </p>
           </div>
           <button
-            onClick={onCopyTrust}
+            onClick={() => copy('trust')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
-              copiedTrust ? 'bg-emerald-500 text-white' : 'bg-amber-600 text-white hover:bg-amber-700'
+              copied('trust') ? 'bg-emerald-500 text-white' : 'bg-amber-600 text-white hover:bg-amber-700'
             }`}
           >
-            {copiedTrust
+            {copied('trust')
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier SQL Confiance</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
-          <pre className="text-xs text-amber-200 font-mono leading-relaxed whitespace-pre-wrap">{TRUST_SQL}</pre>
+          <pre className="text-xs text-amber-200 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.trust}</pre>
         </div>
       </div>
     </>
