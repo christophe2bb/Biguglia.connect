@@ -1,6 +1,9 @@
 -- ============================================================
--- BIGUGLIA CONNECT — Schéma base de données Supabase complet
--- À exécuter dans l'éditeur SQL de votre projet Supabase
+-- BIGUGLIA CONNECT — Schéma initial (snapshot 2026-04-07)
+-- ATTENTION : Ce fichier est le SNAPSHOT INITIAL uniquement.
+-- Pour une installation complète, appliquer ENSUITE les migrations
+-- dans supabase/migrations/ (dans l'ordre chronologique).
+-- Source canonique : supabase/migrations/
 -- ============================================================
 
 -- Extensions

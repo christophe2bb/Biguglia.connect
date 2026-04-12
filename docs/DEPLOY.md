@@ -1,40 +1,81 @@
 # Guide de déploiement — Biguglia Connect
 
-## 🚀 Déploiement en 3 étapes
+## 🗄️ Étape 1 : Créer les tables Supabase
 
-### Étape 1 : Créer les tables Supabase
+Exécuter les migrations dans l'ordre dans **Supabase → SQL Editor** :
 
-1. Allez sur https://supabase.com/dashboard/project/qmrkacrpncdkhofiqlrg/sql/new
-2. Copiez le contenu du fichier `supabase-schema.sql` 
-3. Collez dans l'éditeur SQL et cliquez **"Run"**
-4. ✅ Vous devriez voir "Success. No rows returned."
+| # | Fichier | Description |
+|---|---------|-------------|
+| 1 | `supabase/migrations/20260407_baseline_rls_indexes.sql` | Index FK, performances, RLS corrigée |
+| 2 | `supabase/migrations/20260408_fixes_rls_categories.sql` | Fix RLS forum, emploi, catégories |
+| 3 | `supabase/migrations/20260409_emploi_local.sql` | Module Emploi Local |
+| 4 | `supabase/migrations/20260411_events_cdc_fields.sql` | Évènements CDC |
+| 5 | `supabase/migrations/20260411_associations_cdc.sql` | Associations CDC |
+| 6 | `supabase/migrations/20260411_group_outings_enriched.sql` | Sorties enrichies |
+| 7 | `supabase/migrations/20260411_help_requests_cdc.sql` | Module Coups de main |
+| 8 | `supabase/migrations/20260411_lost_found_cdc.sql` | Module Perdu / Trouvé |
+| 9 | `supabase/migrations/20260411_annonces_cdc.sql` | Module Petites Annonces CDC |
 
-### Étape 2 : Configurer Supabase Auth
+> Pour chaque fichier : copier le contenu → coller dans SQL Editor → cliquer **Run** → vérifier "Success. No rows returned."
 
-1. Allez dans **Settings > Auth**
-2. **Site URL** : `https://biguglia-connect.vercel.app`
-3. **Redirect URLs** : Ajoutez `https://biguglia-connect.vercel.app/**`
+### Schéma de référence
+
+Pour créer la base depuis zéro, utiliser `docs/db/schema.sql` (snapshot initial).
+Les migrations ci-dessus **s'appliquent par-dessus** ce schéma.
+
+---
+
+## ⚙️ Étape 2 : Configurer Supabase Auth
+
+1. **Settings > Auth**
+2. **Site URL** : `https://votre-domaine.vercel.app`
+3. **Redirect URLs** : `https://votre-domaine.vercel.app/**`
 4. **Email Confirmation** : Activé (recommandé)
 
-### Étape 3 : Déployer sur Vercel
+---
 
-#### Option A — Interface Vercel (recommandé)
+## 🗂️ Étape 3 : Configurer Supabase Storage
 
-1. Créez un compte sur https://vercel.com
-2. Cliquez **"New Project"**
-3. Importez depuis GitHub (connectez ce repo)
-4. Configurez les variables d'environnement :
+Dans **Storage**, créer deux buckets :
 
-```
-NEXT_PUBLIC_SUPABASE_URL = https://qmrkacrpncdkhofiqlrg.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY = sb_publishable_vOLmZkB7R5pWHEsPeCcBkg_Hvy_Xc73
-NEXT_PUBLIC_SITE_URL = https://biguglia-connect.vercel.app
-NEXT_PUBLIC_ADMIN_EMAIL = votre@email.fr
-```
+| Bucket | Visibilité | Taille max | Types acceptés |
+|--------|------------|------------|----------------|
+| `photos` | Public | 5 MB | image/jpeg, image/png, image/webp |
+| `documents` | Privé | 10 MB | application/pdf, image/* |
 
-5. Cliquez **"Deploy"**
+---
 
-#### Option B — CLI Vercel
+## ⚡ Étape 4 : Activer le Realtime
+
+Dans **Database > Replication**, activer :
+- `messages`
+- `notifications`
+- `conversation_participants`
+
+---
+
+## 🚀 Étape 5 : Déployer sur Vercel
+
+### Variables d'environnement requises
+
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL du projet Supabase (ex : `https://xxxx.supabase.co`) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clé publique Supabase (`sb_publishable_...`) |
+| `NEXT_PUBLIC_SITE_URL` | URL du site déployé |
+| `NEXT_PUBLIC_ADMIN_EMAIL` | Email de l'administrateur |
+| `SUPABASE_SERVICE_ROLE_KEY` | Clé service role (côté serveur uniquement, ne jamais exposer côté client) |
+
+> ⚠️ Ne jamais committer `.env.local`. Toutes ces valeurs sont confidentielles.
+
+### Via interface Vercel
+
+1. Créer un projet sur https://vercel.com
+2. Importer le repo GitHub `christophe2bb/Biguglia.connect`
+3. Ajouter les variables d'environnement
+4. Cliquer **Deploy**
+
+### Via CLI
 
 ```bash
 vercel login
@@ -43,59 +84,31 @@ vercel env add NEXT_PUBLIC_SUPABASE_URL
 vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
 vercel env add NEXT_PUBLIC_SITE_URL
 vercel env add NEXT_PUBLIC_ADMIN_EMAIL
+vercel env add SUPABASE_SERVICE_ROLE_KEY
 vercel --prod
 ```
 
-### Étape 4 : Créer le compte administrateur
+---
 
-1. Allez sur https://biguglia-connect.vercel.app/inscription
-2. Créez un compte avec votre email
-3. Dans Supabase SQL Editor, exécutez :
+## 👤 Étape 6 : Créer le compte administrateur
+
+1. S'inscrire sur `/inscription`
+2. Dans Supabase SQL Editor :
 
 ```sql
 UPDATE profiles SET role = 'admin' WHERE email = 'votre@email.fr';
 ```
 
-4. ✅ Vous avez maintenant accès au panel admin : `/admin`
+3. Accès admin : `/admin`
 
 ---
 
-## 📁 Variables d'environnement
+## ✅ Vérifications post-déploiement
 
-| Variable | Description | Exemple |
-|----------|-------------|---------|
-| `NEXT_PUBLIC_SUPABASE_URL` | URL du projet Supabase | `https://xxxx.supabase.co` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clé publique Supabase | `sb_publishable_...` |
-| `NEXT_PUBLIC_SITE_URL` | URL du site déployé | `https://biguglia-connect.vercel.app` |
-| `NEXT_PUBLIC_ADMIN_EMAIL` | Email de l'admin | `admin@example.fr` |
-
----
-
-## 🗄️ Configuration Storage Supabase
-
-Dans **Storage**, créez deux buckets :
-
-1. **photos** (public)
-   - Taille max : 5 MB
-   - Types : image/jpeg, image/png, image/webp
-
-2. **documents** (privé)
-   - Taille max : 10 MB  
-   - Types : application/pdf, image/*
-
----
-
-## ⚡ Activer le Realtime
-
-Dans **Database > Replication**, activez ces tables :
-- `messages`
-- `notifications`
-- `conversation_participants`
-
----
-
-## 🔐 Votre compte admin
-
-Après inscription + UPDATE SQL :
-- URL admin : https://biguglia-connect.vercel.app/admin
-- Fonctions : Valider les artisans, modérer le contenu, voir les stats
+- [ ] `/annonces` — page liste charge sans erreur
+- [ ] `/perdu-trouve` — pas de bandeau "Migration nécessaire"
+- [ ] `/coups-de-main` — pas de bandeau "Migration nécessaire"
+- [ ] `/connexion` — inscription + connexion fonctionnelle
+- [ ] `/admin` — accessible avec le compte admin
+- [ ] Storage `photos` — upload depuis `/annonces/nouvelle` fonctionne
+- [ ] Messagerie — `/messages` charge et envoie un message
