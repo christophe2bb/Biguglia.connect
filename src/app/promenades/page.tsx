@@ -46,10 +46,17 @@ export default function PromenadePage() {
   const forumHook = useForum(profile);
   const outingsHook = useOutings(profile);
 
+  // Déstructuration des fonctions stables (useCallback dans les hooks) pour
+  // que ESLint/exhaustive-deps voie des références directes et non des accès
+  // de propriété sur des objets recréés à chaque render.
+  const { fetchPromenades } = promenadHook;
+  const { fetchForum } = forumHook;
+  const { fetchOutings } = outingsHook;
+
   // Fetch triggers
-  useEffect(() => { promenadHook.fetchPromenades(); }, [promenadHook.fetchPromenades]);
-  useEffect(() => { if (activeTab === 'forum') forumHook.fetchForum(); }, [activeTab, forumHook.fetchForum]);
-  useEffect(() => { if (activeTab === 'agenda') outingsHook.fetchOutings(); }, [activeTab, outingsHook.fetchOutings]);
+  useEffect(() => { fetchPromenades(); }, [fetchPromenades]);
+  useEffect(() => { if (activeTab === 'forum') fetchForum(); }, [activeTab, fetchForum]);
+  useEffect(() => { if (activeTab === 'agenda') fetchOutings(); }, [activeTab, fetchOutings]);
 
   // ── Computed ───────────────────────────────────────────────────────────────
   const { promenades, loadingPromenades, dbReady } = promenadHook;
