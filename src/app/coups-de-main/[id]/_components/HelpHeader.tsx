@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { Flame } from 'lucide-react';
 import { toPhotoItems } from '@/components/ui/PhotoViewer';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -32,15 +33,13 @@ export default function HelpHeader({ item, displayName, onOpenPhoto }: Props) {
       {allPhotos.length > 0 ? (
         <div className="relative">
           <button type="button" onClick={() => onOpenPhoto(0)} className="w-full aspect-video overflow-hidden block">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={allPhotos[0].url} alt={item.title} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+            <Image src={allPhotos[0].url} alt={item.title} fill className="object-cover hover:scale-105 transition-transform duration-500" />
           </button>
           {allPhotos.length > 1 && (
             <div className="flex gap-2 p-4 pt-2 overflow-x-auto">
               {allPhotos.slice(1).map((ph, i) => (
                 <button key={i} type="button" onClick={() => onOpenPhoto(i + 1)} className="flex-shrink-0 focus:outline-none">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={ph.url} alt="" className="h-16 w-24 object-cover rounded-lg border border-gray-100 hover:border-orange-300 transition-colors" />
+                  <Image src={ph.url} alt="" fill className="object-cover rounded-lg border border-gray-100 hover:border-orange-300 transition-colors" />
                 </button>
               ))}
             </div>

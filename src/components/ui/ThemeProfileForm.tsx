@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Loader2, Save, X, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -113,7 +113,7 @@ export default function ThemeProfileForm({
   onSaved,
   onCancel,
 }: ThemeProfileFormProps) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const labels = THEME_LABELS[themeSlug] ?? DEFAULT_LABELS;
 
   const [loading, setLoading] = useState(true);
@@ -148,8 +148,7 @@ export default function ThemeProfileForm({
         }
         setLoading(false);
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, themeSlug]);
+  }, [userId, themeSlug, supabase]);
 
   const addTag = () => {
     const t = tagInput.trim().toLowerCase().replace(/\s+/g, '-');

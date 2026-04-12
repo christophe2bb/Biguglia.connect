@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { Users } from 'lucide-react';
 import { getCat } from '../_utils';
 import { CAT_PASTEL } from '../_constants';
@@ -49,9 +50,8 @@ export default function AnimatedEventCell({ date, dayEvents, isToday, isPast, is
     >
       {showAnim && hasCover && (
         <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={firstEv!.cover_photo!} alt=""
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+          <Image src={firstEv!.cover_photo!} alt="" fill
+            style={{ objectFit: 'cover',
               opacity: hovered ? 0.3 : 0.15, transform: hovered ? 'scale(1.12)' : 'scale(1.04)',
               transition: 'all 0.7s cubic-bezier(.4,0,.2,1)' }} />
           <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(180deg, transparent 30%, ${pastel?.ring ?? '#a855f7'}22 100%)` }} />

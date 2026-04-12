@@ -290,7 +290,7 @@ function MesAvisContent() {
     setTrustStats(stats);
     setTrustBadges(badges);
     setLoading(false);
-  }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profile]);
 
   useEffect(() => { load(); }, [load]);
 

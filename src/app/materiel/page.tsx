@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Plus, Search, Filter, Package, Users, Wrench, Gift } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
@@ -45,7 +46,7 @@ export default function MaterielPage() {
 
   const catsRef = useRef<{ id: string; name: string; icon: string; slug: string }[]>([]);
 
-  const fetchData = async (pageIndex: number, replace: boolean, catsOverride?: typeof catsRef.current) => {
+  const fetchData = useCallback(async (pageIndex: number, replace: boolean, catsOverride?: typeof catsRef.current) => {
     if (pageIndex === 0) setLoading(true); else setLoadingMore(true);
     const supabase = createClient();
 
@@ -96,13 +97,12 @@ export default function MaterielPage() {
     setHasMore((pageIndex + 1) * PAGE_SIZE < total);
 
     if (pageIndex === 0) setLoading(false); else setLoadingMore(false);
-  };
+  }, [selectedCategory, selectedStatus, onlyFree, filterSector]);
 
   useEffect(() => {
     setPage(0);
     fetchData(0, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCategory, selectedStatus, onlyFree, filterSector]);
+  }, [fetchData]);
 
   const handleLoadMore = async () => {
     const nextPage = page + 1;
@@ -286,9 +286,7 @@ function EquipmentCard({ item, currentUserId }: { item: EquipmentItemFull; curre
         {/* Photo */}
         <div className="relative h-44 overflow-hidden">
           {photos && photos.length > 0 ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={photos[0].url} alt={item.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+            <Image src={photos[0].url} alt={item.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-teal-50 to-cyan-100 flex items-center justify-center">
               <span className="text-6xl opacity-20">

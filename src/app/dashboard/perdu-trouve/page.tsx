@@ -5,7 +5,7 @@
  * Tableau de bord personnel : mes annonces, statuts, correspondances, historique.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
@@ -34,7 +34,7 @@ type SectionKey = (typeof SECTIONS)[number]['key'];
 
 export default function DashboardPerduTrouvePage() {
   const { profile } = useAuthStore();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [items, setItems] = useState<LFItem[]>([]);
   const [matches, setMatches] = useState<LFMatch[]>([]);
@@ -110,7 +110,7 @@ export default function DashboardPerduTrouvePage() {
     }
 
     setLoading(false);
-  }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profile, supabase]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

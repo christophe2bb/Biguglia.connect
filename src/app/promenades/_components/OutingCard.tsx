@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
@@ -58,8 +59,7 @@ export default function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit
         if (error) { setTableOk(false); } else { setTableOk(true); setChatCount(c ?? 0); }
       });
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [outing.id]);
+  }, [outing.id, supabase]);
 
   const fetchComments = useCallback(async () => {
     setLoadingC(true);
@@ -69,8 +69,7 @@ export default function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit
     setComments((data ?? []) as OutingComment[]);
     setChatCount((data ?? []).length);
     setLoadingC(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [outing.id]);
+  }, [outing.id, supabase]);
 
   const handleOpenChat = () => {
     const will = !openChat;
@@ -96,8 +95,7 @@ export default function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit
       <div className="relative h-48 overflow-hidden">
         {outing.cover_photo ? (
           <div className="w-full h-full cursor-pointer" onClick={() => setLightboxOpen(true)}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={outing.cover_photo} alt={outing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            <Image src={outing.cover_photo} alt={outing.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
           </div>
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-emerald-400 via-teal-500 to-sky-600 flex items-center justify-center">

@@ -4,6 +4,7 @@
  * EventHero — Cover image, titre, catégorie, badge statut, boutons iCal / partage.
  */
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, Download, Share2, Copy } from 'lucide-react';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -43,12 +44,7 @@ export default function EventHero({
     <div className="relative h-64 sm:h-80 bg-gradient-to-br from-purple-600 to-violet-700 overflow-hidden">
       {/* Cover */}
       {coverPhoto ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={coverPhoto}
-          alt={event.title}
-          className="w-full h-full object-cover opacity-60"
-        />
+        <Image src={coverPhoto} alt={event.title} fill className="object-cover opacity-60" />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center">
           <span className="text-8xl opacity-30">{cat.icon}</span>

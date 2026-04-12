@@ -39,8 +39,7 @@ export default function EventMiniForum({ eventId, userId, catColor, catBg, catBo
         else { setTableOk(true); setCount(c ?? 0); }
       });
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventId]);
+  }, [eventId, supabase]);
 
   const fetchComments = useCallback(async () => {
     setLoading(true);
@@ -55,8 +54,7 @@ export default function EventMiniForum({ eventId, userId, catColor, catBg, catBo
       setCount((data ?? []).length);
     }
     setLoading(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventId]);
+  }, [eventId, supabase]);
 
   const handleSend = async () => {
     if (!text.trim() || !userId || sending) return;

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { Bell, BellOff, Check, CheckCircle2, Copy, XCircle } from 'lucide-react';
 import ReportButton from '@/components/ui/ReportButton';
 import ContactButton from '@/components/ui/ContactButton';
@@ -18,8 +19,7 @@ function PhotoGrid({
   if (photos.length === 1) {
     return (
       <button onClick={() => onOpen(0)} className="block w-full rounded-xl overflow-hidden border border-gray-100 mb-5">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photos[0].url} alt="Photo" className="w-full max-h-96 object-cover hover:opacity-95 transition-opacity" />
+        <Image src={photos[0].url} alt="Photo" fill className="w-full max- object-cover hover:opacity-95 transition-opacity" />
       </button>
     );
   }
@@ -29,8 +29,7 @@ function PhotoGrid({
       {photos.slice(0, Math.min(photos.length, 4)).map((photo, i) => (
         <button key={i} onClick={() => onOpen(i)}
           className={`relative overflow-hidden rounded-xl border border-gray-100 ${i === 0 && photos.length >= 3 ? 'col-span-2 row-span-1' : ''}`}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={photo.url} alt={`Photo ${i + 1}`} className="w-full h-48 object-cover hover:opacity-90 transition-opacity" />
+          <Image src={photo.url} alt="" fill className="w-full object-cover hover:opacity-90 transition-opacity" />
           {i === 3 && photos.length > 4 && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-xl font-bold">
               +{photos.length - 4}
@@ -57,8 +56,7 @@ function Lightbox({
   return (
     <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="relative max-w-4xl w-full" onClick={e => e.stopPropagation()}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photos[index].url} alt="Photo" className="max-h-[80vh] w-full object-contain rounded-xl" />
+        <Image src={photos[index].url} alt="Photo" fill className="max-h-[80vh] w-full object-contain rounded-xl" />
         <div className="absolute top-3 right-3 flex gap-2">
           {photos.length > 1 && (
             <span className="bg-black/60 text-white text-xs px-2 py-1 rounded-full">{index + 1} / {photos.length}</span>

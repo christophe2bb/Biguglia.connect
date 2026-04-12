@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
@@ -27,7 +27,7 @@ export function useOutingDetail(): UseOutingDetailReturn {
   const params  = useParams();
   const router  = useRouter();
   const { profile } = useAuthStore();
-  const supabase    = createClient();
+  const supabase    = useMemo(() => createClient(), []);
   const outingId    = params.id as string;
 
   // ── Data state ────────────────────────────────────────────────────────────
@@ -78,8 +78,7 @@ export function useOutingDetail(): UseOutingDetailReturn {
     }
     setOuting(data as Outing);
     setLoading(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [outingId]);
+  }, [outingId, supabase, router]);
 
   const fetchParticipants = useCallback(async () => {
     const { data } = await supabase
@@ -93,8 +92,7 @@ export function useOutingDetail(): UseOutingDetailReturn {
     if (profile) {
       setUserParticipation(list.find(p => p.user_id === profile.id) || null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [outingId, profile]);
+  }, [outingId, profile, supabase]);
 
   const fetchStatusHistory = useCallback(async () => {
     const { data } = await supabase
@@ -104,8 +102,7 @@ export function useOutingDetail(): UseOutingDetailReturn {
       .order('created_at', { ascending: false })
       .limit(20);
     setStatusHistory((data || []) as StatusHistory[]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [outingId]);
+  }, [outingId, supabase]);
 
   const fetchComments = useCallback(async () => {
     const { data } = await supabase
@@ -115,8 +112,7 @@ export function useOutingDetail(): UseOutingDetailReturn {
       .order('created_at', { ascending: true })
       .limit(50);
     setComments((data || []) as Comment[]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [outingId]);
+  }, [outingId, supabase]);
 
   // ── Effects ───────────────────────────────────────────────────────────────
   useEffect(() => { fetchOuting(); }, [fetchOuting]);

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Camera, X, ChevronLeft } from 'lucide-react';
@@ -414,12 +415,7 @@ export default function ModifierMaterielPage() {
           <div className="flex flex-wrap gap-3 mb-3">
             {existingPhotos.map(photo => (
               <div key={photo.id} className="relative w-24 h-24 group">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photo.url}
-                  alt=""
-                  className="w-full h-full object-cover rounded-xl border border-gray-200"
-                />
+                <Image src={photo.url} alt="" fill className="object-cover rounded-xl border border-gray-200" />
                 <button
                   type="button"
                   onClick={() => {
@@ -434,12 +430,7 @@ export default function ModifierMaterielPage() {
             ))}
             {newPhotos.map((photo, i) => (
               <div key={i} className="relative w-24 h-24 group">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={URL.createObjectURL(photo)}
-                  alt=""
-                  className="w-full h-full object-cover rounded-xl border-2 border-brand-300"
-                />
+                <Image src={URL.createObjectURL(photo)} alt="" fill className="object-cover rounded-xl border-2 border-brand-300" />
                 <button
                   type="button"
                   onClick={() => setNewPhotos(p => p.filter((_, j) => j !== i))}

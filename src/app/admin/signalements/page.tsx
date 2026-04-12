@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Flag, CheckCircle, XCircle, Eye, AlertTriangle,
@@ -75,7 +75,7 @@ function StatCard({ label, value, color, emoji }: { label: string; value: number
 export default function AdminSignalementsPage() {
   const { profile, isModerator } = useAuthStore();
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [reports, setReports]         = useState<EnrichedReport[]>([]);
   const [loading, setLoading]         = useState(true);
@@ -108,12 +108,12 @@ export default function AdminSignalementsPage() {
     ]);
     setStats({ pending: p.count ?? 0, resolved: r.count ?? 0, dismissed: d.count ?? 0, total: tot.count ?? 0 });
     setLoading(false);
-  }, [filterStatus, filterType]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filterStatus, filterType, supabase]);
 
   useEffect(() => {
     if (!profile || !isModerator()) { router.push('/'); return; }
     fetchReports();
-  }, [profile, fetchReports]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profile, isModerator, router, fetchReports]);
 
   // ─── Action : changer statut ──────────────────────────────────────────────
   const updateReport = async (reportId: string, status: 'resolved' | 'dismissed' | 'reviewed') => {

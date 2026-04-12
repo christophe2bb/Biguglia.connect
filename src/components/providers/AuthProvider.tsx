@@ -54,7 +54,7 @@
  *     `mounted` empêche toute mutation de store après démontage.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import type { Profile } from '@/types';
@@ -63,7 +63,10 @@ import type { Profile } from '@/types';
 const AUTH_TIMEOUT_MS = 8_000;
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { _setAuth, userId: currentUserId } = useAuthStore();
+  const { _setAuth } = useAuthStore();
+  // Stable ref so the effect never needs to re-run when _setAuth identity changes
+  const setAuthRef = useRef(_setAuth);
+  useEffect(() => { setAuthRef.current = _setAuth; }, [_setAuth]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -78,7 +81,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
           'INITIAL_SESSION non reçu. Supabase indisponible ou réseau hors ligne. ' +
           'Passage en unauthenticated.'
         );
-        _setAuth('unauthenticated', null, null);
+        setAuthRef.current('unauthenticated', null, null);
       }
     }, AUTH_TIMEOUT_MS);
 
@@ -101,7 +104,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         if (!mounted) return;
 
         if (!error && data) {
-          _setAuth('authenticated', userId, data as Profile);
+          setAuthRef.current('authenticated', userId, data as Profile);
         } else {
           // Erreur DB (table manquante, RLS, réseau) — PAS une déconnexion
           if (error) {
@@ -112,13 +115,13 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
             );
           }
           // Profil null mais phase 'authenticated' : pas de redirection vers /connexion
-          _setAuth('authenticated', userId, null);
+          setAuthRef.current('authenticated', userId, null);
         }
       } catch (e) {
         if (!mounted) return;
         console.error('[AuthProvider] fetchProfile exception:', e);
         // Exception réseau : idem, rester 'authenticated'
-        _setAuth('authenticated', userId, null);
+        setAuthRef.current('authenticated', userId, null);
       } finally {
         if (mounted) clearTimeout(timeout);
       }
@@ -137,18 +140,18 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
               // Marquer 'authenticated' immédiatement (userId connu) avant
               // le fetch profil asynchrone. Évite un état 'initializing' prolongé
               // si le fetch est lent.
-              _setAuth('authenticated', session.user.id, null);
+              setAuthRef.current('authenticated', session.user.id, null);
               fetchProfile(session.user.id);
             } else {
               clearTimeout(timeout);
-              _setAuth('unauthenticated', null, null);
+              setAuthRef.current('unauthenticated', null, null);
             }
             break;
 
           // ── Connexion réussie ──────────────────────────────────────────────
           case 'SIGNED_IN':
             if (session?.user) {
-              _setAuth('authenticated', session.user.id, null);
+              setAuthRef.current('authenticated', session.user.id, null);
               fetchProfile(session.user.id);
             }
             break;
@@ -165,7 +168,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
               const storeUserId = useAuthStore.getState().userId;
               if (newUserId !== storeUserId) {
                 // Cas exceptionnel (changement de compte) → recharger le profil
-                _setAuth('authenticated', newUserId, null);
+                setAuthRef.current('authenticated', newUserId, null);
                 fetchProfile(newUserId);
               }
               // Même userId → rien à faire (token renouvelé côté Supabase,
@@ -176,7 +179,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
           // ── Déconnexion ────────────────────────────────────────────────────
           case 'SIGNED_OUT':
             clearTimeout(timeout);
-            _setAuth('unauthenticated', null, null);
+            setAuthRef.current('unauthenticated', null, null);
             break;
 
           // Les autres événements (PASSWORD_RECOVERY, USER_UPDATED, etc.)
@@ -190,9 +193,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       clearTimeout(timeout);
       subscription.unsubscribe();
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  // Note: _setAuth et currentUserId sont stables (références Zustand) — pas
-  // besoin de les lister dans les deps. L'effect ne doit tourner qu'une fois.
+  }, []);
 
   return <>{children}</>;
 }

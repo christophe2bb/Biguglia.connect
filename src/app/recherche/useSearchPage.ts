@@ -138,14 +138,12 @@ export function useSearchPage(): SearchPageState {
     const q = searchParams.get('q') || '';
     setQuery(q);
     if (q) void runSearch(q);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [searchParams, runSearch]);
 
   // Relance si filtres changent
   useEffect(() => {
     if (query) void runSearch(query);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeThemes, sortBy, filterFree, filterLocation]);
+  }, [activeThemes, sortBy, filterFree, filterLocation, query, runSearch]);
 
   const handleSearch = useCallback((q: string) => {
     router.push(`/recherche?q=${encodeURIComponent(q)}`);

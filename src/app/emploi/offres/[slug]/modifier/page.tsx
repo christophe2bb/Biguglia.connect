@@ -132,8 +132,7 @@ export default function ModifierOffrePage() {
       setLoading(false);
     }
     loadOffer();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug]);
+  }, [slug, router]);
 
   function set(key: string, value: unknown) {
     setForm(prev => ({ ...prev, [key]: value }));

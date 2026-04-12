@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   CheckCircle, XCircle, Eye, ChevronLeft, Search,
@@ -433,13 +433,7 @@ export default function AdminArtisansPage() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'pending' | 'verified' | 'all'>('pending');
 
-  useEffect(() => {
-    if (!profile) { router.push('/connexion'); return; }
-    if (!isAdmin()) { router.push('/'); return; }
-    fetchArtisans();
-  }, [profile, isAdmin, router, filter]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const fetchArtisans = async () => {
+  const fetchArtisans = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     const supabase = createClient();
@@ -506,7 +500,13 @@ export default function AdminArtisansPage() {
 
     setArtisans(list);
     setLoading(false);
-  };
+  }, [filter]);
+
+  useEffect(() => {
+    if (!profile) { router.push('/connexion'); return; }
+    if (!isAdmin()) { router.push('/'); return; }
+    fetchArtisans();
+  }, [profile, isAdmin, router, filter, fetchArtisans]);
 
   const approveArtisan = async (artisanUserId: string) => {
     const supabase = createClient();

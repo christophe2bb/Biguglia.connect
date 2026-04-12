@@ -7,7 +7,7 @@
  * S'adapte au rôle de l'utilisateur (demandeur ou destinataire).
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -161,7 +161,7 @@ export default function InteractionButton({
   const [showDetails, setShowDetails] = useState(false);
   const [tableExists, setTableExists] = useState(true);
   const [fallbackActing, setFallbackActing] = useState(false);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const router   = useRouter();
   const conf = CONFIG[sourceType];
   const ctaLabel = ctaOverride || conf.cta;
@@ -184,7 +184,7 @@ export default function InteractionButton({
       }
       setInteraction(data as Interaction | null);
     } finally { setLoading(false); }
-  }, [userId, sourceType, sourceId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [userId, sourceType, sourceId, supabase]);
 
   useEffect(() => { load(); }, [load]);
 

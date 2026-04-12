@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { ForumSector, ForumTopic } from '@/types';
 import Link from 'next/link';
 import {
@@ -107,8 +108,7 @@ export function TopicCard({ topic, sectors, compact = false }: { topic: ForumTop
         {/* Photo de couverture */}
         {coverPhoto && (
           <div className="relative h-44 bg-gray-100 overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={coverPhoto} alt={topic.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            <Image src={coverPhoto} alt={topic.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
             {photoCount > 1 && (
               <span className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">

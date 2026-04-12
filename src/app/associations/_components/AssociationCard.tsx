@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -69,8 +70,7 @@ export default function AssociationCard({
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [asso.id]);
+  }, [asso.id, supabase]);
 
   const fetchComments = useCallback(async () => {
     const { data } = await supabase.from('asso_comments')
@@ -78,8 +78,7 @@ export default function AssociationCard({
       .eq('asso_id', asso.id).order('created_at', { ascending: true }).limit(50);
     setComments((data ?? []) as AssoComment[]);
     setChatCount((data ?? []).length);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [asso.id]);
+  }, [asso.id, supabase]);
 
   const handleOpenChat = () => {
     const will = !openChat;
@@ -106,8 +105,7 @@ export default function AssociationCard({
       <div className="relative h-44 overflow-hidden">
         {coverPhoto ? (
           <div className="w-full h-full cursor-pointer" onClick={() => { setLightboxIdx(0); setLightboxOpen(true); }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={coverPhoto} alt={asso.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            <Image src={coverPhoto} alt={asso.name} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
             {allPhotos.length > 1 && (
               <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs font-bold px-2 py-0.5 rounded-full backdrop-blur-sm z-10">
                 📷 +{allPhotos.length - 1}
@@ -303,8 +301,7 @@ export default function AssociationCard({
             {allPhotos.slice(1).map((p, i) => (
               <button key={i} onClick={() => { setLightboxIdx(i + 1); setLightboxOpen(true); }}
                 className="flex-shrink-0 focus:outline-none">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.url} alt="" className="w-16 h-16 object-cover rounded-lg border border-gray-100 hover:border-violet-300 transition-colors" />
+                <Image src={p.url} alt="" fill className="object-cover rounded-lg border border-gray-100 hover:border-violet-300 transition-colors" />
               </button>
             ))}
           </div>

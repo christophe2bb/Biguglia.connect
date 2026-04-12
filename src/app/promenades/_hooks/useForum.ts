@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import type { ForumPost } from '../_types';
 
 export function useForum(profile: { id: string } | null | undefined) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [forumPosts, setForumPosts] = useState<ForumPost[]>([]);
   const [loadingForum, setLoadingForum] = useState(false);
@@ -32,7 +32,7 @@ export function useForum(profile: { id: string } | null | undefined) {
       .limit(20);
     setForumPosts((data as unknown as ForumPost[]) || []);
     setLoadingForum(false);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [supabase]);
 
   const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

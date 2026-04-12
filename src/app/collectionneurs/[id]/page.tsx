@@ -5,7 +5,8 @@
  * Galerie immersive, confiance vendeur, offres, favoris
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -142,7 +143,7 @@ function ImmersiveGallery({ photos, title }: { photos: { url: string; is_cover?:
                 i === activeIdx ? 'border-orange-400 shadow-md' : 'border-transparent hover:border-gray-300'
               )}
             >
-              <img src={photo.url} alt={`miniature ${i + 1}`} className="w-full h-full object-cover" />
+              <Image src={photo.url} alt="" fill className="object-cover" />
             </button>
           ))}
         </div>
@@ -162,7 +163,7 @@ function SellerTrustBlock({ author, showContact }: {
   showContact?: boolean;
 }) {
   const [stats, setStats] = useState<{ avg: number; count: number } | null>(null);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     const fetch = async () => {
@@ -177,7 +178,7 @@ function SellerTrustBlock({ author, showContact }: {
       }
     };
     fetch();
-  }, [author.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [author.id, supabase]);
 
   const memberSince = author.created_at
     ? new Date(author.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
@@ -253,7 +254,7 @@ export default function CollectionItemDetailPage() {
   const { id }    = useParams();
   const router    = useRouter();
   const { profile } = useAuthStore();
-  const supabase  = createClient();
+  const supabase  = useMemo(() => createClient(), []);
 
   const [item,      setItem]      = useState<CollectionItem | null>(null);
   const [loading,   setLoading]   = useState(true);
@@ -327,7 +328,7 @@ export default function CollectionItemDetailPage() {
       })));
 
     } finally { setLoading(false); }
-  }, [id, profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id, profile?.id, supabase]);
 
   useEffect(() => { fetchItem(); }, [fetchItem]);
 
@@ -619,8 +620,7 @@ export default function CollectionItemDetailPage() {
                             className="group bg-gray-50 rounded-xl overflow-hidden hover:shadow-sm transition-all">
                         <div className="aspect-square bg-gray-100 overflow-hidden">
                           {simPhoto ? (
-                            <img src={simPhoto.url} alt={sim.title}
-                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                            <Image src={simPhoto.url ?? ''} alt={sim.title} fill className="object-cover group-hover:scale-105 transition-transform duration-200" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-2xl opacity-30">📦</div>
                           )}

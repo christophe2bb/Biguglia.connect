@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -224,7 +225,7 @@ export default function AssociationDetailPage() {
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
         {coverPhoto && (
           <div className="absolute inset-0 opacity-20">
-            <img src={coverPhoto} alt="" className="w-full h-full object-cover" />
+            <Image src={coverPhoto} alt="" fill className="object-cover" />
           </div>
         )}
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 relative z-10">
@@ -379,8 +380,7 @@ export default function AssociationDetailPage() {
                   {allPhotos.map((photo, idx) => (
                     <button key={photo.id ?? idx} onClick={() => { setLightboxIdx(idx); setLightboxOpen(true); }}
                       className="aspect-video rounded-xl overflow-hidden group hover:opacity-90 transition-opacity">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={photo.url} alt={asso.name} className="w-full h-full object-cover" />
+                      <Image src={photo.url} alt={asso.name} fill className="object-cover" />
                     </button>
                   ))}
                 </div>

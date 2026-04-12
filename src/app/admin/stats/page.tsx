@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -152,8 +152,7 @@ function SectionTitle({ icon: Icon, title, color = 'text-gray-700' }: {
 }
 
 const fmt = new Intl.NumberFormat('fr-FR');
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const fmtTooltip = (v: any) => fmt.format(Number(v));
+const fmtTooltip = (v: unknown) => fmt.format(Number(v));
 
 // ─── Page principale ─────────────────────────────────────────
 export default function AdminStatsPage() {
@@ -163,13 +162,9 @@ export default function AdminStatsPage() {
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
-  useEffect(() => {
+  const fetchAllStats = useCallback(async () => {
     if (!profile) { router.push('/connexion'); return; }
     if (!isAdmin()) { router.push('/'); return; }
-    fetchAllStats();
-  }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const fetchAllStats = async () => {
     setLoading(true);
     const supabase = createClient();
     const days = getLast30Days();
@@ -182,7 +177,6 @@ export default function AdminStatsPage() {
       { data: allMessages },
       { data: allConversations },
       { data: allListings },
-      { data: _allListingCats },        // eslint-disable-line @typescript-eslint/no-unused-vars
       { data: allPosts },
       { data: allComments },
       { data: allRequests },
@@ -192,13 +186,11 @@ export default function AdminStatsPage() {
       { data: allReports },
       { data: allNotifications },
       { data: artisanProfiles },
-      { data: _tradeCats },             // eslint-disable-line @typescript-eslint/no-unused-vars
     ] = await Promise.all([
       supabase.from('profiles').select('id, role, created_at').order('created_at'),
       supabase.from('messages').select('id, created_at').order('created_at'),
       supabase.from('conversations').select('id, created_at'),
       supabase.from('listings').select('id, status, views_count, created_at, category:listing_categories(name)').order('created_at'),
-      supabase.from('listing_categories').select('id, name'),
       supabase.from('forum_posts').select('id, title, status, created_at, category:forum_categories(name)').order('created_at'),
       supabase.from('forum_comments').select('id, created_at').order('created_at'),
       supabase.from('service_requests').select('id, status, created_at').order('created_at'),
@@ -208,7 +200,6 @@ export default function AdminStatsPage() {
       supabase.from('reports').select('id, status, created_at'),
       supabase.from('notifications').select('id, is_read, created_at'),
       supabase.from('artisan_profiles').select('id, artisan_type, trade_category_id, trade_category:trade_categories(name, icon)'),
-      supabase.from('trade_categories').select('id, name, icon'),
     ]);
 
     // ── Calculs utilisateurs ─────────────────────────────────
@@ -367,7 +358,9 @@ export default function AdminStatsPage() {
     });
     setLastRefresh(new Date());
     setLoading(false);
-  };
+  }, [profile, isAdmin, router]);
+
+  useEffect(() => { fetchAllStats(); }, [fetchAllStats]);
 
   if (!profile || !isAdmin()) return null;
 

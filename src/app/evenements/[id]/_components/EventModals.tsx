@@ -136,7 +136,6 @@ export function Lightbox({ photos, idx, onClose }: LightboxProps) {
       className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
       onClick={onClose}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={photos[idx].url}
         alt=""

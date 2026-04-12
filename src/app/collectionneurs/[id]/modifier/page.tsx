@@ -5,6 +5,7 @@
  * Modification complète de tous les champs, gestion photos
  */
 
+import Image from 'next/image';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -682,8 +683,7 @@ export default function ModifierAnnoncePage() {
                         photo.is_cover ? 'border-amber-400' : 'border-gray-200',
                         photo.error ? 'border-red-400' : ''
                       )}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={photo.preview} alt="" className="w-full h-full object-cover" />
+                        <Image src={photo.preview} alt="" fill className="object-cover" />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
                           {!photo.is_cover && (
                             <button onClick={() => setCover(i)} className="p-1.5 bg-amber-400 rounded-full text-white"><Star className="w-3 h-3" /></button>

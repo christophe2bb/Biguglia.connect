@@ -8,7 +8,7 @@
  * confirmation, qui débloque les avis vérifiés.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { CheckCheck, MessageSquare, Star } from 'lucide-react';
 import Link from 'next/link';
@@ -28,7 +28,7 @@ export default function ExchangePrompt({
   const [convId, setConvId]     = useState<string | null>(null);
   const [exchStatus, setStatus] = useState<string | null>(null);
   const [loading, setLoading]   = useState(true);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     if (!userId) { setLoading(false); return; }
@@ -49,7 +49,7 @@ export default function ExchangePrompt({
       setLoading(false);
     };
     check();
-  }, [userId, targetType, targetId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [userId, targetType, targetId, supabase]);
 
   // Pas connecté, pas de conversation, ou chargement → rien
   if (loading || !userId || !convId) return null;

@@ -19,10 +19,10 @@ export function useLostFound(profileId?: string) {
   // Déclencher fetchItems à chaque changement de filtres
   useEffect(() => {
     data.fetchItems();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     filters.flux, filters.filterType, filters.filterCat,
     filters.filterStatus, filters.filterSector, filters.search,
+    data.fetchItems,
   ]);
 
   return {

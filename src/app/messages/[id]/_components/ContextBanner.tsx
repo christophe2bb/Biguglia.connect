@@ -183,7 +183,6 @@ export function ContextBanner({ relatedType, relatedId, subject }: ContextBanner
           ) : contextData ? (
             <div className="flex gap-3">
               {contextData.photo ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={contextData.photo}
                   alt={contextData.title}

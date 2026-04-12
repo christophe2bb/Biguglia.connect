@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -69,7 +69,7 @@ export default function PublicProfilePage() {
   const userId = (Array.isArray(rawParams?.id) ? rawParams.id[0] : rawParams?.id) ?? '';
   const router = useRouter();
   const { profile: me } = useAuthStore();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -218,8 +218,7 @@ export default function PublicProfilePage() {
       setLoading(false);
     };
     load();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, [userId, supabase]);
 
   // ── Loading ──
   if (loading) {

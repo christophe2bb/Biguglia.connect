@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Camera, X, CheckCircle, ChevronRight, ChevronLeft, Clock, Info, Zap, ArrowLeftRight, Key } from 'lucide-react';
@@ -497,8 +498,7 @@ export default function NouvelleAnnoncePage() {
               <div className="flex flex-wrap gap-2 mt-4">
                 {previews.map((src, i) => (
                   <div key={i} className="relative w-20 h-20 group">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src} alt={`Photo ${i + 1}`} className="w-full h-full object-cover rounded-xl" />
+                    <Image src={src} alt="" fill className="object-cover rounded-xl" />
                     <button
                       type="button"
                       onClick={() => removePhoto(i)}

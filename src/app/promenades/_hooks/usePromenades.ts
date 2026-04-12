@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import type { Promenade, AdvFilters, PromenadeFormState } from '../_types';
@@ -12,7 +12,7 @@ export function usePromenades(
   advFilters: AdvFilters,
   filterSector: string | null,
 ) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [promenades, setPromenades] = useState<Promenade[]>([]);
   const [loadingPromenades, setLoadingPromenades] = useState(true);
@@ -91,7 +91,7 @@ export function usePromenades(
       setDbReady(false);
     }
     setLoadingPromenades(false);
-  }, [quickFilter, advFilters, filterSector, profile]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [quickFilter, advFilters, filterSector, profile, supabase]);
 
   const handleLike = async (id: string, alreadyLiked: boolean) => {
     if (!profile) { toast.error('Connectez-vous pour liker'); return; }

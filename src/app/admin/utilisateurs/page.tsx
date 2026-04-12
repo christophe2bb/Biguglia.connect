@@ -299,11 +299,6 @@ export default function AdminUtilisateursPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'activity'>('date');
 
-  useEffect(() => {
-    if (!profile || !isAdmin()) { router.push('/'); return; }
-    fetchUsers();
-  }, [profile, isAdmin, router]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     const supabase = createClient();
@@ -360,6 +355,11 @@ export default function AdminUtilisateursPage() {
     setUsers(profiles);
     setLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (!profile || !isAdmin()) { router.push('/'); return; }
+    fetchUsers();
+  }, [profile, isAdmin, router, fetchUsers]);
 
   const suspendUser = async (userId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';

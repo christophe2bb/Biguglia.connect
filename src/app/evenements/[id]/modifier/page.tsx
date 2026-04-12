@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -496,8 +497,7 @@ export default function ModifierEvenementPage() {
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                   {existingPhotos.map((p, i) => (
                     <div key={p.id} className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 group/img">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={p.url} alt={`photo ${i+1}`} className="w-full h-full object-cover" />
+                      <Image src={p.url} alt="" fill className="object-cover" />
                       {i === 0 && (
                         <div className="absolute top-1 left-1 bg-purple-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-lg">
                           Couverture
@@ -520,8 +520,7 @@ export default function ModifierEvenementPage() {
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                   {newPreviews.map((src, i) => (
                     <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 group/img">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={src} alt={`nouvelle photo ${i+1}`} className="w-full h-full object-cover" />
+                      <Image src={src} alt="" fill className="object-cover" />
                       <button type="button" onClick={() => removeNewPhoto(i)}
                         className="absolute top-1 right-1 bg-black/60 rounded-full p-0.5 opacity-0 group-hover/img:opacity-100 transition-opacity">
                         <X className="w-3 h-3 text-white" />

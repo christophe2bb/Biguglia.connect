@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import { legacyToFrenchStatus, OUTING_STATUS_CONFIG } from '@/lib/outings';
@@ -8,7 +8,7 @@ import type { GroupOuting, OutingFormState } from '../_types';
 import { DEFAULT_OUTING_FORM } from '../_constants';
 
 export function useOutings(profile: { id: string } | null | undefined) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [outings, setOutings] = useState<GroupOuting[]>([]);
   const [loadingOutings, setLoadingOutings] = useState(false);
@@ -61,7 +61,7 @@ export function useOutings(profile: { id: string } | null | undefined) {
       setOutings(enriched);
     }
     setLoadingOutings(false);
-  }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profile, supabase]);
 
   const handleOutingPhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);

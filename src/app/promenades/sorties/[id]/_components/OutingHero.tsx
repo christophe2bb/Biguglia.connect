@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { ChevronLeft, Footprints, BarChart3 } from 'lucide-react';
 import type { Outing } from '../_types';
@@ -26,8 +27,7 @@ export default function OutingHero({
   return (
     <div className="relative h-64 sm:h-80 overflow-hidden">
       {coverPhoto ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={coverPhoto} alt={outing.title} className="w-full h-full object-cover" />
+        <Image src={coverPhoto} alt={outing.title} fill className="object-cover" />
       ) : (
         <div className="w-full h-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
           <Footprints className="w-24 h-24 text-white/30" />

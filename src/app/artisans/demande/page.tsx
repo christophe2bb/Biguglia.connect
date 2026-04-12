@@ -287,7 +287,6 @@ function DemandeServiceForm() {
             <div className="flex flex-wrap gap-3 mt-4">
               {photos.map((photo, i) => (
                 <div key={i} className="relative w-20 h-20 group">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={URL.createObjectURL(photo)}
                     alt={`Photo ${i + 1}`}

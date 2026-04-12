@@ -5,7 +5,8 @@
  * Gestion complète : annonces actives, réservées, clôturées, stats, actions rapides
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -77,10 +78,9 @@ function ItemCard({
     )}>
       <div className="flex gap-3 p-3">
         {/* Miniature */}
-        <Link href={`/collectionneurs/${item.id}`} className="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-gray-100">
+        <Link href={`/collectionneurs/${item.id}`} className="relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-gray-100">
           {coverPhoto ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={coverPhoto.url || coverPhoto.preview || ''} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+            <Image src={coverPhoto.url || coverPhoto.preview || ''} alt={item.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-300">
               <Gem className="w-8 h-8" />
@@ -185,8 +185,9 @@ function ItemCard({
 
 function CollectionneursDashboardContent() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const { profile } = useAuthStore();
+  const profileId = profile?.id;
 
   const [tab, setTab] = useState<DashTab>('actif');
   const [items, setItems] = useState<CollectionItem[]>([]);
@@ -198,8 +199,8 @@ function CollectionneursDashboardContent() {
   });
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-  const loadItems = async () => {
-    if (!profile?.id) return;
+  const loadItems = useCallback(async () => {
+    if (!profileId) return;
     setLoading(true);
     try {
       const { data } = await supabase
@@ -208,7 +209,7 @@ function CollectionneursDashboardContent() {
           *,
           photos:collection_item_photos(id, url, image_url, is_cover, sort_order)
         `)
-        .eq('author_id', profile.id)
+        .eq('author_id', profileId)
         .order('created_at', { ascending: false });
 
       const mapped = (data || []).map((d: Record<string, unknown>) => ({
@@ -241,9 +242,9 @@ function CollectionneursDashboardContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [profileId, supabase]);
 
-  useEffect(() => { loadItems(); }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadItems(); }, [loadItems]);
 
   const handleStatusChange = async (id: string, newStatus: CollectionStatus) => {
     const { error } = await supabase.from('collection_items').update({ status: newStatus }).eq('id', id);

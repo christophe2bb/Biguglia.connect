@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Users, ChevronRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -10,7 +10,7 @@ import { COMMUNITY_THEMES } from '../_constants';
 interface Props { userId: string }
 
 export default function CommunitiesSection({ userId }: Props) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [memberships, setMemberships] = useState<Array<{
     theme_slug: string; joined_at: string; status: string;
   }>>([]);
@@ -30,8 +30,7 @@ export default function CommunitiesSection({ userId }: Props) {
       setLoading(false);
     };
     load();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, [userId, supabase]);
 
   if (loading) return null;
 

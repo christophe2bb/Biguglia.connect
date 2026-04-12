@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -217,9 +218,7 @@ export default function DemandeDetailPage() {
           {request.photos && request.photos.length > 0 && (
             <div className="flex gap-2 p-4 pb-0 overflow-x-auto">
               {request.photos.map((p, i) => (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img key={i} src={p.url} alt={`photo ${i+1}`}
-                  className="h-40 w-auto rounded-xl object-cover flex-shrink-0" />
+                <Image src={p.url} alt="" key={i} fill className="w-auto rounded-xl object-cover flex-shrink-0" />
               ))}
             </div>
           )}

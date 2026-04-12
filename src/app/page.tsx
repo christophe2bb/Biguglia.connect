@@ -4,6 +4,7 @@
 // Principe : aucune logique métier dans la page — tout est délégué aux services
 // ─────────────────────────────────────────────────────────────────────────────
 
+import Image from 'next/image';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import {
@@ -94,12 +95,7 @@ export default async function HomePage() {
       <section className="relative min-h-[60vh] sm:min-h-[70vh] flex items-end">
         {/* Fond photo — overflow-hidden ici uniquement pour ne pas couper le dropdown search */}
         <div className="absolute inset-0 overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/biguglia-hero.jpg"
-            alt="Biguglia"
-            className="w-full h-full object-cover object-center"
-          />
+          <Image src="/images/biguglia-hero.jpg" alt="Biguglia" fill className="object-cover object-center" />
           {/* Dégradé bas pour lisibilité */}
           <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 via-gray-900/30 to-transparent" />
         </div>

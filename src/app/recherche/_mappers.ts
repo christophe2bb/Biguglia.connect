@@ -24,152 +24,149 @@ function t(key: ThemeKey): Pick<SearchResult, 'theme' | 'themeLabel' | 'themeCol
 
 type Photo = { url: string };
 
+/** Type générique pour une ligne brute retournée par Supabase */
+type RawRow = Record<string, unknown>;
+
 // ─── Artisans ─────────────────────────────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function mapArtisans(rows: any[]): SearchResult[] {
+export function mapArtisans(rows: RawRow[]): SearchResult[] {
   return rows.map(a => ({
-    id: `artisan-${a.id}`, title: a.business_name || 'Artisan',
-    description: a.description, subtitle: (a.trade_category as { name?: string } | null)?.name,
-    href: `/artisans/${a.id}`, location: a.service_area, badge: 'Vérifié ✓', ...t('artisan'),
+    id: `artisan-${a.id}`, title: (a.business_name as string) || 'Artisan',
+    description: a.description as string | undefined,
+    subtitle: (a.trade_category as { name?: string } | null)?.name,
+    href: `/artisans/${a.id}`, location: a.service_area as string | undefined,
+    badge: 'Vérifié ✓', ...t('artisan'),
   }));
 }
 
 // ─── Annonces ─────────────────────────────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function mapListings(rows: any[], filterFree: boolean, filterLocation: string): SearchResult[] {
+export function mapListings(rows: RawRow[], filterFree: boolean, filterLocation: string): SearchResult[] {
   return rows
     .filter(l => !filterFree || l.listing_type === 'free')
-    .filter(l => !filterLocation || (l.location || '').toLowerCase().includes(filterLocation.toLowerCase()))
+    .filter(l => !filterLocation || ((l.location as string) || '').toLowerCase().includes(filterLocation.toLowerCase()))
     .map(l => ({
-      id: `listing-${l.id}`, title: l.title, description: l.description,
+      id: `listing-${l.id}`, title: l.title as string, description: l.description as string | undefined,
       href: `/annonces/${l.id}`,
       image: (l.photos as Photo[] | null)?.[0]?.url,
-      price: l.listing_type !== 'free' ? l.price : undefined,
+      price: l.listing_type !== 'free' ? l.price as number | undefined : undefined,
       isFree: l.listing_type === 'free',
-      location: l.location,
+      location: l.location as string | undefined,
       ...t('annonce'),
     }));
 }
 
 // ─── Matériel ─────────────────────────────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function mapEquipment(rows: any[], filterFree: boolean): SearchResult[] {
+export function mapEquipment(rows: RawRow[], filterFree: boolean): SearchResult[] {
   return rows
     .filter(e => !filterFree || e.is_free)
     .map(e => ({
-      id: `equip-${e.id}`, title: e.title, description: e.description,
+      id: `equip-${e.id}`, title: e.title as string, description: e.description as string | undefined,
       href: `/materiel/${e.id}`,
       image: (e.photos as Photo[] | null)?.[0]?.url,
-      price: e.is_free ? undefined : e.daily_rate,
-      isFree: e.is_free,
-      location: e.pickup_location,
+      price: e.is_free ? undefined : e.daily_rate as number | undefined,
+      isFree: e.is_free as boolean,
+      location: e.pickup_location as string | undefined,
       ...t('materiel'),
     }));
 }
 
 // ─── Entraide ─────────────────────────────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function mapHelps(rows: any[]): SearchResult[] {
+export function mapHelps(rows: RawRow[]): SearchResult[] {
   return rows.map(h => ({
-    id: `help-${h.id}`, title: h.title, description: h.description,
-    href: `/coups-de-main#${h.id}`, location: h.location_city,
+    id: `help-${h.id}`, title: h.title as string, description: h.description as string | undefined,
+    href: `/coups-de-main#${h.id}`, location: h.location_city as string | undefined,
     badge: h.urgency === 'urgent' ? '🔴 Urgent' : undefined,
     ...t('aide'),
   }));
 }
 
 // ─── Promenades ───────────────────────────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function mapOutings(rows: any[]): SearchResult[] {
+export function mapOutings(rows: RawRow[]): SearchResult[] {
   return rows.map(o => ({
-    id: `outing-${o.id}`, title: o.title, description: o.description,
+    id: `outing-${o.id}`, title: o.title as string, description: o.description as string | undefined,
     href: '/promenades',
     image: (o.photos as Photo[] | null)?.[0]?.url,
-    location: o.meeting_point,
-    date: fmt(o.outing_date),
+    location: o.meeting_point as string | undefined,
+    date: fmt(o.outing_date as string),
     ...t('promenade'),
   }));
 }
 
 // ─── Événements ───────────────────────────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function mapEvents(rows: any[]): SearchResult[] {
+export function mapEvents(rows: RawRow[]): SearchResult[] {
   return rows.map(e => ({
-    id: `event-${e.id}`, title: e.title, description: e.description,
+    id: `event-${e.id}`, title: e.title as string, description: e.description as string | undefined,
     href: '/evenements',
     image: (e.photos as Photo[] | null)?.[0]?.url,
-    price: e.is_free ? undefined : e.price,
-    isFree: e.is_free, location: e.location, date: fmt(e.event_date),
+    price: e.is_free ? undefined : e.price as number | undefined,
+    isFree: e.is_free as boolean, location: e.location as string | undefined,
+    date: fmt(e.event_date as string),
     ...t('evenement'),
   }));
 }
 
 // ─── Forum ────────────────────────────────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function mapForum(rows: any[]): SearchResult[] {
+export function mapForum(rows: RawRow[]): SearchResult[] {
   return rows.map(f => {
     const author = f.author as { full_name?: string; avatar_url?: string } | null;
     const category = f.category as { name?: string } | null;
     return {
-      id: `forum-${f.id}`, title: f.title, description: (f.content as string || '').slice(0, 100),
+      id: `forum-${f.id}`, title: f.title as string,
+      description: ((f.content as string) || '').slice(0, 100),
       href: `/forum/${f.id}`, subtitle: category?.name,
       author: author ? { name: author.full_name || 'Anonyme', avatar: author.avatar_url } : undefined,
-      date: fmt(f.created_at),
+      date: fmt(f.created_at as string),
       ...t('forum'),
     };
   });
 }
 
 // ─── Associations ─────────────────────────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function mapAssociations(rows: any[]): SearchResult[] {
+export function mapAssociations(rows: RawRow[]): SearchResult[] {
   return rows.map(a => ({
-    id: `asso-${a.id}`, title: a.name, description: a.description_short,
-    href: `/associations/${a.id}`, location: a.location, subtitle: a.category,
+    id: `asso-${a.id}`, title: a.name as string, description: a.description_short as string | undefined,
+    href: `/associations/${a.id}`, location: a.location as string | undefined,
+    subtitle: a.category as string | undefined,
     ...t('association'),
   }));
 }
 
 // ─── Collections ──────────────────────────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function mapCollections(rows: any[]): SearchResult[] {
-  return rows.map((c: Record<string, unknown>) => ({
-    id: `col-${c.id}`, title: c.title as string, description: c.description as string,
+export function mapCollections(rows: RawRow[]): SearchResult[] {
+  return rows.map(c => ({
+    id: `col-${c.id}`, title: c.title as string, description: c.description as string | undefined,
     href: '/collectionneurs',
     image: (c.photos as Photo[] | null)?.[0]?.url,
     price: c.price as number | undefined,
-    location: c.location as string, subtitle: c.category as string,
+    location: c.location as string | undefined, subtitle: c.category as string | undefined,
     ...t('collectionneur'),
   }));
 }
 
 // ─── Emploi ───────────────────────────────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function mapJobOffers(rows: any[]): SearchResult[] {
-  return rows.map((j: Record<string, unknown>) => ({
-    id: `joboffer-${j.id}`, title: j.title as string, description: j.short_description as string,
-    href: `/emploi/offres/${j.slug}`, location: j.location_label as string,
-    subtitle: j.job_category as string, badge: '💼 Offre',
+export function mapJobOffers(rows: RawRow[]): SearchResult[] {
+  return rows.map(j => ({
+    id: `joboffer-${j.id}`, title: j.title as string, description: j.short_description as string | undefined,
+    href: `/emploi/offres/${j.slug}`, location: j.location_label as string | undefined,
+    subtitle: j.job_category as string | undefined, badge: '💼 Offre',
     ...t('emploi'),
   }));
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function mapJobDemands(rows: any[]): SearchResult[] {
-  return rows.map((j: Record<string, unknown>) => ({
-    id: `jobdemand-${j.id}`, title: j.title as string, description: j.short_description as string,
-    href: `/emploi/demandes/${j.slug}`, location: j.location_label as string,
+export function mapJobDemands(rows: RawRow[]): SearchResult[] {
+  return rows.map(j => ({
+    id: `jobdemand-${j.id}`, title: j.title as string, description: j.short_description as string | undefined,
+    href: `/emploi/demandes/${j.slug}`, location: j.location_label as string | undefined,
     badge: '🙋 Demande',
     ...t('emploi'),
   }));
 }
 
 // ─── Perdu/Trouvé ─────────────────────────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function mapLostFound(rows: any[]): SearchResult[] {
-  return rows.map((lf: Record<string, unknown>) => ({
-    id: `lf-${lf.id}`, title: lf.title as string, description: lf.description as string,
-    href: '/perdu-trouve', location: lf.location_area as string, subtitle: lf.category as string,
+export function mapLostFound(rows: RawRow[]): SearchResult[] {
+  return rows.map(lf => ({
+    id: `lf-${lf.id}`, title: lf.title as string, description: lf.description as string | undefined,
+    href: '/perdu-trouve', location: lf.location_area as string | undefined,
+    subtitle: lf.category as string | undefined,
     date: fmt(lf.created_at as string),
     badge: lf.type === 'perdu' ? '🔴 Perdu' : '🟢 Trouvé',
     ...t('perdu_trouve'),

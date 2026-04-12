@@ -33,10 +33,17 @@ type RawConv = ConvWithOther & {
 };
 type ConvWithTemp = ConvWithOther & { _other_participant_id?: string | null };
 
+/** Shape brute d'une participation retournée par /api/messages/conversations */
+type RawParticipation = {
+  conversation_id: string;
+  last_read_at?: string | null;
+  joined_at?: string | null;
+  conversation: RawConv | RawConv[];
+};
+
 // ─── Helper pur : mapping d'une participation API → ConvWithTemp ──────────────
 function mapParticipation(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  p: any,
+  p: RawParticipation,
   profileId: string,
   localReadMap: Record<string, number>,
   missingProfileIds: Set<string>,
@@ -118,7 +125,7 @@ export function useConversationFetch(
     if (!participations) { setLoading(false); return; }
 
     const missingProfileIds = new Set<string>();
-    const convs = (participations as unknown[]).map(p =>
+    const convs = (participations as RawParticipation[]).map(p =>
       mapParticipation(p, profileId, localReadMapRef.current, missingProfileIds)
     );
 

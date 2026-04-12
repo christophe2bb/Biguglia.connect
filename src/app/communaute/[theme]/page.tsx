@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
@@ -185,7 +185,7 @@ export default function CommunauteThemePage() {
   const rawParams = useParams();
   const themeSlug = (Array.isArray(rawParams?.theme) ? rawParams.theme[0] : rawParams?.theme) ?? '';
   const { profile } = useAuthStore();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const themeConfig = THEME_CONFIG[themeSlug] ?? DEFAULT_THEME;
 
   const [activeTab, setActiveTab] = useState<'membres' | 'discussions' | 'monprofil'>('membres');
@@ -284,17 +284,10 @@ export default function CommunauteThemePage() {
     };
 
     run();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [themeSlug, refreshKey]);
+  }, [themeSlug, refreshKey, supabase]);
 
   // ── Charger les discussions ───────────────────────────────────────────────
-  useEffect(() => {
-    if (activeTab !== 'discussions' || !themeSlug) return;
-    loadDiscussions();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, themeSlug]);
-
-  const loadDiscussions = async () => {
+  const loadDiscussions = useCallback(async () => {
     setDiscLoading(true);
     setDiscError(null);
     try {
@@ -354,7 +347,12 @@ export default function CommunauteThemePage() {
     } finally {
       setDiscLoading(false);
     }
-  };
+  }, [themeSlug, supabase, profile?.id]);
+
+  useEffect(() => {
+    if (activeTab !== 'discussions' || !themeSlug) return;
+    loadDiscussions();
+  }, [activeTab, themeSlug, loadDiscussions]);
 
   const handleSendMessage = async () => {
     if (!profile || !newMessage.trim() || sendingMsg) return;

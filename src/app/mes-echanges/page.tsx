@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import {
@@ -234,16 +234,17 @@ function MesEchangesContent() {
   const [loading, setLoading]           = useState(true);
   const [activeTab, setActiveTab]       = useState<FilterTab>('all');
   const [tableExists, setTableExists]   = useState(true);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+  const profileId = profile?.id;
 
-  const load = async () => {
-    if (!profile) return;
+  const load = useCallback(async () => {
+    if (!profileId) return;
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('interactions')
         .select('*')
-        .or(`requester_id.eq.${profile.id},receiver_id.eq.${profile.id}`)
+        .or(`requester_id.eq.${profileId},receiver_id.eq.${profileId}`)
         .order('started_at', { ascending: false })
         .limit(50);
 
@@ -255,7 +256,7 @@ function MesEchangesContent() {
       // Enrichir avec profils et titres
       const enriched = await Promise.all((data || []).map(async (row: InteractionRow) => {
         // Profil de l'autre personne
-        const otherId = row.requester_id === profile.id ? row.receiver_id : row.requester_id;
+        const otherId = row.requester_id === profileId ? row.receiver_id : row.requester_id;
         const { data: otherProfile } = await supabase
           .from('profiles')
           .select('full_name, avatar_url')
@@ -295,9 +296,9 @@ function MesEchangesContent() {
 
       setInteractions(enriched);
     } finally { setLoading(false); }
-  };
+  }, [profileId, supabase]);
 
-  useEffect(() => { load(); }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [load]);
 
   const handleStatusChange = (id: string, newStatus: InteractionStatus) => {
     setInteractions(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));

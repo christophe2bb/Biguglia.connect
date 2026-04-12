@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { formatRelative } from '@/lib/utils';
@@ -37,7 +38,7 @@ interface Props {
 export default function LostFoundCard({
   item, userId, isAuthor, onEdit, onDelete, onStatusChange, suggestedMatches,
 }: Props) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [expanded, setExpanded]         = useState(false);
   const [openChat, setOpenChat]         = useState(false);
@@ -76,8 +77,7 @@ export default function LostFoundCard({
       .select('id', { count: 'exact', head: true })
       .eq('item_id', item.id)
       .then(({ count }) => setChatCount(count ?? 0));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.id]);
+  }, [item.id, supabase]);
 
   const fetchComments = async () => {
     const { data } = await supabase.from('lf_comments')
@@ -132,8 +132,7 @@ export default function LostFoundCard({
       <div className="relative h-44 overflow-hidden">
         {item.photos && item.photos.length > 0 ? (
           <div className="w-full h-full cursor-pointer" onClick={() => { setLightboxIdx(0); setLightboxOpen(true); }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={item.photos[0].url} alt={item.title} className="w-full h-full object-cover" />
+            <Image src={item.photos[0].url} alt={item.title} fill className="object-cover" />
             {allPhotos.length > 1 && (
               <div className="absolute bottom-2 right-10 bg-black/60 text-white text-xs font-bold px-2 py-0.5 rounded-full z-10">
                 +{allPhotos.length - 1}
@@ -330,8 +329,7 @@ export default function LostFoundCard({
           <div className="flex gap-1.5 mb-3 overflow-x-auto">
             {allPhotos.slice(1).map((p, i) => (
               <button key={i} onClick={() => { setLightboxIdx(i + 1); setLightboxOpen(true); }} className="flex-shrink-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.url} alt="" className="w-14 h-14 object-cover rounded-lg border border-gray-100 hover:border-blue-300 transition-colors" />
+                <Image src={p.url} alt="" fill className="object-cover rounded-lg border border-gray-100 hover:border-blue-300 transition-colors" />
               </button>
             ))}
           </div>

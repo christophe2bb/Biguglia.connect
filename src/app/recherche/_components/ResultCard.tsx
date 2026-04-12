@@ -3,6 +3,7 @@
  * ResultCard — affichage d'un résultat en vue liste ou grille
  */
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { MapPin, Clock, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -21,7 +22,7 @@ function ListCard({ result }: { result: SearchResult }) {
       className="flex items-start gap-3 p-4 bg-white rounded-xl border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all group"
     >
       {result.image ? (
-        <img src={result.image} alt={result.title} className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
+        <Image src={result.image} alt={result.title} fill className="rounded-lg object-cover flex-shrink-0" />
       ) : (
         <div className={cn('w-16 h-16 rounded-lg flex items-center justify-center flex-shrink-0', result.themeBg, result.themeColor)}>
           <div className="scale-150">{result.themeIcon}</div>
@@ -75,7 +76,7 @@ function GridCard({ result }: { result: SearchResult }) {
     >
       {result.image ? (
         <div className="h-32 overflow-hidden">
-          <img src={result.image} alt={result.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+          <Image src={result.image} alt={result.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
         </div>
       ) : (
         <div className={cn('h-24 flex items-center justify-center', result.themeBg)}>

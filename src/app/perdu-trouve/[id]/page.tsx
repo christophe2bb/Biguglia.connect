@@ -5,7 +5,8 @@
  * /perdu-trouve/[id] — fiche complète avec galerie, statut, actions, impression
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
@@ -146,7 +147,7 @@ export default function PerduTrouveDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { profile } = useAuthStore();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [item, setItem] = useState<LFItem | null>(null);
   const [comments, setComments] = useState<LFComment[]>([]);
@@ -223,7 +224,7 @@ export default function PerduTrouveDetailPage() {
     } catch { /* ignore */ }
 
     setLoading(false);
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id, supabase]);
 
   useEffect(() => { fetchItem(); }, [fetchItem]);
 
@@ -368,8 +369,7 @@ export default function PerduTrouveDetailPage() {
         {allPhotos.length > 0 ? (
           <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm print:shadow-none">
             <div className="relative h-72 sm:h-96 cursor-pointer" onClick={() => { setLightboxIdx(0); setLightboxOpen(true); }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={allPhotos[0].url} alt={item.title} className="w-full h-full object-cover" />
+              <Image src={allPhotos[0].url} alt={item.title} fill className="object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
               {allPhotos.length > 1 && (
                 <div className="absolute bottom-3 right-3 bg-black/60 text-white text-sm font-bold px-3 py-1 rounded-full">
@@ -381,8 +381,7 @@ export default function PerduTrouveDetailPage() {
               <div className="flex gap-2 p-3 overflow-x-auto">
                 {allPhotos.slice(1).map((p, i) => (
                   <button key={i} onClick={() => { setLightboxIdx(i + 1); setLightboxOpen(true); }} className="flex-shrink-0">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={p.url} alt="" className="w-20 h-20 object-cover rounded-xl border border-gray-100 hover:border-orange-300 transition-colors" />
+                    <Image src={p.url} alt="" fill className="object-cover rounded-xl border border-gray-100 hover:border-orange-300 transition-colors" />
                   </button>
                 ))}
               </div>

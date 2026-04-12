@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Camera, X, ChevronLeft, Briefcase, MapPin, Clock, FileText, Upload, CheckCircle, AlertCircle, HardHat, Users } from 'lucide-react';
@@ -457,8 +458,7 @@ export default function ArtisanProfilPage() {
             <div className="flex flex-wrap gap-3 mt-4">
               {photos.map((photo, i) => (
                 <div key={i} className="relative w-24 h-24 group">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={URL.createObjectURL(photo)} alt="" className="w-full h-full object-cover rounded-xl" />
+                  <Image src={URL.createObjectURL(photo)} alt="" fill className="object-cover rounded-xl" />
                   <button
                     type="button"
                     onClick={() => setPhotos(p => p.filter((_, j) => j !== i))}

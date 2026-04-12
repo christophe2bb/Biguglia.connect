@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { Camera, User, MapPin, Users, MessageSquare, History, Clock,
          ParkingSquare, Baby, Dog, AlertCircle, Send, Loader2 } from 'lucide-react';
@@ -181,8 +182,7 @@ export default function OutingTabs({
               </h3>
               <div className="grid grid-cols-3 gap-2">
                 {outing.photos.map((photo, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img key={i} src={photo.url} alt="" className="w-full h-24 object-cover rounded-xl" />
+                  <Image src={photo.url} alt="" key={i} fill className="w-full object-cover rounded-xl" />
                 ))}
               </div>
             </div>

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Camera, X, ChevronLeft, Zap } from 'lucide-react';
@@ -383,8 +384,7 @@ export default function ModifierAnnoncePage() {
             {/* Existing photos */}
             {existingPhotos.map(photo => (
               <div key={photo.id} className="relative w-24 h-24 group">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photo.url} alt="Photo" className="w-full h-full object-cover rounded-xl border border-gray-200" />
+                <Image src={photo.url} alt="Photo" fill className="object-cover rounded-xl border border-gray-200" />
                 <button
                   type="button"
                   onClick={() => removeExistingPhoto(photo.id)}
@@ -399,8 +399,7 @@ export default function ModifierAnnoncePage() {
             {/* New photos */}
             {newPreviews.map((src, i) => (
               <div key={i} className="relative w-24 h-24 group">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt={`Nouvelle ${i + 1}`} className="w-full h-full object-cover rounded-xl border-2 border-blue-300" />
+                <Image src={src} alt="" fill className="object-cover rounded-xl border-2 border-blue-300" />
                 <button
                   type="button"
                   onClick={() => removeNewPhoto(i)}

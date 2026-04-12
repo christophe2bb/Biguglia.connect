@@ -77,14 +77,12 @@ export function useConversationPage(conversationId: string) {
       realtime.cleanup();
       document.removeEventListener('visibilitychange', handleVis);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, conversationId, profile?.id]);
+  }, [authLoading, conversationId, profile?.id, data.load, realtime.connect, realtime.cleanup, markAsRead]);
 
   // ── Scroll auto à chaque nouveau message ──────────────────────────────────
   useEffect(() => {
     if (!data.loading && data.messages.length > 0) scrollToBottom();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.messages.length]);
+  }, [data.messages.length, data.loading, scrollToBottom]);
 
   // ── Contrat public (inchangé) ─────────────────────────────────────────────
   return {
