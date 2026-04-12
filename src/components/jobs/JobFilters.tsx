@@ -15,6 +15,9 @@ import {
   JOB_CATEGORY_LABELS,
   EXPERIENCE_LEVELS,
   EXPERIENCE_LEVEL_LABELS,
+  type ContractType,
+  type JobCategory,
+  type ExperienceLevel,
 } from '@/types/jobs/constants';
 
 interface JobFiltersProps {
@@ -36,27 +39,27 @@ export function JobFilters({
     onFiltersChange({ ...filters, query });
   };
 
-  const handleContractTypeToggle = (contractType: string) => {
+  const handleContractTypeToggle = (contractType: ContractType) => {
     const current = filters.contractTypes || [];
-    const updated = current.includes(contractType as any)
+    const updated = current.includes(contractType)
       ? current.filter((c) => c !== contractType)
-      : [...current, contractType as any];
+      : [...current, contractType];
     onFiltersChange({ ...filters, contractTypes: updated.length > 0 ? updated : undefined });
   };
 
-  const handleCategoryToggle = (category: string) => {
+  const handleCategoryToggle = (category: JobCategory) => {
     const current = filters.categories || [];
-    const updated = current.includes(category as any)
+    const updated = current.includes(category)
       ? current.filter((c) => c !== category)
-      : [...current, category as any];
+      : [...current, category];
     onFiltersChange({ ...filters, categories: updated.length > 0 ? updated : undefined });
   };
 
-  const handleExperienceToggle = (level: string) => {
+  const handleExperienceToggle = (level: ExperienceLevel) => {
     const current = filters.experienceLevels || [];
-    const updated = current.includes(level as any)
+    const updated = current.includes(level)
       ? current.filter((l) => l !== level)
-      : [...current, level as any];
+      : [...current, level];
     onFiltersChange({
       ...filters,
       experienceLevels: updated.length > 0 ? updated : undefined,
