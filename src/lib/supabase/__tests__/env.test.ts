@@ -36,7 +36,14 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { cleanEnv, getSupabaseEnv, getSupabaseAdminEnv, getSupabaseEnvSafe } from '../env';
+import {
+  cleanEnv,
+  getSupabaseEnv,
+  getSupabaseAdminEnv,
+  getSupabaseEnvSafe,
+  validateSupabaseClientEnv,
+  assertSupabaseClientEnv,
+} from '../env';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -428,5 +435,228 @@ describe('getSupabaseEnvSafe()', () => {
     expect(result).toHaveProperty('anonKey');
     expect(typeof result.url).toBe('string');
     expect(typeof result.anonKey).toBe('string');
+  });
+});
+
+// ─── validateSupabaseClientEnv() ─────────────────────────────────────────────
+
+describe('validateSupabaseClientEnv()', () => {
+  it('env valide → ok=true, errors=[], env non-null', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL      = VALID_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = VALID_ANON;
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const result = validateSupabaseClientEnv();
+    expect(result.ok).toBe(true);
+    expect(result.errors).toHaveLength(0);
+    expect(result.env).not.toBeNull();
+    expect(result.env?.url).toBe(VALID_URL);
+    expect(result.env?.anonKey).toBe(VALID_ANON);
+  });
+
+  it('URL manquante → ok=false, errors contient un message sur NEXT_PUBLIC_SUPABASE_URL', () => {
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = VALID_ANON;
+
+    const result = validateSupabaseClientEnv();
+    expect(result.ok).toBe(false);
+    expect(result.env).toBeNull();
+    expect(result.errors.some(e => e.includes('NEXT_PUBLIC_SUPABASE_URL'))).toBe(true);
+  });
+
+  it('Anon key manquante → ok=false, errors contient un message sur NEXT_PUBLIC_SUPABASE_ANON_KEY', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL      = VALID_URL;
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    const result = validateSupabaseClientEnv();
+    expect(result.ok).toBe(false);
+    expect(result.env).toBeNull();
+    expect(result.errors.some(e => e.includes('NEXT_PUBLIC_SUPABASE_ANON_KEY'))).toBe(true);
+  });
+
+  it('les deux manquantes → ok=false, 2 erreurs collectées', () => {
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    const result = validateSupabaseClientEnv();
+    expect(result.ok).toBe(false);
+    expect(result.errors).toHaveLength(2);
+    expect(result.env).toBeNull();
+  });
+
+  it('URL sans https:// → ok=false, erreur sur le préfixe', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL      = 'http://supabase.co';
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = VALID_ANON;
+
+    const result = validateSupabaseClientEnv();
+    expect(result.ok).toBe(false);
+    expect(result.errors.some(e => e.includes('https://'))).toBe(true);
+  });
+
+  it('Anon key trop courte → ok=false, erreur sur la longueur', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL      = VALID_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'trop_court';
+
+    const result = validateSupabaseClientEnv();
+    expect(result.ok).toBe(false);
+    expect(result.errors.some(e => e.includes('NEXT_PUBLIC_SUPABASE_ANON_KEY'))).toBe(true);
+  });
+
+  it('URL avec \\n → warnings non vide, ok=true, url nettoyée', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL      = VALID_URL + '\n';
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = VALID_ANON;
+
+    const result = validateSupabaseClientEnv();
+    expect(result.ok).toBe(true);
+    expect(result.warnings.length).toBeGreaterThan(0);
+    expect(result.env?.url).toBe(VALID_URL);
+    expect(result.env?.url).not.toContain('\n');
+  });
+
+  it('Anon key avec espaces → warnings non vide, ok=true, key nettoyée', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL      = VALID_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = '  ' + VALID_ANON + '  ';
+
+    const result = validateSupabaseClientEnv();
+    expect(result.ok).toBe(true);
+    expect(result.warnings.length).toBeGreaterThan(0);
+    expect(result.env?.anonKey).toBe(VALID_ANON);
+  });
+
+  it('env propre → warnings vide', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL      = VALID_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = VALID_ANON;
+
+    const result = validateSupabaseClientEnv();
+    expect(result.warnings).toHaveLength(0);
+  });
+
+  it('ne lève JAMAIS d\'exception (collect-all errors)', () => {
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    expect(() => validateSupabaseClientEnv()).not.toThrow();
+  });
+
+  it('structure de retour : ok, errors, warnings, env', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL      = VALID_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = VALID_ANON;
+
+    const result = validateSupabaseClientEnv();
+    expect(result).toHaveProperty('ok');
+    expect(result).toHaveProperty('errors');
+    expect(result).toHaveProperty('warnings');
+    expect(result).toHaveProperty('env');
+    expect(Array.isArray(result.errors)).toBe(true);
+    expect(Array.isArray(result.warnings)).toBe(true);
+  });
+});
+
+// ─── assertSupabaseClientEnv() ────────────────────────────────────────────────
+
+describe('assertSupabaseClientEnv()', () => {
+  it('env valide → retourne { url, anonKey } nettoyés sans exception', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL      = VALID_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = VALID_ANON;
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const env = assertSupabaseClientEnv();
+    expect(env.url).toBe(VALID_URL);
+    expect(env.anonKey).toBe(VALID_ANON);
+  });
+
+  it('URL manquante → lève Error mentionnant NEXT_PUBLIC_SUPABASE_URL', () => {
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = VALID_ANON;
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect(() => assertSupabaseClientEnv()).toThrow('NEXT_PUBLIC_SUPABASE_URL');
+  });
+
+  it('Anon key manquante → lève Error mentionnant NEXT_PUBLIC_SUPABASE_ANON_KEY', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL      = VALID_URL;
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect(() => assertSupabaseClientEnv()).toThrow('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  });
+
+  it('les deux manquantes → lève Error et appelle console.error', () => {
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect(() => assertSupabaseClientEnv()).toThrow();
+    expect(errorSpy).toHaveBeenCalledOnce();
+  });
+
+  it('URL avec \\n → console.warn appelé, pas d\'Error, url nettoyée', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL      = VALID_URL + '\n';
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = VALID_ANON;
+    const warnSpy  = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const env = assertSupabaseClientEnv();
+    expect(env.url).toBe(VALID_URL);
+    expect(env.url).not.toContain('\n');
+    expect(warnSpy).toHaveBeenCalledOnce();
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it('Anon key avec \\r\\n → console.warn appelé, key nettoyée', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL      = VALID_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = VALID_ANON + '\r\n';
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const env = assertSupabaseClientEnv();
+    expect(env.anonKey).toBe(VALID_ANON);
+    expect(warnSpy).toHaveBeenCalledOnce();
+  });
+
+  it('URL sans https:// → lève Error mentionnant https://', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL      = 'http://supabase.co';
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = VALID_ANON;
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect(() => assertSupabaseClientEnv()).toThrow('https://');
+  });
+
+  it('console.error appelé une fois exactement sur env invalide', () => {
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = VALID_ANON;
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    try { assertSupabaseClientEnv(); } catch { /* attendu */ }
+    expect(errorSpy).toHaveBeenCalledOnce();
+  });
+
+  it('env valide → pas de console.error, pas de console.warn', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL      = VALID_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = VALID_ANON;
+    const warnSpy  = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    assertSupabaseClientEnv();
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it('Anon key trop courte → lève Error (< 20 chars)', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL      = VALID_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'x'.repeat(19);
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect(() => assertSupabaseClientEnv()).toThrow();
+  });
+
+  it('message d\'erreur contient le nombre d\'erreurs détectées', () => {
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    let msg = '';
+    try { assertSupabaseClientEnv(); } catch (e) { msg = (e as Error).message; }
+    // Le message doit mentionner "2 erreur(s)" (deux variables manquantes)
+    expect(msg).toMatch(/2.+erreur/i);
   });
 });
