@@ -252,7 +252,7 @@ describe('GET /api/messages/conversation/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetUserId.mockResolvedValue(USER_A);
-    mockCreateAdmin.mockReturnValue(buildAdminMock() as ReturnType<typeof createAdminClient>);
+    mockCreateAdmin.mockReturnValue(buildAdminMock() as unknown as ReturnType<typeof createAdminClient>);
   });
 
   // ── Authentification ──────────────────────────────────────────────────────
@@ -268,7 +268,7 @@ describe('GET /api/messages/conversation/[id]', () => {
   it('retourne 403 si l\'utilisateur n\'est pas participant', async () => {
     mockCreateAdmin.mockReturnValue(buildAdminMock({
       participationRow: null,
-    }) as ReturnType<typeof createAdminClient>);
+    }) as unknown as ReturnType<typeof createAdminClient>);
     const res = await GET(makeGetReq(), routeParams());
     expect(res.status).toBe(403);
     const json = await res.json();
@@ -278,7 +278,7 @@ describe('GET /api/messages/conversation/[id]', () => {
   it('retourne 500 si la vérification de participation échoue côté DB', async () => {
     mockCreateAdmin.mockReturnValue(buildAdminMock({
       participationError: { message: 'db connection reset' },
-    }) as ReturnType<typeof createAdminClient>);
+    }) as unknown as ReturnType<typeof createAdminClient>);
     const res = await GET(makeGetReq(), routeParams());
     expect(res.status).toBe(500);
   });
@@ -315,7 +315,7 @@ describe('GET /api/messages/conversation/[id]', () => {
         { id: USER_A, full_name: 'Alice Martin', avatar_url: null, email: 'alice@example.com' },
         { id: USER_B, full_name: 'Bob Dupont',   avatar_url: null, email: 'bob@example.com' },
       ],
-    }) as ReturnType<typeof createAdminClient>);
+    }) as unknown as ReturnType<typeof createAdminClient>);
 
     const res = await GET(makeGetReq(), routeParams());
     const body = await res.json();
@@ -332,7 +332,7 @@ describe('GET /api/messages/conversation/[id]', () => {
         { id: USER_A, full_name: null, avatar_url: null, email: 'alice.dupont@example.com' },
         { id: USER_B, full_name: '',   avatar_url: null, email: 'bob123@example.com' },
       ],
-    }) as ReturnType<typeof createAdminClient>);
+    }) as unknown as ReturnType<typeof createAdminClient>);
 
     const res = await GET(makeGetReq(), routeParams());
     const body = await res.json();
@@ -350,7 +350,7 @@ describe('GET /api/messages/conversation/[id]', () => {
         { id: USER_A, full_name: null, avatar_url: null, email: null },
         { id: USER_B, full_name: null, avatar_url: null, email: null },
       ],
-    }) as ReturnType<typeof createAdminClient>);
+    }) as unknown as ReturnType<typeof createAdminClient>);
 
     const res = await GET(makeGetReq(), routeParams());
     const body = await res.json();
@@ -382,7 +382,7 @@ describe('GET /api/messages/conversation/[id]', () => {
   it('retourne other_user_id = null si seul l\'utilisateur courant est participant', async () => {
     mockCreateAdmin.mockReturnValue(buildAdminMock({
       participantRows: [{ user_id: USER_A }],
-    }) as ReturnType<typeof createAdminClient>);
+    }) as unknown as ReturnType<typeof createAdminClient>);
 
     const res = await GET(makeGetReq(), routeParams());
     const body = await res.json();
@@ -399,7 +399,7 @@ describe('GET /api/messages/conversation/[id]', () => {
         // USER_B intentionnellement absent
       ],
       fallbackProfile: { id: USER_B, full_name: 'Bob Fallback', avatar_url: null, email: 'bob@example.com' },
-    }) as ReturnType<typeof createAdminClient>);
+    }) as unknown as ReturnType<typeof createAdminClient>);
 
     const res = await GET(makeGetReq(), routeParams());
     const body = await res.json();
@@ -415,7 +415,7 @@ describe('GET /api/messages/conversation/[id]', () => {
         { id: USER_A, full_name: 'Alice', avatar_url: null, email: 'alice@example.com' },
       ],
       fallbackProfile: null, // fallback échoue aussi
-    }) as ReturnType<typeof createAdminClient>);
+    }) as unknown as ReturnType<typeof createAdminClient>);
 
     const res = await GET(makeGetReq(), routeParams());
     // La conv est retournée malgré le profil manquant
@@ -430,7 +430,7 @@ describe('GET /api/messages/conversation/[id]', () => {
     mockCreateAdmin.mockReturnValue(buildAdminMock({
       messages: [],
       messagesError: { message: 'relation messages does not exist' },
-    }) as ReturnType<typeof createAdminClient>);
+    }) as unknown as ReturnType<typeof createAdminClient>);
 
     const res = await GET(makeGetReq(), routeParams());
     expect(res.status).toBe(200);
@@ -451,7 +451,7 @@ describe('GET /api/messages/conversation/[id]', () => {
   it('retourne 500 si la requête conversations échoue', async () => {
     mockCreateAdmin.mockReturnValue(buildAdminMock({
       convError: { message: 'table conversations is locked' },
-    }) as ReturnType<typeof createAdminClient>);
+    }) as unknown as ReturnType<typeof createAdminClient>);
 
     const res = await GET(makeGetReq(), routeParams());
     expect(res.status).toBe(500);
@@ -462,7 +462,7 @@ describe('GET /api/messages/conversation/[id]', () => {
   it('userId courant est toujours inclus dans participants même si participantsError', async () => {
     mockCreateAdmin.mockReturnValue(buildAdminMock({
       participantsError: { message: 'RLS recursion' },
-    }) as ReturnType<typeof createAdminClient>);
+    }) as unknown as ReturnType<typeof createAdminClient>);
 
     const res = await GET(makeGetReq(), routeParams());
     const body = await res.json();
@@ -477,7 +477,7 @@ describe('PATCH /api/messages/conversation/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetUserId.mockResolvedValue(USER_A);
-    mockCreateAdmin.mockReturnValue(buildAdminMock() as ReturnType<typeof createAdminClient>);
+    mockCreateAdmin.mockReturnValue(buildAdminMock() as unknown as ReturnType<typeof createAdminClient>);
   });
 
   it('retourne 401 si non authentifié', async () => {
@@ -537,7 +537,7 @@ describe('POST /api/messages/conversation/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetUserId.mockResolvedValue(USER_A);
-    mockCreateAdmin.mockReturnValue(buildAdminMock() as ReturnType<typeof createAdminClient>);
+    mockCreateAdmin.mockReturnValue(buildAdminMock() as unknown as ReturnType<typeof createAdminClient>);
   });
 
   it('retourne 401 si non authentifié', async () => {
@@ -572,7 +572,7 @@ describe('DELETE /api/messages/conversation/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetUserId.mockResolvedValue(USER_A);
-    mockCreateAdmin.mockReturnValue(buildAdminMock() as ReturnType<typeof createAdminClient>);
+    mockCreateAdmin.mockReturnValue(buildAdminMock() as unknown as ReturnType<typeof createAdminClient>);
   });
 
   it('retourne 400 si messageId absent', async () => {
@@ -594,7 +594,7 @@ describe('DELETE /api/messages/conversation/[id]', () => {
     mockCreateAdmin.mockReturnValue(buildAdminMock({
       // Le message appartient à USER_B, l'authentifié est USER_A
       msgForDelete: { id: MSG_ID, sender_id: USER_B, conversation_id: CONV_ID },
-    }) as ReturnType<typeof createAdminClient>);
+    }) as unknown as ReturnType<typeof createAdminClient>);
 
     const res = await DELETE(makeDeleteReq(MSG_ID), routeParams());
     expect(res.status).toBe(403);
@@ -610,7 +610,7 @@ describe('DELETE /api/messages/conversation/[id]', () => {
   it('retourne 404 si le message est introuvable', async () => {
     mockCreateAdmin.mockReturnValue(buildAdminMock({
       msgForDelete: null,
-    }) as ReturnType<typeof createAdminClient>);
+    }) as unknown as ReturnType<typeof createAdminClient>);
     const res = await DELETE(makeDeleteReq(MSG_ID), routeParams());
     expect(res.status).toBe(404);
   });
