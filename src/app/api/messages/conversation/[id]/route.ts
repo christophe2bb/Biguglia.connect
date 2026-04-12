@@ -127,7 +127,7 @@ export async function GET(
       .single(),
     admin
       .from('messages')
-      .select('id, conversation_id, sender_id, content, created_at, is_deleted, deleted_at')
+      .select('id, conversation_id, sender_id, content, created_at')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true }),
   ]);

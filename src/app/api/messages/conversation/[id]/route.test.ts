@@ -61,7 +61,7 @@ const CONVERSATION = {
 };
 
 const MESSAGES = [
-  { id: MSG_ID, conversation_id: CONV_ID, sender_id: USER_B, content: 'Hello', created_at: '2024-01-01T10:01:00Z', is_deleted: false, deleted_at: null },
+  { id: MSG_ID, conversation_id: CONV_ID, sender_id: USER_B, content: 'Hello', created_at: '2024-01-01T10:01:00Z' },
 ];
 
 // ─── Builder de mock admin ────────────────────────────────────────────────────
