@@ -33,10 +33,11 @@ function resolveProfile(
 }
 
 // ─── Types bruts Supabase (flexibles pour gérer les alias) ───────────────────
+// Exportés pour permettre un typage fort dans feed.ts sans `any`.
 
-type RawProfile = { id: string; full_name?: string | null; avatar_url?: string | null };
+export type RawProfile = { id: string; full_name?: string | null; avatar_url?: string | null };
 
-interface RawHelpRequest {
+export interface RawHelpRequest {
   id: string;
   title: string;
   description?: string | null;
@@ -50,7 +51,7 @@ interface RawHelpRequest {
   profiles?: RawProfile | null;
 }
 
-interface RawEvent {
+export interface RawEvent {
   id: string;
   title: string;
   description?: string | null;
@@ -63,7 +64,7 @@ interface RawEvent {
   profiles?: RawProfile | null;
 }
 
-interface RawForumTopic {
+export interface RawForumTopic {
   id: string;
   title: string;
   content?: string | null;
@@ -76,7 +77,7 @@ interface RawForumTopic {
   profiles?: RawProfile | null;
 }
 
-interface RawLostFound {
+export interface RawLostFound {
   id: string;
   title: string;
   description?: string | null;
@@ -90,7 +91,7 @@ interface RawLostFound {
   profiles?: RawProfile | null;
 }
 
-interface RawListing {
+export interface RawListing {
   id: string;
   title: string;
   description?: string | null;
@@ -102,7 +103,7 @@ interface RawListing {
   // listings: pas de jointure profiles dans le feed (FK ambiguë) — pas de profil auteur affiché
 }
 
-interface RawOuting {
+export interface RawOuting {
   id: string;
   title: string;
   description?: string | null;
@@ -397,7 +398,7 @@ export function outingsToFeedItems(rows: RawOuting[]): HomeFeedItem[] {
 
 // ─── Adaptateur : Offres d'emploi ─────────────────────────────────────────────
 
-interface RawJobOffer {
+export interface RawJobOffer {
   id: string;
   slug: string;
   title: string;
@@ -487,7 +488,7 @@ export function jobOffersToFeedItems(rows: RawJobOffer[]): HomeFeedItem[] {
 
 // ─── Adaptateur : Demandes d'emploi ──────────────────────────────────────────
 
-interface RawJobDemand {
+export interface RawJobDemand {
   id: string;
   slug: string;
   title: string;

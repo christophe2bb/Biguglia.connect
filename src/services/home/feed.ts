@@ -15,6 +15,14 @@ import {
   outingsToFeedItems,
   jobOffersToFeedItems,
   jobDemandsToFeedItems,
+  type RawHelpRequest,
+  type RawEvent,
+  type RawForumTopic,
+  type RawLostFound,
+  type RawListing,
+  type RawOuting,
+  type RawJobOffer,
+  type RawJobDemand,
 } from './mappers';
 import { rankAndFilter, scoreItems, sortByScore } from './scoring';
 
@@ -49,7 +57,7 @@ function daysFromNow(days: number): string {
 async function fetchHelpRequests(
   supabase: ReturnType<typeof createClient>,
   currentUserId: string | null,
-) {
+): Promise<RawHelpRequest[]> {
   const since = new Date(Date.now() - 90 * 86400000).toISOString(); // 90 jours
   let q = supabase
     .from('help_requests')
@@ -62,13 +70,13 @@ async function fetchHelpRequests(
     .limit(20);
   if (currentUserId) q = q.neq('author_id', currentUserId);
   const { data } = await q;
-  return data ?? [];
+  return (data ?? []) as unknown as RawHelpRequest[];
 }
 
 async function fetchEvents(
   supabase: ReturnType<typeof createClient>,
   currentUserId: string | null,
-) {
+): Promise<RawEvent[]> {
   const today = todayStr();
   const in3Weeks = daysFromNow(21);
   let q = supabase
@@ -83,13 +91,13 @@ async function fetchEvents(
     .limit(10);
   if (currentUserId) q = q.neq('author_id', currentUserId);
   const { data } = await q;
-  return data ?? [];
+  return (data ?? []) as unknown as RawEvent[];
 }
 
 async function fetchForumTopics(
   supabase: ReturnType<typeof createClient>,
   currentUserId: string | null,
-) {
+): Promise<RawForumTopic[]> {
   const since = new Date(Date.now() - 90 * 86400000).toISOString(); // 90 jours
   let q = supabase
     .from('forum_topics')
@@ -102,13 +110,13 @@ async function fetchForumTopics(
     .limit(15);
   if (currentUserId) q = q.neq('author_id', currentUserId);
   const { data } = await q;
-  return data ?? [];
+  return (data ?? []) as unknown as RawForumTopic[];
 }
 
 async function fetchLostFound(
   supabase: ReturnType<typeof createClient>,
   currentUserId: string | null,
-) {
+): Promise<RawLostFound[]> {
   const since = new Date(Date.now() - 60 * 86400000).toISOString();
 
   // Tentative 1 : avec FK explicite
@@ -149,7 +157,7 @@ async function fetchLostFound(
     ({ data, error } = await q2);
   }
 
-  // Tentative 3 : sans jointure profiles
+  // Tentative 3 : sans jointure profiles (données minimales, pas de profil auteur)
   if (error) {
     let q3 = supabase
       .from('lost_found_items')
@@ -165,19 +173,18 @@ async function fetchLostFound(
       .order('created_at', { ascending: false })
       .limit(10);
     if (currentUserId) q3 = q3.neq('author_id', currentUserId);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // Sans jointure profiles : author sera undefined — conforme à RawLostFound (champ optionnel)
     const { data: d3 } = await q3;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    data = d3 as any;
+    return (d3 ?? []) as unknown as RawLostFound[];
   }
 
-  return data ?? [];
+  return (data ?? []) as unknown as RawLostFound[];
 }
 
 async function fetchListings(
   supabase: ReturnType<typeof createClient>,
   currentUserId: string | null,
-) {
+): Promise<RawListing[]> {
   const since = new Date(Date.now() - 21 * 86400000).toISOString();
   // listings utilise user_id (pas author_id) — on exclut les propres annonces
   // Note: la jointure profiles est optionnelle; si elle échoue, le feed affiche quand même les annonces
@@ -190,13 +197,13 @@ async function fetchListings(
     .limit(10);
   if (currentUserId) q = q.neq('user_id', currentUserId); // FK réelle = user_id
   const { data } = await q;
-  return data ?? [];
+  return (data ?? []) as unknown as RawListing[];
 }
 
 async function fetchJobOffers(
   supabase: ReturnType<typeof createClient>,
   currentUserId: string | null,
-) {
+): Promise<RawJobOffer[]> {
   const since = new Date(Date.now() - 30 * 86400000).toISOString(); // 30 jours
   let q = supabase
     .from('job_offers')
@@ -208,23 +215,23 @@ async function fetchJobOffers(
   if (currentUserId) q = q.neq('user_id', currentUserId);
   const { data, error } = await q;
   if (error) {
-    // Table peut ne pas encore avoir toutes les colonnes — fallback minimal
+    // Table peut ne pas encore avoir toutes les colonnes — fallback colonnes minimales
     const { data: d2 } = await supabase
       .from('job_offers')
       .select('id, slug, title, short_description, employer_name, location_city, is_urgent, published_at, created_at')
       .eq('status', 'published')
       .order('published_at', { ascending: false })
       .limit(6);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (d2 ?? []) as any[];
+    // Colonnes optionnelles absentes → conformes à RawJobOffer (tous les champs extra sont optionnels)
+    return (d2 ?? []) as unknown as RawJobOffer[];
   }
-  return data ?? [];
+  return (data ?? []) as unknown as RawJobOffer[];
 }
 
 async function fetchJobDemands(
   supabase: ReturnType<typeof createClient>,
   currentUserId: string | null,
-) {
+): Promise<RawJobDemand[]> {
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
   let q = supabase
     .from('job_demands')
@@ -236,22 +243,22 @@ async function fetchJobDemands(
   if (currentUserId) q = q.neq('user_id', currentUserId);
   const { data, error } = await q;
   if (error) {
+    // Fallback colonnes minimales
     const { data: d2 } = await supabase
       .from('job_demands')
       .select('id, slug, title, short_description, location_city, is_urgent, published_at, created_at')
       .eq('status', 'active')
       .order('published_at', { ascending: false })
       .limit(4);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (d2 ?? []) as any[];
+    return (d2 ?? []) as unknown as RawJobDemand[];
   }
-  return data ?? [];
+  return (data ?? []) as unknown as RawJobDemand[];
 }
 
 async function fetchOutings(
   supabase: ReturnType<typeof createClient>,
   currentUserId: string | null,
-) {
+): Promise<RawOuting[]> {
   const today = todayStr();
   const in2Weeks = daysFromNow(14);
   let q = supabase
@@ -268,7 +275,7 @@ async function fetchOutings(
     .limit(8);
   if (currentUserId) q = q.neq('organizer_id', currentUserId);
   const { data } = await q;
-  return data ?? [];
+  return (data ?? []) as unknown as RawOuting[];
 }
 
 // ─── Assemblage des sections ──────────────────────────────────────────────────
@@ -403,20 +410,20 @@ export async function getHomeFeed(currentUserId: string | null = null): Promise<
       fetchJobDemands(supabase, currentUserId),
     ]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const get = <T>(r: PromiseSettledResult<T[]>): T[] =>
-    r.status === 'fulfilled' ? r.value : [];
+  // Extrait le tableau résultat ou [] en cas d'échec
+  function get<T>(r: PromiseSettledResult<T[]>): T[] {
+    return r.status === 'fulfilled' ? r.value : [];
+  }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const allItems: HomeFeedItem[] = [
-    ...helpRequestsToFeedItems(get(helpRaw) as any[]),
-    ...eventsToFeedItems(get(eventsRaw) as any[]),
-    ...forumTopicsToFeedItems(get(forumRaw) as any[]),
-    ...lostFoundToFeedItems(get(lostFoundRaw) as any[]),
-    ...listingsToFeedItems(get(listingsRaw) as any[]),
-    ...outingsToFeedItems(get(outingsRaw) as any[]),
-    ...jobOffersToFeedItems(get(offersRaw) as any[]),
-    ...jobDemandsToFeedItems(get(demandsRaw) as any[]),
+    ...helpRequestsToFeedItems(get(helpRaw)),
+    ...eventsToFeedItems(get(eventsRaw)),
+    ...forumTopicsToFeedItems(get(forumRaw)),
+    ...lostFoundToFeedItems(get(lostFoundRaw)),
+    ...listingsToFeedItems(get(listingsRaw)),
+    ...outingsToFeedItems(get(outingsRaw)),
+    ...jobOffersToFeedItems(get(offersRaw)),
+    ...jobDemandsToFeedItems(get(demandsRaw)),
   ];
 
   // Construire les sections dans l'ordre — "Pour vous" utilise les IDs déjà affichés
