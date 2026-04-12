@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  Shield, ArrowLeft, TrendingUp, Clock, CheckCircle, XCircle,
+  ArrowLeft, Clock,
   AlertTriangle, Users, BarChart3, RefreshCw, Star, Flag,
   Package, Wrench, Heart, Footprints, Calendar, MapPin,
   BookOpen, Handshake, ChevronRight, Activity,
@@ -85,24 +85,9 @@ function BigStat({ value, label, emoji, color, subtext }: {
   );
 }
 
-function RateBar({ label, value, max, color }: {
-  label: string; value: number; max: number; color: string;
-}) {
-  const pct = max > 0 ? (value / max) * 100 : 0;
-  return (
-    <div className="flex items-center gap-3">
-      <span className="text-sm text-gray-600 w-24 flex-shrink-0 truncate">{label}</span>
-      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="text-sm font-bold text-gray-800 w-8 text-right">{value}</span>
-    </div>
-  );
-}
-
 // ─── Page ────────────────────────────────────────────────────────────────────
 function ModerationStatsContent() {
-  const { profile, isModerator } = useAuthStore();
+  useAuthStore();
   const supabase = createClient();
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);

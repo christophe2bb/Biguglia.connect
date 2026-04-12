@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   Users, Wrench, MessageSquare, Package, TrendingUp,
   ChevronLeft, Activity, Star, Flag, Bell, BarChart2,
-  RefreshCw, HardHat, Users2, Eye, FileText, ShoppingBag,
+  RefreshCw, HardHat, Users2, FileText, ShoppingBag,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -182,7 +182,7 @@ export default function AdminStatsPage() {
       { data: allMessages },
       { data: allConversations },
       { data: allListings },
-      { data: allListingCats },
+      { data: _allListingCats },        // eslint-disable-line @typescript-eslint/no-unused-vars
       { data: allPosts },
       { data: allComments },
       { data: allRequests },
@@ -192,7 +192,7 @@ export default function AdminStatsPage() {
       { data: allReports },
       { data: allNotifications },
       { data: artisanProfiles },
-      { data: tradeCats },
+      { data: _tradeCats },             // eslint-disable-line @typescript-eslint/no-unused-vars
     ] = await Promise.all([
       supabase.from('profiles').select('id, role, created_at').order('created_at'),
       supabase.from('messages').select('id, created_at').order('created_at'),
@@ -601,7 +601,7 @@ export default function AdminStatsPage() {
                 </h3>
                 {stats.topForumWords.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
-                    {stats.topForumWords.map((w, i) => {
+                    {stats.topForumWords.map((w) => {
                       const maxVal = stats.topForumWords[0].value;
                       const size = Math.max(11, Math.min(22, 11 + (w.value / maxVal) * 11));
                       const opacity = 0.5 + (w.value / maxVal) * 0.5;
@@ -706,9 +706,7 @@ export default function AdminStatsPage() {
                 </h3>
                 {stats.totalReviews > 0 ? (
                   <div className="space-y-3">
-                    {[5, 4, 3, 2, 1].map(star => {
-                      const count = 0; // sera enrichi si on récupère la distribution
-                      return (
+                    {[5, 4, 3, 2, 1].map(star => (
                         <div key={star} className="flex items-center gap-3">
                           <span className="text-sm font-medium text-gray-700 w-8">{star}★</span>
                           <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
@@ -717,8 +715,7 @@ export default function AdminStatsPage() {
                           </div>
                           <span className="text-xs text-gray-400 w-8 text-right">{fmt.format(stats.totalReviews)}</span>
                         </div>
-                      );
-                    })}
+                    ))}
                     <div className="pt-2 border-t border-gray-100 text-center">
                       <span className="text-3xl font-bold text-amber-500">{stats.avgRating}</span>
                       <span className="text-gray-400 text-sm"> / 5</span>

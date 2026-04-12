@@ -14,7 +14,6 @@ import { useAuthStore } from '@/lib/auth-store';
 import { Profile } from '@/types';
 import Input from '@/components/ui/Input';
 import Badge from '@/components/ui/Badge';
-import Button from '@/components/ui/Button';
 import Avatar from '@/components/ui/Avatar';
 import Select from '@/components/ui/Select';
 import { ROLE_LABELS, formatDate, formatRelative } from '@/lib/utils';

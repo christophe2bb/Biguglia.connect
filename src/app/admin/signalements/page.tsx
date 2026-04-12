@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Flag, CheckCircle, XCircle, Eye, AlertTriangle, ShieldOff,
-  RefreshCw, Filter, Users, FileText, ShoppingBag, MessageSquare,
-  Loader2, ArrowLeft, Ban, ExternalLink,
+  Flag, CheckCircle, XCircle, Eye, AlertTriangle,
+  RefreshCw, Users, FileText, ShoppingBag, MessageSquare,
+  Loader2, ArrowLeft, Ban,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -42,18 +42,18 @@ const REASON_LABELS: Record<string, { label: string; color: string; emoji: strin
 };
 
 const TYPE_LABELS: Record<string, { label: string; icon: typeof Flag; href?: (id: string) => string }> = {
-  user:           { label: 'Utilisateur',       icon: Users,       href: id => `/admin/utilisateurs` },
-  post:           { label: 'Post forum',         icon: FileText,    href: id => `/forum/${id}` },
-  listing:        { label: 'Annonce',            icon: ShoppingBag, href: id => `/annonces/${id}` },
-  equipment:      { label: 'Matériel',           icon: ShoppingBag, href: id => `/materiel/${id}` },
+  user:           { label: 'Utilisateur',       icon: Users,       href: (_id: string) => `/admin/utilisateurs` },
+  post:           { label: 'Post forum',         icon: FileText,    href: (id: string) => `/forum/${id}` },
+  listing:        { label: 'Annonce',            icon: ShoppingBag, href: (id: string) => `/annonces/${id}` },
+  equipment:      { label: 'Matériel',           icon: ShoppingBag, href: (id: string) => `/materiel/${id}` },
   message:        { label: 'Message',            icon: MessageSquare },
-  event:          { label: 'Événement',          icon: Flag,        href: id => `/evenements` },
-  promenade:      { label: 'Promenade',          icon: Flag,        href: id => `/promenades` },
-  outing:         { label: 'Sortie groupée',     icon: Users,       href: id => `/promenades` },
-  association:    { label: 'Association',        icon: Users,       href: id => `/associations` },
-  lost_found:     { label: 'Perdu/Trouvé',       icon: Flag,        href: id => `/perdu-trouve` },
-  collection_item:{ label: 'Collectionneur',     icon: ShoppingBag, href: id => `/collectionneurs` },
-  help_request:   { label: 'Coup de main',       icon: Flag,        href: id => `/coups-de-main` },
+  event:          { label: 'Événement',          icon: Flag,        href: (_id: string) => `/evenements` },
+  promenade:      { label: 'Promenade',          icon: Flag,        href: (_id: string) => `/promenades` },
+  outing:         { label: 'Sortie groupée',     icon: Users,       href: (_id: string) => `/promenades` },
+  association:    { label: 'Association',        icon: Users,       href: (_id: string) => `/associations` },
+  lost_found:     { label: 'Perdu/Trouvé',       icon: Flag,        href: (_id: string) => `/perdu-trouve` },
+  collection_item:{ label: 'Collectionneur',     icon: ShoppingBag, href: (_id: string) => `/collectionneurs` },
+  help_request:   { label: 'Coup de main',       icon: Flag,        href: (_id: string) => `/coups-de-main` },
 };
 
 // ─── Statistiques ──────────────────────────────────────────────────────────────

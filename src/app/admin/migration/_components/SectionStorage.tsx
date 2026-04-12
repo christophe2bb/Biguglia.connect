@@ -7,7 +7,7 @@
 import {
   HardDrive, RefreshCw, Loader2, CheckCircle, XCircle,
   AlertTriangle, ImageIcon, Upload, Wrench, MessageSquare,
-  Users, Shield, Eye, Copy, Check,
+  Users, Shield, Eye,
 } from 'lucide-react';
 import type { StorageDiag } from '../_types';
 import { CopyBlock } from './CopyBlock';
@@ -18,7 +18,7 @@ interface Props {
   checkingStorage: boolean;
   testingUpload: boolean;
   onCheckStorage: () => void;
-  onTestUpload: (file: File) => void;
+  onTestUpload: (_file: File) => void;
   fileInputRef: React.RefObject<HTMLInputElement>;
 
   // Copy handlers

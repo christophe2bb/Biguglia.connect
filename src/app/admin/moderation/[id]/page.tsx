@@ -13,10 +13,9 @@ import Link from 'next/link';
 import {
   Shield, ArrowLeft, CheckCircle, XCircle, AlertTriangle,
   Eye, ExternalLink, Clock, User, Flag, ChevronRight,
-  FileText, Image as ImageIcon, History, MessageSquare,
-  BarChart3, Star, RefreshCw, Send, AlertCircle, Info,
-  Package, Wrench, Heart, Footprints, Calendar, MapPin,
-  BookOpen, Handshake, ShieldOff, Archive, Pencil,
+  FileText, Image as ImageIcon, History,
+  BarChart3, Star, RefreshCw, Send, AlertCircle,
+  Archive,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';

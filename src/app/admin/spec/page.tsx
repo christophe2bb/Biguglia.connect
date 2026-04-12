@@ -10,9 +10,9 @@ import React from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft, CheckCircle2, Clock, Circle, AlertCircle,
-  Tag, ArrowLeftRight, Gift, Search, Camera, Star, Shield,
+  Tag, Search, Camera, Shield,
   MessageSquare, BarChart3, Database, Zap, Lock, Bell,
-  Users, Gem, FileText, Settings,
+  Gem, FileText, Settings,
 } from 'lucide-react';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 
