@@ -11,6 +11,11 @@ import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getUserFromRequest } from '@/lib/supabase/auth-helper';
 
+/** Shape minimale retournée par .select('user_id') sur job_offers / job_demands */
+interface OwnershipRow {
+  user_id: string;
+}
+
 // ── Validation des query params ───────────────────────────────────────────────
 const QuerySchema = z.object({
   type: z.enum(['offer', 'demand']),
@@ -52,7 +57,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ isOwner: false });
   }
 
-  const isOwner = (data as any).user_id === authUser.id;
+  const isOwner = (data as OwnershipRow).user_id === authUser.id;
   // Ne jamais exposer userId, method, ou autres détails dans la réponse publique
   return NextResponse.json({ isOwner });
 }
