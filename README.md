@@ -30,13 +30,13 @@ Scripts disponibles :
 src/
 ├── app/              # Pages Next.js App Router + routes API (/api/*)
 ├── components/       # Composants React réutilisables
-│   ├── layout/       # Navbar, Footer (sous-composants dans navbar/)
-│   └── ui/           # Badge, Avatar, Modal, TrustScore…
+│   ├── layout/       # Navbar, Footer
+│   └── ui/           # Badge, Avatar, Modal, TrustScore, SectorFilter…
 ├── hooks/            # Hooks React (useUnreadCounts, useModeration…)
 ├── lib/              # Logique métier partagée
 │   ├── auth-store.ts       # Zustand store auth
 │   ├── moderation/         # Système de modération (types, rules, spam, scoring)
-│   ├── moderation.ts       # Barrel public (re-exports)
+│   ├── sectors.ts          # Définition des 7 secteurs de Biguglia
 │   ├── supabase/           # Clients Supabase + auth-helper API routes
 │   └── trust.ts            # Moteur confiance & réputation
 ├── services/         # Services métier (jobs, home feed, publish…)
@@ -47,35 +47,31 @@ src/
 
 ## Base de données (Supabase)
 
-### Schéma de référence
-- `docs/db/schema.sql` — schéma complet (référence)
-- `docs/db/SCHEMA.md` — documentation du schéma
+### Source canonique des migrations
 
-### Migrations à appliquer
-Dossier `sql/migrations/` — scripts à exécuter dans Supabase → SQL Editor, dans l'ordre :
+**`supabase/migrations/`** est la seule source de vérité.
+Exécuter dans l'ordre dans Supabase → SQL Editor :
 
-| Fichier | Description |
-|---------|-------------|
-| `migration_A_fk_indexes_exact.sql` | Index manquants sur clés étrangères |
-| `migration_B_lot1_faible_risque.sql` | Index faible risque |
-| `migration_B_lot2_forum_listings.sql` | Index forum + listings |
-| `migration_B_lot3_events_profiles.sql` | Index events + profiles |
-| `migration_B_lot4_conversations_moderation.sql` | Index conversations + modération |
-| `migration_B_drop_unused_exact.sql` | Suppression index inutilisés |
-| `migration_B_drop_unused_no_concurrent.sql` | Variante sans CONCURRENTLY |
-| `migration_C_consolidate_policies_exact.sql` | Consolidation politiques RLS |
-| `migration_auth_rls_v2.sql` | Corrections auth RLS (policy-centric) |
-| `supabase_migration_emploi_v2.sql` | Module Emploi Local |
-| `supabase/migrations/20260409_emploi_local.sql` | Schéma Emploi (local Supabase CLI) |
+| # | Fichier | Description |
+|---|---------|-------------|
+| 1 | `20260407_baseline_rls_indexes.sql` | Index FK, performances, RLS corrigée, consolidation politiques |
+| 2 | `20260408_fixes_rls_categories.sql` | Fix RLS forum, emploi, tables catégories |
+| 3 | `20260409_emploi_local.sql` | Module Emploi Local |
+| 4 | `20260411_events_cdc_fields.sql` | Évènements — champs CDC, event_saves, event_comments |
+| 5 | `20260411_associations_cdc.sql` | Associations — asso_comments, needs, memberships_interest |
+| 6 | `20260411_group_outings_enriched.sql` | Sorties — outing_photos, outing_comments |
+| 7 | `20260411_help_requests_cdc.sql` | Coups de main — help_requests, photos, comments, participants |
+| 8 | `20260411_lost_found_cdc.sql` | Perdu/Trouvé — lost_found_items, lf_photos, lf_comments, lf_matches |
+| 9 | `20260411_annonces_cdc.sql` | Petites Annonces — enrichissement listings + 4 tables CDC |
 
-### Correctifs ponctuels
-`sql/fixes/` — correctifs d'urgence appliqués :
-- `fix-forum-rls.sql` — RLS forum posts & comments
-- `fix_job_demands_rls_active.sql` — page détail demande
-- `migration_enable_rls_categories.sql` — activation RLS tables catégories
+> Pour déployer sur une nouvelle instance Supabase, commencer par `docs/db/schema.sql` (snapshot initial) puis appliquer les migrations dans l'ordre.
 
-### Archive
-`sql/archive/` — brouillons et variantes intermédiaires (conservés pour historique, non à réexécuter).
+### Documentation base de données
+
+| Fichier | Contenu |
+|---------|---------|
+| `docs/db/SCHEMA.md` | Référence complète de toutes les tables, colonnes, pièges courants |
+| `docs/db/schema.sql` | Snapshot initial du schéma (avant migrations CDC) |
 
 ---
 
@@ -83,11 +79,10 @@ Dossier `sql/migrations/` — scripts à exécuter dans Supabase → SQL Editor,
 
 | Fichier | Contenu |
 |---------|---------|
-| `docs/DEPLOY.md` | Guide de déploiement Vercel |
+| `docs/DEPLOY.md` | Guide de déploiement complet (Supabase + Vercel) |
 | `docs/db/SCHEMA.md` | Documentation base de données |
 | `docs/specs/EMPLOI_LOCAL.md` | Spécifications module Emploi |
-| `docs/specs/EMPLOI_V1.1_CORRECTIONS.md` | Corrections v1.1 Emploi |
-| `docs/archive/` | Guides de session et vérifications passées |
+| `docs/archive/` | Guides de session passés (référence uniquement) |
 
 ---
 
@@ -95,8 +90,40 @@ Dossier `sql/migrations/` — scripts à exécuter dans Supabase → SQL Editor,
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
+NEXT_PUBLIC_SITE_URL=https://votre-domaine.vercel.app
+NEXT_PUBLIC_ADMIN_EMAIL=admin@votre-domaine.fr
 SUPABASE_SERVICE_ROLE_KEY=eyJ...   # server-side uniquement
 ```
 
-> Ne jamais committer `.env.local`. La clé service role ne doit jamais être exposée côté client.
+> ⚠️ Ne jamais committer `.env.local`.
+> La clé `SUPABASE_SERVICE_ROLE_KEY` ne doit jamais être exposée côté client.
+
+---
+
+## Modules disponibles
+
+| Route | Module | Statut |
+|-------|--------|--------|
+| `/annonces` | Petites annonces | ✅ CDC complet |
+| `/coups-de-main` | Entraide / Coups de main | ✅ CDC complet |
+| `/perdu-trouve` | Perdu / Trouvé | ✅ CDC complet |
+| `/associations` | Associations | ✅ CDC complet |
+| `/evenements` | Événements | ✅ CDC complet |
+| `/promenades` | Promenades & Sorties | ✅ CDC complet |
+| `/emploi` | Emploi Local | ✅ v1 |
+| `/materiel` | Matériel & Prêt | ✅ v1 |
+| `/forum` | Forum communautaire | ✅ v1 |
+| `/messages` | Messagerie interne | ✅ v1 |
+| `/profil` | Profil & Réputation | ✅ v1 |
+| `/admin` | Administration | ✅ v1 |
+
+---
+
+## Règles de discipline du projet
+
+- **Zéro fichier SQL à la racine** — toujours dans `supabase/migrations/`
+- **Zéro fichier temporaire à la racine** — utiliser `docs/` pour la documentation
+- **Zéro clé secrète commitée** — `.env.local` est dans `.gitignore`
+- **`supabase/migrations/` = seule source de vérité SQL**
+- **`docs/db/SCHEMA.md` = seule référence du schéma**
