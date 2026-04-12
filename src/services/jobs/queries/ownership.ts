@@ -24,7 +24,7 @@
  */
 
 import { createClient, createAdminClient } from '@/lib/supabase/server';
-import type { DbError } from './shared';
+import { asDbError, type DbError } from './shared';
 
 // ─── Tables autorisées ────────────────────────────────────────────────────────
 
@@ -112,7 +112,7 @@ export async function checkJobOwnership(
     return false;
   } catch (err) {
     // Erreur réseau ou inattendue — ne pas exposer
-    const dbErr = err as DbError;
+    const dbErr: DbError = asDbError(err);
     console.error('[jobs/ownership] checkJobOwnership unexpected error:', dbErr.message);
     return false;
   }

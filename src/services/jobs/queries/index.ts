@@ -35,8 +35,16 @@ export {
 export {
   isMissingTableError,
   isNotFoundError,
+  asDbError,
   toAuthorProfile,
+  toJobOffer,
+  toJobDemand,
   buildPagination,
   type DbError,
   type PaginationParams,
+  type JobOfferRow,
+  type JobDemandRow,
+  type AuthorJoinRow,
+  type JobOfferRowWithAuthor,
+  type JobDemandRowWithAuthor,
 } from './shared';
