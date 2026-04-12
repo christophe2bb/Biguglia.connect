@@ -12,21 +12,25 @@
  *
  * ─── Ordre d'exécution sur chaque requête ─────────────────────────────────────
  *
- *   1. Skip des assets statiques (_next/*, favicon, images)
- *   2. Filtre anti-bot (UA blacklist : sqlmap, nikto, gobuster, hydra…)
- *   3. Rate-limit en mémoire  ⚠️ par instance Edge — voir note ci-dessous
+ *   1. Filtre anti-bot (UA blacklist : sqlmap, nikto, gobuster, hydra…)
+ *   2. Rate-limit en mémoire  ⚠️ par instance Edge — voir note ci-dessous
  *        Limites : 300 req/min (pages), 200 req/min (API), blocage 1 min
- *   4. Refresh de session Supabase + guards d'authentification :
+ *   3. Refresh de session Supabase + guards d'authentification :
  *        /admin/**     → /connexion si non authentifié
  *        /dashboard/** → /connexion si non authentifié
  *        /profil       → /connexion si non authentifié
  *        /messages/**  → /connexion si non authentifié
- *   5. Injection des headers de sécurité sur la réponse
+ *
+ * ─── Headers de sécurité ──────────────────────────────────────────────────────
+ *
+ *   Les headers de sécurité (X-Frame-Options, HSTS, CSP, etc.) sont définis
+ *   une seule fois dans next.config.js via la fonction headers().
+ *   Le middleware ne les duplique PAS.
  *
  * ─── Matcher ──────────────────────────────────────────────────────────────────
  *
- *   Le matcher exclut les assets statiques Next.js et les fichiers publics
- *   pour éviter l'overhead du middleware sur chaque ressource statique.
+ *   Le matcher exclut les assets statiques Next.js et les fichiers publics.
+ *   Le middleware ne court donc que sur les vraies pages et routes API.
  *
  * ⚠️  LIMITE CONNUE — Rate-limit en mémoire sur Vercel/serverless :
  *   Sur Vercel, chaque Edge Function est instanciée indépendamment.
@@ -44,26 +48,22 @@ import { updateSession } from '@/lib/supabase/middleware';
 // RATE LIMITER — en mémoire, Edge-compatible (⚠️ par instance, voir note)
 // ─────────────────────────────────────────────────────────────────────────────
 interface RateBucket {
-  count: number;
-  firstReq: number;
-  blocked: boolean;
-  blockedUntil: number;
+  count:        number;
+  firstReq:     number;
+  blockedUntil: number; // 0 = pas bloqué
 }
 
 const rateBuckets    = new Map<string, RateBucket>();
-const RATE_WINDOW_MS = 60_000;   // fenêtre glissante : 1 minute
-const RATE_LIMIT_MAX = 300;      // max requêtes/minute par IP (pages) — ~5 req/s
-const RATE_LIMIT_API = 200;      // max requêtes/minute par IP sur /api/* — ~3 req/s
-const BLOCK_DURATION = 60_000;   // blocage 1 minute (au lieu de 5) après dépassement
+const RATE_WINDOW_MS = 60_000;  // fenêtre glissante : 1 minute
+const RATE_LIMIT_MAX = 300;     // max req/min par IP (pages)  — ~5 req/s
+const RATE_LIMIT_API = 200;     // max req/min par IP sur /api — ~3 req/s
+const BLOCK_DURATION = 60_000;  // blocage 1 minute après dépassement
 
 // Routes API exclues du rate-limit (auth Supabase, session refresh auto)
-const RATE_LIMIT_BYPASS_PREFIXES = [
-  '/api/auth',
-  '/api/_next',
-];
+const RATE_LIMIT_BYPASS_PREFIXES = ['/api/auth', '/api/_next'] as const;
 
 let lastCleanup = Date.now();
-function cleanBuckets() {
+function cleanBuckets(): void {
   const now = Date.now();
   if (now - lastCleanup < 5 * 60_000) return;
   lastCleanup = now;
@@ -75,39 +75,34 @@ function cleanBuckets() {
 }
 
 function checkRateLimit(ip: string, isApi: boolean, pathname: string): boolean {
-  // Bypass pour routes auth/session (refresh automatique)
+  // Bypass routes auth/session
   if (RATE_LIMIT_BYPASS_PREFIXES.some(p => pathname.startsWith(p))) return true;
-  // Bypass pour IPs locales (dev, Vercel preview interne)
+  // Bypass IPs locales (dev, Vercel preview interne)
   if (ip === '127.0.0.1' || ip === '::1' || ip === 'unknown') return true;
 
   cleanBuckets();
   const now   = Date.now();
   const limit = isApi ? RATE_LIMIT_API : RATE_LIMIT_MAX;
-  const bucket  = rateBuckets.get(ip);
+  const bucket = rateBuckets.get(ip);
 
   if (!bucket) {
-    rateBuckets.set(ip, { count: 1, firstReq: now, blocked: false, blockedUntil: 0 });
+    rateBuckets.set(ip, { count: 1, firstReq: now, blockedUntil: 0 });
     return true;
   }
 
-  if (bucket.blocked && now < bucket.blockedUntil) return false;
+  // Encore en période de blocage
+  if (bucket.blockedUntil > 0 && now < bucket.blockedUntil) return false;
 
-  if (bucket.blocked && now >= bucket.blockedUntil) {
-    bucket.blocked = false;
-    bucket.count   = 1;
-    bucket.firstReq = now;
-    return true;
-  }
-
-  if (now - bucket.firstReq > RATE_WINDOW_MS) {
-    bucket.count   = 1;
-    bucket.firstReq = now;
+  // Fenêtre expirée (blocage levé ou fenêtre normale écoulée)
+  if (now - bucket.firstReq > RATE_WINDOW_MS || bucket.blockedUntil > 0) {
+    bucket.count        = 1;
+    bucket.firstReq     = now;
+    bucket.blockedUntil = 0;
     return true;
   }
 
   bucket.count++;
   if (bucket.count > limit) {
-    bucket.blocked      = true;
     bucket.blockedUntil = now + BLOCK_DURATION;
     return false;
   }
@@ -116,8 +111,7 @@ function checkRateLimit(ip: string, isApi: boolean, pathname: string): boolean {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ANTI-BOT — User-Agent blacklist
-// ⚠️  Ne pas lister les bons crawlers (Googlebot, Bingbot, etc.) — ils sont
-//    exclus par la regex négative sur "bot".
+// Les bons crawlers (Googlebot, Bingbot…) sont exclus par la regex négative.
 // ─────────────────────────────────────────────────────────────────────────────
 const BAD_BOT_PATTERNS: RegExp[] = [
   /sqlmap/i, /nikto/i, /nessus/i, /masscan/i, /zgrab/i, /nuclei/i,
@@ -125,7 +119,6 @@ const BAD_BOT_PATTERNS: RegExp[] = [
   /python-requests\/[01]\./i,
   /curl\/[0-6]\./i,
   /libwww-perl/i, /lwp-trivial/i,
-  // Bots génériques, en excluant les crawlers légitimes
   /\bbot\b(?!.*(?:google|bing|yahoo|duckduck|slurp|baidu|yandex|semrush|ahrefs|msnbot))/i,
 ];
 
@@ -135,70 +128,47 @@ function isBadBot(ua: string): boolean {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HEADERS DE SÉCURITÉ
-// Complètent next.config.js : garantissent la couverture sur les routes API
-// et les redirections de session qui ne passent pas par les headers statiques.
-// ─────────────────────────────────────────────────────────────────────────────
-const SECURITY_HEADERS: Record<string, string> = {
-  'X-Frame-Options':           'DENY',
-  'X-Content-Type-Options':    'nosniff',
-  'X-XSS-Protection':          '1; mode=block',
-  'Referrer-Policy':           'strict-origin-when-cross-origin',
-  'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
 // MIDDLEWARE PRINCIPAL
 // ─────────────────────────────────────────────────────────────────────────────
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isStatic = pathname.startsWith('/_next') || pathname.startsWith('/favicon');
+  const isApi = pathname.startsWith('/api/');
 
-  if (!isStatic) {
-    const ua = request.headers.get('user-agent') ?? '';
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-            ?? request.headers.get('x-real-ip')
-            ?? 'unknown';
-    const isApi = pathname.startsWith('/api/');
+  const ua = request.headers.get('user-agent') ?? '';
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+          ?? request.headers.get('x-real-ip')
+          ?? 'unknown';
 
-    // 1. Filtre anti-bot
-    if (isBadBot(ua)) {
-      return new NextResponse('Forbidden', {
-        status: 403,
-        headers: { 'Content-Type': 'text/plain' },
-      });
-    }
-
-    // 2. Rate-limit (⚠️ par instance Edge — protection partielle)
-    if (!checkRateLimit(ip, isApi, pathname)) {
-      return new NextResponse(
-        JSON.stringify({ error: 'Trop de requêtes. Réessayez dans quelques minutes.' }),
-        {
-          status: 429,
-          headers: {
-            'Content-Type':        'application/json',
-            'Retry-After':         String(Math.ceil(BLOCK_DURATION / 1000)), // 60 s
-            'X-RateLimit-Limit':   String(isApi ? RATE_LIMIT_API : RATE_LIMIT_MAX),
-          },
-        }
-      );
-    }
+  // 1. Filtre anti-bot
+  if (isBadBot(ua)) {
+    return new NextResponse('Forbidden', {
+      status: 403,
+      headers: { 'Content-Type': 'text/plain' },
+    });
   }
 
-  // 3. Refresh session Supabase + guard /admin (dans updateSession)
-  const response = await updateSession(request);
-
-  // 4. Injecter les headers de sécurité sur la réponse finale
-  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
-    response.headers.set(key, value);
+  // 2. Rate-limit (⚠️ par instance Edge — protection partielle)
+  if (!checkRateLimit(ip, isApi, pathname)) {
+    return new NextResponse(
+      JSON.stringify({ error: 'Trop de requêtes. Réessayez dans quelques minutes.' }),
+      {
+        status: 429,
+        headers: {
+          'Content-Type':      'application/json',
+          'Retry-After':       String(Math.ceil(BLOCK_DURATION / 1000)),
+          'X-RateLimit-Limit': String(isApi ? RATE_LIMIT_API : RATE_LIMIT_MAX),
+        },
+      }
+    );
   }
 
-  return response;
+  // 3. Refresh session Supabase + guard routes protégées
+  return updateSession(request);
 }
 
 export const config = {
   matcher: [
-    // Toutes les routes sauf assets statiques Next.js et images optimisées
+    // Toutes les routes sauf assets statiques Next.js et fichiers publics
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?)$).*)',
   ],
 };
