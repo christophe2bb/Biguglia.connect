@@ -203,8 +203,9 @@ export function buildBlocks(
     if (!results.length) continue;
     if (activeThemes.length > 0 && !activeThemes.includes(key)) continue;
 
-    let sorted = [...results];
-    if (sortBy === 'gratuit') sorted.sort((a, b) => (a.isFree ? -1 : 1) - (b.isFree ? -1 : 1));
+    const sorted = sortBy === 'gratuit'
+      ? [...results].sort((a, b) => (a.isFree ? -1 : 1) - (b.isFree ? -1 : 1))
+      : [...results];
 
     blocks.push({ key, label: THEMES[key].label, color: THEMES[key].color, bg: THEMES[key].bg, border: THEMES[key].border, icon: THEMES[key].icon, results: sorted });
     total += sorted.length;
