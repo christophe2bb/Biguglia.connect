@@ -437,6 +437,15 @@ describe('GET /api/messages/conversation/[id]', () => {
     const body = await res.json();
     expect(Array.isArray(body.messages)).toBe(true);
     expect(body.messages.length).toBe(0);
+    // Le client peut distinguer "conversation vide" de "erreur de chargement"
+    expect(body.messages_fetch_error).toBe('relation messages does not exist');
+  });
+
+  it('messages_fetch_error est null quand le chargement réussit', async () => {
+    const res = await GET(makeGetReq(), routeParams());
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.messages_fetch_error).toBeNull();
   });
 
   it('retourne 500 si la requête conversations échoue', async () => {

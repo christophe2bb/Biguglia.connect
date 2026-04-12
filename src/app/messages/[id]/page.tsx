@@ -40,6 +40,7 @@ export default function ConversationPage() {
     messages, loading, sending,
     otherUser, subject, relatedType, relatedId,
     realtimeOk, isFavorite, isBlocked, exchange,
+    messagesFetchError,
     // Setters
     setExchange,
     // Refs
@@ -104,6 +105,7 @@ export default function ConversationPage() {
         deletingMsgId={deletingMsgId}
         onDeleteMessage={handleDeleteMessage}
         messagesEndRef={messagesEndRef}
+        fetchError={messagesFetchError}
       />
 
       <MessageComposer
