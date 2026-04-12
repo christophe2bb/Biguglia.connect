@@ -7,7 +7,7 @@ import {
 import { useAuthStore } from '@/lib/auth-store';
 import { cn } from '@/lib/utils';
 import { TabId } from './_types';
-import { RELATED_CONFIG, MAIN_TABS, MAIN_TAB_IDS } from './_config';
+import { RELATED_CONFIG, MAIN_TABS } from './_config';
 import { filterConversations, computeCounts } from './_utils';
 import { useConversationList } from './_hooks/useConversationList';
 import ConversationList from './_components/ConversationList';

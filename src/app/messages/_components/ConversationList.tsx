@@ -6,7 +6,6 @@ import {
   MessageSquare, ShoppingBag, HandHeart, MapPin,
   CheckCheck, Clock, BookOpen, MailOpen,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { ConvWithOther } from '../_types';
 import ConversationListItem from './ConversationListItem';
 
