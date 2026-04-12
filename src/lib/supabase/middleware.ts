@@ -63,13 +63,9 @@ function hasValidToken(request: NextRequest): boolean {
       const decoded = decodeURIComponent(jsonCookie);
       const parsed = JSON.parse(decoded) as Record<string, unknown>;
       if (typeof parsed.access_token === 'string' && parsed.access_token.startsWith('eyJ')) {
-        // Vérifier que le token n'est pas expiré (exp est en secondes)
-        const exp = (parsed as { expires_at?: number }).expires_at;
-        if (typeof exp === 'number' && exp * 1000 < Date.now()) {
-          // Token expiré — mais on laisse passer : le refresh se fait côté client
-          // Rediriger uniquement si AUCUN token (pas même un expiré)
-          return true; // token présent, même expiré → client peut le rafraîchir
-        }
+        // Token présent (même expiré) → laisser passer.
+        // Le refresh_token permettra au client de le renouveler silencieusement.
+        // On ne redirige QUE si aucun access_token n'est trouvé du tout.
         return true;
       }
     } catch {
