@@ -3,19 +3,44 @@
  *
  * Retourne les données d'une conversation spécifique :
  * - Infos de la conversation (sujet, related_type, etc.)
- * - Liste des participants + profils
+ * - Liste des participants + profils enrichis (display_name calculé serveur)
+ * - UUID de l'autre participant (other_user_id) — résolution côté serveur
  * - Messages paginés
  *
  * Utilise l'admin client pour contourner la récursion RLS.
  * Vérifie que l'utilisateur est bien participant avant de renvoyer les données.
  *
  * Authentification : Authorization: Bearer <access_token>
+ *
+ * Réponse typée : ConversationApiResponse (src/app/messages/[id]/_types.ts)
+ * — le type est la source de vérité partagée serveur ↔ client.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
+import type {
+  ConversationApiResponse,
+  ConversationParticipantApi,
+} from '@/app/messages/[id]/_types';
+
+// ─── Utilitaire display_name (miroir de lib/utils.displayName) ────────────────
+// Dupliqué intentionnellement pour garder la route pure Node.js sans importer
+// lib/utils (qui peut avoir des dépendances browser).
+// Règle : full_name non vide → partie locale de l'email → fallback.
+function computeDisplayName(
+  full_name: string | null | undefined,
+  email: string | null | undefined,
+  fallback = 'Utilisateur'
+): string {
+  if (full_name?.trim()) return full_name.trim();
+  if (email?.trim()) {
+    const local = email.trim().split('@')[0];
+    if (local) return local;
+  }
+  return fallback;
+}
 
 // ── Schémas de validation ───────────────────────────────────────────────────
 
@@ -51,6 +76,8 @@ function zodError(err: z.ZodError) {
   );
 }
 
+// ─── GET ──────────────────────────────────────────────────────────────────────
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -85,7 +112,7 @@ export async function GET(
 
   // Récupérer les données en parallèle
   const [
-    { data: participants, error: participantsError },
+    { data: participantRows, error: participantsError },
     { data: conversation, error: convError },
     { data: messages, error: messagesError },
   ] = await Promise.all([
@@ -113,23 +140,28 @@ export async function GET(
   // messagesError : on log mais on ne bloque pas — retourner la convers sans messages
   if (messagesError) {
     console.error('[api/conversation/GET] messages error:', messagesError.message);
-    // Ne pas retourner 500 pour une erreur de messages seuls — l'UI peut gérer [].
-    // Le client affichera « Démarrez la conversation ! » plutôt qu'une erreur.
   }
 
-  // Récupérer les profils des participants
+  // Construire la liste dédupliquée des IDs participants.
   // On garantit que userId EST dans la liste même si participantsError est non-null
-  // (récursion RLS possible sur conversation_participants)
+  // (récursion RLS possible sur conversation_participants).
   const participantIds = Array.from(new Set([
     userId,
-    ...(participants ?? []).map((p: { user_id: string }) => p.user_id),
+    ...(participantRows ?? []).map((p: { user_id: string }) => p.user_id),
   ]));
 
   if (participantsError) {
     console.error('[api/conversation/GET] participants error:', participantsError.message);
   }
 
-  let profiles: Array<{ id: string; full_name: string | null; avatar_url: string | null; email: string | null }> = [];
+  // Récupérer les profils bruts
+  let rawProfiles: Array<{
+    id: string;
+    full_name: string | null;
+    avatar_url: string | null;
+    email: string | null;
+  }> = [];
+
   if (participantIds.length > 0) {
     const { data: profileData, error: profileErr } = await admin
       .from('profiles')
@@ -138,21 +170,60 @@ export async function GET(
     if (profileErr) {
       console.error('[api/conversation/GET] profiles error:', profileErr.message);
     }
-    profiles = profileData ?? [];
+    rawProfiles = profileData ?? [];
   }
 
-  return NextResponse.json({
+  // ── Calcul de display_name côté serveur ───────────────────────────────────
+  // Chaque profil reçoit un display_name calculé une fois pour toutes.
+  // Le client n'a plus à implémenter la logique full_name → email → fallback.
+  const profiles: ConversationParticipantApi[] = rawProfiles.map(p => ({
+    id: p.id,
+    display_name: computeDisplayName(p.full_name, p.email),
+    avatar_url: p.avatar_url,
+    email: p.email,
+  }));
+
+  // ── Résolution de other_user_id côté serveur ──────────────────────────────
+  // Évite que le client ait à faire `participants.filter(uid => uid !== myId)[0]`
+  // et le fallback fetch supplémentaire si le profil est absent.
+  const otherParticipantId = participantIds.find(uid => uid !== userId) ?? null;
+
+  // Si le profil de l'autre participant n'est pas dans la réponse (anomalie rare),
+  // on tente un fetch direct sur profiles pour compléter la liste.
+  if (otherParticipantId && !profiles.find(p => p.id === otherParticipantId)) {
+    const { data: fallback } = await admin
+      .from('profiles')
+      .select('id, full_name, avatar_url, email')
+      .eq('id', otherParticipantId)
+      .maybeSingle();
+    if (fallback) {
+      profiles.push({
+        id: fallback.id,
+        display_name: computeDisplayName(fallback.full_name, fallback.email),
+        avatar_url: fallback.avatar_url,
+        email: fallback.email,
+      });
+    }
+  }
+
+  // ── Réponse typée ─────────────────────────────────────────────────────────
+  const body: ConversationApiResponse = {
     conversation,
     participants: participantIds,
     profiles,
+    other_user_id: otherParticipantId,
     messages: messages ?? [],
     myParticipation: participation,
-  });
+  };
+
+  return NextResponse.json(body);
 }
+
+// ─── PATCH ────────────────────────────────────────────────────────────────────
 
 /**
  * PATCH /api/messages/conversation/[id]
- * Actions sur la conversation : marquer comme lu, etc.
+ * Actions sur la conversation : marquer comme lu, mettre à jour exchange_status.
  */
 export async function PATCH(
   req: NextRequest,
@@ -219,9 +290,11 @@ export async function PATCH(
   return NextResponse.json({ error: 'Action inconnue' }, { status: 400 });
 }
 
+// ─── POST ─────────────────────────────────────────────────────────────────────
+
 /**
  * POST /api/messages/conversation/[id]
- * Envoyer un message dans la conversation
+ * Envoyer un message dans la conversation.
  */
 export async function POST(
   req: NextRequest,
@@ -282,10 +355,10 @@ export async function POST(
       .select('user_id')
       .eq('conversation_id', conversationId)
       .neq('user_id', userId),
-    // 3. Profil de l'expéditeur pour le nom
+    // 3. Profil de l'expéditeur pour le nom affiché dans la notification
     admin
       .from('profiles')
-      .select('full_name')
+      .select('full_name, email')
       .eq('id', userId)
       .maybeSingle(),
   ]);
@@ -293,7 +366,11 @@ export async function POST(
   // Envoyer une notification aux autres participants (pas pour les messages système)
   const isSystem = content.startsWith('👋') || content.startsWith('✅') || content.startsWith('🤝');
   if (!isSystem && participantsRes.data && participantsRes.data.length > 0) {
-    const senderName = (senderProfileRes.data as { full_name: string | null } | null)?.full_name || 'Quelqu\'un';
+    const rawSender = senderProfileRes.data as { full_name: string | null; email: string | null } | null;
+    // Utiliser computeDisplayName pour la notification — cohérent avec le GET
+    const senderName = rawSender
+      ? computeDisplayName(rawSender.full_name, rawSender.email, 'Quelqu\'un')
+      : 'Quelqu\'un';
     const preview = content.length > 60 ? content.slice(0, 60) + '…' : content;
     const notifications = participantsRes.data.map((p: { user_id: string }) => ({
       user_id: p.user_id,
@@ -310,9 +387,11 @@ export async function POST(
   return NextResponse.json({ message: msg });
 }
 
+// ─── DELETE ───────────────────────────────────────────────────────────────────
+
 /**
  * DELETE /api/messages/conversation/[id]?messageId=xxx
- * Supprimer un message spécifique (l'utilisateur doit en être l'auteur)
+ * Supprimer un message spécifique (l'utilisateur doit en être l'auteur).
  */
 export async function DELETE(
   req: NextRequest,
