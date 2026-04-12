@@ -104,7 +104,7 @@ export default function ItemCard({ item, currentUserId, onFavoriteToggle, viewMo
             onClick={() => { if (coverPhoto) { setLightboxIdx(0); setLightboxOpen(true); } }}
           >
             {coverUrl
-              ? <img src={coverUrl} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
+              ? <Image src={coverUrl} alt={item.title} fill className="object-cover" />
               : <div className="w-full h-full flex items-center justify-center text-2xl">{item.category?.icon ?? '📦'}</div>}
             {isClosed && (
               <div className="absolute inset-0 bg-black/30 flex items-center justify-center">

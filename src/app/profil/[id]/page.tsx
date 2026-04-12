@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   ArrowLeft, MapPin, Calendar, Mail, Phone,
   PartyPopper, Star, Users, Loader2, UserX, MessageCircle,
@@ -534,9 +535,9 @@ function EventCard({ event }: { event: EventItem }) {
       className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:border-purple-200 hover:shadow-md transition-all group"
     >
       {/* Cover ou placeholder */}
-      <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
+      <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
         {event.cover_photo_url
-          ? <img src={event.cover_photo_url} alt="" className="w-full h-full object-cover" />
+          ? <Image src={event.cover_photo_url} alt="" fill className="object-cover" />
           : <PartyPopper className="w-6 h-6 text-purple-300" />
         }
       </div>
