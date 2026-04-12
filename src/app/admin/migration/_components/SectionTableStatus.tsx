@@ -7,27 +7,22 @@
 import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { TABLES_TO_CHECK } from '../_config';
 import type { TableStatus } from '../_types';
+import type { SqlKey } from '../_hooks/useMigration';
+import { SQL_MAP } from '../_hooks/useMigration';
 
 interface Props {
-  checking: boolean;
-  tables: TableStatus[];
-  allOk: boolean;
+  checking:     boolean;
+  tables:       TableStatus[];
+  allOk:        boolean;
   missingCount: number;
-  onRefresh: () => void;
-  // Main SQL copy
-  MIGRATION_SQL: string;
-  copiedMain: boolean;
-  onCopyMain: () => void;
-  // NOTIFY copy
-  copiedNotify: boolean;
-  onCopyNotify: () => void;
+  onRefresh:    () => void;
+  copied:       (key: SqlKey) => boolean;
+  copy:         (key: SqlKey) => void;
 }
 
 export function SectionTableStatus({
   checking, tables, allOk, missingCount,
-  onRefresh,
-  MIGRATION_SQL, copiedMain, onCopyMain,
-  copiedNotify, onCopyNotify,
+  onRefresh, copied, copy,
 }: Props) {
   return (
     <>
@@ -127,19 +122,19 @@ export function SectionTableStatus({
             SQL complet — promenades + collectionneurs + événements + NOTIFY
           </p>
           <button
-            onClick={onCopyMain}
+            onClick={() => copy('main')}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow ${
-              copiedMain ? 'bg-emerald-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+              copied('main') ? 'bg-emerald-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'
             }`}
           >
-            {copiedMain
+            {copied('main')
               ? <><Check className="w-4 h-4" /> SQL copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier le SQL</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-80">
           <pre className="text-xs text-green-400 font-mono leading-relaxed whitespace-pre-wrap">
-            {MIGRATION_SQL}
+            {SQL_MAP.main}
           </pre>
         </div>
       </div>
@@ -161,12 +156,12 @@ export function SectionTableStatus({
         <div className="bg-gray-900 rounded-xl px-4 py-3 flex items-center justify-between gap-3 font-mono text-sm text-green-400">
           <code>NOTIFY pgrst, &apos;reload schema&apos;;</code>
           <button
-            onClick={onCopyNotify}
+            onClick={() => copy('notify')}
             className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              copiedNotify ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white hover:bg-orange-600'
+              copied('notify') ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white hover:bg-orange-600'
             }`}
           >
-            {copiedNotify
+            {copied('notify')
               ? <><Check className="w-3 h-3" /> Copié !</>
               : <><Copy className="w-3 h-3" /> Copier</>}
           </button>

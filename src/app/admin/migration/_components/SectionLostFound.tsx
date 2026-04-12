@@ -5,26 +5,15 @@
 'use client';
 
 import { MessageSquare, Copy, Check } from 'lucide-react';
+import type { SqlKey } from '../_hooks/useMigration';
+import { SQL_MAP } from '../_hooks/useMigration';
 
 interface Props {
-  copiedProfilPublic: boolean; onCopyProfilPublic: () => void; PROFIL_PUBLIC_SQL: string;
-  copiedLfHistory: boolean;    onCopyLfHistory: () => void;    LF_HISTORY_SQL: string;
-  copiedLfMatches: boolean;    onCopyLfMatches: () => void;    LF_MATCHES_SQL: string;
-  copiedLfExtras: boolean;     onCopyLfExtras: () => void;     LF_EXTRAS_SQL: string;
-  copiedReminder: boolean;     onCopyReminder: () => void;     REMINDER_SQL: string;
-  copiedSectors: boolean;      onCopySectors: () => void;      SECTORS_SQL: string;
-  copiedForumV2: boolean;      onCopyForumV2: () => void;      FORUM_V2_SQL: string;
+  copied: (key: SqlKey) => boolean;
+  copy:   (key: SqlKey) => void;
 }
 
-export function SectionLostFound({
-  copiedProfilPublic, onCopyProfilPublic, PROFIL_PUBLIC_SQL,
-  copiedLfHistory, onCopyLfHistory, LF_HISTORY_SQL,
-  copiedLfMatches, onCopyLfMatches, LF_MATCHES_SQL,
-  copiedLfExtras, onCopyLfExtras, LF_EXTRAS_SQL,
-  copiedReminder, onCopyReminder, REMINDER_SQL,
-  copiedSectors, onCopySectors, SECTORS_SQL,
-  copiedForumV2, onCopyForumV2, FORUM_V2_SQL,
-}: Props) {
+export function SectionLostFound({ copied, copy }: Props) {
   return (
     <>
       {/* ── Fix RLS Profils publics ── */}
@@ -40,18 +29,18 @@ export function SectionLostFound({
             </p>
           </div>
           <button
-            onClick={onCopyProfilPublic}
+            onClick={() => copy('profilPublic')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
-              copiedProfilPublic ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white hover:bg-blue-600'
+              copied('profilPublic') ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white hover:bg-blue-600'
             }`}
           >
-            {copiedProfilPublic
+            {copied('profilPublic')
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier SQL Fix Profils</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
-          <pre className="text-xs text-blue-300 font-mono leading-relaxed whitespace-pre-wrap">{PROFIL_PUBLIC_SQL}</pre>
+          <pre className="text-xs text-blue-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.profilPublic}</pre>
         </div>
       </div>
 
@@ -67,18 +56,18 @@ export function SectionLostFound({
             </p>
           </div>
           <button
-            onClick={onCopyLfHistory}
+            onClick={() => copy('lfHistory')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
-              copiedLfHistory ? 'bg-emerald-500 text-white' : 'bg-teal-500 text-white hover:bg-teal-400'
+              copied('lfHistory') ? 'bg-emerald-500 text-white' : 'bg-teal-500 text-white hover:bg-teal-400'
             }`}
           >
-            {copiedLfHistory
+            {copied('lfHistory')
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier SQL Historique statuts</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
-          <pre className="text-xs text-teal-300 font-mono leading-relaxed whitespace-pre-wrap">{LF_HISTORY_SQL}</pre>
+          <pre className="text-xs text-teal-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.lfHistory}</pre>
         </div>
       </div>
 
@@ -93,18 +82,18 @@ export function SectionLostFound({
             </p>
           </div>
           <button
-            onClick={onCopyLfMatches}
+            onClick={() => copy('lfMatches')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
-              copiedLfMatches ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white hover:bg-blue-400'
+              copied('lfMatches') ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white hover:bg-blue-400'
             }`}
           >
-            {copiedLfMatches
+            {copied('lfMatches')
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier SQL lf_matches</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
-          <pre className="text-xs text-blue-300 font-mono leading-relaxed whitespace-pre-wrap">{LF_MATCHES_SQL}</pre>
+          <pre className="text-xs text-blue-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.lfMatches}</pre>
         </div>
       </div>
 
@@ -121,18 +110,18 @@ export function SectionLostFound({
             </p>
           </div>
           <button
-            onClick={onCopyLfExtras}
+            onClick={() => copy('lfExtras')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
-              copiedLfExtras ? 'bg-emerald-500 text-white' : 'bg-violet-500 text-white hover:bg-violet-400'
+              copied('lfExtras') ? 'bg-emerald-500 text-white' : 'bg-violet-500 text-white hover:bg-violet-400'
             }`}
           >
-            {copiedLfExtras
+            {copied('lfExtras')
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier SQL Extras P/T</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
-          <pre className="text-xs text-violet-300 font-mono leading-relaxed whitespace-pre-wrap">{LF_EXTRAS_SQL}</pre>
+          <pre className="text-xs text-violet-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.lfExtras}</pre>
         </div>
       </div>
 
@@ -147,18 +136,18 @@ export function SectionLostFound({
             </p>
           </div>
           <button
-            onClick={onCopyReminder}
+            onClick={() => copy('reminder')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
-              copiedReminder ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white hover:bg-orange-600'
+              copied('reminder') ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white hover:bg-orange-600'
             }`}
           >
-            {copiedReminder
+            {copied('reminder')
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier SQL Rappel J-1</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
-          <pre className="text-xs text-orange-300 font-mono leading-relaxed whitespace-pre-wrap">{REMINDER_SQL}</pre>
+          <pre className="text-xs text-orange-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.reminder}</pre>
         </div>
       </div>
 
@@ -175,18 +164,18 @@ export function SectionLostFound({
             </p>
           </div>
           <button
-            onClick={onCopySectors}
+            onClick={() => copy('sectors')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
-              copiedSectors ? 'bg-emerald-500 text-white' : 'bg-teal-500 text-white hover:bg-teal-400'
+              copied('sectors') ? 'bg-emerald-500 text-white' : 'bg-teal-500 text-white hover:bg-teal-400'
             }`}
           >
-            {copiedSectors
+            {copied('sectors')
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier SQL Secteurs</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
-          <pre className="text-xs text-teal-300 font-mono leading-relaxed whitespace-pre-wrap">{SECTORS_SQL}</pre>
+          <pre className="text-xs text-teal-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.sectors}</pre>
         </div>
       </div>
 
@@ -198,18 +187,18 @@ export function SectionLostFound({
             <span className="text-sm font-semibold text-indigo-200">Forum local v2 — Secteurs, Topics, Réponses, Réactions, Signalements</span>
           </div>
           <button
-            onClick={onCopyForumV2}
+            onClick={() => copy('forumV2')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ml-4 flex-shrink-0 ${
-              copiedForumV2 ? 'bg-emerald-500 text-white' : 'bg-indigo-500 text-white hover:bg-indigo-600'
+              copied('forumV2') ? 'bg-emerald-500 text-white' : 'bg-indigo-500 text-white hover:bg-indigo-600'
             }`}
           >
-            {copiedForumV2
+            {copied('forumV2')
               ? <><Check className="w-4 h-4" /> Copié ! Collez dans Supabase</>
               : <><Copy className="w-4 h-4" /> Copier SQL Forum v2</>}
           </button>
         </div>
         <div className="p-4 bg-gray-950 overflow-auto max-h-96">
-          <pre className="text-xs text-indigo-300 font-mono leading-relaxed whitespace-pre-wrap">{FORUM_V2_SQL}</pre>
+          <pre className="text-xs text-indigo-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.forumV2}</pre>
         </div>
       </div>
     </>

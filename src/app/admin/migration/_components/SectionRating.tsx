@@ -5,47 +5,44 @@
 'use client';
 
 import { Star, CheckCheck, Activity, Copy, Check } from 'lucide-react';
+import type { SqlKey } from '../_hooks/useMigration';
+import { SQL_MAP } from '../_hooks/useMigration';
 
 interface Props {
-  // Rating
-  copiedRating: boolean;       onCopyRating: () => void;       RATING_SQL: string;
-  // Exchange
-  copiedExchange: boolean;     onCopyExchange: () => void;     EXCHANGE_SQL: string;
-  // Interaction
-  copiedInteraction: boolean;  onCopyInteraction: () => void;  INTERACTION_SQL: string;
+  copied: (key: SqlKey) => boolean;
+  copy:   (key: SqlKey) => void;
 }
 
 function SqlPanel({
-  sql, copied, onCopy, label, color,
+  sqlKey, copied, copy, label, color,
 }: {
-  sql: string; copied: boolean; onCopy: () => void;
-  label: string; color: string;
+  sqlKey: SqlKey;
+  copied: (key: SqlKey) => boolean;
+  copy:   (key: SqlKey) => void;
+  label: string;
+  color: string;
 }) {
   return (
     <>
       <button
-        onClick={onCopy}
+        onClick={() => copy(sqlKey)}
         className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-all ${
-          copied ? 'bg-emerald-500 text-white' : `${color} text-white`
+          copied(sqlKey) ? 'bg-emerald-500 text-white' : `${color} text-white`
         }`}
       >
-        {copied
+        {copied(sqlKey)
           ? <><Check className="w-4 h-4" /> SQL copié ! Collez dans Supabase SQL Editor</>
           : <><Copy className="w-4 h-4" /> {label}</>
         }
       </button>
       <div className="mt-3 bg-gray-900 rounded-xl p-4 overflow-x-auto">
-        <pre className="text-xs text-amber-300 font-mono leading-relaxed whitespace-pre-wrap">{sql}</pre>
+        <pre className="text-xs text-amber-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP[sqlKey]}</pre>
       </div>
     </>
   );
 }
 
-export function SectionRating({
-  copiedRating, onCopyRating, RATING_SQL,
-  copiedExchange, onCopyExchange, EXCHANGE_SQL,
-  copiedInteraction, onCopyInteraction, INTERACTION_SQL,
-}: Props) {
+export function SectionRating({ copied, copy }: Props) {
   return (
     <>
       {/* ── Notation universelle ── */}
@@ -69,7 +66,7 @@ export function SectionRating({
             </p>
           </div>
         </div>
-        <SqlPanel sql={RATING_SQL} copied={copiedRating} onCopy={onCopyRating} label="Copier le SQL Notation" color="bg-amber-600 hover:bg-amber-700" />
+        <SqlPanel sqlKey="rating" copied={copied} copy={copy} label="Copier le SQL Notation" color="bg-amber-600 hover:bg-amber-700" />
         <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
           <p className="text-xs text-amber-800 font-bold">📋 Instructions :</p>
           <ol className="text-xs text-amber-700 mt-1 space-y-1 list-decimal list-inside">
@@ -104,18 +101,18 @@ export function SectionRating({
           </div>
         </div>
         <button
-          onClick={onCopyExchange}
+          onClick={() => copy('exchange')}
           className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-all ${
-            copiedExchange ? 'bg-emerald-500 text-white' : 'bg-emerald-600 text-white hover:bg-emerald-700'
+            copied('exchange') ? 'bg-emerald-500 text-white' : 'bg-emerald-600 text-white hover:bg-emerald-700'
           }`}
         >
-          {copiedExchange
+          {copied('exchange')
             ? <><Check className="w-4 h-4" /> SQL copié ! Collez dans Supabase SQL Editor</>
             : <><Copy className="w-4 h-4" /> Copier le SQL Échanges confirmés</>
           }
         </button>
         <div className="mt-3 bg-gray-900 rounded-xl p-4 overflow-x-auto">
-          <pre className="text-xs text-emerald-300 font-mono leading-relaxed whitespace-pre-wrap">{EXCHANGE_SQL}</pre>
+          <pre className="text-xs text-emerald-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.exchange}</pre>
         </div>
       </div>
 
@@ -144,18 +141,18 @@ export function SectionRating({
           </div>
         </div>
         <button
-          onClick={onCopyInteraction}
+          onClick={() => copy('interaction')}
           className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-all ${
-            copiedInteraction ? 'bg-emerald-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+            copied('interaction') ? 'bg-emerald-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'
           }`}
         >
-          {copiedInteraction
+          {copied('interaction')
             ? <><Check className="w-4 h-4" /> SQL copié ! Collez dans Supabase SQL Editor</>
             : <><Copy className="w-4 h-4" /> Copier le SQL Interactions</>
           }
         </button>
         <div className="mt-3 bg-gray-900 rounded-xl p-4 overflow-x-auto">
-          <pre className="text-xs text-indigo-300 font-mono leading-relaxed whitespace-pre-wrap">{INTERACTION_SQL}</pre>
+          <pre className="text-xs text-indigo-300 font-mono leading-relaxed whitespace-pre-wrap">{SQL_MAP.interaction}</pre>
         </div>
         <div className="mt-3 bg-indigo-50 border border-indigo-200 rounded-xl p-3">
           <p className="text-xs text-indigo-800 font-bold">📋 Ce que cela active :</p>

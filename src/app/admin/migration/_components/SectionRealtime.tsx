@@ -5,14 +5,15 @@
 'use client';
 
 import { Zap, Copy, Check } from 'lucide-react';
+import type { SqlKey } from '../_hooks/useMigration';
+import { SQL_MAP } from '../_hooks/useMigration';
 
 interface Props {
-  copied: boolean;
-  onCopy: () => void;
-  sql: string;
+  copied: (key: SqlKey) => boolean;
+  copy:   (key: SqlKey) => void;
 }
 
-export function SectionRealtime({ copied, onCopy, sql }: Props) {
+export function SectionRealtime({ copied, copy }: Props) {
   return (
     <>
       <div className="flex items-center gap-3 mb-4 mt-8">
@@ -40,18 +41,20 @@ export function SectionRealtime({ copied, onCopy, sql }: Props) {
           </div>
         </div>
         <button
-          onClick={onCopy}
+          onClick={() => copy('realtime')}
           className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-all ${
-            copied ? 'bg-emerald-500 text-white' : 'bg-red-600 text-white hover:bg-red-700'
+            copied('realtime') ? 'bg-emerald-500 text-white' : 'bg-red-600 text-white hover:bg-red-700'
           }`}
         >
-          {copied
+          {copied('realtime')
             ? <><Check className="w-4 h-4" /> SQL copié ! Collez dans Supabase SQL Editor</>
             : <><Copy className="w-4 h-4" /> Copier le SQL Realtime</>
           }
         </button>
         <div className="mt-3 bg-gray-900 rounded-xl p-4 overflow-x-auto">
-          <pre className="text-xs text-green-400 font-mono leading-relaxed whitespace-pre-wrap">{sql}</pre>
+          <pre className="text-xs text-green-400 font-mono leading-relaxed whitespace-pre-wrap">
+            {SQL_MAP.realtime}
+          </pre>
         </div>
         <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
           <p className="text-xs text-amber-800 font-bold">📋 Instructions :</p>
