@@ -9,7 +9,8 @@
  *  - getRecentJobDemands(n, sec)   Fil Home — n demandes récentes
  *
  * Garanties :
- *  - Aucun `any` : les rows DB sont typées via les interfaces JobDemand
+ *  - Zéro `any` : les rows DB sont typées via JobDemandRow / JobDemandRowWithAuthor
+ *  - select('*') résolu par assertion vers JobDemandRow (projection explicite)
  *  - Toutes les erreurs "table manquante" sont interceptées silencieusement
  *  - La jointure author est optionnelle (toAuthorProfile → undefined si absente)
  *  - Stratégie admin (bypass RLS) + fallback client anon pour getJobDemandBySlug
@@ -17,7 +18,6 @@
 
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import type {
-  JobDemand,
   JobDemandFilters,
   JobDemandSearchResult,
 } from '@/types/jobs';
@@ -25,26 +25,20 @@ import { calculateFreshnessScore } from '../scoring';
 import {
   isMissingTableError,
   isNotFoundError,
+  asDbError,
   toAuthorProfile,
+  toJobDemand,
   buildPagination,
-  type DbError,
+  type JobDemandRow,
+  type JobDemandRowWithAuthor,
+  type AuthorJoinRow,
 } from './shared';
-
-// ─── Type interne ─────────────────────────────────────────────────────────────
-
-/** Row brute renvoyée par Supabase pour job_demands */
-type JobDemandRow = JobDemand;
-
-/** Row avec la jointure author optionnelle */
-interface JobDemandRowWithAuthor extends JobDemandRow {
-  author?: unknown;
-}
 
 // ─── Helpers locaux ────────────────────────────────────────────────────────────
 
 function toSearchResult(row: JobDemandRow): JobDemandSearchResult {
   return {
-    ...row,
+    ...toJobDemand(row),
     author_profile: undefined,
     freshness_score: row.published_at
       ? calculateFreshnessScore(row.published_at)
@@ -54,7 +48,7 @@ function toSearchResult(row: JobDemandRow): JobDemandSearchResult {
 
 function toSearchResultWithAuthor(row: JobDemandRowWithAuthor): JobDemandSearchResult {
   return {
-    ...row,
+    ...toJobDemand(row),
     author_profile: toAuthorProfile(row.author),
     freshness_score: row.published_at
       ? calculateFreshnessScore(row.published_at)
@@ -128,7 +122,7 @@ export async function getJobDemands(
   const { data, error, count } = await query;
 
   if (error) {
-    const dbErr = error as DbError;
+    const dbErr = asDbError(error);
     if (isMissingTableError(dbErr)) {
       console.warn('[jobs/demands] Table job_demands introuvable — migration en attente.');
       return { demands: [], total: 0, page, limit };
@@ -137,8 +131,12 @@ export async function getJobDemands(
     return { demands: [], total: 0, page, limit };
   }
 
+  // Supabase sans schéma généré retourne `data: any` pour select('*').
+  // JobDemandRow est la projection explicite qui décrit exactement la forme DB.
+  const rows = (data ?? []) as JobDemandRow[];
+
   return {
-    demands: (data as JobDemandRow[] ?? []).map(toSearchResult),
+    demands: rows.map(toSearchResult),
     total: count ?? 0,
     page,
     limit,
@@ -146,6 +144,11 @@ export async function getJobDemands(
 }
 
 // ─── getJobDemandBySlug ───────────────────────────────────────────────────────
+
+/** Forme renvoyée par la requête de jointure admin (author uniquement) */
+interface AdminAuthorRow {
+  author: AuthorJoinRow | AuthorJoinRow[] | null;
+}
 
 /**
  * Retourne le détail d'une demande par son slug.
@@ -177,7 +180,7 @@ export async function getJobDemandBySlug(
       .single();
 
     if (adminErr) {
-      const dbErr = adminErr as DbError;
+      const dbErr = asDbError(adminErr);
       if (isMissingTableError(dbErr)) {
         console.warn('[jobs/demands] Table job_demands introuvable — migration en attente.');
         return null;
@@ -190,7 +193,7 @@ export async function getJobDemandBySlug(
       if (baseRow.status !== 'published') return null;
 
       // Jointure author (optionnelle — ne bloque pas)
-      let withAuthorRow: JobDemandRowWithAuthor = { ...baseRow };
+      let withAuthorRow: JobDemandRowWithAuthor = { ...baseRow, author: null };
       try {
         const { data: joined } = await admin
           .from('job_demands')
@@ -203,7 +206,7 @@ export async function getJobDemandBySlug(
           .single();
 
         if (joined) {
-          const j = joined as { author?: unknown };
+          const j = joined as AdminAuthorRow;
           withAuthorRow = { ...baseRow, author: j.author };
         }
       } catch {
@@ -226,7 +229,7 @@ export async function getJobDemandBySlug(
     .single();
 
   if (error) {
-    const dbErr = error as DbError;
+    const dbErr = asDbError(error);
     if (isMissingTableError(dbErr)) {
       console.warn('[jobs/demands] Table job_demands introuvable — migration en attente.');
       return null;
@@ -265,11 +268,12 @@ export async function getRecentJobDemands(
   const { data, error } = await query;
 
   if (error) {
-    const dbErr = error as DbError;
+    const dbErr = asDbError(error);
     if (isMissingTableError(dbErr)) return [];
     console.error('[jobs/demands] getRecentJobDemands error:', dbErr.message);
     return [];
   }
 
-  return (data as JobDemandRow[] ?? []).map(toSearchResult);
+  const rows = (data ?? []) as JobDemandRow[];
+  return rows.map(toSearchResult);
 }

@@ -9,14 +9,15 @@
  *  - getRecentJobOffers(n, sec)   Fil Home — n offres récentes
  *
  * Garanties :
- *  - Aucun `any` : les rows DB sont typées via les interfaces JobOffer
+ *  - Zéro `any` : les rows DB sont typées via JobOfferRow / JobOfferRowWithAuthor
+ *  - select('*') résolu par assertion vers JobOfferRow (projection explicite)
+ *  - select avec jointure résolu vers JobOfferRowWithAuthor
  *  - Toutes les erreurs "table manquante" sont interceptées silencieusement
  *  - La jointure author est optionnelle (toAuthorProfile → undefined si absente)
  */
 
 import { createClient } from '@/lib/supabase/server';
 import type {
-  JobOffer,
   JobOfferFilters,
   JobOfferSearchResult,
 } from '@/types/jobs';
@@ -24,27 +25,26 @@ import { calculateFreshnessScore } from '../scoring';
 import {
   isMissingTableError,
   isNotFoundError,
+  asDbError,
   toAuthorProfile,
+  toJobOffer,
   buildPagination,
-  type DbError,
+  type JobOfferRow,
+  type JobOfferRowWithAuthor,
 } from './shared';
-
-// ─── Type interne ─────────────────────────────────────────────────────────────
-
-/** Row brute renvoyée par Supabase pour job_offers (sans les champs de jointure) */
-type JobOfferRow = JobOffer;
-
-/** Row avec la jointure author optionnelle */
-interface JobOfferRowWithAuthor extends JobOfferRow {
-  author?: unknown; // résultat brut de profiles!user_id
-}
 
 // ─── Helpers locaux ────────────────────────────────────────────────────────────
 
-/** Convertit une row DB en JobOfferSearchResult (ajoute freshness_score) */
+/**
+ * La colonne `author` est typée `unknown` dans la réponse brute de Supabase
+ * quand select('*') est utilisé. On utilise la projection explicite avec jointure
+ * pour les requêtes enrichies ; les autres n'ont pas de champ `author`.
+ *
+ * Convertit une JobOfferRow en JobOfferSearchResult (ajoute freshness_score).
+ */
 function toSearchResult(row: JobOfferRow): JobOfferSearchResult {
   return {
-    ...row,
+    ...toJobOffer(row),
     author_profile: undefined,
     freshness_score: row.published_at
       ? calculateFreshnessScore(row.published_at)
@@ -54,7 +54,7 @@ function toSearchResult(row: JobOfferRow): JobOfferSearchResult {
 
 function toSearchResultWithAuthor(row: JobOfferRowWithAuthor): JobOfferSearchResult {
   return {
-    ...row,
+    ...toJobOffer(row),
     author_profile: toAuthorProfile(row.author),
     freshness_score: row.published_at
       ? calculateFreshnessScore(row.published_at)
@@ -155,7 +155,7 @@ export async function getJobOffers(
   const { data, error, count } = await query;
 
   if (error) {
-    const dbErr = error as DbError;
+    const dbErr = asDbError(error);
     if (isMissingTableError(dbErr)) {
       console.warn('[jobs/offers] Table job_offers introuvable — migration en attente.');
       return { offers: [], total: 0, page, limit };
@@ -164,8 +164,12 @@ export async function getJobOffers(
     return { offers: [], total: 0, page, limit };
   }
 
+  // Supabase sans schéma généré retourne `data: any` pour select('*').
+  // JobOfferRow est la projection explicite qui décrit exactement la forme DB.
+  const rows = (data ?? []) as JobOfferRow[];
+
   return {
-    offers: (data as JobOfferRow[] ?? []).map(toSearchResult),
+    offers: rows.map(toSearchResult),
     total: count ?? 0,
     page,
     limit,
@@ -197,7 +201,7 @@ export async function getJobOfferBySlug(
     .single();
 
   if (err1) {
-    const dbErr = err1 as DbError;
+    const dbErr = asDbError(err1);
     if (isMissingTableError(dbErr)) {
       console.warn('[jobs/offers] Table job_offers introuvable — migration en attente.');
       return null;
@@ -259,11 +263,12 @@ export async function getRecentJobOffers(
   const { data, error } = await query;
 
   if (error) {
-    const dbErr = error as DbError;
+    const dbErr = asDbError(error);
     if (isMissingTableError(dbErr)) return [];
     console.error('[jobs/offers] getRecentJobOffers error:', dbErr.message);
     return [];
   }
 
-  return (data as JobOfferRow[] ?? []).map(toSearchResult);
+  const rows = (data ?? []) as JobOfferRow[];
+  return rows.map(toSearchResult);
 }
