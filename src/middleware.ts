@@ -15,6 +15,7 @@
  *   1. Skip des assets statiques (_next/*, favicon, images)
  *   2. Filtre anti-bot (UA blacklist : sqlmap, nikto, gobuster, hydra…)
  *   3. Rate-limit en mémoire  ⚠️ par instance Edge — voir note ci-dessous
+ *        Limites : 300 req/min (pages), 200 req/min (API), blocage 1 min
  *   4. Refresh de session Supabase + guards d'authentification :
  *        /admin/**     → /connexion si non authentifié
  *        /dashboard/** → /connexion si non authentifié
@@ -51,9 +52,15 @@ interface RateBucket {
 
 const rateBuckets    = new Map<string, RateBucket>();
 const RATE_WINDOW_MS = 60_000;   // fenêtre glissante : 1 minute
-const RATE_LIMIT_MAX = 120;      // max requêtes/minute par IP (pages)
-const RATE_LIMIT_API = 30;       // max requêtes/minute par IP sur /api/*
-const BLOCK_DURATION = 5 * 60_000; // blocage 5 minutes après dépassement
+const RATE_LIMIT_MAX = 300;      // max requêtes/minute par IP (pages) — ~5 req/s
+const RATE_LIMIT_API = 200;      // max requêtes/minute par IP sur /api/* — ~3 req/s
+const BLOCK_DURATION = 60_000;   // blocage 1 minute (au lieu de 5) après dépassement
+
+// Routes API exclues du rate-limit (auth Supabase, session refresh auto)
+const RATE_LIMIT_BYPASS_PREFIXES = [
+  '/api/auth',
+  '/api/_next',
+];
 
 let lastCleanup = Date.now();
 function cleanBuckets() {
@@ -67,7 +74,12 @@ function cleanBuckets() {
   });
 }
 
-function checkRateLimit(ip: string, isApi: boolean): boolean {
+function checkRateLimit(ip: string, isApi: boolean, pathname: string): boolean {
+  // Bypass pour routes auth/session (refresh automatique)
+  if (RATE_LIMIT_BYPASS_PREFIXES.some(p => pathname.startsWith(p))) return true;
+  // Bypass pour IPs locales (dev, Vercel preview interne)
+  if (ip === '127.0.0.1' || ip === '::1' || ip === 'unknown') return true;
+
   cleanBuckets();
   const now   = Date.now();
   const limit = isApi ? RATE_LIMIT_API : RATE_LIMIT_MAX;
@@ -158,14 +170,14 @@ export async function middleware(request: NextRequest) {
     }
 
     // 2. Rate-limit (⚠️ par instance Edge — protection partielle)
-    if (!checkRateLimit(ip, isApi)) {
+    if (!checkRateLimit(ip, isApi, pathname)) {
       return new NextResponse(
         JSON.stringify({ error: 'Trop de requêtes. Réessayez dans quelques minutes.' }),
         {
           status: 429,
           headers: {
             'Content-Type':        'application/json',
-            'Retry-After':         String(Math.ceil(BLOCK_DURATION / 1000)),
+            'Retry-After':         String(Math.ceil(BLOCK_DURATION / 1000)), // 60 s
             'X-RateLimit-Limit':   String(isApi ? RATE_LIMIT_API : RATE_LIMIT_MAX),
           },
         }
