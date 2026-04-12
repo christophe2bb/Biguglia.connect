@@ -2,31 +2,27 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  Plus, Package, CheckCircle, XCircle, Clock, Archive,
-  ChevronRight, Wrench, AlertCircle, RotateCcw, EyeOff, Eye,
-  History, BarChart2, Copy, ArrowDownCircle
-} from 'lucide-react';
+import { Plus, Package, CheckCircle, History, AlertCircle, Wrench } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
-import Link from 'next/link';
-import Avatar from '@/components/ui/Avatar';
 import Button from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 import {
-  EQUIPMENT_STATUS_CONFIG, LOAN_REQUEST_STATUS_CONFIG,
-  getAllowedTransitions, getTransitionLabel, canDelete,
-  EquipmentStatus, EquipmentItemFull, EquipmentRequest, EquipmentLoan
+  EQUIPMENT_STATUS_CONFIG,
+  canDelete,
+  type EquipmentStatus,
+  type EquipmentItemFull,
+  type EquipmentRequest,
+  type EquipmentLoan,
 } from '@/lib/equipment';
-import { formatDate } from '@/lib/utils';
+import MaterielTab from './_widgets/MaterielTab';
+import DemandesTab from './_widgets/DemandesTab';
+import { PretsActifsTab, PretsRecusTab } from './_widgets/PretsTab';
+import HistoriqueTab from './_widgets/HistoriqueTab';
+import ActiviteTab from './_widgets/ActiviteTab';
+import { type EquipmentWithRequests } from './_widgets/EquipmentItemCard';
 
 type Tab = 'materiel' | 'demandes' | 'prets' | 'prets_recus' | 'historique' | 'activite';
-
-interface EquipmentWithRequests extends EquipmentItemFull {
-  pending_count?: number;
-  active_loan?: EquipmentLoan | null;
-  requests?: EquipmentRequest[];
-}
 
 export default function DashboardMaterielPage() {
   const { profile, loading: authLoading } = useAuthStore();
@@ -38,22 +34,18 @@ export default function DashboardMaterielPage() {
   const [borrowedLoans, setBorrowedLoans] = useState<EquipmentLoan[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [showArchived, setShowArchived] = useState(false);
 
   const fetchAll = useCallback(async () => {
     if (!profile) return;
     const supabase = createClient();
 
-    // Mes matériels
     const { data: equipData } = await supabase
       .from('equipment_items')
       .select('*, category:equipment_categories(id, name, icon, slug), photos:equipment_photos(id, url, display_order)')
       .eq('owner_id', profile.id)
       .order('created_at', { ascending: false });
-
     const myItems = (equipData as EquipmentItemFull[]) || [];
 
-    // Demandes pour mes matériels
     const itemIds = myItems.map(i => i.id);
     let reqs: EquipmentRequest[] = [];
     if (itemIds.length > 0) {
@@ -66,7 +58,6 @@ export default function DashboardMaterielPage() {
     }
     setAllRequests(reqs);
 
-    // Prêts actifs et historique (en tant que prêteur)
     const { data: loanData } = await supabase
       .from('equipment_loans')
       .select('*, borrower:profiles!equipment_loans_borrower_id_fkey(id, full_name, avatar_url), equipment:equipment_items(id, title, status)')
@@ -74,7 +65,6 @@ export default function DashboardMaterielPage() {
       .order('created_at', { ascending: false });
     setAllLoans((loanData as EquipmentLoan[]) || []);
 
-    // Prêts reçus (en tant qu'emprunteur)
     const { data: borrowedData } = await supabase
       .from('equipment_loans')
       .select('*, owner:profiles!equipment_loans_owner_id_fkey(id, full_name, avatar_url), equipment:equipment_items(id, title, status, owner_id)')
@@ -82,7 +72,6 @@ export default function DashboardMaterielPage() {
       .order('created_at', { ascending: false });
     setBorrowedLoans((borrowedData as EquipmentLoan[]) || []);
 
-    // Enrichir les items avec leurs demandes et prêts
     const enriched: EquipmentWithRequests[] = myItems.map(item => {
       const itemReqs = reqs.filter(r => r.equipment_id === item.id);
       const pendingCount = itemReqs.filter(r => r.status === 'en_attente').length;
@@ -213,7 +202,6 @@ export default function DashboardMaterielPage() {
   const loanHistory = allLoans.filter(l => ['retourne', 'annule'].includes(l.status));
   const activeBorrowedLoans = borrowedLoans.filter(l => ['reserve', 'en_cours'].includes(l.status));
 
-  // ── Graphique d'activité : emprunts par mois (12 derniers mois) ───────────
   const activityData = (() => {
     const months: { key: string; label: string; count: number }[] = [];
     const now = new Date();
@@ -319,444 +307,48 @@ export default function DashboardMaterielPage() {
         ))}
       </div>
 
-      {/* ── Tab : Matériels ── */}
+      {/* Tab content */}
       {tab === 'materiel' && (
-        <div className="space-y-4">
-          {activeItems.length === 0 ? (
-            <div className="text-center py-16 text-gray-400">
-              <Wrench className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p className="font-medium mb-2">Aucun matériel proposé</p>
-              <Button onClick={() => router.push('/materiel/nouveau')}>
-                <Plus className="w-4 h-4" /> Proposer du matériel
-              </Button>
-            </div>
-          ) : (
-            activeItems.map(item => <EquipmentItemCard key={item.id} item={item}
-              onStatusChange={handleStatusChange} onDelete={handleDelete}
-              onDuplicate={handleDuplicate}
-              loading={actionLoading === item.id || actionLoading === `dup-${item.id}`} />)
-          )}
-
-          {/* Archivés */}
-          {archivedItems.length > 0 && (
-            <div className="pt-4">
-              <button onClick={() => setShowArchived(v => !v)}
-                className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition mb-3">
-                <Archive className="w-4 h-4" />
-                {showArchived ? 'Masquer' : 'Afficher'} les archivés ({archivedItems.length})
-              </button>
-              {showArchived && archivedItems.map(item => (
-                <EquipmentItemCard key={item.id} item={item} onStatusChange={handleStatusChange}
-                  onDelete={handleDelete} onDuplicate={handleDuplicate} loading={actionLoading === item.id || actionLoading === `dup-${item.id}`} />
-              ))}
-            </div>
-          )}
-        </div>
+        <MaterielTab
+          activeItems={activeItems}
+          archivedItems={archivedItems}
+          actionLoading={actionLoading}
+          onStatusChange={handleStatusChange}
+          onDelete={handleDelete}
+          onDuplicate={handleDuplicate}
+        />
       )}
-
-      {/* ── Tab : Demandes ── */}
       {tab === 'demandes' && (
-        <div className="space-y-3">
-          {allRequests.length === 0 ? (
-            <div className="text-center py-16 text-gray-400">
-              <Clock className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>Aucune demande reçue</p>
-            </div>
-          ) : (
-            allRequests.map(req => {
-              const rCfg = LOAN_REQUEST_STATUS_CONFIG[req.status];
-              return (
-                <div key={req.id} className="bg-white rounded-2xl border border-gray-100 p-4">
-                  <div className="flex items-start gap-3">
-                    <Avatar
-                      src={(req.requester as { avatar_url?: string })?.avatar_url}
-                      name={(req.requester as { full_name?: string })?.full_name || '?'}
-                      size="sm"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className="font-medium text-sm text-gray-900">{(req.requester as { full_name?: string })?.full_name}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${rCfg.bg} ${rCfg.color} font-medium`}>
-                          {rCfg.icon} {rCfg.label}
-                        </span>
-                      </div>
-                      <Link href={`/materiel/${req.equipment_id}`}
-                        className="text-xs text-brand-600 hover:underline">
-                        {(req.equipment as { title?: string })?.title || 'Voir le matériel'} →
-                      </Link>
-                      {req.requested_start_date && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          📅 {req.requested_start_date} → {req.requested_end_date}
-                        </div>
-                      )}
-                      {req.message && <p className="text-xs text-gray-600 mt-1 italic">&quot;{req.message}&quot;</p>}
-                      <div className="text-xs text-gray-400 mt-1">{formatDate(req.created_at)}</div>
-                    </div>
-                    {req.status === 'en_attente' && (
-                      <div className="flex gap-2 flex-shrink-0">
-                        <button onClick={() => handleAcceptRequest(req)} disabled={actionLoading === req.id}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 text-white text-xs font-bold rounded-xl hover:bg-emerald-600 transition disabled:opacity-50">
-                          <CheckCircle className="w-3.5 h-3.5" /> Accepter
-                        </button>
-                        <button onClick={() => handleRefuseRequest(req)} disabled={actionLoading === req.id}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-red-100 text-red-700 text-xs font-bold rounded-xl hover:bg-red-200 transition disabled:opacity-50">
-                          <XCircle className="w-3.5 h-3.5" /> Refuser
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+        <DemandesTab
+          requests={allRequests}
+          actionLoading={actionLoading}
+          onAccept={handleAcceptRequest}
+          onRefuse={handleRefuseRequest}
+        />
       )}
-
-      {/* ── Tab : Prêts actifs ── */}
       {tab === 'prets' && (
-        <div className="space-y-3">
-          {activeLoans.length === 0 ? (
-            <div className="text-center py-16 text-gray-400">
-              <Package className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>Aucun prêt actif en ce moment</p>
-            </div>
-          ) : (
-            activeLoans.map(loan => {
-              const isCours = loan.status === 'en_cours';
-              return (
-                <div key={loan.id} className={`bg-white rounded-2xl border p-5 ${isCours ? 'border-purple-200' : 'border-orange-200'}`}>
-                  <div className="flex items-start gap-4">
-                    <Avatar
-                      src={(loan.borrower as { avatar_url?: string })?.avatar_url}
-                      name={(loan.borrower as { full_name?: string })?.full_name || '?'}
-                      size="md"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-gray-900">{(loan.borrower as { full_name?: string })?.full_name}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isCours ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'}`}>
-                          {isCours ? '🔄 En cours' : '🔒 Réservé'}
-                        </span>
-                      </div>
-                      <Link href={`/materiel/${loan.equipment_id}`} className="text-xs text-brand-600 hover:underline">
-                        {(loan.equipment as { title?: string })?.title || 'Voir le matériel'} →
-                      </Link>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {isCours ? `Prêté depuis ${formatDate(loan.loan_started_at || '')}` : `Réservé le ${formatDate(loan.reserved_at || '')}`}
-                      </div>
-                    </div>
-                    <div className="flex-shrink-0">
-                      {loan.status === 'reserve' && (
-                        <button onClick={() => handleMarkLoaned(loan)} disabled={actionLoading === loan.id}
-                          className="flex items-center gap-1.5 px-3 py-2 bg-purple-600 text-white text-xs font-bold rounded-xl hover:bg-purple-700 transition disabled:opacity-50">
-                          <CheckCircle className="w-3.5 h-3.5" /> Marquer prêté
-                        </button>
-                      )}
-                      {loan.status === 'en_cours' && (
-                        <button onClick={() => handleMarkReturned(loan)} disabled={actionLoading === loan.id}
-                          className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition disabled:opacity-50">
-                          <CheckCircle className="w-3.5 h-3.5" /> Retour confirmé
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+        <PretsActifsTab
+          activeLoans={activeLoans}
+          actionLoading={actionLoading}
+          onMarkLoaned={handleMarkLoaned}
+          onMarkReturned={handleMarkReturned}
+        />
       )}
-
-      {/* ── Tab : Prêts reçus ── */}
       {tab === 'prets_recus' && (
-        <div className="space-y-3">
-          {borrowedLoans.length === 0 ? (
-            <div className="text-center py-16 text-gray-400">
-              <ArrowDownCircle className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p className="font-medium mb-1">Aucun prêt reçu</p>
-              <p className="text-sm">Les matériels que vous empruntez apparaîtront ici</p>
-              <Link href="/materiel" className="mt-4 inline-block text-sm text-teal-600 hover:underline">Parcourir le matériel disponible →</Link>
-            </div>
-          ) : (
-            borrowedLoans.map(loan => {
-              const isCours = loan.status === 'en_cours';
-              const isTermine = ['retourne', 'annule'].includes(loan.status);
-              const statusLabel = isCours ? '🔄 En cours' : loan.status === 'reserve' ? '🔒 Réservé' : loan.status === 'retourne' ? '✅ Terminé' : '❌ Annulé';
-              const borderClass = isCours ? 'border-purple-200' : loan.status === 'reserve' ? 'border-orange-200' : 'border-gray-100';
-              return (
-                <div key={loan.id} className={`bg-white rounded-2xl border p-5 ${borderClass}`}>
-                  <div className="flex items-start gap-4">
-                    <Avatar
-                      src={(loan.owner as { avatar_url?: string })?.avatar_url}
-                      name={(loan.owner as { full_name?: string })?.full_name || '?'}
-                      size="md"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="font-semibold text-gray-900 text-sm">{(loan.owner as { full_name?: string })?.full_name}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          isCours ? 'bg-purple-100 text-purple-700' :
-                          loan.status === 'reserve' ? 'bg-orange-100 text-orange-700' :
-                          loan.status === 'retourne' ? 'bg-emerald-100 text-emerald-700' :
-                          'bg-gray-100 text-gray-600'
-                        }`}>{statusLabel}</span>
-                      </div>
-                      <Link href={`/materiel/${loan.equipment_id}`} className="text-xs text-brand-600 hover:underline">
-                        {(loan.equipment as { title?: string })?.title || 'Voir le matériel'} →
-                      </Link>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {isCours ? `Prêté depuis ${formatDate(loan.loan_started_at || '')}` :
-                          loan.status === 'reserve' ? `Réservé le ${formatDate(loan.reserved_at || '')}` :
-                          loan.returned_at ? `Rendu le ${formatDate(loan.returned_at)}` :
-                          `Mis à jour le ${formatDate(loan.reserved_at || '')}`
-                        }
-                      </div>
-                    </div>
-                    {!isTermine && (
-                      <Link href={`/materiel/${loan.equipment_id}`}
-                        className="flex-shrink-0 px-3 py-2 bg-gray-50 border border-gray-200 text-gray-700 text-xs font-medium rounded-xl hover:bg-gray-100 transition">
-                        Voir la fiche
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+        <PretsRecusTab borrowedLoans={borrowedLoans} />
       )}
-
-      {/* ── Tab : Activité ── */}
-      {tab === 'activite' && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-5">
-              <BarChart2 className="w-5 h-5 text-teal-600" /> Emprunts par mois (12 derniers mois)
-            </h3>
-            {allLoans.length === 0 ? (
-              <div className="text-center py-10 text-gray-400">
-                <BarChart2 className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                <p className="text-sm">Aucun prêt enregistré pour l&apos;instant</p>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-end gap-2 h-40">
-                  {activityData.map(m => (
-                    <div key={m.key} className="flex-1 flex flex-col items-center gap-1">
-                      <span className="text-xs font-bold text-teal-700">{m.count > 0 ? m.count : ''}</span>
-                      <div className="w-full rounded-t-lg transition-all" style={{
-                        height: `${Math.round((m.count / maxActivity) * 120)}px`,
-                        minHeight: m.count > 0 ? '4px' : '2px',
-                        backgroundColor: m.count > 0 ? '#14b8a6' : '#e5e7eb',
-                      }} />
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2 mt-2">
-                  {activityData.map(m => (
-                    <div key={m.key} className="flex-1 text-center">
-                      <span className="text-[9px] text-gray-400 leading-none">{m.label}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4 pt-4 border-t border-gray-50 grid grid-cols-3 gap-3 text-center text-sm">
-                  <div>
-                    <div className="font-bold text-teal-700 text-lg">{allLoans.length}</div>
-                    <div className="text-xs text-gray-500">Total prêts</div>
-                  </div>
-                  <div>
-                    <div className="font-bold text-emerald-700 text-lg">{loanHistory.filter(l => l.status === 'retourne').length}</div>
-                    <div className="text-xs text-gray-500">Terminés</div>
-                  </div>
-                  <div>
-                    <div className="font-bold text-orange-700 text-lg">
-                      {activityData.filter(m => {
-                        const now = new Date();
-                        return m.key === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-                      })[0]?.count ?? 0}
-                    </div>
-                    <div className="text-xs text-gray-500">Ce mois-ci</div>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Top matériels empruntés */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <h3 className="font-bold text-gray-900 mb-4">🏆 Matériels les plus empruntés</h3>
-            {allLoans.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-4">Aucun prêt pour l&apos;instant</p>
-            ) : (() => {
-              const counts = allLoans.reduce<Record<string, { title: string; count: number }>>((acc, l) => {
-                const title = (l.equipment as { title?: string })?.title || l.equipment_id;
-                if (!acc[l.equipment_id]) acc[l.equipment_id] = { title, count: 0 };
-                acc[l.equipment_id].count++;
-                return acc;
-              }, {});
-              return (
-                <div className="space-y-2">
-                  {Object.entries(counts)
-                    .sort(([, a], [, b]) => b.count - a.count)
-                    .slice(0, 5)
-                    .map(([equipId, { title, count }], idx) => (
-                      <div key={equipId} className="flex items-center gap-3">
-                        <span className="text-xs font-bold text-gray-400 w-4">#{idx + 1}</span>
-                        <Link href={`/materiel/${equipId}`} className="flex-1 text-sm text-gray-700 hover:text-brand-700 truncate">
-                          {title}
-                        </Link>
-                        <span className="text-xs font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">
-                          {count} prêt{count > 1 ? 's' : ''}
-                        </span>
-                      </div>
-                    ))}
-                </div>
-              );
-            })()}
-          </div>
-        </div>
-      )}
-
-      {/* ── Tab : Historique ── */}
       {tab === 'historique' && (
-        <div className="space-y-3">
-          {loanHistory.length === 0 ? (
-            <div className="text-center py-16 text-gray-400">
-              <History className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>Aucun prêt terminé pour l&apos;instant</p>
-            </div>
-          ) : (
-            loanHistory.map(loan => (
-              <div key={loan.id} className="bg-white rounded-2xl border border-gray-100 p-4">
-                <div className="flex items-center gap-3">
-                  <Avatar
-                    src={(loan.borrower as { avatar_url?: string })?.avatar_url}
-                    name={(loan.borrower as { full_name?: string })?.full_name || '?'}
-                    size="sm"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm text-gray-900">{(loan.borrower as { full_name?: string })?.full_name}</span>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium">
-                        🏁 Terminé
-                      </span>
-                    </div>
-                    <Link href={`/materiel/${loan.equipment_id}`} className="text-xs text-brand-600 hover:underline">
-                      {(loan.equipment as { title?: string })?.title || 'Voir le matériel'}
-                    </Link>
-                    <div className="text-xs text-gray-400 mt-0.5">
-                      Prêté le {formatDate(loan.loan_started_at || loan.reserved_at || '')}
-                      {loan.returned_at && ` • Rendu le ${formatDate(loan.returned_at)}`}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+        <HistoriqueTab loanHistory={loanHistory} />
       )}
-    </div>
-  );
-}
-
-// ── Composant carte matériel ─────────────────────────────────────────────────
-
-function EquipmentItemCard({
-  item, onStatusChange, onDelete, onDuplicate, loading
-}: {
-  item: EquipmentWithRequests;
-  onStatusChange: (id: string, s: EquipmentStatus) => void;
-  onDelete: (item: EquipmentWithRequests) => void;
-  onDuplicate: (item: EquipmentWithRequests) => void;
-  loading: boolean;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const status = (item.status as EquipmentStatus) || 'disponible';
-  const cfg = EQUIPMENT_STATUS_CONFIG[status];
-  const transitions = getAllowedTransitions(status);
-  const photos = item.photos as Array<{ url: string }> | undefined;
-
-  return (
-    <div className={`bg-white rounded-2xl border overflow-hidden ${item.pending_count && item.pending_count > 0 ? 'border-orange-200' : 'border-gray-100'}`}>
-      <div className="flex items-center gap-4 p-4">
-        {/* Photo miniature */}
-        <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
-          {photos && photos.length > 0 ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={photos[0].url} alt={item.title} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-              <span className="text-2xl">{(item.category as { icon?: string })?.icon || '🔧'}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Infos */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <Link href={`/materiel/${item.id}`} className="font-semibold text-gray-900 hover:text-brand-700 transition truncate">
-              {item.title}
-            </Link>
-            <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full border ${cfg.bg} ${cfg.color} ${cfg.border}`}>
-              {cfg.icon} {cfg.label}
-            </span>
-            {item.pending_count && item.pending_count > 0 ? (
-              <span className="text-xs bg-orange-500 text-white px-2 py-0.5 rounded-full font-bold animate-pulse">
-                {item.pending_count} demande{item.pending_count > 1 ? 's' : ''}
-              </span>
-            ) : null}
-          </div>
-          <div className="text-xs text-gray-400">{(item.category as { name?: string })?.name} • {item.is_free ? 'Gratuit' : `${item.daily_rate}€/j`}</div>
-        </div>
-
-        {/* Actions rapides */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <Link href={`/materiel/${item.id}/modifier`}
-            className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-          </Link>
-          <Link href={`/materiel/${item.id}`}
-            className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition">
-            <ChevronRight className="w-4 h-4" />
-          </Link>
-          <button onClick={() => setExpanded(v => !v)}
-            className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition">
-            {expanded ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Actions expandées */}
-      {expanded && (
-        <div className="px-4 pb-4 border-t border-gray-50 pt-3">
-          <div className="text-xs font-medium text-gray-500 mb-2">Changer le statut :</div>
-          <div className="flex flex-wrap gap-2">
-            {transitions.map(t => {
-              const tCfg = EQUIPMENT_STATUS_CONFIG[t];
-              return (
-                <button key={t} onClick={() => onStatusChange(item.id, t)} disabled={loading}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition hover:opacity-80 disabled:opacity-50 ${tCfg.bg} ${tCfg.color} ${tCfg.border}`}>
-                  {tCfg.icon} {getTransitionLabel(status, t)}
-                </button>
-              );
-            })}
-            {status === 'rendu' && (
-              <button onClick={() => onStatusChange(item.id, 'disponible')} disabled={loading}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:opacity-80">
-                <RotateCcw className="w-3 h-3" /> Remettre disponible
-              </button>
-            )}
-            <button onClick={() => onDuplicate(item)} disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100 transition disabled:opacity-50">
-              <Copy className="w-3 h-3" /> Dupliquer
-            </button>
-            <button onClick={() => onDelete(item)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-medium border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 transition">
-              Supprimer
-            </button>
-          </div>
-        </div>
+      {tab === 'activite' && (
+        <ActiviteTab
+          allLoans={allLoans}
+          activityData={activityData}
+          maxActivity={maxActivity}
+          loanHistory={loanHistory}
+        />
       )}
+
     </div>
   );
 }
