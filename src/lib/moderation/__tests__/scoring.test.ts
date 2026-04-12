@@ -737,20 +737,20 @@ describe('needsModeration()', () => {
   });
 
   it('niveau "fiable" → true (partialReview mais pas autoPublish)', () => {
+    // computeTrustLevel est appelé en interne ; fiable (age>=30, pub>=3) → pas autoPublish
     expect(needsModeration({
       created_at: daysAgo(45),
       role: 'resident',
       publication_count: 5,
-      reports_received: 0,
     })).toBe(true);
   });
 
   it('niveau "surveille" → true', () => {
+    // trust_level fixé manuellement → respecté par needsModeration via computeTrustLevel
     expect(needsModeration({
       created_at: daysAgo(400),
       role: 'resident',
       trust_level: 'surveille',
-      reports_received: 5,
     })).toBe(true);
   });
 

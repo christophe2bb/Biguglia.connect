@@ -1,57 +1,48 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { getSupabaseEnv, getSupabaseAdminEnv } from './env';
 
 /**
- * Nettoie une variable d'environnement côté serveur.
- * Même logique que client.ts — protège contre les copies avec \n final.
+ * Client serveur normal (anon key + cookies de session).
+ * Utilisable dans : Server Components, API Routes, Server Actions.
+ *
+ * Les variables d'environnement sont validées centralement par env.ts :
+ * pas de duplication de `cleanEnv()`, même comportement partout.
  */
-function cleanEnv(value: string | undefined, name: string): string {
-  if (!value) {
-    throw new Error(`[Supabase/server] Variable d'environnement manquante : ${name}`);
-  }
-  const cleaned = value.trim();
-  if (cleaned !== value) {
-    console.warn(`[Supabase/server] ⚠️  ${name} contenait des espaces/sauts de ligne — nettoyé.`);
-  }
-  return cleaned;
-}
-
-/** Client serveur normal (anon key + cookies session) */
 export function createClient() {
   const cookieStore = cookies();
+  const { url, anonKey } = getSupabaseEnv();
 
-  return createServerClient(
-    cleanEnv(process.env.NEXT_PUBLIC_SUPABASE_URL,      'NEXT_PUBLIC_SUPABASE_URL'),
-    cleanEnv(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, 'NEXT_PUBLIC_SUPABASE_ANON_KEY'),
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet: Array<{ name: string; value: string; options?: CookieOptions }>) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options as Parameters<typeof cookieStore.set>[2])
-            );
-          } catch {
-            // Server component — cookies() en lecture seule dans certains contextes, ignorer
-          }
-        },
+  return createServerClient(url, anonKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
       },
-    }
-  );
+      setAll(cookiesToSet: Array<{ name: string; value: string; options?: CookieOptions }>) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options as Parameters<typeof cookieStore.set>[2])
+          );
+        } catch {
+          // Server Component — cookies() en lecture seule dans certains contextes, ignorer
+        }
+      },
+    },
+  });
 }
 
 /**
  * Client admin (service role key) — bypass RLS complet.
  * À utiliser UNIQUEMENT côté serveur (Server Components, API Routes).
- * Ne JAMAIS exposer côté client.
+ * Ne JAMAIS exposer côté client ni dans un Client Component.
+ *
+ * La clé SUPABASE_SERVICE_ROLE_KEY est validée par getSupabaseAdminEnv() :
+ * erreur explicite immédiate si la variable est absente ou vide.
  */
 export function createAdminClient() {
-  return createSupabaseClient(
-    cleanEnv(process.env.NEXT_PUBLIC_SUPABASE_URL,   'NEXT_PUBLIC_SUPABASE_URL'),
-    cleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY,  'SUPABASE_SERVICE_ROLE_KEY'),
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
+  const { url, serviceRoleKey } = getSupabaseAdminEnv();
+  return createSupabaseClient(url, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 }

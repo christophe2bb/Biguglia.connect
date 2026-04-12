@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { getSupabaseEnvSafe } from './env';
 
 /**
  * updateSession — Rafraîchit la session Supabase et applique les guards de navigation.
@@ -96,9 +97,9 @@ function hasValidToken(request: NextRequest): boolean {
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
-  // .trim() obligatoire : une clé avec \n final casse le WebSocket Supabase Realtime
-  const supabaseUrl  = (process.env.NEXT_PUBLIC_SUPABASE_URL      ?? '').trim();
-  const supabaseAnon = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').trim();
+  // Variables validées et nettoyées par env.ts (trim + log si vide).
+  // getSupabaseEnvSafe() ne lève pas d'exception en Edge Runtime.
+  const { url: supabaseUrl, anonKey: supabaseAnon } = getSupabaseEnvSafe();
 
   // Créer le client pour rafraîchir les cookies de session (obligatoire)
   const supabase = createServerClient(
