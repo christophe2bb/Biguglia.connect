@@ -8,14 +8,15 @@
 import { createClient } from '@/lib/supabase/client';
 import { generateSlug, expiryDate } from './shared';
 import { calculateJobDemandCompleteness } from '../scoring/completeness';
+import type { ContractType, ExperienceLevel, AvailabilityType } from '@/types/jobs/constants';
 
 // ─── Input / output types ─────────────────────────────────────────────────────
 
 export interface PublishDemandInput {
   title: string;
   job_category: string;
-  /** Types de contrat recherchés, ex. ['cdi', 'cdd'] */
-  contract_types: string[];
+  /** Types de contrat recherchés — unions littérales ContractType */
+  contract_types: ContractType[];
   /** Courte présentation */
   description: string;
   /** Expérience détaillée (optionnel) */
@@ -24,10 +25,11 @@ export interface PublishDemandInput {
   sector_id?: string;
   /** Rayon de mobilité en km */
   mobility_radius?: number;
-  /** immediate | week | month | date | flexible */
-  availability_type: string;
+  /** Disponibilité — union littérale AvailabilityType */
+  availability_type: AvailabilityType;
   available_from?: string;
-  experience_level?: string;
+  /** Niveau d'expérience — union littérale ExperienceLevel */
+  experience_level?: ExperienceLevel;
   salary_min?: number;
   salary_max?: number;
   has_driving_license?: boolean;
@@ -53,16 +55,16 @@ export interface PublishDemandResult {
  */
 function computeCompleteness(input: PublishDemandInput): number {
   return calculateJobDemandCompleteness({
-    desired_contract_types: input.contract_types as never,
+    desired_contract_types: input.contract_types,
     desired_employment_types: [],
     location_label: input.location_city,
-    availability_type: input.availability_type as never,
+    availability_type: input.availability_type,
     available_from: input.available_from,
     salary_expectation_min: input.salary_min,
     salary_expectation_max: input.salary_max,
     full_description: input.experience_summary ?? input.description,
     cv_url: input.cv_url,
-    experience_level: input.experience_level as never,
+    experience_level: input.experience_level,
     short_description: input.description,
     is_flexible_schedule: false,
     has_driving_license: input.has_driving_license ?? false,

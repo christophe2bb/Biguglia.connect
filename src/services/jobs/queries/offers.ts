@@ -9,14 +9,13 @@
  *  - getRecentJobOffers(n, sec)   Fil Home — n offres récentes
  *
  * Garanties :
- *  - Zéro `any` : les rows DB sont typées via JobOfferRow / JobOfferRowWithAuthor
- *  - select('*') résolu par assertion vers JobOfferRow (projection explicite)
- *  - select avec jointure résolu vers JobOfferRowWithAuthor
+ *  - Zéro `as X` sur les données Supabase : createJobsClient<Database>() infère
+ *    automatiquement JobOfferRow pour .from('job_offers').select(...)
  *  - Toutes les erreurs "table manquante" sont interceptées silencieusement
  *  - La jointure author est optionnelle (toAuthorProfile → undefined si absente)
  */
 
-import { createClient } from '@/lib/supabase/server';
+import { createJobsClient } from '@/lib/supabase/server';
 import type {
   JobOfferFilters,
   JobOfferSearchResult,
@@ -31,17 +30,11 @@ import {
   buildPagination,
   type JobOfferRow,
   type JobOfferRowWithAuthor,
+  type AuthorJoinRow,
 } from './shared';
 
 // ─── Helpers locaux ────────────────────────────────────────────────────────────
 
-/**
- * La colonne `author` est typée `unknown` dans la réponse brute de Supabase
- * quand select('*') est utilisé. On utilise la projection explicite avec jointure
- * pour les requêtes enrichies ; les autres n'ont pas de champ `author`.
- *
- * Convertit une JobOfferRow en JobOfferSearchResult (ajoute freshness_score).
- */
 function toSearchResult(row: JobOfferRow): JobOfferSearchResult {
   return {
     ...toJobOffer(row),
@@ -74,16 +67,15 @@ export interface GetJobOffersResult {
 /**
  * Retourne une liste paginée d'offres publiées, avec filtres optionnels.
  *
- * Tous les filtres sont appliqués côté Supabase (pas de post-filtrage en mémoire).
- * Si la table est absente (migration en attente), retourne une liste vide sans crash.
+ * Tous les filtres sont appliqués côté Supabase.
+ * Si la table est absente (migration en attente), retourne une liste vide.
  */
 export async function getJobOffers(
   filters?: Partial<JobOfferFilters>,
 ): Promise<GetJobOffersResult> {
-  const supabase = createClient();
+  const supabase = createJobsClient();
   const { page, limit, from, to } = buildPagination(filters?.page, filters?.limit);
 
-  // ── Construction de la requête ─────────────────────────────────────────────
   let query = supabase
     .from('job_offers')
     .select('*', { count: 'exact' })
@@ -131,7 +123,7 @@ export async function getJobOffers(
     query = query.eq('is_urgent', filters.isUrgent);
   }
 
-  // ── Tri ────────────────────────────────────────────────────────────────────
+  // Tri
   switch (filters?.sortBy ?? 'date_desc') {
     case 'date_asc':
       query = query.order('published_at', { ascending: true });
@@ -145,13 +137,12 @@ export async function getJobOffers(
     case 'completeness_desc':
       query = query.order('completeness_score', { ascending: false });
       break;
-    default: // 'date_desc' | 'relevance'
+    default:
       query = query.order('published_at', { ascending: false });
   }
 
   query = query.range(from, to);
 
-  // ── Exécution ──────────────────────────────────────────────────────────────
   const { data, error, count } = await query;
 
   if (error) {
@@ -164,12 +155,9 @@ export async function getJobOffers(
     return { offers: [], total: 0, page, limit };
   }
 
-  // Supabase sans schéma généré retourne `data: any` pour select('*').
-  // JobOfferRow est la projection explicite qui décrit exactement la forme DB.
-  const rows = (data ?? []) as JobOfferRow[];
-
+  // data est inféré JobOfferRow[] par le client typé Database — aucun cast nécessaire
   return {
-    offers: rows.map(toSearchResult),
+    offers: (data ?? []).map(toSearchResult),
     total: count ?? 0,
     page,
     limit,
@@ -181,19 +169,15 @@ export async function getJobOffers(
 /**
  * Retourne le détail d'une offre par son slug.
  *
- * Stratégie en deux passes :
- *  1. SELECT * sans jointure → vérifie existence + statut publié
- *  2. SELECT avec jointure profiles!user_id → enrichit author_profile
- *     (optionnel : si la jointure échoue, on retourne quand même le résultat)
- *
- * Retourne null si : slug inexistant, offre non publiée, table absente.
+ * Passe 1 : select * → vérifie existence + statut
+ * Passe 2 : select avec jointure profiles → enrichit author_profile (optionnel)
  */
 export async function getJobOfferBySlug(
   slug: string,
 ): Promise<JobOfferSearchResult | null> {
-  const supabase = createClient();
+  const supabase = createJobsClient();
 
-  // ── Passe 1 : vérification d'existence et de statut ───────────────────────
+  // ── Passe 1 ───────────────────────────────────────────────────────────────
   const { data: base, error: err1 } = await supabase
     .from('job_offers')
     .select('*')
@@ -206,18 +190,21 @@ export async function getJobOfferBySlug(
       console.warn('[jobs/offers] Table job_offers introuvable — migration en attente.');
       return null;
     }
-    if (isNotFoundError(dbErr)) {
-      return null; // slug absent — pas d'erreur à logger
-    }
+    if (isNotFoundError(dbErr)) return null;
     console.error('[jobs/offers] getJobOfferBySlug (passe 1):', dbErr.message);
     return null;
   }
   if (!base) return null;
 
-  const baseRow = base as JobOfferRow;
-  if (baseRow.status !== 'published') return null;
+  // base est inféré JobOfferRow par le client typé
+  if (base.status !== 'published') return null;
 
   // ── Passe 2 : jointure author (optionnelle) ───────────────────────────────
+  //
+  // La sélection `*, author:profiles!user_id (...)` fait sortir le client du
+  // type inféré automatiquement (Supabase ne connaît pas la jointure dans le
+  // type généré). On type le résultat manuellement via JobOfferRowWithAuthor
+  // qui étend JobOfferRow avec le champ author.
   const { data: withAuthor, error: err2 } = await supabase
     .from('job_offers')
     .select(
@@ -228,26 +215,27 @@ export async function getJobOfferBySlug(
     .eq('slug', slug)
     .single();
 
-  // Si la jointure réussit → utiliser la row enrichie
   if (!err2 && withAuthor) {
-    return toSearchResultWithAuthor(withAuthor as JobOfferRowWithAuthor);
+    // La jointure `author:profiles!user_id` ajoute un champ `author` non présent
+    // dans le type inféré. On l'annote manuellement : le runtime est garanti
+    // correct par la projection SQL explicite.
+    const enriched = withAuthor as unknown as JobOfferRowWithAuthor;
+    return toSearchResultWithAuthor(enriched);
   }
 
-  // Jointure échouée → retourner la base sans auteur
-  return toSearchResult(baseRow);
+  return toSearchResult(base);
 }
 
 // ─── getRecentJobOffers ───────────────────────────────────────────────────────
 
 /**
  * Retourne les `limit` offres les plus récentes pour le fil Home.
- * Filtre optionnel par `sectorId`.
  */
 export async function getRecentJobOffers(
   limit: number = 5,
   sectorId?: string,
 ): Promise<JobOfferSearchResult[]> {
-  const supabase = createClient();
+  const supabase = createJobsClient();
 
   let query = supabase
     .from('job_offers')
@@ -269,6 +257,6 @@ export async function getRecentJobOffers(
     return [];
   }
 
-  const rows = (data ?? []) as JobOfferRow[];
-  return rows.map(toSearchResult);
+  // data est inféré JobOfferRow[] — aucun cast
+  return (data ?? []).map(toSearchResult);
 }

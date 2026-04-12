@@ -9,14 +9,14 @@
  *  - getRecentJobDemands(n, sec)   Fil Home — n demandes récentes
  *
  * Garanties :
- *  - Zéro `any` : les rows DB sont typées via JobDemandRow / JobDemandRowWithAuthor
- *  - select('*') résolu par assertion vers JobDemandRow (projection explicite)
+ *  - Zéro `as X` sur les données Supabase : createJobsClient<Database>() infère
+ *    automatiquement JobDemandRow pour .from('job_demands').select(...)
  *  - Toutes les erreurs "table manquante" sont interceptées silencieusement
- *  - La jointure author est optionnelle (toAuthorProfile → undefined si absente)
+ *  - La jointure author est optionnelle
  *  - Stratégie admin (bypass RLS) + fallback client anon pour getJobDemandBySlug
  */
 
-import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { createJobsClient, createJobsAdminClient } from '@/lib/supabase/server';
 import type {
   JobDemandFilters,
   JobDemandSearchResult,
@@ -56,6 +56,13 @@ function toSearchResultWithAuthor(row: JobDemandRowWithAuthor): JobDemandSearchR
   };
 }
 
+// ─── Type local pour la jointure admin (author uniquement) ────────────────────
+
+/** Forme renvoyée par la requête admin qui ne sélectionne que la jointure author. */
+interface AdminAuthorJoinResult {
+  author: AuthorJoinRow | AuthorJoinRow[] | null;
+}
+
 // ─── getJobDemands ────────────────────────────────────────────────────────────
 
 export interface GetJobDemandsResult {
@@ -71,7 +78,7 @@ export interface GetJobDemandsResult {
 export async function getJobDemands(
   filters?: Partial<JobDemandFilters>,
 ): Promise<GetJobDemandsResult> {
-  const supabase = createClient();
+  const supabase = createJobsClient();
   const { page, limit, from, to } = buildPagination(filters?.page, filters?.limit);
 
   let query = supabase
@@ -79,7 +86,6 @@ export async function getJobDemands(
     .select('*', { count: 'exact' })
     .eq('status', 'published');
 
-  // Filtres
   if (filters?.query) {
     query = query.ilike('title', `%${filters.query}%`);
   }
@@ -102,7 +108,6 @@ export async function getJobDemands(
     query = query.eq('has_vehicle', filters.hasVehicle);
   }
 
-  // Tri
   switch (filters?.sortBy ?? 'date_desc') {
     case 'date_asc':
       query = query.order('published_at', { ascending: true });
@@ -113,7 +118,7 @@ export async function getJobDemands(
     case 'completeness_desc':
       query = query.order('completeness_score', { ascending: false });
       break;
-    default: // 'date_desc' | 'relevance'
+    default:
       query = query.order('published_at', { ascending: false });
   }
 
@@ -131,12 +136,9 @@ export async function getJobDemands(
     return { demands: [], total: 0, page, limit };
   }
 
-  // Supabase sans schéma généré retourne `data: any` pour select('*').
-  // JobDemandRow est la projection explicite qui décrit exactement la forme DB.
-  const rows = (data ?? []) as JobDemandRow[];
-
+  // data est inféré JobDemandRow[] par le client typé Database — aucun cast
   return {
-    demands: rows.map(toSearchResult),
+    demands: (data ?? []).map(toSearchResult),
     total: count ?? 0,
     page,
     limit,
@@ -145,33 +147,18 @@ export async function getJobDemands(
 
 // ─── getJobDemandBySlug ───────────────────────────────────────────────────────
 
-/** Forme renvoyée par la requête de jointure admin (author uniquement) */
-interface AdminAuthorRow {
-  author: AuthorJoinRow | AuthorJoinRow[] | null;
-}
-
 /**
  * Retourne le détail d'une demande par son slug.
  *
- * Stratégie en deux niveaux :
- *
- * 1. Client admin (service role, bypass RLS complet)
- *    → SELECT * + statut vérifié côté app
- *    → Jointure author tentée séparément (optionnelle)
- *    → Utilisé si SUPABASE_SERVICE_ROLE_KEY est défini
- *
- * 2. Client anon + RLS (fallback si pas de service role key)
- *    → SELECT * WHERE status = 'published'
- *    → Pas de jointure author (RLS trop restrictif)
- *
- * Retourne null si : slug inexistant, demande non publiée, table absente.
+ * Niveau 1 : client admin (bypass RLS) + jointure author optionnelle
+ * Niveau 2 : client anon + RLS (fallback si service role key absent)
  */
 export async function getJobDemandBySlug(
   slug: string,
 ): Promise<JobDemandSearchResult | null> {
   // ── Niveau 1 : client admin ────────────────────────────────────────────────
   try {
-    const admin = createAdminClient();
+    const admin = createJobsAdminClient();
 
     const { data: base, error: adminErr } = await admin
       .from('job_demands')
@@ -186,14 +173,13 @@ export async function getJobDemandBySlug(
         return null;
       }
       if (isNotFoundError(dbErr)) return null;
-      // Erreur inattendue → log + fallback passe 2
       console.error('[jobs/demands] getJobDemandBySlug (admin):', dbErr.message);
     } else if (base) {
-      const baseRow = base as JobDemandRow;
-      if (baseRow.status !== 'published') return null;
+      // base est inféré JobDemandRow par le client typé
+      if (base.status !== 'published') return null;
 
-      // Jointure author (optionnelle — ne bloque pas)
-      let withAuthorRow: JobDemandRowWithAuthor = { ...baseRow, author: null };
+      // Jointure author (optionnelle)
+      let withAuthorRow: JobDemandRowWithAuthor = { ...base, author: null };
       try {
         const { data: joined } = await admin
           .from('job_demands')
@@ -206,8 +192,10 @@ export async function getJobDemandBySlug(
           .single();
 
         if (joined) {
-          const j = joined as AdminAuthorRow;
-          withAuthorRow = { ...baseRow, author: j.author };
+          // La jointure ajoute un champ `author` hors du type inféré DB.
+          // On l'annote via AdminAuthorJoinResult : projection SQL explicite garantit le contrat.
+          const j = joined as unknown as AdminAuthorJoinResult;
+          withAuthorRow = { ...base, author: j.author };
         }
       } catch {
         // Jointure optionnelle — on continue sans auteur
@@ -220,7 +208,7 @@ export async function getJobDemandBySlug(
   }
 
   // ── Niveau 2 : client anon + RLS ──────────────────────────────────────────
-  const supabase = createClient();
+  const supabase = createJobsClient();
   const { data, error } = await supabase
     .from('job_demands')
     .select('*')
@@ -240,7 +228,8 @@ export async function getJobDemandBySlug(
   }
   if (!data) return null;
 
-  return toSearchResult(data as JobDemandRow);
+  // data est inféré JobDemandRow — aucun cast
+  return toSearchResult(data);
 }
 
 // ─── getRecentJobDemands ──────────────────────────────────────────────────────
@@ -252,7 +241,7 @@ export async function getRecentJobDemands(
   limit: number = 5,
   sectorId?: string,
 ): Promise<JobDemandSearchResult[]> {
-  const supabase = createClient();
+  const supabase = createJobsClient();
 
   let query = supabase
     .from('job_demands')
@@ -274,6 +263,6 @@ export async function getRecentJobDemands(
     return [];
   }
 
-  const rows = (data ?? []) as JobDemandRow[];
-  return rows.map(toSearchResult);
+  // data est inféré JobDemandRow[] — aucun cast
+  return (data ?? []).map(toSearchResult);
 }

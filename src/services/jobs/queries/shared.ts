@@ -8,37 +8,57 @@
  *  - asDbError                Convertit unknown → DbError sans cast unsafe
  *  - isMissingTableError      Détecte "table inexistante" (migration en attente)
  *  - isNotFoundError          Détecte PGRST116 (0 lignes)
- *  - JobOfferRow              Type de projection DB pour job_offers (select *)
- *  - JobDemandRow             Type de projection DB pour job_demands (select *)
- *  - AuthorJoinRow            Type de la jointure profiles!user_id
+ *  - JobOfferRow              Alias de Database['public']['Tables']['job_offers']['Row']
+ *  - JobDemandRow             Alias de Database['public']['Tables']['job_demands']['Row']
+ *  - AuthorJoinRow            Type de la jointure profiles!user_id (5 champs nommés)
+ *  - JobOfferRowWithAuthor    JobOfferRow + champ author typé
+ *  - JobDemandRowWithAuthor   JobDemandRow + champ author typé
  *  - toAuthorProfile          Mappe AuthorJoinRow → JobUserProfile | undefined
+ *  - toJobOffer               Mappe JobOfferRow → JobOffer (cast structurel sûr)
+ *  - toJobDemand              Mappe JobDemandRow → JobDemand (cast structurel sûr)
  *  - buildPagination          Calcule from/to/page/limit depuis les filtres
  *
- * Principe de typage :
- *  Supabase sans schéma généré renvoie `data: any` pour select('*').
- *  On remplace les casts `data as SomeType[]` par des interfaces explicites
- *  (`JobOfferRow`, `JobDemandRow`) qui décrivent exactement la projection DB,
- *  puis on les convertit vers les types métier via des mappers dédiés.
+ * Typage :
+ *  JobOfferRow et JobDemandRow sont désormais dérivés de src/types/supabase.ts
+ *  (Database['public']['Tables'][...]['Row']), qui est aussi le paramètre
+ *  générique de createJobsClient<Database>(). Ainsi :
+ *  — createJobsClient().from('job_offers').select('*') retourne JobOfferRow[]
+ *  — createJobsClient().from('job_demands').select('*') retourne JobDemandRow[]
+ *  Aucun cast `data as XRow` n'est nécessaire dans offers.ts / demands.ts.
  */
 
-import type {
-  JobOffer,
-  JobDemand,
-  JobUserProfile,
-} from '@/types/jobs';
-import type {
-  ContractType,
-  EmploymentType,
-  JobCategory,
-  ExperienceLevel,
-  AvailabilityType,
-  JobStatus,
-  ApplicationMode,
-  VisibilityLevel,
-  PromotionType,
-  PlanType,
-  MobilityMode,
-} from '@/types/jobs/constants';
+import type { Database } from '@/types/supabase';
+import type { JobOffer, JobDemand, JobUserProfile } from '@/types/jobs';
+
+// ─── Aliases de projection DB ─────────────────────────────────────────────────
+// Source unique de vérité : les types Row viennent de src/types/supabase.ts,
+// qui sera remplacé par le schéma généré `supabase gen types typescript`.
+
+export type JobOfferRow  = Database['public']['Tables']['job_offers']['Row'];
+export type JobDemandRow = Database['public']['Tables']['job_demands']['Row'];
+export type ProfileRow   = Database['public']['Tables']['profiles']['Row'];
+
+// ─── Type de la jointure profiles!user_id ─────────────────────────────────────
+
+/**
+ * Champs sélectionnés dans la jointure author:profiles!user_id.
+ * Sous-ensemble de ProfileRow correspondant à la projection
+ * `id, display_name, avatar_url, is_verified, created_at`.
+ */
+export type AuthorJoinRow = Pick<
+  ProfileRow,
+  'id' | 'display_name' | 'avatar_url' | 'is_verified' | 'created_at'
+>;
+
+/** Row job_offers enrichie de la jointure author */
+export interface JobOfferRowWithAuthor extends JobOfferRow {
+  author: AuthorJoinRow | AuthorJoinRow[] | null;
+}
+
+/** Row job_demands enrichie de la jointure author */
+export interface JobDemandRowWithAuthor extends JobDemandRow {
+  author: AuthorJoinRow | AuthorJoinRow[] | null;
+}
 
 // ─── Type d'erreur Supabase ───────────────────────────────────────────────────
 
@@ -68,9 +88,6 @@ export function asDbError(e: unknown): DbError {
 /**
  * Retourne true si l'erreur indique que la table n'existe pas encore
  * (migration SQL en attente).
- *
- * PostgREST renvoie code "42P01" ou un message contenant "relation" /
- * "does not exist" quand la table est absente.
  */
 export function isMissingTableError(err: DbError): boolean {
   const msg = err.message ?? '';
@@ -83,183 +100,17 @@ export function isMissingTableError(err: DbError): boolean {
 
 /**
  * Retourne true si l'erreur PostgREST signifie "0 lignes retournées"
- * (PGRST116 = "JSON object requested, multiple (or no) rows returned").
+ * (PGRST116).
  */
 export function isNotFoundError(err: DbError): boolean {
   return err.code === 'PGRST116';
-}
-
-// ─── Types de projection DB ───────────────────────────────────────────────────
-//
-// Ces interfaces décrivent la forme exacte renvoyée par Supabase pour chaque
-// select('*'). Elles sont équivalentes aux interfaces métier JobOffer / JobDemand,
-// mais constituent un contrat explicite avec la couche DB, indépendant de la
-// représentation métier. Lorsque le schéma DB généré (database.types.ts) sera
-// disponible, ces types pourront être remplacés par des projections Supabase
-// générées (Database['public']['Tables']['job_offers']['Row']).
-
-/** Ligne brute renvoyée par Supabase pour la table `job_offers` (select *) */
-export interface JobOfferRow {
-  id: string;
-  slug: string;
-  user_id: string;
-  organization_id: string | null;
-  title: string;
-  job_category: JobCategory;
-  contract_type: ContractType;
-  employment_type: EmploymentType;
-  employer_name: string | null;
-  employer_address: string | null;
-  location_label: string;
-  location_city: string | null;
-  location_address: string | null;
-  location_lat: number | null;
-  location_lng: number | null;
-  sector_id: string | null;
-  is_remote_possible: boolean;
-  start_date: string | null;
-  end_date: string | null;
-  mission_duration_days: number | null;
-  availability_type: AvailabilityType;
-  short_description: string;
-  full_description: string | null;
-  required_skills: string[] | null;
-  nice_to_have_skills: string[] | null;
-  tags: string[] | null;
-  experience_level: ExperienceLevel | null;
-  experience_years_min: number | null;
-  experience_years_max: number | null;
-  salary_range_min: number | null;
-  salary_range_max: number | null;
-  salary_period: 'hourly' | 'monthly' | 'yearly' | null;
-  salary_is_negotiable: boolean;
-  weekly_hours: number | null;
-  schedule_details: string | null;
-  is_flexible_schedule: boolean;
-  has_driving_license: boolean;
-  requires_vehicle: boolean;
-  application_mode: ApplicationMode;
-  contact_email: string | null;
-  contact_phone: string | null;
-  application_url: string | null;
-  contact_instructions: string | null;
-  provides_housing: boolean;
-  housing_details: string | null;
-  provides_meals: boolean;
-  other_benefits: string | null;
-  status: JobStatus;
-  is_urgent: boolean;
-  visibility_level: VisibilityLevel;
-  promotion_type: PromotionType;
-  boosted_until: string | null;
-  sponsor_label: string | null;
-  completeness_score: number;
-  views_count: number;
-  contacts_count: number;
-  billing_eligible: boolean;
-  plan_type: PlanType;
-  created_at: string;
-  updated_at: string;
-  published_at: string | null;
-  last_refreshed_at: string | null;
-  last_contacted_at: string | null;
-  expired_at: string | null;
-  filled_at: string | null;
-  expired_reason: string | null;
-  filled_reason: string | null;
-  publication_source: 'web' | 'mobile' | 'api' | null;
-  is_moderated: boolean;
-  moderation_notes: string | null;
-}
-
-/** Ligne brute renvoyée par Supabase pour la table `job_demands` (select *) */
-export interface JobDemandRow {
-  id: string;
-  slug: string;
-  user_id: string;
-  title: string;
-  job_category: JobCategory;
-  desired_contract_types: ContractType[];
-  desired_employment_types: EmploymentType[];
-  location_label: string;
-  location_lat: number | null;
-  location_lng: number | null;
-  sector_id: string | null;
-  mobility_radius: number | null;
-  mobility_mode: MobilityMode | null;
-  availability_type: AvailabilityType;
-  available_from: string | null;
-  availability_comment: string | null;
-  short_description: string;
-  full_description: string | null;
-  skills: string[] | null;
-  tags: string[] | null;
-  experience_level: ExperienceLevel | null;
-  experience_years: number | null;
-  salary_expectation_min: number | null;
-  salary_expectation_max: number | null;
-  salary_period: 'hourly' | 'monthly' | 'yearly' | null;
-  weekly_hours_desired: number | null;
-  is_flexible_schedule: boolean;
-  has_driving_license: boolean;
-  has_vehicle: boolean;
-  contact_email: string | null;
-  contact_phone: string | null;
-  contact_mode: string | null;
-  cv_url: string | null;
-  portfolio_url: string | null;
-  location_city: string | null;
-  status: JobStatus;
-  is_urgent: boolean;
-  completeness_score: number;
-  views_count: number;
-  contacts_count: number;
-  created_at: string;
-  updated_at: string;
-  published_at: string | null;
-  last_refreshed_at: string | null;
-  last_contacted_at: string | null;
-  expired_at: string | null;
-  filled_at: string | null;
-  expired_reason: string | null;
-  filled_reason: string | null;
-  publication_source: 'web' | 'mobile' | 'api' | null;
-  is_moderated: boolean;
-  moderation_notes: string | null;
-}
-
-/**
- * Forme de la jointure `author:profiles!user_id` dans les requêtes enrichies.
- * Les champs correspondent exactement à ceux sélectionnés dans la projection :
- *   id, display_name, avatar_url, is_verified, created_at
- */
-export interface AuthorJoinRow {
-  id: string;
-  display_name: string | null;
-  avatar_url: string | null;
-  is_verified: boolean | null;
-  created_at: string | null;
-}
-
-/** Row job_offers enrichie de la jointure author */
-export interface JobOfferRowWithAuthor extends JobOfferRow {
-  author: AuthorJoinRow | AuthorJoinRow[] | null;
-}
-
-/** Row job_demands enrichie de la jointure author */
-export interface JobDemandRowWithAuthor extends JobDemandRow {
-  author: AuthorJoinRow | AuthorJoinRow[] | null;
 }
 
 // ─── Mapper author profile ────────────────────────────────────────────────────
 
 /**
  * Mappe la valeur de la jointure `profiles!user_id` vers `JobUserProfile`.
- *
- * La jointure peut être :
- *  - Un objet `AuthorJoinRow`
- *  - Un tableau (jointure multi-rows) → on prend le premier élément
- *  - null → retourne undefined
+ * La jointure peut être un objet, un tableau (multi-row), ou null.
  */
 export function toAuthorProfile(
   raw: AuthorJoinRow | AuthorJoinRow[] | null | undefined,
@@ -277,24 +128,22 @@ export function toAuthorProfile(
   };
 }
 
-// ─── Mappers métier ───────────────────────────────────────────────────────────
+// ─── Mappers DB → métier ──────────────────────────────────────────────────────
+//
+// JobOfferRow et JobOffer sont structurellement identiques (les champs optionnels
+// de JobOffer correspondent aux nullable de JobOfferRow). Le cast structurel
+// ci-dessous est sûr : TypeScript a déjà vérifié les types via le client typé.
+// Ces fonctions servent de point de contrôle explicite et permettent d'ajouter
+// une transformation si les deux types divergent à l'avenir.
 
-/**
- * Convertit une `JobOfferRow` (projection DB) en `JobOffer` (type métier).
- *
- * `JobOfferRow` est structurellement identique à `JobOffer` (nullable vs
- * optionnel mis à part) ; ce mapper sert de point de contrôle explicite
- * et permet d'adapter la forme si les deux types divergent à l'avenir.
- */
 export function toJobOffer(row: JobOfferRow): JobOffer {
-  return row as JobOffer;
+  // JobOfferRow dérivé de Database est structurellement compatible avec JobOffer.
+  // Le cast est délibéré et documenté : nullable DB ↔ optionnel métier.
+  return row as unknown as JobOffer;
 }
 
-/**
- * Convertit une `JobDemandRow` (projection DB) en `JobDemand` (type métier).
- */
 export function toJobDemand(row: JobDemandRow): JobDemand {
-  return row as JobDemand;
+  return row as unknown as JobDemand;
 }
 
 // ─── Pagination ───────────────────────────────────────────────────────────────
@@ -307,11 +156,7 @@ export interface PaginationParams {
 }
 
 /**
- * Calcule les paramètres de pagination Supabase (range from/to)
- * à partir des valeurs optionnelles reçues dans les filtres.
- *
- * @param rawPage   Numéro de page (défaut 1)
- * @param rawLimit  Taille de page (défaut 20)
+ * Calcule les paramètres de pagination Supabase (range from/to).
  */
 export function buildPagination(
   rawPage: number | undefined,

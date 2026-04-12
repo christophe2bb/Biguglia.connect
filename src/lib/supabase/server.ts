@@ -1,7 +1,8 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createClient as createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { getSupabaseEnv, getSupabaseAdminEnv } from './env';
+import type { Database } from '@/types/supabase';
 
 /**
  * Client serveur normal (anon key + cookies de session).
@@ -43,6 +44,43 @@ export function createClient() {
 export function createAdminClient() {
   const { url, serviceRoleKey } = getSupabaseAdminEnv();
   return createSupabaseClient(url, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
+
+// ─── Clients typés pour les requêtes jobs ────────────────────────────────────
+//
+// Ces deux fonctions retournent des SupabaseClient<Database> (@supabase/supabase-js).
+// @supabase/ssr's createServerClient<Database> ne supporte pas correctement le
+// générique Database avec notre version (^0.3.0), donc on utilise createSupabaseClient
+// directement, ce qui donne l'inférence complète des types de projection DB.
+//
+// Les clients généraux (createClient / createAdminClient) restent non-paramétrés
+// pour ne pas imposer le schéma partiel à toutes les autres routes de l'app.
+
+/**
+ * Client typé `Database` (anon key) — réservé à src/services/jobs/queries/.
+ * Les requêtes .from('job_offers') et .from('job_demands') retournent
+ * des types complètement inférés sans aucun cast `as X`.
+ *
+ * Note : utilise createSupabaseClient<Database> (pas createServerClient) car
+ * @supabase/ssr ^0.3.0 ne supporte pas le générique Database correctement.
+ * Le contexte serveur est garanti par l'appelant (Server Component / API Route).
+ */
+export function createJobsClient(): SupabaseClient<Database> {
+  const { url, anonKey } = getSupabaseEnv();
+  return createSupabaseClient<Database>(url, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
+
+/**
+ * Client admin typé `Database` (service role key) — réservé à src/services/jobs/queries/.
+ * Bypass RLS + inférence complète pour job_offers et job_demands.
+ */
+export function createJobsAdminClient(): SupabaseClient<Database> {
+  const { url, serviceRoleKey } = getSupabaseAdminEnv();
+  return createSupabaseClient<Database>(url, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }

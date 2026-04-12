@@ -6,6 +6,7 @@ export interface FormData {
   /* Étape 1 – L'offre */
   title: string;
   job_category: string;
+  /** État brut du formulaire — validaé comme ContractType dans _payload.ts au submit */
   contract_type: string;
   description: string;
   required_skills: string;
@@ -27,6 +28,7 @@ export interface FormData {
   is_flexible_schedule: boolean;
   start_date: string;
   end_date: string;
+  /** État brut du formulaire — validé comme ExperienceLevel dans _payload.ts au submit */
   experience_level: string;
   provides_housing: boolean;
   housing_details: string;

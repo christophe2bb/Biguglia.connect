@@ -8,6 +8,7 @@
 import { createClient } from '@/lib/supabase/client';
 import { generateSlug, expiryDate } from './shared';
 import { calculateJobOfferCompleteness } from '../scoring/completeness';
+import type { ContractType, ExperienceLevel } from '@/types/jobs/constants';
 
 // ─── Input / output types ─────────────────────────────────────────────────────
 
@@ -15,7 +16,8 @@ export interface PublishOfferInput {
   /* Étape 1 – L'offre */
   title: string;
   job_category: string;
-  contract_type: string;
+  /** Type de contrat — union littérale ContractType */
+  contract_type: ContractType;
   description: string;
   /* Étape 2 – Employeur */
   employer_name: string;
@@ -34,7 +36,8 @@ export interface PublishOfferInput {
   is_flexible_schedule?: boolean;
   start_date?: string;
   end_date?: string;
-  experience_level?: string;
+  /** Niveau d'expérience — union littérale ExperienceLevel */
+  experience_level?: ExperienceLevel;
   provides_housing?: boolean;
   housing_details?: string;
   provides_meals?: boolean;
@@ -66,7 +69,7 @@ export interface PublishOfferResult {
  */
 function computeCompleteness(input: PublishOfferInput): number {
   return calculateJobOfferCompleteness({
-    contract_type: input.contract_type as never,
+    contract_type: input.contract_type,
     location_label: input.location_address
       ? `${input.location_address}, ${input.location_city}`
       : input.location_city,
@@ -79,7 +82,7 @@ function computeCompleteness(input: PublishOfferInput): number {
     full_description: input.description,
     contact_email: input.contact_email,
     contact_phone: input.contact_phone,
-    experience_level: input.experience_level as never,
+    experience_level: input.experience_level,
     required_skills: input.required_skills
       ? input.required_skills.split(',').map((s) => s.trim()).filter(Boolean)
       : undefined,

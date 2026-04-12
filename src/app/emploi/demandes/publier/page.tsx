@@ -17,6 +17,8 @@ import {
   CONTRACT_TYPES, CONTRACT_TYPE_LABELS,
   JOB_CATEGORIES, JOB_CATEGORY_LABELS,
   JOB_SECTORS,
+  AVAILABILITY_TYPES, EXPERIENCE_LEVELS,
+  type ContractType, type AvailabilityType, type ExperienceLevel,
 } from '@/types/jobs/constants';
 import { publishJobDemand } from '@/services/jobs/publish-demand';
 import { createClient } from '@/lib/supabase/client';
@@ -149,18 +151,30 @@ export default function PublierDemandePage() {
     setSubmitting(true);
     setServerError(null);
 
+    // Narrow string form values to the expected literal union types.
+    // CONTRACT_TYPES / AVAILABILITY_TYPES / EXPERIENCE_LEVELS act as runtime
+    // validators: .filter() removes any invalid value, .includes() narrows the type.
+    const contractTypes = (form.contract_types as string[])
+      .filter((v): v is ContractType => (CONTRACT_TYPES as readonly string[]).includes(v));
+    const availabilityType: AvailabilityType = (AVAILABILITY_TYPES as readonly string[]).includes(form.availability_type)
+      ? (form.availability_type as AvailabilityType)
+      : 'flexible'; // fallback — form validation should have caught this
+    const experienceLevel = form.experience_level && (EXPERIENCE_LEVELS as readonly string[]).includes(form.experience_level)
+      ? (form.experience_level as ExperienceLevel)
+      : undefined;
+
     const result = await publishJobDemand({
       title:              form.title,
       job_category:       form.job_category,
-      contract_types:     form.contract_types,
+      contract_types:     contractTypes,
       description:        form.description,
       experience_summary: form.experience_summary || undefined,
       location_city:      form.location_city,
       sector_id:          form.sector_id || undefined,
       mobility_radius:    form.mobility_radius ? parseInt(form.mobility_radius) : undefined,
-      availability_type:  form.availability_type,
+      availability_type:  availabilityType,
       available_from:     form.available_from || undefined,
-      experience_level:   form.experience_level || undefined,
+      experience_level:   experienceLevel,
       salary_min:         form.salary_min ? parseFloat(form.salary_min) : undefined,
       salary_max:         form.salary_max ? parseFloat(form.salary_max) : undefined,
       has_driving_license: form.has_driving_license,
