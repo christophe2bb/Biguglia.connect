@@ -19,6 +19,7 @@ import { Profile } from '@/types';
 import toast from 'react-hot-toast';
 import {
   ProfileWithEmail, ExchangeInfo, ExchangeStatus, MessageWithSender,
+  ConversationApiResponse,
 } from '../_types';
 import { EXCHANGEABLE_TYPES, RECONNECT_DELAYS, FALLBACK_POLL_INTERVAL } from '../_config';
 
@@ -116,18 +117,17 @@ export function useConversationPage(conversationId: string) {
       }).catch(() => null);
       if (!res?.ok) return;
 
-      const data = await res.json().catch(() => null);
+      const data = await res.json().catch(() => null) as ConversationApiResponse | null;
       if (!data?.messages) return;
 
-      // Hydrate profile cache
+      // Hydrate profile cache — display_name est déjà calculé serveur
       if (data.profiles) {
-        (data.profiles as Array<{ id: string; full_name: string | null; avatar_url: string | null }>)
-          .forEach(p => { profileCacheRef.current[p.id] = p as unknown as Profile; });
+        data.profiles.forEach(p => { profileCacheRef.current[p.id] = p as unknown as Profile; });
       }
 
-      const enriched = (data.messages as Array<MessageWithSender>).map(msg => ({
+      const enriched = data.messages.map(msg => ({
         ...msg,
-        sender: msg.sender_id ? profileCacheRef.current[msg.sender_id as string] : undefined,
+        sender: msg.sender_id ? profileCacheRef.current[msg.sender_id] : undefined,
       }));
 
       if (!mountedRef.current) return;
@@ -232,75 +232,51 @@ export function useConversationPage(conversationId: string) {
         setLoading(false); return;
       }
 
-      const apiData = await res.json().catch(() => null);
+      const apiData = await res.json().catch(() => null) as ConversationApiResponse | null;
       if (!apiData) { toast.error('Erreur de données'); setLoading(false); return; }
 
-      const { conversation: conv, participants, profiles: profilesData, messages: msgs } = apiData as {
-        conversation: Record<string, unknown> | null;
-        participants: string[];
-        profiles: Array<{ id: string; full_name: string | null; avatar_url: string | null; email?: string | null }>;
-        messages: Array<MessageWithSender>;
-        myParticipation: { user_id: string; last_read_at: string | null; joined_at: string };
-      };
+      const { conversation: conv, profiles: profilesData, other_user_id, messages: msgs } = apiData;
 
-      // Hydrate profile cache
-      (profilesData || []).forEach(p => { profileCacheRef.current[p.id] = p as unknown as Profile; });
+      // Hydrate profile cache — les profils incluent désormais display_name calculé serveur
+      (profilesData || []).forEach(p => {
+        profileCacheRef.current[p.id] = p as unknown as Profile;
+      });
 
-      // Resolve other user
-      const candidateIds = (participants || []).filter(uid => uid !== profile.id);
-      let otherUserId: string | null = null;
+      // Résolution de l'autre participant — other_user_id est calculé côté serveur.
+      // La route garantit que son profil est dans profiles[] (fallback intégré).
+      const otherUserId = other_user_id ?? null;
 
-      if (candidateIds.length > 0) {
-        const otherId = candidateIds[0];
-        const foundInApi = (profilesData || []).find(p => p.id === otherId)
-          ?? (profileCacheRef.current[otherId] as typeof profilesData[0] | undefined)
-          ?? null;
-
-        if (foundInApi) {
-          profileCacheRef.current[foundInApi.id] = foundInApi as unknown as Profile;
-          setOtherUser(foundInApi as unknown as ProfileWithEmail);
-          otherUserId = foundInApi.id;
-        } else {
-          // Profil absent de la réponse API — tentative directe (pas de RLS récursive)
-          // On AWAIT avant setLoading(false) pour éviter un flash '?'
-          otherUserId = otherId;
-          try {
-            const { data: fallback } = await supabase
-              .from('profiles')
-              .select('id, full_name, avatar_url, email')
-              .eq('id', otherId)
-              .maybeSingle();
-            if (fallback && mountedRef.current) {
-              profileCacheRef.current[fallback.id] = fallback as unknown as Profile;
-              setOtherUser(fallback as unknown as ProfileWithEmail);
-            }
-          } catch (e) {
-            console.warn('[useConversationPage] fallback profile fetch:', e);
-          }
+      if (otherUserId) {
+        const otherProfile = profilesData.find(p => p.id === otherUserId);
+        if (otherProfile && mountedRef.current) {
+          setOtherUser(otherProfile as unknown as ProfileWithEmail);
         }
       }
 
-      setSubject((conv?.subject as string) || 'Conversation');
-      setRelatedType((conv?.related_type as string) || null);
-      setRelatedId((conv?.related_id as string) || null);
+      // conv est désormais ConversationApi — les champs sont typés, pas de cast aveugle
+      setSubject(conv?.subject || 'Conversation');
+      setRelatedType(conv?.related_type ?? null);
+      setRelatedId(conv?.related_id ?? null);
 
       const enriched: MessageWithSender[] = (msgs || []).map(msg => ({
         ...msg,
-        sender: msg.sender_id ? profileCacheRef.current[msg.sender_id as string] : undefined,
+        sender: msg.sender_id ? profileCacheRef.current[msg.sender_id] : undefined,
       }));
 
       if (!mountedRef.current) return;
       setMessages(enriched);
       if (enriched.length > 0) lastMsgIdRef.current = enriched[enriched.length - 1].id;
 
-      if (conv?.related_type && EXCHANGEABLE_TYPES[conv.related_type as string]) {
+      if (conv?.related_type && EXCHANGEABLE_TYPES[conv.related_type]) {
         setExchange({
-          status: (conv.exchange_status as ExchangeStatus) || null,
+          // exchange_status est une string | null dans ConversationApi — cast vers ExchangeStatus
+          status: (conv.exchange_status as ExchangeStatus) ?? null,
           confirmedBy: (conv.exchange_confirmed_by as string[]) || [],
-          confirmedAt: (conv.exchange_confirmed_at as string) || null,
-          relatedType: conv.related_type as string,
-          relatedId: conv.related_id as string,
-          otherUserId: otherUserId || candidateIds[0] || null,
+          confirmedAt: conv.exchange_confirmed_at ?? null,
+          relatedType: conv.related_type,
+          relatedId: conv.related_id ?? null,
+          // other_user_id résolu côté serveur — plus de candidateIds[0] fragile
+          otherUserId,
         });
       }
 
