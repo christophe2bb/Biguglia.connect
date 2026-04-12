@@ -4,8 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import {
   Shield, ChevronLeft, ChevronDown, ChevronUp,
-  CheckCircle2, Circle, ExternalLink, Copy, Check,
-  Globe, Zap, Lock, AlertTriangle, Info, ArrowRight,
+  CheckCircle2, Circle, ExternalLink,
+  Globe, Lock, AlertTriangle, Info, ArrowRight,
 } from 'lucide-react';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 
@@ -238,15 +238,7 @@ function StepCard({
   onToggleDone: () => void;
 }) {
   const [open, setOpen] = useState(step.id === 1);
-  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const c = COLOR_MAP[step.color];
-
-  const copyText = (text: string, idx: number) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopiedIdx(idx);
-      setTimeout(() => setCopiedIdx(null), 2000);
-    });
-  };
 
   return (
     <div className={`rounded-2xl border-2 overflow-hidden transition-all ${done ? 'border-emerald-300 bg-emerald-50/30' : `${c.border} bg-white`}`}>
@@ -333,7 +325,7 @@ function StepCard({
             <div className="space-y-3">
               <p className="text-sm font-bold text-gray-700">Choisis ton hébergeur de domaine :</p>
               {step.subSteps.map((sub, si) => (
-                <RegistrarBlock key={si} sub={sub} copyText={copyText} copiedIdx={copiedIdx} idx={si} />
+                <RegistrarBlock key={si} sub={sub} />
               ))}
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
@@ -393,12 +385,9 @@ function StepCard({
 }
 
 function RegistrarBlock({
-  sub, copyText, copiedIdx, idx,
+  sub,
 }: {
   sub: { registrar: string; url: string; steps: string[] };
-  copyText: (t: string, i: number) => void;
-  copiedIdx: number | null;
-  idx: number;
 }) {
   const [open, setOpen] = useState(false);
   return (

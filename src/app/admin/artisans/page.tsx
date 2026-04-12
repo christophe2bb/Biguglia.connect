@@ -94,8 +94,8 @@ function ArtisanCard({
   artisan, onApprove, onReject,
 }: {
   artisan: ArtisanEntry;
-  onApprove: (userId: string) => void;
-  onReject: (userId: string, reason: string) => void;
+  onApprove: (_userId: string) => void;
+  onReject: (_userId: string, _reason: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [rejecting, setRejecting] = useState(false);

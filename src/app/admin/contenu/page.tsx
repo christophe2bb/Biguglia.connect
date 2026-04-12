@@ -4,18 +4,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ChevronLeft, Package, MessageSquare, Wrench, Star,
+  ChevronLeft, Package, Star,
   Trash2, Eye, EyeOff, Search, RefreshCw, AlertTriangle,
-  CheckCircle, XCircle, FileText, Flag, Filter, Clock,
+  CheckCircle, XCircle, FileText, Flag,
   ShoppingBag, HardHat, ThumbsDown,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
-import Badge from '@/components/ui/Badge';
+
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Avatar from '@/components/ui/Avatar';
-import { formatDate, formatRelative } from '@/lib/utils';
+import { formatRelative } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 

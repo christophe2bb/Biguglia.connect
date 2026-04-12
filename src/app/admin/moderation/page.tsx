@@ -11,10 +11,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Shield, Clock, CheckCircle, XCircle, AlertTriangle, Filter,
-  Search, RefreshCw, Eye, ChevronRight, ArrowLeft, Zap,
+  Shield, CheckCircle, XCircle,
+  Search, RefreshCw, Eye, ChevronRight, ArrowLeft,
   Package, Wrench, Heart, Footprints, Calendar, MapPin,
-  BookOpen, Handshake, Users, Flag, BarChart3, TrendingUp,
+  BookOpen, Handshake, Flag, BarChart3,
   AlertCircle, Info, Star,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -118,7 +118,7 @@ function KPICard({ label, value, emoji, color, subtext, highlight }: {
 // ─── Composant ligne de file ──────────────────────────────────────────────────
 function QueueRow({ item, onQuickDecision }: {
   item: QueueItem;
-  onQuickDecision: (id: string, decision: 'accepter' | 'refuser') => void;
+  onQuickDecision: (_id: string, _decision: 'accepter' | 'refuser') => void;
 }) {
   const ContentIcon = CONTENT_ICONS[item.content_type] || Flag;
   const contentMeta = CONTENT_TYPE_LABELS[item.content_type];

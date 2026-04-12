@@ -3,9 +3,9 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import {
-  ChevronLeft, CheckCircle2, Clock, Circle, MapPin, Tag, Users,
-  Lock, Archive, Bell, Search, Shield, BarChart3, MessageCircle,
-  Heart, Flag, Settings, Database, Zap, FileText, Eye, Pin, Flame
+  ChevronLeft, CheckCircle2, Clock, Circle, MapPin, Users,
+  Lock, Bell, Search, Shield, BarChart3, MessageCircle,
+  Settings, Database, Zap, FileText, Eye
 } from 'lucide-react';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 

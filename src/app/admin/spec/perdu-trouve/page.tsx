@@ -10,7 +10,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft, CheckCircle2, Clock, Circle, ChevronDown, ChevronUp,
-  Search, MapPin, Shield, Bell, Database, Lock, Zap, Users,
+  Search, MapPin, Shield, Bell, Database, Zap, Users,
   BarChart3, Camera, FileText, Settings, Star, MessageSquare,
 } from 'lucide-react';
 import ProtectedPage from '@/components/providers/ProtectedPage';

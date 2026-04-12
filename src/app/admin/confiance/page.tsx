@@ -14,7 +14,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  Shield, Star, AlertTriangle, Users, BarChart3,
+  Shield, Star, AlertTriangle, BarChart3,
   Flag, Eye, EyeOff, CheckCircle, XCircle, ArrowLeft,
   Loader2, RefreshCw, Award, Tag, ChevronRight,
   ThumbsUp, TrendingUp,
@@ -24,7 +24,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { cn, formatRelative } from '@/lib/utils';
 import { THEME_CONFIG, BADGE_CONFIG, type BadgeCode, type InteractionSourceType } from '@/lib/trust';
 import Avatar from '@/components/ui/Avatar';
-import { BadgePill } from '@/components/ui/TrustScore';
+
 import toast from 'react-hot-toast';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 
