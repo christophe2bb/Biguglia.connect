@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Plus, Package, CheckCircle, XCircle, Clock, Archive,
   ChevronRight, Wrench, AlertCircle, RotateCcw, EyeOff, Eye,
-  History, BarChart2
+  History, BarChart2, Copy, ArrowDownCircle
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -20,7 +20,7 @@ import {
 } from '@/lib/equipment';
 import { formatDate } from '@/lib/utils';
 
-type Tab = 'materiel' | 'demandes' | 'prets' | 'historique' | 'activite';
+type Tab = 'materiel' | 'demandes' | 'prets' | 'prets_recus' | 'historique' | 'activite';
 
 interface EquipmentWithRequests extends EquipmentItemFull {
   pending_count?: number;
@@ -35,6 +35,7 @@ export default function DashboardMaterielPage() {
   const [items, setItems] = useState<EquipmentWithRequests[]>([]);
   const [allRequests, setAllRequests] = useState<EquipmentRequest[]>([]);
   const [allLoans, setAllLoans] = useState<EquipmentLoan[]>([]);
+  const [borrowedLoans, setBorrowedLoans] = useState<EquipmentLoan[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
@@ -65,13 +66,21 @@ export default function DashboardMaterielPage() {
     }
     setAllRequests(reqs);
 
-    // Prêts actifs et historique
+    // Prêts actifs et historique (en tant que prêteur)
     const { data: loanData } = await supabase
       .from('equipment_loans')
       .select('*, borrower:profiles!equipment_loans_borrower_id_fkey(id, full_name, avatar_url), equipment:equipment_items(id, title, status)')
       .eq('owner_id', profile.id)
       .order('created_at', { ascending: false });
     setAllLoans((loanData as EquipmentLoan[]) || []);
+
+    // Prêts reçus (en tant qu'emprunteur)
+    const { data: borrowedData } = await supabase
+      .from('equipment_loans')
+      .select('*, owner:profiles!equipment_loans_owner_id_fkey(id, full_name, avatar_url), equipment:equipment_items(id, title, status, owner_id)')
+      .eq('borrower_id', profile.id)
+      .order('created_at', { ascending: false });
+    setBorrowedLoans((borrowedData as EquipmentLoan[]) || []);
 
     // Enrichir les items avec leurs demandes et prêts
     const enriched: EquipmentWithRequests[] = myItems.map(item => {
@@ -165,6 +174,36 @@ export default function DashboardMaterielPage() {
     await fetchAll();
   };
 
+  const handleDuplicate = async (item: EquipmentWithRequests) => {
+    if (!profile) return;
+    setActionLoading(`dup-${item.id}`);
+    const supabase = createClient();
+    const { data: newItem, error } = await supabase.from('equipment_items').insert({
+      owner_id: profile.id,
+      title: `${item.title} (copie)`,
+      description: item.description,
+      category_id: item.category_id,
+      condition: item.condition,
+      is_free: item.is_free,
+      daily_rate: item.daily_rate,
+      deposit_amount: item.deposit_amount,
+      pickup_location: item.pickup_location,
+      rules: item.rules,
+      sector: item.sector,
+      availability_mode: item.availability_mode,
+      pickup_mode: item.pickup_mode,
+      lend_duration_hint: item.lend_duration_hint,
+      requires_explanation: item.requires_explanation,
+      usage_instructions: item.usage_instructions,
+      included_accessories: item.included_accessories,
+      status: 'disponible',
+    }).select().single();
+    if (error || !newItem) { toast.error('Erreur lors de la duplication'); setActionLoading(null); return; }
+    toast.success('Matériel dupliqué — modifiez la copie !');
+    router.push(`/materiel/${newItem.id}/modifier`);
+    setActionLoading(null);
+  };
+
   // ── Computed ──────────────────────────────────────────────────────────────
 
   const activeItems = items.filter(i => i.status !== 'archive');
@@ -172,6 +211,7 @@ export default function DashboardMaterielPage() {
   const pendingRequests = allRequests.filter(r => r.status === 'en_attente');
   const activeLoans = allLoans.filter(l => ['reserve', 'en_cours'].includes(l.status));
   const loanHistory = allLoans.filter(l => ['retourne', 'annule'].includes(l.status));
+  const activeBorrowedLoans = borrowedLoans.filter(l => ['reserve', 'en_cours'].includes(l.status));
 
   // ── Graphique d'activité : emprunts par mois (12 derniers mois) ───────────
   const activityData = (() => {
@@ -263,6 +303,7 @@ export default function DashboardMaterielPage() {
           { key: 'materiel' as Tab, label: 'Matériels', count: activeItems.length },
           { key: 'demandes' as Tab, label: 'Demandes', count: pendingRequests.length, alert: pendingRequests.length > 0 },
           { key: 'prets' as Tab, label: 'Prêts actifs', count: activeLoans.length },
+          { key: 'prets_recus' as Tab, label: 'Prêts reçus', count: activeBorrowedLoans.length },
           { key: 'historique' as Tab, label: 'Historique', count: loanHistory.length },
           { key: 'activite' as Tab, label: 'Activité', count: 0 },
         ]).map(t => (
@@ -292,7 +333,8 @@ export default function DashboardMaterielPage() {
           ) : (
             activeItems.map(item => <EquipmentItemCard key={item.id} item={item}
               onStatusChange={handleStatusChange} onDelete={handleDelete}
-              loading={actionLoading === item.id} />)
+              onDuplicate={handleDuplicate}
+              loading={actionLoading === item.id || actionLoading === `dup-${item.id}`} />)
           )}
 
           {/* Archivés */}
@@ -305,7 +347,7 @@ export default function DashboardMaterielPage() {
               </button>
               {showArchived && archivedItems.map(item => (
                 <EquipmentItemCard key={item.id} item={item} onStatusChange={handleStatusChange}
-                  onDelete={handleDelete} loading={actionLoading === item.id} />
+                  onDelete={handleDelete} onDuplicate={handleDuplicate} loading={actionLoading === item.id || actionLoading === `dup-${item.id}`} />
               ))}
             </div>
           )}
@@ -417,6 +459,65 @@ export default function DashboardMaterielPage() {
                         </button>
                       )}
                     </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* ── Tab : Prêts reçus ── */}
+      {tab === 'prets_recus' && (
+        <div className="space-y-3">
+          {borrowedLoans.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <ArrowDownCircle className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p className="font-medium mb-1">Aucun prêt reçu</p>
+              <p className="text-sm">Les matériels que vous empruntez apparaîtront ici</p>
+              <Link href="/materiel" className="mt-4 inline-block text-sm text-teal-600 hover:underline">Parcourir le matériel disponible →</Link>
+            </div>
+          ) : (
+            borrowedLoans.map(loan => {
+              const isCours = loan.status === 'en_cours';
+              const isTermine = ['retourne', 'annule'].includes(loan.status);
+              const statusLabel = isCours ? '🔄 En cours' : loan.status === 'reserve' ? '🔒 Réservé' : loan.status === 'retourne' ? '✅ Terminé' : '❌ Annulé';
+              const borderClass = isCours ? 'border-purple-200' : loan.status === 'reserve' ? 'border-orange-200' : 'border-gray-100';
+              return (
+                <div key={loan.id} className={`bg-white rounded-2xl border p-5 ${borderClass}`}>
+                  <div className="flex items-start gap-4">
+                    <Avatar
+                      src={(loan.owner as { avatar_url?: string })?.avatar_url}
+                      name={(loan.owner as { full_name?: string })?.full_name || '?'}
+                      size="md"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="font-semibold text-gray-900 text-sm">{(loan.owner as { full_name?: string })?.full_name}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          isCours ? 'bg-purple-100 text-purple-700' :
+                          loan.status === 'reserve' ? 'bg-orange-100 text-orange-700' :
+                          loan.status === 'retourne' ? 'bg-emerald-100 text-emerald-700' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>{statusLabel}</span>
+                      </div>
+                      <Link href={`/materiel/${loan.equipment_id}`} className="text-xs text-brand-600 hover:underline">
+                        {(loan.equipment as { title?: string })?.title || 'Voir le matériel'} →
+                      </Link>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {isCours ? `Prêté depuis ${formatDate(loan.loan_started_at || '')}` :
+                          loan.status === 'reserve' ? `Réservé le ${formatDate(loan.reserved_at || '')}` :
+                          loan.returned_at ? `Rendu le ${formatDate(loan.returned_at)}` :
+                          `Mis à jour le ${formatDate(loan.reserved_at || '')}`
+                        }
+                      </div>
+                    </div>
+                    {!isTermine && (
+                      <Link href={`/materiel/${loan.equipment_id}`}
+                        className="flex-shrink-0 px-3 py-2 bg-gray-50 border border-gray-200 text-gray-700 text-xs font-medium rounded-xl hover:bg-gray-100 transition">
+                        Voir la fiche
+                      </Link>
+                    )}
                   </div>
                 </div>
               );
@@ -561,11 +662,12 @@ export default function DashboardMaterielPage() {
 // ── Composant carte matériel ─────────────────────────────────────────────────
 
 function EquipmentItemCard({
-  item, onStatusChange, onDelete, loading
+  item, onStatusChange, onDelete, onDuplicate, loading
 }: {
   item: EquipmentWithRequests;
   onStatusChange: (id: string, s: EquipmentStatus) => void;
   onDelete: (item: EquipmentWithRequests) => void;
+  onDuplicate: (item: EquipmentWithRequests) => void;
   loading: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -644,6 +746,10 @@ function EquipmentItemCard({
                 <RotateCcw className="w-3 h-3" /> Remettre disponible
               </button>
             )}
+            <button onClick={() => onDuplicate(item)} disabled={loading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100 transition disabled:opacity-50">
+              <Copy className="w-3 h-3" /> Dupliquer
+            </button>
             <button onClick={() => onDelete(item)}
               className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-medium border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 transition">
               Supprimer

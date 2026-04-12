@@ -21,9 +21,10 @@ import { PhotoGallery, toPhotoItems } from '@/components/ui/PhotoViewer';
 import { TrustScoreFull } from '@/components/ui/TrustScore';
 import {
   EQUIPMENT_STATUS_CONFIG, LOAN_REQUEST_STATUS_CONFIG,
+  AVAILABILITY_MODE_CONFIG, PICKUP_MODE_CONFIG, LEND_DURATION_HINTS, CONDITION_CONFIG,
   getAllowedTransitions, getTransitionLabel, canDelete, isRequestable,
   EquipmentStatus, EquipmentItemFull, EquipmentRequest, EquipmentLoan,
-  EquipmentStatusHistory
+  EquipmentStatusHistory, AvailabilityMode, PickupMode, LendDurationHint, ConditionLabel,
 } from '@/lib/equipment';
 
 export default function MaterielDetailPage() {
@@ -376,6 +377,75 @@ export default function MaterielDetailPage() {
             <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{item.description}</p>
           </div>
 
+          {/* Bloc disponibilité (CDC §6.2) */}
+          {(() => {
+            const avMode = item.availability_mode as AvailabilityMode | undefined;
+            const pkMode = item.pickup_mode as PickupMode | undefined;
+            const durHint = item.lend_duration_hint as LendDurationHint | undefined;
+            if (!avMode && !pkMode && !durHint && !item.included_accessories && !item.usage_instructions && !item.requires_explanation) return null;
+            return (
+              <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-3">
+                <h2 className="font-semibold text-gray-900">Conditions & disponibilité</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {avMode && (
+                    <div className="flex items-start gap-2 p-3 bg-gray-50 rounded-xl">
+                      <span className="text-lg mt-0.5">{AVAILABILITY_MODE_CONFIG[avMode]?.icon}</span>
+                      <div>
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Disponibilité</div>
+                        <div className="text-sm font-medium text-gray-800">{AVAILABILITY_MODE_CONFIG[avMode]?.label}</div>
+                      </div>
+                    </div>
+                  )}
+                  {pkMode && (
+                    <div className="flex items-start gap-2 p-3 bg-gray-50 rounded-xl">
+                      <span className="text-lg mt-0.5">{PICKUP_MODE_CONFIG[pkMode]?.icon}</span>
+                      <div>
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Remise</div>
+                        <div className="text-sm font-medium text-gray-800">{PICKUP_MODE_CONFIG[pkMode]?.label}</div>
+                      </div>
+                    </div>
+                  )}
+                  {durHint && (
+                    <div className="flex items-start gap-2 p-3 bg-gray-50 rounded-xl">
+                      <span className="text-lg mt-0.5">⏱️</span>
+                      <div>
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Durée conseillée</div>
+                        <div className="text-sm font-medium text-gray-800">{LEND_DURATION_HINTS[durHint]?.label}</div>
+                      </div>
+                    </div>
+                  )}
+                  {item.condition && (
+                    <div className="flex items-start gap-2 p-3 bg-gray-50 rounded-xl">
+                      <span className="text-lg mt-0.5">{CONDITION_CONFIG[item.condition as ConditionLabel]?.icon}</span>
+                      <div>
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">État</div>
+                        <div className="text-sm font-medium text-gray-800">{CONDITION_CONFIG[item.condition as ConditionLabel]?.label || item.condition}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {item.requires_explanation && (
+                  <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                    <span className="text-amber-600">⚠️</span>
+                    <span className="text-sm text-amber-800 font-medium">Nécessite une explication à la remise — prévoyez un moment avec le prêteur</span>
+                  </div>
+                )}
+                {item.included_accessories && (
+                  <div className="p-3 bg-emerald-50 rounded-xl">
+                    <div className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-1">Accessoires inclus</div>
+                    <p className="text-sm text-emerald-800">{item.included_accessories}</p>
+                  </div>
+                )}
+                {item.usage_instructions && (
+                  <div className="p-3 bg-blue-50 rounded-xl">
+                    <div className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">📋 Instructions d&apos;utilisation</div>
+                    <p className="text-sm text-blue-800 whitespace-pre-wrap">{item.usage_instructions}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Règles */}
           {item.rules && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
@@ -599,15 +669,19 @@ export default function MaterielDetailPage() {
                 </button>
               </div>
             ) : (
-              /* Bouton contact visiteur */
+              /* Bouton principal CDC §5.1 : message prérempli contextualisé */
               <ContactButton
                 sourceType="equipment"
                 sourceId={item.id}
                 sourceTitle={item.title}
                 ownerId={item.owner_id}
                 userId={profile?.id}
-                ctaLabel="Discuter en privé"
-                prefillMsg={`Bonjour, je suis intéressé(e) par votre "${item.title}"${item.is_free ? ' (gratuit)' : item.daily_rate ? ` à ${item.daily_rate}€/jour` : ''} — est-il toujours disponible ?`}
+                ctaLabel="Demander ce matériel"
+                prefillMsg={[
+                  `Bonjour, je souhaiterais emprunter votre « ${item.title} »${item.is_free ? ' (gratuit)' : item.daily_rate ? ` à ${item.daily_rate}€/j` : ''}.`,
+                  item.availability_mode === 'toujours' ? 'Quand serait-il possible de le récupérer ?' : 'Pourriez-vous me préciser vos créneaux disponibles ?',
+                  item.requires_explanation ? 'Je suis disponible pour les explications à la remise.' : '',
+                ].filter(Boolean).join(' ')}
                 className="w-full"
               />
             )}
@@ -742,17 +816,18 @@ export default function MaterielDetailPage() {
             </div>
           )}
 
-          {/* Conseils */}
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Clock className="w-4 h-4 text-blue-600" />
-              <h4 className="text-sm font-medium text-blue-800">Conseils de prêt</h4>
+          {/* Bloc rassurance CDC §6.2 */}
+          <div className="bg-gradient-to-br from-teal-50 to-cyan-50 border border-teal-200 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Shield className="w-4 h-4 text-teal-600" />
+              <h4 className="text-sm font-semibold text-teal-900">Prêt local — règles de confiance</h4>
             </div>
-            <ul className="text-xs text-blue-700 space-y-1">
-              <li>• Vérifiez l&apos;état avant de prendre</li>
-              <li>• Respectez les règles d&apos;utilisation</li>
-              <li>• Rendez propre et en bon état</li>
-              <li>• Signalez tout problème immédiatement</li>
+            <ul className="text-xs text-teal-800 space-y-1.5">
+              <li className="flex items-start gap-1.5"><span className="mt-0.5">✅</span> Vérifiez l&apos;état du matériel à la remise</li>
+              <li className="flex items-start gap-1.5"><span className="mt-0.5">✅</span> Respectez les règles et la durée convenue</li>
+              <li className="flex items-start gap-1.5"><span className="mt-0.5">✅</span> Rendez propre, en bon état et à l&apos;heure</li>
+              <li className="flex items-start gap-1.5"><span className="mt-0.5">✅</span> Signalez tout problème sans attendre</li>
+              <li className="flex items-start gap-1.5"><span className="mt-0.5">🚫</span> Aucun paiement en dehors de l&apos;accord établi</li>
             </ul>
           </div>
         </div>
