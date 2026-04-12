@@ -2,7 +2,42 @@
  * Bibliothèque métier — Cycle de vie du matériel
  * Biguglia Connect
  * Statuts, transitions, règles, types, SQL
+ * Conforme au CDC "Module Prêt de matériel" v1 PRO
  */
+
+// ─── Disponibilité ────────────────────────────────────────────────────────────
+
+export type AvailabilityMode = 'toujours' | 'sur_demande' | 'creneaux';
+export type PickupMode = 'remise_en_main' | 'retrait_prêteur' | 'point_rdv';
+export type LendDurationHint = '2h' | 'journee' | 'week-end' | 'semaine' | 'libre';
+export type ConditionLabel = 'neuf' | 'tres_bon' | 'bon' | 'usage';
+
+export const AVAILABILITY_MODE_CONFIG: Record<AvailabilityMode, { label: string; icon: string; description: string }> = {
+  toujours:    { label: 'Toujours disponible', icon: '✅', description: 'Disponible sans délai de préavis' },
+  sur_demande: { label: 'Sur demande',         icon: '💬', description: 'Contactez le prêteur pour convenir d\'un créneau' },
+  creneaux:    { label: 'Créneaux définis',    icon: '📅', description: 'Disponible sur des plages horaires précises' },
+};
+
+export const PICKUP_MODE_CONFIG: Record<PickupMode, { label: string; icon: string }> = {
+  remise_en_main: { label: 'Remise en main propre', icon: '🤝' },
+  retrait_prêteur: { label: 'Retrait chez le prêteur', icon: '🏠' },
+  point_rdv:       { label: 'Point de rendez-vous',   icon: '📍' },
+};
+
+export const LEND_DURATION_HINTS: Record<LendDurationHint, { label: string }> = {
+  '2h':      { label: '2 heures' },
+  journee:   { label: 'Journée' },
+  'week-end':{ label: 'Week-end' },
+  semaine:   { label: 'Semaine' },
+  libre:     { label: 'Durée libre' },
+};
+
+export const CONDITION_CONFIG: Record<ConditionLabel, { label: string; icon: string; color: string }> = {
+  neuf:     { label: 'Neuf',                    icon: '🌟', color: 'text-emerald-700' },
+  tres_bon: { label: 'Très bon état',            icon: '✅', color: 'text-green-700'   },
+  bon:      { label: 'Bon état',                 icon: '👍', color: 'text-blue-700'    },
+  usage:    { label: 'Usagé mais fonctionnel',   icon: '⚙️', color: 'text-amber-700'   },
+};
 
 // ─── Statuts du matériel ─────────────────────────────────────────────────────
 
@@ -175,24 +210,36 @@ export interface EquipmentItemFull {
   category_id: string;
   title: string;
   description: string;
-  condition: 'neuf' | 'tres_bon' | 'bon' | 'usage';
+  condition: ConditionLabel;
   status: EquipmentStatus;
   is_available: boolean; // legacy, sync avec status
   is_free: boolean;
   daily_rate?: number;
   deposit_amount?: number;
+  deposit_note?: string;        // CDC §3.3 : note sur la caution
   pickup_location: string;
   location_area?: string;
   rules?: string;
   availability_notes?: string;
+
+  // ── Champs CDC §3.3 / §11 ────────────────────────────────────────────────
+  availability_mode?: AvailabilityMode;   // toujours / sur_demande / creneaux
+  pickup_mode?: PickupMode;               // remise_en_main / retrait_prêteur / point_rdv
+  lend_duration_hint?: LendDurationHint; // 2h / journee / week-end / semaine / libre
+  usage_instructions?: string;            // instructions d'utilisation (CDC §6.2)
+  included_accessories?: string;          // accessoires inclus (CDC §6.2 / §11)
+  requires_explanation?: boolean;         // signal "nécessite explication" (CDC §3.3)
+  min_notice_hours?: number;             // délai de préavis minimum en heures
+
   created_at: string;
   updated_at: string;
   archived_at?: string;
   status_changed_at?: string;
   // Relations
-  owner?: { id: string; full_name: string; avatar_url?: string };
+  owner?: { id: string; full_name: string; avatar_url?: string; created_at?: string; role?: string };
   category?: { id: string; name: string; icon: string; slug: string };
   photos?: EquipmentPhotoFull[];
+  sector?: { id: string; name: string } | null;
 }
 
 export interface EquipmentPhotoFull {
