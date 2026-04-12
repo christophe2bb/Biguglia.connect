@@ -135,20 +135,21 @@ function InteractionCard({ row, userId }: { row: InteractionRow; userId: string 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 function MesInteractionsContent() {
   const { profile } = useAuthStore();
+  const profileId = profile?.id;
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<InteractionRow[]>([]);
   const [tab, setTab] = useState<FilterTab>('all');
   const [tableExists, setTableExists] = useState(true);
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profileId) return;
     const load = async () => {
       setLoading(true);
       const supabase = createClient();
       const { data, error } = await supabase
         .from('interactions')
         .select('*')
-        .or(`requester_id.eq.${profile.id},receiver_id.eq.${profile.id}`)
+        .or(`requester_id.eq.${profileId},receiver_id.eq.${profileId}`)
         .order('started_at', { ascending: false })
         .limit(100);
 
@@ -160,7 +161,7 @@ function MesInteractionsContent() {
 
       // Enrich with other user names and source titles
       const enriched = await Promise.all((data || []).map(async (row: Record<string, unknown>) => {
-        const otherId = row.requester_id === profile.id ? row.receiver_id : row.requester_id;
+        const otherId = row.requester_id === profileId ? row.receiver_id : row.requester_id;
         const { data: otherProfile } = await supabase
           .from('profiles').select('full_name, avatar_url').eq('id', otherId as string).maybeSingle();
 
@@ -192,7 +193,7 @@ function MesInteractionsContent() {
       setLoading(false);
     };
     load();
-  }, [profile?.id]);
+  }, [profileId]);
 
   const filtered = (() => {
     switch (tab) {

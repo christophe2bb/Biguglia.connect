@@ -124,6 +124,7 @@ function ContentCard({ item }: { item: ContentItem }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 function MesContenusContent() {
   const { profile } = useAuthStore();
+  const profileId = profile?.id;
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<ContentItem[]>([]);
@@ -132,7 +133,7 @@ function MesContenusContent() {
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profileId) return;
     const load = async () => {
       setLoading(true);
       const supabase = createClient();
@@ -147,14 +148,14 @@ function MesContenusContent() {
         { data: forum },
         { data: associations },
       ] = await Promise.all([
-        supabase.from('listings').select('id, title, description, status, views, created_at, location, photos:listing_photos(url)').eq('user_id', profile.id).order('created_at', { ascending: false }),
-        supabase.from('equipment_items').select('id, title, description, is_available, pickup_location, created_at, photos:equipment_photos(url)').eq('owner_id', profile.id).order('created_at', { ascending: false }),
-        supabase.from('help_requests').select('id, title, description, status, location_city, created_at').eq('author_id', profile.id).order('created_at', { ascending: false }),
-        supabase.from('events').select('id, title, description, status, location, event_date, created_at, photos:event_photos(url)').eq('author_id', profile.id).order('created_at', { ascending: false }),
-        supabase.from('group_outings').select('id, title, description, status, meeting_point, outing_date, created_at, photos:outing_photos(url)').eq('organizer_id', profile.id).order('created_at', { ascending: false }),
+        supabase.from('listings').select('id, title, description, status, views, created_at, location, photos:listing_photos(url)').eq('user_id', profileId).order('created_at', { ascending: false }),
+        supabase.from('equipment_items').select('id, title, description, is_available, pickup_location, created_at, photos:equipment_photos(url)').eq('owner_id', profileId).order('created_at', { ascending: false }),
+        supabase.from('help_requests').select('id, title, description, status, location_city, created_at').eq('author_id', profileId).order('created_at', { ascending: false }),
+        supabase.from('events').select('id, title, description, status, location, event_date, created_at, photos:event_photos(url)').eq('author_id', profileId).order('created_at', { ascending: false }),
+        supabase.from('group_outings').select('id, title, description, status, meeting_point, outing_date, created_at, photos:outing_photos(url)').eq('organizer_id', profileId).order('created_at', { ascending: false }),
         // forum_topics est le nom de table correct (forum_posts = ancien nom / posts dans un topic)
-        supabase.from('forum_topics').select('id, title, content, views, created_at').eq('author_id', profile.id).order('created_at', { ascending: false }),
-        supabase.from('associations').select('id, name, description_short, status, location, created_at').eq('author_id', profile.id).order('created_at', { ascending: false }), // logo_url n'existe pas en DB
+        supabase.from('forum_topics').select('id, title, content, views, created_at').eq('author_id', profileId).order('created_at', { ascending: false }),
+        supabase.from('associations').select('id, name, description_short, status, location, created_at').eq('author_id', profileId).order('created_at', { ascending: false }), // logo_url n'existe pas en DB
       ]);
 
       const all: ContentItem[] = [
@@ -209,7 +210,7 @@ function MesContenusContent() {
       setLoading(false);
     };
     load();
-  }, [profile?.id]);
+  }, [profileId]);
 
   const filtered = items.filter(item => {
     if (activeTheme !== 'all' && item.type !== activeTheme) return false;

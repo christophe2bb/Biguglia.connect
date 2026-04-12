@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
@@ -32,7 +32,7 @@ type DashboardStats = {
 export default function DashboardPromenadePage() {
   const { profile, loading: authLoading } = useAuthStore();
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [activeTab, setActiveTab] = useState<'sorties' | 'participants' | 'historique'>('sorties');
   const [loading, setLoading] = useState(true);
@@ -77,7 +77,7 @@ export default function DashboardPromenadePage() {
       );
     }
     setLoading(false);
-  }, [profile]);
+  }, [profile, supabase]);
 
   const fetchPendingParticipants = useCallback(async () => {
     if (!profile) return;
@@ -103,7 +103,7 @@ export default function DashboardPromenadePage() {
       .limit(50);
 
     setPendingParticipants((data || []) as Participant[]);
-  }, [profile]);
+  }, [profile, supabase]);
 
   const computeStats = useCallback((outingsList: OutingWithStats[]) => {
     const s: DashboardStats = {
