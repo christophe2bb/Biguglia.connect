@@ -31,14 +31,14 @@
  */
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseEnv } from '@/lib/supabase/env';
 
 /** Crée un client anon éphémère pour valider un Bearer token */
 function anonClient() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
+  const { url, anonKey } = getSupabaseEnv();
+  return createSupabaseClient(url, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 }
 
 /**
