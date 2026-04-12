@@ -1,6 +1,5 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { getSupabaseEnvSafe } from './env';
 
 /**
  * updateSession — Rafraîchit la session Supabase et applique les guards de navigation.
@@ -14,27 +13,27 @@ import { getSupabaseEnvSafe } from './env';
  *
  * ─── Stratégie d'authentification ──────────────────────────────────────────────
  *
- *  Le client Supabase côté navigateur (createBrowserClient) stocke la session
- *  dans document.cookie sous la forme d'un cookie JSON brut :
+ *  Le client Supabase côté navigateur stocke la session dans document.cookie :
  *    sb-<ref>-auth-token = {"access_token":"eyJ...","refresh_token":"..."}
  *
- *  Dans l'Edge Runtime du middleware Next.js, on NE fait PAS d'appel réseau
+ *  Dans l'Edge Runtime du middleware, on NE fait PAS d'appel réseau
  *  (getUser() → HTTP vers Supabase Auth) car :
  *    - Risque de timeout → user = null → fausse redirection vers /connexion
  *    - Latence ajoutée sur chaque requête
  *
- *  Stratégie choisie : lire le token directement dans le cookie JSON.
+ *  Stratégie : lire le token directement dans le cookie JSON.
  *    1. Chercher le cookie sb-<ref>-auth-token (format JSON ou chunked)
- *    2. Si access_token présent → JWT non expiré → utilisateur connecté
+ *    2. Si access_token présent → utilisateur connecté (le refresh est géré
+ *       côté client silencieusement via refresh_token)
  *    3. Si absent → rediriger vers /connexion
  *
- *  La validation sécurisée du JWT (signature + expiration) se fait dans les
- *  API Routes via getUserIdBearerFirst / getUserFromRequest (Bearer token).
+ *  La validation cryptographique du JWT (signature + expiration) se fait dans
+ *  les API Routes via getUserIdBearerFirst / getUserFromRequest.
  *
  * ─── Note Edge Runtime ──────────────────────────────────────────────────────────
  *
  *  Ce middleware tourne sur l'Edge Runtime (Vercel/Next.js).
- *  Il ne peut PAS faire de requête Supabase DB (pas de service role key en Edge).
+ *  Il ne peut PAS accéder à la DB Supabase (pas de service role key en Edge).
  */
 
 // ─── Routes nécessitant une authentification ─────────────────────────────────
@@ -48,6 +47,20 @@ const PROTECTED_PREFIXES = [
 // ─── Nom du cookie Supabase (basé sur le project ref) ────────────────────────
 const SUPABASE_PROJECT_REF = 'qmrkacrpncdkhofiqlrg';
 const SUPABASE_COOKIE_NAME = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
+const SUPABASE_CHUNK_0     = `${SUPABASE_COOKIE_NAME}.0`;
+
+// ─── Variables d'env lues une seule fois au chargement du module ─────────────
+// L'Edge Runtime réutilise l'instance entre les requêtes sur la même instance.
+const SUPABASE_URL  = (process.env.NEXT_PUBLIC_SUPABASE_URL  ?? '').trim();
+const SUPABASE_ANON = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').trim();
+
+if (!SUPABASE_URL || !SUPABASE_ANON) {
+  console.error(
+    '[Supabase/middleware] ⚠️  Variables Supabase manquantes — le middleware ' +
+    'ne peut pas valider les sessions. Vérifiez NEXT_PUBLIC_SUPABASE_URL et ' +
+    'NEXT_PUBLIC_SUPABASE_ANON_KEY.',
+  );
+}
 
 /**
  * hasValidToken — Lit le token d'accès directement depuis les cookies.
@@ -59,31 +72,25 @@ function hasValidToken(request: NextRequest): boolean {
   const jsonCookie = request.cookies.get(SUPABASE_COOKIE_NAME)?.value;
   if (jsonCookie) {
     try {
-      // Le cookie peut être URL-encodé
-      const decoded = decodeURIComponent(jsonCookie);
-      const parsed = JSON.parse(decoded) as Record<string, unknown>;
+      const parsed = JSON.parse(decodeURIComponent(jsonCookie)) as Record<string, unknown>;
       if (typeof parsed.access_token === 'string' && parsed.access_token.startsWith('eyJ')) {
-        // Token présent (même expiré) → laisser passer.
-        // Le refresh_token permettra au client de le renouveler silencieusement.
-        // On ne redirige QUE si aucun access_token n'est trouvé du tout.
         return true;
       }
     } catch {
-      // Pas du JSON valide, continuer
+      // Pas du JSON valide, continuer vers le format chunké
     }
   }
 
-  // Format chunké : sb-<ref>-auth-token.0, .1, ... (createServerClient)
-  const chunk0 = request.cookies.get(`${SUPABASE_COOKIE_NAME}.0`)?.value;
+  // Format chunké : sb-<ref>-auth-token.0 (createServerClient)
+  const chunk0 = request.cookies.get(SUPABASE_CHUNK_0)?.value;
   if (chunk0) {
     try {
-      const decoded = decodeURIComponent(chunk0);
-      const parsed = JSON.parse(decoded) as Record<string, unknown>;
+      const parsed = JSON.parse(decodeURIComponent(chunk0)) as Record<string, unknown>;
       if (typeof parsed.access_token === 'string' && parsed.access_token.startsWith('eyJ')) {
         return true;
       }
     } catch {
-      // Continuer
+      // Cookie chunk invalide
     }
   }
 
@@ -93,14 +100,11 @@ function hasValidToken(request: NextRequest): boolean {
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
-  // Variables validées et nettoyées par env.ts (trim + log si vide).
-  // getSupabaseEnvSafe() ne lève pas d'exception en Edge Runtime.
-  const { url: supabaseUrl, anonKey: supabaseAnon } = getSupabaseEnvSafe();
-
-  // Créer le client pour rafraîchir les cookies de session (obligatoire)
+  // Créer le client pour rafraîchir les cookies de session (obligatoire
+  // même sans guard : maintient la session active côté serveur)
   const supabase = createServerClient(
-    supabaseUrl,
-    supabaseAnon,
+    SUPABASE_URL,
+    SUPABASE_ANON,
     {
       cookies: {
         getAll() {
@@ -119,15 +123,15 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Rafraîchir la session si nécessaire (écrit les nouveaux cookies dans la réponse)
-  // NE PAS utiliser le résultat pour le guard : getUser() peut timeout en Edge Runtime
+  // Rafraîchir la session si nécessaire (écrit les nouveaux cookies dans la réponse).
+  // NE PAS utiliser le résultat pour le guard : getUser() peut timeout en Edge Runtime.
   await supabase.auth.getSession();
 
   // ── Guard : lecture directe du cookie JWT — SANS appel réseau ──────────────
   const { pathname } = request.nextUrl;
 
   const isProtected = PROTECTED_PREFIXES.some(prefix =>
-    pathname === prefix || pathname.startsWith(prefix + '/')
+    pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
 
   if (isProtected && !hasValidToken(request)) {
