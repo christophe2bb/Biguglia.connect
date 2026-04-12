@@ -12,7 +12,7 @@
  */
 
 import { useState, useRef } from 'react';
-import { MessageSquare, CheckCheck, Trash2, Bot } from 'lucide-react';
+import { MessageSquare, CheckCheck, Trash2, Bot, AlertCircle } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import { cn, formatRelative } from '@/lib/utils';
 import { ProfileWithEmail, GroupedMessage } from '../_types';
@@ -131,7 +131,7 @@ function MessageBubble({
           onTouchEnd={handlePressEnd}
           onTouchMove={handlePressEnd}
         >
-          {msg.content}
+          {msg.content ?? <span className="italic text-gray-400 text-xs">[message supprimé]</span>}
         </div>
 
         {/* Bouton suppression */}
@@ -204,11 +204,13 @@ interface MessageListProps {
   deletingMsgId: string | null;
   onDeleteMessage: (msgId: string) => void;
   messagesEndRef: React.RefObject<HTMLDivElement>;
+  /** Signalé par le serveur quand la table messages n'a pas pu être interrogée */
+  fetchError?: string | null;
 }
 
 export function MessageList({
   grouped, loading, relatedType, subject,
-  currentUserId, deletingMsgId, onDeleteMessage, messagesEndRef,
+  currentUserId, deletingMsgId, onDeleteMessage, messagesEndRef, fetchError,
 }: MessageListProps) {
   const conf = relatedType ? CONTEXT_CONFIG[relatedType] : null;
 
@@ -224,8 +226,17 @@ export function MessageList({
             <div className="h-10 bg-gray-100 rounded-2xl w-2/5 ml-auto" />
           </div>
         </div>
+      ) : fetchError ? (
+        /* État erreur — la table messages n'a pas pu être interrogée */
+        <div className="flex flex-col items-center justify-center h-full text-center py-8">
+          <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-7 h-7 text-red-400" />
+          </div>
+          <p className="font-semibold text-gray-700 mb-1">Impossible de charger les messages</p>
+          <p className="text-gray-400 text-sm">Une erreur est survenue. Rechargez la page pour réessayer.</p>
+        </div>
       ) : grouped.length === 0 ? (
-        /* État vide */
+        /* État vide — conversation vraiment sans messages */
         <div className="flex flex-col items-center justify-center h-full text-center py-8">
           <div className="w-16 h-16 bg-brand-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <MessageSquare className="w-7 h-7 text-brand-400" />
@@ -245,10 +256,13 @@ export function MessageList({
           const isTemp = msg.id.startsWith('temp-');
           const isSystem =
             msg.is_system ||
+            msg.content?.startsWith('👋') ||
             msg.content?.startsWith('✅') ||
             msg.content?.startsWith('🤝') ||
             msg.content?.includes('Échange confirmé') ||
-            msg.content?.includes('Conversation créée');
+            msg.content?.includes('Conversation créée') ||
+            msg.content?.includes('je vous contacte') ||
+            msg.content?.includes('via biguglia connect');
 
           const showAvatar =
             !isMe && !isSystem &&
@@ -262,7 +276,7 @@ export function MessageList({
             <div key={msg.id}>
               {showSep && <DateSeparator date={msg.created_at} />}
               {isSystem ? (
-                <SystemMessage content={msg.content || ''} />
+                <SystemMessage content={msg.content ?? ''} />
               ) : (
                 <MessageBubble
                   msg={msg}

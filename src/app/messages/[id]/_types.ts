@@ -47,8 +47,10 @@ export interface MyParticipationApi {
 export interface MessageApi {
   id: string;
   conversation_id: string;
-  sender_id: string;
-  content: string;
+  /** sender_id peut être null pour les messages système auto-générés */
+  sender_id: string | null;
+  /** content peut être null pour les messages supprimés (is_deleted=true) */
+  content: string | null;
   created_at: string;
   is_deleted?: boolean;
   deleted_at?: string | null;
@@ -61,6 +63,8 @@ export interface MessageApi {
  *  - `profiles` contient TOUJOURS l'entrée de l'utilisateur courant ET de l'autre participant
  *  - `other_user_id` est null uniquement si la conversation n'a qu'un participant (anomalie)
  *  - `display_name` est toujours une chaîne non vide (jamais null)
+ *  - `messages_fetch_error` est présent (non-null) uniquement en cas d'échec de la requête messages
+ *    Le client peut distinguer "0 messages" (conversation vide) de "erreur de chargement"
  */
 export interface ConversationApiResponse {
   conversation: ConversationApi;
@@ -72,6 +76,11 @@ export interface ConversationApiResponse {
   other_user_id: string | null;
   messages: MessageApi[];
   myParticipation: MyParticipationApi;
+  /**
+   * Présent (non-null) uniquement si la requête Supabase sur la table messages a échoué.
+   * Permet au client d'afficher un état d'erreur distinct de "conversation vide".
+   */
+  messages_fetch_error?: string | null;
 }
 
 /** Statut de l'échange bipartite */
@@ -88,7 +97,11 @@ export interface ExchangeInfo {
 }
 
 /** Message enrichi avec le profil de l'expéditeur (optionnel, chargé async) */
-export type MessageWithSender = Message & {
+export type MessageWithSender = Omit<Message, 'content' | 'sender_id'> & {
+  /** Peut être null pour les messages supprimés ou auto-générés */
+  content: string | null;
+  /** Peut être null pour les messages système auto-générés */
+  sender_id: string | null;
   sender?: Profile;
   is_system?: boolean;
 };

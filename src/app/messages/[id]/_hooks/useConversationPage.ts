@@ -60,9 +60,10 @@ export function useConversationPage(conversationId: string) {
   const [subject, setSubject]         = useState('');
   const [relatedType, setRelatedType] = useState<string | null>(null);
   const [relatedId, setRelatedId]     = useState<string | null>(null);
-  const [realtimeOk, setRealtimeOk]   = useState(false);
-  const [isFavorite, setIsFavorite]   = useState(false);
-  const [isBlocked, setIsBlocked]     = useState(false);
+  const [realtimeOk, setRealtimeOk]     = useState(false);
+  const [isFavorite, setIsFavorite]     = useState(false);
+  const [isBlocked, setIsBlocked]       = useState(false);
+  const [messagesFetchError, setMessagesFetchError] = useState<string | null>(null);
   const [exchange, setExchange]       = useState<ExchangeInfo>({
     status: null, confirmedBy: [], confirmedAt: null,
     relatedType: null, relatedId: null, otherUserId: null,
@@ -212,8 +213,15 @@ export function useConversationPage(conversationId: string) {
 
     markAsRead();
 
+    // AbortController pour annuler le fetch si le composant se démonte ou si l'effet
+    // se ré-exécute avant la fin du fetch précédent (race condition profile re-render).
+    const controller = new AbortController();
+    const { signal } = controller;
+
     const init = async () => {
       const token = await getToken(supabase);
+      // Vérifier que l'effet n'a pas été annulé pendant getToken
+      if (signal.aborted) return;
       if (!token) {
         router.push(`/connexion?next=${encodeURIComponent(`/messages/${conversationId}`)}`);
         return;
@@ -221,19 +229,37 @@ export function useConversationPage(conversationId: string) {
 
       const res = await fetch(`/api/messages/conversation/${conversationId}`, {
         headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => null);
+        signal,
+      }).catch((err: unknown) => {
+        // AbortError : l'effet a été nettoyé — ne pas afficher d'erreur
+        if (err instanceof Error && err.name === 'AbortError') return null;
+        return null;
+      });
 
+      if (signal.aborted) return;
       if (!res) { toast.error('Erreur réseau — vérifiez votre connexion'); setLoading(false); return; }
       if (res.status === 403) { toast.error("Accès refusé — vous n'avez pas accès à cette conversation"); router.push('/messages'); return; }
       if (res.status === 401) { router.push(`/connexion?next=${encodeURIComponent(`/messages/${conversationId}`)}`); return; }
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string };
+        if (signal.aborted) return;
         toast.error(`Erreur de chargement (${res.status})${body?.error ? ' : ' + body.error : ''}`);
         setLoading(false); return;
       }
 
       const apiData = await res.json().catch(() => null) as ConversationApiResponse | null;
+      if (signal.aborted) return;
       if (!apiData) { toast.error('Erreur de données'); setLoading(false); return; }
+
+      // Si le serveur a signalé un échec sur la table messages, prévenir l'utilisateur.
+      // On continue quand même (les autres données sont valides) pour afficher le fil vide
+      // avec un état d'erreur distinct plutôt que l'état trompeur "Démarrez la conversation".
+      if (apiData.messages_fetch_error) {
+        console.error('[useConversationPage] messages_fetch_error:', apiData.messages_fetch_error);
+        setMessagesFetchError(apiData.messages_fetch_error);
+      } else {
+        setMessagesFetchError(null);
+      }
 
       const { conversation: conv, profiles: profilesData, other_user_id, messages: msgs } = apiData;
 
@@ -248,10 +274,12 @@ export function useConversationPage(conversationId: string) {
 
       if (otherUserId) {
         const otherProfile = profilesData.find(p => p.id === otherUserId);
-        if (otherProfile && mountedRef.current) {
+        if (otherProfile && !signal.aborted) {
           setOtherUser(otherProfile as unknown as ProfileWithEmail);
         }
       }
+
+      if (signal.aborted) return;
 
       // conv est désormais ConversationApi — les champs sont typés, pas de cast aveugle
       setSubject(conv?.subject || 'Conversation');
@@ -263,7 +291,6 @@ export function useConversationPage(conversationId: string) {
         sender: msg.sender_id ? profileCacheRef.current[msg.sender_id] : undefined,
       }));
 
-      if (!mountedRef.current) return;
       setMessages(enriched);
       if (enriched.length > 0) lastMsgIdRef.current = enriched[enriched.length - 1].id;
 
@@ -285,7 +312,7 @@ export function useConversationPage(conversationId: string) {
           supabase.from('user_favorites').select('id').eq('user_id', profile.id).eq('target_user_id', otherUserId).maybeSingle(),
           supabase.from('user_blocks').select('id').eq('user_id', profile.id).eq('target_user_id', otherUserId).maybeSingle(),
         ]).then(([favRes, blkRes]) => {
-          if (!mountedRef.current) return;
+          if (signal.aborted) return;
           setIsFavorite(!!favRes.data);
           setIsBlocked(!!blkRes.data);
         });
@@ -305,6 +332,8 @@ export function useConversationPage(conversationId: string) {
     document.addEventListener('visibilitychange', handleVis);
 
     return () => {
+      // Annuler le fetch en cours (évite la race condition si profile change)
+      controller.abort();
       mountedRef.current = false;
       if (channelRef.current) supabase.removeChannel(channelRef.current);
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
@@ -312,7 +341,7 @@ export function useConversationPage(conversationId: string) {
       document.removeEventListener('visibilitychange', handleVis);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, conversationId, profile, router]);
+  }, [authLoading, conversationId, profile?.id, router]);
 
   // Scroll auto à chaque nouveau message
   useEffect(() => {
@@ -410,6 +439,7 @@ export function useConversationPage(conversationId: string) {
     messages, loading, sending,
     otherUser, subject, relatedType, relatedId,
     realtimeOk, isFavorite, isBlocked, exchange,
+    messagesFetchError,
     // Setters exposed to ExchangePanel
     setExchange,
     // Refs for components

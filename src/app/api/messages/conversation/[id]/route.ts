@@ -214,6 +214,9 @@ export async function GET(
     other_user_id: otherParticipantId,
     messages: messages ?? [],
     myParticipation: participation,
+    // Signaler au client si le chargement des messages a échoué (erreur Supabase silencieuse).
+    // Le client peut ainsi distinguer "conversation vide" de "erreur de chargement".
+    messages_fetch_error: messagesError ? messagesError.message : null,
   };
 
   return NextResponse.json(body);
