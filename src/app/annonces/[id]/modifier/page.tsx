@@ -147,25 +147,31 @@ export default function ModifierAnnoncePage() {
     setSaving(true);
     const supabase = createClient();
 
+    // Champs de base toujours présents dans le schéma DB
+    const updatePayload: Record<string, unknown> = {
+      title:        form.title.trim(),
+      description:  form.description.trim(),
+      category_id:  form.category_id,
+      listing_type: form.listing_type,
+      price:        form.price ? parseFloat(form.price) : null,
+      is_negotiable: form.is_negotiable,
+      is_urgent:    form.is_urgent,
+      condition:    form.condition || null,
+      location:     form.location || 'Biguglia',
+      sector_id:    form.sector_id || null,
+      status:       form.status,
+      updated_at:   new Date().toISOString(),
+    };
+
+    // ── Colonnes optionnelles (migration 20260413_listings_optional_columns.sql) ──
+    // Décommenter après exécution de la migration SQL dans Supabase :
+    // if (form.exchange_preferences) updatePayload.exchange_preferences = form.exchange_preferences.trim();
+    // if (form.pickup_notes)         updatePayload.pickup_notes         = form.pickup_notes.trim();
+    // if (form.availability_window)  updatePayload.availability_window  = form.availability_window.trim();
+
     const { error } = await supabase
       .from('listings')
-      .update({
-        title: form.title.trim(),
-        description: form.description.trim(),
-        category_id: form.category_id,
-        listing_type: form.listing_type,
-        price: form.price ? parseFloat(form.price) : null,
-        is_negotiable: form.is_negotiable,
-        is_urgent: form.is_urgent,
-        condition: form.condition || null,
-        exchange_preferences: form.exchange_preferences.trim() || null,
-        pickup_notes: form.pickup_notes.trim() || null,
-        availability_window: form.availability_window.trim() || null,
-        location: form.location || 'Biguglia',
-        sector_id: form.sector_id || null,
-        status: form.status,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq('id', id as string);
 
     if (error) {
