@@ -28,26 +28,28 @@ export async function register() {
 }
 
 /**
- * onRequestError — Next.js 15+ hook (optionnel, rétrocompatible).
+ * onRequestError — Next.js 14.1+ hook pour capturer les erreurs de requête.
  *
- * Appelé par Next.js pour chaque erreur de requête non gérée.
- * Permet de capturer les erreurs de Server Components et de routing
- * qui n'atteignent pas forcément un handler d'erreur standard.
+ * Appelé par Next.js pour chaque erreur de requête non gérée (Server Components,
+ * route handlers, etc.). Permet de capturer des erreurs qui n'atteignent pas
+ * forcément le handler d'erreur standard.
  *
- * En Next.js 14, ce hook n'existe pas encore mais l'import est
- * sans effet — pas d'erreur au démarrage.
+ * Types exacts extraits de @sentry/nextjs build/types/common/captureRequestError.d.ts :
+ *   RequestInfo  = { path: string; method: string; headers: Record<string, string|string[]|undefined> }
+ *   ErrorContext = { routerKind: string; routePath: string; routeType: string }
  */
 export const onRequestError = async (
   err: unknown,
-  request: { path: string; method: string },
-  context: { routeType: string },
+  request: { path: string; method: string; headers: Record<string, string | string[] | undefined> },
+  context:  { routerKind: string; routePath: string; routeType: string },
 ) => {
-  // Import dynamique pour éviter de charger Sentry si non configuré
-  const { captureRequestError } = await import('@sentry/nextjs').catch(() => ({
-    captureRequestError: null,
-  }));
-
-  if (captureRequestError) {
-    captureRequestError(err, request, context);
+  try {
+    // Import dynamique pour éviter de charger Sentry si non configuré
+    const sentry = await import('@sentry/nextjs');
+    if (typeof sentry.captureRequestError === 'function') {
+      sentry.captureRequestError(err, request, context);
+    }
+  } catch {
+    // Si Sentry n'est pas disponible ou configuré, on ignore silencieusement
   }
 };

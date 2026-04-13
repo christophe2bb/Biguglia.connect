@@ -179,11 +179,10 @@ try {
     widenClientFileUpload: true,  // capture plus de fichiers client pour de meilleures stack traces
 
     // ── Auto-instrumentation ──────────────────────────────────────────────
-    // Enrobe automatiquement chaque API Route avec un try/catch Sentry.
-    // Pas besoin de wrapper manuellement chaque handler.
-    autoInstrumentServerFunctions: true,
-    autoInstrumentMiddleware:      true,
-    autoInstrumentAppDirectory:    true,
+    // Sentry v10 : les options autoInstrument* ont été déplacées sous `webpack`.
+    // Le plugin détecte et enrobe automatiquement les API Routes, middleware
+    // et App Directory via le plugin webpack — aucune config manuelle nécessaire.
+    // (Les anciennes options autoInstrumentServerFunctions etc. sont dépréciées.)
 
     // ── Bundle client ─────────────────────────────────────────────────────
     // Désactive le SDK Sentry dans le bundle navigateur si pas de DSN configuré.

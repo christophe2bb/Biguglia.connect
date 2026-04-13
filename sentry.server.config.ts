@@ -41,10 +41,12 @@ Sentry.init({
 
   // ── Intégrations serveur ──────────────────────────────────────────────────
   integrations: [
-    // Suivi automatique des requêtes HTTP sortantes (fetch vers Supabase)
-    Sentry.httpIntegration({ tracing: true }),
+    // Suivi automatique des requêtes HTTP sortantes (fetch vers Supabase).
+    // En Sentry v10, httpIntegration active les spans par défaut — pas besoin
+    // de l'option 'tracing' (supprimée dans cette version).
+    Sentry.httpIntegration({ spans: true }),
 
-    // Propagation automatique des traces entre server/client
+    // Propagation automatique des traces entre server/client via fetch natif Node.
     Sentry.nativeNodeFetchIntegration(),
   ],
 
