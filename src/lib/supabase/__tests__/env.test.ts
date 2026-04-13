@@ -33,6 +33,15 @@
  *    - Env manquante → retourne { url: '', anonKey: '' } + console.error
  *    - Env avec \n → nettoyée (trim)
  *    - Ne lève JAMAIS d'exception
+ *
+ *  getSupabaseProjectRef()
+ *    - URL Cloud Supabase valide → retourne le project ref (segment avant .supabase.co)
+ *    - URL self-hosted (domaine custom) → retourne le hostname complet
+ *    - Sans argument → lit process.env.NEXT_PUBLIC_SUPABASE_URL
+ *    - URL vide → retourne ''
+ *    - URL malformée → retourne '' + console.warn (pas de throw)
+ *    - URL avec chemin/query → seul le hostname est utilisé
+ *    - Cohérence : le nom de cookie sb-<ref>-auth-token est bien formé
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -41,6 +50,7 @@ import {
   getSupabaseEnv,
   getSupabaseAdminEnv,
   getSupabaseEnvSafe,
+  getSupabaseProjectRef,
   validateSupabaseClientEnv,
   assertSupabaseClientEnv,
 } from '../env';
@@ -658,5 +668,91 @@ describe('assertSupabaseClientEnv()', () => {
     try { assertSupabaseClientEnv(); } catch (e) { msg = (e as Error).message; }
     // Le message doit mentionner "2 erreur(s)" (deux variables manquantes)
     expect(msg).toMatch(/2.+erreur/i);
+  });
+});
+
+// ─── getSupabaseProjectRef() ──────────────────────────────────────────────────
+
+describe('getSupabaseProjectRef()', () => {
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // ── Supabase Cloud ──────────────────────────────────────────────────────────
+
+  it('URL Cloud standard → retourne le project ref', () => {
+    expect(getSupabaseProjectRef('https://qmrkacrpncdkhofiqlrg.supabase.co'))
+      .toBe('qmrkacrpncdkhofiqlrg');
+  });
+
+  it('URL Cloud avec un ref différent → retourne le bon ref', () => {
+    expect(getSupabaseProjectRef('https://abcdefghijklmnop.supabase.co'))
+      .toBe('abcdefghijklmnop');
+  });
+
+  it('URL Cloud avec trailing slash → ref correct', () => {
+    expect(getSupabaseProjectRef('https://qmrkacrpncdkhofiqlrg.supabase.co/'))
+      .toBe('qmrkacrpncdkhofiqlrg');
+  });
+
+  it('URL Cloud avec chemin et query string → seul le hostname est utilisé', () => {
+    expect(getSupabaseProjectRef('https://qmrkacrpncdkhofiqlrg.supabase.co/rest/v1?apikey=xxx'))
+      .toBe('qmrkacrpncdkhofiqlrg');
+  });
+
+  // ── Self-hosted ─────────────────────────────────────────────────────────────
+
+  it('URL self-hosted (domaine custom sans .supabase.co) → hostname complet', () => {
+    expect(getSupabaseProjectRef('https://supabase.mon-domaine.fr'))
+      .toBe('supabase.mon-domaine.fr');
+  });
+
+  it('URL self-hosted avec sous-domaine → hostname complet retourné', () => {
+    expect(getSupabaseProjectRef('https://db.staging.exemple.com'))
+      .toBe('db.staging.exemple.com');
+  });
+
+  // ── Lecture depuis process.env ──────────────────────────────────────────────
+
+  it('sans argument → lit NEXT_PUBLIC_SUPABASE_URL depuis process.env', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://qmrkacrpncdkhofiqlrg.supabase.co';
+    expect(getSupabaseProjectRef()).toBe('qmrkacrpncdkhofiqlrg');
+  });
+
+  it('NEXT_PUBLIC_SUPABASE_URL non définie → retourne \'\'', () => {
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    expect(getSupabaseProjectRef()).toBe('');
+  });
+
+  // ── Cas limites ─────────────────────────────────────────────────────────────
+
+  it("URL vide ''  → retourne '' (sans throw)", () => {
+    expect(getSupabaseProjectRef('')).toBe('');
+  });
+
+  it("URL malformée → retourne '' + console.warn", () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(getSupabaseProjectRef('pas-une-url-valide')).toBe('');
+    expect(warnSpy).toHaveBeenCalledOnce();
+  });
+
+  it("URL malformée ne lève PAS d'exception", () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(() => getSupabaseProjectRef(':::broken:::')).not.toThrow();
+  });
+
+  // ── Cohérence avec le nom de cookie ────────────────────────────────────────
+
+  it('nom de cookie construit depuis le ref = sb-<ref>-auth-token', () => {
+    const ref        = getSupabaseProjectRef('https://qmrkacrpncdkhofiqlrg.supabase.co');
+    const cookieName = `sb-${ref}-auth-token`;
+    expect(cookieName).toBe('sb-qmrkacrpncdkhofiqlrg-auth-token');
+  });
+
+  it('ref self-hosted → cookie name inclut le hostname complet', () => {
+    const ref        = getSupabaseProjectRef('https://supabase.mon-domaine.fr');
+    const cookieName = `sb-${ref}-auth-token`;
+    expect(cookieName).toBe('sb-supabase.mon-domaine.fr-auth-token');
   });
 });

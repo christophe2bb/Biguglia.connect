@@ -47,6 +47,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { existsSync } from 'fs';
 import { join } from 'path';
 
+// ─── Env hoisting — doit s'exécuter AVANT l'import du middleware ──────────────
+//
+// middleware.ts lit NEXT_PUBLIC_SUPABASE_URL au chargement du module (niveau
+// module, pas dans une fonction). vi.hoisted() garantit que l'assignation se
+// produit avant que les imports réels soient évalués par Vitest.
+//
+// Sans ça, SUPABASE_URL vaut '' dans middleware.ts → SUPABASE_PROJECT_REF = ''
+// → SUPABASE_COOKIE_NAME = 'sb--auth-token' → les tests de cookie échouent.
+const TEST_SUPABASE_URL  = 'https://qmrkacrpncdkhofiqlrg.supabase.co';
+const TEST_SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhbm9uS2V5IjoibW9jayJ9.mock';
+
+vi.hoisted(() => {
+  process.env.NEXT_PUBLIC_SUPABASE_URL      = 'https://qmrkacrpncdkhofiqlrg.supabase.co';
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhbm9uS2V5IjoibW9jayJ9.mock';
+});
+
 // ─── Mock @supabase/ssr ────────────────────────────────────────────────────────
 
 vi.mock('@supabase/ssr', () => ({
@@ -69,8 +85,19 @@ let mockCookieValue: string | null = null;
 // Cookie chunké simulé (format sb-<ref>-auth-token.0)
 let mockChunkCookie: string | null = null;
 
-const COOKIE_NAME      = 'sb-qmrkacrpncdkhofiqlrg-auth-token';
-const COOKIE_NAME_C0   = `${COOKIE_NAME}.0`; // premier chunk
+// ─── Noms de cookie dérivés depuis l'URL (plus de ref codée en dur) ───────────
+//
+// Le project ref est extrait de NEXT_PUBLIC_SUPABASE_URL par getSupabaseProjectRef().
+// TEST_SUPABASE_URL = 'https://qmrkacrpncdkhofiqlrg.supabase.co'
+// → ref = 'qmrkacrpncdkhofiqlrg'
+// → COOKIE_NAME = 'sb-qmrkacrpncdkhofiqlrg-auth-token'
+//
+// Si le projet Supabase change (staging, prod, self-hosted), seule la variable
+// TEST_SUPABASE_URL en haut de ce fichier doit être mise à jour.
+import { getSupabaseProjectRef } from '../env';
+const _projectRef    = getSupabaseProjectRef(TEST_SUPABASE_URL);
+const COOKIE_NAME    = `sb-${_projectRef}-auth-token`;
+const COOKIE_NAME_C0 = `${COOKIE_NAME}.0`; // premier chunk
 
 vi.mock('next/server', () => {
   class MockNextResponse {

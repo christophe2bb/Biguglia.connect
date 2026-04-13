@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { getSupabaseProjectRef } from '@/lib/supabase/env';
 
 /**
  * updateSession — Rafraîchit la session Supabase et applique les guards de navigation.
@@ -44,11 +45,6 @@ const PROTECTED_PREFIXES = [
   '/messages',
 ] as const;
 
-// ─── Nom du cookie Supabase (basé sur le project ref) ────────────────────────
-const SUPABASE_PROJECT_REF = 'qmrkacrpncdkhofiqlrg';
-const SUPABASE_COOKIE_NAME = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
-const SUPABASE_CHUNK_0     = `${SUPABASE_COOKIE_NAME}.0`;
-
 // ─── Variables d'env lues une seule fois au chargement du module ─────────────
 // L'Edge Runtime réutilise l'instance entre les requêtes sur la même instance.
 const SUPABASE_URL  = (process.env.NEXT_PUBLIC_SUPABASE_URL  ?? '').trim();
@@ -61,6 +57,20 @@ if (!SUPABASE_URL || !SUPABASE_ANON) {
     'NEXT_PUBLIC_SUPABASE_ANON_KEY.',
   );
 }
+
+// ─── Nom du cookie Supabase — dérivé depuis NEXT_PUBLIC_SUPABASE_URL ─────────
+//
+// Le project ref est extrait dynamiquement par getSupabaseProjectRef().
+// Plus de constante codée en dur : fonctionne quel que soit l'environnement
+// (local, staging, prod, migration de projet Supabase).
+//
+// Format : sb-<project-ref>-auth-token
+// Exemple : sb-qmrkacrpncdkhofiqlrg-auth-token (Cloud Supabase)
+//           sb-supabase.mon-domaine.fr-auth-token (self-hosted)
+//
+const SUPABASE_PROJECT_REF = getSupabaseProjectRef(SUPABASE_URL);
+const SUPABASE_COOKIE_NAME = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
+const SUPABASE_CHUNK_0     = `${SUPABASE_COOKIE_NAME}.0`;
 
 /**
  * hasValidToken — Lit le token d'accès directement depuis les cookies.
