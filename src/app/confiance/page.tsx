@@ -274,7 +274,48 @@ export default function ConfidencePage() {
           </div>
         </section>
 
-        {/* 7 — Contact */}
+        {/* 7 — Lien vers les règles */}
+        <section className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="bg-gradient-to-r from-brand-50 to-orange-50 border-b border-brand-100 px-6 py-5">
+            <h2 className="text-xl font-black text-gray-900 flex items-center gap-3">
+              <span className="inline-flex p-2 bg-brand-100 rounded-xl">
+                <FileText className="w-5 h-5 text-brand-600" />
+              </span>
+              Règles de la communauté
+            </h2>
+          </div>
+          <div className="p-6">
+            <p className="text-gray-600 text-sm leading-relaxed mb-5">
+              La confiance repose aussi sur des règles claires, connues de tous. Nous avons rassemblé en un seul endroit
+              les règles de publication, le fonctionnement de la modération, comment utiliser les signalements,
+              et une explication détaillée du système de badges.
+            </p>
+            <div className="grid sm:grid-cols-2 gap-3 mb-5">
+              {[
+                { icon: '📋', label: 'Règles de publication', desc: 'Ce qui est accepté et ce qui ne l\'est pas' },
+                { icon: '👁️', label: 'Fonctionnement de la modération', desc: 'Processus, délais et échelle des sanctions' },
+                { icon: '🚩', label: 'Fonctionnement des signalements', desc: 'Comment signaler et ce qu\'il se passe ensuite' },
+                { icon: '🏅', label: 'Système de confiance', desc: 'Badges, niveaux et ce qu\'ils signifient vraiment' },
+              ].map(({ icon, label, desc }) => (
+                <div key={label} className="flex items-start gap-3 bg-gray-50 rounded-2xl p-3.5">
+                  <span className="text-xl flex-shrink-0">{icon}</span>
+                  <div>
+                    <h3 className="font-bold text-gray-900 text-sm">{label}</h3>
+                    <p className="text-gray-500 text-xs mt-0.5">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Link
+              href="/regles"
+              className="inline-flex items-center gap-2 bg-brand-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-brand-500 transition-colors"
+            >
+              Lire les règles complètes <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </section>
+
+        {/* 8 — Contact */}
         <section className="bg-gradient-to-br from-slate-900 to-gray-900 rounded-3xl p-8 text-center">
           <div className="inline-flex p-3 bg-brand-500/20 rounded-2xl mb-4 border border-brand-500/30">
             <MessageSquare className="w-6 h-6 text-brand-400" />

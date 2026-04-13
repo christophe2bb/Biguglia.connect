@@ -113,6 +113,7 @@ export default function Footer() {
             <ul className="space-y-3">
               {[
                 { href: '/confiance', label: 'Confiance & Sécurité' },
+                { href: '/regles', label: 'Règles de la communauté' },
                 { href: '/aide', label: 'Aide & FAQ' },
                 { href: '/confidentialite', label: 'Confidentialité' },
                 { href: '/cgu', label: 'CGU' },
