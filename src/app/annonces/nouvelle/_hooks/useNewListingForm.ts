@@ -201,24 +201,26 @@ export function useNewListingForm(): UseNewListingFormReturn {
     const supabase = createClient();
 
     const payload: Record<string, unknown> = {
-      user_id:              profile.id,
-      category_id:          form.category_id,
-      title:                form.title.trim(),
-      description:          form.description.trim(),
-      listing_type:         form.listing_type,
-      price:                form.price ? parseFloat(form.price) : null,
-      is_negotiable:        form.is_negotiable,
-      is_urgent:            form.is_urgent,
-      condition:            form.condition || null,
-      condition_state:      form.condition_state || null,
-      exchange_preferences: form.exchange_preferences.trim() || null,
-      pickup_notes:         form.pickup_notes.trim() || null,
-      availability_window:  form.availability_window.trim() || null,
-      location:             form.location || 'Biguglia',
-      sector_id:            form.sector_id || null,
-      status:               asDraft ? 'draft' : 'active',
-      moderation_status:    asDraft ? 'draft' : 'en_attente_validation',
+      user_id:           profile.id,
+      category_id:       form.category_id,
+      title:             form.title.trim(),
+      description:       form.description.trim(),
+      listing_type:      form.listing_type,
+      price:             form.price ? parseFloat(form.price) : null,
+      is_negotiable:     form.is_negotiable,
+      is_urgent:         form.is_urgent,
+      condition:         form.condition || null,
+      location:          form.location || 'Biguglia',
+      sector_id:         form.sector_id || null,
+      status:            asDraft ? 'draft' : 'active',
+      moderation_status: asDraft ? 'draft' : 'en_attente_validation',
     };
+
+    // ── Colonnes optionnelles (migration 20260413_listings_optional_columns.sql) ──
+    if (form.condition_state)      payload.condition_state      = form.condition_state;
+    if (form.exchange_preferences) payload.exchange_preferences = form.exchange_preferences.trim();
+    if (form.pickup_notes)         payload.pickup_notes         = form.pickup_notes.trim();
+    if (form.availability_window)  payload.availability_window  = form.availability_window.trim();
 
     const { data: listing, error } = await supabase
       .from('listings')
