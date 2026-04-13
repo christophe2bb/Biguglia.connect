@@ -217,13 +217,10 @@ export function useNewListingForm(): UseNewListingFormReturn {
     };
 
     // ── Colonnes optionnelles (migration 20260413_listings_optional_columns.sql) ──
-    // Ces colonnes sont créées par la migration SQL. Une fois la migration exécutée
-    // dans Supabase, décommenter les lignes ci-dessous pour les activer.
-    //
-    // if (form.condition_state)      payload.condition_state      = form.condition_state;
-    // if (form.exchange_preferences) payload.exchange_preferences = form.exchange_preferences.trim();
-    // if (form.pickup_notes)         payload.pickup_notes         = form.pickup_notes.trim();
-    // if (form.availability_window)  payload.availability_window  = form.availability_window.trim();
+    if (form.condition_state)      payload.condition_state      = form.condition_state;
+    if (form.exchange_preferences) payload.exchange_preferences = form.exchange_preferences.trim();
+    if (form.pickup_notes)         payload.pickup_notes         = form.pickup_notes.trim();
+    if (form.availability_window)  payload.availability_window  = form.availability_window.trim();
 
     const { data: listing, error } = await supabase
       .from('listings')

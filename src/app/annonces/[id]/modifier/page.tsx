@@ -164,10 +164,9 @@ export default function ModifierAnnoncePage() {
     };
 
     // ── Colonnes optionnelles (migration 20260413_listings_optional_columns.sql) ──
-    // Décommenter après exécution de la migration SQL dans Supabase :
-    // if (form.exchange_preferences) updatePayload.exchange_preferences = form.exchange_preferences.trim();
-    // if (form.pickup_notes)         updatePayload.pickup_notes         = form.pickup_notes.trim();
-    // if (form.availability_window)  updatePayload.availability_window  = form.availability_window.trim();
+    if (form.exchange_preferences) updatePayload.exchange_preferences = form.exchange_preferences.trim();
+    if (form.pickup_notes)         updatePayload.pickup_notes         = form.pickup_notes.trim();
+    if (form.availability_window)  updatePayload.availability_window  = form.availability_window.trim();
 
     const { error } = await supabase
       .from('listings')
