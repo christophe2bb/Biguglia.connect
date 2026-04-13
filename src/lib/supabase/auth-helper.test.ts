@@ -38,7 +38,7 @@
  *  – Aucun appel réseau réel
  */
 
-import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from 'vitest';
 import { NextRequest } from 'next/server';
 
 // ─── Mocks modules ────────────────────────────────────────────────────────────
@@ -60,7 +60,7 @@ vi.mock('@/lib/supabase/env', () => ({
 
 import { createClient as createServerClientMock } from '@/lib/supabase/server';
 import { createClient as createSupabaseClientMock } from '@supabase/supabase-js';
-import { getUserIdBearerFirst, getUserFromRequest } from './auth-helper';
+import { getUserIdBearerFirst, getUserFromRequest, assertCsrfSafe } from './auth-helper';
 
 // Cast typés pour faciliter les .mockReturnValue()
 const mockCreateServerClient    = createServerClientMock    as MockedFunction<typeof createServerClientMock>;
@@ -402,5 +402,176 @@ describe('extractBearer (via getUserIdBearerFirst)', () => {
   it('Authorization absent → anonClient non appelé', async () => {
     await getUserIdBearerFirst(makeReq());
     expect(mockCreateSupabaseClient).not.toHaveBeenCalled();
+  });
+});
+
+// =============================================================================
+// assertCsrfSafe()
+// =============================================================================
+
+/**
+ * assertCsrfSafe() dépend de NEXT_PUBLIC_SITE_URL pour résoudre l'hostname
+ * attendu. On fixe cette variable à "https://biguglia-connect.vercel.app"
+ * pour tous les tests de cette suite.
+ *
+ * Règles testées :
+ *   1. Bearer présent → toujours null (safe), Origin ignoré.
+ *   2. Pas de Bearer + Origin same-host → null (safe).
+ *   3. Pas de Bearer + Referer same-host (fallback) → null (safe).
+ *   4. Pas de Bearer + Origin manquant + Referer manquant → 403.
+ *   5. Pas de Bearer + Origin cross-site → 403.
+ *   6. Pas de Bearer + Referer cross-site (Origin absent) → 403.
+ *   7. Pas de Bearer + Origin malformé → 403.
+ *   8. NEXT_PUBLIC_SITE_URL absent → fallback sur Host header.
+ */
+
+const APP_URL      = 'https://biguglia-connect.vercel.app';
+const APP_HOSTNAME = 'biguglia-connect.vercel.app';
+const BAD_ORIGIN   = 'https://evil.example.com';
+
+describe('assertCsrfSafe()', () => {
+
+  const origEnv = process.env.NEXT_PUBLIC_SITE_URL;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.NEXT_PUBLIC_SITE_URL = APP_URL;
+  });
+
+  afterEach(() => {
+    process.env.NEXT_PUBLIC_SITE_URL = origEnv;
+  });
+
+  // ── 1. Bearer présent → toujours safe ──────────────────────────────────────
+
+  it('retourne null quand un Bearer token est présent (même sans Origin)', () => {
+    const req = new Request('https://biguglia-connect.vercel.app/api/test', {
+      method: 'PATCH',
+      headers: { 'Authorization': 'Bearer valid.token' },
+    });
+    expect(assertCsrfSafe(req)).toBeNull();
+  });
+
+  it('retourne null quand un Bearer token est présent avec un Origin cross-site', () => {
+    const req = new Request('https://biguglia-connect.vercel.app/api/test', {
+      method: 'DELETE',
+      headers: {
+        'Authorization': 'Bearer valid.token',
+        'Origin': BAD_ORIGIN,
+      },
+    });
+    expect(assertCsrfSafe(req)).toBeNull();
+  });
+
+  // ── 2. Pas de Bearer + Origin same-host → safe ────────────────────────────
+
+  it('retourne null quand Origin correspond à l\'hostname de l\'app', () => {
+    const req = new Request('https://biguglia-connect.vercel.app/api/test', {
+      method: 'PATCH',
+      headers: { 'Origin': APP_URL },
+    });
+    expect(assertCsrfSafe(req)).toBeNull();
+  });
+
+  it('retourne null quand Origin same-host avec http (dev)', () => {
+    process.env.NEXT_PUBLIC_SITE_URL = 'http://localhost:3000';
+    const req = new Request('http://localhost:3000/api/test', {
+      method: 'DELETE',
+      headers: { 'Origin': 'http://localhost:3000' },
+    });
+    expect(assertCsrfSafe(req)).toBeNull();
+  });
+
+  // ── 3. Pas de Bearer + Referer same-host → safe ───────────────────────────
+
+  it('retourne null quand Referer correspond à l\'hostname de l\'app (fallback sans Origin)', () => {
+    const req = new Request('https://biguglia-connect.vercel.app/api/test', {
+      method: 'PATCH',
+      headers: { 'Referer': `${APP_URL}/emploi/offre/mon-poste` },
+    });
+    expect(assertCsrfSafe(req)).toBeNull();
+  });
+
+  // ── 4. Pas de Bearer + Origin ET Referer absents → 403 ────────────────────
+
+  it('retourne une Response 403 quand ni Origin ni Referer ne sont présents', async () => {
+    const req = new Request('https://biguglia-connect.vercel.app/api/test', {
+      method: 'PATCH',
+    });
+    const result = assertCsrfSafe(req);
+    expect(result).not.toBeNull();
+    expect(result?.status).toBe(403);
+    const body = await result!.json();
+    expect(body.error).toMatch(/Origin manquant/i);
+  });
+
+  // ── 5. Pas de Bearer + Origin cross-site → 403 ────────────────────────────
+
+  it('retourne une Response 403 quand Origin est cross-site', async () => {
+    const req = new Request('https://biguglia-connect.vercel.app/api/test', {
+      method: 'DELETE',
+      headers: { 'Origin': BAD_ORIGIN },
+    });
+    const result = assertCsrfSafe(req);
+    expect(result).not.toBeNull();
+    expect(result?.status).toBe(403);
+    const body = await result!.json();
+    expect(body.error).toMatch(/cross-site/i);
+  });
+
+  // ── 6. Pas de Bearer + Referer cross-site (Origin absent) → 403 ──────────
+
+  it('retourne une Response 403 quand Referer est cross-site et Origin absent', async () => {
+    const req = new Request('https://biguglia-connect.vercel.app/api/test', {
+      method: 'PATCH',
+      headers: { 'Referer': `${BAD_ORIGIN}/exploit` },
+    });
+    const result = assertCsrfSafe(req);
+    expect(result?.status).toBe(403);
+    const body = await result!.json();
+    expect(body.error).toMatch(/cross-site/i);
+  });
+
+  // ── 7. Pas de Bearer + Origin malformé → 403 ─────────────────────────────
+
+  it('retourne une Response 403 quand Origin est une URL malformée', async () => {
+    const req = new Request('https://biguglia-connect.vercel.app/api/test', {
+      method: 'PATCH',
+      headers: { 'Origin': 'not-a-valid-url' },
+    });
+    const result = assertCsrfSafe(req);
+    expect(result?.status).toBe(403);
+    const body = await result!.json();
+    expect(body.error).toMatch(/invalide/i);
+  });
+
+  // ── 8. NEXT_PUBLIC_SITE_URL absent → fallback Host header ─────────────────
+
+  it('utilise l\'en-tête Host comme hostname de référence si NEXT_PUBLIC_SITE_URL est absent', () => {
+    delete process.env.NEXT_PUBLIC_SITE_URL;
+    // Requête avec Origin correspondant à l'hôte de la requête
+    const req = new Request('https://biguglia-connect.vercel.app/api/test', {
+      method: 'PATCH',
+      headers: {
+        'Host':   APP_HOSTNAME,
+        'Origin': APP_URL,
+      },
+    });
+    expect(assertCsrfSafe(req)).toBeNull();
+  });
+
+  // ── Origin prend la priorité sur Referer ──────────────────────────────────
+
+  it('utilise Origin en priorité sur Referer quand les deux sont présents', async () => {
+    // Origin cross-site + Referer same-host → le check doit échouer (Origin prioritaire)
+    const req = new Request('https://biguglia-connect.vercel.app/api/test', {
+      method: 'DELETE',
+      headers: {
+        'Origin':  BAD_ORIGIN,
+        'Referer': `${APP_URL}/emploi/offre/test`,
+      },
+    });
+    const result = assertCsrfSafe(req);
+    expect(result?.status).toBe(403);
   });
 });
