@@ -29,6 +29,11 @@ const supabaseHost = SUPABASE_URL.replace(/^https?:\/\//, '');
 //    Deux <style> tags dans des pages (evenements, perdu-trouve/[id]) +
 //    style={{...}} inline via Tailwind/framer-motion. Suppression = chantier UI.
 //
+// connect-src — Sentry :
+//    Sentry envoie les événements à *.ingest.sentry.io et *.ingest.us.sentry.io
+//    via fetch() depuis le navigateur. Ces domaines DOIVENT être autorisés sinon
+//    les erreurs front-end ne remontent jamais à Sentry.
+//
 const scriptSrcProd = "'self' 'unsafe-inline' https://vercel.live https://*.vercel-scripts.com";
 const scriptSrcDev  = "'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live https://*.vercel-scripts.com";
 
@@ -47,7 +52,9 @@ const ContentSecurityPolicy = `
               https://*.supabase.co wss://*.supabase.co
               https://*.supabase.in  wss://*.supabase.in
               https://vercel.live https://*.vercel-scripts.com
-              https://vitals.vercel-insights.com;
+              https://vitals.vercel-insights.com
+              https://*.ingest.sentry.io
+              https://*.ingest.us.sentry.io;
   frame-src   'none';
   object-src  'none';
   base-uri    'self';
@@ -134,4 +141,71 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+// ─── Sentry webpack plugin ────────────────────────────────────────────────────
+//
+// withSentryConfig() enrobe nextConfig pour :
+//   1. Uploader les source maps vers Sentry au moment du build (prod uniquement).
+//      Permet d'afficher le code source original dans les stack traces Sentry,
+//      même si le code est minifié/obfusqué en production.
+//   2. Injecter automatiquement les appels Sentry dans les routes Next.js
+//      (auto-instrumentation des API Routes, Server Components, etc.).
+//   3. Tree-shaking du SDK Sentry côté client pour réduire la taille du bundle.
+//
+// Variables d'env requises au build (Vercel → Settings → Environment Variables) :
+//   SENTRY_DSN             — DSN du projet Sentry (aussi NEXT_PUBLIC_SENTRY_DSN)
+//   SENTRY_ORG             — slug de l'organisation Sentry  (ex: biguglia-connect)
+//   SENTRY_PROJECT         — slug du projet Sentry           (ex: biguglia-connect-nextjs)
+//   SENTRY_AUTH_TOKEN      — auth token Sentry pour l'upload des source maps
+//                            (à générer dans Sentry → Settings → Auth Tokens)
+//
+// En l'absence de SENTRY_AUTH_TOKEN (développement local), withSentryConfig
+// désactive silencieusement l'upload des source maps mais n'échoue pas le build.
+
+let wrappedConfig = nextConfig;
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { withSentryConfig } = require('@sentry/nextjs');
+
+  wrappedConfig = withSentryConfig(nextConfig, {
+    // ── Organisation & projet Sentry ──────────────────────────────────────
+    org:     process.env.SENTRY_ORG     ?? 'biguglia-connect',
+    project: process.env.SENTRY_PROJECT ?? 'biguglia-connect-nextjs',
+
+    // ── Source maps ───────────────────────────────────────────────────────
+    // Uploader les source maps en silence (sans log verbose) au build.
+    // Les source maps sont supprimées du déploiement public après upload.
+    silent:              !isDev,
+    widenClientFileUpload: true,  // capture plus de fichiers client pour de meilleures stack traces
+
+    // ── Auto-instrumentation ──────────────────────────────────────────────
+    // Enrobe automatiquement chaque API Route avec un try/catch Sentry.
+    // Pas besoin de wrapper manuellement chaque handler.
+    autoInstrumentServerFunctions: true,
+    autoInstrumentMiddleware:      true,
+    autoInstrumentAppDirectory:    true,
+
+    // ── Bundle client ─────────────────────────────────────────────────────
+    // Désactive le SDK Sentry dans le bundle navigateur si pas de DSN configuré.
+    // Évite d'alourdir le bundle en développement local.
+    disableClientWebpackPlugin: !process.env.NEXT_PUBLIC_SENTRY_DSN,
+
+    // ── Tunneling ────────────────────────────────────────────────────────
+    // Route les requêtes Sentry via /api/monitoring pour éviter les bloqueurs
+    // de pub (ad-blockers bloquent souvent *.sentry.io).
+    // La route /api/monitoring/route.ts est créée automatiquement par le plugin.
+    tunnelRoute: '/api/monitoring',
+
+    // ── Nettoyage des source maps ─────────────────────────────────────────
+    // Supprime les .map du déploiement après upload (pas exposés publiquement).
+    deleteSourcemapsAfterUpload: true,
+
+    // ── Réduction du bruit en dev ─────────────────────────────────────────
+    hideSourceMaps: true,
+  });
+} catch {
+  // @sentry/nextjs non installé ou erreur de config → on sert nextConfig brut
+  console.warn('[next.config] Sentry non chargé — monitoring désactivé.');
+}
+
+module.exports = wrappedConfig;
