@@ -95,7 +95,13 @@ export default function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit
       <div className="relative h-48 overflow-hidden">
         {outing.cover_photo ? (
           <div className="w-full h-full cursor-pointer" onClick={() => setLightboxOpen(true)}>
-            <Image src={outing.cover_photo} alt={outing.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
+            <Image
+              src={outing.cover_photo}
+              alt={outing.title}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover group-hover:scale-105 transition-transform duration-500"
+            />
           </div>
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-emerald-400 via-teal-500 to-sky-600 flex items-center justify-center">

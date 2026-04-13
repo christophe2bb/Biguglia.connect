@@ -41,7 +41,7 @@ export default function EquipmentItemCard({
         {/* Photo miniature */}
         <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
           {photos && photos.length > 0 ? (
-            <Image src={photos[0].url} alt={item.title} fill className="object-cover" />
+            <Image src={photos[0].url} alt={item.title} fill sizes="64px" className="object-cover" />
           ) : (
             <div className="w-full h-full bg-gray-100 flex items-center justify-center">
               <span className="text-2xl">{(item.category as { icon?: string })?.icon || '🔧'}</span>

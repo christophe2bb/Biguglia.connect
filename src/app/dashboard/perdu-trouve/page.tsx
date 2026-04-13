@@ -17,7 +17,9 @@ import {
 import toast from 'react-hot-toast';
 import ItemCard from './_widgets/ItemCard';
 import MatchesBanner from './_widgets/MatchesBanner';
-import ActivityChart from './_widgets/ActivityChart';
+import dynamic from 'next/dynamic';
+// Graphique chargé uniquement quand l'onglet Statistiques est actif
+const ActivityChart = dynamic(() => import('./_widgets/ActivityChart'), { ssr: false });
 import {
   type LFItem, type LFMatch, type LFStatus,
   STATUS_CONFIG, ACTIVE_STATUSES,

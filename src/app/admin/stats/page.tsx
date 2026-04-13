@@ -16,13 +16,16 @@ import { BarChart2, ChevronLeft, RefreshCw } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 import { useAdminStats } from './_hooks/useAdminStats';
-import { SectionOverview }  from './_components/SectionOverview';
-import { SectionActivity }  from './_components/SectionActivity';
-import { SectionUsers }     from './_components/SectionUsers';
-import { SectionMessages }  from './_components/SectionMessages';
-import { SectionForum }     from './_components/SectionForum';
-import { SectionListings }  from './_components/SectionListings';
-import { SectionRequests }  from './_components/SectionRequests';
+// Sections chargées en lazy pour réduire le bundle initial de la page admin stats
+import dynamic from 'next/dynamic';
+
+const SectionOverview  = dynamic(() => import('./_components/SectionOverview').then(m => ({ default: m.SectionOverview })),   { ssr: false });
+const SectionActivity  = dynamic(() => import('./_components/SectionActivity').then(m => ({ default: m.SectionActivity })),   { ssr: false });
+const SectionUsers     = dynamic(() => import('./_components/SectionUsers').then(m => ({ default: m.SectionUsers })),         { ssr: false });
+const SectionMessages  = dynamic(() => import('./_components/SectionMessages').then(m => ({ default: m.SectionMessages })),   { ssr: false });
+const SectionForum     = dynamic(() => import('./_components/SectionForum').then(m => ({ default: m.SectionForum })),         { ssr: false });
+const SectionListings  = dynamic(() => import('./_components/SectionListings').then(m => ({ default: m.SectionListings })),   { ssr: false });
+const SectionRequests  = dynamic(() => import('./_components/SectionRequests').then(m => ({ default: m.SectionRequests })),   { ssr: false });
 
 export default function AdminStatsPage() {
   const { profile, isAdmin } = useAuthStore();

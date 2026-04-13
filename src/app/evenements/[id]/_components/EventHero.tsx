@@ -44,7 +44,7 @@ export default function EventHero({
     <div className="relative h-64 sm:h-80 bg-gradient-to-br from-purple-600 to-violet-700 overflow-hidden">
       {/* Cover */}
       {coverPhoto ? (
-        <Image src={coverPhoto} alt={event.title} fill className="object-cover opacity-60" />
+        <Image src={coverPhoto} alt={event.title} fill priority sizes="100vw" className="object-cover opacity-60" />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center">
           <span className="text-8xl opacity-30">{cat.icon}</span>

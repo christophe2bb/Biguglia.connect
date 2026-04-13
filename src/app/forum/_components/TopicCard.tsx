@@ -108,7 +108,13 @@ export function TopicCard({ topic, sectors, compact = false }: { topic: ForumTop
         {/* Photo de couverture */}
         {coverPhoto && (
           <div className="relative h-44 bg-gray-100 overflow-hidden">
-            <Image src={coverPhoto} alt={topic.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
+            <Image
+              src={coverPhoto}
+              alt={topic.title}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover group-hover:scale-105 transition-transform duration-500"
+            />
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
             {photoCount > 1 && (
               <span className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">

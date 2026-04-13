@@ -286,7 +286,13 @@ function EquipmentCard({ item, currentUserId }: { item: EquipmentItemFull; curre
         {/* Photo */}
         <div className="relative h-44 overflow-hidden">
           {photos && photos.length > 0 ? (
-            <Image src={photos[0].url} alt={item.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
+            <Image
+              src={photos[0].url}
+              alt={item.title}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
+            />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-teal-50 to-cyan-100 flex items-center justify-center">
               <span className="text-6xl opacity-20">
