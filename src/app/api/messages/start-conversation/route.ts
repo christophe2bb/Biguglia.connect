@@ -20,37 +20,48 @@
  *   { conversationId: string, isNew: boolean }
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * ANTI-DUPLICATION — ÉTAT ACTUEL
+ * ANTI-DUPLICATION — ARCHITECTURE À DEUX COUCHES
  * ─────────────────────────────────────────────────────────────────────────────
- * La déduplication repose sur un **garde applicatif** (voir `findExistingConversation`
- * ci-dessous) : on cherche les conversations partagées entre les deux participants,
- * puis on filtre par contexte (related_type + related_id).
+ * La déduplication repose sur deux couches complémentaires :
  *
- * Ce garde est **correct en conditions normales**, mais il n'est pas atomique :
- * deux requêtes simultanées pour la même paire (userId, ownerId, relatedId) peuvent
- * toutes deux passer le check → créer deux conversations en doublon.
+ * Couche 1 — Garde applicatif (`findExistingConversation` ci-dessous) :
+ *   Cherche les conversations partagées entre les deux participants,
+ *   puis filtre par contexte (related_type + related_id).
+ *   Correct en conditions normales, mais non atomique : deux requêtes
+ *   simultanées pour la même paire peuvent toutes deux passer → doublon.
  *
- * TODO(DB) — migration 20260412_conversations_unique.sql
+ * Couche 2 — Contrainte DB (20260412_conversations_unique.sql) :
+ *   La migration est committée dans le repo :
+ *     supabase/migrations/20260412_conversations_unique.sql
+ *   Elle crée la table `conversation_pairs` avec :
+ *     1. UNIQUE (participant_a, participant_b, related_type, related_id)
+ *     2. Index BTREE sur (LEAST(a,b), GREATEST(a,b), related_type, related_id)
+ *     3. CHECK participant_a < participant_b (canonicité de la paire)
+ *     4. Trigger fn_maintain_conversation_pairs pour maintenir la table
+ *   Si une race condition passe le garde applicatif, l'INSERT de step 2
+ *   lève un code Postgres `23505` (unique_violation). Le handler en bas
+ *   de ce fichier capture déjà ce code et retourne `{ isNew: false }`.
+ *
+ * ⚠️  ÉTAT DE DÉPLOIEMENT — À vérifier
  * ─────────────────────────────────────────────────────────────────────────────
- * Pour rendre la contrainte d'unicité atomique et définitive, appliquer la
- * migration SQL suivante :
+ * La migration est committée dans le repo mais son application effective sur
+ * l'instance Supabase de production n'est pas confirmée automatiquement.
+ * Avant de considérer la couche 2 active, vérifier dans Supabase → SQL Editor :
  *
- *   supabase/migrations/20260412_conversations_unique.sql
+ *   SELECT COUNT(*) FROM information_schema.tables
+ *   WHERE table_name = 'conversation_pairs';         -- doit retourner 1
  *
- * Elle ajoute :
- *   1. UNIQUE (participant_a, participant_b, related_type, related_id)
- *      sur une vue ou table de normalisation des paires participant (paire triée).
- *   2. Index fonctionnel BTREE sur (LEAST(a,b), GREATEST(a,b), related_type, related_id).
- *   3. Contrainte CHECK participant_a < participant_b (canonicité de la paire).
+ *   SELECT COUNT(*) FROM information_schema.triggers
+ *   WHERE trigger_name = 'trg_maintain_conversation_pairs'; -- doit retourner 1
  *
- * Une fois la migration appliquée, l'INSERT de step 2 retournera un code Postgres
- * `23505` (unique_violation) si la course applicative est perdue. Le handler en
- * bas de ce fichier gère déjà ce cas et retourne `{ conversationId, isNew: false }`.
+ * Si ces vérifications retournent 0 → la migration n'est pas encore appliquée
+ * en prod. La couche 1 (garde applicatif) reste seule active.
  *
- * NE PAS appliquer sans :
- *   □ Vérifier l'absence de doublons existants (script de nettoyage dans la migration).
+ * Prérequis avant application (si pas encore fait) :
+ *   □ Exécuter la section A de la migration (détection des doublons existants).
+ *   □ Dédupliquer si la section A renvoie des lignes (section B).
  *   □ Tester sur un dump de staging d'abord.
- *   □ Mettre à jour docs/db/SCHEMA.md après déploiement.
+ *   □ Mettre à jour docs/db/SCHEMA.md après déploiement réussi.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -136,8 +147,9 @@ function zodError(err: z.ZodError) {
  *
  * Retourne l'`id` de la conversation trouvée ou `null`.
  *
- * NOTE : Ce garde applicatif n'est pas atomique (voir TODO(DB) en haut du fichier).
- * La contrainte DB en attente (`20260412_conversations_unique`) le rendra race-proof.
+ * NOTE : Ce garde applicatif n'est pas atomique (voir section "ANTI-DUPLICATION" en haut).
+ * Si la migration 20260412_conversations_unique est appliquée en prod, la table
+ * `conversation_pairs` fournit une couche atomique de secours via le code PG 23505.
  */
 async function findExistingConversation(
   admin: SupabaseClient,
@@ -224,7 +236,7 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Garde anti-duplication (applicatif) ────────────────────────────────────
-  // Voir TODO(DB) en haut du fichier pour rendre ce garde atomique.
+  // Couche 1 — garde applicatif. Voir section "ANTI-DUPLICATION" en tête de fichier.
   const existingId = await findExistingConversation(
     admin, userId, ownerId, relatedType ?? null, relatedId ?? null
   );
