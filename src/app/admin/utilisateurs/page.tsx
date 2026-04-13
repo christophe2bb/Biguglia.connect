@@ -9,7 +9,6 @@ import {
   ChevronUp, AlertTriangle, Crown, Wrench, Users,
   HardHat, MessageSquare, Package, FileText, MoreVertical,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { Profile } from '@/types';
 import type { AdminUserEntry } from '@/app/api/admin/users/route';
@@ -405,12 +404,29 @@ export default function AdminUtilisateursPage() {
     toast.success('Rôle mis à jour');
   };
 
+  /**
+   * resetPassword — envoi de l'email de réinitialisation via POST /api/admin/users/reset-password
+   *
+   * Avant ce correctif, cette action appelait directement
+   * supabase.auth.resetPasswordForEmail() depuis le navigateur avec la clé anon.
+   * N'importe quelle personne pouvant rejouer la requête pouvait déclencher
+   * des emails de reset sans contrôle de rôle.
+   *
+   * Correction : la requête passe maintenant par l'API Route
+   * /api/admin/users/reset-password qui vérifie que l'acteur est bien admin
+   * et effectue le reset via le client service-role (Supabase Auth Admin API).
+   */
   const resetPassword = async (email: string) => {
-    const supabase = createClient();
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/profil`,
+    const res = await fetch('/api/admin/users/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Origin': window.location.origin },
+      body: JSON.stringify({ email }),
     });
-    if (error) { toast.error('Erreur : ' + error.message); return; }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error('Erreur : ' + (data.error ?? res.statusText));
+      return;
+    }
     toast.success(`Email de réinitialisation envoyé à ${email}`);
   };
 
