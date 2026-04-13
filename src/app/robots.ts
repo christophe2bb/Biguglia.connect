@@ -30,10 +30,12 @@ export default function robots(): MetadataRoute.Robots {
           '/forum/',
           '/emploi/',
           '/evenements',
+          '/evenements/',
           '/promenades',
           '/materiel',
           '/coups-de-main',
           '/associations',
+          '/associations/',
           '/collectionneurs',
           '/perdu-trouve',
           '/confiance',
@@ -41,6 +43,18 @@ export default function robots(): MetadataRoute.Robots {
           '/mentions-legales',
           '/confidentialite',
           '/cgu',
+          // ── Pages SEO locales (trafic qualifié) ──
+          '/artisans-biguglia',
+          '/services-biguglia',
+          '/emploi-biguglia',
+          '/evenements-biguglia',
+          '/associations-biguglia',
+          '/annonces-biguglia',
+          '/forum-biguglia',
+          '/communaute',
+          '/communaute/',
+          // ── Pages par métier artisan ──────────────
+          '/artisans/metier/',
         ],
         disallow: [
           // Pages privées
