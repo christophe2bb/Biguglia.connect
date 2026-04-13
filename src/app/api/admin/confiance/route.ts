@@ -60,7 +60,7 @@ export interface AdminConfianceData {
 
 // ── GET /api/admin/confiance ──────────────────────────────────────────────────
 
-export async function GET(req: NextRequest) {
+export async function GET(req: NextRequest): Promise<Response> {
   const guard = await getAdminUser(req);
   if (!guard.ok) return guard.response;
 

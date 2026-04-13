@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
 
-export async function GET(req: NextRequest) {
+export async function GET(req: NextRequest): Promise<Response> {
   const userId = await getUserIdBearerFirst(req);
   if (!userId) {
     return NextResponse.json({ error: 'Non authentifié', status: 'guest' }, { status: 401 });
@@ -153,7 +153,7 @@ export async function GET(req: NextRequest) {
  * Body: { conversationId: string, lastReadAt: string }
  * Met à jour le last_read_at d'une participation (marquer comme lu)
  */
-export async function PATCH(req: NextRequest) {
+export async function PATCH(req: NextRequest): Promise<Response> {
   const userId = await getUserIdBearerFirst(req);
   if (!userId) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
@@ -193,7 +193,7 @@ export async function PATCH(req: NextRequest) {
  * Sans cette vérification, un userId authentifié pourrait supprimer ses messages
  * dans n'importe quelle conversation en forgeant la requête.
  */
-export async function DELETE(req: NextRequest) {
+export async function DELETE(req: NextRequest): Promise<Response> {
   const { searchParams } = new URL(req.url);
   const conversationId = searchParams.get('conversationId');
 

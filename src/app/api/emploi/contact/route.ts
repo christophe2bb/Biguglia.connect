@@ -55,7 +55,7 @@ type ProfileRow = {
 
 // ── Handler ─────────────────────────────────────────────────────────────────
 
-export async function POST(req: NextRequest) {
+export async function POST(req: NextRequest): Promise<Response> {
   /* 1. Valider le body */
   let raw: unknown;
   try {

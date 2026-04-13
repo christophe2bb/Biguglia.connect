@@ -53,7 +53,7 @@ export interface AdminUserEntry {
 
 // ─── GET /api/admin/users ────────────────────────────────────────────────────
 
-export async function GET(req: NextRequest) {
+export async function GET(req: NextRequest): Promise<Response> {
   // Auth + rôle admin/modérateur (serveur)
   const guard = await getAdminUser(req);
   if (!guard.ok) return guard.response;

@@ -50,7 +50,7 @@ interface RouteParams {
 
 // ─── PATCH /api/admin/confiance/[id] ─────────────────────────────────────────
 
-export async function PATCH(req: Request, { params }: RouteParams) {
+export async function PATCH(req: Request, { params }: RouteParams): Promise<Response> {
   const csrfError = assertCsrfSafe(req);
   if (csrfError) return csrfError;
 
@@ -122,4 +122,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
 
     return NextResponse.json({ success: true, action: 'award_badge', badge_code: body.badge_code });
   }
+
+  // Exhaustive check — Zod discriminatedUnion guarantees one of the two actions above
+  return NextResponse.json({ error: 'Action non reconnue.' }, { status: 400 });
 }

@@ -39,7 +39,7 @@ const QuerySchema = z.object({
   relatedId:   z.string().regex(UUID_REGEX, 'relatedId doit être un UUID valide'),
 });
 
-export async function GET(req: NextRequest) {
+export async function GET(req: NextRequest): Promise<Response> {
   const userId = await getUserIdBearerFirst(req);
   if (!userId) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });

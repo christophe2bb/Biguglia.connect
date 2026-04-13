@@ -226,7 +226,7 @@ describe('PATCH /api/admin/confiance/[id]', () => {
 
   it('modère un avis (moderate_review) → 200 + champs serveur (moderated_by)', async () => {
     mockCsrf.mockReturnValueOnce(null);
-    const db = makeDb({ reviews: { data: null, error: null } });
+    const db = makeDb();
     vi.spyOn(db, 'from').mockImplementation(() =>
       makeAutoChain({ data: null, error: null }) as unknown as ReturnType<typeof db.from>
     );

@@ -194,7 +194,7 @@ async function findExistingConversation(
 
 // ── Handler principal ────────────────────────────────────────────────────────
 
-export async function POST(req: NextRequest) {
+export async function POST(req: NextRequest): Promise<Response> {
   // ── Auth ────────────────────────────────────────────────────────────────────
   const userId = await getUserIdBearerFirst(req);
   if (!userId) {
