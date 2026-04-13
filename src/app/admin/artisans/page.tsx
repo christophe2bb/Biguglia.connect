@@ -509,31 +509,31 @@ export default function AdminArtisansPage() {
   }, [profile, isAdmin, router, filter, fetchArtisans]);
 
   const approveArtisan = async (artisanUserId: string) => {
-    const supabase = createClient();
-    const { error } = await supabase.from('profiles').update({ role: 'artisan_verified', status: 'active' }).eq('id', artisanUserId);
-    if (error) { toast.error('Erreur lors de la validation'); return; }
-    await supabase.from('notifications').insert({
-      user_id: artisanUserId,
-      type: 'artisan_approved',
-      title: '✅ Profil artisan validé !',
-      message: 'Félicitations ! Votre profil artisan a été validé. Vous êtes maintenant visible sur la plateforme Biguglia Connect.',
-      link: '/dashboard/artisan',
+    const res = await fetch(`/api/admin/artisans/${artisanUserId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'approve' }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error('Erreur lors de la validation : ' + (data.error ?? res.statusText));
+      return;
+    }
     toast.success('Artisan approuvé et notifié !');
     fetchArtisans();
   };
 
   const rejectArtisan = async (artisanUserId: string, reason: string) => {
-    const supabase = createClient();
-    await supabase.from('profiles').update({ role: 'resident', status: 'active' }).eq('id', artisanUserId);
-    await supabase.from('artisan_profiles').update({ rejection_reason: reason }).eq('user_id', artisanUserId);
-    await supabase.from('notifications').insert({
-      user_id: artisanUserId,
-      type: 'artisan_rejected',
-      title: '❌ Profil artisan non validé',
-      message: reason,
-      link: '/inscription/artisan-profil',
+    const res = await fetch(`/api/admin/artisans/${artisanUserId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reject', reason }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error('Erreur lors du refus : ' + (data.error ?? res.statusText));
+      return;
+    }
     toast.success('Artisan refusé et notifié');
     fetchArtisans();
   };
