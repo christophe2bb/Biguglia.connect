@@ -72,7 +72,7 @@ interface RouteParams {
 
 // ─── PATCH /api/admin/moderation/[id]/decision ───────────────────────────────
 
-export async function PATCH(req: Request, { params }: RouteParams) {
+export async function PATCH(req: Request, { params }: RouteParams): Promise<Response> {
   const csrfError = assertCsrfSafe(req);
   if (csrfError) return csrfError;
 

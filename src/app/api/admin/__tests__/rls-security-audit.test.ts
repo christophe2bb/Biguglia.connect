@@ -100,8 +100,8 @@ function deleteReq(url: string, headers: Record<string, string> = {}): Request {
   });
 }
 
-function postReq(url: string, body: unknown): Request {
-  return new Request(url, {
+function postReq(url: string, body: unknown): NextRequest {
+  return new NextRequest(url, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', Origin: 'https://app.test' },
     body:    JSON.stringify(body),
@@ -377,7 +377,7 @@ describe('C. IDOR emploi — vérification ownership', () => {
   it('[C1] isOwner=false quand l\'utilisateur n\'est pas propriétaire de l\'offre', async () => {
     // Utilisateur connecté = OTHER_ID, propriétaire de l'offre = OWNER_ID
     mockGetUser.mockResolvedValue({ id: OTHER_ID });
-    mockCreateAdmin.mockReturnValue(makeOwnershipDb(OWNER_ID) as ReturnType<typeof createAdminClient>);
+    mockCreateAdmin.mockReturnValue(makeOwnershipDb(OWNER_ID) as unknown as ReturnType<typeof createAdminClient>);
 
     const res = await getOwnership(
       makeGetReq(`https://app.test/api/emploi/ownership?type=offer&slug=${SLUG}`),
@@ -394,7 +394,7 @@ describe('C. IDOR emploi — vérification ownership', () => {
    */
   it('[C2] isOwner=true quand l\'utilisateur est propriétaire de l\'offre', async () => {
     mockGetUser.mockResolvedValue({ id: OWNER_ID });
-    mockCreateAdmin.mockReturnValue(makeOwnershipDb(OWNER_ID) as ReturnType<typeof createAdminClient>);
+    mockCreateAdmin.mockReturnValue(makeOwnershipDb(OWNER_ID) as unknown as ReturnType<typeof createAdminClient>);
 
     const res = await getOwnership(
       makeGetReq(`https://app.test/api/emploi/ownership?type=offer&slug=${SLUG}`),
@@ -411,7 +411,7 @@ describe('C. IDOR emploi — vérification ownership', () => {
    */
   it('[C3] isOwner=false si le slug n\'existe pas (pas de fuite interne)', async () => {
     mockGetUser.mockResolvedValue({ id: OWNER_ID });
-    mockCreateAdmin.mockReturnValue(makeOwnershipDb(null) as ReturnType<typeof createAdminClient>);
+    mockCreateAdmin.mockReturnValue(makeOwnershipDb(null) as unknown as ReturnType<typeof createAdminClient>);
 
     const res = await getOwnership(
       makeGetReq(`https://app.test/api/emploi/ownership?type=offer&slug=${SLUG}`),
@@ -428,7 +428,7 @@ describe('C. IDOR emploi — vérification ownership', () => {
    */
   it('[C4] Un utilisateur non-authentifié obtient isOwner=false (pas 401)', async () => {
     mockGetUser.mockResolvedValue(null); // pas de session
-    mockCreateAdmin.mockReturnValue(makeOwnershipDb(OWNER_ID) as ReturnType<typeof createAdminClient>);
+    mockCreateAdmin.mockReturnValue(makeOwnershipDb(OWNER_ID) as unknown as ReturnType<typeof createAdminClient>);
 
     const res = await getOwnership(
       makeGetReq(`https://app.test/api/emploi/ownership?type=offer&slug=${SLUG}`),
@@ -447,7 +447,7 @@ describe('C. IDOR emploi — vérification ownership', () => {
    */
   it('[C5] La réponse ownership ne contient pas userId ni d\'autre PII', async () => {
     mockGetUser.mockResolvedValue({ id: OWNER_ID });
-    mockCreateAdmin.mockReturnValue(makeOwnershipDb(OWNER_ID) as ReturnType<typeof createAdminClient>);
+    mockCreateAdmin.mockReturnValue(makeOwnershipDb(OWNER_ID) as unknown as ReturnType<typeof createAdminClient>);
 
     const res = await getOwnership(
       makeGetReq(`https://app.test/api/emploi/ownership?type=offer&slug=${SLUG}`),

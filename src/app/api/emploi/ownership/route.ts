@@ -22,7 +22,7 @@ const QuerySchema = z.object({
   slug: z.string().regex(/^[a-z0-9][a-z0-9-]{1,118}[a-z0-9]$/, 'Slug invalide'),
 });
 
-export async function GET(req: Request) {
+export async function GET(req: Request): Promise<Response> {
   const { searchParams } = new URL(req.url);
 
   const parsed = QuerySchema.safeParse({

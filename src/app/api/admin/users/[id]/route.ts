@@ -47,7 +47,7 @@ type PatchBody = z.infer<typeof PatchSchema>;
 
 // ── PATCH /api/admin/users/[id] ───────────────────────────────────────────────
 
-export async function PATCH(req: Request, { params }: RouteParams) {
+export async function PATCH(req: Request, { params }: RouteParams): Promise<Response> {
   // CSRF — exige Origin same-host si cookie-only
   const csrfError = assertCsrfSafe(req);
   if (csrfError) return csrfError;
@@ -137,11 +137,14 @@ export async function PATCH(req: Request, { params }: RouteParams) {
 
     return NextResponse.json({ success: true, role: body.role });
   }
+
+  // Exhaustive check — Zod discriminatedUnion guarantees one of the two actions above
+  return NextResponse.json({ error: 'Action non reconnue.' }, { status: 400 });
 }
 
 // ── DELETE /api/admin/users/[id] ─────────────────────────────────────────────
 
-export async function DELETE(req: Request, { params }: RouteParams) {
+export async function DELETE(req: Request, { params }: RouteParams): Promise<Response> {
   const csrfError = assertCsrfSafe(req);
   if (csrfError) return csrfError;
 

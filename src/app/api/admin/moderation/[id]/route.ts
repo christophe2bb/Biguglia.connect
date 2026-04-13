@@ -34,7 +34,7 @@ type PatchBody = z.infer<typeof PatchSchema>;
 
 // ── PATCH /api/admin/moderation/[id] ─────────────────────────────────────────
 
-export async function PATCH(req: Request, { params }: RouteParams) {
+export async function PATCH(req: Request, { params }: RouteParams): Promise<Response> {
   const csrfError = assertCsrfSafe(req);
   if (csrfError) return csrfError;
 

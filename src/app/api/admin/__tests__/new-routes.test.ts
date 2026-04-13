@@ -465,7 +465,7 @@ describe('POST /api/admin/users/reset-password', () => {
 
   it('[reset-7] bloque si CSRF échoue (pas d\'Origin)', async () => {
     mockAssertCsrf.mockReturnValue(
-      new Response(JSON.stringify({ error: 'CSRF' }), { status: 403 }),
+      new Response(JSON.stringify({ error: 'CSRF' }), { status: 403 }) as unknown as import('next/server').NextResponse,
     );
     const db = makeDb();
     mockGetAdminUser.mockResolvedValue(makeAdminGuardOk('admin', db, ADMIN_ID));
@@ -567,7 +567,7 @@ describe('Sécurité — vérifications transversales nouvelles routes', () => {
   it('[sec-3] reset-password CSRF protection — toutes mutations bloquées sans Origin', async () => {
     // Simule un CSRF failure
     mockAssertCsrf.mockReturnValue(
-      new Response(JSON.stringify({ error: 'Forbidden — CSRF' }), { status: 403 }),
+      new Response(JSON.stringify({ error: 'Forbidden — CSRF' }), { status: 403 }) as unknown as import('next/server').NextResponse,
     );
     const db = makeDb();
     mockGetAdminUser.mockResolvedValue(makeAdminGuardOk('admin', db, ADMIN_ID));
