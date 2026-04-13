@@ -1,0 +1,33 @@
+{
+  "name": "Biguglia Connect",
+  "short_name": "Biguglia",
+  "description": "La plateforme locale de Biguglia — Artisans, Annonces & Communauté",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["lifestyle", "social", "utilities"],
+  "screenshots": [
+    {
+      "src": "/images/biguglia-hero.jpg",
+      "sizes": "1200x630",
+      "type": "image/jpeg",
+      "label": "Biguglia Connect — Accueil"
+    }
+  ]
+}

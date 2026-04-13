@@ -1,7 +1,21 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { JsonLd, faqSchema, breadcrumbSchema } from '@/components/seo/JsonLd';
 
-export const metadata: Metadata = { title: 'Aide & FAQ' };
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
+
+export const metadata: Metadata = {
+  title: 'Aide & FAQ — Biguglia Connect',
+  description:
+    'Toutes les réponses à vos questions sur Biguglia Connect : artisans, annonces, matériel, messages, sécurité et compte utilisateur.',
+  alternates: { canonical: `${SITE_URL}/aide` },
+  openGraph: {
+    title:       'Aide & FAQ — Biguglia Connect',
+    description: 'Réponses aux questions fréquentes sur la plateforme Biguglia Connect.',
+    url:         `${SITE_URL}/aide`,
+    type:        'website',
+  },
+};
 
 const faq = [
   {
@@ -41,6 +55,8 @@ const faq = [
 export default function AidePage() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <JsonLd data={faqSchema(faq)} />
+      <JsonLd data={breadcrumbSchema([{ name: 'Accueil', url: '/' }, { name: 'Aide & FAQ', url: '/aide' }])} />
       <div className="text-center mb-12">
         <div className="text-4xl mb-4">❓</div>
         <h1 className="text-3xl font-bold text-gray-900 mb-4">Aide & FAQ</h1>
