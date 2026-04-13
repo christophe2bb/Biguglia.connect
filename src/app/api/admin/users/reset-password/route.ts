@@ -23,6 +23,7 @@ import { z } from 'zod';
 import { getAdminUser } from '@/lib/supabase/admin-guard';
 import { assertCsrfSafe } from '@/lib/supabase/auth-helper';
 import { createAdminClient } from '@/lib/supabase/server';
+import { captureApiError } from '@/lib/monitoring/sentry';
 
 // ─── Schéma Zod ──────────────────────────────────────────────────────────────
 
@@ -91,7 +92,13 @@ export async function POST(req: NextRequest) {
   });
 
   if (resetError) {
-    console.error('[reset-password] Supabase error:', resetError.message);
+    captureApiError(new Error(resetError.message), {
+      route:  '/api/admin/users/reset-password',
+      method: 'POST',
+      userId: guard.actor.id,
+      userRole: guard.actor.role,
+      tags:   { step: 'supabase_generate_link' },
+    });
     return NextResponse.json(
       { error: 'Impossible d\'envoyer l\'email de réinitialisation.' },
       { status: 500 },

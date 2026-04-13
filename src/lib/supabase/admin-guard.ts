@@ -32,6 +32,7 @@ import 'server-only';
 import { NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/supabase/auth-helper';
 import { createAdminClient } from '@/lib/supabase/server';
+import { captureAuthError } from '@/lib/monitoring/sentry';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -96,6 +97,12 @@ export async function getAdminUser(req: Request): Promise<AdminGuardResult> {
     .single();
 
   if (error || !profileRow) {
+    // Profil manquant alors que l'utilisateur est authentifié → anomalie à surveiller
+    captureAuthError('profile_load_failed', {
+      event: 'profile_load_failed',
+      userId: user.id,
+      extra: { supabaseError: error?.message },
+    });
     return {
       ok: false,
       response: NextResponse.json(
@@ -108,6 +115,14 @@ export async function getAdminUser(req: Request): Promise<AdminGuardResult> {
   // ── Étape 3 : vérifier le rôle ────────────────────────────────────────────
   const role = profileRow.role as string;
   if (!ADMIN_ROLES.includes(role as AdminRole)) {
+    // Tentative d'accès admin par un non-admin → log Sentry (niveau warning, pas error)
+    captureAuthError('admin_access_denied', {
+      event:    'admin_access_denied',
+      userId:   user.id,
+      userRole: role,
+      tags:     { role },
+      level:    'warning',
+    });
     return {
       ok: false,
       response: NextResponse.json(
