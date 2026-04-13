@@ -4,7 +4,31 @@
 // Principe : aucune logique métier dans la page — tout est délégué aux services
 // ─────────────────────────────────────────────────────────────────────────────
 
+import type { Metadata } from 'next';
 import Image from 'next/image';
+import { JsonLd, websiteSchema, localBusinessSchema } from '@/components/seo/JsonLd';
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
+
+// Metadata spécifique à l'accueil (complète le layout global)
+export const metadata: Metadata = {
+  // Pas de template sur l'accueil, titre complet direct
+  title: 'Biguglia Connect — Artisans, Annonces & Communauté Locale',
+  description:
+    'La plateforme locale de Biguglia (Haute-Corse 2B) : trouvez un artisan vérifié, déposez une annonce, participez au forum, échangez du matériel et rejoignez la vie du village.',
+  alternates: { canonical: SITE_URL },
+  openGraph: {
+    title:       'Biguglia Connect — Artisans, Annonces & Communauté Locale',
+    description: 'Artisans vérifiés, petites annonces, forum, matériel, événements… Tout Biguglia en un seul endroit.',
+    url:         SITE_URL,
+    images: [{
+      url:    `${SITE_URL}/images/biguglia-hero.jpg`,
+      width:  1200,
+      height: 630,
+      alt:    'Biguglia Connect — Village de Biguglia, Haute-Corse',
+    }],
+  },
+};
 import { Suspense } from 'react';
 import Link from 'next/link';
 import {
@@ -88,6 +112,9 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* JSON-LD Structured Data */}
+      <JsonLd data={websiteSchema} />
+      <JsonLd data={localBusinessSchema} />
 
       {/* ══════════════════════════════════════════════════════════
           HERO PHOTO + SEARCH

@@ -3,7 +3,28 @@
  * Route: /emploi/offres
  */
 
+import type { Metadata } from 'next';
 import Link from 'next/link';
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
+
+export const metadata: Metadata = {
+  title: 'Offres d\'Emploi à Biguglia — Recrutement Local en Corse',
+  description:
+    'Consultez les offres d\'emploi à Biguglia et en Haute-Corse : CDI, CDD, temps partiel, saisonnier. Postulez directement aux employeurs locaux.',
+  keywords: [
+    'offres emploi Biguglia', 'recrutement Haute-Corse', 'emploi Corse',
+    'CDI Biguglia', 'job Corse', 'travail Haute-Corse',
+  ],
+  alternates: { canonical: `${SITE_URL}/emploi/offres` },
+  openGraph: {
+    title:       'Offres d\'Emploi à Biguglia — Recrutement Local',
+    description: 'CDI, CDD, saisonnier à Biguglia et en Haute-Corse. Postulez aux offres des employeurs locaux.',
+    url:         `${SITE_URL}/emploi/offres`,
+    images:      [{ url: `${SITE_URL}/images/biguglia-village.jpg`, width: 1200, height: 630, alt: 'Emploi à Biguglia' }],
+    type:        'website',
+  },
+};
 import { Suspense } from 'react';
 import { Briefcase, TrendingUp, Plus, Search, Bell } from 'lucide-react';
 import { getJobOffers } from '@/services/jobs/queries';
@@ -26,11 +47,6 @@ interface PageProps {
   };
 }
 
-export const metadata = {
-  title: "Offres d'emploi local – Biguglia Connect",
-  description:
-    "Trouvez un emploi local à Biguglia et ses environs : CDI, CDD, saisonnier, extra, mission...",
-};
 
 export default async function OffresEmploiPage({ searchParams }: PageProps) {
   /* ── Filtres depuis l'URL ─────────────────────────────────────── */
