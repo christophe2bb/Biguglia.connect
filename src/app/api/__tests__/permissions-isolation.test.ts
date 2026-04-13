@@ -26,7 +26,7 @@ vi.mock('@/lib/supabase/auth-helper');
 vi.mock('@/lib/supabase/server');
 vi.mock('@/lib/monitoring/sentry', () => ({ captureApiError: vi.fn() }));
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getAdminUser } from '@/lib/supabase/admin-guard';
 import { getUserIdBearerFirst, assertCsrfSafe } from '@/lib/supabase/auth-helper';
 import { createAdminClient } from '@/lib/supabase/server';
@@ -405,7 +405,6 @@ describe('[Perm-5] Protection CSRF — mutations bloquées sans header Origin', 
     mockCsrf.mockImplementation((req: Request) => {
       const origin = req.headers.get('Origin');
       if (!origin) {
-        const { NextResponse } = require('next/server');
         return NextResponse.json({ error: 'CSRF: Origin absent' }, { status: 403 });
       }
       return null;
