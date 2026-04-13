@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Flag, CheckCircle, XCircle, Eye, AlertTriangle,
   RefreshCw, Users, FileText, ShoppingBag, MessageSquare,
   Loader2, ArrowLeft, Ban,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
+import type { AdminReportsData, ReportEntry } from '@/app/api/admin/reports/route';
 import Avatar from '@/components/ui/Avatar';
 import { formatRelative } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -16,20 +16,7 @@ import Link from 'next/link';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 
 // ─── Types enrichis ────────────────────────────────────────────────────────────
-type EnrichedReport = {
-  id: string;
-  reporter_id: string;
-  target_type: string;
-  target_id: string;
-  target_title?: string;
-  reason: string;
-  description?: string;
-  status: 'pending' | 'reviewed' | 'resolved' | 'dismissed';
-  created_at: string;
-  reporter?: { full_name: string; avatar_url?: string };
-  // Combien de fois ce même contenu a été signalé
-  report_count?: number;
-};
+type EnrichedReport = ReportEntry;
 
 const REASON_LABELS: Record<string, { label: string; color: string; emoji: string }> = {
   fake:       { label: 'Fausse annonce',    color: 'text-orange-600 bg-orange-50 border-orange-200', emoji: '🤥' },
@@ -75,40 +62,48 @@ function StatCard({ label, value, color, emoji }: { label: string; value: number
 export default function AdminSignalementsPage() {
   const { profile, isModerator } = useAuthStore();
   const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
 
-  const [reports, setReports]         = useState<EnrichedReport[]>([]);
-  const [loading, setLoading]         = useState(true);
+  const [reports, setReports]           = useState<EnrichedReport[]>([]);
+  const [loading, setLoading]           = useState(true);
   const [filterStatus, setFilterStatus] = useState<'pending' | 'reviewed' | 'all' | 'resolved' | 'dismissed'>('pending');
-  const [filterType, setFilterType]   = useState('all');
-  const [processing, setProcessing]   = useState<string | null>(null);
+  const [filterType, setFilterType]     = useState('all');
+  const [processing, setProcessing]     = useState<string | null>(null);
 
   // Stats
-  const [stats, setStats] = useState({ pending: 0, resolved: 0, dismissed: 0, total: 0 });
+  const [stats, setStats] = useState({ pending: 0, reviewed: 0, resolved: 0, dismissed: 0, total: 0 });
 
+  /**
+   * fetchReports — lecture des signalements via GET /api/admin/reports
+   *
+   * Avant ce correctif, la page appelait directement createClient() côté
+   * navigateur pour sélectionner la table 'reports' avec la clé anon.
+   * Toute la protection reposait sur la RLS Supabase.
+   *
+   * Correction : toutes les lectures passent maintenant par l'API Route
+   * /api/admin/reports qui vérifie le rôle admin/modérateur côté serveur
+   * avant toute lecture (createAdminClient — service role).
+   */
   const fetchReports = useCallback(async () => {
     setLoading(true);
-    let q = supabase
-      .from('reports')
-      .select('*, reporter:profiles!reports_reporter_id_fkey(full_name, avatar_url)')
-      .order('created_at', { ascending: false });
-
-    if (filterStatus !== 'all') q = q.eq('status', filterStatus);
-    if (filterType !== 'all')   q = q.eq('target_type', filterType);
-
-    const { data } = await q.limit(100);
-    setReports((data ?? []) as EnrichedReport[]);
-
-    // Stats
-    const [p, r, d, tot] = await Promise.all([
-      supabase.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-      supabase.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'resolved'),
-      supabase.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'dismissed'),
-      supabase.from('reports').select('id', { count: 'exact', head: true }),
-    ]);
-    setStats({ pending: p.count ?? 0, resolved: r.count ?? 0, dismissed: d.count ?? 0, total: tot.count ?? 0 });
-    setLoading(false);
-  }, [filterStatus, filterType, supabase]);
+    try {
+      const params = new URLSearchParams();
+      if (filterStatus !== 'all') params.set('status', filterStatus);
+      if (filterType   !== 'all') params.set('target_type', filterType);
+      const res = await fetch(`/api/admin/reports?${params.toString()}`);
+      if (!res.ok) { setLoading(false); return; }
+      const data = await res.json() as AdminReportsData;
+      setReports(data.reports);
+      setStats({
+        pending:   data.counts.pending,
+        reviewed:  data.counts.reviewed,
+        resolved:  data.counts.resolved,
+        dismissed: data.counts.dismissed,
+        total:     data.counts.total,
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [filterStatus, filterType]);
 
   useEffect(() => {
     if (!profile || !isModerator()) { router.push('/'); return; }

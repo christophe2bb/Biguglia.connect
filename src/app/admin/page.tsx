@@ -2,82 +2,53 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Users, CheckCircle, AlertTriangle, MessageSquare, Package, Wrench, Flag, TrendingUp, Shield } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import Link from 'next/link';
 import ProtectedPage from '@/components/providers/ProtectedPage';
-
-interface AdminStats {
-  total_users: number;
-  pending_artisans: number;
-  verified_artisans: number;
-  total_listings: number;
-  total_forum_posts: number;
-  pending_reports: number;
-  total_equipment: number;
-  total_messages: number;
-  pending_moderation: number;
-}
-
+import type { AdminDashboardStats } from '@/app/api/admin/dashboard/route';
 
 function AdminContent() {
   const { profile } = useAuthStore();
   const profileId = profile?.id;
-  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [stats, setStats] = useState<AdminDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
+  /**
+   * fetchData — lecture des compteurs via GET /api/admin/dashboard
+   *
+   * Avant ce correctif, la page appelait directement createClient() côté
+   * navigateur pour récupérer des COUNT sur plusieurs tables sensibles
+   * (profiles, messages, reports, moderation_queue…) via la clé anon.
+   * Les données agrégées transitaient en clair depuis le client.
+   *
+   * Correction : toutes ces requêtes passent maintenant par l'API Route
+   * /api/admin/dashboard qui vérifie le rôle admin côté serveur avant
+   * toute lecture (createAdminClient — service role).
+   */
   const fetchData = useCallback(async () => {
     if (!profileId) return;
-    const supabase = createClient();
-    const [
-      { count: totalUsers },
-      { count: pendingArtCount },
-      { count: verifiedArtCount },
-      { count: totalListings },
-      { count: totalPosts },
-      { count: pendingReports },
-      { count: totalEquip },
-      { count: totalMsgs },
-      { count: pendingMod },
-    ] = await Promise.all([
-      supabase.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
-      supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'artisan_pending'),
-      supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'artisan_verified'),
-      supabase.from('listings').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-      supabase.from('forum_posts').select('*', { count: 'exact', head: true }),
-      supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-      supabase.from('equipment_items').select('*', { count: 'exact', head: true }).eq('is_available', true),
-      supabase.from('messages').select('*', { count: 'exact', head: true }),
-      supabase.from('moderation_queue').select('*', { count: 'exact', head: true }).eq('status', 'en_attente_validation'),
-    ]);
-
-    setStats({
-      total_users: totalUsers || 0,
-      pending_artisans: pendingArtCount || 0,
-      verified_artisans: verifiedArtCount || 0,
-      total_listings: totalListings || 0,
-      total_forum_posts: totalPosts || 0,
-      pending_reports: pendingReports || 0,
-      total_equipment: totalEquip || 0,
-      total_messages: totalMsgs || 0,
-      pending_moderation: pendingMod || 0,
-    });
-
-    setLoading(false);
+    try {
+      const res = await fetch('/api/admin/dashboard');
+      if (!res.ok) return;
+      const data = await res.json() as { stats: AdminDashboardStats };
+      setStats(data.stats);
+    } finally {
+      setLoading(false);
+    }
   }, [profileId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const statCards = [
-    { icon: Users, label: 'Utilisateurs', value: stats?.total_users ?? 0, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { icon: Wrench, label: 'Artisans vérifiés', value: stats?.verified_artisans ?? 0, color: 'text-green-600', bg: 'bg-green-50' },
-    { icon: AlertTriangle, label: 'En attente', value: stats?.pending_artisans ?? 0, color: 'text-orange-600', bg: 'bg-orange-50', highlight: (stats?.pending_artisans ?? 0) > 0 },
-    { icon: Package, label: 'Annonces actives', value: stats?.total_listings ?? 0, color: 'text-purple-600', bg: 'bg-purple-50' },
-    { icon: MessageSquare, label: 'Messages', value: stats?.total_messages ?? 0, color: 'text-brand-600', bg: 'bg-brand-50' },
-    { icon: Flag, label: 'Signalements', value: stats?.pending_reports ?? 0, color: 'text-red-600', bg: 'bg-red-50', highlight: (stats?.pending_reports ?? 0) > 0 },
-    { icon: Shield, label: 'En modération', value: stats?.pending_moderation ?? 0, color: 'text-amber-600', bg: 'bg-amber-50', highlight: (stats?.pending_moderation ?? 0) > 0 },
-    { icon: TrendingUp, label: 'Posts forum', value: stats?.total_forum_posts ?? 0, color: 'text-teal-600', bg: 'bg-teal-50' },
-    { icon: CheckCircle, label: 'Matériel dispo', value: stats?.total_equipment ?? 0, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    { icon: Users,         label: 'Utilisateurs',      value: stats?.total_users        ?? 0, color: 'text-blue-600',   bg: 'bg-blue-50' },
+    { icon: Wrench,        label: 'Artisans vérifiés',  value: stats?.verified_artisans  ?? 0, color: 'text-green-600',  bg: 'bg-green-50' },
+    { icon: AlertTriangle, label: 'En attente',         value: stats?.pending_artisans   ?? 0, color: 'text-orange-600', bg: 'bg-orange-50', highlight: (stats?.pending_artisans ?? 0) > 0 },
+    { icon: Package,       label: 'Annonces actives',   value: stats?.total_listings     ?? 0, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { icon: MessageSquare, label: 'Messages',           value: stats?.total_messages     ?? 0, color: 'text-brand-600',  bg: 'bg-brand-50' },
+    { icon: Flag,          label: 'Signalements',       value: stats?.pending_reports    ?? 0, color: 'text-red-600',    bg: 'bg-red-50',   highlight: (stats?.pending_reports ?? 0) > 0 },
+    { icon: Shield,        label: 'En modération',      value: stats?.pending_moderation ?? 0, color: 'text-amber-600',  bg: 'bg-amber-50', highlight: (stats?.pending_moderation ?? 0) > 0 },
+    { icon: TrendingUp,    label: 'Posts forum',        value: stats?.total_forum_posts  ?? 0, color: 'text-teal-600',   bg: 'bg-teal-50' },
+    { icon: CheckCircle,   label: 'Matériel dispo',     value: stats?.total_equipment    ?? 0, color: 'text-indigo-600', bg: 'bg-indigo-50' },
   ];
 
   return (
@@ -106,16 +77,16 @@ function AdminContent() {
       {/* Navigation admin */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
         {[
-          { href: '/admin/stats', label: 'Statistiques', desc: 'Graphiques & activité complète', icon: '📊', highlight: true },
-          { href: '/admin/artisans', label: 'Gestion artisans', desc: 'Valider, refuser, suspendre', icon: '⚒️' },
-          { href: '/admin/utilisateurs', label: 'Utilisateurs', desc: 'Gérer les comptes', icon: '👥' },
-          { href: '/admin/contenu', label: 'Contenu', desc: 'Annonces, forum, avis, matériel', icon: '📋' },
-          { href: '/admin/moderation', label: 'Modération', desc: 'File de validation des publications', icon: '🛡️', highlight: (stats?.pending_moderation ?? 0) > 0, badge: stats?.pending_moderation },
-          { href: '/admin/signalements', label: 'Signalements', desc: 'Modérer le contenu', icon: '🚩' },
-          { href: '/admin/confiance', label: 'Confiance & Réputation', desc: 'Modérer les avis, membres à risque, badges', icon: '🛡️', highlight: false },
-          { href: '/admin/migration', label: 'Migration DB', desc: 'Tables thèmes (collectionneurs, promenades, événements)', icon: '🗄️', highlight: false },
-          { href: '/admin/spec', label: 'Spécification fonctionnelle', desc: 'Cahier des charges Collectionneurs v2.0 — état du développement', icon: '📋', highlight: false },
-          { href: '/admin/securite', label: 'Sécurité & Cloudflare', desc: 'Guide Cloudflare WAF, anti-DDoS, headers', icon: '🛡️', highlight: false },
+          { href: '/admin/stats',       label: 'Statistiques',              desc: 'Graphiques & activité complète',                                 icon: '📊', highlight: true },
+          { href: '/admin/artisans',    label: 'Gestion artisans',          desc: 'Valider, refuser, suspendre',                                    icon: '⚒️' },
+          { href: '/admin/utilisateurs',label: 'Utilisateurs',              desc: 'Gérer les comptes',                                              icon: '👥' },
+          { href: '/admin/contenu',     label: 'Contenu',                   desc: 'Annonces, forum, avis, matériel',                                icon: '📋' },
+          { href: '/admin/moderation',  label: 'Modération',                desc: 'File de validation des publications',                             icon: '🛡️', highlight: (stats?.pending_moderation ?? 0) > 0, badge: stats?.pending_moderation },
+          { href: '/admin/signalements',label: 'Signalements',              desc: 'Modérer le contenu',                                             icon: '🚩' },
+          { href: '/admin/confiance',   label: 'Confiance & Réputation',    desc: 'Modérer les avis, membres à risque, badges',                     icon: '🛡️', highlight: false },
+          { href: '/admin/migration',   label: 'Migration DB',              desc: 'Tables thèmes (collectionneurs, promenades, événements)',         icon: '🗄️', highlight: false },
+          { href: '/admin/spec',        label: 'Spécification fonctionnelle',desc: 'Cahier des charges Collectionneurs v2.0 — état du développement',icon: '📋', highlight: false },
+          { href: '/admin/securite',    label: 'Sécurité & Cloudflare',     desc: 'Guide Cloudflare WAF, anti-DDoS, headers',                       icon: '🛡️', highlight: false },
         ].map(({ href, label, desc, icon, highlight, badge }) => (
           <Link key={href} href={href}>
             <div className={`relative bg-white rounded-2xl border p-5 hover:shadow-sm transition-all cursor-pointer ${highlight ? 'border-brand-300 bg-brand-50/30' : 'border-gray-100 hover:border-gray-200'}`}>
