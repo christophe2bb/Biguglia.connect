@@ -19,44 +19,19 @@ import {
   Loader2, RefreshCw, Award, Tag, ChevronRight,
   ThumbsUp, TrendingUp,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { cn, formatRelative } from '@/lib/utils';
 import { THEME_CONFIG, BADGE_CONFIG, type BadgeCode, type InteractionSourceType } from '@/lib/trust';
+import type { AdminConfianceData, AdminReviewEntry, AdminRiskMember, AdminThemeStat } from '@/app/api/admin/confiance/route';
 import Avatar from '@/components/ui/Avatar';
 
 import toast from 'react-hot-toast';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface AdminReview {
-  id: string;
-  source_type: string;
-  rating: number;
-  comment?: string | null;
-  would_recommend?: boolean | null;
-  moderation_status: string;
-  created_at: string;
-  author: { id: string; full_name: string; avatar_url?: string | null } | null;
-  target_user: { id: string; full_name: string; avatar_url?: string | null } | null;
-  review_tags: Array<{ tag: string }>;
-}
-
-interface RiskMember {
-  profile_id: string;
-  trust_score: number;
-  reviews_received: number;
-  avg_rating: number;
-  interactions_disputed: number;
-  profile?: { full_name: string; avatar_url?: string | null; role: string };
-}
-
-interface ThemeStats {
-  source_type: string;
-  count: number;
-  avg_rating: number;
-  total_reviews: number;
-}
+// ─── Types locaux (alias des types API) ───────────────────────────────────────
+type AdminReview  = AdminReviewEntry;
+type RiskMember   = AdminRiskMember;
+type ThemeStats   = AdminThemeStat;
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function AdminConfiancePage() {
@@ -75,85 +50,55 @@ export default function AdminConfiancePage() {
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'moderator';
 
+  /**
+   * load — lecture des données de confiance via GET /api/admin/confiance
+   *
+   * Avant ce correctif, la page interrogeait directement `createClient()` avec
+   * la clé anon pour lire les tables reviews, trust_profile_stats et profiles.
+   * La route serveur utilise getAdminUser() + createAdminClient() (service role)
+   * pour garantir que seuls les admins/modérateurs lisent ces données sensibles.
+   */
   const load = useCallback(async () => {
     setLoading(true);
-    const supabase = createClient();
-
-    const [
-      { data: reviewsData },
-      { data: riskData },
-      { data: statsData },
-    ] = await Promise.all([
-      // Reported or all visible reviews
-      supabase.from('reviews')
-        .select(`
-          id, source_type, rating, comment, would_recommend, moderation_status, created_at,
-          author:profiles!reviews_author_id_fkey(id, full_name, avatar_url),
-          target_user:profiles!reviews_target_user_id_fkey(id, full_name, avatar_url),
-          review_tags(tag)
-        `)
-        .in('moderation_status', ['reported', 'visible'])
-        .order('created_at', { ascending: false })
-        .limit(50),
-
-      // Risk members (low score, disputes)
-      supabase.from('trust_profile_stats')
-        .select('profile_id, trust_score, reviews_received, avg_rating, interactions_disputed')
-        .or('trust_score.lt.20,interactions_disputed.gt.0')
-        .order('trust_score', { ascending: true })
-        .limit(20),
-
-      // Theme stats
-      supabase.from('reviews')
-        .select('source_type, rating')
-        .eq('moderation_status', 'visible'),
-    ]);
-
-    setReportedReviews((reviewsData || []) as unknown as AdminReview[]);
-
-    // Enrich risk members with profiles
-    const enrichedRisk = await Promise.all(
-      (riskData || []).map(async (row: Record<string, unknown>) => {
-        const { data: p } = await supabase
-          .from('profiles').select('full_name, avatar_url, role').eq('id', row.profile_id as string).maybeSingle();
-        return { ...row, profile: p } as RiskMember;
-      })
-    );
-    setRiskMembers(enrichedRisk);
-
-    // Aggregate theme stats
-    const grouped: Record<string, { count: number; totalRating: number }> = {};
-    (statsData || []).forEach((r: Record<string, unknown>) => {
-      const t = r.source_type as string;
-      if (!grouped[t]) grouped[t] = { count: 0, totalRating: 0 };
-      grouped[t].count++;
-      grouped[t].totalRating += r.rating as number;
-    });
-    setThemeStats(
-      Object.entries(grouped).map(([source_type, { count, totalRating }]) => ({
-        source_type,
-        count,
-        avg_rating: count > 0 ? totalRating / count : 0,
-        total_reviews: count,
-      })).sort((a, b) => b.total_reviews - a.total_reviews)
-    );
-
+    try {
+      const res = await fetch('/api/admin/confiance');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        toast.error('Erreur chargement confiance : ' + (body.error ?? res.statusText));
+        setLoading(false);
+        return;
+      }
+      const data = (await res.json()) as AdminConfianceData;
+      setReportedReviews(data.reviews);
+      setRiskMembers(data.riskMembers);
+      setThemeStats(data.themeStats);
+    } catch (err) {
+      toast.error('Erreur réseau : ' + String(err));
+    }
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
+  /**
+   * moderateReview — modération via PATCH /api/admin/confiance/[id]
+   *
+   * Avant ce correctif, la mutation appelait directement
+   * `createClient().from('reviews').update(...)` côté navigateur.
+   * La route serveur vérifie le rôle admin/moderator et effectue la mutation
+   * via le service role (bypass RLS contrôlé).
+   */
   const moderateReview = async (reviewId: string, action: 'visible' | 'hidden' | 'deleted') => {
     setModerating(reviewId);
-    const supabase = createClient();
-    const { error } = await supabase.from('reviews').update({
-      moderation_status: action,
-      moderated_by: profile?.id,
-      moderated_at: new Date().toISOString(),
-    }).eq('id', reviewId);
+    const res = await fetch(`/api/admin/confiance/${reviewId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'moderate_review', moderation_status: action }),
+    });
 
-    if (error) {
-      toast.error('Erreur lors de la modération');
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      toast.error('Erreur lors de la modération : ' + (body.error ?? res.statusText));
     } else {
       toast.success(action === 'visible' ? 'Avis restauré' : action === 'hidden' ? 'Avis masqué' : 'Avis supprimé');
       setReportedReviews(prev => prev.filter(r => r.id !== reviewId));
@@ -161,18 +106,28 @@ export default function AdminConfiancePage() {
     setModerating(null);
   };
 
+  /**
+   * awardBadge — attribution via PATCH /api/admin/confiance/[id]
+   *
+   * Avant ce correctif, la mutation appelait directement
+   * `createClient().from('profile_badges').upsert(...)` côté navigateur.
+   */
   const awardBadge = async () => {
     if (!badgeTarget.trim()) { toast.error('ID utilisateur requis'); return; }
     setAwardingBadge(true);
-    const supabase = createClient();
-    const { error } = await supabase.from('profile_badges').upsert({
-      profile_id: badgeTarget.trim(),
-      badge_code: badgeCode,
-      awarded_by: 'admin',
-    }, { onConflict: 'profile_id,badge_code', ignoreDuplicates: true });
+    const res = await fetch(`/api/admin/confiance/${badgeTarget.trim()}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'award_badge', badge_code: badgeCode }),
+    });
 
-    if (error) toast.error('Erreur: ' + error.message);
-    else { toast.success('Badge attribué !'); setBadgeTarget(''); }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      toast.error('Erreur: ' + (body.error ?? res.statusText));
+    } else {
+      toast.success('Badge attribué !');
+      setBadgeTarget('');
+    }
     setAwardingBadge(false);
   };
 

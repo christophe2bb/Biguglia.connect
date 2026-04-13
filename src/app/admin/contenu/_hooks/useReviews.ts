@@ -1,3 +1,13 @@
+/**
+ * Hook — useReviews
+ *
+ * Mutations : routées via l'API serveur /api/admin/contenu/reviews/[id]
+ *   • DELETE : suppression
+ *
+ * Avant ce correctif, deleteItem appelait directement
+ * createClient().from('reviews').delete() côté navigateur.
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
@@ -9,6 +19,7 @@ export function useReviews() {
   const [search, setSearch]             = useState('');
   const [ratingFilter, setRatingFilter] = useState('');
 
+  // ── Lecture ──────────────────────────────────────────────────────────────
   const fetchReviews = useCallback(async () => {
     setLoading(true);
     const supabase = createClient();
@@ -27,10 +38,16 @@ export function useReviews() {
 
   useEffect(() => { fetchReviews(); }, [fetchReviews]);
 
+  // ── Suppression via API serveur ──────────────────────────────────────────
   const deleteItem = async (id: string) => {
-    const supabase = createClient();
-    const { error } = await supabase.from('reviews').delete().eq('id', id);
-    if (error) { toast.error('Erreur : ' + error.message); return; }
+    const res = await fetch(`/api/admin/contenu/reviews/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error('Erreur : ' + (data.error ?? res.statusText));
+      return;
+    }
     setItems(prev => prev.filter(r => r.id !== id));
     toast.success('Avis supprimé');
   };

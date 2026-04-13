@@ -1,14 +1,26 @@
+/**
+ * Hook — useEquipment
+ *
+ * Mutations : routées via l'API serveur /api/admin/contenu/equipment_items/[id]
+ *   • DELETE  : suppression
+ *   • PATCH   : disponibilité (set_available)
+ *
+ * Avant ce correctif, les mutations appelaient directement
+ * createClient().from('equipment_items').delete/update() côté navigateur.
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import type { ContentEquipment } from '../_types';
 
 export function useEquipment() {
-  const [items, setItems]               = useState<ContentEquipment[]>([]);
-  const [loading, setLoading]           = useState(true);
-  const [search, setSearch]             = useState('');
-  const [availFilter, setAvailFilter]   = useState('');
+  const [items, setItems]             = useState<ContentEquipment[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [search, setSearch]           = useState('');
+  const [availFilter, setAvailFilter] = useState('');
 
+  // ── Lecture ──────────────────────────────────────────────────────────────
   const fetchEquipment = useCallback(async () => {
     setLoading(true);
     const supabase = createClient();
@@ -27,18 +39,32 @@ export function useEquipment() {
 
   useEffect(() => { fetchEquipment(); }, [fetchEquipment]);
 
+  // ── Suppression via API serveur ──────────────────────────────────────────
   const deleteItem = async (id: string) => {
-    const supabase = createClient();
-    const { error } = await supabase.from('equipment_items').delete().eq('id', id);
-    if (error) { toast.error('Erreur : ' + error.message); return; }
+    const res = await fetch(`/api/admin/contenu/equipment_items/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error('Erreur : ' + (data.error ?? res.statusText));
+      return;
+    }
     setItems(prev => prev.filter(e => e.id !== id));
     toast.success('Équipement supprimé');
   };
 
+  // ── Disponibilité via API serveur ────────────────────────────────────────
   const toggleAvail = async (id: string, current: boolean) => {
-    const supabase = createClient();
-    const { error } = await supabase.from('equipment_items').update({ is_available: !current }).eq('id', id);
-    if (error) { toast.error('Erreur : ' + error.message); return; }
+    const res = await fetch(`/api/admin/contenu/equipment_items/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'set_available', value: !current }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error('Erreur : ' + (data.error ?? res.statusText));
+      return;
+    }
     setItems(prev => prev.map(e => e.id === id ? { ...e, is_available: !current } : e));
     toast.success(!current ? 'Équipement marqué disponible' : 'Équipement marqué indisponible');
   };
