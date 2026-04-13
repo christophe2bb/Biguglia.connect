@@ -62,6 +62,12 @@ export interface EnvValidationResult {
 const SUPABASE_URL_PREFIX = 'https://';
 
 /**
+ * Suffixe de domaine attendu pour les projets hébergés sur Supabase Cloud.
+ * Les instances self-hosted n'ont pas ce suffixe — voir getSupabaseProjectRef().
+ */
+const SUPABASE_CLOUD_SUFFIX = '.supabase.co';
+
+/**
  * Longueur minimale d'une clé JWT Supabase (anon ou service role).
  * Les vraies clés font ~140 caractères (en-tête JWT Base64 + payload + sig).
  * On accepte toute clé ≥ 20 chars pour rester flexible face aux clés de test.
@@ -213,6 +219,57 @@ export function getSupabaseEnvSafe(): SupabasePublicEnv {
   }
 
   return { url, anonKey };
+}
+
+// ─── Project ref ──────────────────────────────────────────────────────────────
+
+/**
+ * Dérive le project ref Supabase depuis NEXT_PUBLIC_SUPABASE_URL.
+ *
+ * Format Supabase Cloud :
+ *   https://<project-ref>.supabase.co  →  '<project-ref>'
+ *
+ * Self-hosted (domaine custom) :
+ *   https://supabase.mon-domaine.fr    →  'supabase.mon-domaine.fr'
+ *   (le hostname entier est retourné — le nom du cookie sera différent)
+ *
+ * Le nom du cookie de session Supabase est :
+ *   sb-<project-ref>-auth-token
+ *
+ * Cette fonction remplace la constante codée en dur précédemment présente
+ * dans middleware.ts (SUPABASE_PROJECT_REF = 'qmrkacrpncdkhofiqlrg').
+ * Le ref est maintenant dérivé dynamiquement à chaque démarrage, ce qui
+ * garantit la cohérence en staging, prod, ou après migration de projet.
+ *
+ * @param url  URL Supabase (défaut : NEXT_PUBLIC_SUPABASE_URL).
+ *             Paramètre injectable pour les tests.
+ * @returns    Le project ref extrait, ou '' si l'URL est absente/malformée.
+ */
+export function getSupabaseProjectRef(
+  url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').trim(),
+): string {
+  if (!url) return '';
+
+  try {
+    const hostname = new URL(url).hostname;   // 'qmrkacrpncdkhofiqlrg.supabase.co'
+
+    if (hostname.endsWith(SUPABASE_CLOUD_SUFFIX)) {
+      // Cloud Supabase : premier segment = project ref
+      return hostname.slice(0, -SUPABASE_CLOUD_SUFFIX.length);
+    }
+
+    // Self-hosted : retourner le hostname complet (le cookie sera sb-<hostname>-auth-token)
+    return hostname;
+  } catch {
+    // URL malformée — pas de throw car cette fonction est appelée au boot du module
+    console.warn(
+      '[Supabase/env] ⚠️  Impossible de dériver le project ref depuis ' +
+      `NEXT_PUBLIC_SUPABASE_URL="${url}". ` +
+      'Le nom du cookie Supabase sera incorrect. ' +
+      'Vérifiez que la variable commence bien par https://.',
+    );
+    return '';
+  }
 }
 
 // ─── Validation au boot (client-side) ─────────────────────────────────────────
