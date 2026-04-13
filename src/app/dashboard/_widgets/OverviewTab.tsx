@@ -20,6 +20,8 @@ import dynamic from 'next/dynamic';
 
 // PersonalizedSuggestions : lazy — accède localStorage, non critique au premier rendu
 const PersonalizedSuggestions = dynamic(() => import('./PersonalizedSuggestions'), { ssr: false });
+// RecognitionBanner : lazy — utilise auth store, non critique au premier rendu
+const RecognitionBanner = dynamic(() => import('./RecognitionBanner'), { ssr: false });
 
 type DashData  = ReturnType<typeof useDashboardData>;
 type TrustData = ReturnType<typeof useTrustData>;
@@ -36,6 +38,7 @@ interface Props {
   trustStats: TrustData['stats'];
   trustBadges: TrustData['badges'];
 }
+
 
 export default function OverviewTab({
   profileId, profileRole, profileAvatarUrl, profileCreatedAt, profilePhone,
@@ -173,6 +176,13 @@ export default function OverviewTab({
           </div>
         </div>
       </div>
+
+      {/* ── Reconnaissance & impact personnel ─── */}
+      <RecognitionBanner
+        dashData={dashData}
+        trustStats={trustStats}
+        trustBadges={trustBadges}
+      />
 
       {/* ── Suggestions personnalisées "Pour vous" ─── */}
       <PersonalizedSuggestions />

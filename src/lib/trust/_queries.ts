@@ -64,10 +64,57 @@ export async function awardAutomaticBadges(profileId: string): Promise<void> {
 
   // Stats
   if (stats) {
-    if (stats.reviews_received >= 5 && stats.avg_rating >= 4.5 && !existing.has('top_rated'))    toAward.push('top_rated');
-    if (stats.trust_score >= 70                                  && !existing.has('trusted_member')) toAward.push('trusted_member');
-    if (stats.interactions_done >= 10                            && !existing.has('active_member'))  toAward.push('active_member');
+    if (stats.reviews_received >= 5 && stats.avg_rating >= 4.5 && !existing.has('top_rated'))        toAward.push('top_rated');
+    if (stats.trust_score >= 70                                  && !existing.has('trusted_member'))  toAward.push('trusted_member');
+    if (stats.interactions_done >= 10                            && !existing.has('active_member'))   toAward.push('active_member');
+
+    // ── Badges dynamique communautaire (v2) ───────────────────────────────
+    // reliable_profile : score ≥ 55 + profil complet + compte > 30j
+    if (
+      stats.trust_score >= 55 &&
+      profile.avatar_url && profile.phone &&
+      ageDays > 30 &&
+      !existing.has('reliable_profile')
+    ) toAward.push('reliable_profile');
+
+    // welcome_ambassador : 5+ avis laissés avec ≥ 4 étoiles (approximation via reviews_received côté tiers)
+    // On utilise reviews_received >= 5 && avg_rating >= 4.0 comme proxy (l'utilisateur inspire assez confiance pour en avoir reçu)
+    if (stats.reviews_received >= 5 && stats.avg_rating >= 4.0 && !existing.has('welcome_ambassador'))
+      toAward.push('welcome_ambassador');
+
+    // community_pillar : score ≥ 80 + ancienneté ≥ 6 mois + interactions ≥ 15
+    if (
+      stats.trust_score >= 80 &&
+      ageDays >= 180 &&
+      stats.interactions_done >= 15 &&
+      !existing.has('community_pillar')
+    ) toAward.push('community_pillar');
   }
+
+  // ── Badges basés sur le nombre de publications (via comptage hors stats) ─
+  // solidarity_neighbor et active_organizer nécessitent des tables spécifiques ;
+  // on les attribue via des comptages séparés.
+  const [{ count: helpsDone }, { count: eventsOrganized }] = await Promise.all([
+    supabase.from('help_requests').select('*', { count: 'exact', head: true })
+      .eq('author_id', profileId).eq('status', 'resolved'),
+    supabase.from('events').select('*', { count: 'exact', head: true })
+      .eq('author_id', profileId).neq('status', 'annule').neq('status', 'draft'),
+  ]);
+
+  if ((helpsDone ?? 0) >= 3 && !existing.has('solidarity_neighbor'))
+    toAward.push('solidarity_neighbor');
+  if ((eventsOrganized ?? 0) >= 2 && !existing.has('active_organizer'))
+    toAward.push('active_organizer');
+
+  // local_contributor : 5+ publications toutes sources confondues
+  const [{ count: forumCount }, { count: listingCount }, { count: helpCount }] = await Promise.all([
+    supabase.from('forum_topics').select('*', { count: 'exact', head: true }).eq('author_id', profileId),
+    supabase.from('listings').select('*', { count: 'exact', head: true }).eq('user_id', profileId),
+    supabase.from('help_requests').select('*', { count: 'exact', head: true }).eq('author_id', profileId),
+  ]);
+  const totalPublications = (forumCount ?? 0) + (listingCount ?? 0) + (helpCount ?? 0);
+  if (totalPublications >= 5 && !existing.has('local_contributor'))
+    toAward.push('local_contributor');
 
   if (toAward.length === 0) return;
 

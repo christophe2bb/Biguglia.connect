@@ -43,6 +43,14 @@ import HomeHero from '@/components/home/HomeHero';
 import HomeSection from '@/components/home/HomeSection';
 import GlobalSearchWrapper from '@/components/home/GlobalSearchWrapper';
 import { JobOfferHomeCard, JobDemandHomeCard } from '@/components/home/JobHomeCard';
+import CommunitySpotlight from '@/components/home/CommunitySpotlight';
+import {
+  fetchCommunityStats,
+  fetchTopArtisans,
+  fetchRecentHelpers,
+  fetchActiveMembersSpotlight,
+  fetchRecentEvents,
+} from '@/services/community/queries';
 
 // ─── Données statiques ────────────────────────────────────────────────────────
 
@@ -96,6 +104,29 @@ export default async function HomePage() {
       generatedAt: new Date().toISOString(),
       hasContent: false,
     };
+  }
+
+  // Fetch des données communautaires pour le spotlight
+  let communityStats: Awaited<ReturnType<typeof fetchCommunityStats>>;
+  let spotlightArtisans: Awaited<ReturnType<typeof fetchTopArtisans>> = [];
+  let recentHelpers: Awaited<ReturnType<typeof fetchRecentHelpers>> = [];
+  let activeMembers: Awaited<ReturnType<typeof fetchActiveMembersSpotlight>> = [];
+  let recentEvents: Awaited<ReturnType<typeof fetchRecentEvents>> = [];
+  try {
+    const [cs, sa, rh, am, re] = await Promise.allSettled([
+      fetchCommunityStats(),
+      fetchTopArtisans(4),
+      fetchRecentHelpers(5),
+      fetchActiveMembersSpotlight(6),
+      fetchRecentEvents(3),
+    ]);
+    communityStats = cs.status === 'fulfilled' ? cs.value : { totalMembers: 0, totalHelps: 0, totalEvents: 0, totalListings: 0, totalForumTopics: 0, activeThisWeek: 0 };
+    spotlightArtisans = sa.status === 'fulfilled' ? sa.value : [];
+    recentHelpers     = rh.status === 'fulfilled' ? rh.value : [];
+    activeMembers     = am.status === 'fulfilled' ? am.value : [];
+    recentEvents      = re.status === 'fulfilled' ? re.value : [];
+  } catch {
+    communityStats = { totalMembers: 0, totalHelps: 0, totalEvents: 0, totalListings: 0, totalForumTopics: 0, activeThisWeek: 0 };
   }
 
   // Fetch des dernières offres et demandes d'emploi pour la section emploi
@@ -184,6 +215,21 @@ export default async function HomePage() {
           <HomeSection key={section.id} section={section} />
         ))}
 
+      </section>
+
+      {/* ══════════════════════════════════════════════════════════
+          COMMUNAUTÉ VIVANTE — Spotlight
+      ══════════════════════════════════════════════════════════ */}
+      <section className="py-12 sm:py-16 border-t border-gray-100">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <CommunitySpotlight
+            stats={communityStats}
+            artisans={spotlightArtisans}
+            helpers={recentHelpers}
+            members={activeMembers}
+            events={recentEvents}
+          />
+        </div>
       </section>
 
       {/* ══════════════════════════════════════════════════════════
