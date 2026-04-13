@@ -28,6 +28,7 @@
  * NE PAS importer dans des Client Components.
  */
 
+import 'server-only';
 import { NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/supabase/auth-helper';
 import { createAdminClient } from '@/lib/supabase/server';

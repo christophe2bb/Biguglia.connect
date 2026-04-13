@@ -44,6 +44,7 @@
  *   emploi/ownership · messages/conversations · messages/conversation/[id]
  *   messages/unread · messages/start-conversation · messages/check-conversation
  */
+import 'server-only';
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
