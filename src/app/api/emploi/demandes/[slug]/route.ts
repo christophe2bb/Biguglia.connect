@@ -7,7 +7,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/server';
-import { getUserFromRequest } from '@/lib/supabase/auth-helper';
+import { getUserFromRequest, assertCsrfSafe } from '@/lib/supabase/auth-helper';
 
 interface RouteParams {
   params: { slug: string };
@@ -111,6 +111,9 @@ export async function GET(req: Request, { params }: RouteParams) {
 
 // ── DELETE /api/emploi/demandes/[slug] ───────────────────────────────────────
 export async function DELETE(req: Request, { params }: RouteParams) {
+  const csrfError = assertCsrfSafe(req);
+  if (csrfError) return csrfError;
+
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
@@ -137,6 +140,9 @@ export async function DELETE(req: Request, { params }: RouteParams) {
 
 // ── PATCH /api/emploi/demandes/[slug] ────────────────────────────────────────
 export async function PATCH(req: Request, { params }: RouteParams) {
+  const csrfError = assertCsrfSafe(req);
+  if (csrfError) return csrfError;
+
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 

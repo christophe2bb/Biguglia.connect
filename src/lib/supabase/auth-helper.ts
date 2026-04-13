@@ -13,7 +13,7 @@
  * ║    → ils appellent createClient() navigateur, pas des API Routes     ║
  * ╚══════════════════════════════════════════════════════════════════════╝
  *
- * Deux variantes selon le type de route :
+ * Trois fonctions d'auth :
  *
  *  getUserFromRequest(req)          — SSR-first  (cookies → Bearer)
  *    Usage : routes emploi appelées depuis SSR ou formulaires Next.js.
@@ -24,14 +24,32 @@
  *            Authorization: Bearer <access_token>.
  *    Retourne string | null  (UUID uniquement — suffisant pour les guards)
  *
+ * Protection CSRF :
+ *
+ *  assertCsrfSafe(req)             — À appeler sur TOUTE mutation cookie-authée
+ *    Règles (ordre d'évaluation) :
+ *      1. Si la requête porte un Bearer token → risque CSRF nul, on passe.
+ *      2. Sinon (cookie-only) → vérifier l'en-tête Origin ou Referer :
+ *         • Doit être présent.
+ *         • Son hostname doit correspondre à l'hostname de l'app
+ *           (NEXT_PUBLIC_SITE_URL ou, à défaut, Host de la requête).
+ *    Retourne null si la requête est safe, ou une Response 403 prête à renvoyer.
+ *
+ *    Appel type dans un handler PATCH/DELETE/POST sensible :
+ *      const csrfError = assertCsrfSafe(req);
+ *      if (csrfError) return csrfError;
+ *
  * Couverture actuelle (9 routes) :
  *   emploi/contact · emploi/demandes/[slug] · emploi/offres/[slug]
  *   emploi/ownership · messages/conversations · messages/conversation/[id]
  *   messages/unread · messages/start-conversation · messages/check-conversation
  */
+import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { getSupabaseEnv } from '@/lib/supabase/env';
+
+// ─── Internal helpers ─────────────────────────────────────────────────────────
 
 /** Crée un client anon éphémère pour valider un Bearer token */
 function anonClient() {
@@ -40,6 +58,83 @@ function anonClient() {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }
+
+/** Extrait le token depuis "Authorization: Bearer <token>" */
+function extractBearer(req: Request): string | null {
+  const header = req.headers.get('authorization');
+  return header?.startsWith('Bearer ') ? header.slice(7) : null;
+}
+
+/**
+ * Résout l'hostname attendu (lowercase) depuis NEXT_PUBLIC_SITE_URL
+ * ou, en dernier recours, depuis l'en-tête Host de la requête elle-même.
+ */
+function resolveAppHostname(req: Request): string {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  if (siteUrl) {
+    try {
+      return new URL(siteUrl).hostname.toLowerCase();
+    } catch { /* fallback ci-dessous */ }
+  }
+  // Fallback : Host header (supprime le port éventuel)
+  const host = req.headers.get('host') ?? '';
+  return host.split(':')[0].toLowerCase();
+}
+
+// ─── CSRF guard ───────────────────────────────────────────────────────────────
+
+/**
+ * Vérifie qu'une requête mutante (PATCH / DELETE / POST sensible) ne peut pas
+ * être déclenchée depuis un site tiers par un cookie de session.
+ *
+ * Stratégie « strict origin check » :
+ *   - Si un Bearer token est présent → safe (XHR/fetch client-side explicite).
+ *   - Sinon → obligatoire d'avoir Origin ou Referer correspondant à l'app.
+ *
+ * @returns null        — requête sûre, le handler peut continuer.
+ * @returns NextResponse — 403 Forbidden à retourner immédiatement.
+ */
+export function assertCsrfSafe(req: Request): NextResponse | null {
+  // Les requêtes avec Bearer token ne sont pas vulnérables au CSRF
+  // (un attaquant cross-site ne peut pas lire le token JS de la victime)
+  if (extractBearer(req)) return null;
+
+  const appHostname = resolveAppHostname(req);
+
+  // Tenter Origin d'abord, puis Referer en fallback
+  const originHeader  = req.headers.get('origin');
+  const refererHeader = req.headers.get('referer');
+  const raw           = originHeader ?? refererHeader;
+
+  if (!raw) {
+    // Pas d'Origin ni de Referer → requête potentiellement cross-site
+    return NextResponse.json(
+      { error: 'Requête refusée : en-tête Origin manquant (protection CSRF).' },
+      { status: 403 },
+    );
+  }
+
+  let requestHostname: string;
+  try {
+    requestHostname = new URL(raw).hostname.toLowerCase();
+  } catch {
+    return NextResponse.json(
+      { error: 'Requête refusée : en-tête Origin invalide (protection CSRF).' },
+      { status: 403 },
+    );
+  }
+
+  if (requestHostname !== appHostname) {
+    return NextResponse.json(
+      { error: 'Requête refusée : origine cross-site détectée (protection CSRF).' },
+      { status: 403 },
+    );
+  }
+
+  return null; // safe
+}
+
+// ─── Auth functions ───────────────────────────────────────────────────────────
 
 /**
  * SSR-first (cookies → Bearer).
@@ -91,10 +186,4 @@ export async function getUserIdBearerFirst(req: Request): Promise<string | null>
   } catch { /* ignore */ }
 
   return null;
-}
-
-/** Extrait le token depuis "Authorization: Bearer <token>" */
-function extractBearer(req: Request): string | null {
-  const header = req.headers.get('authorization');
-  return header?.startsWith('Bearer ') ? header.slice(7) : null;
 }
