@@ -24,7 +24,18 @@ import {
   type RawJobOffer,
   type RawJobDemand,
 } from './mappers';
-import { rankAndFilter, scoreItems, sortByScore } from './scoring';
+import { rankAndFilter, scoreItems, sortByScore, type UserFeedWeights } from './scoring';
+
+// ─── Contexte utilisateur passé au feed ──────────────────────────────────────
+
+export interface UserFeedContext {
+  /** Poids de personnalisation par type d'item (de user-interests.ts) */
+  feedWeights?: UserFeedWeights;
+  /** Secteur de résidence de l'utilisateur (pour filtrage géo futur) */
+  homeSectorId?: string | null;
+  /** Profil utilisateur principal (pour la section forYou) */
+  primaryInterest?: string;
+}
 
 // ─── Configuration des sections ───────────────────────────────────────────────
 
@@ -289,11 +300,11 @@ function usedIds(sections: HomeSection[]): Set<string> {
   return ids;
 }
 
-function buildNowSection(allItems: HomeFeedItem[]): HomeSection {
+function buildNowSection(allItems: HomeFeedItem[], userWeights: UserFeedWeights = {}): HomeSection {
   const eligible = allItems.filter(i =>
     ['help_request', 'lost_found', 'listing', 'forum_topic'].includes(i.type) && !i.isResolved
   );
-  const items = rankAndFilter(eligible, { limit: SECTION_LIMITS.now, maxPerType: 2 });
+  const items = rankAndFilter(eligible, { limit: SECTION_LIMITS.now, maxPerType: 2, userWeights });
   return {
     id: 'now',
     title: 'Ce qui se passe maintenant',
@@ -306,9 +317,9 @@ function buildNowSection(allItems: HomeFeedItem[]): HomeSection {
   };
 }
 
-function buildNeedsSection(allItems: HomeFeedItem[]): HomeSection {
+function buildNeedsSection(allItems: HomeFeedItem[], userWeights: UserFeedWeights = {}): HomeSection {
   const eligible = allItems.filter(i => i.type === 'help_request' && !i.isResolved);
-  const items = rankAndFilter(eligible, { limit: SECTION_LIMITS.needs, maxPerType: 4, excludeResolved: true });
+  const items = rankAndFilter(eligible, { limit: SECTION_LIMITS.needs, maxPerType: 4, excludeResolved: true, userWeights });
   return {
     id: 'needs',
     title: 'Besoins près de chez vous',
@@ -341,9 +352,9 @@ function buildUpcomingSection(allItems: HomeFeedItem[]): HomeSection {
   };
 }
 
-function buildDiscussionsSection(allItems: HomeFeedItem[]): HomeSection {
+function buildDiscussionsSection(allItems: HomeFeedItem[], userWeights: UserFeedWeights = {}): HomeSection {
   const eligible = allItems.filter(i => i.type === 'forum_topic');
-  const scored = scoreItems(eligible);
+  const scored = scoreItems(eligible, userWeights);
   const sorted = sortByScore(scored);
   const items = sorted.slice(0, SECTION_LIMITS.discussions);
   return {
@@ -377,16 +388,62 @@ function buildEmploiSection(allItems: HomeFeedItem[]): HomeSection {
   };
 }
 
-function buildForYouSection(allItems: HomeFeedItem[], alreadyShown: Set<string>): HomeSection {
+function buildForYouSection(
+  allItems: HomeFeedItem[],
+  alreadyShown: Set<string>,
+  userWeights: UserFeedWeights = {},
+  primaryInterest?: string,
+): HomeSection {
   const fresh = allItems.filter(i => !alreadyShown.has(i.id));
-  const items = rankAndFilter(fresh, { limit: SECTION_LIMITS.foryou, maxPerType: 1 });
+  // Pour la section "Pour vous", on amplifie encore les poids personnalisés
+  const amplifiedWeights: UserFeedWeights = {};
+  for (const [k, v] of Object.entries(userWeights)) {
+    amplifiedWeights[k as keyof UserFeedWeights] = (v ?? 1) * 1.2;
+  }
+  const items = rankAndFilter(fresh, { limit: SECTION_LIMITS.foryou, maxPerType: 2, userWeights: amplifiedWeights });
+
+  // Titre et sous-titre contextuels selon le profil d'intérêt
+  const contextual: Record<string, { title: string; subtitle: string; icon: string }> = {
+    artisanat: {
+      title: 'Pour vous · Artisan',
+      subtitle: 'Missions, matériaux et opportunités pro',
+      icon: '🔧',
+    },
+    emploi: {
+      title: 'Pour vous · Emploi',
+      subtitle: 'Offres et opportunités locales sélectionnées',
+      icon: '💼',
+    },
+    communaute: {
+      title: 'Pour vous · Communauté',
+      subtitle: 'Ce qui se passe près de chez vous',
+      icon: '🏡',
+    },
+    entraide: {
+      title: 'Pour vous · Entraide',
+      subtitle: 'Voisins qui ont besoin d\'aide',
+      icon: '🤝',
+    },
+    annonces: {
+      title: 'Pour vous · Annonces',
+      subtitle: 'Bonnes affaires locales',
+      icon: '📦',
+    },
+    promenades: {
+      title: 'Pour vous · Sorties',
+      subtitle: 'Promenades et événements nature',
+      icon: '🌿',
+    },
+  };
+
+  const ctx = primaryInterest ? contextual[primaryInterest] : null;
   return {
     id: 'foryou',
-    title: 'Pour vous',
-    subtitle: 'Sélection de l\'activité locale',
-    icon: '✨',
+    title: ctx?.title ?? 'Pour vous',
+    subtitle: ctx?.subtitle ?? 'Sélection personnalisée de l\'activité locale',
+    icon: ctx?.icon ?? '✨',
     items,
-    ctaLabel: 'Explorer',
+    ctaLabel: 'Explorer tout',
     ctaUrl: '/recherche',
     isEmpty: items.length === 0,
   };
@@ -394,7 +451,11 @@ function buildForYouSection(allItems: HomeFeedItem[], alreadyShown: Set<string>)
 
 // ─── Point d'entrée principal ─────────────────────────────────────────────────
 
-export async function getHomeFeed(currentUserId: string | null = null): Promise<HomeFeedResult> {
+export async function getHomeFeed(
+  currentUserId: string | null = null,
+  userContext: UserFeedContext = {},
+): Promise<HomeFeedResult> {
+  const { feedWeights = {}, primaryInterest } = userContext;
   const supabase = createClient();
 
   // Fetch en parallèle — tolérant aux pannes
@@ -427,13 +488,14 @@ export async function getHomeFeed(currentUserId: string | null = null): Promise<
   ];
 
   // Construire les sections dans l'ordre — "Pour vous" utilise les IDs déjà affichés
-  const nowSection          = buildNowSection(allItems);
-  const needsSection        = buildNeedsSection(allItems);
+  // Les poids utilisateur sont propagés à toutes les sections qui scorent
+  const nowSection          = buildNowSection(allItems, feedWeights);
+  const needsSection        = buildNeedsSection(allItems, feedWeights);
   const upcomingSection     = buildUpcomingSection(allItems);
-  const discussionsSection  = buildDiscussionsSection(allItems);
+  const discussionsSection  = buildDiscussionsSection(allItems, feedWeights);
   const emploiSection       = buildEmploiSection(allItems);
   const shownSoFar          = usedIds([nowSection, needsSection, upcomingSection, discussionsSection, emploiSection]);
-  const forYouSection       = buildForYouSection(allItems, shownSoFar);
+  const forYouSection       = buildForYouSection(allItems, shownSoFar, feedWeights, primaryInterest);
 
   const sections = [
     nowSection,

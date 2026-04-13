@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // HomeHero — Bannière principale de la Maison vivante
-// Design : humain, local, avec preuve de vie et CTA adaptés au statut auth
+// Design : humain, local, personnalisé via PersonalizedBanner
 // ─────────────────────────────────────────────────────────────────────────────
 
 'use client';
@@ -8,6 +8,22 @@
 import Link from 'next/link';
 import { PenLine, ArrowRight, Sparkles } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
+import dynamic from 'next/dynamic';
+
+// Chargement différé : PersonalizedBanner accède localStorage, non critique au SSR
+const PersonalizedBanner = dynamic(() => import('./PersonalizedBanner'), {
+  ssr: false,
+  loading: () => (
+    <div className="space-y-4">
+      <div className="h-6 w-64 bg-white/15 rounded-lg animate-pulse" />
+      <div className="flex gap-2">
+        {[120, 100, 110, 90, 80].map((w) => (
+          <div key={w} className="h-10 rounded-2xl bg-white/10 animate-pulse" style={{ width: w }} />
+        ))}
+      </div>
+    </div>
+  ),
+});
 
 interface HomeHeroProps {
   totalItems: number;
@@ -22,14 +38,6 @@ function formatGeneratedAt(iso: string): string {
   if (diffMins < 60) return `il y a ${diffMins} min`;
   return new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(date);
 }
-
-// Quick-publish actions
-const QUICK_ACTIONS = [
-  { label: 'Annonce', emoji: '📦', href: '/annonces/nouvelle' },
-  { label: 'Coup de main', emoji: '🤝', href: '/coups-de-main' },
-  { label: 'Événement', emoji: '🎉', href: '/evenements/nouveau' },
-  { label: 'Forum', emoji: '💬', href: '/forum/nouveau' },
-];
 
 export default function HomeHero({ totalItems, generatedAt }: HomeHeroProps) {
   const { profile } = useAuthStore();
@@ -54,52 +62,45 @@ export default function HomeHero({ totalItems, generatedAt }: HomeHeroProps) {
           </span>
         </div>
 
-        {/* Titre */}
-        <h1 className="text-2xl sm:text-3xl font-black text-white mb-2 leading-tight">
-          {profile
-            ? `Bonjour ${profile.full_name?.split(' ')[0] ?? ''} 👋`
-            : 'Bienvenue à Biguglia'
-          }
-        </h1>
-        <p className="text-white/70 text-sm sm:text-base mb-6 max-w-lg leading-relaxed">
-          {totalItems > 0
-            ? 'Voici ce qui se passe dans votre village aujourd\'hui.'
-            : 'Le fil de vie local de Biguglia. Rejoignez vos voisins.'
-          }
-        </p>
-
-        {/* Actions contextuelles */}
+        {/* Bannière personnalisée (connecté) ou CTA inscription (visiteur) */}
         {profile ? (
-          // Utilisateur connecté → quick publish
-          <div className="flex flex-wrap gap-2">
-            {QUICK_ACTIONS.map(action => (
-              <Link
-                key={action.href}
-                href={action.href}
-                className="inline-flex items-center gap-1.5 bg-white/15 hover:bg-white/25 border border-white/20 text-white text-xs font-bold px-3 py-2 rounded-xl transition-all hover:-translate-y-0.5"
-              >
-                <span>{action.emoji}</span>
-                {action.label}
-              </Link>
-            ))}
-          </div>
+          /* Utilisateur connecté → bannière entièrement personnalisée */
+          <PersonalizedBanner showPersonalizationBadge={true} />
         ) : (
-          // Visiteur → inscription
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Link
-              href="/inscription"
-              className="group inline-flex items-center justify-center gap-2 bg-white text-brand-700 font-black px-6 py-3 rounded-2xl hover:bg-brand-50 transition-all shadow-lg hover:-translate-y-0.5 text-sm"
-            >
-              <Sparkles className="w-4 h-4" />
-              Rejoindre la communauté
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
-            <Link
-              href="/connexion"
-              className="inline-flex items-center justify-center gap-2 border border-white/30 text-white/90 font-bold px-6 py-3 rounded-2xl hover:bg-white/10 transition-all text-sm"
-            >
-              J&apos;ai déjà un compte
-            </Link>
+          /* Visiteur → message + inscription + quick actions visiteur */
+          <div className="space-y-5">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-black text-white mb-2 leading-tight">
+                Bienvenue à Biguglia 👋
+              </h2>
+              <p className="text-white/70 text-sm sm:text-base max-w-lg leading-relaxed">
+                {totalItems > 0
+                  ? 'Voici ce qui se passe dans votre village aujourd\'hui.'
+                  : 'Le fil de vie local de Biguglia. Rejoignez vos voisins.'
+                }
+              </p>
+            </div>
+
+            {/* Bannière visiteur : quick-actions adaptées à l'historique de navigation */}
+            <PersonalizedBanner showPersonalizationBadge={false} />
+
+            {/* CTA inscription */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-1">
+              <Link
+                href="/inscription"
+                className="group inline-flex items-center justify-center gap-2 bg-white text-brand-700 font-black px-6 py-3 rounded-2xl hover:bg-brand-50 transition-all shadow-lg hover:-translate-y-0.5 text-sm"
+              >
+                <Sparkles className="w-4 h-4" />
+                Rejoindre la communauté
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <Link
+                href="/connexion"
+                className="inline-flex items-center justify-center gap-2 border border-white/30 text-white/90 font-bold px-6 py-3 rounded-2xl hover:bg-white/10 transition-all text-sm"
+              >
+                J&apos;ai déjà un compte
+              </Link>
+            </div>
           </div>
         )}
       </div>

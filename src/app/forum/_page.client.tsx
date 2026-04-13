@@ -16,6 +16,7 @@ import { HERO_SHORTCUTS } from './_config';
 import { ForumFilters } from './_components/ForumFilters';
 import { ForumFeed } from './_components/ForumFeed';
 import { ForumSidebar } from './_components/ForumSidebar';
+import SectionTracker from '@/components/ui/SectionTracker';
 
 // ─── Page inner ───────────────────────────────────────────────────────────────
 function ForumPageInner() {
@@ -42,6 +43,7 @@ function ForumPageInner() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <SectionTracker section="forum" />
 
       {/* ══════════════════════════════════════════════════════════
           HERO

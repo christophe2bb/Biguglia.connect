@@ -2,9 +2,15 @@
 // Maison vivante — Système de scoring
 // Règles simples, lisibles, modifiables sans toucher à l'UI.
 // Principe : récent + non résolu + diversifié entre sources.
+//
+// v2 — Personnalisation : accepte des poids utilisateur optionnels
+// qui modulent le TYPE_WEIGHT de base.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { HomeFeedItem, HomeFeedItemType } from './types';
+
+/** Poids de personnalisation passés depuis le profil d'intérêt utilisateur */
+export type UserFeedWeights = Partial<Record<HomeFeedItemType, number>>;
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -46,12 +52,15 @@ export function computeFreshnessScore(createdAt: string): number {
 
 // ─── Score de pertinence ──────────────────────────────────────────────────────
 // Combine : type + urgence + statut non résolu + activité récente
+// + poids personnalisés optionnels de l'utilisateur
 
-export function computeRelevanceScore(item: HomeFeedItem): number {
+export function computeRelevanceScore(item: HomeFeedItem, userWeights: UserFeedWeights = {}): number {
   let score = 50; // Base
 
-  // Bonus type
-  score *= TYPE_WEIGHT[item.type] ?? 1.0;
+  // Bonus type (standard × personnalisation utilisateur)
+  const baseTypeWeight = TYPE_WEIGHT[item.type] ?? 1.0;
+  const userTypeWeight = userWeights[item.type] ?? 1.0;
+  score *= baseTypeWeight * userTypeWeight;
 
   // Bonus urgence
   score *= URGENCY_WEIGHT[item.urgency] ?? 1.0;
@@ -80,11 +89,11 @@ export function computeFinalScore(item: HomeFeedItem): number {
 
 // ─── Scoring en lot ───────────────────────────────────────────────────────────
 
-export function scoreItems(items: HomeFeedItem[]): HomeFeedItem[] {
+export function scoreItems(items: HomeFeedItem[], userWeights: UserFeedWeights = {}): HomeFeedItem[] {
   return items.map(item => {
     const freshnessScore = computeFreshnessScore(item.createdAt);
     const withFreshness = { ...item, freshnessScore };
-    const relevanceScore = computeRelevanceScore(withFreshness);
+    const relevanceScore = computeRelevanceScore(withFreshness, userWeights);
     const withRelevance = { ...withFreshness, relevanceScore };
     const finalScore = computeFinalScore(withRelevance);
     return { ...withRelevance, finalScore };
@@ -116,11 +125,16 @@ export function diversifyItems(items: HomeFeedItem[], maxPerType = 2): HomeFeedI
 
 export function rankAndFilter(
   items: HomeFeedItem[],
-  options: { limit?: number; maxPerType?: number; excludeResolved?: boolean } = {}
+  options: {
+    limit?: number;
+    maxPerType?: number;
+    excludeResolved?: boolean;
+    userWeights?: UserFeedWeights;
+  } = {}
 ): HomeFeedItem[] {
-  const { limit = 6, maxPerType = 3, excludeResolved = false } = options;
+  const { limit = 6, maxPerType = 3, excludeResolved = false, userWeights = {} } = options;
 
-  let result = scoreItems(items);
+  let result = scoreItems(items, userWeights);
 
   if (excludeResolved) {
     result = result.filter(i => !i.isResolved);
