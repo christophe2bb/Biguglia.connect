@@ -8,8 +8,9 @@ import {
   Shield, Clock, MapPin, Briefcase, ChevronDown, ChevronUp,
   Phone,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client'; // utilisé uniquement pour Storage (signed URLs)
 import { useAuthStore } from '@/lib/auth-store';
+import type { AdminArtisanEntry } from '@/app/api/admin/artisans/route';
 import { Profile } from '@/types';
 import Link from 'next/link';
 import Avatar from '@/components/ui/Avatar';
@@ -112,16 +113,17 @@ function ArtisanCard({
     if (!artisan.user_id) return;
     setSendingMsg(true);
     try {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error('Non connecté'); return; }
+      // On récupère le token depuis le client Supabase (session SSR/cookie)
+      const supabaseAuth = createClient();
+      const { data: sessionData } = await supabaseAuth.auth.getSession();
+      if (!sessionData.session) { toast.error('Non connecté'); return; }
 
       // Utiliser l'API admin pour contourner la récursion RLS sur conversation_participants
       const res = await fetch('/api/messages/start-conversation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${sessionData.session.access_token}`,
         },
         body: JSON.stringify({
           ownerId: artisan.user_id,
@@ -436,70 +438,41 @@ export default function AdminArtisansPage() {
   const fetchArtisans = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
-    const supabase = createClient();
-
-    // ── Étape 1 : profils selon le filtre ──
-    let profilesQuery = supabase
-      .from('profiles')
-      .select('id, full_name, email, avatar_url, role, status, phone, created_at')
-      .order('created_at', { ascending: true });
-
-    if (filter === 'pending') profilesQuery = profilesQuery.eq('role', 'artisan_pending');
-    else if (filter === 'verified') profilesQuery = profilesQuery.eq('role', 'artisan_verified');
-    else profilesQuery = profilesQuery.in('role', ['artisan_pending', 'artisan_verified']);
-
-    const { data: profiles, error: profilesError } = await profilesQuery;
-
-    if (profilesError) {
-      setLoadError(`Erreur profils : ${profilesError.message}`);
+    try {
+      // Lecture via GET /api/admin/artisans (server-side, service-role, auth vérifiée)
+      const res = await fetch(`/api/admin/artisans?filter=${filter}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setLoadError(err.error ?? `Erreur ${res.status}`);
+        return;
+      }
+      const data: AdminArtisanEntry[] = await res.json();
+      // Mapper AdminArtisanEntry → ArtisanEntry local (sous-ensemble)
+      const list: ArtisanEntry[] = data.map(a => ({
+        id:               a.id,
+        user_id:          a.user_id,
+        business_name:    a.business_name,
+        description:      a.description,
+        service_area:     a.service_area,
+        years_experience: a.years_experience ?? undefined,
+        siret:            a.siret ?? undefined,
+        insurance:        a.insurance ?? undefined,
+        artisan_type:     a.artisan_type ?? undefined,
+        doc_kbis_url:     a.doc_kbis_url ?? undefined,
+        doc_insurance_url: a.doc_insurance_url ?? undefined,
+        doc_id_url:       a.doc_id_url ?? undefined,
+        rejection_reason: a.rejection_reason ?? undefined,
+        created_at:       a.created_at,
+        trade_category:   a.trade_category ?? undefined,
+        profile:          a.profile as ArtisanEntry['profile'],
+      }));
+      setArtisans(list);
+    } catch (err) {
+      setLoadError('Impossible de charger les artisans.');
+      console.error('[artisans] fetch error:', err);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    if (!profiles || profiles.length === 0) {
-      setArtisans([]);
-      setLoading(false);
-      return;
-    }
-
-    // ── Étape 2 : données artisan_profiles + catégories ──
-    const userIds = profiles.map(p => p.id);
-
-    const { data: artisanData } = await supabase
-      .from('artisan_profiles')
-      .select('id, user_id, business_name, description, service_area, years_experience, siret, insurance, created_at, artisan_type, doc_kbis_url, doc_insurance_url, doc_id_url, rejection_reason, trade_category:trade_categories(name, icon)')
-      .in('user_id', userIds);
-
-    const artisanMap = new Map<string, typeof artisanData extends (infer T)[] | null ? T : never>();
-    for (const a of (artisanData || [])) {
-      artisanMap.set((a as { user_id: string }).user_id, a as typeof artisanData extends (infer T)[] | null ? T : never);
-    }
-
-    // ── Fusion ──
-    const list: ArtisanEntry[] = profiles.map(prof => {
-      const art = artisanMap.get(prof.id) as Record<string, unknown> | undefined;
-      return {
-        id: (art?.id as string) ?? prof.id,
-        user_id: prof.id,
-        business_name: (art?.business_name as string) ?? '',
-        description: (art?.description as string) ?? '',
-        service_area: (art?.service_area as string) ?? '',
-        years_experience: art?.years_experience as number | undefined,
-        siret: art?.siret as string | undefined,
-        insurance: art?.insurance as string | undefined,
-        artisan_type: art?.artisan_type as 'professionnel' | 'particulier' | undefined,
-        doc_kbis_url: art?.doc_kbis_url as string | undefined,
-        doc_insurance_url: art?.doc_insurance_url as string | undefined,
-        doc_id_url: art?.doc_id_url as string | undefined,
-        rejection_reason: art?.rejection_reason as string | undefined,
-        created_at: (art?.created_at as string) ?? (prof.created_at as string) ?? '',
-        trade_category: art?.trade_category as { name: string; icon: string } | undefined,
-        profile: prof as ArtisanEntry['profile'],
-      };
-    });
-
-    setArtisans(list);
-    setLoading(false);
   }, [filter]);
 
   useEffect(() => {

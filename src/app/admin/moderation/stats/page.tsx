@@ -5,6 +5,10 @@
  *
  * Statistiques complètes : taux d'acceptation/refus/correction,
  * délais moyens, thèmes problématiques, membres les plus signalés/fiables.
+ *
+ * SÉCURITÉ : toutes les données sont chargées via GET /api/admin/moderation/stats-data
+ * (protégé par getAdminUser — service-role, bypass RLS).
+ * Plus aucune requête Supabase directe depuis le navigateur.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -15,56 +19,14 @@ import {
   Package, Wrench, Heart, Footprints, Calendar, MapPin,
   BookOpen, Handshake, ChevronRight, Activity,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
-import { useAuthStore } from '@/lib/auth-store';
+import type { ModerationStatsData, ContentType, ByTypeStat, RecentDecision, MemberStat } from '@/app/api/admin/moderation/stats-data/route';
 import Avatar from '@/components/ui/Avatar';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 import { formatRelative } from '@/lib/utils';
-import { CONTENT_TYPE_LABELS, type ContentType } from '@/lib/moderation';
+import { CONTENT_TYPE_LABELS } from '@/lib/moderation';
+import toast from 'react-hot-toast';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface StatsData {
-  // Totaux
-  total: number;
-  pending: number;
-  published: number;
-  refused: number;
-  correction: number;
-  archived: number;
-  // Performance
-  avgReviewHours: number | null;
-  last24h: number;
-  highRisk: number;
-  newAuthors: number;
-  // Par type
-  byType: { type: ContentType; count: number; pending: number; refused: number }[];
-  // Derniers traités
-  recentDecisions: RecentDecision[];
-  // Membres problématiques
-  problematicMembers: MemberStat[];
-  // Membres fiables
-  trustedMembers: MemberStat[];
-}
-
-interface RecentDecision {
-  id: string;
-  content_type: ContentType;
-  content_title: string;
-  status: string;
-  decision?: string;
-  reviewed_at: string;
-  author?: { full_name: string };
-}
-
-interface MemberStat {
-  id: string;
-  full_name: string;
-  avatar_url?: string;
-  publication_count: number;
-  reports_received: number;
-  trust_level: string;
-}
-
+// ─── Config icônes contenu ────────────────────────────────────────────────────
 const CONTENT_ICONS: Record<ContentType, React.ElementType> = {
   listing: Package, equipment: Wrench, help_request: Heart,
   outing: Footprints, event: Calendar, lost_found: MapPin,
@@ -87,84 +49,27 @@ function BigStat({ value, label, emoji, color, subtext }: {
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 function ModerationStatsContent() {
-  useAuthStore();
-  const supabase = createClient();
-  const [stats, setStats] = useState<StatsData | null>(null);
+  const [stats, setStats] = useState<ModerationStatsData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
-
-    // KPI global (vue SQL)
-    const { data: kpi } = await supabase
-      .from('moderation_kpi')
-      .select('*')
-      .single();
-
-    // Par type de contenu
-    const contentTypes: ContentType[] = [
-      'listing', 'equipment', 'help_request', 'outing', 'event',
-      'lost_found', 'collection_item', 'association', 'forum_post',
-    ];
-
-    const byTypePromises = contentTypes.map(async (type) => {
-      const [
-        { count: total },
-        { count: pending },
-        { count: refused },
-      ] = await Promise.all([
-        supabase.from('moderation_queue').select('*', { count: 'exact', head: true }).eq('content_type', type),
-        supabase.from('moderation_queue').select('*', { count: 'exact', head: true }).eq('content_type', type).eq('status', 'en_attente_validation'),
-        supabase.from('moderation_queue').select('*', { count: 'exact', head: true }).eq('content_type', type).eq('status', 'refuse'),
-      ]);
-      return { type, count: total ?? 0, pending: pending ?? 0, refused: refused ?? 0 };
-    });
-
-    const byType = await Promise.all(byTypePromises);
-
-    // Décisions récentes
-    const { data: recent } = await supabase
-      .from('moderation_queue')
-      .select('id, content_type, content_title, status, decision, reviewed_at, author:profiles!moderation_queue_author_id_fkey(full_name)')
-      .in('status', ['publie', 'refuse', 'a_corriger'])
-      .not('reviewed_at', 'is', null)
-      .order('reviewed_at', { ascending: false })
-      .limit(10);
-
-    // Membres problématiques (plus de 2 refus)
-    const { data: problematic } = await supabase
-      .from('profiles')
-      .select('id, full_name, avatar_url, publication_count, reports_received, trust_level')
-      .eq('trust_level', 'surveille')
-      .order('reports_received', { ascending: false })
-      .limit(5);
-
-    // Membres fiables
-    const { data: trusted } = await supabase
-      .from('profiles')
-      .select('id, full_name, avatar_url, publication_count, reports_received, trust_level')
-      .in('trust_level', ['fiable', 'de_confiance'])
-      .order('publication_count', { ascending: false })
-      .limit(5);
-
-    setStats({
-      total: Number(kpi?.total) || 0,
-      pending: Number(kpi?.pending) || 0,
-      published: Number(kpi?.published) || 0,
-      refused: Number(kpi?.refused) || 0,
-      correction: Number(kpi?.correction) || 0,
-      archived: Number(kpi?.archived) || 0,
-      avgReviewHours: kpi?.avg_review_hours ? Number(kpi.avg_review_hours) : null,
-      last24h: Number(kpi?.last_24h) || 0,
-      highRisk: Number(kpi?.high_risk) || 0,
-      newAuthors: Number(kpi?.new_authors) || 0,
-      byType: byType.filter(b => b.count > 0).sort((a, b) => b.count - a.count),
-      recentDecisions: (recent || []) as unknown as RecentDecision[],
-      problematicMembers: (problematic || []) as MemberStat[],
-      trustedMembers: (trusted || []) as MemberStat[],
-    });
-    setLoading(false);
-  }, [supabase]);
+    try {
+      const res = await fetch('/api/admin/moderation/stats-data');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error('Erreur de chargement : ' + (err.error ?? res.statusText));
+        return;
+      }
+      const data: ModerationStatsData = await res.json();
+      setStats(data);
+    } catch (err) {
+      console.error('[moderation stats] fetch error:', err);
+      toast.error('Impossible de charger les statistiques.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
 
@@ -196,6 +101,7 @@ function ModerationStatsContent() {
         <button
           onClick={fetchStats}
           className="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors"
+          title="Actualiser"
         >
           <RefreshCw className="w-4 h-4 text-gray-600" />
         </button>
@@ -281,9 +187,9 @@ function ModerationStatsContent() {
                 Répartition par thème
               </h2>
               <div className="space-y-3">
-                {stats.byType.map(({ type, count, pending, refused }) => {
-                  const meta = CONTENT_TYPE_LABELS[type];
-                  const Icon = CONTENT_ICONS[type] || Package;
+                {stats.byType.map(({ type, count, pending, refused }: ByTypeStat) => {
+                  const meta = CONTENT_TYPE_LABELS[type as ContentType];
+                  const Icon = CONTENT_ICONS[type as ContentType] || Package;
                   return (
                     <div key={type} className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0">
@@ -325,8 +231,8 @@ function ModerationStatsContent() {
                   Décisions récentes
                 </h2>
                 <div className="space-y-2.5">
-                  {stats.recentDecisions.map(dec => {
-                    const Icon = CONTENT_ICONS[dec.content_type] || Package;
+                  {stats.recentDecisions.map((dec: RecentDecision) => {
+                    const Icon = CONTENT_ICONS[dec.content_type as ContentType] || Package;
                     const statusColor =
                       dec.status === 'publie' ? 'text-emerald-600' :
                       dec.status === 'refuse'  ? 'text-red-600' :
@@ -367,7 +273,7 @@ function ModerationStatsContent() {
                     Membres surveillés
                   </h2>
                   <div className="space-y-2.5">
-                    {stats.problematicMembers.map(m => (
+                    {stats.problematicMembers.map((m: MemberStat) => (
                       <div key={m.id} className="flex items-center gap-3">
                         <Avatar src={m.avatar_url} name={m.full_name} size="xs" />
                         <div className="flex-1 min-w-0">
@@ -392,7 +298,7 @@ function ModerationStatsContent() {
                     Membres de confiance
                   </h2>
                   <div className="space-y-2.5">
-                    {stats.trustedMembers.map(m => (
+                    {stats.trustedMembers.map((m: MemberStat) => (
                       <div key={m.id} className="flex items-center gap-3">
                         <Avatar src={m.avatar_url} name={m.full_name} size="xs" />
                         <div className="flex-1 min-w-0">
