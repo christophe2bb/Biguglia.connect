@@ -22,8 +22,16 @@
  *  assertSupabaseClientEnv();                             // boot-time check (client.ts)
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * SÉCURITÉ : ce fichier ne doit JAMAIS être importé dans un Client Component
- * qui exposerait SUPABASE_SERVICE_ROLE_KEY côté navigateur.
+ * SÉCURITÉ — getSupabaseAdminEnv() retourne SUPABASE_SERVICE_ROLE_KEY.
+ * Ne JAMAIS appeler getSupabaseAdminEnv() dans un Client Component.
+ *
+ * Pourquoi ce fichier n'a PAS 'server-only' :
+ *   client.ts (navigateur) importe assertSupabaseClientEnv() et SupabasePublicEnv
+ *   depuis ce même fichier. Ajouter 'server-only' ici casserait l'initialisation
+ *   du client Supabase côté navigateur.
+ *   La garde 'server-only' est placée dans server.ts, auth-helper.ts,
+ *   admin-guard.ts et admin-layout-guard.ts — les seuls modules qui appellent
+ *   effectivement getSupabaseAdminEnv() ou exposent la clé service-role.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 

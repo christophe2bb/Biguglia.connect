@@ -44,6 +44,7 @@
  */
 
 import { redirect } from 'next/navigation';
+import 'server-only';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 
 // ── Types ─────────────────────────────────────────────────────────────────────

@@ -1,3 +1,4 @@
+import 'server-only';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { createClient as createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
@@ -5,6 +6,12 @@ import { getSupabaseEnv, getSupabaseAdminEnv } from './env';
 import type { Database } from '@/types/supabase';
 
 /**
+ * ─── Garde server-only ───────────────────────────────────────────────────────
+ * Ce fichier importe 'server-only'. Toute tentative d'import dans un Client
+ * Component déclenchera une erreur de build Next.js immédiate, empêchant
+ * l'exposition de SUPABASE_SERVICE_ROLE_KEY dans le bundle navigateur.
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
  * Client serveur normal (anon key + cookies de session).
  * Utilisable dans : Server Components, API Routes, Server Actions.
  *
