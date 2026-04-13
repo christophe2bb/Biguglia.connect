@@ -12,14 +12,13 @@ import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import { TRUST_LEVEL_CONFIG } from '@/lib/moderation';
-import { DECISION_MSGS, TABLE_MAP } from '../_config';
+import { DECISION_MSGS } from '../_config';
 import type {
   QueueDetail,
   ModerationHistoryEntry,
   AuthorStats,
   DecisionKey,
   TrustLevel,
-  ModerationStatus,
 } from '../_types';
 
 /* Re-export so consumers don't need to import from two places */
@@ -126,7 +125,15 @@ export function useModerationDetail(): UseModerationDetailReturn {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  /* ── Submit moderation decision ──────────────────────────────────────── */
+  /**
+   * handleDecision — soumet la décision via PATCH /api/admin/moderation/[id]/decision
+   *
+   * Avant ce correctif, la mutation appelait directement
+   * `createClient().from('moderation_queue').update(...)` et
+   * `createClient().from(<source_table>).update({ moderation_status })` côté navigateur.
+   * La route serveur utilise getAdminUser() + createAdminClient() (service role)
+   * et dérive la table cible depuis le content_type (le client ne la choisit pas).
+   */
   const handleDecision = async () => {
     if (!profile || !item || !selectedDecision) return;
     if (selectedDecision !== 'accepter' && !selectedReason) {
@@ -136,36 +143,24 @@ export function useModerationDetail(): UseModerationDetailReturn {
 
     setProcessing(true);
 
-    const newStatus: ModerationStatus =
-      selectedDecision === 'accepter' ? 'publie' :
-      selectedDecision === 'refuser'  ? 'refuse' : 'a_corriger';
-
-    const updateData: Record<string, unknown> = {
-      status:         newStatus,
+    const body: Record<string, unknown> = {
       decision:       selectedDecision,
-      reviewed_by:    profile.id,
-      reviewed_at:    new Date().toISOString(),
-      moderator_note: moderatorNote || null,
+      moderator_note: moderatorNote || undefined,
     };
-    if (selectedDecision === 'refuser')             updateData.refusal_reason    = selectedReason;
-    if (selectedDecision === 'demander_correction') updateData.correction_reason = selectedReason;
+    if (selectedDecision === 'refuser' || selectedDecision === 'demander_correction') {
+      body.reason = selectedReason;
+    }
 
-    const { error } = await supabase
-      .from('moderation_queue')
-      .update(updateData)
-      .eq('id', queueId);
+    const res = await fetch(`/api/admin/moderation/${queueId}/decision`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
 
-    if (error) {
-      toast.error('Erreur lors de la décision');
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error('Erreur lors de la décision : ' + (data.error ?? res.statusText));
     } else {
-      /* Propagate status to the source table */
-      const table = TABLE_MAP[item.content_type];
-      if (table) {
-        await supabase.from(table)
-          .update({ moderation_status: newStatus })
-          .eq('id', item.content_id);
-      }
-
       toast.success(DECISION_MSGS[selectedDecision]);
       setSelectedDecision(null);
       setSelectedReason('');
@@ -175,23 +170,29 @@ export function useModerationDetail(): UseModerationDetailReturn {
     setProcessing(false);
   };
 
-  /* ── Update author trust level ───────────────────────────────────────── */
+  /**
+   * handleTrustChange — met à jour le trust_level via PATCH /api/admin/moderation/[id]/trust
+   *
+   * Avant ce correctif, la mutation appelait directement
+   * `createClient().from('profiles').update({ trust_level })` côté navigateur.
+   * La route serveur récupère l'author_id depuis la queue (le client ne le fournit pas).
+   */
   const handleTrustChange = async (newTrust: TrustLevel) => {
     if (!item) return;
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({ trust_level: newTrust })
-      .eq('id', item.author_id);
+    const res = await fetch(`/api/admin/moderation/${queueId}/trust`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trust_level: newTrust }),
+    });
 
-    if (error) { toast.error('Erreur'); return; }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error('Erreur : ' + (data.error ?? res.statusText));
+      return;
+    }
 
     toast.success(`Niveau de confiance mis à jour : ${TRUST_LEVEL_CONFIG[newTrust].label}`);
-
-    await supabase.from('moderation_queue')
-      .update({ author_trust: newTrust })
-      .eq('id', queueId);
-
     fetchData();
   };
 

@@ -12,6 +12,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { Profile } from '@/types';
+import type { AdminUserEntry } from '@/app/api/admin/users/route';
 import Input from '@/components/ui/Input';
 import Badge from '@/components/ui/Badge';
 import Avatar from '@/components/ui/Avatar';
@@ -20,13 +21,13 @@ import { ROLE_LABELS, formatDate, formatRelative } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 
+/**
+ * UserWithActivity : aligné sur AdminUserEntry (GET /api/admin/users).
+ * On conserve les champs Profile utilisés dans l'UI (email, phone, role, status…)
+ * et on ajoute les compteurs d'activité retournés par la route serveur.
+ */
 interface UserWithActivity extends Profile {
-  artisan_profile?: {
-    id: string;
-    business_name: string;
-    artisan_type: string;
-    trade_category?: { name: string; icon: string };
-  };
+  artisan_profile?: AdminUserEntry['artisan_profile'];
   _counts?: {
     messages: number;
     listings: number;
@@ -299,60 +300,53 @@ export default function AdminUtilisateursPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'activity'>('date');
 
+  /**
+   * fetchUsers — lecture des utilisateurs via GET /api/admin/users
+   *
+   * Avant ce correctif, la page interrogeait directement `createClient()` avec
+   * la clé anon. La protection reposait uniquement sur la RLS Supabase.
+   * La route serveur utilise getAdminUser() + createAdminClient() (service role)
+   * pour garantir que seuls les admins/modérateurs accèdent aux données PII.
+   */
   const fetchUsers = useCallback(async () => {
     setLoading(true);
-    const supabase = createClient();
+    try {
+      const res = await fetch('/api/admin/users');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        toast.error('Erreur chargement utilisateurs : ' + (body.error ?? res.statusText));
+        setLoading(false);
+        return;
+      }
+      const { users } = (await res.json()) as { users: AdminUserEntry[] };
 
-    const { data } = await supabase
-      .from('profiles')
-      .select(`
-        *,
-        artisan_profile:artisan_profiles(
-          id, business_name, artisan_type,
-          trade_category:trade_categories(name, icon)
-        )
-      `)
-      .neq('role', 'admin')
-      .order('created_at', { ascending: false });
+      // Convertir AdminUserEntry → UserWithActivity (même forme, juste renommage _counts)
+      const profiles: UserWithActivity[] = users.map(u => ({
+        id:              u.id,
+        full_name:       u.full_name,
+        email:           u.email,
+        phone:           u.phone ?? undefined,
+        avatar_url:      u.avatar_url ?? undefined,
+        role:            u.role as Profile['role'],
+        status:          u.status as Profile['status'],
+        created_at:      u.created_at,
+        artisan_profile: u.artisan_profile ?? undefined,
+        _counts: {
+          messages:         u.message_count,
+          listings:         u.listing_count,
+          forum_posts:      u.post_count,
+          service_requests: u.request_count,
+        },
+        // Champs Profile non retournés par l'API — valeurs par défaut
+        updated_at:     u.created_at,
+        legal_consent:  false,
+        home_sector_id: null,
+      }));
 
-    const profiles = (data as UserWithActivity[]) || [];
-
-    // Récupérer les compteurs d'activité pour chaque utilisateur
-    const userIds = profiles.map(u => u.id);
-    if (userIds.length > 0) {
-      const [
-        { data: msgs },
-        { data: listings },
-        { data: posts },
-        { data: requests },
-      ] = await Promise.all([
-        supabase.from('messages').select('sender_id').in('sender_id', userIds),
-        supabase.from('listings').select('owner_id').in('owner_id', userIds),
-        supabase.from('forum_posts').select('author_id').in('author_id', userIds),
-        supabase.from('service_requests').select('resident_id').in('resident_id', userIds),
-      ]);
-
-      const countBy = (arr: { [k: string]: string }[] | null, key: string) => {
-        const map: Record<string, number> = {};
-        (arr || []).forEach(r => { map[r[key]] = (map[r[key]] || 0) + 1; });
-        return map;
-      };
-      const msgMap = countBy(msgs as { sender_id: string }[], 'sender_id');
-      const listMap = countBy(listings as { owner_id: string }[], 'owner_id');
-      const postMap = countBy(posts as { author_id: string }[], 'author_id');
-      const reqMap = countBy(requests as { resident_id: string }[], 'resident_id');
-
-      profiles.forEach(u => {
-        u._counts = {
-          messages: msgMap[u.id] || 0,
-          listings: listMap[u.id] || 0,
-          forum_posts: postMap[u.id] || 0,
-          service_requests: reqMap[u.id] || 0,
-        };
-      });
+      setUsers(profiles);
+    } catch (err) {
+      toast.error('Erreur réseau : ' + String(err));
     }
-
-    setUsers(profiles);
     setLoading(false);
   }, []);
 

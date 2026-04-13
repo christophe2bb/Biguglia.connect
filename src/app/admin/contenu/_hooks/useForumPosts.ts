@@ -1,3 +1,14 @@
+/**
+ * Hook — useForumPosts
+ *
+ * Mutations : routées via l'API serveur /api/admin/contenu/forum_posts/[id]
+ *   • DELETE  : suppression
+ *   • PATCH   : fermer/rouvrir (set_closed), épingler/désépingler (set_pinned)
+ *
+ * Avant ce correctif, les mutations appelaient directement
+ * createClient().from('forum_posts').delete/update() côté navigateur.
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
@@ -9,6 +20,7 @@ export function useForumPosts() {
   const [search, setSearch]             = useState('');
   const [closedFilter, setClosedFilter] = useState('');
 
+  // ── Lecture ──────────────────────────────────────────────────────────────
   const fetchPosts = useCallback(async () => {
     setLoading(true);
     const supabase = createClient();
@@ -27,26 +39,48 @@ export function useForumPosts() {
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
+  // ── Suppression via API serveur ──────────────────────────────────────────
   const deleteItem = async (id: string) => {
-    const supabase = createClient();
-    const { error } = await supabase.from('forum_posts').delete().eq('id', id);
-    if (error) { toast.error('Erreur : ' + error.message); return; }
+    const res = await fetch(`/api/admin/contenu/forum_posts/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error('Erreur : ' + (data.error ?? res.statusText));
+      return;
+    }
     setItems(prev => prev.filter(p => p.id !== id));
     toast.success('Post forum supprimé');
   };
 
+  // ── Fermer / rouvrir via API serveur ─────────────────────────────────────
   const toggleClosed = async (id: string, current: boolean) => {
-    const supabase = createClient();
-    const { error } = await supabase.from('forum_posts').update({ is_closed: !current }).eq('id', id);
-    if (error) { toast.error('Erreur : ' + error.message); return; }
+    const res = await fetch(`/api/admin/contenu/forum_posts/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'set_closed', value: !current }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error('Erreur : ' + (data.error ?? res.statusText));
+      return;
+    }
     setItems(prev => prev.map(p => p.id === id ? { ...p, is_closed: !current } : p));
     toast.success(current ? 'Post réouvert' : 'Post fermé');
   };
 
+  // ── Épingler / désépingler via API serveur ───────────────────────────────
   const togglePinned = async (id: string, current: boolean) => {
-    const supabase = createClient();
-    const { error } = await supabase.from('forum_posts').update({ is_pinned: !current }).eq('id', id);
-    if (error) { toast.error('Erreur : ' + error.message); return; }
+    const res = await fetch(`/api/admin/contenu/forum_posts/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'set_pinned', value: !current }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error('Erreur : ' + (data.error ?? res.statusText));
+      return;
+    }
     setItems(prev => prev.map(p => p.id === id ? { ...p, is_pinned: !current } : p));
     toast.success(current ? 'Post désépinglé' : 'Post épinglé');
   };
