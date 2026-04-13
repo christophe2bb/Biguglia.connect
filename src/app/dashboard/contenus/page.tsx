@@ -79,7 +79,7 @@ function ContentCard({ item }: { item: ContentItem }) {
     )}>
       {item.image ? (
         <div className="h-28 overflow-hidden">
-          <Image src={item.image} alt={item.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
+          <Image src={item.image} alt={item.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" className="object-cover group-hover:scale-105 transition-transform duration-300" />
         </div>
       ) : (
         <div className={cn('h-16 flex items-center justify-center', theme.bg)}>

@@ -14,13 +14,17 @@ import { cn } from '@/lib/utils';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 import Avatar from '@/components/ui/Avatar';
 
-// ── Tab widgets ────────────────────────────────────────────────────────────────
-import OverviewTab     from './_widgets/OverviewTab';
-import ContenusTab     from './_widgets/ContenusTab';
-import InteractionsTab from './_widgets/InteractionsTab';
-import MessagesTab     from './_widgets/MessagesTab';
-import AvisTab         from './_widgets/AvisTab';
-import HistoriqueTab   from './_widgets/HistoriqueTab';
+// ── Tab widgets — lazy loaded pour réduire le JS initial ─────────────────────
+// Seul l'onglet actif est chargé. Les autres sont téléchargés à la demande
+// (dynamic import = code splitting automatique par Next.js).
+import dynamic from 'next/dynamic';
+
+const OverviewTab     = dynamic(() => import('./_widgets/OverviewTab'),     { ssr: false });
+const ContenusTab     = dynamic(() => import('./_widgets/ContenusTab'),     { ssr: false });
+const InteractionsTab = dynamic(() => import('./_widgets/InteractionsTab'), { ssr: false });
+const MessagesTab     = dynamic(() => import('./_widgets/MessagesTab'),     { ssr: false });
+const AvisTab         = dynamic(() => import('./_widgets/AvisTab'),         { ssr: false });
+const HistoriqueTab   = dynamic(() => import('./_widgets/HistoriqueTab'),   { ssr: false });
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 import type { DashTab } from './_constants';

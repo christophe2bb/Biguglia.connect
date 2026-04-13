@@ -40,13 +40,17 @@ function ArtisansContent() {
       // On filtre côté client après récupération, ou on ajoute is_verified sur artisan_profiles.
       let query = supabase
         .from('artisan_profiles')
+        // Sélection stricte : on n'embarque que les colonnes utiles pour les cartes.
+        // gallery limitée aux 3 premières photos (tri display_order), reviews à rating seul.
         .select(`
-          *,
+          id, user_id, business_name, trade_name, description, location,
+          intervention_zone, is_featured, is_verified, siret,
           profile:profiles!artisan_profiles_user_id_fkey(id, full_name, avatar_url, role),
-          trade_category:trade_categories(*),
+          trade_category:trade_categories(id, name, slug, icon),
           gallery:artisan_photos(url, display_order),
           reviews(rating)
-        `);
+        `)
+        .limit(200);
 
       if (selectedCategory) {
         const cat = cats?.find(c => c.slug === selectedCategory);
@@ -69,7 +73,7 @@ function ArtisansContent() {
           review_count: a.reviews?.length || 0,
         }));
 
-      setArtisans(enriched);
+      setArtisans(enriched as unknown as ArtisanProfile[]);
       setLoading(false);
     };
 
@@ -182,7 +186,13 @@ function ArtisanCard({ artisan }: { artisan: ArtisanProfile & { avg_rating?: num
         {/* Photo de galerie si disponible */}
         {artisan.gallery && artisan.gallery.length > 0 ? (
           <div className="h-40 bg-gray-100 overflow-hidden">
-            <Image src={artisan.gallery[0].url} alt={artisan.business_name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
+            <Image
+              src={artisan.gallery[0].url}
+              alt={artisan.business_name}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
+            />
           </div>
         ) : (
           <div className="h-40 gradient-hero flex items-center justify-center">

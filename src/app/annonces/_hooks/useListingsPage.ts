@@ -117,9 +117,19 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
       .order('display_order');
     setCategories(cats || []);
 
+    // Sélection stricte des colonnes — évite de rapatrier les champs inutiles
+    // (description longue, meta-données internes) pour les cartes de listing.
+    // Les photos sont limitées à 1 par listing (on n'affiche que la première en liste).
     let query = supabase
       .from('listings')
-      .select('*, category:listing_categories(*), photos:listing_photos(*)');
+      .select(`
+        id, title, description, price, location, listing_type, status,
+        created_at, is_urgent, sector_id, category_id, user_id, author_id,
+        category:listing_categories(id, name, slug, icon),
+        photos:listing_photos(url)
+      `)
+      // Limite maximale de sécurité — les gros volumes sont gérés côté SQL
+      .limit(500);
 
     if (selectedStatus === 'active')   query = query.eq('status', 'active');
     else if (selectedStatus === 'reserved') query = query.eq('status', 'reserved');
@@ -140,7 +150,7 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
     else query = query.order('created_at', { ascending: false });
 
     const { data } = await query;
-    const raw = (data as Listing[]) || [];
+    const raw = (data as unknown as Listing[]) || [];
     setListings(raw);
 
     // Category counts

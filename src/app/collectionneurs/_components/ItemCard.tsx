@@ -104,7 +104,7 @@ export default function ItemCard({ item, currentUserId, onFavoriteToggle, viewMo
             onClick={() => { if (coverPhoto) { setLightboxIdx(0); setLightboxOpen(true); } }}
           >
             {coverUrl
-              ? <Image src={coverUrl} alt={item.title} fill className="object-cover" />
+              ? <Image src={coverUrl} alt={item.title} fill sizes="96px" className="object-cover" />
               : <div className="w-full h-full flex items-center justify-center text-2xl">{item.category?.icon ?? '📦'}</div>}
             {isClosed && (
               <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
@@ -169,7 +169,7 @@ export default function ItemCard({ item, currentUserId, onFavoriteToggle, viewMo
       >
         {coverUrl ? (
           <>
-            <Image src={coverUrl} alt={item.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
+            <Image src={coverUrl} alt={item.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover group-hover:scale-105 transition-transform duration-300" />
             {photoCount > 1 && (
               <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">
                 <Camera className="w-3 h-3" /> {photoCount}

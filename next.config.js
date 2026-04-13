@@ -102,7 +102,37 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
+  // ─── Performance compiler options ───────────────────────────────────────────
+  // Remove console.log in production builds (keep warn/error for Sentry)
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production'
+      ? { exclude: ['warn', 'error'] }
+      : false,
+  },
+
+  // ─── Experimental optimisations ─────────────────────────────────────────────
+  experimental: {
+    // Optimise package imports to reduce JS bundle size (tree-shaking icons etc.)
+    optimizePackageImports: ['lucide-react', '@supabase/supabase-js'],
+  },
+
   images: {
+    // ── Formats modernes ───────────────────────────────────────────────────────
+    // AVIF compresse ~50% mieux que WebP, ~80% mieux que JPEG.
+    // Next.js servira AVIF aux navigateurs qui le supportent, WebP aux autres,
+    // JPEG/PNG en fallback — sans aucun changement dans le code.
+    formats: ['image/avif', 'image/webp'],
+
+    // ── Responsive breakpoints ─────────────────────────────────────────────────
+    // Correspond aux breakpoints Tailwind utilisés dans le projet (sm:, md:, lg:, xl:).
+    // Next.js génère les variantes à la demande et les met en cache.
+    deviceSizes: [375, 640, 768, 1024, 1280, 1536, 1920],
+    imageSizes:  [16, 32, 48, 64, 96, 128, 192, 256, 384],
+
+    // ── Cache des images optimisées ────────────────────────────────────────────
+    // 30 jours → réduit les régénérations Vercel et la bande passante.
+    minimumCacheTTL: 2592000,
+
     remotePatterns: [
       { protocol: 'https', hostname: '**.supabase.co' },
       { protocol: 'https', hostname: '**.supabase.in' },

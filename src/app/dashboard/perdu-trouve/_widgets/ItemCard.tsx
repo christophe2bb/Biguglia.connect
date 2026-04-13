@@ -46,7 +46,7 @@ export default function ItemCard({ item, onStatusChange, onDelete }: Props) {
         {/* Photo */}
         <div className="relative w-20 h-20 flex-shrink-0 overflow-hidden">
           {coverPhoto ? (
-            <Image src={coverPhoto.url} alt={item.title} fill className="object-cover" />
+            <Image src={coverPhoto.url} alt={item.title} fill sizes="80px" className="object-cover" />
           ) : (
             <div className={`w-full h-full flex items-center justify-center ${
               item.type === 'perdu' ? 'bg-orange-50' : 'bg-emerald-50'
