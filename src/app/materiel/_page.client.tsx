@@ -15,6 +15,7 @@ import Avatar from '@/components/ui/Avatar';
 import { CONDITION_LABELS } from '@/lib/utils';
 import { EQUIPMENT_STATUS_CONFIG, EquipmentStatus, isPubliclyVisible } from '@/lib/equipment';
 import type { EquipmentItemFull } from '@/lib/equipment';
+import SectionTracker from '@/components/ui/SectionTracker';
 import SectorFilter, { SectorBadge } from '@/components/ui/SectorFilter';
 
 const STATUS_FILTERS: { value: string; label: string }[] = [
@@ -125,6 +126,7 @@ export default function MaterielPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <SectionTracker section="materiel" />
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

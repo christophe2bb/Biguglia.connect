@@ -6,7 +6,8 @@
  *           salaire min · urgence · logement fourni
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { trackSectionVisit } from '@/lib/user-interests';
 import { useRouter } from 'next/navigation';
 import { Search, X, ChevronDown, ChevronUp, Flame, Home, Euro } from 'lucide-react';
 import type { JobOfferFilters } from '@/types/jobs';
@@ -35,6 +36,9 @@ interface Props {
 export function JobFiltersClient({ filters, totalResults }: Props) {
   const router  = useRouter();
   const [local, setLocal] = useState<Partial<JobOfferFilters>>(filters);
+
+  // Tracker de visite section emploi
+  useEffect(() => { trackSectionVisit('emploi'); }, []);
   const [openSection, setOpenSection] = useState<string | null>('contrat'); // section ouverte par défaut
   const [searchInput, setSearchInput] = useState(filters.query ?? '');
 

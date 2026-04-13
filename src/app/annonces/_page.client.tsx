@@ -11,6 +11,7 @@ import { useFavorites } from './_hooks/useFavorites';
 import { SkeletonGrid } from '@/components/ui/SkeletonCard';
 import { useListingsPage } from './_hooks/useListingsPage';
 import { ListingCard } from './_components/ListingCard';
+import SectionTracker from '@/components/ui/SectionTracker';
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -35,6 +36,7 @@ export default function AnnoncesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <SectionTracker section="annonces" />
 
       {/* ── Hero ── */}
       <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white">

@@ -24,6 +24,7 @@ import TabCreer    from './_components/TabCreer';
 import EventSidebar from './_components/EventSidebar';
 
 import type { ActiveTab } from './_types';
+import SectionTracker from '@/components/ui/SectionTracker';
 
 export default function EvenementsPage() {
   const { profile } = useAuthStore();
@@ -69,6 +70,7 @@ export default function EvenementsPage() {
 
   return (
     <div className="min-h-screen relative">
+      <SectionTracker section="evenements" />
       {/* Background */}
       <Image src="/images/biguglia-etang.jpg" alt="" aria-hidden fill
         style={{ objectFit: 'cover', objectPosition: 'center top',

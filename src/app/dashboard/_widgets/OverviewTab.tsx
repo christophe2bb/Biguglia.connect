@@ -16,6 +16,10 @@ import {
 } from '../_components/DashWidgets';
 import { QUICK_ACTIONS } from '../_constants';
 import CommunitiesSection from './CommunitiesSection';
+import dynamic from 'next/dynamic';
+
+// PersonalizedSuggestions : lazy — accède localStorage, non critique au premier rendu
+const PersonalizedSuggestions = dynamic(() => import('./PersonalizedSuggestions'), { ssr: false });
 
 type DashData  = ReturnType<typeof useDashboardData>;
 type TrustData = ReturnType<typeof useTrustData>;
@@ -169,6 +173,9 @@ export default function OverviewTab({
           </div>
         </div>
       </div>
+
+      {/* ── Suggestions personnalisées "Pour vous" ─── */}
+      <PersonalizedSuggestions />
 
       {/* ── Quick actions ─── */}
       <div>

@@ -14,6 +14,7 @@ import Select from '@/components/ui/Select';
 import EmptyState from '@/components/ui/EmptyState';
 import StarRating from '@/components/ui/StarRating';
 import { UserRatingBadge } from '@/components/ui/RatingWidget';
+import SectionTracker from '@/components/ui/SectionTracker';
 
 function ArtisansContent() {
   const searchParams = useSearchParams();
@@ -89,6 +90,7 @@ function ArtisansContent() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <SectionTracker section="artisans" />
       {/* En-tête */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Artisans de Biguglia</h1>
