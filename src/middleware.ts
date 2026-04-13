@@ -13,19 +13,34 @@
  * ─── Ordre d'exécution sur chaque requête ─────────────────────────────────────
  *
  *   1. Filtre anti-bot (UA blacklist : sqlmap, nikto, gobuster, hydra…)
- *   2. Rate-limit en mémoire  ⚠️ par instance Edge — voir src/lib/rate-limit.ts
+ *   2. Rate-limit distribué Upstash Redis (avec fallback mémoire si non configuré)
  *        Limites par groupe de routes (req/min) :
- *          default        → 300  (pages HTML)
- *          api            → 200  (API fallback)
- *          messages-write →  10  (POST /api/messages/start-conversation)
- *          emploi-write   →  20  (PATCH/DELETE /api/emploi/offres|demandes/*)
- *          emploi-read    →  60  (GET /api/emploi/**)
- *          admin-api      → 100  (/api/admin/**)
+ *          default             → 300  (pages HTML)
+ *          api                 → 200  (API fallback)
+ *          login               →   5  (POST auth — anti brute-force)
+ *          messages-write      →  10  (POST /api/messages/start-conversation)
+ *          publications-write  →  10  (POST /api/emploi/offres|demandes)
+ *          contact             →   5  (POST /api/emploi/contact — anti-scraping)
+ *          emploi-write        →  20  (PATCH/DELETE /api/emploi/**)
+ *          emploi-read         →  60  (GET /api/emploi/**)
+ *          admin-api           → 100  (/api/admin/**)
  *   3. Refresh de session Supabase + guards d'authentification :
  *        /admin/**     → /connexion si non authentifié
  *        /dashboard/** → /connexion si non authentifié
  *        /profil       → /connexion si non authentifié
  *        /messages/**  → /connexion si non authentifié
+ *
+ * ─── Rate-limit Redis (Upstash) ───────────────────────────────────────────────
+ *
+ *   Protection distribuée via @upstash/ratelimit + @upstash/redis.
+ *   Contrairement au mode mémoire précédent, les compteurs sont partagés
+ *   entre toutes les instances Vercel Edge → protection réelle multi-instances.
+ *
+ *   Variables d'env requises :
+ *     UPSTASH_REDIS_REST_URL   — ex: https://xxx.upstash.io
+ *     UPSTASH_REDIS_REST_TOKEN — Token Bearer Upstash
+ *
+ *   Si absentes → fallback automatique sur le rate-limit mémoire local.
  *
  * ─── Headers de sécurité ──────────────────────────────────────────────────────
  *
@@ -37,24 +52,15 @@
  *
  *   Le matcher exclut les assets statiques Next.js et les fichiers publics.
  *   Le middleware ne court donc que sur les vraies pages et routes API.
- *
- * ⚠️  LIMITE CONNUE — Rate-limit en mémoire sur Vercel/serverless :
- *   Sur Vercel, chaque Edge Function est instanciée indépendamment.
- *   La Map interne de src/lib/rate-limit.ts est locale à l'instance
- *   → inefficace contre les attaques distribuées multi-instances.
- *   Efficacité réelle : protection contre les rafales d'une même IP
- *   sur la même instance (navigateur, bots simples).
- *   → Upgrade recommandé : Upstash Redis + @upstash/ratelimit.
- *      Voir src/lib/rate-limit.ts pour le code de migration drop-in.
  */
 
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 import {
   shouldBypassRateLimit,
-  resolveRouteGroup,
-  checkRateLimit,
-} from '@/lib/rate-limit';
+  resolveRouteGroupRedis,
+  checkRateLimitRedis,
+} from '@/lib/rate-limit-redis';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ANTI-BOT — User-Agent blacklist
@@ -94,10 +100,11 @@ export async function middleware(request: NextRequest) {
     });
   }
 
-  // 2. Rate-limit par groupe de routes (⚠️ par instance Edge — protection partielle)
+  // 2. Rate-limit distribué Redis (fenêtre glissante multi-instances)
+  //    Fallback automatique sur la mémoire locale si Redis non configuré.
   if (!shouldBypassRateLimit(ip, pathname)) {
-    const group  = resolveRouteGroup(pathname, method);
-    const result = checkRateLimit(ip, group);
+    const group  = resolveRouteGroupRedis(pathname, method);
+    const result = await checkRateLimitRedis(ip, group);
 
     if (!result.allowed) {
       return new NextResponse(
