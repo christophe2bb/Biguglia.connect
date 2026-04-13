@@ -118,7 +118,17 @@ export default function AdminSignalementsPage() {
   // ─── Action : changer statut ──────────────────────────────────────────────
   const updateReport = async (reportId: string, status: 'resolved' | 'dismissed' | 'reviewed') => {
     setProcessing(reportId);
-    await supabase.from('reports').update({ status, reviewed_at: new Date().toISOString(), reviewed_by: profile?.id }).eq('id', reportId);
+    const res = await fetch(`/api/admin/reports/${reportId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update_status', status }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error('Erreur : ' + (data.error ?? res.statusText));
+      setProcessing(null);
+      return;
+    }
     toast.success(
       status === 'resolved' ? '✅ Signalement résolu' :
       status === 'dismissed' ? '🚫 Signalement ignoré' : '👀 Marqué en cours d\'examen'
@@ -126,8 +136,8 @@ export default function AdminSignalementsPage() {
     setReports(prev => filterStatus === 'all' ? prev.map(r => r.id === reportId ? { ...r, status } : r) : prev.filter(r => r.id !== reportId));
     setStats(s => ({
       ...s,
-      pending:  Math.max(0, s.pending - 1),
-      resolved: status === 'resolved' ? s.resolved + 1 : s.resolved,
+      pending:   Math.max(0, s.pending - 1),
+      resolved:  status === 'resolved'  ? s.resolved  + 1 : s.resolved,
       dismissed: status === 'dismissed' ? s.dismissed + 1 : s.dismissed,
     }));
     setProcessing(null);
@@ -136,12 +146,21 @@ export default function AdminSignalementsPage() {
   // ─── Action : bannir l'auteur du contenu signalé ──────────────────────────
   const banUser = async (targetId: string, targetType: string) => {
     if (!confirm('⚠️ Suspendre cet utilisateur ? Cette action est réversible depuis Admin → Utilisateurs.')) return;
-    if (targetType === 'user') {
-      await supabase.from('profiles').update({ status: 'suspended' }).eq('id', targetId);
-      toast.success('🔒 Utilisateur suspendu');
-    } else {
+    if (targetType !== 'user') {
       toast.error('Pour suspendre un utilisateur, allez dans Admin → Utilisateurs');
+      return;
     }
+    const res = await fetch(`/api/admin/users/${targetId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'set_status', status: 'suspended' }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error('Erreur : ' + (data.error ?? res.statusText));
+      return;
+    }
+    toast.success('🔒 Utilisateur suspendu');
   };
 
   const grouped = reports.reduce<Record<string, EnrichedReport[]>>((acc, r) => {

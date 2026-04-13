@@ -355,22 +355,15 @@ function ModerationQueueContent() {
     if (!profile) return;
     setProcessing(queueId);
 
-    const newStatus = decision === 'accepter' ? 'publie' : 'refuse';
-    const defaultReason = decision === 'refuser' ? 'manque_informations' : undefined;
+    const res = await fetch(`/api/admin/moderation/${queueId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision }),
+    });
 
-    const { error } = await supabase
-      .from('moderation_queue')
-      .update({
-        status: newStatus,
-        decision,
-        refusal_reason: defaultReason,
-        reviewed_by: profile.id,
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq('id', queueId);
-
-    if (error) {
-      toast.error('Erreur lors de la décision');
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error('Erreur lors de la décision : ' + (data.error ?? res.statusText));
     } else {
       toast.success(decision === 'accepter' ? '✅ Publication acceptée' : '❌ Publication refusée');
       fetchItems();

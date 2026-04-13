@@ -365,19 +365,17 @@ export default function AdminUtilisateursPage() {
     const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
     const action = newStatus === 'suspended' ? 'suspendre' : 'réactiver';
     if (!confirm(`Voulez-vous ${action} ce compte ?`)) return;
-    const supabase = createClient();
-    const { error } = await supabase.from('profiles').update({ status: newStatus }).eq('id', userId);
-    if (error) { toast.error('Erreur : ' + error.message); return; }
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: newStatus as Profile['status'] } : u));
-    // Notifier l'utilisateur
-    await supabase.from('notifications').insert({
-      user_id: userId,
-      type: 'account_update',
-      title: newStatus === 'suspended' ? '⚠️ Compte suspendu' : '✅ Compte réactivé',
-      message: newStatus === 'suspended'
-        ? 'Votre compte a été suspendu par l\'administrateur. Contactez-nous pour plus d\'informations.'
-        : 'Votre compte a été réactivé. Vous pouvez de nouveau accéder à toutes les fonctionnalités.',
+    const res = await fetch(`/api/admin/users/${userId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'set_status', status: newStatus }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error('Erreur : ' + (data.error ?? res.statusText));
+      return;
+    }
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: newStatus as Profile['status'] } : u));
     toast.success(`Compte ${newStatus === 'suspended' ? 'suspendu' : 'réactivé'}`);
   };
 
@@ -386,11 +384,12 @@ export default function AdminUtilisateursPage() {
     if (!confirm1) return;
     const confirm2 = window.confirm(`Confirmez-vous la suppression définitive du compte de "${name}" ?`);
     if (!confirm2) return;
-
-    const supabase = createClient();
-    // Supprimer le profil (cascade supprime les données liées via FK)
-    const { error } = await supabase.from('profiles').delete().eq('id', userId);
-    if (error) { toast.error('Erreur suppression : ' + error.message); return; }
+    const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error('Erreur suppression : ' + (data.error ?? res.statusText));
+      return;
+    }
     setUsers(prev => prev.filter(u => u.id !== userId));
     toast.success(`Compte de "${name}" supprimé définitivement`);
   };
@@ -398,17 +397,17 @@ export default function AdminUtilisateursPage() {
   const changeRole = async (userId: string, newRole: string) => {
     const label = ROLE_OPTIONS.find(r => r.value === newRole)?.label || newRole;
     if (!confirm(`Changer le rôle vers "${label}" ?`)) return;
-    const supabase = createClient();
-    const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', userId);
-    if (error) { toast.error('Erreur : ' + error.message); return; }
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole as Profile['role'] } : u));
-    // Notifier
-    await supabase.from('notifications').insert({
-      user_id: userId,
-      type: 'account_update',
-      title: '📋 Rôle modifié',
-      message: `Votre rôle sur Biguglia Connect a été modifié par l'administrateur : ${label}`,
+    const res = await fetch(`/api/admin/users/${userId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'set_role', role: newRole }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error('Erreur : ' + (data.error ?? res.statusText));
+      return;
+    }
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole as Profile['role'] } : u));
     toast.success('Rôle mis à jour');
   };
 
