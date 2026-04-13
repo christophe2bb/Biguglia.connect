@@ -13,8 +13,14 @@
  * ─── Ordre d'exécution sur chaque requête ─────────────────────────────────────
  *
  *   1. Filtre anti-bot (UA blacklist : sqlmap, nikto, gobuster, hydra…)
- *   2. Rate-limit en mémoire  ⚠️ par instance Edge — voir note ci-dessous
- *        Limites : 300 req/min (pages), 200 req/min (API), blocage 1 min
+ *   2. Rate-limit en mémoire  ⚠️ par instance Edge — voir src/lib/rate-limit.ts
+ *        Limites par groupe de routes (req/min) :
+ *          default        → 300  (pages HTML)
+ *          api            → 200  (API fallback)
+ *          messages-write →  10  (POST /api/messages/start-conversation)
+ *          emploi-write   →  20  (PATCH/DELETE /api/emploi/offres|demandes/*)
+ *          emploi-read    →  60  (GET /api/emploi/**)
+ *          admin-api      → 100  (/api/admin/**)
  *   3. Refresh de session Supabase + guards d'authentification :
  *        /admin/**     → /connexion si non authentifié
  *        /dashboard/** → /connexion si non authentifié
@@ -34,80 +40,21 @@
  *
  * ⚠️  LIMITE CONNUE — Rate-limit en mémoire sur Vercel/serverless :
  *   Sur Vercel, chaque Edge Function est instanciée indépendamment.
- *   La Map `rateBuckets` est locale à l'instance → inefficace contre
- *   les attaques distribuées multi-instances.
+ *   La Map interne de src/lib/rate-limit.ts est locale à l'instance
+ *   → inefficace contre les attaques distribuées multi-instances.
  *   Efficacité réelle : protection contre les rafales d'une même IP
- *   sur la même instance (cas de navigateur, bots simples).
- *   Pour une protection robuste en prod → Upstash Redis + @upstash/ratelimit.
+ *   sur la même instance (navigateur, bots simples).
+ *   → Upgrade recommandé : Upstash Redis + @upstash/ratelimit.
+ *      Voir src/lib/rate-limit.ts pour le code de migration drop-in.
  */
 
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// RATE LIMITER — en mémoire, Edge-compatible (⚠️ par instance, voir note)
-// ─────────────────────────────────────────────────────────────────────────────
-interface RateBucket {
-  count:        number;
-  firstReq:     number;
-  blockedUntil: number; // 0 = pas bloqué
-}
-
-const rateBuckets    = new Map<string, RateBucket>();
-const RATE_WINDOW_MS = 60_000;  // fenêtre glissante : 1 minute
-const RATE_LIMIT_MAX = 300;     // max req/min par IP (pages)  — ~5 req/s
-const RATE_LIMIT_API = 200;     // max req/min par IP sur /api — ~3 req/s
-const BLOCK_DURATION = 60_000;  // blocage 1 minute après dépassement
-
-// Routes API exclues du rate-limit (auth Supabase, session refresh auto)
-const RATE_LIMIT_BYPASS_PREFIXES = ['/api/auth', '/api/_next'] as const;
-
-let lastCleanup = Date.now();
-function cleanBuckets(): void {
-  const now = Date.now();
-  if (now - lastCleanup < 5 * 60_000) return;
-  lastCleanup = now;
-  rateBuckets.forEach((b, ip) => {
-    if (now > b.blockedUntil && now - b.firstReq > RATE_WINDOW_MS * 2) {
-      rateBuckets.delete(ip);
-    }
-  });
-}
-
-function checkRateLimit(ip: string, isApi: boolean, pathname: string): boolean {
-  // Bypass routes auth/session
-  if (RATE_LIMIT_BYPASS_PREFIXES.some(p => pathname.startsWith(p))) return true;
-  // Bypass IPs locales (dev, Vercel preview interne)
-  if (ip === '127.0.0.1' || ip === '::1' || ip === 'unknown') return true;
-
-  cleanBuckets();
-  const now   = Date.now();
-  const limit = isApi ? RATE_LIMIT_API : RATE_LIMIT_MAX;
-  const bucket = rateBuckets.get(ip);
-
-  if (!bucket) {
-    rateBuckets.set(ip, { count: 1, firstReq: now, blockedUntil: 0 });
-    return true;
-  }
-
-  // Encore en période de blocage
-  if (bucket.blockedUntil > 0 && now < bucket.blockedUntil) return false;
-
-  // Fenêtre expirée (blocage levé ou fenêtre normale écoulée)
-  if (now - bucket.firstReq > RATE_WINDOW_MS || bucket.blockedUntil > 0) {
-    bucket.count        = 1;
-    bucket.firstReq     = now;
-    bucket.blockedUntil = 0;
-    return true;
-  }
-
-  bucket.count++;
-  if (bucket.count > limit) {
-    bucket.blockedUntil = now + BLOCK_DURATION;
-    return false;
-  }
-  return true;
-}
+import {
+  shouldBypassRateLimit,
+  resolveRouteGroup,
+  checkRateLimit,
+} from '@/lib/rate-limit';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ANTI-BOT — User-Agent blacklist
@@ -132,7 +79,7 @@ function isBadBot(ua: string): boolean {
 // ─────────────────────────────────────────────────────────────────────────────
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isApi = pathname.startsWith('/api/');
+  const method = request.method;
 
   const ua = request.headers.get('user-agent') ?? '';
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
@@ -147,19 +94,24 @@ export async function middleware(request: NextRequest) {
     });
   }
 
-  // 2. Rate-limit (⚠️ par instance Edge — protection partielle)
-  if (!checkRateLimit(ip, isApi, pathname)) {
-    return new NextResponse(
-      JSON.stringify({ error: 'Trop de requêtes. Réessayez dans quelques minutes.' }),
-      {
-        status: 429,
-        headers: {
-          'Content-Type':      'application/json',
-          'Retry-After':       String(Math.ceil(BLOCK_DURATION / 1000)),
-          'X-RateLimit-Limit': String(isApi ? RATE_LIMIT_API : RATE_LIMIT_MAX),
-        },
-      }
-    );
+  // 2. Rate-limit par groupe de routes (⚠️ par instance Edge — protection partielle)
+  if (!shouldBypassRateLimit(ip, pathname)) {
+    const group  = resolveRouteGroup(pathname, method);
+    const result = checkRateLimit(ip, group);
+
+    if (!result.allowed) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Trop de requêtes. Réessayez dans quelques minutes.' }),
+        {
+          status: 429,
+          headers: {
+            'Content-Type':      'application/json',
+            'Retry-After':       String(result.retryAfterSecs),
+            'X-RateLimit-Limit': String(result.limit),
+          },
+        }
+      );
+    }
   }
 
   // 3. Refresh session Supabase + guard routes protégées
