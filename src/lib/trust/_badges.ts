@@ -28,4 +28,12 @@ export const BADGE_CONFIG: Record<BadgeCode, {
   top_rated:          { label: 'Top évalué',           emoji: '🏆', description: 'Moyenne ≥ 4.5 sur 5+ avis',                  color: 'text-yellow-700',  bg: 'bg-yellow-50'   },
   veteran:            { label: 'Vétéran',              emoji: '👴', description: 'Membre depuis plus d\'1 an',                 color: 'text-rose-600',    bg: 'bg-rose-50'     },
   admin_validated:    { label: 'Validé admin',         emoji: '✅', description: 'Identité vérifiée par l\'équipe',            color: 'text-green-700',   bg: 'bg-green-50'    },
+
+  // ── Badges dynamique communautaire (v2) ────────────────────────────────────
+  local_contributor:   { label: 'Contributeur local',  emoji: '🌍', description: '5+ publications utiles à la communauté',      color: 'text-cyan-700',    bg: 'bg-cyan-50'     },
+  solidarity_neighbor: { label: 'Voisin solidaire',    emoji: '🤲', description: 'A aidé au moins 3 voisins avec succès',       color: 'text-orange-700',  bg: 'bg-orange-50'   },
+  active_organizer:    { label: 'Organisateur actif',  emoji: '🎯', description: 'A organisé des événements avec participants',  color: 'text-violet-700',  bg: 'bg-violet-50'   },
+  reliable_profile:    { label: 'Profil fiable',       emoji: '🔵', description: 'Profil complet, ancienneté et bonne réputation',color: 'text-sky-700',    bg: 'bg-sky-50'      },
+  welcome_ambassador:  { label: 'Ambassadeur bienveillant', emoji: '💛', description: 'A laissé 5+ avis positifs à la communauté', color: 'text-yellow-700', bg: 'bg-yellow-50' },
+  community_pillar:    { label: 'Pilier de la communauté', emoji: '🏛️', description: 'Membre exemplaire : score élevé, ancienneté et contributions', color: 'text-purple-800', bg: 'bg-purple-50' },
 };

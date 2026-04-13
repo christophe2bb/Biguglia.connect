@@ -27,7 +27,14 @@ export type BadgeCode =
   | 'new_member' | 'profile_complete' | 'email_verified' | 'phone_verified'
   | 'active_member' | 'fast_responder' | 'reliable_organizer' | 'reliable_vendor'
   | 'reliable_helper' | 'reliable_borrower' | 'trusted_member' | 'top_rated'
-  | 'veteran' | 'admin_validated';
+  | 'veteran' | 'admin_validated'
+  // ── Badges dynamique communautaire (v2) ─────────────────────────────────
+  | 'local_contributor'    // 5+ publications (forum, annonces, événements, coups-de-main…)
+  | 'solidarity_neighbor'  // 3+ coups-de-main accomplis
+  | 'active_organizer'     // 2+ événements ou promenades organisés avec participants
+  | 'reliable_profile'     // Score confiance ≥ 55 + profil complet + ancienneté ≥ 30j
+  | 'welcome_ambassador'   // A laissé 5+ avis positifs (≥ 4 étoiles)
+  | 'community_pillar';    // Critères multiples haut niveau (score ≥ 80, ancienneté ≥ 6 mois)
 
 // ─── Entités métier ───────────────────────────────────────────────────────────
 
