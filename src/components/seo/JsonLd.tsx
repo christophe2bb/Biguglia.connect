@@ -125,6 +125,114 @@ export function faqSchema(items: Array<{ q: string; a: string }>) {
 }
 
 /**
+ * Organization — schéma d'organisation pour Biguglia Connect
+ * Améliore la présence dans le Knowledge Graph Google
+ */
+export const organizationSchema = {
+  '@context': 'https://schema.org',
+  '@type':    'Organization',
+  name:       'Biguglia Connect',
+  url:        SITE_URL,
+  logo:       `${SITE_URL}/images/biguglia-hero.jpg`,
+  description:
+    'Plateforme communautaire locale de Biguglia (Haute-Corse) : artisans vérifiés, petites annonces, emploi local, événements, forum et entraide entre habitants.',
+  foundingLocation: {
+    '@type':        'Place',
+    name:           'Biguglia',
+    addressCountry: 'FR',
+    addressRegion:  'Haute-Corse',
+  },
+  areaServed: [
+    { '@type': 'City',   name: 'Biguglia' },
+    { '@type': 'State',  name: 'Haute-Corse' },
+    { '@type': 'Country', name: 'France' },
+  ],
+  sameAs: [SITE_URL],
+  contactPoint: {
+    '@type':       'ContactPoint',
+    contactType:   'customer service',
+    availableLanguage: { '@type': 'Language', name: 'French' },
+  },
+};
+
+/**
+ * JobPosting — génère un schéma d'offre d'emploi
+ */
+export function jobPostingSchema(job: {
+  title:       string;
+  description: string;
+  url:         string;
+  datePosted:  string;
+  contractType?: string;
+  city?:       string;
+}) {
+  return {
+    '@context':        'https://schema.org',
+    '@type':           'JobPosting',
+    title:             job.title,
+    description:       job.description,
+    url:               job.url.startsWith('http') ? job.url : `${SITE_URL}${job.url}`,
+    datePosted:        job.datePosted,
+    employmentType:    job.contractType ?? 'FULL_TIME',
+    hiringOrganization: {
+      '@type': 'Organization',
+      name:    'Biguglia Connect',
+      sameAs:  SITE_URL,
+    },
+    jobLocation: {
+      '@type':  'Place',
+      address: {
+        '@type':           'PostalAddress',
+        addressLocality:   job.city ?? 'Biguglia',
+        addressRegion:     'Haute-Corse',
+        postalCode:        '20620',
+        addressCountry:    'FR',
+      },
+    },
+  };
+}
+
+/**
+ * Event — génère un schéma pour un événement local
+ */
+export function eventSchema(event: {
+  name:        string;
+  description: string;
+  url:         string;
+  startDate:   string;
+  endDate?:    string;
+  location?:   string;
+}) {
+  return {
+    '@context':  'https://schema.org',
+    '@type':     'Event',
+    name:        event.name,
+    description: event.description,
+    url:         event.url.startsWith('http') ? event.url : `${SITE_URL}${event.url}`,
+    startDate:   event.startDate,
+    ...(event.endDate && { endDate: event.endDate }),
+    eventStatus:     'https://schema.org/EventScheduled',
+    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+    location: {
+      '@type':  'Place',
+      name:     event.location ?? 'Biguglia',
+      address: {
+        '@type':           'PostalAddress',
+        addressLocality:   'Biguglia',
+        addressRegion:     'Haute-Corse',
+        postalCode:        '20620',
+        addressCountry:    'FR',
+      },
+    },
+    organizer: {
+      '@type': 'Organization',
+      name:    'Biguglia Connect',
+      url:     SITE_URL,
+    },
+  };
+}
+
+/**
  * Person — schéma pour un profil artisan
  */
 export function artisanPersonSchema(artisan: {

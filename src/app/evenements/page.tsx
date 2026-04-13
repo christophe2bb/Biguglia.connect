@@ -4,6 +4,7 @@
  */
 import type { Metadata } from 'next';
 import EvenementsPageClient from './_page.client';
+import { JsonLd, breadcrumbSchema, faqSchema } from '@/components/seo/JsonLd';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 const OG_IMAGE = `${SITE_URL}/images/biguglia-village.jpg`;
@@ -33,5 +34,20 @@ export const metadata: Metadata = {
 };
 
 export default function EvenementsPage() {
-  return <EvenementsPageClient />;
+  const breadcrumb = breadcrumbSchema([
+    { name: 'Accueil', url: '/' },
+    { name: 'Événements à Biguglia', url: '/evenements' },
+  ]);
+  const faq = faqSchema([
+    { q: 'Quels événements ont lieu à Biguglia ?', a: 'Matchs du SC Biguglia, fêtes du village, marchés de producteurs, sorties nature autour de l\'étang, concerts, ateliers culturels et manifestations associatives.' },
+    { q: 'Comment publier un événement à Biguglia ?', a: 'Créez un compte sur Biguglia Connect et publiez votre événement gratuitement en quelques clics. Il sera visible par toute la communauté locale.' },
+    { q: 'Où trouver l\'agenda complet de Biguglia ?', a: 'L\'agenda complet de Biguglia Connect recense tous les événements locaux : fêtes, sport, culture, nature et associations. Consultez la liste et filtrez par catégorie.' },
+  ]);
+  return (
+    <>
+      <JsonLd data={breadcrumb} />
+      <JsonLd data={faq} />
+      <EvenementsPageClient />
+    </>
+  );
 }

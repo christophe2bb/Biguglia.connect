@@ -4,6 +4,7 @@
  */
 import type { Metadata } from 'next';
 import AnnoncesPageClient from './_page.client';
+import { JsonLd, breadcrumbSchema, faqSchema } from '@/components/seo/JsonLd';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 const OG_IMAGE = `${SITE_URL}/images/biguglia-village.jpg`;
@@ -33,5 +34,20 @@ export const metadata: Metadata = {
 };
 
 export default function AnnoncesPage() {
-  return <AnnoncesPageClient />;
+  const breadcrumb = breadcrumbSchema([
+    { name: 'Accueil', url: '/' },
+    { name: 'Petites annonces Biguglia', url: '/annonces' },
+  ]);
+  const faq = faqSchema([
+    { q: 'Comment déposer une annonce à Biguglia ?', a: 'Créez un compte sur Biguglia Connect et cliquez sur "Publier une annonce". C\'est gratuit et votre annonce est visible par tous les habitants du village.' },
+    { q: 'Quels objets peut-on vendre ou donner à Biguglia ?', a: 'Meubles, électroménager, vêtements, voitures, outillage, jouets, livres, équipements sportifs… Tout objet légal peut être mis en vente, loué ou donné entre habitants.' },
+    { q: 'Les annonces de Biguglia Connect sont-elles vérifiées ?', a: 'Chaque annonce est modérée avant publication. Les annonces frauduleuses, les arnaques et les publicités commerciales sont supprimées. Les vendeurs ont un score de confiance visible.' },
+  ]);
+  return (
+    <>
+      <JsonLd data={breadcrumb} />
+      <JsonLd data={faq} />
+      <AnnoncesPageClient />
+    </>
+  );
 }

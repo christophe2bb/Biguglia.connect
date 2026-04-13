@@ -6,26 +6,95 @@
  *
  * Stratégie :
  *   • Pages statiques publiques → always/weekly/monthly selon fréquence de MAJ
+ *   • Pages SEO locales (/services-biguglia, /emploi-biguglia…) → weekly, haute priorité
+ *   • Pages métiers artisans (/artisans/metier/[slug]) → weekly, priorité 0.85
  *   • Pages dynamiques (artisans) → requête Supabase anon (lecture publique RLS)
  *   • Pages privées (admin, dashboard, profil, messages) → EXCLUES
  *   • Pages légales → monthly, faible priorité
  *
  * Priorités SEO :
  *   1.0 → Accueil
- *   0.9 → Pages clés (artisans, annonces, forum, emploi)
- *   0.8 → Pages thématiques (événements, promenades, matériel…)
- *   0.7 → Pages artisans individuels
- *   0.5 → Pages légales, aide
- *   0.3 → Pages auth (connexion, inscription)
+ *   0.95 → Pages SEO locales (/services-biguglia, /emploi-biguglia…)
+ *   0.9  → Pages clés (artisans, annonces, forum, emploi)
+ *   0.85 → Pages par métier (/artisans/metier/[slug])
+ *   0.8  → Pages thématiques (événements, promenades, matériel…)
+ *   0.75 → Pages communautaires (/communaute)
+ *   0.7  → Pages artisans individuels
+ *   0.5  → Pages légales, aide
+ *   0.3  → Pages auth (connexion, inscription)
  */
 
 import type { MetadataRoute } from 'next';
 import { createClient } from '@/lib/supabase/server';
+import { ALL_TRADE_SLUGS } from '@/lib/seo/local-data';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
+
+  // ── Pages SEO locales (haute priorité — cibles de trafic qualifié) ─────────
+
+  const seoLocalPages: MetadataRoute.Sitemap = [
+    // ── Hub principal artisans (priorité maximale pour capter les requêtes à fort volume) ──
+    {
+      url:             `${SITE_URL}/artisans-biguglia`,
+      lastModified:    now,
+      changeFrequency: 'weekly',
+      priority:        0.97,
+    },
+    {
+      url:             `${SITE_URL}/services-biguglia`,
+      lastModified:    now,
+      changeFrequency: 'weekly',
+      priority:        0.95,
+    },
+    {
+      url:             `${SITE_URL}/emploi-biguglia`,
+      lastModified:    now,
+      changeFrequency: 'daily',
+      priority:        0.95,
+    },
+    {
+      url:             `${SITE_URL}/evenements-biguglia`,
+      lastModified:    now,
+      changeFrequency: 'weekly',
+      priority:        0.90,
+    },
+    {
+      url:             `${SITE_URL}/associations-biguglia`,
+      lastModified:    now,
+      changeFrequency: 'weekly',
+      priority:        0.90,
+    },
+    {
+      url:             `${SITE_URL}/annonces-biguglia`,
+      lastModified:    now,
+      changeFrequency: 'daily',
+      priority:        0.90,
+    },
+    {
+      url:             `${SITE_URL}/forum-biguglia`,
+      lastModified:    now,
+      changeFrequency: 'daily',
+      priority:        0.85,
+    },
+    {
+      url:             `${SITE_URL}/communaute`,
+      lastModified:    now,
+      changeFrequency: 'weekly',
+      priority:        0.75,
+    },
+  ];
+
+  // ── Pages par métier artisan — générées statiquement au build ────────────
+
+  const tradePages: MetadataRoute.Sitemap = ALL_TRADE_SLUGS.map(slug => ({
+    url:             `${SITE_URL}/artisans/metier/${slug}`,
+    lastModified:    now,
+    changeFrequency: 'weekly' as const,
+    priority:        0.85,
+  }));
 
   // ── Pages statiques publiques ─────────────────────────────────────────────
 
@@ -172,5 +241,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.warn('[sitemap] Impossible de récupérer les artisans depuis Supabase');
   }
 
-  return [...staticPages, ...artisanPages];
+  return [
+    ...seoLocalPages,
+    ...tradePages,
+    ...staticPages,
+    ...artisanPages,
+  ];
 }

@@ -4,6 +4,7 @@
  */
 import type { Metadata } from 'next';
 import ForumPageClient from './_page.client';
+import { JsonLd, breadcrumbSchema, faqSchema } from '@/components/seo/JsonLd';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 const OG_IMAGE = `${SITE_URL}/images/biguglia-village.jpg`;
@@ -33,5 +34,20 @@ export const metadata: Metadata = {
 };
 
 export default function ForumPage() {
-  return <ForumPageClient />;
+  const breadcrumb = breadcrumbSchema([
+    { name: 'Accueil', url: '/' },
+    { name: 'Forum de Biguglia', url: '/forum' },
+  ]);
+  const faq = faqSchema([
+    { q: 'À quoi sert le forum de Biguglia Connect ?', a: 'Le forum permet aux habitants de Biguglia de poser des questions, partager des informations, signaler des événements et s\'entraider sur des sujets locaux : voisinage, travaux, transports, commerces, vie du village.' },
+    { q: 'Comment participer au forum de Biguglia ?', a: 'Créez un compte gratuit sur Biguglia Connect et postez votre première discussion. Vous pouvez aussi répondre aux sujets existants et aider vos voisins.' },
+    { q: 'Le forum de Biguglia est-il modéré ?', a: 'Oui, le forum est modéré par notre équipe. Les contenus inappropriés, les insultes et la publicité non autorisée sont supprimés. Un système de signalement permet à la communauté de participer à la modération.' },
+  ]);
+  return (
+    <>
+      <JsonLd data={breadcrumb} />
+      <JsonLd data={faq} />
+      <ForumPageClient />
+    </>
+  );
 }

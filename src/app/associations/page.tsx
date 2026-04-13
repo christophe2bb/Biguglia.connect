@@ -4,6 +4,7 @@
  */
 import type { Metadata } from 'next';
 import AssociationsPageClient from './_page.client';
+import { JsonLd, breadcrumbSchema, faqSchema } from '@/components/seo/JsonLd';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 const OG_IMAGE = `${SITE_URL}/images/biguglia-village.jpg`;
@@ -33,5 +34,20 @@ export const metadata: Metadata = {
 };
 
 export default function AssociationsPage() {
-  return <AssociationsPageClient />;
+  const breadcrumb = breadcrumbSchema([
+    { name: 'Accueil', url: '/' },
+    { name: 'Associations à Biguglia', url: '/associations' },
+  ]);
+  const faq = faqSchema([
+    { q: 'Quelles associations existe-t-il à Biguglia ?', a: 'Biguglia dispose de nombreuses associations : clubs sportifs (dont le SC Biguglia), associations culturelles, groupes de bénévolat, associations de seniors et clubs nature. Consultez l\'annuaire sur Biguglia Connect.' },
+    { q: 'Comment rejoindre une association à Biguglia ?', a: 'Consultez le profil de l\'association sur Biguglia Connect pour trouver les coordonnées et les modalités d\'adhésion. Contactez directement les responsables via la plateforme.' },
+    { q: 'Comment publier une association sur Biguglia Connect ?', a: 'Créez un compte et publiez votre association gratuitement. Partagez vos actualités, vos besoins en bénévoles et vos événements avec toute la communauté.' },
+  ]);
+  return (
+    <>
+      <JsonLd data={breadcrumb} />
+      <JsonLd data={faq} />
+      <AssociationsPageClient />
+    </>
+  );
 }

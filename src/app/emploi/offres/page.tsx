@@ -32,6 +32,7 @@ import { JobOfferCard } from '@/components/jobs/JobOfferCard';
 import { JobFiltersClient } from './JobFiltersClient';
 import { SortSelectClient } from './SortSelectClient';
 import type { JobOfferFilters } from '@/types/jobs';
+import { JsonLd, breadcrumbSchema, faqSchema } from '@/components/seo/JsonLd';
 
 interface PageProps {
   searchParams: {
@@ -84,8 +85,21 @@ export default async function OffresEmploiPage({ searchParams }: PageProps) {
     return `/emploi/offres?${sp.toString()}`;
   };
 
+  const breadcrumb = breadcrumbSchema([
+    { name: 'Accueil', url: '/' },
+    { name: 'Emploi à Biguglia', url: '/emploi-biguglia' },
+    { name: 'Offres d\'emploi', url: '/emploi/offres' },
+  ]);
+  const faq = faqSchema([
+    { q: 'Comment postuler à une offre d\'emploi à Biguglia ?', a: 'Consultez l\'offre et cliquez sur "Contacter l\'employeur". La mise en relation est directe, sans frais ni intermédiaire.' },
+    { q: 'Quels types de contrats sont disponibles à Biguglia ?', a: 'CDI, CDD, temps partiel, saisonnier, extra, alternance et stage. Filtrez les offres selon le type de contrat souhaité.' },
+    { q: 'Comment publier une offre d\'emploi pour Biguglia ?', a: 'Cliquez sur "Publier une offre" et remplissez le formulaire. La diffusion est gratuite et votre offre est visible dès validation.' },
+  ]);
+
   return (
     <div className="min-h-screen bg-gray-50">
+      <JsonLd data={breadcrumb} />
+      <JsonLd data={faq} />
 
       {/* ── HERO ──────────────────────────────────────────────────── */}
       <div className="bg-gradient-to-br from-brand-500 via-brand-600 to-brand-700 text-white">
