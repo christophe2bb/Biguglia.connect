@@ -54,6 +54,7 @@ const AUTH_FUNCTIONS = [
   'auth.getUser',
   'auth.getSession',
   'createAdminClient',  // admin client implique une vérification en amont
+  'getAdminUser',       // guard admin — vérifie session + rôle admin/moderator
 ];
 
 /** Patterns qui indiquent une fuite potentielle de secrets. */

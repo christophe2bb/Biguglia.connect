@@ -5,6 +5,10 @@
  *
  * Liste toutes les publications en attente de validation avec filtres
  * avancés, indicateurs de risque et actions rapides.
+ *
+ * SÉCURITÉ : toutes les données sont chargées via GET /api/admin/moderation/queue
+ * (protégé par getAdminUser — service-role, bypass RLS).
+ * Plus aucune requête Supabase directe depuis le navigateur.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -17,8 +21,8 @@ import {
   BookOpen, Handshake, Flag, BarChart3,
   AlertCircle, Info, Star,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
+import type { ModerationQueueData, QueueItem as ApiQueueItem, ModerationKPI } from '@/app/api/admin/moderation/queue/route';
 import Avatar from '@/components/ui/Avatar';
 import ModerationBadge from '@/components/ui/ModerationBadge';
 import ProtectedPage from '@/components/providers/ProtectedPage';
@@ -30,51 +34,11 @@ import {
 } from '@/lib/moderation';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-interface QueueItem {
-  id: string;
-  content_type: ContentType;
-  content_id: string;
-  content_title: string;
-  content_excerpt: string;
-  content_photos: string[];
-  author_id: string;
+type QueueItem = ApiQueueItem & {
   author_trust: TrustLevel;
   status: ModerationStatus;
-  risk_score: number;
-  risk_level: 'low' | 'medium' | 'high' | 'critical';
-  completeness: number;
-  validation_errors: { field: string; label?: string; message: string; weight: number }[];
-  reviewed_by?: string;
-  reviewed_at?: string;
-  decision?: string;
-  refusal_reason?: string;
-  correction_reason?: string;
-  moderator_note?: string;
-  resubmit_count: number;
-  submitted_at: string;
-  author?: {
-    id: string;
-    full_name: string;
-    avatar_url?: string;
-    created_at: string;
-    publication_count?: number;
-    reports_received?: number;
-    trust_level?: string;
-  };
-}
-
-interface KPIData {
-  total: number;
-  pending: number;
-  published: number;
-  refused: number;
-  correction: number;
-  archived: number;
-  avg_review_hours: number | null;
-  high_risk: number;
-  new_authors: number;
-  last_24h: number;
-}
+  content_type: ContentType;
+};
 
 // ─── Config contenu ───────────────────────────────────────────────────────────
 const CONTENT_ICONS: Record<ContentType, React.ElementType> = {
@@ -268,10 +232,9 @@ function QueueRow({ item, onQuickDecision }: {
 function ModerationQueueContent() {
   const { profile, isModerator } = useAuthStore();
   const router = useRouter();
-  const supabase = createClient();
 
   const [items, setItems]           = useState<QueueItem[]>([]);
-  const [kpi, setKpi]               = useState<KPIData | null>(null);
+  const [kpi, setKpi]               = useState<ModerationKPI | null>(null);
   const [loading, setLoading]       = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
 
@@ -291,64 +254,48 @@ function ModerationQueueContent() {
     }
   }, [profile, isModerator, router]);
 
-  // Chargement KPI
-  const fetchKPI = useCallback(async () => {
-    const { data } = await supabase.from('moderation_kpi').select('*').single();
-    if (data) {
-      setKpi({
-        total: Number(data.total) || 0,
-        pending: Number(data.pending) || 0,
-        published: Number(data.published) || 0,
-        refused: Number(data.refused) || 0,
-        correction: Number(data.correction) || 0,
-        archived: Number(data.archived) || 0,
-        avg_review_hours: data.avg_review_hours ? Number(data.avg_review_hours) : null,
-        high_risk: Number(data.high_risk) || 0,
-        new_authors: Number(data.new_authors) || 0,
-        last_24h: Number(data.last_24h) || 0,
-      });
-    }
-  }, [supabase]);
-
-  // Chargement file
-  const fetchItems = useCallback(async () => {
+  // Chargement via API serveur sécurisée
+  const fetchQueue = useCallback(async () => {
     setLoading(true);
-    let q = supabase
-      .from('moderation_queue')
-      .select(`
-        *,
-        author:profiles!moderation_queue_author_id_fkey(
-          id, full_name, avatar_url, created_at,
-          publication_count, reports_received, trust_level
-        )
-      `)
-      .order(sortBy, { ascending: sortBy === 'risk_score' ? false : true });
+    try {
+      const params = new URLSearchParams({
+        status:       filterStatus,
+        content_type: filterType,
+        risk_level:   filterRisk,
+        author_trust: filterTrust,
+        search:       searchQuery,
+        sort:         sortBy,
+      });
 
-    if (filterStatus !== 'all') q = q.eq('status', filterStatus);
-    if (filterType   !== 'all') q = q.eq('content_type', filterType);
-    if (filterRisk   !== 'all') q = q.eq('risk_level', filterRisk);
-    if (filterTrust  !== 'all') q = q.eq('author_trust', filterTrust);
-    if (searchQuery.trim())     q = q.ilike('content_title', `%${searchQuery.trim()}%`);
+      const res = await fetch(`/api/admin/moderation/queue?${params.toString()}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error('Erreur de chargement : ' + (err.error ?? res.statusText));
+        return;
+      }
 
-    const { data, error } = await q.limit(100);
-    if (error) { console.error(error); }
+      const data: ModerationQueueData = await res.json();
 
-    let results = (data || []) as QueueItem[];
+      // Filtre nouveau membre côté client (dans les 7 jours)
+      let results = (data.items ?? []) as QueueItem[];
+      if (filterNewMember) {
+        const threshold = Date.now() - 7 * 24 * 3600 * 1000;
+        results = results.filter(item =>
+          item.author?.created_at && new Date(item.author.created_at).getTime() > threshold
+        );
+      }
 
-    // Filtre nouveau membre côté client
-    if (filterNewMember) {
-      const threshold = Date.now() - 7 * 24 * 3600 * 1000;
-      results = results.filter(item =>
-        item.author?.created_at && new Date(item.author.created_at).getTime() > threshold
-      );
+      setItems(results);
+      setKpi(data.kpi);
+    } catch (err) {
+      console.error('[moderation queue] fetch error:', err);
+      toast.error('Impossible de charger la file de modération.');
+    } finally {
+      setLoading(false);
     }
+  }, [filterStatus, filterType, filterRisk, filterTrust, filterNewMember, searchQuery, sortBy]);
 
-    setItems(results);
-    setLoading(false);
-  }, [supabase, filterStatus, filterType, filterRisk, filterTrust, filterNewMember, searchQuery, sortBy]);
-
-  useEffect(() => { fetchItems(); }, [fetchItems]);
-  useEffect(() => { fetchKPI(); }, [fetchKPI]);
+  useEffect(() => { fetchQueue(); }, [fetchQueue]);
 
   // Décision rapide
   const handleQuickDecision = async (queueId: string, decision: 'accepter' | 'refuser') => {
@@ -366,8 +313,7 @@ function ModerationQueueContent() {
       toast.error('Erreur lors de la décision : ' + (data.error ?? res.statusText));
     } else {
       toast.success(decision === 'accepter' ? '✅ Publication acceptée' : '❌ Publication refusée');
-      fetchItems();
-      fetchKPI();
+      fetchQueue();
     }
     setProcessing(null);
   };
@@ -401,7 +347,7 @@ function ModerationQueueContent() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => { fetchItems(); fetchKPI(); }}
+            onClick={fetchQueue}
             className="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors"
             title="Actualiser"
           >
