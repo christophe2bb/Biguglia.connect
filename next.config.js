@@ -34,8 +34,9 @@ const supabaseHost = SUPABASE_URL.replace(/^https?:\/\//, '');
 //    via fetch() depuis le navigateur. Ces domaines DOIVENT être autorisés sinon
 //    les erreurs front-end ne remontent jamais à Sentry.
 //
-const scriptSrcProd = "'self' 'unsafe-inline' https://vercel.live https://*.vercel-scripts.com";
-const scriptSrcDev  = "'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live https://*.vercel-scripts.com";
+// blob: est nécessaire pour Sentry Replay qui crée des workers via blob: URLs
+const scriptSrcProd = "'self' 'unsafe-inline' blob: https://vercel.live https://*.vercel-scripts.com";
+const scriptSrcDev  = "'self' 'unsafe-inline' 'unsafe-eval' blob: https://vercel.live https://*.vercel-scripts.com";
 
 const ContentSecurityPolicy = `
   default-src 'self';
@@ -55,7 +56,8 @@ const ContentSecurityPolicy = `
               https://vitals.vercel-insights.com
               https://*.ingest.sentry.io
               https://*.ingest.us.sentry.io;
-  frame-src   'none';
+  worker-src  'self' blob:;
+  frame-src   https://vercel.live;
   object-src  'none';
   base-uri    'self';
   form-action 'self';
@@ -71,6 +73,7 @@ const ContentSecurityPolicy = `
 // ci-dessous (sans autoplay, encrypted-media, fullscreen, picture-in-picture,
 // ambient-light-sensor) — vercel.json est conservé pour la config de déploiement
 // uniquement, ses headers sont ignorés au profit de ceux-ci.
+// Note: 'ambient-light-sensor' est non reconnu par Chrome/Firefox modernes — retiré
 const PermissionsPolicy = [
   'camera=()',
   'microphone=()',
@@ -80,9 +83,7 @@ const PermissionsPolicy = [
   'magnetometer=()',
   'gyroscope=()',
   'accelerometer=()',
-  'ambient-light-sensor=()',
   'autoplay=(self)',
-  'encrypted-media=(self)',
   'fullscreen=(self)',
   'picture-in-picture=()',
 ].join(', ');
