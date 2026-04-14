@@ -60,7 +60,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import type { Profile } from '@/types';
 
 /** Durée avant déblocage forcé de l'UI si Supabase ne répond pas */
-const AUTH_TIMEOUT_MS = 8_000;
+const AUTH_TIMEOUT_MS = 3_000; // 3s max — Supabase INITIAL_SESSION arrive normalement en < 1s
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
   const { _setAuth } = useAuthStore();

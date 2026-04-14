@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Users, CheckCircle, AlertTriangle, MessageSquare, Package, Wrench, Flag, TrendingUp, Shield } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
-import { adminFetch } from '@/lib/admin-fetch';
+import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 import type { AdminDashboardStats } from '@/app/api/admin/dashboard/route';
@@ -14,28 +14,46 @@ function AdminContent() {
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  /**
-   * fetchData — lecture des compteurs via GET /api/admin/dashboard
-   *
-   * Avant ce correctif, la page appelait directement createClient() côté
-   * navigateur pour récupérer des COUNT sur plusieurs tables sensibles
-   * (profiles, messages, reports, moderation_queue…) via la clé anon.
-   * Les données agrégées transitaient en clair depuis le client.
-   *
-   * Correction : toutes ces requêtes passent maintenant par l'API Route
-   * /api/admin/dashboard qui vérifie le rôle admin côté serveur avant
-   * toute lecture (createAdminClient — service role).
-   */
+  // Requêtes Supabase directes côté client (anon key + RLS correcte)
+  // Plus rapide et fiable que de passer par l'API route (pas de problème cookie SSR)
   const fetchData = useCallback(async () => {
     if (!profileId) return;
     try {
-      const res = await adminFetch('/api/admin/dashboard');
-      if (!res.ok) {
-        console.warn('[Admin] dashboard API returned', res.status);
-        return;
-      }
-      const data = await res.json() as { stats: AdminDashboardStats };
-      setStats(data.stats);
+      const sb = createClient();
+      const [
+        { count: totalUsers },
+        { count: pendingArt },
+        { count: verifiedArt },
+        { count: totalListings },
+        { count: totalPosts },
+        { count: pendingReports },
+        { count: totalEquip },
+        { count: totalMsgs },
+        { count: pendingMod },
+      ] = await Promise.all([
+        sb.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
+        sb.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'artisan_pending'),
+        sb.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'artisan_verified'),
+        sb.from('listings').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+        sb.from('forum_posts').select('*', { count: 'exact', head: true }),
+        sb.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        sb.from('equipment_items').select('*', { count: 'exact', head: true }).eq('is_available', true),
+        sb.from('messages').select('*', { count: 'exact', head: true }),
+        sb.from('moderation_queue').select('*', { count: 'exact', head: true }).eq('status', 'en_attente_validation'),
+      ]);
+      setStats({
+        total_users:        totalUsers        ?? 0,
+        pending_artisans:   pendingArt        ?? 0,
+        verified_artisans:  verifiedArt       ?? 0,
+        total_listings:     totalListings     ?? 0,
+        total_forum_posts:  totalPosts        ?? 0,
+        pending_reports:    pendingReports    ?? 0,
+        total_equipment:    totalEquip        ?? 0,
+        total_messages:     totalMsgs         ?? 0,
+        pending_moderation: pendingMod        ?? 0,
+      });
+    } catch (e) {
+      console.warn('[Admin] fetchData error:', e);
     } finally {
       setLoading(false);
     }
