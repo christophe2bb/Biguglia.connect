@@ -359,7 +359,7 @@ export default function AdminUtilisateursPage() {
     const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
     const action = newStatus === 'suspended' ? 'suspendre' : 'réactiver';
     if (!confirm(`Voulez-vous ${action} ce compte ?`)) return;
-    const res = await fetch(`/api/admin/users/${userId}`, {
+    const res = await adminFetch(`/api/admin/users/${userId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'set_status', status: newStatus }),
@@ -378,7 +378,7 @@ export default function AdminUtilisateursPage() {
     if (!confirm1) return;
     const confirm2 = window.confirm(`Confirmez-vous la suppression définitive du compte de "${name}" ?`);
     if (!confirm2) return;
-    const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+    const res = await adminFetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       toast.error('Erreur suppression : ' + (data.error ?? res.statusText));
@@ -391,7 +391,7 @@ export default function AdminUtilisateursPage() {
   const changeRole = async (userId: string, newRole: string) => {
     const label = ROLE_OPTIONS.find(r => r.value === newRole)?.label || newRole;
     if (!confirm(`Changer le rôle vers "${label}" ?`)) return;
-    const res = await fetch(`/api/admin/users/${userId}`, {
+    const res = await adminFetch(`/api/admin/users/${userId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'set_role', role: newRole }),

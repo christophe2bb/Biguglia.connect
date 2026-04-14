@@ -28,6 +28,7 @@ import ModerationBadge from '@/components/ui/ModerationBadge';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 import toast from 'react-hot-toast';
 import { formatRelative } from '@/lib/utils';
+import { adminFetch } from '@/lib/admin-fetch';
 import {
   CONTENT_TYPE_LABELS, TRUST_LEVEL_CONFIG,
   type ModerationStatus, type ContentType, type TrustLevel,
@@ -267,7 +268,7 @@ function ModerationQueueContent() {
         sort:         sortBy,
       });
 
-      const res = await fetch(`/api/admin/moderation/queue?${params.toString()}`);
+      const res = await adminFetch(`/api/admin/moderation/queue?${params.toString()}`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         toast.error('Erreur de chargement : ' + (err.error ?? res.statusText));
@@ -302,7 +303,7 @@ function ModerationQueueContent() {
     if (!profile) return;
     setProcessing(queueId);
 
-    const res = await fetch(`/api/admin/moderation/${queueId}`, {
+    const res = await adminFetch(`/api/admin/moderation/${queueId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ decision }),

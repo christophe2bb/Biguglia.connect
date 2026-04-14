@@ -14,6 +14,7 @@ import { formatRelative } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import ProtectedPage from '@/components/providers/ProtectedPage';
+import { adminFetch } from '@/lib/admin-fetch';
 
 // ─── Types enrichis ────────────────────────────────────────────────────────────
 type EnrichedReport = ReportEntry;
@@ -89,7 +90,7 @@ export default function AdminSignalementsPage() {
       const params = new URLSearchParams();
       if (filterStatus !== 'all') params.set('status', filterStatus);
       if (filterType   !== 'all') params.set('target_type', filterType);
-      const res = await fetch(`/api/admin/reports?${params.toString()}`);
+      const res = await adminFetch(`/api/admin/reports?${params.toString()}`);
       if (!res.ok) { setLoading(false); return; }
       const data = await res.json() as AdminReportsData;
       setReports(data.reports);
@@ -113,7 +114,7 @@ export default function AdminSignalementsPage() {
   // ─── Action : changer statut ──────────────────────────────────────────────
   const updateReport = async (reportId: string, status: 'resolved' | 'dismissed' | 'reviewed') => {
     setProcessing(reportId);
-    const res = await fetch(`/api/admin/reports/${reportId}`, {
+    const res = await adminFetch(`/api/admin/reports/${reportId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'update_status', status }),
@@ -145,7 +146,7 @@ export default function AdminSignalementsPage() {
       toast.error('Pour suspendre un utilisateur, allez dans Admin → Utilisateurs');
       return;
     }
-    const res = await fetch(`/api/admin/users/${targetId}`, {
+    const res = await adminFetch(`/api/admin/users/${targetId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'set_status', status: 'suspended' }),
