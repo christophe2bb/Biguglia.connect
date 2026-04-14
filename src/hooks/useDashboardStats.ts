@@ -27,7 +27,6 @@ export function computeProfileScore(profile: Record<string, unknown>): number {
     !!profile.avatar_url,
     !!profile.bio,
     !!profile.phone,
-    !!profile.neighborhood,
   ];
   return Math.round((checks.filter(Boolean).length / checks.length) * 100);
 }
@@ -76,6 +75,17 @@ export function useDashboardStats(): UseDashboardStatsResult {
       const today    = new Date().toISOString().split('T')[0];
 
       // ── Requêtes parallèles batch 1 ──────────────────────────────────────
+      // conversation_participants est optionnelle — on l’isoà pour éviter qu’une
+      // erreur 500 (table manquante) ne fasse planter tout le Promise.all
+      let unreadMsgsCount = 0;
+      try {
+        const cpRes = await supabase
+          .from('conversation_participants')
+          .select('conversation_id', { count: 'exact', head: true })
+          .eq('user_id', profileId);
+        unreadMsgsCount = cpRes.count ?? 0;
+      } catch { /* table optionnelle */ }
+
       const [
         { data: listings, count: listingsCount },
         { count: activeListingsCount },
@@ -85,7 +95,6 @@ export function useDashboardStats(): UseDashboardStatsResult {
         { count: upcomingOutingsCount },
         { count: forumCount },
         { count: assoCount },
-        { count: unreadMsgs },
         { count: unreadNotifs },
         { count: pendingIntCount },
         { count: activeIntCount },
@@ -93,7 +102,7 @@ export function useDashboardStats(): UseDashboardStatsResult {
         { data: profileData },
       ] = await Promise.all([
         supabase.from('listings')
-          .select('id, title, status, views, created_at, category:listing_categories(name)', { count: 'exact' })
+          .select('id, title, status, views_count, created_at, category:listing_categories(name)', { count: 'exact' })
           .eq('user_id', profileId).order('created_at', { ascending: false }).limit(8),
         supabase.from('listings')
           .select('id', { count: 'exact', head: true })
@@ -116,9 +125,6 @@ export function useDashboardStats(): UseDashboardStatsResult {
         supabase.from('associations')
           .select('id', { count: 'exact', head: true })
           .eq('author_id', profileId),
-        supabase.from('conversation_participants')
-          .select('conversation_id', { count: 'exact', head: true })
-          .eq('user_id', profileId),
         supabase.from('notifications')
           .select('id', { count: 'exact', head: true })
           .eq('user_id', profileId).eq('is_read', false),
@@ -137,7 +143,7 @@ export function useDashboardStats(): UseDashboardStatsResult {
           .order('created_at', { ascending: false })
           .limit(5),
         supabase.from('profiles')
-          .select('full_name, avatar_url, bio, phone, neighborhood')
+          .select('full_name, avatar_url, bio, phone')
           .eq('id', profileId).single(),
       ]);
 
@@ -234,7 +240,7 @@ export function useDashboardStats(): UseDashboardStatsResult {
 
       // ── Calculs dérivés ──────────────────────────────────────────────────
       const rawListings  = (listings || []) as Record<string, unknown>[];
-      const totalViews   = rawListings.reduce((s, l) => s + ((l.views as number) || 0), 0);
+      const totalViews   = rawListings.reduce((s, l) => s + ((l.views_count as number) || 0), 0);
       const profileScore = profileData ? computeProfileScore(profileData as Record<string, unknown>) : 0;
       const ratingValues = (reviews || []).map((r: Record<string, unknown>) => r.rating as number);
       const avgRating    = ratingValues.length > 0
@@ -257,7 +263,7 @@ export function useDashboardStats(): UseDashboardStatsResult {
         outingParticipations: outingParticipationsCount   || 0,
         activeBorrows:        activeBorrowsCount,
         activeLends:          activeLendsCount,
-        unreadMessages:       unreadMsgs                  || 0,
+        unreadMessages:       unreadMsgsCount,
         unreadNotifications:  unreadNotifs                || 0,
         pendingInteractions:  pendingIntCount             || 0,
         activeInteractions:   activeIntCount              || 0,

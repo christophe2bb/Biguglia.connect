@@ -162,7 +162,7 @@ function MesContenusContent() {
       const all: ContentItem[] = [
         ...(listings || []).map((l: Record<string, unknown>) => ({
           id: l.id as string, type: 'listing' as ContentTheme, title: l.title as string,
-          status: l.status as string, createdAt: l.created_at as string, views: l.views as number,
+          status: l.status as string, createdAt: l.created_at as string, views: l.views_count as number,
           href: `/annonces/${l.id}`, editHref: `/annonces/${l.id}/modifier`,
           image: ((l.photos as {url: string}[]) || [])[0]?.url, location: l.location as string,
           isClosed: ['sold', 'archived', 'expired'].includes(l.status as string),
