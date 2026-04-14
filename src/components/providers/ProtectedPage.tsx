@@ -39,9 +39,11 @@
  *  affiche le skeleton plutôt que de rediriger vers '/' sur une base incertaine.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
+import { createClient } from '@/lib/supabase/client';
+import type { Profile } from '@/types';
 
 interface Props {
   children: React.ReactNode;
@@ -74,8 +76,23 @@ function AuthSkeleton() {
 }
 
 export default function ProtectedPage({ children, adminOnly = false }: Props) {
-  const { phase, profile } = useAuthStore();
+  const { phase, profile, userId, setProfile } = useAuthStore();
   const router = useRouter();
+
+  // ── Pour adminOnly : recharge le profil frais depuis la DB ───────────────
+  // Nécessaire quand le rôle a été mis à jour en DB après la connexion
+  // (le store Zustand garde l'ancien profil en mémoire).
+  const refreshProfile = useCallback(async (uid: string) => {
+    try {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', uid)
+        .single();
+      if (data) setProfile(data as Profile);
+    } catch { /* ignore */ }
+  }, [setProfile]);
 
   useEffect(() => {
     // ── Pas encore initialisé → attendre ──────────────────────────────────
@@ -89,15 +106,14 @@ export default function ProtectedPage({ children, adminOnly = false }: Props) {
 
     // ── Authentifié — vérification adminOnly ──────────────────────────────
     if (adminOnly) {
-      // profile null = erreur DB (réseau, table manquante).
-      // On n'a pas assez d'info pour décider → attendre (skeleton).
-      if (profile === null) return;
-
-      if (profile.role !== 'admin') {
-        router.push('/');
+      // Si le profil est null ou le rôle n'est pas encore admin,
+      // on recharge le profil frais depuis la DB avant de décider.
+      if (profile === null || (profile.role !== 'admin' && profile.role !== 'moderator')) {
+        if (userId) refreshProfile(userId);
+        return; // attendre le rechargement
       }
     }
-  }, [phase, profile, adminOnly, router]);
+  }, [phase, profile, userId, adminOnly, router, refreshProfile]);
 
   // ── Rendu conditionnel ────────────────────────────────────────────────────
 
