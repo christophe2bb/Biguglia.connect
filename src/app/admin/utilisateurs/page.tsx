@@ -10,6 +10,7 @@ import {
   HardHat, MessageSquare, Package, FileText, MoreVertical,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
+import { adminFetch } from '@/lib/admin-fetch';
 import { Profile } from '@/types';
 import type { AdminUserEntry } from '@/app/api/admin/users/route';
 import Input from '@/components/ui/Input';
@@ -310,7 +311,7 @@ export default function AdminUtilisateursPage() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/users');
+      const res = await adminFetch('/api/admin/users');
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         toast.error('Erreur chargement utilisateurs : ' + (body.error ?? res.statusText));
@@ -417,7 +418,7 @@ export default function AdminUtilisateursPage() {
    * et effectue le reset via le client service-role (Supabase Auth Admin API).
    */
   const resetPassword = async (email: string) => {
-    const res = await fetch('/api/admin/users/reset-password', {
+    const res = await adminFetch('/api/admin/users/reset-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Origin': window.location.origin },
       body: JSON.stringify({ email }),

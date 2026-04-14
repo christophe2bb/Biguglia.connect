@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Users, CheckCircle, AlertTriangle, MessageSquare, Package, Wrench, Flag, TrendingUp, Shield } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
+import { adminFetch } from '@/lib/admin-fetch';
 import Link from 'next/link';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 import type { AdminDashboardStats } from '@/app/api/admin/dashboard/route';
@@ -28,8 +29,11 @@ function AdminContent() {
   const fetchData = useCallback(async () => {
     if (!profileId) return;
     try {
-      const res = await fetch('/api/admin/dashboard');
-      if (!res.ok) return;
+      const res = await adminFetch('/api/admin/dashboard');
+      if (!res.ok) {
+        console.warn('[Admin] dashboard API returned', res.status);
+        return;
+      }
       const data = await res.json() as { stats: AdminDashboardStats };
       setStats(data.stats);
     } finally {

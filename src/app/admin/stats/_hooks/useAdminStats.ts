@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
+import { adminFetch } from '@/lib/admin-fetch';
 import type { AdminAllStats } from '@/app/api/admin/stats/route';
 
 // Ré-export pour compatibilité avec les composants existants
@@ -36,7 +37,7 @@ export function useAdminStats() {
 
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/stats');
+      const res = await adminFetch('/api/admin/stats');
       if (!res.ok) {
         console.error('[useAdminStats] API error:', res.status);
         setLoading(false);

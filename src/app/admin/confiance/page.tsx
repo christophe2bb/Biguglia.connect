@@ -20,6 +20,7 @@ import {
   ThumbsUp, TrendingUp,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
+import { adminFetch } from '@/lib/admin-fetch';
 import { cn, formatRelative } from '@/lib/utils';
 import { THEME_CONFIG, BADGE_CONFIG, type BadgeCode, type InteractionSourceType } from '@/lib/trust';
 import type { AdminConfianceData, AdminReviewEntry, AdminRiskMember, AdminThemeStat } from '@/app/api/admin/confiance/route';
@@ -61,7 +62,7 @@ export default function AdminConfiancePage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/confiance');
+      const res = await adminFetch('/api/admin/confiance');
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         toast.error('Erreur chargement confiance : ' + (body.error ?? res.statusText));

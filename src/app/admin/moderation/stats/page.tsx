@@ -25,6 +25,7 @@ import ProtectedPage from '@/components/providers/ProtectedPage';
 import { formatRelative } from '@/lib/utils';
 import { CONTENT_TYPE_LABELS } from '@/lib/moderation';
 import toast from 'react-hot-toast';
+import { adminFetch } from '@/lib/admin-fetch';
 
 // ─── Config icônes contenu ────────────────────────────────────────────────────
 const CONTENT_ICONS: Record<ContentType, React.ElementType> = {
@@ -55,7 +56,7 @@ function ModerationStatsContent() {
   const fetchStats = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/moderation/stats-data');
+      const res = await adminFetch('/api/admin/moderation/stats-data');
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         toast.error('Erreur de chargement : ' + (err.error ?? res.statusText));
