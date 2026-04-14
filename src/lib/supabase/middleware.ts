@@ -134,17 +134,17 @@ export async function updateSession(request: NextRequest) {
   );
 
   // Rafraîchir la session si nécessaire (écrit les nouveaux cookies dans la réponse).
-  // NE PAS utiliser le résultat pour le guard : getUser() peut timeout en Edge Runtime.
-  await supabase.auth.getSession();
+  // On utilise getUser() pour valider le JWT réellement — plus fiable que lire le cookie.
+  const { data: { user } } = await supabase.auth.getUser();
 
-  // ── Guard : lecture directe du cookie JWT — SANS appel réseau ──────────────
+  // ── Guard : vérification de la session ─────────────────────────────────────
   const { pathname } = request.nextUrl;
 
   const isProtected = PROTECTED_PREFIXES.some(prefix =>
     pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
 
-  if (isProtected && !hasValidToken(request)) {
+  if (isProtected && !user) {
     const loginUrl = new URL('/connexion', request.nextUrl.origin);
     loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
