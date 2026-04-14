@@ -4,6 +4,5 @@
   "outputDirectory": ".next",
   "installCommand": "npm install",
   "devCommand": "npm run dev",
-  "regions": ["cdg1"],
-  "toolbar": false
+  "regions": ["cdg1"]
 }
