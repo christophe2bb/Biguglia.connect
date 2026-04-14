@@ -261,23 +261,32 @@ export function useNewListingForm(): UseNewListingFormReturn {
       return;
     }
 
-    const modResult = await submitForModeration({
-      contentType:    'listing',
-      contentId:      listing.id,
-      contentTitle:   form.title.trim(),
-      contentExcerpt: form.description.trim(),
-      contentPhotos:  photoUrls,
-      validationData: {
-        title:       form.title.trim(),
-        description: form.description.trim(),
-        category:    form.category_id,
-        price:       form.listing_type === 'sale' ? form.price : '0',
-      },
-      sourceTable:  'listings',
-      authorColumn: 'user_id',
-    });
+    // Soumission à la file de modération (non-bloquante : l'annonce est déjà créée)
+    let modStatus: ModerationStatus = 'en_attente_validation';
+    try {
+      const modResult = await submitForModeration({
+        contentType:    'listing',
+        contentId:      listing.id,
+        contentTitle:   form.title.trim(),
+        contentExcerpt: form.description.trim(),
+        contentPhotos:  photoUrls,
+        validationData: {
+          title:       form.title.trim(),
+          description: form.description.trim(),
+          category:    form.category_id,
+          price:       form.listing_type === 'sale' ? form.price : '0',
+        },
+        sourceTable:  'listings',
+        authorColumn: 'user_id',
+      });
+      modStatus = modResult?.status || 'en_attente_validation';
+    } catch {
+      // file de modération indisponible — l'annonce reste visible en attente
+      console.warn('Moderation queue unavailable, listing created anyway');
+    }
 
-    setModerationStatus(modResult?.status || 'en_attente_validation');
+    toast.success('Annonce soumise — vérification sous 24h');
+    setModerationStatus(modStatus);
     setPublishedId(listing.id);
     setLoading(false);
   }, [profile, form, photos, submitForModeration, router]);
