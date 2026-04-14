@@ -41,7 +41,7 @@ export interface ModerationSubmitResult {
   success: boolean;
   status: ModerationStatus;
   queueId?: string;
-  validationResult: ValidationResult;
+  validationResult: ValidationResult | null;
   isDirectPublish: boolean;
   message: string;
 }
@@ -187,9 +187,17 @@ export function useModeration(): UseModerationReturn {
         message,
       };
     } catch (err) {
-      console.error('Moderation submit error:', err);
-      toast.error('Erreur lors de la soumission');
-      return null;
+      // La modération est non-bloquante : l'annonce est déjà créée.
+      // On logue l'erreur sans afficher de toast d'échec à l'utilisateur.
+      console.warn('Moderation queue error (non-blocking):', err);
+      return {
+        success: false,
+        status: 'en_attente_validation' as ModerationStatus,
+        queueId: undefined,
+        validationResult: null,
+        isDirectPublish: false,
+        message: '',
+      };
     } finally {
       setSubmitting(false);
     }
