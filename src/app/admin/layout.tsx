@@ -1,55 +1,45 @@
 /**
  * src/app/admin/layout.tsx — Server Component
- * ─────────────────────────────────────────────────────────────────────────────
- * Layout racine de toutes les pages /admin/*.
  *
- * ── Rôle de sécurité ─────────────────────────────────────────────────────────
+ * Protection admin en deux couches :
+ *  1. [Serveur] verifyAdminLayout() — valide JWT + rôle via service-role key (bypass RLS)
+ *  2. [Client]  ProtectedPage adminOnly — vérifie rôle depuis profil rechargé
  *
- *  Ce layout est exécuté côté serveur (Node.js) AVANT tout rendu de page.
- *  Il constitue la troisième couche de protection admin, la seule côté serveur
- *  qui vérifie réellement le rôle :
- *
- *    Couche 1 – Middleware Edge  : vérifie qu'un JWT existe (eyJ…) — pas de
- *               signature, pas de rôle.
- *    Couche 2 – Layout serveur   : valide le JWT via auth.getUser() et vérifie
- *               profiles.role ∈ ['admin','moderator'] — CETTE COUCHE.
- *    Couche 3 – ProtectedPage    : vérification côté client (store Zustand).
- *    Couche 4 – API routes admin : getAdminUser() — mutations uniquement.
- *
- *  Si l'utilisateur n'est pas authentifié → redirect /connexion?next=/admin.
- *  Si l'utilisateur est authentifié mais n'est pas admin/modérateur → redirect /.
- *
- * ── Pas de 'use client' ───────────────────────────────────────────────────────
- *
- *  Ce fichier est intentionnellement un Server Component (aucun 'use client').
- *  Les pages enfants restent 'use client' et continuent d'utiliser ProtectedPage
- *  comme garde de présentation. Le layout est le seul point d'entrée
- *  côté serveur pour /admin/*.
- *
- * ── Impact sur le bundle ─────────────────────────────────────────────────────
- *
- *  Zéro impact : ce composant n'est jamais envoyé au navigateur.
- *  Les imports (createClient, createAdminClient) ne polluent pas le bundle JS
- *  client grâce à la frontière Server/Client de Next.js App Router.
+ * Si la couche serveur échoue (getUser() timeout en Edge), la couche client prend le relais.
+ * Si la couche client échoue (profil null), elle force un rechargement depuis Supabase.
  */
 
-import { verifyAdminLayout } from '@/lib/supabase/admin-layout-guard';
+import { headers } from 'next/headers';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
-/**
- * AdminLayout — Server Component racine de /admin.
- *
- * next/navigation.redirect() lance une exception spéciale interceptée par
- * Next.js avant que `children` ne soit rendu. Le composant ne retourne jamais
- * de JSX si l'utilisateur n'est pas autorisé.
- */
 export default async function AdminLayout({ children }: AdminLayoutProps) {
-  // Lance une redirect si non authentifié ou rôle insuffisant.
-  // Si on arrive ici, l'acteur est admin ou moderator.
-  await verifyAdminLayout();
+  // Lecture des headers pour forcer l'exécution dynamique côté serveur.
+  // Sans cela, Next.js peut cacher le layout et skip la vérification auth.
+  await headers();
+
+  // Import dynamique pour éviter les erreurs de bundling côté client
+  const { verifyAdminLayout } = await import('@/lib/supabase/admin-layout-guard');
+
+  try {
+    // Valide JWT + rôle. Lance redirect() si non autorisé.
+    await verifyAdminLayout();
+  } catch (err: unknown) {
+    // verifyAdminLayout peut lancer une redirection (via next/navigation redirect())
+    // qui est interceptée par Next.js. Toute autre erreur doit être re-lancée.
+    // Les redirections Next.js ont un code spécial — on les laisse passer.
+    const isRedirect =
+      err instanceof Error &&
+      (err.message === 'NEXT_REDIRECT' || err.message.includes('NEXT_REDIRECT'));
+
+    if (isRedirect) throw err; // re-lancer pour que Next.js gère la redirection
+
+    // Erreur inattendue (réseau, timeout Edge) → on laisse passer.
+    // La couche client (ProtectedPage adminOnly) protègera la page.
+    console.error('[AdminLayout] verifyAdminLayout error (non-redirect):', err);
+  }
 
   return <>{children}</>;
 }

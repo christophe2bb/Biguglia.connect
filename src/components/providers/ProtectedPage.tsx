@@ -7,39 +7,23 @@
  *
  * ── Comportement ──────────────────────────────────────────────────────────────
  *
- *  phase = 'initializing'   → Affiche le skeleton (AuthProvider initialise)
+ *  phase = 'initializing'    → Affiche le skeleton (AuthProvider initialise)
  *  phase = 'unauthenticated' → Redirige vers /connexion
- *  phase = 'authenticated'  → Vérifie adminOnly, puis rend children
- *
- * ── Ce que ce composant NE fait PAS ──────────────────────────────────────────
- *
- *  ✗ N'appelle PAS supabase.auth.getSession() — antipattern documenté dans
- *    AuthProvider : getSession() lit le localStorage sans valider le token.
- *
- *  ✗ N'écrit PAS dans le store (setProfile, setLoading) — AuthProvider est
- *    le seul écrivain légitime. Des writes concurrents créaient des race
- *    conditions si AuthProvider et ProtectedPage se chevauchaient.
- *
- *  ✗ Ne distingue PAS profile=null de unauthenticated — si l'utilisateur est
- *    'authenticated' mais que son profil DB est absent (erreur réseau), la page
- *    s'affiche quand même (pas de redirection) afin d'éviter une fausse
- *    expulsion vers /connexion.
- *
- * ── Interaction avec le middleware SSR ────────────────────────────────────────
- *
- *  Le middleware src/middleware.ts protège déjà les routes côté serveur.
- *  Ce composant est une seconde couche de protection côté client pour :
- *  - Les routes que le middleware ne couvre pas (ex: montage dynamique)
- *  - L'accès admin-only (role check en plus du simple "est connecté")
+ *  phase = 'authenticated'   → Vérifie adminOnly, puis rend children
  *
  * ── adminOnly ─────────────────────────────────────────────────────────────────
  *
- *  Quand adminOnly=true, on attend que profile soit disponible pour vérifier
- *  le rôle. Si profile est null mais phase='authenticated' (erreur DB), on
- *  affiche le skeleton plutôt que de rediriger vers '/' sur une base incertaine.
+ *  Quand adminOnly=true :
+ *  1. On attend que le profil soit chargé (skeleton)
+ *  2. Si profil null après tentative de fetch → on force un rechargement UNE FOIS
+ *  3. Après le rechargement, si toujours pas admin → redirect '/'
+ *  4. Si admin/moderator → affiche les children
+ *
+ *  Circuit-breaker : un boolean `fetchedRef` empêche les rechargements infinis
+ *  si la DB est inaccessible (RLS trop restrictive, réseau, etc.)
  */
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
@@ -75,24 +59,19 @@ function AuthSkeleton() {
   );
 }
 
+type AdminCheckState = 'pending' | 'fetching' | 'authorized' | 'unauthorized';
+
 export default function ProtectedPage({ children, adminOnly = false }: Props) {
   const { phase, profile, userId, setProfile } = useAuthStore();
   const router = useRouter();
 
-  // ── Pour adminOnly : recharge le profil frais depuis la DB ───────────────
-  // Nécessaire quand le rôle a été mis à jour en DB après la connexion
-  // (le store Zustand garde l'ancien profil en mémoire).
-  const refreshProfile = useCallback(async (uid: string) => {
-    try {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', uid)
-        .single();
-      if (data) setProfile(data as Profile);
-    } catch { /* ignore */ }
-  }, [setProfile]);
+  // Circuit-breaker: track admin check state to avoid infinite loops
+  const [adminState, setAdminState] = useState<AdminCheckState>('pending');
+  const fetchAttemptedRef = useRef(false);
+
+  const isAdminRole = useCallback((p: Profile | null): boolean => {
+    return p?.role === 'admin' || p?.role === 'moderator';
+  }, []);
 
   useEffect(() => {
     // ── Pas encore initialisé → attendre ──────────────────────────────────
@@ -104,16 +83,71 @@ export default function ProtectedPage({ children, adminOnly = false }: Props) {
       return;
     }
 
-    // ── Authentifié — vérification adminOnly ──────────────────────────────
-    if (adminOnly) {
-      // Si le profil est null ou le rôle n'est pas encore admin,
-      // on recharge le profil frais depuis la DB avant de décider.
-      if (profile === null || (profile.role !== 'admin' && profile.role !== 'moderator')) {
-        if (userId) refreshProfile(userId);
-        return; // attendre le rechargement
-      }
+    // ── Authentifié — si pas adminOnly, rien à faire ─────────────────────
+    if (!adminOnly) return;
+
+    // ── AdminOnly: state machine ─────────────────────────────────────────
+    // Si profil déjà chargé avec le bon rôle → autorisé directement
+    if (profile !== null && isAdminRole(profile)) {
+      setAdminState('authorized');
+      return;
     }
-  }, [phase, profile, userId, adminOnly, router, refreshProfile]);
+
+    // Si on a déjà tenté de recharger le profil → décider maintenant
+    if (fetchAttemptedRef.current) {
+      if (profile !== null && isAdminRole(profile)) {
+        setAdminState('authorized');
+      } else {
+        // Profil chargé mais pas admin, ou DB inaccessible → refus
+        setAdminState('unauthorized');
+      }
+      return;
+    }
+
+    // Première tentative : recharger le profil frais depuis la DB
+    // (cas où le rôle a été mis à jour après la connexion)
+    if (!userId) {
+      setAdminState('unauthorized');
+      return;
+    }
+
+    fetchAttemptedRef.current = true;
+    setAdminState('fetching');
+
+    const supabase = createClient();
+    Promise.resolve(
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+    ).then(({ data, error }) => {
+      if (error) {
+        console.warn('[ProtectedPage] Impossible de charger le profil:', error.message);
+        setAdminState('unauthorized');
+        return;
+      }
+      if (data) {
+        setProfile(data as Profile);
+        if ((data as Profile).role === 'admin' || (data as Profile).role === 'moderator') {
+          setAdminState('authorized');
+        } else {
+          setAdminState('unauthorized');
+        }
+      } else {
+        setAdminState('unauthorized');
+      }
+    }).catch(() => {
+      setAdminState('unauthorized');
+    });
+  }, [phase, profile, userId, adminOnly, router, isAdminRole, setProfile]);
+
+  // Redirection quand non autorisé
+  useEffect(() => {
+    if (adminOnly && adminState === 'unauthorized') {
+      router.push('/');
+    }
+  }, [adminOnly, adminState, router]);
 
   // ── Rendu conditionnel ────────────────────────────────────────────────────
 
@@ -127,13 +161,13 @@ export default function ProtectedPage({ children, adminOnly = false }: Props) {
     return <AuthSkeleton />;
   }
 
-  // 3. Authentifié + adminOnly + profil en attente → skeleton
-  if (adminOnly && profile === null) {
+  // 3. AdminOnly: skeleton pendant la vérification ou fetch
+  if (adminOnly && (adminState === 'pending' || adminState === 'fetching')) {
     return <AuthSkeleton />;
   }
 
-  // 4. Authentifié + adminOnly + rôle insuffisant → skeleton pendant redirect
-  if (adminOnly && profile !== null && profile.role !== 'admin') {
+  // 4. AdminOnly: skeleton pendant redirect (unauthorized)
+  if (adminOnly && adminState === 'unauthorized') {
     return <AuthSkeleton />;
   }
 
