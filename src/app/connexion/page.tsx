@@ -1,10 +1,11 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Mail, Lock, CheckCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { useAuthStore } from '@/lib/auth-store';
 import toast from 'react-hot-toast';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -16,13 +17,23 @@ function ConnexionForm() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   // Lire le paramètre de redirection post-login.
   // Le middleware envoie ?next= ; certains liens directs utilisent encore ?redirect=.
-  // On accepte les deux et on filtre les URL externes (sécurité open-redirect).
   const rawNext = searchParams.get('next') || searchParams.get('redirect') || '/dashboard';
   // Refuser toute URL qui ne commence pas par '/' (évite les redirections vers des sites externes)
-  const redirect = rawNext.startsWith('/') ? rawNext : '/dashboard';
+  const redirectTo = rawNext.startsWith('/') ? rawNext : '/dashboard';
+
+  // ── Si l'utilisateur est déjà connecté → rediriger immédiatement ─────────
+  const { phase, profile } = useAuthStore();
+
+  useEffect(() => {
+    if (phase === 'authenticated') {
+      // Déjà connecté → aller directement à la destination ou dashboard
+      router.replace(redirectTo);
+    }
+  }, [phase, router, redirectTo]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +65,7 @@ function ConnexionForm() {
 
       // Redirection après un court délai pour laisser les cookies s'établir
       setTimeout(() => {
-        window.location.replace(redirect);
+        window.location.replace(redirectTo);
       }, 500);
 
     } catch (err) {
@@ -63,6 +74,18 @@ function ConnexionForm() {
       setLoading(false);
     }
   };
+
+  // Pendant l'initialisation ou si déjà connecté → ne rien afficher (redirection en cours)
+  if (phase === 'initializing' || phase === 'authenticated') {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
+        <div className="w-10 h-10 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-gray-500 text-sm">
+          {phase === 'authenticated' ? 'Déjà connecté, redirection...' : 'Vérification en cours...'}
+        </p>
+      </div>
+    );
+  }
 
   if (success) {
     return (
@@ -76,6 +99,9 @@ function ConnexionForm() {
       </div>
     );
   }
+
+  // Forcer TypeScript à reconnaître que profile est utilisé (évite warning inutilisé)
+  void profile;
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
