@@ -133,18 +133,26 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Rafraîchir la session si nécessaire (écrit les nouveaux cookies dans la réponse).
-  // On utilise getUser() pour valider le JWT réellement — plus fiable que lire le cookie.
-  const { data: { user } } = await supabase.auth.getUser();
+  // Rafraîchir la session (renouvelle le cookie si besoin).
+  // La validation du JWT + rôle est gérée par :
+  //   - /admin/** → src/app/admin/layout.tsx (Server Component, vérification réelle)
+  //   - /dashboard/** → ProtectedPage (client guard)
+  // Le middleware se contente de maintenir la session active.
+  await supabase.auth.getSession();
 
-  // ── Guard : vérification de la session ─────────────────────────────────────
+  // ── Guard léger : on vérifie le cookie directement (sans appel réseau) ──────
   const { pathname } = request.nextUrl;
 
   const isProtected = PROTECTED_PREFIXES.some(prefix =>
     pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
 
-  if (isProtected && !user) {
+  // Pour /admin : pas de redirection ici — laisser le layout serveur décider.
+  // Il a accès aux cookies SSR et valide le JWT + rôle correctement.
+  // Si on redirige ici sur un faux-négatif, l'utilisateur ne peut jamais entrer.
+  const isAdminRoute = pathname === '/admin' || pathname.startsWith('/admin/');
+
+  if (isProtected && !isAdminRoute && !hasValidToken(request)) {
     const loginUrl = new URL('/connexion', request.nextUrl.origin);
     loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
