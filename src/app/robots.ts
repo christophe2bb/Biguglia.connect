@@ -11,8 +11,9 @@
  */
 
 import type { MetadataRoute } from 'next';
+import { getSiteUrl } from '@/lib/seo/site-url';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
+const SITE_URL = getSiteUrl();
 
 export default function robots(): MetadataRoute.Robots {
   return {
