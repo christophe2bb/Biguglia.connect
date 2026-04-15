@@ -8,7 +8,6 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import {
@@ -50,8 +49,7 @@ type QueueItem = ApiQueueItem & {
 };
 
 function ModerationQueueContent() {
-  const { profile, isModerator } = useAuthStore();
-  const router = useRouter();
+  const { profile } = useAuthStore();
 
   const [items, setItems]           = useState<QueueItem[]>([]);
   const [kpi, setKpi]               = useState<ModerationKPI | null>(null);
@@ -66,11 +64,8 @@ function ModerationQueueContent() {
   const [searchQuery, setSearchQuery]       = useState('');
   const [sortBy, setSortBy]                 = useState<'submitted_at' | 'risk_score'>('submitted_at');
 
-  useEffect(() => {
-    if (profile && !isModerator()) {
-      router.push('/admin');
-    }
-  }, [profile, isModerator, router]);
+  // Guard supprimé : ProtectedPage adminOnly gère la vérification du rôle
+  // sans polluer l'historique du navigateur.
 
   const fetchQueue = useCallback(async () => {
     setLoading(true);

@@ -7,7 +7,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { adminFetch } from '@/lib/admin-fetch';
 import { createClient } from '@/lib/supabase/client';
@@ -51,8 +51,7 @@ export interface UseModerationDetailReturn {
 }
 
 export function useModerationDetail(): UseModerationDetailReturn {
-  const { profile, isModerator } = useAuthStore();
-  const router   = useRouter();
+  const { profile } = useAuthStore();
   const params   = useParams();
   const queueId  = params.id as string;
   const supabase = useMemo(() => createClient(), []);
@@ -72,10 +71,8 @@ export function useModerationDetail(): UseModerationDetailReturn {
   const moderatorNoteRef = useRef(moderatorNote);
   moderatorNoteRef.current = moderatorNote;
 
-  /* ── Guard: redirect non-moderators ──────────────────────────────────── */
-  useEffect(() => {
-    if (profile && !isModerator()) router.push('/admin');
-  }, [profile, isModerator, router]);
+  // Guard supprimé : ProtectedPage adminOnly gère la vérification du rôle
+  // sans polluer l'historique du navigateur.
 
   /* ── Fetch queue item + history + author stats ───────────────────────── */
   const fetchData = useCallback(async () => {

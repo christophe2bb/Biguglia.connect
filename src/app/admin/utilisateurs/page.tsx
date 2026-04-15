@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import {
@@ -30,8 +29,7 @@ const ROLE_OPTIONS = [
 ];
 
 export default function AdminUtilisateursPage() {
-  const { profile, isAdmin } = useAuthStore();
-  const router = useRouter();
+  useAuthStore();
   const [users, setUsers] = useState<UserWithActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -80,9 +78,8 @@ export default function AdminUtilisateursPage() {
   }, []);
 
   useEffect(() => {
-    if (!profile || !isAdmin()) { router.push('/'); return; }
     fetchUsers();
-  }, [profile, isAdmin, router, fetchUsers]);
+  }, [fetchUsers]);
 
   const suspendUser = async (userId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
@@ -166,8 +163,6 @@ export default function AdminUtilisateursPage() {
 
   const suspended = users.filter(u => u.status === 'suspended').length;
   const artisansPending = users.filter(u => u.role === 'artisan_pending').length;
-
-  if (!profile || !isAdmin()) return null;
 
   return (
     <ProtectedPage adminOnly>

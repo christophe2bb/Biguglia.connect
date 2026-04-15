@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { adminFetch } from '@/lib/admin-fetch';
 import type { AdminAllStats } from '@/app/api/admin/stats/route';
@@ -22,19 +21,19 @@ export type { AdminAllStats as AllStats };
  *   /api/admin/stats qui vérifie le rôle admin/modérateur côté serveur avant
  *   toute lecture (createAdminClient — service role, bypass RLS).
  *   Les données sensibles ne transitent plus directement depuis le client.
+ *
+ * NOTE : Les redirections router.push() ont été supprimées — elles s'exécutaient
+ * avant que le store Zustand soit hydraté, polluant l'historique du navigateur.
+ * La protection est assurée par ProtectedPage adminOnly dans la page parente.
  */
 export function useAdminStats() {
-  const { profile, isAdmin } = useAuthStore();
-  const router = useRouter();
+  useAuthStore(); // keep store subscribed
 
   const [stats,       setStats]       = useState<AdminAllStats | null>(null);
   const [loading,     setLoading]     = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   const fetchAllStats = useCallback(async () => {
-    if (!profile)   { router.push('/connexion'); return; }
-    if (!isAdmin())  { router.push('/');          return; }
-
     setLoading(true);
     try {
       const res = await adminFetch('/api/admin/stats');
@@ -51,7 +50,7 @@ export function useAdminStats() {
     } finally {
       setLoading(false);
     }
-  }, [profile, isAdmin, router]);
+  }, []);
 
   return { stats, loading, lastRefresh, fetchAllStats };
 }

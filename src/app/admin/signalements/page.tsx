@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Flag, CheckCircle, XCircle, Eye, AlertTriangle,
   RefreshCw, Users, FileText, ShoppingBag, MessageSquare,
@@ -61,8 +60,7 @@ function StatCard({ label, value, color, emoji }: { label: string; value: number
 
 // ─── Page principale ───────────────────────────────────────────────────────────
 export default function AdminSignalementsPage() {
-  const { profile, isModerator } = useAuthStore();
-  const router = useRouter();
+  useAuthStore();
 
   const [reports, setReports]           = useState<EnrichedReport[]>([]);
   const [loading, setLoading]           = useState(true);
@@ -107,9 +105,8 @@ export default function AdminSignalementsPage() {
   }, [filterStatus, filterType]);
 
   useEffect(() => {
-    if (!profile || !isModerator()) { router.push('/'); return; }
     fetchReports();
-  }, [profile, isModerator, router, fetchReports]);
+  }, [fetchReports]);
 
   // ─── Action : changer statut ──────────────────────────────────────────────
   const updateReport = async (reportId: string, status: 'resolved' | 'dismissed' | 'reviewed') => {
