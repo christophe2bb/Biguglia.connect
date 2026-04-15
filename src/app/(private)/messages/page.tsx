@@ -206,12 +206,14 @@ export default function MessagesPage() {
             <button
               key={type}
               onClick={() => { setActiveTab(type); setTypeFilter(null); }}
+              aria-label={`Filtrer par type\u00a0: ${cfg.label}`}
+              aria-pressed={isActive}
               className={cn(
                 'flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0',
                 isActive ? `bg-white shadow-sm ${cfg.color}` : 'text-gray-500 hover:text-gray-700'
               )}
             >
-              <Icon className="w-3.5 h-3.5" />
+              <Icon className="w-3.5 h-3.5" aria-hidden="true" />
               <span className="hidden sm:inline">{cfg.label}</span>
               {count > 0 && (
                 <span className={cn(
