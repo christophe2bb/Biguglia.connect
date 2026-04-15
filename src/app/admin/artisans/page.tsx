@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import {
@@ -42,8 +41,7 @@ const ArtisanCard = dynamic(() => import('./_components/ArtisanCard'), {
 });
 
 export default function AdminArtisansPage() {
-  const { profile, isAdmin } = useAuthStore();
-  const router = useRouter();
+  useAuthStore(); // keep store subscribed for re-renders
   const [artisans, setArtisans] = useState<ArtisanEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -60,7 +58,9 @@ export default function AdminArtisansPage() {
         setLoadError(err.error ?? `Erreur ${res.status}`);
         return;
       }
-      const data: AdminArtisanEntry[] = await res.json();
+      const json = await res.json();
+      // L'API retourne { artisans: [...] } — on extrait le tableau
+      const data: AdminArtisanEntry[] = Array.isArray(json) ? json : (json.artisans ?? []);
       const list: ArtisanEntry[] = data.map(a => ({
         id:               a.id,
         user_id:          a.user_id,
@@ -89,10 +89,11 @@ export default function AdminArtisansPage() {
   }, [filter]);
 
   useEffect(() => {
-    if (!profile) { router.push('/connexion'); return; }
-    if (!isAdmin()) { router.push('/'); return; }
+    // La protection admin est assurée par ProtectedPage (adminOnly).
+    // On ne redirige pas manuellement ici pour éviter de polluer l'historique
+    // du navigateur avant que le profil soit chargé (race condition).
     fetchArtisans();
-  }, [profile, isAdmin, router, filter, fetchArtisans]);
+  }, [filter, fetchArtisans]);
 
   const approveArtisan = async (artisanUserId: string) => {
     const res = await adminFetch(`/api/admin/artisans/${artisanUserId}`, {
@@ -133,8 +134,6 @@ export default function AdminArtisansPage() {
   );
 
   const pendingCount = artisans.filter(a => a.profile?.role === 'artisan_pending').length;
-
-  if (!profile || !isAdmin()) return null;
 
   return (
     <ProtectedPage adminOnly>
