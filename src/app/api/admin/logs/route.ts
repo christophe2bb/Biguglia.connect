@@ -118,7 +118,7 @@ export async function GET(req: Request): Promise<Response> {
   // pour afficher un nom lisible dans l'interface.
   const actorIdSet = new Set((logs ?? []).map((l) => l.actor_id as string));
   const actorIds = Array.from(actorIdSet);
-  let profileMap: Record<string, { email: string; display_name: string | null }> = {};
+  const profileMap: Record<string, { email: string; display_name: string | null }> = {};
 
   if (actorIds.length > 0) {
     const { data: profiles } = await adminClient
