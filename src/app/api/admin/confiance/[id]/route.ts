@@ -26,6 +26,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAdminUser } from '@/lib/supabase/admin-guard';
 import { assertCsrfSafe } from '@/lib/supabase/auth-helper';
+import { logAdminAction } from '@/lib/admin/action-logger';
 
 // ─── Schéma Zod ──────────────────────────────────────────────────────────────
 
@@ -92,6 +93,15 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    await logAdminAction({
+      adminClient,
+      actor,
+      action:      'review_moderate',
+      targetTable: 'reviews',
+      targetId:    targetId,
+      meta:        { new_status: body.moderation_status },
+    });
+
     return NextResponse.json({ success: true, action: 'moderate_review', moderation_status: body.moderation_status });
   }
 
@@ -119,6 +129,15 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    await logAdminAction({
+      adminClient,
+      actor,
+      action:      'badge_award',
+      targetTable: 'profile_badges',
+      targetId:    targetId,
+      meta:        { badge_code: body.badge_code },
+    });
 
     return NextResponse.json({ success: true, action: 'award_badge', badge_code: body.badge_code });
   }

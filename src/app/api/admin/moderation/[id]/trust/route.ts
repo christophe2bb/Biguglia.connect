@@ -24,6 +24,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAdminUser } from '@/lib/supabase/admin-guard';
 import { assertCsrfSafe } from '@/lib/supabase/auth-helper';
+import { logAdminAction } from '@/lib/admin/action-logger';
 
 // ─── Schéma Zod ──────────────────────────────────────────────────────────────
 
@@ -96,6 +97,17 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     .update({ author_trust: trust_level })
     .eq('id', queueId);
   // Erreur non-fatale : la mise à jour principale du profil est déjà faite
+
+  // ── Traçabilité ───────────────────────────────────────────────────────────
+  const { actor } = guard;
+  await logAdminAction({
+    adminClient,
+    actor,
+    action:      'moderation_trust_update',
+    targetTable: 'profiles',
+    targetId:    authorId,
+    meta: { trust_level, queue_id: queueId },
+  });
 
   return NextResponse.json({ success: true, trust_level, author_id: authorId });
 }

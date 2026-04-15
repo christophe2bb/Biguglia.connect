@@ -15,6 +15,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAdminUser } from '@/lib/supabase/admin-guard';
 import { assertCsrfSafe } from '@/lib/supabase/auth-helper';
+import { logAdminAction } from '@/lib/admin/action-logger';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -45,7 +46,7 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
   const guard = await getAdminUser(req);
   if (!guard.ok) return guard.response;
 
-  const { adminClient } = guard;
+  const { actor, adminClient } = guard;
   const artisanUserId = params.id;
 
   // Parse + validate body
@@ -84,6 +85,15 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
       link:    '/dashboard/artisan',
     });
 
+    await logAdminAction({
+      adminClient,
+      actor,
+      action:      'artisan_approve',
+      targetTable: 'profiles',
+      targetId:    artisanUserId,
+      meta:        { new_role: 'artisan_verified' },
+    });
+
     return NextResponse.json({ success: true, action: 'approved' });
   }
 
@@ -106,6 +116,16 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
     title:   '❌ Profil artisan non validé',
     message: body.reason,
     link:    '/inscription/artisan-profil',
+  });
+
+  await logAdminAction({
+    adminClient,
+    actor,
+    action:      'artisan_reject',
+    targetTable: 'profiles',
+    targetId:    artisanUserId,
+    reason:      body.reason,
+    meta:        { new_role: 'resident' },
   });
 
   return NextResponse.json({ success: true, action: 'rejected' });

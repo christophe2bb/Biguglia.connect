@@ -15,6 +15,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAdminUser } from '@/lib/supabase/admin-guard';
 import { assertCsrfSafe } from '@/lib/supabase/auth-helper';
+import { logAdminAction } from '@/lib/admin/action-logger';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -108,6 +109,15 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
       message,
     });
 
+    await logAdminAction({
+      adminClient,
+      actor,
+      action:      'user_status_set',
+      targetTable: 'profiles',
+      targetId,
+      meta: { new_status: body.status },
+    });
+
     return NextResponse.json({ success: true, status: body.status });
   }
 
@@ -133,6 +143,15 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
       type:    'account_update',
       title:   '📋 Rôle modifié',
       message: `Votre rôle sur Biguglia Connect a été modifié par l'administrateur : ${body.role}`,
+    });
+
+    await logAdminAction({
+      adminClient,
+      actor,
+      action:      'user_role_set',
+      targetTable: 'profiles',
+      targetId,
+      meta: { new_role: body.role },
     });
 
     return NextResponse.json({ success: true, role: body.role });
@@ -177,6 +196,15 @@ export async function DELETE(req: Request, { params }: RouteParams): Promise<Res
     .eq('id', targetId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logAdminAction({
+    adminClient,
+    actor,
+    action:      'user_delete',
+    targetTable: 'profiles',
+    targetId,
+    meta: { deleted_by_role: actor.role },
+  });
 
   return NextResponse.json({ success: true });
 }

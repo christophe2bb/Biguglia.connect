@@ -39,4 +39,5 @@ export const TABLES_TO_CHECK: TableCheck[] = [
   { name: 'help_comments',          label: 'Commentaires coups de main',  theme: '🤝 Coups de main' },
   { name: 'moderation_queue',       label: 'File de modération',          theme: '🛡️ Modération' },
   { name: 'item_ratings',           label: 'Notes & Avis (universel)',     theme: '⭐ Notation' },
+  { name: 'admin_action_logs',      label: 'Journal des actions admin',   theme: '📋 Traçabilité' },
 ];

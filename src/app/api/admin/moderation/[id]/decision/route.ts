@@ -27,6 +27,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAdminUser } from '@/lib/supabase/admin-guard';
 import { assertCsrfSafe } from '@/lib/supabase/auth-helper';
+import { logAdminAction } from '@/lib/admin/action-logger';
 
 // ─── Mapping content_type → table source ─────────────────────────────────────
 // Miroir du TABLE_MAP côté client — centralisé ici pour la validation serveur
@@ -151,6 +152,24 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
       .eq('id', String(queueItem.content_id));
     // Erreur non-fatale : la décision principale est déjà enregistrée
   }
+
+  // ── Traçabilité ───────────────────────────────────────────────────────────
+  await logAdminAction({
+    adminClient,
+    actor,
+    action:      'moderation_decision',
+    targetTable: 'moderation_queue',
+    targetId:    queueId,
+    reason:      'reason' in body ? body.reason : undefined,
+    meta: {
+      decision:     body.decision,
+      new_status:   newStatus,
+      content_type: queueItem.content_type,
+      content_id:   queueItem.content_id,
+      source_table: sourceTable ?? null,
+      moderator_note: body.moderator_note ?? null,
+    },
+  });
 
   return NextResponse.json({ success: true, newStatus, decision: body.decision });
 }
