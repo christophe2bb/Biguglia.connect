@@ -522,6 +522,6 @@ function MesAvisContent() {
   );
 }
 
-export default function MesAvisPage() {
+export default function AvisClient() {
   return <ProtectedPage><MesAvisContent /></ProtectedPage>;
 }

@@ -125,7 +125,7 @@ function PriorityDot({ priority }: { priority: 'high' | 'medium' | 'low' }) {
 
 const RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000];
 
-export default function NotificationsPage() {
+export default function NotificationsClient() {
   const { profile } = useAuthStore();
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);

@@ -25,15 +25,18 @@
  */
 
 import type { Metadata } from 'next';
+import AuthProvider from '@/components/providers/AuthProvider';
+import { Toaster } from 'react-hot-toast';
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-interface AdminLayoutProps {
-  children: React.ReactNode;
-}
-
-export default function AdminLayout({ children }: AdminLayoutProps) {
-  return <>{children}</>;
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <AuthProvider>
+      {children}
+      <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+    </AuthProvider>
+  );
 }

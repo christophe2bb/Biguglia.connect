@@ -16,7 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
-import type { ConversationApiResponse } from '@/app/messages/[id]/_types';
+import type { ConversationApiResponse } from '@/app/(private)/messages/[id]/_types';
 import {
   zodError,
   parseJsonBody,

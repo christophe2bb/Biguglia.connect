@@ -45,7 +45,7 @@ const MAX_FILE_MB = 8;
 const SECTION_IDS = ['mode', 'infos', 'details', 'transaction', 'localisation', 'photos', 'statut'] as const;
 type SectionId = typeof SECTION_IDS[number];
 
-export default function ModifierAnnoncePage() {
+export default function ModifierClient() {
   const params = useParams();
   const router = useRouter();
   const supabase = createClient();
