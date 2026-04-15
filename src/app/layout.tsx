@@ -4,9 +4,10 @@ import AuthProvider from '@/components/providers/AuthProvider';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { Toaster } from 'react-hot-toast';
+import { getSiteUrl } from '@/lib/seo/site-url';
 
 // ─── URL canonique du site ────────────────────────────────────────────────────
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
+const SITE_URL = getSiteUrl();
 const SITE_NAME = 'Biguglia Connect';
 const DEFAULT_TITLE = 'Biguglia Connect — Artisans & Services Locaux à Biguglia';
 const DEFAULT_DESC =

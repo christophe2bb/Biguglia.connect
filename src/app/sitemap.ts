@@ -40,8 +40,9 @@
 import type { MetadataRoute } from 'next';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { ALL_TRADE_SLUGS } from '@/lib/seo/local-data';
+import { getSiteUrl } from '@/lib/seo/site-url';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
+const SITE_URL = getSiteUrl();
 
 /** Client public anon — pas de session, pas de cookies. Idéal pour un sitemap. */
 function getPublicClient() {
