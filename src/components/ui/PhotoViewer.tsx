@@ -9,7 +9,7 @@
  *  - <PhotoUploaderField> : Zone d'upload avec photo principale + photos secondaires réordonnables
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useId } from 'react';
 import Image from 'next/image';
 import {
   X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut,
@@ -40,6 +40,10 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
   const [drag, setDrag]   = useState<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
   const touchStartX       = useRef<number | null>(null);
   const imgRef            = useRef<HTMLDivElement>(null);
+  // Accessibility: unique id for aria-label region; refs for focus management
+  const dialogLabelId     = useId();
+  const closeButtonRef    = useRef<HTMLButtonElement>(null);
+  const triggerRef        = useRef<Element | null>(null);
 
   const total = photos.length;
   const photo = photos[idx];
@@ -47,13 +51,26 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
   // Reset zoom/pos when changing photo
   useEffect(() => { setZoom(1); setPos({ x: 0, y: 0 }); }, [idx]);
 
+  // Focus management: save trigger element, focus close button on mount, restore on unmount
+  useEffect(() => {
+    triggerRef.current = document.activeElement;
+    // rAF ensures the DOM is painted before we steal focus
+    const frame = requestAnimationFrame(() => { closeButtonRef.current?.focus(); });
+    return () => {
+      cancelAnimationFrame(frame);
+      if (triggerRef.current instanceof HTMLElement) triggerRef.current.focus();
+      triggerRef.current = null;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once on mount/unmount
+
   const prev = useCallback(() => { setIdx(i => (i - 1 + total) % total); }, [total]);
   const next = useCallback(() => { setIdx(i => (i + 1) % total); }, [total]);
 
-  // Keyboard navigation
+  // Keyboard navigation (Escape + arrows + zoom shortcuts)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
       if (e.key === 'ArrowLeft') prev();
       if (e.key === 'ArrowRight') next();
       if (e.key === '+' || e.key === '=') setZoom(z => Math.min(z + 0.5, 4));
@@ -87,6 +104,10 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title ? `Visionneuse — ${title}` : 'Visionneuse de photos'}
+      aria-labelledby={dialogLabelId}
       className="fixed inset-0 z-[9999] bg-black/95 flex flex-col"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
@@ -97,7 +118,8 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
         <div className="flex items-center gap-3">
-          {title && <p className="text-white font-semibold text-sm truncate max-w-xs">{title}</p>}
+          {/* id used by aria-labelledby on the dialog container */}
+          {title && <p id={dialogLabelId} className="text-white font-semibold text-sm truncate max-w-xs">{title}</p>}
           {photo.isPrimary || idx === 0 ? (
             <span className="flex items-center gap-1 text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full">
               <Crown className="w-3 h-3" /> Photo principale
@@ -125,9 +147,13 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
             </button>
           )}
           {/* Fermer */}
-          <button onClick={onClose}
-            className="p-2 rounded-full bg-white/10 text-white hover:bg-red-500/60 transition-colors">
-            <X className="w-5 h-5" />
+          <button
+            ref={closeButtonRef}
+            onClick={onClose}
+            aria-label="Fermer la visionneuse"
+            className="p-2 rounded-full bg-white/10 text-white hover:bg-red-500/60 transition-colors"
+          >
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -136,9 +162,12 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
       <div className="flex-1 flex items-center justify-center relative overflow-hidden min-h-0">
         {/* Flèche gauche */}
         {total > 1 && (
-          <button onClick={prev}
-            className="absolute left-3 z-10 p-3 rounded-full bg-black/50 text-white hover:bg-black/80 transition-all hover:scale-110 active:scale-95">
-            <ChevronLeft className="w-6 h-6" />
+          <button
+            onClick={prev}
+            aria-label="Photo précédente"
+            className="absolute left-3 z-10 p-3 rounded-full bg-black/50 text-white hover:bg-black/80 transition-all hover:scale-110 active:scale-95"
+          >
+            <ChevronLeft className="w-6 h-6" aria-hidden="true" />
           </button>
         )}
 
@@ -173,9 +202,12 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
 
         {/* Flèche droite */}
         {total > 1 && (
-          <button onClick={next}
-            className="absolute right-3 z-10 p-3 rounded-full bg-black/50 text-white hover:bg-black/80 transition-all hover:scale-110 active:scale-95">
-            <ChevronRight className="w-6 h-6" />
+          <button
+            onClick={next}
+            aria-label="Photo suivante"
+            className="absolute right-3 z-10 p-3 rounded-full bg-black/50 text-white hover:bg-black/80 transition-all hover:scale-110 active:scale-95"
+          >
+            <ChevronRight className="w-6 h-6" aria-hidden="true" />
           </button>
         )}
       </div>
