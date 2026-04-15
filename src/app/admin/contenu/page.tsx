@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft, Flag } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
@@ -16,18 +15,13 @@ import ReviewsTab   from './_components/ReviewsTab';
 import type { TabId } from './_types';
 
 export default function AdminContenuPage() {
-  const { profile, isAdmin } = useAuthStore();
-  const router = useRouter();
+  const { profile } = useAuthStore();
   const [activeTab, setActiveTab] = useState<TabId>('listings');
 
-  const ready = !!profile && isAdmin();
-  const counts = useAdminCounts(ready);
+  const counts = useAdminCounts(!!profile);
 
-  useEffect(() => {
-    if (profile && !isAdmin()) router.push('/');
-  }, [profile, isAdmin, router]);
-
-  if (!ready) return null;
+  // Guard supprimé : ProtectedPage adminOnly gère la vérification du rôle
+  // sans polluer l'historique du navigateur.
 
   return (
     <ProtectedPage adminOnly>
