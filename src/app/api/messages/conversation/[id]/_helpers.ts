@@ -22,7 +22,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   ConversationParticipantApi,
   MyParticipationApi,
-} from '@/app/messages/[id]/_types';
+} from '@/app/(private)/messages/[id]/_types';
 
 // ─── Types internes ───────────────────────────────────────────────────────────
 
