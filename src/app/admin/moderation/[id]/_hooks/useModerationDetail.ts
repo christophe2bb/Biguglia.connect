@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
+import { adminFetch } from '@/lib/admin-fetch';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import { TRUST_LEVEL_CONFIG } from '@/lib/moderation';
@@ -151,7 +152,7 @@ export function useModerationDetail(): UseModerationDetailReturn {
       body.reason = selectedReason;
     }
 
-    const res = await fetch(`/api/admin/moderation/${queueId}/decision`, {
+    const res = await adminFetch(`/api/admin/moderation/${queueId}/decision`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -180,7 +181,7 @@ export function useModerationDetail(): UseModerationDetailReturn {
   const handleTrustChange = async (newTrust: TrustLevel) => {
     if (!item) return;
 
-    const res = await fetch(`/api/admin/moderation/${queueId}/trust`, {
+    const res = await adminFetch(`/api/admin/moderation/${queueId}/trust`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ trust_level: newTrust }),

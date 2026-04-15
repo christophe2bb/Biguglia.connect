@@ -21,6 +21,7 @@ import Select from '@/components/ui/Select';
 import { ROLE_LABELS, formatRelative } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import ProtectedPage from '@/components/providers/ProtectedPage';
+import { adminFetch } from '@/lib/admin-fetch';
 
 interface ArtisanEntry {
   id: string;
@@ -440,7 +441,7 @@ export default function AdminArtisansPage() {
     setLoadError(null);
     try {
       // Lecture via GET /api/admin/artisans (server-side, service-role, auth vérifiée)
-      const res = await fetch(`/api/admin/artisans?filter=${filter}`);
+      const res = await adminFetch(`/api/admin/artisans?filter=${filter}`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         setLoadError(err.error ?? `Erreur ${res.status}`);
@@ -482,7 +483,7 @@ export default function AdminArtisansPage() {
   }, [profile, isAdmin, router, filter, fetchArtisans]);
 
   const approveArtisan = async (artisanUserId: string) => {
-    const res = await fetch(`/api/admin/artisans/${artisanUserId}`, {
+    const res = await adminFetch(`/api/admin/artisans/${artisanUserId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'approve' }),
@@ -497,7 +498,7 @@ export default function AdminArtisansPage() {
   };
 
   const rejectArtisan = async (artisanUserId: string, reason: string) => {
-    const res = await fetch(`/api/admin/artisans/${artisanUserId}`, {
+    const res = await adminFetch(`/api/admin/artisans/${artisanUserId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'reject', reason }),

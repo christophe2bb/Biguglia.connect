@@ -91,7 +91,7 @@ export default function AdminConfiancePage() {
    */
   const moderateReview = async (reviewId: string, action: 'visible' | 'hidden' | 'deleted') => {
     setModerating(reviewId);
-    const res = await fetch(`/api/admin/confiance/${reviewId}`, {
+    const res = await adminFetch(`/api/admin/confiance/${reviewId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'moderate_review', moderation_status: action }),
@@ -116,7 +116,7 @@ export default function AdminConfiancePage() {
   const awardBadge = async () => {
     if (!badgeTarget.trim()) { toast.error('ID utilisateur requis'); return; }
     setAwardingBadge(true);
-    const res = await fetch(`/api/admin/confiance/${badgeTarget.trim()}`, {
+    const res = await adminFetch(`/api/admin/confiance/${badgeTarget.trim()}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'award_badge', badge_code: badgeCode }),
