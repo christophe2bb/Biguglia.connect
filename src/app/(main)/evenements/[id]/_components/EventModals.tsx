@@ -136,9 +136,19 @@ export function Lightbox({ photos, idx, onClose }: LightboxProps) {
       className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
       onClick={onClose}
     >
+      {/*
+        Intentional native <img>: the lightbox shows a single full-screen photo
+        at a time and benefits from direct browser zoom/pan without Next/Image
+        wrapper constraints. We add `decoding="async"` and `loading="eager"` (the
+        active image must appear instantly) to compensate for the lack of Next/Image
+        optimisation in this context.
+      */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={photos[idx].url}
         alt=""
+        decoding="async"
+        loading="eager"
         className="max-w-full max-h-full object-contain rounded-xl"
       />
     </div>

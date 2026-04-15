@@ -24,6 +24,20 @@ function DemandeServiceForm() {
   const [artisan, setArtisan] = useState<ArtisanProfile | null>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
+  /**
+   * previewUrls — stable object-URL list derived from `photos`.
+   * Revoked on every update and on unmount to avoid memory leaks.
+   * Using a dedicated state + effect keeps JSX free of inline
+   * URL.createObjectURL() calls, which would create a new URL on
+   * every render without ever revoking the old ones.
+   */
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+
+  useEffect(() => {
+    const urls = photos.map(file => URL.createObjectURL(file));
+    setPreviewUrls(urls);
+    return () => urls.forEach(url => URL.revokeObjectURL(url));
+  }, [photos]);
 
   const [form, setForm] = useState({
     title: '',
@@ -282,14 +296,22 @@ function DemandeServiceForm() {
             onChange={(e) => handlePhotoAdd(e.target.files)}
           />
 
-          {/* Prévisualisation */}
-          {photos.length > 0 && (
+          {/* Prévisualisation — local blob URLs (created once, revoked on update/unmount) */}
+          {previewUrls.length > 0 && (
             <div className="flex flex-wrap gap-3 mt-4">
-              {photos.map((photo, i) => (
+              {previewUrls.map((url, i) => (
                 <div key={i} className="relative w-20 h-20 group">
+                  {/*
+                    Intentional native <img>: src is a blob: URL produced by
+                    URL.createObjectURL — next/image cannot optimise local object
+                    URLs. loading="lazy" defers off-screen previews; the cleanup
+                    useEffect above revokes each URL when the photos array changes.
+                  */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={URL.createObjectURL(photo)}
+                    src={url}
                     alt={`Photo ${i + 1}`}
+                    loading="lazy"
                     className="w-full h-full object-cover rounded-xl"
                   />
                   <button

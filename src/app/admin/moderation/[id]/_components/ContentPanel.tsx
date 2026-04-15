@@ -36,11 +36,13 @@ export function ContentPanel({ item, photoIndex, onPhotoSelect }: Props) {
           <div className="space-y-3">
             {/* Aperçu principal */}
             <div className="relative aspect-video rounded-xl overflow-hidden bg-gray-100">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={item.content_photos[photoIndex]}
                 alt={`Photo ${photoIndex + 1}`}
-                className="w-full h-full object-contain"
+                fill
+                className="object-contain"
+                sizes="(max-width: 768px) 100vw, 700px"
+                priority
               />
             </div>
 

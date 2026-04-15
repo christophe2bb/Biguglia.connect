@@ -144,11 +144,19 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
 
         {/* Image */}
         <div ref={imgRef} className="w-full h-full flex items-center justify-center overflow-hidden">
+          {/*
+            Intentional native <img>: the lightbox uses CSS transform-based zoom/pan
+            driven by inline styles. next/image wrapping would interfere with those
+            transforms and the drag interaction. We mitigate with decoding="async"
+            and loading="eager" (active photo must render immediately).
+          */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={photo.url}
             alt={`Photo ${idx + 1}`}
             draggable={false}
+            decoding="async"
+            loading="eager"
             onMouseDown={onMouseDown}
             style={{
               transform: `scale(${zoom}) translate(${pos.x / zoom}px, ${pos.y / zoom}px)`,

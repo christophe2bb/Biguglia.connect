@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { ChevronUp, ChevronDown, ExternalLink, MapPin } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -183,9 +184,11 @@ export function ContextBanner({ relatedType, relatedId, subject }: ContextBanner
           ) : contextData ? (
             <div className="flex gap-3">
               {contextData.photo ? (
-                <img
+                <Image
                   src={contextData.photo}
                   alt={contextData.title}
+                  width={56}
+                  height={56}
                   className="w-14 h-14 rounded-xl object-cover flex-shrink-0 border border-white/50 shadow-sm"
                 />
               ) : (

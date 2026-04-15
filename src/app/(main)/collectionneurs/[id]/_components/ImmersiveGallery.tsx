@@ -38,11 +38,13 @@ export function ImmersiveGallery({ photos, title }: Props) {
         className="relative aspect-[4/3] bg-gray-50 rounded-3xl overflow-hidden cursor-zoom-in group"
         onClick={() => setLightboxOpen(true)}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src={photos[activeIdx]?.url}
           alt={`${title} - photo ${activeIdx + 1}`}
-          className="w-full h-full object-contain group-hover:scale-[1.02] transition-transform duration-300"
+          fill
+          className="object-contain group-hover:scale-[1.02] transition-transform duration-300"
+          sizes="(max-width: 768px) 100vw, 600px"
+          priority={activeIdx === 0}
         />
 
         {/* Flèches de navigation */}
