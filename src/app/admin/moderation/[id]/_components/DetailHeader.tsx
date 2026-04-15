@@ -24,9 +24,10 @@ export function DetailHeader({ item, contentUrl, onRefresh }: Props) {
       <div className="flex items-center gap-3">
         <Link
           href="/admin/moderation"
+          aria-label="Retour à la file de modération"
           className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
         >
-          <ArrowLeft className="w-5 h-5 text-gray-500" />
+          <ArrowLeft className="w-5 h-5 text-gray-500" aria-hidden="true" />
         </Link>
 
         <div>
@@ -60,17 +61,17 @@ export function DetailHeader({ item, contentUrl, onRefresh }: Props) {
         <Link
           href={contentUrl}
           target="_blank"
+          aria-label="Voir la publication originale (nouvel onglet)"
           className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors"
-          title="Voir la publication"
         >
-          <ExternalLink className="w-4 h-4 text-gray-600" />
+          <ExternalLink className="w-4 h-4 text-gray-600" aria-hidden="true" />
         </Link>
         <button
           onClick={onRefresh}
+          aria-label="Rafraîchir les données"
           className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors"
-          title="Rafraîchir"
         >
-          <RefreshCw className="w-4 h-4 text-gray-600" />
+          <RefreshCw className="w-4 h-4 text-gray-600" aria-hidden="true" />
         </button>
       </div>
     </div>

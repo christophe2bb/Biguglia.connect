@@ -81,22 +81,25 @@ export default function MessagesPage() {
           <div className="relative" ref={typeMenuRef}>
             <button
               onClick={() => setShowTypeMenu(v => !v)}
+              aria-label={typeFilter ? `Filtre actif : ${RELATED_CONFIG[typeFilter]?.label ?? typeFilter}. Cliquer pour changer` : 'Filtrer les conversations par type'}
+              aria-expanded={showTypeMenu}
+              aria-haspopup="listbox"
               className={cn(
                 'flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-all',
                 typeFilter
                   ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
                   : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-700'
               )}
-              title="Filtrer par type"
             >
-              <SlidersHorizontal className="w-4 h-4" />
+              <SlidersHorizontal className="w-4 h-4" aria-hidden="true" />
               {typeFilter ? RELATED_CONFIG[typeFilter]?.label : <span className="hidden sm:inline">Filtrer</span>}
               {typeFilter && (
                 <button
                   onClick={(e) => { e.stopPropagation(); setTypeFilter(null); setShowTypeMenu(false); }}
+                  aria-label="Effacer le filtre actif"
                   className="ml-0.5 text-white/80 hover:text-white"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
               )}
             </button>
@@ -130,10 +133,10 @@ export default function MessagesPage() {
 
           <button
             onClick={fetchConversations}
-            title="Actualiser"
+            aria-label="Actualiser les conversations"
             className="p-2 rounded-xl border border-gray-200 bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -151,9 +154,10 @@ export default function MessagesPage() {
         {search && (
           <button
             onClick={() => setSearch('')}
+            aria-label="Effacer la recherche"
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         )}
       </div>

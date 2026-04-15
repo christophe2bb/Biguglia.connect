@@ -72,11 +72,14 @@ export default function CalendarView({ events, userId, onJoin, onStatusChange }:
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '16px 20px', borderBottom: '1px solid #f8fafc',
           background: 'linear-gradient(135deg,#7c3aed08,#ec489908)' }}>
-          <button onClick={prevMonth}
+          <button
+            onClick={prevMonth}
+            aria-label="Mois précédent"
             style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid #e2e8f0', background: 'white',
               cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#7c3aed', transition: 'all 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-            <ChevronLeft style={{ width: 16, height: 16 }} />
+              color: '#7c3aed', transition: 'all 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+          >
+            <ChevronLeft style={{ width: 16, height: 16 }} aria-hidden="true" />
           </button>
           <div style={{ textAlign: 'center' }}>
             <h2 style={{ fontWeight: 800, fontSize: 17, color: '#1e293b', margin: 0 }}>
@@ -88,11 +91,14 @@ export default function CalendarView({ events, userId, onJoin, onStatusChange }:
                 : 'Aucun événement ce mois'}
             </p>
           </div>
-          <button onClick={nextMonth}
+          <button
+            onClick={nextMonth}
+            aria-label="Mois suivant"
             style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid #e2e8f0', background: 'white',
               cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#7c3aed', transition: 'all 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-            <ChevronRight style={{ width: 16, height: 16 }} />
+              color: '#7c3aed', transition: 'all 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+          >
+            <ChevronRight style={{ width: 16, height: 16 }} aria-hidden="true" />
           </button>
         </div>
 
@@ -141,9 +147,12 @@ export default function CalendarView({ events, userId, onJoin, onStatusChange }:
                   <h3 style={{ fontWeight: 800, fontSize: 14, color: '#1e293b', margin: 0 }}>
                     {new Date(selectedDay + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^\w/, c => c.toUpperCase())}
                   </h3>
-                  <button onClick={() => setSelectedDay(null)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4, borderRadius: 8 }}>
-                    <X style={{ width: 16, height: 16 }} />
+                  <button
+                    onClick={() => setSelectedDay(null)}
+                    aria-label="Fermer le panneau du jour"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4, borderRadius: 8 }}
+                  >
+                    <X style={{ width: 16, height: 16 }} aria-hidden="true" />
                   </button>
                 </div>
                 {selectedEvents.length === 0 ? (

@@ -325,17 +325,18 @@ export default function NotificationsClient() {
         <div className="flex items-center gap-2">
           <button
             onClick={fetchNotifications}
+            aria-label="Actualiser les notifications"
             className="p-2 rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-            title="Actualiser"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="w-4 h-4" aria-hidden="true" />
           </button>
           {unreadCount > 0 && (
             <button
               onClick={markAllRead}
+              aria-label="Marquer toutes les notifications comme lues"
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-50 text-brand-700 hover:bg-brand-100 text-sm font-semibold transition-colors"
             >
-              <CheckCheck className="w-4 h-4" />
+              <CheckCheck className="w-4 h-4" aria-hidden="true" />
               <span className="hidden sm:inline">Tout lire</span>
             </button>
           )}
@@ -355,9 +356,10 @@ export default function NotificationsClient() {
         {searchQuery && (
           <button
             onClick={() => setSearchQuery('')}
+            aria-label="Effacer la recherche"
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         )}
       </div>
@@ -531,10 +533,10 @@ export default function NotificationsClient() {
                         {/* Bouton supprimer — visible au hover */}
                         <button
                           onClick={(e) => deleteNotif(e, notif.id)}
+                          aria-label={`Supprimer la notification : ${notif.title}`}
                           className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-400 transition-all"
-                          title="Supprimer"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                         </button>
                       </Link>
                     </div>
