@@ -12,7 +12,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Calendar, ChevronRight, MapPin, ArrowRight, Clock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { JsonLd, breadcrumbSchema, faqSchema, eventSchema } from '@/components/seo/JsonLd';
+import { JsonLd, breadcrumbSchema, faqSchema } from '@/components/seo/JsonLd';
 import { GEO } from '@/lib/seo/local-data';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
@@ -133,11 +133,36 @@ export default async function EvenementsBigugliaPage() {
     })),
   } : null;
 
+  // JSON-LD individuel pour chaque événement (max 3 pour les rich snippets)
+  const individualEventSchemas = events.slice(0, 3).map(ev => ({
+    '@context':  'https://schema.org',
+    '@type':     'Event',
+    name:        ev.title,
+    description: ev.description ?? `Événement à ${GEO.city} — ${ev.title}`,
+    url:         `${SITE_URL}/evenements/${ev.id}`,
+    startDate:   ev.start_date,
+    eventStatus: 'https://schema.org/EventScheduled',
+    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+    location: {
+      '@type': 'Place',
+      name:    ev.location ?? GEO.city,
+      address: {
+        '@type':           'PostalAddress',
+        addressLocality:   GEO.city,
+        addressRegion:     GEO.department,
+        postalCode:        GEO.postalCode,
+        addressCountry:    GEO.countryCode,
+      },
+    },
+    organizer: { '@type': 'Organization', name: 'Biguglia Connect', url: SITE_URL },
+  }));
+
   return (
     <div className="min-h-screen bg-gray-50">
       <JsonLd data={breadcrumb} />
       <JsonLd data={faq} />
       {eventListSchema && <JsonLd data={eventListSchema} />}
+      {individualEventSchemas.map((schema, i) => <JsonLd key={i} data={schema} />)}
 
       {/* ── HERO ── */}
       <section className="bg-gradient-to-br from-violet-700 via-purple-700 to-indigo-900 relative overflow-hidden">
@@ -180,6 +205,53 @@ export default async function EvenementsBigugliaPage() {
       </section>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 space-y-14">
+
+        {/* ── ÉDITO LOCAL — vie événementielle de Biguglia ── */}
+        <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+          <h2 className="text-xl font-black text-gray-900 mb-4">
+            La vie événementielle de {GEO.city}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-gray-600 leading-relaxed">
+            <div className="space-y-3">
+              <p>
+                Biguglia est une commune vivante dont l'agenda local reflète la richesse de la Corse.
+                Le <strong>SC Biguglia</strong>, club de football emblématique, fédère toute la commune autour
+                de ses matchs et tournois tout au long de l'année. Les supporters se retrouvent aussi bien
+                au stade que dans les discussions du forum local.
+              </p>
+              <p>
+                L'<strong>étang de Biguglia</strong>, plus grand étang naturel de Corse et réserve naturelle,
+                attire randonneurs, ornithologues et amoureux de la nature. Des sorties guidées et ateliers
+                nature sont régulièrement organisés pour découvrir les flamants roses et la biodiversité unique
+                du site classé.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <p>
+                <strong>Traditions et fêtes corses :</strong> Biguglia célèbre ses fêtes patronales, les marchés
+                de producteurs locaux (miel, charcuterie, fromages corses) et participe aux manifestations
+                culturelles de la Haute-Corse. L'été, les soirées festives rassemblent habitants et vacanciers.
+              </p>
+              <p>
+                <strong>Publiez votre événement gratuitement</strong> sur Biguglia Connect pour toucher toute
+                la communauté locale. Vos événements sont indexés sur Google et visibles dans l'agenda de Biguglia.
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3 text-xs">
+            {[
+              { href: '/evenements/nouveau',     label: '+ Publier un événement' },
+              { href: '/associations-biguglia',   label: '🏛️ Associations locales' },
+              { href: '/forum-biguglia',          label: '💬 Forum des habitants' },
+              { href: '/annonces-biguglia',       label: '📦 Petites annonces' },
+            ].map(l => (
+              <Link key={l.href} href={l.href}
+                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-all">
+                {l.label}
+              </Link>
+            ))}
+          </div>
+        </section>
 
         {/* ── PROCHAINS ÉVÉNEMENTS ── */}
         {events.length > 0 ? (
@@ -276,12 +348,14 @@ export default async function EvenementsBigugliaPage() {
           <h2 className="text-lg font-black text-gray-900 mb-4">Explorer Biguglia</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {[
-              { href: '/associations-biguglia', emoji: '🏛️', title: 'Associations',       desc: 'Clubs et bénévolat' },
+              { href: '/associations-biguglia', emoji: '🏛️', title: 'Associations',        desc: 'SC Biguglia et clubs locaux' },
               { href: '/artisans-biguglia',     emoji: '🔧', title: 'Artisans vérifiés',  desc: 'Plombiers, électriciens…' },
-              { href: '/emploi-biguglia',       emoji: '💼', title: 'Emploi local',       desc: 'Offres & candidatures' },
+              { href: '/emploi-biguglia',       emoji: '💼', title: 'Emploi local',        desc: 'Offres & candidatures' },
               { href: '/forum-biguglia',        emoji: '💬', title: 'Forum des habitants', desc: 'Questions & entraide' },
-              { href: '/annonces-biguglia',     emoji: '📦', title: 'Petites annonces',   desc: 'Achat, vente, dons locaux' },
-              { href: '/communaute',            emoji: '🏘️', title: 'Communauté',         desc: 'Membres actifs et badges' },
+              { href: '/annonces-biguglia',     emoji: '📦', title: 'Petites annonces',    desc: 'Achat, vente, dons locaux' },
+              { href: '/communaute',            emoji: '🏘️', title: 'Communauté',          desc: 'Membres actifs et badges' },
+              { href: '/services-biguglia',     emoji: '🔧', title: 'Services locaux',      desc: 'Tous les services de Biguglia' },
+              { href: '/perdu-trouve',          emoji: '🔍', title: 'Objets perdus',        desc: 'Retrouvez vos affaires' },
             ].map(l => (
               <Link key={l.href} href={l.href}>
                 <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md transition-all flex items-center gap-3">

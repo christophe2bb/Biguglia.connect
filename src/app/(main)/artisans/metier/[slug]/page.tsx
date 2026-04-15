@@ -176,9 +176,9 @@ function buildJsonLd(trade: TradeMeta, artisans: ArtisanRow[]) {
   const pageUrl = `${SITE_URL}/artisans/metier/${trade.slug}`;
 
   const breadcrumb = breadcrumbSchema([
-    { name: 'Accueil',  url: '/' },
-    { name: 'Artisans', url: '/artisans' },
-    { name: trade.h1,   url: `/artisans/metier/${trade.slug}` },
+    { name: 'Accueil',                        url: '/' },
+    { name: `Artisans à ${GEO.city}`,         url: '/artisans-biguglia' },
+    { name: trade.h1,                          url: `/artisans/metier/${trade.slug}` },
   ]);
 
   const faq = faqSchema(trade.faq);
@@ -197,7 +197,31 @@ function buildJsonLd(trade: TradeMeta, artisans: ArtisanRow[]) {
     })),
   } : null;
 
-  return { breadcrumb, faq, itemList };
+  // LocalBusiness spécifique au métier pour les rich results Google Maps
+  const localBusiness = {
+    '@context':   'https://schema.org',
+    '@type':      'LocalBusiness',
+    name:         `${trade.namePlural} à ${GEO.city} — Biguglia Connect`,
+    url:          pageUrl,
+    description:  trade.description,
+    areaServed: [
+      { '@type': 'City', name: GEO.city,      addressCountry: GEO.countryCode },
+      { '@type': 'City', name: 'Borgo',       addressCountry: GEO.countryCode },
+      { '@type': 'City', name: 'Furiani',     addressCountry: GEO.countryCode },
+      { '@type': 'City', name: 'Lucciana',    addressCountry: GEO.countryCode },
+      { '@type': 'City', name: 'Bastia',      addressCountry: GEO.countryCode },
+    ],
+    address: {
+      '@type':           'PostalAddress',
+      addressLocality:   GEO.city,
+      addressRegion:     GEO.department,
+      postalCode:        GEO.postalCode,
+      addressCountry:    GEO.countryCode,
+    },
+    geo: { '@type': 'GeoCoordinates', latitude: GEO.lat, longitude: GEO.lng },
+  };
+
+  return { breadcrumb, faq, itemList, localBusiness };
 }
 
 // ─── Page principale ──────────────────────────────────────────────────────────
@@ -210,7 +234,7 @@ export default async function ArtisanTradePage(
   if (!trade) notFound();
 
   const artisans = await fetchArtisansByTrade(slug);
-  const { breadcrumb, faq, itemList } = buildJsonLd(trade, artisans);
+  const { breadcrumb, faq, itemList, localBusiness } = buildJsonLd(trade, artisans);
 
   // Pages métiers liées (maillage interne)
   const relatedTrades = trade.relatedSlugs
@@ -222,6 +246,7 @@ export default async function ArtisanTradePage(
       {/* ── JSON-LD ── */}
       <JsonLd data={breadcrumb} />
       <JsonLd data={faq} />
+      <JsonLd data={localBusiness} />
       {itemList && <JsonLd data={itemList} />}
 
       {/* ══════════════════════════════════════════
@@ -291,6 +316,53 @@ export default async function ArtisanTradePage(
             </div>
           ))}
         </div>
+
+        {/* ══════════════════════════════════════════
+            ÉDITO LOCAL — territoire & conseils métier
+        ══════════════════════════════════════════ */}
+        <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+          <h2 className="text-xl font-black text-gray-900 mb-4">
+            {trade.namePlural} à {GEO.city} : zone d'intervention et conseils
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-gray-600 leading-relaxed">
+            <div className="space-y-3">
+              <p>
+                Les {trade.namePlural.toLowerCase()} référencés sur Biguglia Connect interviennent principalement
+                à <strong>{GEO.city}</strong> et dans les communes voisines de la plaine orientale de {GEO.department} :
+                Borgo, Furiani, Lucciana, Vescovato et le bassin de Bastia. Certains couvrent également
+                la Haute-Corse au sens large (2B).
+              </p>
+              <p>
+                {trade.intro}
+              </p>
+            </div>
+            <div className="space-y-3">
+              <p>
+                <strong>Avant de signer un devis :</strong> vérifiez que l'artisan dispose d'une assurance
+                responsabilité civile professionnelle (RC Pro) en cours de validité et, pour les travaux
+                de construction, d'une assurance décennale. Ces documents sont contrôlés par notre équipe
+                avant chaque référencement.
+              </p>
+              <p>
+                <strong>Délais habituels à {GEO.city} :</strong> pour une intervention courante, comptez
+                2 à 5 jours ouvrés. En cas d'urgence (fuite, panne, court-circuit), signalez-le dans
+                votre message — plusieurs {trade.namePlural.toLowerCase()} proposent des interventions sous 24 h.
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3 text-xs">
+            {[
+              { href: '/artisans-biguglia',  label: `🔧 Tous les artisans de ${GEO.city}` },
+              { href: '/artisans/demande',   label: '📝 Déposer une demande de devis' },
+              { href: '/forum-biguglia',     label: '💬 Recommandations du forum local' },
+            ].map(l => (
+              <Link key={l.href} href={l.href}
+                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-50 hover:border-brand-200 hover:text-brand-700 transition-all">
+                {l.label}
+              </Link>
+            ))}
+          </div>
+        </section>
 
         {/* ══════════════════════════════════════════
             LISTE ARTISANS
@@ -375,6 +447,17 @@ export default async function ArtisanTradePage(
                   </div>
                 </Link>
               ))}
+              {/* Lien retour vers le hub artisans */}
+              <Link href="/artisans-biguglia">
+                <div className="bg-brand-50 rounded-2xl border border-brand-200 p-4 hover:shadow-md hover:border-brand-300 transition-all flex items-center gap-3">
+                  <span className="text-2xl">🔧</span>
+                  <div>
+                    <p className="font-bold text-brand-800 text-sm">Tous les métiers</p>
+                    <p className="text-xs text-brand-600">Hub artisans {GEO.city}</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-brand-400 ml-auto" />
+                </div>
+              </Link>
             </div>
           </section>
         )}

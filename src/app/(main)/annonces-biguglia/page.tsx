@@ -195,6 +195,55 @@ export default async function AnnoncesBigugliaPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-14">
 
         {/* ══════════════════════════════════════════
+            ÉDITO LOCAL — marché local Biguglia
+        ══════════════════════════════════════════ */}
+        <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+          <h2 className="text-xl font-black text-gray-900 mb-4">
+            Les petites annonces à {GEO.city} : achetez et vendez local
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-gray-600 leading-relaxed">
+            <div className="space-y-3">
+              <p>
+                Biguglia et sa plaine orientale constituent un bassin de vie dense avec une forte demande
+                pour les échanges de proximité. Acheter et vendre localement permet de <strong>récupérer
+                immédiatement</strong> l'objet, d'éviter les frais de port et de <strong>contribuer à l'économie
+                circulaire</strong> du village.
+              </p>
+              <p>
+                Les objets les plus échangés entre habitants de Biguglia : mobilier de jardin et parasols
+                (avant/après l'été), matériel de bricolage, vélos et trottinettes, vêtements enfants,
+                électroménager de cuisine et produits artisanaux corses (miel, confiture, poterie).
+              </p>
+            </div>
+            <div className="space-y-3">
+              <p>
+                <strong>Conseils pour sécuriser votre transaction :</strong> préférez les rencontres dans
+                un lieu public (mairie de Biguglia, parking de la médiathèque, place du village). Vérifiez
+                l'objet avant de payer. Consultez le profil du vendeur et ses évaluations sur Biguglia Connect.
+              </p>
+              <p>
+                <strong>Dons gratuits :</strong> de nombreux habitants préfèrent donner plutôt que jeter.
+                Consultez la catégorie "Dons gratuits" pour récupérer des objets utiles à Biguglia et
+                dans les communes voisines (Borgo, Furiani, Lucciana).
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3 text-xs">
+            {[
+              { href: '/annonces/nouvelle',     label: '+ Publier une annonce' },
+              { href: '/annonces?type=don',     label: '🎁 Dons gratuits' },
+              { href: '/materiel',              label: '🛠️ Matériel partagé' },
+              { href: '/perdu-trouve',          label: '🔍 Objets perdus & trouvés' },
+            ].map(l => (
+              <Link key={l.href} href={l.href}
+                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 transition-all">
+                {l.label}
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* ══════════════════════════════════════════
             CATÉGORIES D'ANNONCES
         ══════════════════════════════════════════ */}
         <section>
@@ -308,6 +357,8 @@ export default async function AnnoncesBigugliaPage() {
               { href: '/collectionneurs',      emoji: '🏆', title: 'Collectionneurs',            desc: 'Échanges entre passionnés de collection' },
               { href: '/perdu-trouve',         emoji: '🔍', title: 'Objets perdus & trouvés',   desc: 'Signalez ou retrouvez un objet perdu à Biguglia' },
               { href: '/artisans-biguglia',    emoji: '🔧', title: 'Artisans à Biguglia',       desc: 'Trouvez un artisan vérifié pour vos travaux' },
+              { href: '/forum-biguglia',       emoji: '💬', title: 'Forum des habitants',       desc: 'Échanges & recommandations locales' },
+              { href: '/evenements-biguglia',  emoji: '🎉', title: 'Événements à Biguglia',     desc: 'Marchés, vide-greniers & agenda local' },
             ].map(link => (
               <Link key={link.href} href={link.href}>
                 <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-all flex items-center gap-4">
