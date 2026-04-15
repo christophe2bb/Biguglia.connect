@@ -109,6 +109,7 @@ function AdminContent() {
           { href: '/admin/migration',   label: 'Migration DB',              desc: 'Tables thèmes (collectionneurs, promenades, événements)',         icon: '🗄️', highlight: false },
           { href: '/admin/spec',        label: 'Spécification fonctionnelle',desc: 'Cahier des charges Collectionneurs v2.0 — état du développement',icon: '📋', highlight: false },
           { href: '/admin/securite',    label: 'Sécurité & Cloudflare',     desc: 'Guide Cloudflare WAF, anti-DDoS, headers',                       icon: '🛡️', highlight: false },
+          { href: '/admin/logs',        label: 'Journal des actions',       desc: 'Traçabilité de toutes les mutations admin',                       icon: '📋', highlight: false },
         ].map(({ href, label, desc, icon, highlight, badge }) => (
           <Link key={href} href={href}>
             <div className={`relative bg-white rounded-2xl border p-5 hover:shadow-sm transition-all cursor-pointer ${highlight ? 'border-brand-300 bg-brand-50/30' : 'border-gray-100 hover:border-gray-200'}`}>

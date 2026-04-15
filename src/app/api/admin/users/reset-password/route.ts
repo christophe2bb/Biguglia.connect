@@ -24,6 +24,7 @@ import { getAdminUser } from '@/lib/supabase/admin-guard';
 import { assertCsrfSafe } from '@/lib/supabase/auth-helper';
 import { createAdminClient } from '@/lib/supabase/server';
 import { captureApiError } from '@/lib/monitoring/sentry';
+import { logAdminAction } from '@/lib/admin/action-logger';
 
 // ─── Schéma Zod ──────────────────────────────────────────────────────────────
 
@@ -104,6 +105,16 @@ export async function POST(req: NextRequest) {
       { status: 500 },
     );
   }
+
+  // ── Traçabilité ───────────────────────────────────────────────────────────
+  await logAdminAction({
+    adminClient: adminDb,
+    actor: { id: guard.actor.id, role: guard.actor.role },
+    action:      'user_password_reset',
+    targetTable: 'profiles',
+    targetId:    profile.id,
+    meta:        { email_masked: email.replace(/(.{2}).*(@.*)/, '$1***$2') },
+  });
 
   return NextResponse.json({ ok: true });
 }

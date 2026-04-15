@@ -28,6 +28,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAdminUser } from '@/lib/supabase/admin-guard';
 import { assertCsrfSafe } from '@/lib/supabase/auth-helper';
+import { logAdminAction } from '@/lib/admin/action-logger';
 
 // ─── Tables et actions autorisées ────────────────────────────────────────────
 
@@ -119,7 +120,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
   }
 
   const payload = buildUpdatePayload(parsed.data);
-  const { adminClient } = guard;
+  const { actor, adminClient } = guard;
 
   const { error } = await adminClient
     .from(table)
@@ -129,6 +130,22 @@ export async function PATCH(req: Request, { params }: RouteParams) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // ── Traçabilité ───────────────────────────────────────────────────────────
+  const actionKindMap: Record<string, 'content_status_set' | 'content_close_set' | 'content_pin_set' | 'content_available_set'> = {
+    set_status:    'content_status_set',
+    set_closed:    'content_close_set',
+    set_pinned:    'content_pin_set',
+    set_available: 'content_available_set',
+  };
+  await logAdminAction({
+    adminClient,
+    actor,
+    action:      actionKindMap[parsed.data.action] ?? 'content_status_set',
+    targetTable: table,
+    targetId:    id,
+    meta:        { action: parsed.data.action, payload },
+  });
 
   return NextResponse.json({ success: true, table, id, payload });
 }
@@ -157,7 +174,9 @@ export async function DELETE(req: Request, { params }: RouteParams) {
 
   const { adminClient } = guard;
 
-  const { error } = await adminClient
+  const { actor: deleteActor, adminClient: deleteClient } = guard;
+
+  const { error } = await deleteClient
     .from(table)
     .delete()
     .eq('id', id);
@@ -165,6 +184,16 @@ export async function DELETE(req: Request, { params }: RouteParams) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // ── Traçabilité ───────────────────────────────────────────────────────────
+  await logAdminAction({
+    adminClient: deleteClient,
+    actor:       deleteActor,
+    action:      'content_delete',
+    targetTable: table,
+    targetId:    id,
+    meta:        { deleted_at: new Date().toISOString() },
+  });
 
   return NextResponse.json({ success: true, table, id });
 }

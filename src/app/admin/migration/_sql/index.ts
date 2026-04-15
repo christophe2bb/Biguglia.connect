@@ -32,3 +32,4 @@ export { LF_HISTORY_SQL, LF_MATCHES_SQL, LF_EXTRAS_SQL } from './lost-found';
 export { SECTORS_SQL }                                 from './sectors';
 export { SEARCH_SQL }                                  from './search';
 export { STATUS_SQL }                                  from './status';
+export { ADMIN_LOGS_SQL }                              from './admin-logs';

@@ -16,6 +16,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAdminUser } from '@/lib/supabase/admin-guard';
 import { assertCsrfSafe } from '@/lib/supabase/auth-helper';
+import { logAdminAction } from '@/lib/admin/action-logger';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -84,6 +85,15 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+    await logAdminAction({
+      adminClient,
+      actor,
+      action:      'report_status_set',
+      targetTable: 'reports',
+      targetId:    reportId,
+      meta:        { new_status: body.status },
+    });
+
     return NextResponse.json({ success: true, status: body.status });
   }
 
@@ -108,6 +118,15 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
     type:    'account_update',
     title:   '⚠️ Compte suspendu',
     message: 'Votre compte a été suspendu suite à un signalement. Contactez-nous pour plus d\'informations.',
+  });
+
+  await logAdminAction({
+    adminClient,
+    actor,
+    action:      'report_ban_user',
+    targetTable: 'profiles',
+    targetId:    body.targetId,
+    meta:        { report_id: reportId, new_status: 'suspended' },
   });
 
   return NextResponse.json({ success: true, action: 'banned', targetId: body.targetId });
