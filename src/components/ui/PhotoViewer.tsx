@@ -132,17 +132,28 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
             {idx + 1} / {total}
           </span>
           {/* Zoom */}
-          <button onClick={() => setZoom(z => Math.max(z - 0.5, 1))} disabled={zoom <= 1}
-            className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors disabled:opacity-30">
-            <ZoomOut className="w-4 h-4" />
+          <button
+            onClick={() => setZoom(z => Math.max(z - 0.5, 1))}
+            disabled={zoom <= 1}
+            aria-label="Zoom arrière"
+            className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors disabled:opacity-30"
+          >
+            <ZoomOut className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button onClick={() => setZoom(z => Math.min(z + 0.5, 4))} disabled={zoom >= 4}
-            className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors disabled:opacity-30">
-            <ZoomIn className="w-4 h-4" />
+          <button
+            onClick={() => setZoom(z => Math.min(z + 0.5, 4))}
+            disabled={zoom >= 4}
+            aria-label="Zoom avant"
+            className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors disabled:opacity-30"
+          >
+            <ZoomIn className="w-4 h-4" aria-hidden="true" />
           </button>
           {zoom > 1 && (
-            <button onClick={() => { setZoom(1); setPos({ x: 0, y: 0 }); }}
-              className="text-xs text-white/60 hover:text-white px-2 py-1 rounded-full bg-white/10 transition-colors">
+            <button
+              onClick={() => { setZoom(1); setPos({ x: 0, y: 0 }); }}
+              aria-label="Réinitialiser le zoom"
+              className="text-xs text-white/60 hover:text-white px-2 py-1 rounded-full bg-white/10 transition-colors"
+            >
               Reset
             </button>
           )}
@@ -217,17 +228,22 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
         <div className="flex-shrink-0 px-4 py-3">
           <div className="flex gap-2 overflow-x-auto justify-center pb-1 scrollbar-hide">
             {photos.map((p, i) => (
-              <button key={i} onClick={() => setIdx(i)}
+              <button
+                key={i}
+                onClick={() => setIdx(i)}
+                aria-label={`Voir la photo ${i + 1}${p.isPrimary || i === 0 ? ' (photo principale)' : ''}`}
+                aria-pressed={i === idx}
                 className={cn(
                   'relative flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all',
                   i === idx
                     ? 'border-white scale-110 shadow-lg'
                     : 'border-white/20 opacity-60 hover:opacity-100 hover:border-white/50'
-                )}>
+                )}
+              >
                 <Image src={p.url} alt="" fill className="object-cover" />
                 {(p.isPrimary || i === 0) && (
                   <div className="absolute top-0.5 left-0.5">
-                    <Crown className="w-2.5 h-2.5 text-amber-400 drop-shadow" />
+                    <Crown className="w-2.5 h-2.5 text-amber-400 drop-shadow" aria-hidden="true" />
                   </div>
                 )}
               </button>
@@ -343,9 +359,12 @@ export function PhotoGallery({
 
         {/* Bouton voir toutes */}
         {photos.length > 1 && (
-          <button onClick={() => openAt(0)}
-            className="w-full py-2 text-xs font-semibold text-gray-500 hover:text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5">
-            <ZoomIn className="w-3.5 h-3.5" />
+          <button
+            onClick={() => openAt(0)}
+            aria-label={`Voir les ${photos.length} photos en plein écran`}
+            className="w-full py-2 text-xs font-semibold text-gray-500 hover:text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
+          >
+            <ZoomIn className="w-3.5 h-3.5" aria-hidden="true" />
             Voir les {photos.length} photos
           </button>
         )}
@@ -503,14 +522,20 @@ export function PhotoUploaderField({
                 {/* Actions bas */}
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   {!photo.isPrimary && (
-                    <button onClick={() => setPrimary(photo.id)}
-                      className="flex-1 flex items-center justify-center gap-1 bg-amber-500/90 text-white text-[10px] font-bold py-1 rounded-lg hover:bg-amber-500 transition-colors">
-                      <Star className="w-2.5 h-2.5" /> Principale
+                    <button
+                      onClick={() => setPrimary(photo.id)}
+                      aria-label="Définir comme photo principale"
+                      className="flex-1 flex items-center justify-center gap-1 bg-amber-500/90 text-white text-[10px] font-bold py-1 rounded-lg hover:bg-amber-500 transition-colors"
+                    >
+                      <Star className="w-2.5 h-2.5" aria-hidden="true" /> Principale
                     </button>
                   )}
-                  <button onClick={() => remove(photo.id)}
-                    className="p-1.5 bg-red-500/80 text-white rounded-lg hover:bg-red-600 transition-colors">
-                    <Trash2 className="w-3 h-3" />
+                  <button
+                    onClick={() => remove(photo.id)}
+                    aria-label="Supprimer cette photo"
+                    className="p-1.5 bg-red-500/80 text-white rounded-lg hover:bg-red-600 transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3" aria-hidden="true" />
                   </button>
                 </div>
               </div>
