@@ -131,6 +131,55 @@ export default async function ServicesBigugliaPage() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 space-y-16">
 
+        {/* ── ÉDITO LOCAL — territoire et spécificités ── */}
+        <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+          <h2 className="text-xl font-black text-gray-900 mb-4">
+            Services locaux à {GEO.city} : ce qu'il faut savoir
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-gray-600 leading-relaxed">
+            <div className="space-y-3">
+              <p>
+                Biguglia, nichée entre l'étang de Biguglia (plus grand étang naturel de Corse, classé réserve naturelle)
+                et la mer Tyrrhénienne, est une commune en pleine expansion. Sa proximité avec Bastia et la plaine
+                orientale en fait un territoire très demandé pour les <strong>services à domicile</strong>,
+                les <strong>travaux de rénovation</strong> et les <strong>artisans qualifiés</strong>.
+              </p>
+              <p>
+                La commune attire chaque année de nouveaux habitants et des projets immobiliers, ce qui génère
+                une demande soutenue en plomberie, électricité, maçonnerie, peinture et jardinage.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <p>
+                <strong>Communes voisines desservies :</strong> les prestataires référencés couvrent également{' '}
+                <Link href="/artisans?ville=Borgo" className="text-brand-600 font-semibold hover:underline">Borgo</Link>,{' '}
+                <Link href="/artisans?ville=Furiani" className="text-brand-600 font-semibold hover:underline">Furiani</Link>,{' '}
+                <Link href="/artisans?ville=Lucciana" className="text-brand-600 font-semibold hover:underline">Lucciana</Link>,{' '}
+                <Link href="/artisans?ville=Bastia" className="text-brand-600 font-semibold hover:underline">Bastia</Link>{' '}
+                et Vescovato.
+              </p>
+              <p>
+                <strong>Conseil pratique :</strong> demandez toujours au moins trois devis, vérifiez la validité de
+                l'assurance décennale pour les travaux de construction, et privilégiez les artisans ayant des avis
+                vérifiés de voisins dans un rayon de 10 km.
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3 text-xs">
+            {[
+              { href: '/artisans-biguglia',  label: '🔧 Annuaire artisans Biguglia' },
+              { href: '/annonces-biguglia',  label: '📦 Petites annonces locales' },
+              { href: '/perdu-trouve',       label: '🔍 Objets perdus & trouvés' },
+              { href: '/forum-biguglia',     label: '💬 Forum habitants Biguglia' },
+            ].map(l => (
+              <Link key={l.href} href={l.href}
+                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-50 hover:border-brand-200 hover:text-brand-700 transition-all">
+                {l.label}
+              </Link>
+            ))}
+          </div>
+        </section>
+
         {/* ── GARANTIES ── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
@@ -229,6 +278,8 @@ export default async function ServicesBigugliaPage() {
               { href: '/associations-biguglia',emoji: '🏛️', title: 'Associations à Biguglia',  desc: 'Clubs et vie associative' },
               { href: '/forum-biguglia',       emoji: '💬', title: 'Forum des habitants',       desc: 'Questions & entraide locale' },
               { href: '/annonces-biguglia',    emoji: '📦', title: 'Petites annonces',          desc: 'Achat, vente, dons entre voisins' },
+              { href: '/perdu-trouve',         emoji: '🔍', title: 'Objets perdus & trouvés',   desc: 'Signalez ou retrouvez un objet' },
+              { href: '/materiel',             emoji: '🛠️', title: 'Matériel partagé',          desc: 'Prêt & location entre voisins' },
             ].map(l => (
               <Link key={l.href} href={l.href}>
                 <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-all flex items-center gap-3">

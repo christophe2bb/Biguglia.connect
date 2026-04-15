@@ -207,6 +207,56 @@ export default async function ArtisansBigugliaPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-14">
 
         {/* ══════════════════════════════════════════
+            ÉDITO LOCAL — contexte unique Biguglia
+        ══════════════════════════════════════════ */}
+        <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+          <h2 className="text-xl font-black text-gray-900 mb-4">
+            Pourquoi choisir un artisan local à {GEO.city} ?
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-gray-600 leading-relaxed">
+            <div className="space-y-3">
+              <p>
+                Biguglia est une commune dynamique de la plaine orientale de Haute-Corse, à quelques kilomètres
+                de Bastia. Son développement résidentiel soutenu génère une demande constante en travaux :
+                rénovation de maisons corses, construction neuve, remise aux normes électriques et plomberie.
+              </p>
+              <p>
+                Un artisan local connaît les <strong>particularités du bâti corse</strong> — pierres de granit,
+                enduits chaux, toits en lauze — et maîtrise les démarches administratives propres à la commune
+                (permis de construire, déclaration préalable de travaux auprès de la mairie de Biguglia).
+              </p>
+            </div>
+            <div className="space-y-3">
+              <p>
+                <strong>Zone d'intervention :</strong> tous les artisans référencés sur Biguglia Connect couvrent
+                Biguglia et ses communes voisines — <Link href="/artisans?ville=Borgo" className="text-brand-600 font-semibold hover:underline">Borgo</Link>,{' '}
+                <Link href="/artisans?ville=Furiani" className="text-brand-600 font-semibold hover:underline">Furiani</Link>,{' '}
+                <Link href="/artisans?ville=Lucciana" className="text-brand-600 font-semibold hover:underline">Lucciana</Link>,{' '}
+                <Link href="/artisans?ville=Bastia" className="text-brand-600 font-semibold hover:underline">Bastia</Link>{' '}
+                et l'ensemble du bassin de Haute-Corse (2B).
+              </p>
+              <p>
+                <strong>Comment bien choisir ?</strong> Vérifiez toujours le SIRET, l'assurance RC Pro et la
+                décennale avant de signer un devis. Sur Biguglia Connect, ces informations sont contrôlées
+                manuellement par notre équipe. Consultez plusieurs devis et lisez les avis de vos voisins.
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3 text-xs">
+            {[
+              { href: '/artisans/demande', label: '📝 Déposer une demande de devis' },
+              { href: '/forum-biguglia',   label: '💬 Forum : recommandations d\'artisans' },
+              { href: '/annonces-biguglia', label: '📦 Petites annonces locales' },
+            ].map(l => (
+              <Link key={l.href} href={l.href}
+                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-50 hover:border-brand-200 hover:text-brand-700 transition-all">
+                {l.label}
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* ══════════════════════════════════════════
             TRUST BADGES
         ══════════════════════════════════════════ */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -318,6 +368,8 @@ export default async function ArtisansBigugliaPage() {
               { href: '/emploi-biguglia',         emoji: '💼', title: 'Emploi à Biguglia',           desc: 'Offres d\'emploi et recrutement local' },
               { href: '/evenements-biguglia',     emoji: '🎉', title: 'Événements à Biguglia',       desc: 'Agenda et activités du village' },
               { href: '/associations-biguglia',   emoji: '🏛️', title: 'Associations à Biguglia',    desc: 'Clubs sportifs, culturels et bénévolat' },
+              { href: '/annonces-biguglia',       emoji: '📦', title: 'Petites annonces',            desc: 'Achat, vente, dons entre voisins' },
+              { href: '/forum-biguglia',          emoji: '💬', title: 'Forum des habitants',         desc: 'Questions, conseils & entraide locale' },
             ].map(link => (
               <Link key={link.href} href={link.href}>
                 <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-all flex items-center gap-4">

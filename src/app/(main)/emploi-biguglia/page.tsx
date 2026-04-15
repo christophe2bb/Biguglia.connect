@@ -130,11 +130,27 @@ export default async function EmploiBigugliaPage() {
     }),
   );
 
+  // JSON-LD ItemList pour les demandes d'emploi (candidats)
+  const demandListSchema = demands.length > 0 ? {
+    '@context':  'https://schema.org',
+    '@type':     'ItemList',
+    name:        `Candidats disponibles à ${GEO.city}`,
+    url:         `${SITE_URL}/emploi-biguglia`,
+    numberOfItems: totalDemands,
+    itemListElement: demands.map((d, i) => ({
+      '@type':   'ListItem',
+      position:  i + 1,
+      name:      d.title,
+      url:       `${SITE_URL}/emploi/demandes/${d.id}`,
+    })),
+  } : null;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <JsonLd data={breadcrumb} />
       <JsonLd data={faq} />
       {jobListSchema && <JsonLd data={jobListSchema} />}
+      {demandListSchema && <JsonLd data={demandListSchema} />}
       {jobPostingSchemas.map((schema, i) => <JsonLd key={i} data={schema} />)}
 
       {/* ── HERO ── */}
@@ -193,6 +209,53 @@ export default async function EmploiBigugliaPage() {
             </div>
           ))}
         </div>
+
+        {/* ── ÉDITO LOCAL — économie locale Biguglia ── */}
+        <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+          <h2 className="text-xl font-black text-gray-900 mb-4">
+            Le marché de l'emploi à {GEO.city} et en Haute-Corse
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-gray-600 leading-relaxed">
+            <div className="space-y-3">
+              <p>
+                L'économie de Biguglia repose sur plusieurs piliers : le <strong>commerce et la grande distribution</strong>
+                (zone commerciale de Lucciana), l'<strong>artisanat du bâtiment</strong> (forte demande liée à la croissance
+                résidentielle), la <strong>restauration et le tourisme</strong> (proximité de Bastia et de l'aéroport Napoléon Bonaparte),
+                et les <strong>services à la personne</strong> pour une population vieillissante.
+              </p>
+              <p>
+                La saison touristique (mai–septembre) génère de nombreux <strong>emplois saisonniers</strong> dans
+                l'hôtellerie, la restauration et les loisirs. Les contrats extra et CDD courte durée sont très courants
+                dans ce bassin d'emploi.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <p>
+                <strong>Secteurs qui recrutent à Biguglia :</strong> bâtiment & travaux publics (BTP),
+                aide à domicile & soins, restauration rapide et traditionnelle, logistique & transport (proximité
+                de la zone industrielle), agriculture & maraîchage (plaine orientale).
+              </p>
+              <p>
+                <strong>Astuce candidats :</strong> déposez votre profil de recherche d'emploi sur Biguglia Connect
+                pour être visible des employeurs locaux. Précisez votre disponibilité, vos compétences et votre
+                zone géographique (Biguglia, Borgo, Furiani, Lucciana, Bastia).
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3 text-xs">
+            {[
+              { href: '/emploi/offres',          label: '💼 Voir toutes les offres' },
+              { href: '/emploi/demandes',         label: '🙋 Candidats disponibles' },
+              { href: '/artisans-biguglia',       label: '🔧 Artisans — travaux Biguglia' },
+              { href: '/forum-biguglia',          label: '💬 Forum : conseils carrière' },
+            ].map(l => (
+              <Link key={l.href} href={l.href}
+                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-cyan-50 hover:border-cyan-200 hover:text-cyan-700 transition-all">
+                {l.label}
+              </Link>
+            ))}
+          </div>
+        </section>
 
         {/* ── DERNIÈRES OFFRES ── */}
         {offers.length > 0 && (
@@ -312,6 +375,8 @@ export default async function EmploiBigugliaPage() {
               { href: '/services-biguglia',     emoji: '🔧', title: 'Services & Artisans',  desc: 'Trouvez un artisan local' },
               { href: '/evenements-biguglia',   emoji: '🎉', title: 'Événements',            desc: 'Agenda de Biguglia' },
               { href: '/associations-biguglia', emoji: '🏛️', title: 'Associations',         desc: 'Clubs et vie associative' },
+              { href: '/annonces-biguglia',     emoji: '📦', title: 'Petites annonces',      desc: 'Achat, vente, dons entre voisins' },
+              { href: '/forum-biguglia',        emoji: '💬', title: 'Forum des habitants',   desc: 'Questions & entraide locale' },
             ].map(l => (
               <Link key={l.href} href={l.href}>
                 <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-all flex items-center gap-3">

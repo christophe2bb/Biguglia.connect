@@ -131,12 +131,28 @@ export default async function ForumBigugliaPage() {
     },
   };
 
+  // JSON-LD ItemList pour les discussions récentes
+  const postListSchema = posts.length > 0 ? {
+    '@context':  'https://schema.org',
+    '@type':     'ItemList',
+    name:        `Discussions récentes sur le forum de ${GEO.city}`,
+    url:         `${SITE_URL}/forum-biguglia`,
+    numberOfItems: total,
+    itemListElement: posts.map((p, i) => ({
+      '@type':   'ListItem',
+      position:  i + 1,
+      name:      p.title,
+      url:       `${SITE_URL}/forum/${p.id}`,
+    })),
+  } : null;
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ── JSON-LD ── */}
       <JsonLd data={breadcrumb} />
       <JsonLd data={faq} />
       <JsonLd data={discussionListSchema} />
+      {postListSchema && <JsonLd data={postListSchema} />}
 
       {/* ══════════════════════════════════════════
           HERO
@@ -201,6 +217,55 @@ export default async function ForumBigugliaPage() {
                   <span className="text-2xl">{cat.emoji}</span>
                   <p className="font-bold text-gray-900 text-xs">{cat.label}</p>
                 </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* ══════════════════════════════════════════
+            ÉDITO LOCAL — sujets phares du forum
+        ══════════════════════════════════════════ */}
+        <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+          <h2 className="text-xl font-black text-gray-900 mb-4">
+            Les sujets les plus discutés à {GEO.city}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-gray-600 leading-relaxed">
+            <div className="space-y-3">
+              <p>
+                Le forum de Biguglia Connect est le lieu d'échange privilégié des habitants de la commune.
+                Les sujets les plus populaires traitent de la <strong>vie pratique quotidienne</strong> :
+                recommandations d'artisans, signalement de problèmes de voirie, informations sur les arrêtés
+                municipaux et les travaux en cours.
+              </p>
+              <p>
+                Les catégories <strong>"Entraide"</strong> et <strong>"Vie locale"</strong> rassemblent
+                les demandes de coups de main, les partages de bonnes adresses (commerçants, restaurants,
+                médecins) et les alertes de voisinage. La modération garantit un espace bienveillant.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <p>
+                <strong>Environnement et étang :</strong> la catégorie "Nature" est particulièrement active.
+                Les habitants échangent sur la faune de l'étang de Biguglia, les sorties naturalistes,
+                la qualité de l'eau et les initiatives de préservation de cette réserve naturelle classée.
+              </p>
+              <p>
+                <strong>Règles de bonne conduite :</strong> le forum est modéré par l'équipe Biguglia Connect.
+                Toute forme de harcèlement, de spam ou de contenu illicite est supprimée. Les discussions
+                restent publiques et indexables par les moteurs de recherche.
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3 text-xs">
+            {[
+              { href: '/forum?action=new',       label: '+ Créer un sujet' },
+              { href: '/forum?categorie=entraide', label: '🤝 Entraide locale' },
+              { href: '/forum?categorie=nature',  label: '🌿 Étang & nature' },
+              { href: '/coups-de-main',           label: '🙏 Coups de main' },
+            ].map(l => (
+              <Link key={l.href} href={l.href}
+                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-all">
+                {l.label}
               </Link>
             ))}
           </div>
@@ -295,7 +360,9 @@ export default async function ForumBigugliaPage() {
               { href: '/coups-de-main',        emoji: '🤝', title: 'Coups de main',               desc: 'Donnez ou demandez de l\'aide concrète à vos voisins' },
               { href: '/communaute',            emoji: '🏘️', title: 'Communauté Biguglia',         desc: 'Membres actifs, badges et contributions de la communauté' },
               { href: '/evenements-biguglia',   emoji: '🎉', title: 'Événements à Biguglia',       desc: 'Agenda des activités et sorties locales' },
-              { href: '/associations-biguglia', emoji: '🏛️', title: 'Associations à Biguglia',    desc: 'Clubs, bénévolat et vie associative locale' },
+              { href: '/associations-biguglia', emoji: '🏛️', title: 'Associations à Biguglia',    desc: 'SC Biguglia & clubs locaux' },
+              { href: '/annonces-biguglia',     emoji: '📦', title: 'Petites annonces',            desc: 'Achat, vente, dons entre voisins' },
+              { href: '/artisans-biguglia',     emoji: '🔧', title: 'Artisans vérifiés',          desc: 'Recommandations d\'artisans locaux' },
             ].map(link => (
               <Link key={link.href} href={link.href}>
                 <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-all flex items-center gap-4">

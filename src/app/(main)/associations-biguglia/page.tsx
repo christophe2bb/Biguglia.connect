@@ -160,6 +160,53 @@ export default async function AssociationsBigugliaPage() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 space-y-14">
 
+        {/* ── ÉDITO LOCAL — vie associative Biguglia ── */}
+        <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+          <h2 className="text-xl font-black text-gray-900 mb-4">
+            La vie associative à {GEO.city} : un pilier de la communauté
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-gray-600 leading-relaxed">
+            <div className="space-y-3">
+              <p>
+                Le <strong>SC Biguglia</strong> (Sporting Club Biguglia) est l'une des associations les plus
+                emblématiques de la commune. Ce club de football rassemble joueurs de tous âges, bénévoles et
+                supporters. Ses matchs sont des moments de cohésion sociale importants pour Biguglia.
+              </p>
+              <p>
+                Au-delà du sport, Biguglia compte des <strong>associations culturelles</strong> qui préservent
+                les traditions corses, des <strong>groupes environnementaux</strong> actifs autour de l'étang
+                de Biguglia (réserve naturelle), et des <strong>clubs seniors</strong> qui animent la vie
+                du village tout au long de l'année.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <p>
+                <strong>Rejoindre une association à Biguglia</strong> est simple : consultez le profil de
+                l'association sur Biguglia Connect, trouvez les coordonnées et les modalités d'adhésion,
+                puis contactez les responsables directement via la plateforme.
+              </p>
+              <p>
+                <strong>Vous gérez une association ?</strong> Référencez-la gratuitement sur Biguglia Connect.
+                Partagez vos actualités, vos besoins en bénévoles et vos prochains événements pour toucher
+                tous les habitants de la commune et des environs.
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3 text-xs">
+            {[
+              { href: '/associations/nouvelle',  label: '+ Référencer mon association' },
+              { href: '/evenements-biguglia',    label: '🎉 Événements locaux' },
+              { href: '/emploi-biguglia',        label: '💼 Emploi & bénévolat' },
+              { href: '/forum-biguglia',         label: '💬 Forum des habitants' },
+            ].map(l => (
+              <Link key={l.href} href={l.href}
+                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-all">
+                {l.label}
+              </Link>
+            ))}
+          </div>
+        </section>
+
         {/* ── LISTE ASSOCIATIONS ── */}
         {assocs.length > 0 ? (
           <section>
@@ -274,12 +321,14 @@ export default async function AssociationsBigugliaPage() {
           <h2 className="text-lg font-black text-gray-900 mb-4">Autres pages à {GEO.city}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {[
-              { href: '/evenements-biguglia',  emoji: '🎉', title: 'Événements',          desc: 'Agenda local complet' },
+              { href: '/evenements-biguglia',  emoji: '🎉', title: 'Événements',           desc: 'Agenda local — SC Biguglia & plus' },
               { href: '/artisans-biguglia',    emoji: '🔧', title: 'Artisans vérifiés',   desc: 'Tous les métiers locaux' },
-              { href: '/emploi-biguglia',      emoji: '💼', title: 'Emploi local',        desc: 'Offres & candidats' },
-              { href: '/forum-biguglia',       emoji: '💬', title: 'Forum des habitants', desc: 'Échanges & entraide' },
-              { href: '/annonces-biguglia',    emoji: '📦', title: 'Petites annonces',    desc: 'Vente & dons entre voisins' },
-              { href: '/communaute',           emoji: '🏘️', title: 'Communauté',          desc: 'Membres actifs et badges' },
+              { href: '/emploi-biguglia',      emoji: '💼', title: 'Emploi local',         desc: 'Offres & bénévolat rémunéré' },
+              { href: '/forum-biguglia',       emoji: '💬', title: 'Forum des habitants',  desc: 'Échanges & entraide' },
+              { href: '/annonces-biguglia',    emoji: '📦', title: 'Petites annonces',     desc: 'Vente & dons entre voisins' },
+              { href: '/communaute',           emoji: '🏘️', title: 'Communauté',           desc: 'Membres actifs et badges' },
+              { href: '/services-biguglia',    emoji: '🔧', title: 'Services locaux',       desc: 'Artisans & prestataires vérifiés' },
+              { href: '/coups-de-main',        emoji: '🤝', title: 'Coups de main',         desc: 'Entraide de voisinage' },
             ].map(l => (
               <Link key={l.href} href={l.href}>
                 <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md transition-all flex items-center gap-3">
