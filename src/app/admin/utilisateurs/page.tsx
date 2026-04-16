@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import {
-  ChevronLeft, Shield, AlertTriangle, UserX, Users,
+  ChevronLeft, Shield, AlertTriangle, UserX,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { adminFetch } from '@/lib/admin-fetch';
@@ -15,10 +15,11 @@ import toast from 'react-hot-toast';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 import type { UserWithActivity } from './_components/types';
 import UserFilters from './_components/UserFilters';
+import UserTable from './_components/UserTable';
 
-// Lazy-load heavy card component
-const UserCard = dynamic(() => import('./_components/UserCard'), {
-  loading: () => <div className="h-24 bg-gray-100 rounded-2xl animate-pulse" />,
+// Lazy-load heavy drawer (visible only on demand)
+const UserDrawer = dynamic(() => import('./_components/UserDrawer'), {
+  loading: () => null,
 });
 
 const ROLE_OPTIONS = [
@@ -36,6 +37,7 @@ export default function AdminUtilisateursPage() {
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'activity'>('date');
+  const [selectedUser, setSelectedUser] = useState<UserWithActivity | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -96,6 +98,7 @@ export default function AdminUtilisateursPage() {
       return;
     }
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: newStatus as Profile['status'] } : u));
+    if (selectedUser?.id === userId) setSelectedUser(prev => prev ? { ...prev, status: newStatus as Profile['status'] } : null);
     toast.success(`Compte ${newStatus === 'suspended' ? 'suspendu' : 'réactivé'}`);
   };
 
@@ -109,6 +112,7 @@ export default function AdminUtilisateursPage() {
       return;
     }
     setUsers(prev => prev.filter(u => u.id !== userId));
+    if (selectedUser?.id === userId) setSelectedUser(null);
     toast.success(`Compte de "${name}" supprimé définitivement`);
   };
 
@@ -126,6 +130,7 @@ export default function AdminUtilisateursPage() {
       return;
     }
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole as Profile['role'] } : u));
+    if (selectedUser?.id === userId) setSelectedUser(prev => prev ? { ...prev, role: newRole as Profile['role'] } : null);
     toast.success('Rôle mis à jour');
   };
 
@@ -214,31 +219,28 @@ export default function AdminUtilisateursPage() {
           onRefresh={fetchUsers}
         />
 
-        {loading ? (
-          <div className="space-y-3">
-            {[...Array(6)].map((_, i) => <div key={i} className="h-24 bg-gray-100 rounded-2xl animate-pulse" />)}
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-16 bg-gray-50 rounded-2xl border border-gray-200">
-            <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="font-medium text-gray-600">Aucun utilisateur trouvé</p>
-            <p className="text-sm text-gray-400 mt-1">Modifiez vos filtres de recherche</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filtered.map(user => (
-              <UserCard
-                key={user.id}
-                user={user}
-                onSuspend={suspendUser}
-                onDelete={deleteUser}
-                onChangeRole={changeRole}
-                onResetPassword={resetPassword}
-              />
-            ))}
-          </div>
-        )}
+        {/* User list via UserTable */}
+        <UserTable
+          users={filtered}
+          loading={loading}
+          onSuspend={suspendUser}
+          onDelete={deleteUser}
+          onChangeRole={changeRole}
+          onResetPassword={resetPassword}
+        />
       </div>
+
+      {/* Lazy-loaded detail drawer */}
+      {selectedUser && (
+        <UserDrawer
+          user={selectedUser}
+          onClose={() => setSelectedUser(null)}
+          onSuspend={suspendUser}
+          onDelete={deleteUser}
+          onChangeRole={changeRole}
+          onResetPassword={resetPassword}
+        />
+      )}
     </ProtectedPage>
   );
 }

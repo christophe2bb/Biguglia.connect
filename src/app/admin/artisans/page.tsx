@@ -4,17 +4,16 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import {
-  CheckCircle, ChevronLeft, Search,
+  CheckCircle, ChevronLeft,
   AlertCircle, Shield,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import type { AdminArtisanEntry } from '@/app/api/admin/artisans/route';
 import type { Profile } from '@/types';
-import Input from '@/components/ui/Input';
-import Select from '@/components/ui/Select';
 import toast from 'react-hot-toast';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 import { adminFetch } from '@/lib/admin-fetch';
+import ArtisanFilters from './_components/ArtisanFilters';
 
 interface ArtisanEntry {
   id: string;
@@ -35,18 +34,23 @@ interface ArtisanEntry {
   trade_category?: { name: string; icon: string };
 }
 
-// Lazy-load the heavy ArtisanCard
+// Lazy-load heavy components
 const ArtisanCard = dynamic(() => import('./_components/ArtisanCard'), {
   loading: () => <div className="h-32 bg-gray-100 rounded-2xl animate-pulse" />,
 });
 
+const ArtisanDrawer = dynamic(() => import('./_components/ArtisanDrawer'), {
+  loading: () => null,
+});
+
 export default function AdminArtisansPage() {
-  useAuthStore(); // keep store subscribed for re-renders
+  useAuthStore();
   const [artisans, setArtisans] = useState<ArtisanEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'pending' | 'verified' | 'all'>('pending');
+  const [selectedArtisan, setSelectedArtisan] = useState<ArtisanEntry | null>(null);
 
   const fetchArtisans = useCallback(async () => {
     setLoading(true);
@@ -59,7 +63,6 @@ export default function AdminArtisansPage() {
         return;
       }
       const json = await res.json();
-      // L'API retourne { artisans: [...] } — on extrait le tableau
       const data: AdminArtisanEntry[] = Array.isArray(json) ? json : (json.artisans ?? []);
       const list: ArtisanEntry[] = data.map(a => ({
         id:               a.id,
@@ -89,9 +92,6 @@ export default function AdminArtisansPage() {
   }, [filter]);
 
   useEffect(() => {
-    // La protection admin est assurée par ProtectedPage (adminOnly).
-    // On ne redirige pas manuellement ici pour éviter de polluer l'historique
-    // du navigateur avant que le profil soit chargé (race condition).
     fetchArtisans();
   }, [filter, fetchArtisans]);
 
@@ -107,6 +107,7 @@ export default function AdminArtisansPage() {
       return;
     }
     toast.success('Artisan approuvé et notifié !');
+    setSelectedArtisan(null);
     fetchArtisans();
   };
 
@@ -122,6 +123,7 @@ export default function AdminArtisansPage() {
       return;
     }
     toast.success('Artisan refusé et notifié');
+    setSelectedArtisan(null);
     fetchArtisans();
   };
 
@@ -182,22 +184,16 @@ export default function AdminArtisansPage() {
           </ol>
         </div>
 
-        {/* ── Filtres ── */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
-          <div className="flex-1">
-            <Input
-              placeholder="Rechercher par nom, email, téléphone..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              leftIcon={<Search className="w-4 h-4" />}
-            />
-          </div>
-          <Select value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)} className="sm:w-48">
-            <option value="pending">En attente de validation</option>
-            <option value="verified">Artisans vérifiés</option>
-            <option value="all">Tous les dossiers</option>
-          </Select>
-        </div>
+        {/* ── Filtres (extracted component) ── */}
+        <ArtisanFilters
+          search={search}
+          filter={filter}
+          totalCount={artisans.length}
+          filteredCount={filtered.length}
+          onSearch={setSearch}
+          onFilter={setFilter}
+          onRefresh={fetchArtisans}
+        />
 
         {/* ── Liste ── */}
         {loading ? (
@@ -227,6 +223,16 @@ export default function AdminArtisansPage() {
           </div>
         )}
       </div>
+
+      {/* Lazy-loaded detail drawer */}
+      {selectedArtisan && (
+        <ArtisanDrawer
+          artisan={selectedArtisan}
+          onClose={() => setSelectedArtisan(null)}
+          onApprove={approveArtisan}
+          onReject={rejectArtisan}
+        />
+      )}
     </ProtectedPage>
   );
 }

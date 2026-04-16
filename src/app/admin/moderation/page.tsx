@@ -12,7 +12,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import {
   Shield, CheckCircle,
-  Search, RefreshCw, ArrowLeft,
+  RefreshCw, ArrowLeft,
   BarChart3, AlertCircle, Info,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
@@ -21,13 +21,13 @@ import ProtectedPage from '@/components/providers/ProtectedPage';
 import toast from 'react-hot-toast';
 import { adminFetch } from '@/lib/admin-fetch';
 import {
-  CONTENT_TYPE_LABELS,
   type ModerationStatus, type ContentType, type TrustLevel,
 } from '@/lib/moderation';
 import type { QueueItem as ApiQueueItem } from '@/app/api/admin/moderation/queue/route';
 import KPICard from './_components/KPICard';
+import ModerationFilters from './_components/ModerationFilters';
 
-// Lazy-load the heavy QueueRow
+// Lazy-load heavy components
 const QueueRow = dynamic(() => import('./_components/QueueRow'), {
   loading: () => (
     <div className="bg-white rounded-2xl border border-gray-100 p-4 animate-pulse">
@@ -42,6 +42,10 @@ const QueueRow = dynamic(() => import('./_components/QueueRow'), {
   ),
 });
 
+const ModerationDrawer = dynamic(() => import('./_components/ModerationDrawer'), {
+  loading: () => null,
+});
+
 type QueueItem = ApiQueueItem & {
   author_trust: TrustLevel;
   status: ModerationStatus;
@@ -51,21 +55,19 @@ type QueueItem = ApiQueueItem & {
 function ModerationQueueContent() {
   const { profile } = useAuthStore();
 
-  const [items, setItems]           = useState<QueueItem[]>([]);
-  const [kpi, setKpi]               = useState<ModerationKPI | null>(null);
-  const [loading, setLoading]       = useState(true);
-  const [processing, setProcessing] = useState<string | null>(null);
+  const [items, setItems]             = useState<QueueItem[]>([]);
+  const [kpi, setKpi]                 = useState<ModerationKPI | null>(null);
+  const [loading, setLoading]         = useState(true);
+  const [processing, setProcessing]   = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<QueueItem | null>(null);
 
-  const [filterStatus, setFilterStatus]     = useState<string>('en_attente_validation');
-  const [filterType, setFilterType]         = useState<string>('all');
-  const [filterRisk, setFilterRisk]         = useState<string>('all');
-  const [filterTrust, setFilterTrust]       = useState<string>('all');
+  const [filterStatus, setFilterStatus]       = useState<string>('en_attente_validation');
+  const [filterType, setFilterType]           = useState<string>('all');
+  const [filterRisk, setFilterRisk]           = useState<string>('all');
+  const [filterTrust, setFilterTrust]         = useState<string>('all');
   const [filterNewMember, setFilterNewMember] = useState(false);
-  const [searchQuery, setSearchQuery]       = useState('');
-  const [sortBy, setSortBy]                 = useState<'submitted_at' | 'risk_score'>('submitted_at');
-
-  // Guard supprimé : ProtectedPage adminOnly gère la vérification du rôle
-  // sans polluer l'historique du navigateur.
+  const [searchQuery, setSearchQuery]         = useState('');
+  const [sortBy, setSortBy]                   = useState<'submitted_at' | 'risk_score'>('submitted_at');
 
   const fetchQueue = useCallback(async () => {
     setLoading(true);
@@ -123,6 +125,7 @@ function ModerationQueueContent() {
       toast.error('Erreur lors de la décision : ' + (data.error ?? res.statusText));
     } else {
       toast.success(decision === 'accepter' ? '✅ Publication acceptée' : '❌ Publication refusée');
+      if (selectedItem?.id === queueId) setSelectedItem(null);
       fetchQueue();
     }
     setProcessing(null);
@@ -188,7 +191,7 @@ function ModerationQueueContent() {
         />
       </div>
 
-      {/* Bannière alertes */}
+      {/* Bannière alertes risque élevé */}
       {(kpi?.high_risk ?? 0) > 0 && (
         <div className="mb-6 flex items-center gap-3 p-4 rounded-2xl bg-orange-50 border border-orange-200">
           <AlertCircle className="w-5 h-5 text-orange-600 flex-shrink-0" />
@@ -206,90 +209,23 @@ function ModerationQueueContent() {
         </div>
       )}
 
-      {/* Filtres */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-6">
-        <div className="flex flex-wrap gap-3">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Rechercher titre, auteur…"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-300"
-            />
-          </div>
-
-          <select
-            value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value)}
-            className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-300 bg-white"
-          >
-            <option value="all">Tous statuts</option>
-            <option value="en_attente_validation">⏳ En attente</option>
-            <option value="a_corriger">✏️ À corriger</option>
-            <option value="publie">✅ Publiées</option>
-            <option value="refuse">❌ Refusées</option>
-            <option value="brouillon">📝 Brouillons</option>
-            <option value="archive">📦 Archivées</option>
-            <option value="supprime_moderation">🗑️ Supprimées</option>
-          </select>
-
-          <select
-            value={filterType}
-            onChange={e => setFilterType(e.target.value)}
-            className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-300 bg-white"
-          >
-            <option value="all">Tous types</option>
-            {(Object.entries(CONTENT_TYPE_LABELS) as [ContentType, typeof CONTENT_TYPE_LABELS[ContentType]][]).map(([key, val]) => (
-              <option key={key} value={key}>{val.emoji} {val.label}</option>
-            ))}
-          </select>
-
-          <select
-            value={filterRisk}
-            onChange={e => setFilterRisk(e.target.value)}
-            className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-300 bg-white"
-          >
-            <option value="all">Tous risques</option>
-            <option value="critical">🔴 Critique</option>
-            <option value="high">🟠 Élevé</option>
-            <option value="medium">🟡 Modéré</option>
-            <option value="low">🟢 Faible</option>
-          </select>
-
-          <select
-            value={filterTrust}
-            onChange={e => setFilterTrust(e.target.value)}
-            className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-300 bg-white"
-          >
-            <option value="all">Tous niveaux</option>
-            <option value="nouveau">🌱 Nouveau</option>
-            <option value="surveille">⚠️ Surveillé</option>
-            <option value="fiable">✅ Fiable</option>
-            <option value="de_confiance">🏆 De confiance</option>
-          </select>
-
-          <select
-            value={sortBy}
-            onChange={e => setSortBy(e.target.value as typeof sortBy)}
-            className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-300 bg-white"
-          >
-            <option value="submitted_at">Plus récent</option>
-            <option value="risk_score">Plus risqué</option>
-          </select>
-
-          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={filterNewMember}
-              onChange={e => setFilterNewMember(e.target.checked)}
-              className="w-4 h-4 rounded text-brand-600 focus:ring-brand-300"
-            />
-            🌱 Nouveaux membres
-          </label>
-        </div>
-      </div>
+      {/* Filtres (extracted component, lazy-loaded) */}
+      <ModerationFilters
+        searchQuery={searchQuery}
+        filterStatus={filterStatus}
+        filterType={filterType}
+        filterRisk={filterRisk}
+        filterTrust={filterTrust}
+        filterNewMember={filterNewMember}
+        sortBy={sortBy}
+        onSearch={setSearchQuery}
+        onStatus={setFilterStatus}
+        onType={setFilterType}
+        onRisk={setFilterRisk}
+        onTrust={setFilterTrust}
+        onNewMember={setFilterNewMember}
+        onSort={setSortBy}
+      />
 
       {/* Liste */}
       {loading ? (
@@ -352,6 +288,16 @@ function ModerationQueueContent() {
           </p>
         </div>
       </div>
+
+      {/* Lazy-loaded detail drawer */}
+      {selectedItem && (
+        <ModerationDrawer
+          item={selectedItem}
+          processing={processing === selectedItem.id}
+          onClose={() => setSelectedItem(null)}
+          onQuickDecision={handleQuickDecision}
+        />
+      )}
     </div>
   );
 }
