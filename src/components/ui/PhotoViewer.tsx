@@ -182,32 +182,30 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
           </button>
         )}
 
-        {/* Image */}
-        <div ref={imgRef} className="w-full h-full flex items-center justify-center overflow-hidden">
-          {/*
-            Intentional native <img>: the lightbox uses CSS transform-based zoom/pan
-            driven by inline styles. next/image wrapping would interfere with those
-            transforms and the drag interaction. We mitigate with decoding="async"
-            and loading="eager" (active photo must render immediately).
-          */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+        {/* Image — transforms are applied to the wrapper div so next/image can be used */}
+        <div
+          ref={imgRef}
+          onMouseDown={onMouseDown}
+          style={{
+            transform: `scale(${zoom}) translate(${pos.x / zoom}px, ${pos.y / zoom}px)`,
+            transition: drag ? 'none' : 'transform 0.2s ease',
+            cursor: zoom > 1 ? (drag ? 'grabbing' : 'grab') : 'default',
+            userSelect: 'none',
+            /* constrain the image to the available viewport */
+            position: 'relative',
+            width: '100%',
+            height: '100%',
+          } as React.CSSProperties}
+          className="flex items-center justify-center"
+        >
+          <Image
             src={photo.url}
             alt={`Photo ${idx + 1}`}
+            fill
             draggable={false}
-            decoding="async"
-            loading="eager"
-            onMouseDown={onMouseDown}
-            style={{
-              transform: `scale(${zoom}) translate(${pos.x / zoom}px, ${pos.y / zoom}px)`,
-              transition: drag ? 'none' : 'transform 0.2s ease',
-              cursor: zoom > 1 ? (drag ? 'grabbing' : 'grab') : 'default',
-              maxWidth: '100%',
-              maxHeight: '100%',
-              objectFit: 'contain',
-              userSelect: 'none',
-              WebkitUserDrag: 'none',
-            } as React.CSSProperties}
+            priority
+            className="object-contain select-none"
+            sizes="100vw"
           />
         </div>
 
