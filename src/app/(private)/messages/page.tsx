@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  MessageSquare, Search, RefreshCw, SlidersHorizontal, X,
+  MessageSquare, Search, RefreshCw, SlidersHorizontal, X, ChevronDown,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,9 @@ import { filterConversations, computeCounts } from './_utils';
 import { useConversationList } from './_hooks/useConversationList';
 import ConversationList from './_components/ConversationList';
 
+// ── Pagination ────────────────────────────────────────────────────────────────
+const CONV_PAGE_SIZE = 20;
+
 export default function MessagesPage() {
   const { profile, loading: authLoading } = useAuthStore();
 
@@ -20,6 +23,7 @@ export default function MessagesPage() {
   const [activeTab, setActiveTab]       = useState<TabId>('all');
   const [typeFilter, setTypeFilter]     = useState<string | null>(null);
   const [showTypeMenu, setShowTypeMenu] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(CONV_PAGE_SIZE);
   const typeMenuRef                     = useRef<HTMLDivElement>(null);
 
   // Fermer menus si clic dehors
@@ -31,6 +35,20 @@ export default function MessagesPage() {
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // ── Handlers de filtre — reset la pagination à chaque changement ─────────────
+  const handleSetActiveTab = useCallback((tab: TabId) => {
+    setActiveTab(tab);
+    setVisibleCount(CONV_PAGE_SIZE);
+  }, []);
+  const handleSetTypeFilter = useCallback((t: string | null) => {
+    setTypeFilter(t);
+    setVisibleCount(CONV_PAGE_SIZE);
+  }, []);
+  const handleSetSearch = useCallback((v: string) => {
+    setSearch(v);
+    setVisibleCount(CONV_PAGE_SIZE);
   }, []);
 
   // ── Données & actions (toute la logique métier dans le hook) ─────────────────
@@ -46,7 +64,9 @@ export default function MessagesPage() {
   } = useConversationList({ profileId: profile?.id ?? null, authLoading });
 
   // ── Dérivations ──────────────────────────────────────────────────────────────
-  const filtered  = filterConversations(conversations, { activeTab, typeFilter, search });
+  const filtered     = filterConversations(conversations, { activeTab, typeFilter, search });
+  const paginated    = filtered.slice(0, visibleCount);
+  const hasMoreConvs = filtered.length > visibleCount;
   const { totalUnread, unreadCount, toHandleCount, presentTypes } = computeCounts(conversations);
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -81,7 +101,7 @@ export default function MessagesPage() {
           <div className="relative" ref={typeMenuRef}>
             <button
               onClick={() => setShowTypeMenu(v => !v)}
-              aria-label={typeFilter ? `Filtre actif : ${RELATED_CONFIG[typeFilter]?.label ?? typeFilter}. Cliquer pour changer` : 'Filtrer les conversations par type'}
+              aria-label={typeFilter ? `Filtre actif : ${RELATED_CONFIG[typeFilter]?.label ?? typeFilter}. Cliquer pour changer` : 'Filtrer les conversations par type'}
               aria-expanded={showTypeMenu}
               aria-haspopup="listbox"
               className={cn(
@@ -95,7 +115,7 @@ export default function MessagesPage() {
               {typeFilter ? RELATED_CONFIG[typeFilter]?.label : <span className="hidden sm:inline">Filtrer</span>}
               {typeFilter && (
                 <button
-                  onClick={(e) => { e.stopPropagation(); setTypeFilter(null); setShowTypeMenu(false); }}
+                  onClick={(e) => { e.stopPropagation(); handleSetTypeFilter(null); setShowTypeMenu(false); }}
                   aria-label="Effacer le filtre actif"
                   className="ml-0.5 text-white/80 hover:text-white"
                 >
@@ -116,7 +136,7 @@ export default function MessagesPage() {
                   return (
                     <button
                       key={type}
-                      onClick={() => { setTypeFilter(active ? null : type); setShowTypeMenu(false); }}
+                      onClick={() => { handleSetTypeFilter(active ? null : type); setShowTypeMenu(false); }}
                       className={cn(
                         'flex items-center gap-2 w-full px-3 py-2 text-sm transition-colors',
                         active ? `${cfg.bg} ${cfg.color} font-semibold` : 'text-gray-700 hover:bg-gray-50'
@@ -148,12 +168,12 @@ export default function MessagesPage() {
           type="text"
           placeholder="Rechercher un contact, une annonce, un message…"
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={e => handleSetSearch(e.target.value)}
           className="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-brand-400 focus:bg-white transition-all"
         />
         {search && (
           <button
-            onClick={() => setSearch('')}
+            onClick={() => handleSetSearch('')}
             aria-label="Effacer la recherche"
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
           >
@@ -171,7 +191,7 @@ export default function MessagesPage() {
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleSetActiveTab(tab.id)}
               className={cn(
                 'flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0',
                 isActive ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
@@ -205,7 +225,7 @@ export default function MessagesPage() {
           return (
             <button
               key={type}
-              onClick={() => { setActiveTab(type); setTypeFilter(null); }}
+              onClick={() => { handleSetActiveTab(type); handleSetTypeFilter(null); }}
               aria-label={`Filtrer par type\u00a0: ${cfg.label}`}
               aria-pressed={isActive}
               className={cn(
@@ -228,9 +248,9 @@ export default function MessagesPage() {
         })}
       </div>
 
-      {/* Liste des conversations */}
+      {/* Liste des conversations — paginée */}
       <ConversationList
-        conversations={filtered}
+        conversations={paginated}
         allConversations={conversations}
         loading={loading}
         activeTab={activeTab}
@@ -244,14 +264,30 @@ export default function MessagesPage() {
         onConfirmDelete={handleDeleteConversation}
         onCancelDelete={() => setConfirmConv(null)}
         onDelete={(convId) => setConfirmConv(confirmConv === convId ? null : convId)}
-        onClearSearch={() => setSearch('')}
+        onClearSearch={() => handleSetSearch('')}
       />
 
-      {/* Note de bas de page */}
-      {!loading && conversations.length > 0 && (
-        <p className="text-center text-xs text-gray-400 mt-4">
-          Les messages sont privés et chiffrés entre vous et vos interlocuteurs.
-        </p>
+      {/* Bouton "Voir plus" + compteur */}
+      {!loading && filtered.length > 0 && (
+        <div className="flex flex-col items-center gap-2 mt-4">
+          <p className="text-xs text-gray-400">
+            {Math.min(visibleCount, filtered.length)} / {filtered.length} conversation{filtered.length > 1 ? 's' : ''}
+          </p>
+          {hasMoreConvs && (
+            <button
+              onClick={() => setVisibleCount(c => c + CONV_PAGE_SIZE)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+            >
+              <ChevronDown className="w-4 h-4" aria-hidden="true" />
+              Voir {Math.min(CONV_PAGE_SIZE, filtered.length - visibleCount)} de plus
+            </button>
+          )}
+          {!hasMoreConvs && conversations.length > 0 && (
+            <p className="text-xs text-gray-400 italic">
+              Les messages sont privés entre vous et vos interlocuteurs.
+            </p>
+          )}
+        </div>
       )}
     </div>
   );

@@ -1,26 +1,33 @@
 'use client';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// useDashboardData — Orchestrateur
-// Coordonne les 4 hooks spécialisés et expose le contrat public inchangé.
-// Les types sont re-exportés depuis ce fichier pour ne pas casser les
-// consommateurs existants (widgets, page.tsx).
+// useDashboardData — Orchestrateur avec chargement différé par onglet
+// ─────────────────────────────────────────────────────────────────────────────
 //
-// Sous-hooks :
-//   useDashboardStats        → compteurs KPI + statuts par catégorie
-//   useDashboardContent      → contenus récents + activité + participations
-//   useDashboardInteractions → interactions actives
-//   useDashboardReviews      → avis reçus
+// Stratégie de chargement :
+//   1. Au montage  → fetch stats uniquement (compteurs KPI pour l'en-tête)
+//   2. Par onglet  → fetch du sous-hook correspondant à la première visite
+//
+// Onglet → sous-hook :
+//   overview     → content (recentContents, recentActivity, participations)
+//   contenus     → content
+//   interactions → interactions
+//   messages     → (pas de fetch supplémentaire, géré par useConversationList)
+//   avis         → reviews
+//   historique   → content (activité récente)
+//
+// Les tabs qui ne déclenchent pas de fetch supplémentaire affichent les données
+// déjà chargées (stats) ou des skeletons jusqu'à ce que le fetch arrive.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useState, useEffect, useCallback } from 'react';
-import { useDashboardStats }        from './useDashboardStats';
-import { useDashboardContent, buildContentTodos }             from './useDashboardContent';
-import { useDashboardInteractions, buildInteractionTodos }    from './useDashboardInteractions';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useDashboardStats }                                   from './useDashboardStats';
+import { useDashboardContent, buildContentTodos }              from './useDashboardContent';
+import { useDashboardInteractions, buildInteractionTodos }     from './useDashboardInteractions';
 import { useDashboardReviews, mapRawReviews, buildReviewTodos } from './useDashboardReviews';
 
-// ─── Types publics ────────────────────────────────────────────────────────────
-// Re-exportés ici pour que les widgets n'aient pas à changer leurs imports.
+// ─── Types publics ─────────────────────────────────────────────────────────────
+// Re-exportés pour que les widgets n'aient pas à changer leurs imports.
 
 export interface StatusCounts {
   active: number;
@@ -132,6 +139,20 @@ export interface ParticipationItem {
   sourceId: string;
 }
 
+// ─── Tabs connus ──────────────────────────────────────────────────────────────
+// Ceux qui nécessitent un fetch supplémentaire au-delà des stats.
+type DeferredKey = 'content' | 'interactions' | 'reviews';
+
+// Map tab → clé de sous-hook. undefined = tab sans fetch dédié (messages).
+const TAB_TO_DEFERRED: Record<string, DeferredKey | undefined> = {
+  overview:     'content',
+  contenus:     'content',
+  historique:   'content',
+  interactions: 'interactions',
+  avis:         'reviews',
+  messages:     undefined,
+};
+
 export interface DashboardData {
   stats: DashboardStats;
   todos: TodoItem[];
@@ -143,9 +164,11 @@ export interface DashboardData {
   loading: boolean;
   error: string | null;
   refresh: () => void;
+  /** Appelé par page.tsx lors du changement d'onglet pour déclencher le fetch différé */
+  fetchForTab: (tab: string) => void;
 }
 
-// ─── Orchestrateur ────────────────────────────────────────────────────────────
+// ─── Orchestrateur ─────────────────────────────────────────────────────────────
 
 export function useDashboardData(profileId: string | undefined): DashboardData {
   const [loading, setLoading] = useState(true);
@@ -156,22 +179,68 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
   const interactionsHook = useDashboardInteractions();
   const reviewsHook      = useDashboardReviews();
 
-  const fetchAll = useCallback(async () => {
+  // Garde : sous-hooks déjà fetchés au moins une fois (évite double-fetch)
+  const fetchedRef = useRef<Set<DeferredKey>>(new Set());
+  // Ref vers listingsRaw stable pour les closures des fetchs différés
+  const listingsRawRef = useRef<Record<string, unknown>[]>([]);
+
+  // ── Fetch initial : stats seules ─────────────────────────────────────────────
+  const fetchStats = useCallback(async () => {
     if (!profileId) return;
     setLoading(true);
     setError(null);
-
-    // Stats en premier : fournit listingsRaw aux autres hooks
     await statsHook.fetch(profileId);
+    // Stocker listingsRaw pour les fetchs différés
+    listingsRawRef.current = statsHook.listingsRaw;
+    setLoading(statsHook.loading);
+    setError(statsHook.error);
+  }, [profileId, statsHook]);
 
-    // Les trois autres s'exécutent en parallèle
+  useEffect(() => {
+    fetchedRef.current = new Set();
+    listingsRawRef.current = [];
+    fetchStats();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileId]);
+
+  // ── Fetch différé déclenché par l'onglet actif ────────────────────────────────
+  const fetchDeferred = useCallback(async (key: DeferredKey) => {
+    if (!profileId || fetchedRef.current.has(key)) return;
+    fetchedRef.current.add(key);
+
+    if (key === 'content') {
+      await contentHook.fetch(profileId, listingsRawRef.current);
+    } else if (key === 'interactions') {
+      await interactionsHook.fetch(profileId);
+    } else if (key === 'reviews') {
+      await reviewsHook.fetch(profileId);
+    }
+  }, [profileId, contentHook, interactionsHook, reviewsHook]);
+
+  // ── API publique appelée par page.tsx à chaque changement d'onglet ────────────
+  const fetchForTab = useCallback((tab: string) => {
+    const key = TAB_TO_DEFERRED[tab];
+    if (key) void fetchDeferred(key);
+  }, [fetchDeferred]);
+
+  // ── Refresh complet (bouton actualiser) ──────────────────────────────────────
+  const refresh = useCallback(async () => {
+    if (!profileId) return;
+    setLoading(true);
+    setError(null);
+    fetchedRef.current = new Set();
+
+    await statsHook.fetch(profileId);
+    listingsRawRef.current = statsHook.listingsRaw;
+
     await Promise.all([
-      contentHook.fetch(profileId, statsHook.listingsRaw),
+      contentHook.fetch(profileId, listingsRawRef.current),
       interactionsHook.fetch(profileId),
       reviewsHook.fetch(profileId),
     ]);
 
-    // Consolide les erreurs des sous-hooks
+    fetchedRef.current = new Set(['content', 'interactions', 'reviews'] as DeferredKey[]);
+
     const subError =
       statsHook.error        ??
       contentHook.error      ??
@@ -181,9 +250,7 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
     setLoading(false);
   }, [profileId, statsHook, contentHook, interactionsHook, reviewsHook]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
-
-  // ── Todos assemblés depuis les 3 builders ──────────────────────────────────
+  // ── Todos assemblés depuis les compteurs de stats ────────────────────────────
   const { stats } = statsHook;
   const todos: TodoItem[] = [
     ...buildInteractionTodos(
@@ -192,13 +259,12 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
       stats.unreadMessages,
     ),
     ...buildReviewTodos(stats.toReviewInteractions, stats.profileScore),
-    ...buildContentTodos(statsHook.listingsRaw),
+    ...buildContentTodos(listingsRawRef.current),
   ].sort((a, b) => {
     const order = { urgent: 0, normal: 1, low: 2 } as const;
     return order[a.priority] - order[b.priority];
   }) as TodoItem[];
 
-  // reviewsHook est la source vérité pour les avis ; mapRawReviews([]) = fallback vide
   const recentReviews =
     reviewsHook.recentReviews.length > 0
       ? reviewsHook.recentReviews
@@ -212,8 +278,9 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
     recentActivity:     contentHook.recentActivity,
     recentReviews,
     participations:     contentHook.participations,
-    loading:            loading || statsHook.loading || contentHook.loading,
+    loading:            loading || statsHook.loading,
     error,
-    refresh:            fetchAll,
+    refresh,
+    fetchForTab,
   };
 }

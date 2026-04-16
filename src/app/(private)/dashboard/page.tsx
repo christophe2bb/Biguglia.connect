@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, memo } from 'react';
 import {
   MessageSquare, Package, Activity, Star, Clock,
   LayoutGrid, CheckCircle, Wrench, RefreshCw, Shield, User, ChevronRight,
@@ -29,16 +29,69 @@ const HistoriqueTab   = dynamic(() => import('./_widgets/HistoriqueTab'),   { ss
 // ── Types ──────────────────────────────────────────────────────────────────────
 import type { DashTab } from './_constants';
 
+// ─── Barre d'onglets mémoïsée ─────────────────────────────────────────────────
+// Évite de re-rendre les boutons à chaque frappe / changement de données.
+interface TabBarProps {
+  tabs: { id: DashTab; label: string; icon: React.ElementType; badge?: number }[];
+  activeTab: DashTab;
+  onTabChange: (tab: DashTab) => void;
+}
+
+const TabBar = memo(function TabBar({ tabs, activeTab, onTabChange }: TabBarProps) {
+  return (
+    <div className="flex gap-1 bg-gray-100/80 rounded-2xl p-1 mb-6 overflow-x-auto scrollbar-hide">
+      {tabs.map(tab => {
+        const TabIcon = tab.icon;
+        const isActive = activeTab === tab.id;
+        const badge = tab.badge;
+        return (
+          <button
+            key={tab.id}
+            onClick={() => onTabChange(tab.id)}
+            aria-pressed={isActive}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 relative',
+              isActive ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-white/50',
+            )}
+          >
+            <TabIcon className="w-3.5 h-3.5" />
+            {tab.label}
+            {badge !== undefined && badge > 0 && (
+              <span className={cn(
+                'ml-1 min-w-[18px] h-[18px] text-[10px] font-bold rounded-full flex items-center justify-center px-1',
+                isActive ? 'bg-brand-500 text-white' : 'bg-red-500 text-white',
+              )}>
+                {badge > 99 ? '99+' : badge}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+});
+
 // ─── Main content ──────────────────────────────────────────────────────────────
 
 function DashboardContent() {
   const { profile, isAdmin } = useAuthStore();
   const unread   = useUnreadCounts();
   const dashData = useDashboardData(profile?.id);
-  const { stats, loading, refresh } = dashData;
+  const { stats, loading, refresh, fetchForTab } = dashData;
   const { stats: trustStats, badges: trustBadges } = useTrustData(profile?.id ?? null);
 
   const [activeTab, setActiveTab] = useState<DashTab>('overview');
+
+  // Déclencher le fetch différé + changer d'onglet en une seule action
+  const handleTabChange = useCallback((tab: DashTab) => {
+    setActiveTab(tab);
+    fetchForTab(tab);
+  }, [fetchForTab]);
+
+  // Déclencher le fetch de l'onglet overview au montage initial
+  // (useEffect inside handleTabChange wouldn't fire at mount — call once here)
+  // fetchForTab is called for 'overview' via the useEffect below
+  useState(() => { fetchForTab('overview'); });
 
   if (!profile) return null;
 
@@ -114,41 +167,14 @@ function DashboardContent() {
               <h3 className="font-bold text-amber-900 mb-1">Dossier artisan en cours de validation</h3>
               <p className="text-sm text-amber-700 mb-3">Notre équipe examine votre dossier. Vous pouvez le compléter en attendant.</p>
               <Link href="/inscription/artisan-profil" className="inline-flex items-center gap-2 bg-amber-600 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-amber-700 transition-colors">
-                <Wrench className="w-4 h-4" /> Compléter mon dossier
+                <Wrench className="w-4 h-4" /> Compléter mon dossier <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
           </div>
         )}
 
-        {/* ══ NAVIGATION TABS ═════════════════════════════════════════════════ */}
-        <div className="flex gap-1 bg-gray-100/80 rounded-2xl p-1 mb-6 overflow-x-auto scrollbar-hide">
-          {tabs.map(tab => {
-            const TabIcon = tab.icon;
-            const isActive = activeTab === tab.id;
-            const badge = 'badge' in tab ? tab.badge : undefined;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 relative',
-                  isActive ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-white/50',
-                )}
-              >
-                <TabIcon className="w-3.5 h-3.5" />
-                {tab.label}
-                {badge !== undefined && badge > 0 && (
-                  <span className={cn(
-                    'ml-1 min-w-[18px] h-[18px] text-[10px] font-bold rounded-full flex items-center justify-center px-1',
-                    isActive ? 'bg-brand-500 text-white' : 'bg-red-500 text-white',
-                  )}>
-                    {badge > 99 ? '99+' : badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        {/* ══ NAVIGATION TABS — mémoïsée ══════════════════════════════════════ */}
+        <TabBar tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} />
 
         {/* ══ TAB CONTENT ═════════════════════════════════════════════════════ */}
         {activeTab === 'overview' && (

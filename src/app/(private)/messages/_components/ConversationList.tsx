@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { memo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   MessageSquare, ShoppingBag, HandHeart, MapPin,
@@ -10,7 +10,7 @@ import { ConvWithOther } from '../_types';
 import ConversationListItem from './ConversationListItem';
 
 // ─── Skeleton de chargement ────────────────────────────────────────────────────
-function ConvSkeleton() {
+const ConvSkeleton = memo(function ConvSkeleton() {
   return (
     <div className="flex items-center gap-3 p-4 animate-pulse">
       <div className="w-12 h-12 bg-gray-200 rounded-full flex-shrink-0" />
@@ -24,7 +24,7 @@ function ConvSkeleton() {
       </div>
     </div>
   );
-}
+});
 
 // ─── État vide selon le contexte ──────────────────────────────────────────────
 function EmptyConversations({
@@ -133,7 +133,7 @@ interface ConversationListProps {
  *   - Barre de résumé rapide (nb conv, non-lus, à traiter)
  *   - Lignes cliquables via ConversationListItem
  */
-export default function ConversationList({
+const ConversationList = memo(function ConversationList({
   conversations,
   allConversations,
   loading,
@@ -218,4 +218,6 @@ export default function ConversationList({
       ))}
     </div>
   );
-}
+});
+
+export default ConversationList;
