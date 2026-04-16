@@ -127,23 +127,9 @@ DROP POLICY IF EXISTS "job_demands_read"             ON public.job_demands;
 DROP POLICY IF EXISTS "job_demands_select_published" ON public.job_demands;
 DROP POLICY IF EXISTS "job_demands_select_own"       ON public.job_demands;
 
--- 3. Policy RLS unifiée et correcte
-CREATE POLICY "job_demands_select"
-  ON public.job_demands
-  FOR SELECT
-  TO anon, authenticated
-  USING (
-    -- Lecture publique : demandes publiées (seul statut valide de l'ENUM pour public)
-    status = 'published'
-    -- Auteur : accès à ses propres demandes quel que soit le status
-    OR (SELECT auth.uid()) = user_id
-    -- Admins / modérateurs
-    OR EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = (SELECT auth.uid())
-        AND role IN ('admin', 'moderator')
-    )
-  );
+-- ⚠️  NEUTRALISÉ — policy déplacée vers la source de vérité unique :
+--     20260416_job_demands_rls_normalize.sql
+-- (cette version n'acceptait que status='published', sans 'active')
 
 -- ============================================================================
 -- VÉRIFICATION (exécuter séparément, lecture seule)

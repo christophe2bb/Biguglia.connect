@@ -547,20 +547,9 @@ CREATE POLICY job_offers_delete ON job_offers
 -- JOB DEMANDS POLICIES
 -- ============================================================================
 
-CREATE POLICY job_demands_select ON job_demands
-  FOR SELECT
-  USING (
-    -- Lecture publique : 'active' (inséré par publish-demand.ts) OU 'published'
-    status IN ('active', 'published')
-    -- Auteur : accès à ses propres demandes (draft, paused, expired…)
-    OR (SELECT auth.uid()) = user_id
-    -- Admins / modérateurs
-    OR EXISTS (
-      SELECT 1 FROM profiles
-      WHERE id = (SELECT auth.uid())
-        AND role IN ('admin', 'moderator')
-    )
-  );
+-- ⚠️  NEUTRALISÉ — policy déplacée vers la source de vérité unique :
+--     20260416_job_demands_rls_normalize.sql
+-- (cette version acceptait status IN ('active','published') + auteur + admin)
 
 CREATE POLICY job_demands_insert ON job_demands
   FOR INSERT
