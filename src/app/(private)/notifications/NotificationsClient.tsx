@@ -1,18 +1,16 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Bell, CheckCheck, MessageSquare, Info, AlertCircle, Star,
   Heart, Calendar, MapPin, Package, ShoppingBag, Wrench,
   Handshake, Gem, Search, Trash2, RefreshCw, BellOff,
-  Megaphone, Award, Clock, ChevronRight, Zap, X,
+  Megaphone, Award, Clock, ChevronRight, Zap, X, ChevronDown,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { Notification } from '@/types';
 import Link from 'next/link';
-import EmptyState from '@/components/ui/EmptyState';
 import { formatRelative, cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
@@ -88,6 +86,10 @@ const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'reminders', label: 'Rappels',    icon: Clock },
 ];
 
+// ─── Pagination ───────────────────────────────────────────────────────────────
+const PAGE_SIZE = 30;   // notifications affichées par page
+const FETCH_LIMIT = 200; // fetch max côté DB (pour avoir les compteurs exacts par onglet)
+
 // ─── Regroupement par date ────────────────────────────────────────────────────
 function groupByDate(notifs: Notification[]): { label: string; items: Notification[] }[] {
   const now = new Date();
@@ -127,16 +129,21 @@ const RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000];
 
 export default function NotificationsClient() {
   const { profile } = useAuthStore();
-  const router = useRouter();
+  // ── Suppression de router : ProtectedPage gère la redirection sans polluer l'historique
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading]   = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>('all');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  // ── Pagination : nombre de notifications actuellement visibles ────────────
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const channelRef   = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectIdx = useRef(0);
   const mountedRef   = useRef(true);
+
+  // Remettre à zéro la pagination quand l'onglet ou la recherche changent
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [activeTab, searchQuery]);
 
   // ── Chargement ───────────────────────────────────────────────────────────
   const fetchNotifications = useCallback(async () => {
@@ -147,7 +154,7 @@ export default function NotificationsClient() {
       .select('*')
       .eq('user_id', profile.id)
       .order('created_at', { ascending: false })
-      .limit(150);
+      .limit(FETCH_LIMIT);
     if (mountedRef.current) {
       setNotifications((data as Notification[]) || []);
       setLoading(false);
@@ -195,7 +202,8 @@ export default function NotificationsClient() {
 
   useEffect(() => {
     mountedRef.current = true;
-    if (!profile) { router.push('/connexion'); return; }
+    // Pas de router.push ici — ProtectedPage (adminOnly=false) redirige sans polluer l'historique
+    if (!profile) return;
     fetchNotifications();
     connectRealtime();
     // Quand on arrive sur la page notifications → forcer recalcul du badge immédiatement
@@ -214,7 +222,7 @@ export default function NotificationsClient() {
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
       document.removeEventListener('visibilitychange', handleVis);
     };
-  }, [profile, router, fetchNotifications, connectRealtime]);
+  }, [profile, fetchNotifications, connectRealtime]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const markAllRead = async () => {
@@ -234,7 +242,7 @@ export default function NotificationsClient() {
     // 1. Optimistic update local immédiat — point rouge disparaît tout de suite
     setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
     // 2. Écriture BDD (await) puis signal — fetchCounts lira is_read=true en BDD
-    await supabase.from('notifications').update({ is_read: true }).eq('id', notif.id); // read_at n'existe pas en DB
+    await supabase.from('notifications').update({ is_read: true }).eq('id', notif.id);
     window.dispatchEvent(new Event('new-notification'));
   }, []);
 
@@ -270,6 +278,10 @@ export default function NotificationsClient() {
     return true;
   });
 
+  // ── Pagination : slice pour n'afficher que visibleCount éléments ──────────
+  const paginatedFiltered = filtered.slice(0, visibleCount);
+  const hasMore = filtered.length > visibleCount;
+
   const unreadCount  = notifications.filter(n => !n.is_read).length;
   const tabCounts: Record<TabId, number> = {
     all:       notifications.length,
@@ -288,7 +300,7 @@ export default function NotificationsClient() {
     reminders: notifications.filter(n => !n.is_read && getConfig(n.type).tab === 'reminders').length,
   };
 
-  const groups = groupByDate(filtered);
+  const groups = groupByDate(paginatedFiltered);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
@@ -369,11 +381,14 @@ export default function NotificationsClient() {
         {TABS.map(tab => {
           const isActive = activeTab === tab.id;
           const unread   = tabUnread[tab.id];
+          const count    = tabCounts[tab.id];
           const TabIcon  = tab.icon;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              aria-label={`${tab.label}${count > 0 ? ` (${count})` : ''}`}
+              aria-pressed={isActive}
               className={cn(
                 'relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap flex-shrink-0',
                 isActive ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
@@ -533,7 +548,7 @@ export default function NotificationsClient() {
                         {/* Bouton supprimer — visible au hover */}
                         <button
                           onClick={(e) => deleteNotif(e, notif.id)}
-                          aria-label={`Supprimer la notification : ${notif.title}`}
+                          aria-label={`Supprimer la notification : ${notif.title}`}
                           className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-400 transition-all"
                         >
                           <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
@@ -546,10 +561,21 @@ export default function NotificationsClient() {
             </div>
           ))}
 
-          {/* Bas de page */}
-          <p className="text-center text-xs text-gray-400 py-2">
-            {filtered.length} notification{filtered.length > 1 ? 's' : ''} · Affichage des 150 dernières
-          </p>
+          {/* ── Bas de page : compteur + bouton « Voir plus » ─────────────────── */}
+          <div className="flex flex-col items-center gap-3 py-2">
+            <p className="text-xs text-gray-400">
+              {Math.min(visibleCount, filtered.length)} / {filtered.length} notification{filtered.length > 1 ? 's' : ''}
+            </p>
+            {hasMore && (
+              <button
+                onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+              >
+                <ChevronDown className="w-4 h-4" aria-hidden="true" />
+                Voir {Math.min(PAGE_SIZE, filtered.length - visibleCount)} de plus
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
