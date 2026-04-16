@@ -3,36 +3,37 @@
  *
  * Layout pour toutes les pages /admin/*.
  *
- * IMPORTANT : La protection admin est gérée UNIQUEMENT côté client par
- * ProtectedPage (adminOnly=true) dans src/app/admin/page.tsx.
+ * Protection serveur forte (double couche) :
+ * ──────────────────────────────────────────
+ *  1. verifyAdminLayout() — exécuté côté serveur AVANT tout rendu :
+ *       • auth.getUser()  → validation JWT réelle par Supabase (signature + expiration)
+ *       • profiles.role   → chargé via service-role key (bypass RLS)
+ *       • redirect('/connexion?next=/admin') si pas de session
+ *       • redirect('/')                      si rôle ≠ admin / moderator
  *
- * Pourquoi pas de vérification serveur ici ?
- * ─────────────────────────────────────────
- * Le client Supabase (createBrowserClient) stocke la session dans des cookies
- * httpOnly. Dans certaines configurations Vercel/Next.js 14 App Router, le
- * createServerClient ne reçoit pas ces cookies correctement lors du premier
- * rendu SSR (timing, SameSite, domaine). Résultat : auth.getUser() retourne
- * "Auth session missing" même si l'utilisateur est connecté → redirection
- * incorrecte vers /connexion.
+ *  2. ProtectedPage (adminOnly) — dans chaque page /admin/* côté client :
+ *       garde de secours (store Zustand) si le layout est contourné.
  *
- * La protection côté client (ProtectedPage) est suffisante car :
- * - Elle lit la session depuis le store Zustand (hydraté par AuthProvider)
- * - Elle force un rechargement du profil depuis Supabase si nécessaire
- * - Les API routes admin (/api/admin/**) ont leur propre vérification JWT
+ *  3. API routes admin (/api/admin/**) — getAdminUser(req) :
+ *       vérification JWT + rôle sur chaque mutation.
  *
- * Si la session serveur devient nécessaire, utiliser un Server Action ou
- * l'en-tête Authorization avec le token JWT client.
+ * Un non-admin ne charge JAMAIS l'UI admin — redirection serveur pure.
  */
 
 import type { Metadata } from 'next';
 import AuthProvider from '@/components/providers/AuthProvider';
 import { Toaster } from 'react-hot-toast';
+import { verifyAdminLayout } from '@/lib/supabase/admin-layout-guard';
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  // Bloque avant tout rendu : JWT validé + rôle vérifié côté serveur.
+  // Lance une redirection Next.js si la condition n'est pas remplie.
+  await verifyAdminLayout();
+
   return (
     <AuthProvider>
       {children}
