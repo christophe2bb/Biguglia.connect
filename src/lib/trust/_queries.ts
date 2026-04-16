@@ -42,6 +42,10 @@ export async function fetchProfileBadges(profileId: string): Promise<BadgeCode[]
 export async function awardAutomaticBadges(profileId: string): Promise<void> {
   const supabase = createClient();
 
+  // Note sécurité : cette fonction est appelée uniquement sur le profil de
+  // l'utilisateur connecté (profileId = auth.uid()). La policy RLS
+  // "profiles_select_own_or_admin" autorise la lecture du propre profil complet.
+  // On ne lit que les colonnes strictement nécessaires aux badges automatiques.
   const [{ data: profile }, { data: stats }, { data: existingBadges }] = await Promise.all([
     supabase.from('profiles').select('created_at, role, avatar_url, phone').eq('id', profileId).single(),
     supabase.from('trust_profile_stats').select('*').eq('profile_id', profileId).maybeSingle(),

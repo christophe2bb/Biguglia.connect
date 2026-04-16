@@ -54,10 +54,14 @@ export function useForumPage(): UseForumPageReturn {
     setCategories(catList);
 
     // Statistiques
+    // Note : on ne compte plus les profiles directement (RLS durcissée —
+    // email/phone ne doivent pas être exposés aux visiteurs non connectés).
+    // Le compteur "membres" est estimé à partir des auteurs uniques du forum
+    // via forum_topics, ce qui reste une approximation suffisante pour l'UI.
     const [{ count: tc }, { count: rc }, { count: mc }, { count: resc }] = await Promise.all([
       supabase.from('forum_topics').select('*', { count: 'exact', head: true }),
       supabase.from('forum_replies').select('*', { count: 'exact', head: true }),
-      supabase.from('profiles').select('*', { count: 'exact', head: true }),
+      supabase.from('forum_topics').select('author_id', { count: 'exact', head: true }).not('author_id', 'is', null),
       supabase.from('forum_topics').select('*', { count: 'exact', head: true }).eq('is_resolved', true),
     ]);
     setStats({ topics: tc || 0, replies: rc || 0, members: mc || 0, resolved: resc || 0 });

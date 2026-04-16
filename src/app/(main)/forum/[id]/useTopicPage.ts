@@ -63,10 +63,13 @@ export function useTopicPage(): UseTopicPageReturn {
       } as unknown as TopicExtended;
     }
 
-    // Auteur
+    // Auteur — lecture via public_profiles (id, full_name, avatar_url, role)
+    // RLS profiles durcissée : email/phone non exposés, vue public_profiles
+    // accessible aux utilisateurs connectés uniquement. Les visiteurs anonymes
+    // verront author = null (UI gère déjà ce cas avec un fallback avatar).
     if (topicData?.author_id) {
       const { data: authorData } = await supabase
-        .from('profiles').select('id, full_name, avatar_url, role')
+        .from('public_profiles').select('id, full_name, avatar_url, role')
         .eq('id', topicData.author_id).single();
       topicData = { ...topicData, author: authorData as ForumTopic['author'] };
     }
@@ -90,8 +93,9 @@ export function useTopicPage(): UseTopicPageReturn {
     for (const r of (repliesRaw || []) as Record<string, unknown>[]) {
       const authorId = r.author_id as string | undefined;
       if (authorId && !profileCache[authorId]) {
+        // Via public_profiles — ne contient pas email/phone
         const { data: cp } = await supabase
-          .from('profiles').select('id, full_name, avatar_url, role').eq('id', authorId).single();
+          .from('public_profiles').select('id, full_name, avatar_url, role').eq('id', authorId).single();
         if (cp) profileCache[authorId] = cp;
       }
       let quotedReplyData = null;
