@@ -24,6 +24,7 @@ import { SectionTrust }       from './_components/SectionTrust';
 import { SectionModeration }  from './_components/SectionModeration';
 import { SectionEvents }      from './_components/SectionEvents';
 import { SectionLostFound }   from './_components/SectionLostFound';
+import { SectionAdminLogs }   from './_components/SectionAdminLogs';
 
 export default function MigrationPage() {
   const { checking, tables, allOk, missingCount, checkTables,
@@ -69,6 +70,8 @@ export default function MigrationPage() {
         <SectionEvents copied={copied} copy={copy} />
 
         <SectionLostFound copied={copied} copy={copy} />
+
+        <SectionAdminLogs copied={copied} copy={copy} />
 
       </div>
     </ProtectedPage>
