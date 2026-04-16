@@ -3,27 +3,23 @@
 /**
  * ProtectedPage.tsx
  * ─────────────────────────────────────────────────────────────────────────────
- * Garde de route côté client pour les pages nécessitant une authentification.
+ * Garde de route côté client.
  *
- * ── Comportement ──────────────────────────────────────────────────────────────
+ * ARCHITECTURE :
+ *  - Un seul fetch DB, déclenché une seule fois quand phase='authenticated'
+ *  - adminState géré via ref (pas state) pour éviter les re-renders en boucle
+ *  - profile du store utilisé en lecture directe (ref), jamais comme dépendance
+ *    du useEffect principal → zéro clignotement
  *
- *  phase = 'initializing'    → Affiche le skeleton (AuthProvider initialise)
- *  phase = 'unauthenticated' → Redirige vers /connexion
- *  phase = 'authenticated'   → Vérifie adminOnly, puis rend children
- *
- * ── adminOnly ─────────────────────────────────────────────────────────────────
- *
- *  Quand adminOnly=true :
- *  1. On attend que le profil soit chargé (skeleton)
- *  2. Si profil null après tentative de fetch → on force un rechargement UNE FOIS
- *  3. Après le rechargement, si toujours pas admin → redirect '/'
- *  4. Si admin/moderator → affiche les children
- *
- *  Circuit-breaker : un boolean `fetchedRef` empêche les rechargements infinis
- *  si la DB est inaccessible (RLS trop restrictive, réseau, etc.)
+ * ÉTATS :
+ *  'idle'       → pas encore démarré
+ *  'fetching'   → fetch DB en cours → skeleton
+ *  'ok'         → admin/moderator confirmé → afficher children
+ *  'denied'     → rôle insuffisant ou erreur → redirect '/'
+ *  'no-admin'   → adminOnly=false → afficher children directement
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
@@ -34,7 +30,6 @@ interface Props {
   adminOnly?: boolean;
 }
 
-/** Skeleton de chargement réutilisable */
 function AuthSkeleton() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-10 space-y-6">
@@ -59,139 +54,97 @@ function AuthSkeleton() {
   );
 }
 
-type AdminCheckState = 'pending' | 'fetching' | 'authorized' | 'unauthorized';
+type GuardStatus = 'idle' | 'fetching' | 'ok' | 'denied' | 'no-admin';
 
 export default function ProtectedPage({ children, adminOnly = false }: Props) {
-  const { phase, profile, userId, setProfile } = useAuthStore();
+  // Lire phase + userId depuis le store — PAS profile (évite boucle de re-render)
+  const phase  = useAuthStore((s) => s.phase);
+  const userId = useAuthStore((s) => s.userId);
+  const setProfile = useAuthStore((s) => s.setProfile);
+
   const router = useRouter();
 
-  // Circuit-breaker: track admin check state to avoid infinite loops
-  const [adminState, setAdminState] = useState<AdminCheckState>('pending');
-  const fetchAttemptedRef = useRef(false);
-  // Timeout de sécurité : si après 6s le profil n'est toujours pas chargé → refus
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const isAdminRole = useCallback((p: Profile | null): boolean => {
-    return p?.role === 'admin' || p?.role === 'moderator';
-  }, []);
+  // État de la garde — ref pour ne pas déclencher de re-render depuis le fetch
+  const [status, setStatus] = useState<GuardStatus>('idle');
+  const startedRef = useRef(false); // fetch lancé une seule fois
 
   useEffect(() => {
-    // ── Pas encore initialisé → attendre ──────────────────────────────────
+    // Attendre la fin d'initialisation
     if (phase === 'initializing') return;
 
-    // ── Non authentifié → rediriger vers /connexion ───────────────────────
+    // Non connecté → /connexion
     if (phase === 'unauthenticated') {
-      router.push('/connexion');
+      router.replace('/connexion');
       return;
     }
 
-    // ── Authentifié — si pas adminOnly, rien à faire ─────────────────────
-    if (!adminOnly) return;
-
-    // ── AdminOnly: state machine ─────────────────────────────────────────
-    // Si profil déjà chargé avec le bon rôle → autorisé directement
-    if (profile !== null && isAdminRole(profile)) {
-      setAdminState('authorized');
+    // page non-admin → afficher directement
+    if (!adminOnly) {
+      setStatus('no-admin');
       return;
     }
 
-    // Si on a déjà tenté de recharger le profil → décider maintenant
-    if (fetchAttemptedRef.current) {
-      if (profile !== null && isAdminRole(profile)) {
-        setAdminState('authorized');
-      } else if (profile !== null && !isAdminRole(profile)) {
-        // Profil chargé mais rôle insuffisant → refus réel
-        setAdminState('unauthorized');
-      }
-      // Si profile est encore null après fetch → rester en 'fetching' et attendre
-      // le prochain cycle (AuthProvider peut encore être en train de charger)
-      return;
-    }
+    // Lancer le fetch une seule fois
+    if (startedRef.current) return;
+    startedRef.current = true;
 
-    // Première tentative : recharger le profil frais depuis la DB
-    // (cas où le rôle a été mis à jour après la connexion)
     if (!userId) {
-      setAdminState('unauthorized');
+      setStatus('denied');
       return;
     }
 
-    fetchAttemptedRef.current = true;
-    setAdminState('fetching');
+    setStatus('fetching');
 
-    // Timeout de sécurité : si la DB ne répond pas dans 6s → unauthorized
-    timeoutRef.current = setTimeout(() => {
-      setAdminState((prev) => prev === 'fetching' ? 'unauthorized' : prev);
-    }, 6_000);
+    // Timeout de sécurité 6s
+    const timer = setTimeout(() => setStatus('denied'), 6_000);
 
-    const supabase = createClient();
-    Promise.resolve(
-      supabase
-        .from('profiles')
-        // Colonnes explicites — compatibles avec la policy RLS profiles_select_own_or_admin
-        .select('id, email, full_name, avatar_url, phone, role, status, legal_consent, legal_consent_at, created_at, updated_at, home_sector_id')
-        .eq('id', userId)
-        .single()
-    ).then(({ data, error }) => {
-      if (error) {
-        // Erreur RLS ou réseau — NE PAS rediriger, laisser AuthProvider terminer
-        console.warn('[ProtectedPage] fetchProfile error (attente AuthProvider):', error.message);
-        // On reste en 'fetching' — le useEffect se relancera quand profile change dans le store
-        return;
-      }
-      if (data) {
-        setProfile(data as Profile);
-        if ((data as Profile).role === 'admin' || (data as Profile).role === 'moderator') {
-          setAdminState('authorized');
-        } else {
-          setAdminState('unauthorized');
+    void (async () => {
+      try {
+        const { data, error } = await createClient()
+          .from('profiles')
+          .select('id, email, full_name, avatar_url, phone, role, status, legal_consent, legal_consent_at, created_at, updated_at, home_sector_id')
+          .eq('id', userId)
+          .single();
+
+        clearTimeout(timer);
+
+        if (error || !data) {
+          // Erreur RLS ou réseau : tenter de lire le profil déjà dans le store
+          const storeProfile = useAuthStore.getState().profile;
+          if (storeProfile?.role === 'admin' || storeProfile?.role === 'moderator') {
+            setStatus('ok');
+          } else {
+            console.warn('[ProtectedPage] profil inaccessible:', error?.message);
+            setStatus('denied');
+          }
+          return;
         }
-      } else {
-        setAdminState('unauthorized');
+
+        setProfile(data as Profile);
+        const role = (data as Profile).role;
+        setStatus(role === 'admin' || role === 'moderator' ? 'ok' : 'denied');
+      } catch {
+        clearTimeout(timer);
+        setStatus('denied');
       }
-    }).catch((err) => {
-      console.warn('[ProtectedPage] fetchProfile catch (attente AuthProvider):', err);
-      // Même logique : ne pas rediriger sur erreur réseau transitoire
-    }).finally(() => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    });
-  }, [phase, profile, userId, adminOnly, router, isAdminRole, setProfile]);
+    })();
 
-  // Cleanup timeout au démontage
+  // Dépendances minimales : phase et userId suffisent
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, userId]);
+
+  // Redirection si accès refusé
   useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
+    if (status === 'denied') router.replace('/');
+  }, [status, router]);
 
-  // Redirection quand non autorisé
-  useEffect(() => {
-    if (adminOnly && adminState === 'unauthorized') {
-      router.push('/');
-    }
-  }, [adminOnly, adminState, router]);
+  // ── Rendu ────────────────────────────────────────────────────────────────
 
-  // ── Rendu conditionnel ────────────────────────────────────────────────────
+  if (phase === 'initializing')    return <AuthSkeleton />;
+  if (phase === 'unauthenticated') return <AuthSkeleton />;
+  if (status === 'idle')           return <AuthSkeleton />;
+  if (status === 'fetching')       return <AuthSkeleton />;
+  if (status === 'denied')         return <AuthSkeleton />;
 
-  // 1. En cours d'initialisation → skeleton
-  if (phase === 'initializing') {
-    return <AuthSkeleton />;
-  }
-
-  // 2. Non authentifié → skeleton pendant la redirection
-  if (phase === 'unauthenticated') {
-    return <AuthSkeleton />;
-  }
-
-  // 3. AdminOnly: skeleton pendant la vérification ou fetch
-  if (adminOnly && (adminState === 'pending' || adminState === 'fetching')) {
-    return <AuthSkeleton />;
-  }
-
-  // 4. AdminOnly: skeleton pendant redirect (unauthorized)
-  if (adminOnly && adminState === 'unauthorized') {
-    return <AuthSkeleton />;
-  }
-
-  // 5. Tout est bon → afficher le contenu protégé
   return <>{children}</>;
 }
