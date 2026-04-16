@@ -18,6 +18,8 @@
  *     – matériel partagé      /materiel/[id]
  *     – perdu/trouvé          /perdu-trouve/[id]
  *     – promenades/sorties    /promenades/sorties/[id]
+ *     – coups de main         /coups-de-main/[id]
+ *     – demandes service      /demandes/[id]
  *   • Pages privées (admin, dashboard, profil, messages) → EXCLUES
  *   • Pages légales → monthly, faible priorité
  *
@@ -132,6 +134,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     materielRes,
     lfRes,
     promenadesRes,
+    coupsDeMainRes,
+    demandesRes,
   ] = await Promise.allSettled([
 
     // 1. Profils artisans vérifiés
@@ -202,19 +206,37 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .neq('status', 'annule')
       .order('updated_at', { ascending: false })
       .limit(200),
+
+    // 10. Coups de main actifs
+    supabase
+      .from('help_requests')
+      .select('id, updated_at')
+      .in('status', ['open', 'in_progress'])
+      .order('updated_at', { ascending: false })
+      .limit(300),
+
+    // 11. Demandes de service
+    supabase
+      .from('service_requests')
+      .select('id, updated_at')
+      .not('status', 'in', '("completed","cancelled")')
+      .order('updated_at', { ascending: false })
+      .limit(200),
   ]);
 
   // ── Construction des blocs (silencieux si erreur) ─────────────────────────
 
-  const artisanPages    = toPages(artisansRes.status    === 'fulfilled' ? artisansRes.value.data    : null, 'artisans',         0.75, 'weekly');
-  const listingPages    = toPages(listingsRes.status    === 'fulfilled' ? listingsRes.value.data    : null, 'annonces',         0.75, 'weekly');
-  const eventPages      = toPages(eventsRes.status      === 'fulfilled' ? eventsRes.value.data      : null, 'evenements',       0.70, 'weekly');
-  const forumPages      = toPages(forumRes.status       === 'fulfilled' ? forumRes.value.data       : null, 'forum',            0.65, 'weekly');
-  const assoPages       = toPages(assosRes.status       === 'fulfilled' ? assosRes.value.data       : null, 'associations',     0.65, 'monthly');
-  const collectionPages = toPages(collectionRes.status  === 'fulfilled' ? collectionRes.value.data  : null, 'collectionneurs',  0.60, 'weekly');
-  const materielPages   = toPages(materielRes.status    === 'fulfilled' ? materielRes.value.data    : null, 'materiel',         0.60, 'weekly');
-  const lfPages         = toPages(lfRes.status          === 'fulfilled' ? lfRes.value.data          : null, 'perdu-trouve',     0.65, 'daily');
+  const artisanPages    = toPages(artisansRes.status    === 'fulfilled' ? artisansRes.value.data    : null, 'artisans',           0.75, 'weekly');
+  const listingPages    = toPages(listingsRes.status    === 'fulfilled' ? listingsRes.value.data    : null, 'annonces',           0.75, 'weekly');
+  const eventPages      = toPages(eventsRes.status      === 'fulfilled' ? eventsRes.value.data      : null, 'evenements',         0.70, 'weekly');
+  const forumPages      = toPages(forumRes.status       === 'fulfilled' ? forumRes.value.data       : null, 'forum',              0.65, 'weekly');
+  const assoPages       = toPages(assosRes.status       === 'fulfilled' ? assosRes.value.data       : null, 'associations',       0.65, 'monthly');
+  const collectionPages = toPages(collectionRes.status  === 'fulfilled' ? collectionRes.value.data  : null, 'collectionneurs',    0.60, 'weekly');
+  const materielPages   = toPages(materielRes.status    === 'fulfilled' ? materielRes.value.data    : null, 'materiel',           0.60, 'weekly');
+  const lfPages         = toPages(lfRes.status          === 'fulfilled' ? lfRes.value.data          : null, 'perdu-trouve',       0.65, 'daily');
   const promenadePages  = toPages(promenadesRes.status  === 'fulfilled' ? promenadesRes.value.data  : null, 'promenades/sorties', 0.60, 'weekly');
+  const coupsDeMainPages = toPages(coupsDeMainRes.status === 'fulfilled' ? coupsDeMainRes.value.data : null, 'coups-de-main',     0.65, 'weekly');
+  const demandesPages   = toPages(demandesRes.status    === 'fulfilled' ? demandesRes.value.data    : null, 'demandes',           0.60, 'weekly');
 
   return [
     ...staticPages,
@@ -225,10 +247,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...listingPages,
     ...eventPages,
     ...lfPages,
+    ...coupsDeMainPages,
     ...forumPages,
     ...assoPages,
     ...collectionPages,
     ...materielPages,
     ...promenadePages,
+    ...demandesPages,
   ];
 }
