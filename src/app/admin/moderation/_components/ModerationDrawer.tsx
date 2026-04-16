@@ -13,7 +13,7 @@
  *   const ModerationDrawer = dynamic(() => import('./_components/ModerationDrawer'));
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
 import {
   X, CheckCircle, XCircle, Eye,
@@ -64,6 +64,10 @@ interface ModerationDrawerProps {
 export default function ModerationDrawer({
   item, processing, onClose, onQuickDecision,
 }: ModerationDrawerProps) {
+  const drawerRef  = useRef<HTMLElement>(null);
+  const triggerRef = useRef<Element | null>(null);
+  const titleId    = useId();
+
   const ContentIcon = CONTENT_ICONS[item.content_type] || Flag;
   const contentMeta = CONTENT_TYPE_LABELS[item.content_type];
   const risk        = RISK_CONFIG[item.risk_level || 'low'];
@@ -80,10 +84,16 @@ export default function ModerationDrawer({
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  // Bloquer le scroll du body
+  // Focus management + scroll lock
   useEffect(() => {
+    triggerRef.current = document.activeElement;
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
+    const frame = requestAnimationFrame(() => { drawerRef.current?.focus(); });
+    return () => {
+      cancelAnimationFrame(frame);
+      document.body.style.overflow = '';
+      if (triggerRef.current instanceof HTMLElement) triggerRef.current.focus();
+    };
   }, []);
 
   return (
@@ -96,7 +106,14 @@ export default function ModerationDrawer({
       />
 
       {/* Panneau */}
-      <aside className="fixed right-0 top-0 h-full w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col overflow-hidden">
+      <aside
+        ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="fixed right-0 top-0 h-full w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col overflow-hidden outline-none"
+      >
 
         {/* En-tête */}
         <div className="flex items-center gap-3 p-5 border-b border-gray-100">
@@ -117,16 +134,16 @@ export default function ModerationDrawer({
                 </span>
               )}
             </div>
-            <h2 className="font-semibold text-gray-900 truncate text-sm">
+            <h2 id={titleId} className="font-semibold text-gray-900 truncate text-sm">
               {item.content_title || '(Sans titre)'}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl hover:bg-gray-100 transition-colors flex-shrink-0"
-            aria-label="Fermer"
+            className="p-2 rounded-xl hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 transition-colors flex-shrink-0"
+            aria-label="Fermer le panneau de modération"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-gray-500" aria-hidden="true" />
           </button>
         </div>
 

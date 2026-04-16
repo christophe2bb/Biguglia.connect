@@ -198,8 +198,13 @@ export default function ArtisanDetailClient() {
                   </div>
                 </div>
               </div>
-              <button onClick={toggleFavorite} className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
-                <Heart className={`w-5 h-5 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
+              <button
+                onClick={toggleFavorite}
+                aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                aria-pressed={isFavorite}
+                className="p-2 rounded-xl hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 transition-colors"
+              >
+                <Heart className={`w-5 h-5 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} aria-hidden="true" />
               </button>
             </div>
 

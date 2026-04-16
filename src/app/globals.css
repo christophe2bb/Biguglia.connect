@@ -16,6 +16,42 @@
   box-sizing: border-box;
 }
 
+/* ── Accessibilité : focus clavier visible ──────────────────────────────────
+ * Règle globale : supprime l'outline uniquement quand l'élément est focalisé
+ * via la souris (focus-visible = faux). Quand l'utilisateur navigue au clavier,
+ * focus-visible est vrai et l'anneau orange s'affiche.
+ * Les composants peuvent surcharger avec focus-visible:ring-* pour des couleurs
+ * contextuelles (violet pour le forum, emerald pour les promenades…).
+ */
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Lien "Aller au contenu" (skip link) – visible uniquement au focus clavier */
+.skip-to-content {
+  position: absolute;
+  top: -100%;
+  left: 1rem;
+  z-index: 9999;
+  padding: 0.5rem 1rem;
+  background: var(--brand-primary);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.875rem;
+  border-radius: 0 0 8px 8px;
+  transition: top 0.15s;
+}
+.skip-to-content:focus-visible {
+  top: 0;
+  outline: 3px solid #fff;
+  outline-offset: -3px;
+}
+
 html {
   scroll-behavior: smooth;
 }

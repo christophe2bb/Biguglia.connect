@@ -12,7 +12,7 @@
  *   <UserDrawer user={selectedUser} onClose={() => setSelected(null)} ... />
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
 import {
   X, Mail, Phone, Calendar, Crown, Eye,
@@ -42,7 +42,10 @@ interface UserDrawerProps {
 export default function UserDrawer({
   user, onClose, onSuspend, onDelete, onChangeRole, onResetPassword,
 }: UserDrawerProps) {
-  const overlayRef = useRef<HTMLDivElement>(null);
+  const overlayRef  = useRef<HTMLDivElement>(null);
+  const drawerRef   = useRef<HTMLElement>(null);
+  const triggerRef  = useRef<Element | null>(null);
+  const titleId     = useId();
   const isSuspended = user.status === 'suspended';
   const isArtisan   = user.role === 'artisan_verified' || user.role === 'artisan_pending';
 
@@ -53,10 +56,17 @@ export default function UserDrawer({
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  // Bloquer le scroll du body
+  // Focus management + scroll lock
   useEffect(() => {
+    triggerRef.current = document.activeElement;
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
+    // Move focus into drawer on next tick
+    const frame = requestAnimationFrame(() => { drawerRef.current?.focus(); });
+    return () => {
+      cancelAnimationFrame(frame);
+      document.body.style.overflow = '';
+      if (triggerRef.current instanceof HTMLElement) triggerRef.current.focus();
+    };
   }, []);
 
   const roleBadgeVariant = () => {
@@ -77,14 +87,21 @@ export default function UserDrawer({
       />
 
       {/* Panneau */}
-      <aside className="fixed right-0 top-0 h-full w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col overflow-hidden">
+      <aside
+        ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="fixed right-0 top-0 h-full w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col overflow-hidden outline-none"
+      >
 
         {/* En-tête */}
         <div className="flex items-center gap-4 p-5 border-b border-gray-100">
           <Avatar src={user.avatar_url} name={user.full_name || user.email} size="lg" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className="font-bold text-gray-900 text-lg truncate">
+              <span id={titleId} className="font-bold text-gray-900 text-lg truncate">
                 {user.full_name || 'Sans nom'}
               </span>
               <Badge variant={roleBadgeVariant()}>{ROLE_LABELS[user.role]}</Badge>
@@ -103,10 +120,10 @@ export default function UserDrawer({
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl hover:bg-gray-100 transition-colors flex-shrink-0"
-            aria-label="Fermer"
+            className="p-2 rounded-xl hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 transition-colors flex-shrink-0"
+            aria-label="Fermer le panneau utilisateur"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-gray-500" aria-hidden="true" />
           </button>
         </div>
 

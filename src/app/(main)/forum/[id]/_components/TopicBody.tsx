@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { Bell, BellOff, Check, CheckCircle2, Copy, XCircle } from 'lucide-react';
 import ReportButton from '@/components/ui/ReportButton';
@@ -53,24 +54,61 @@ function Lightbox({
   onClose: () => void;
   onNavigate: (i: number | ((prev: number | null) => number | null)) => void;
 }) {
+  const dialogRef  = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<Element | null>(null);
+
+  useEffect(() => {
+    triggerRef.current = document.activeElement;
+    const frame = requestAnimationFrame(() => { dialogRef.current?.focus(); });
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onClose(); return; }
+      if (e.key === 'ArrowLeft')  onNavigate(i => i !== null ? (i - 1 + photos.length) % photos.length : 0);
+      if (e.key === 'ArrowRight') onNavigate(i => i !== null ? (i + 1) % photos.length : 0);
+    };
+    window.addEventListener('keydown', handler);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('keydown', handler);
+      if (triggerRef.current instanceof HTMLElement) triggerRef.current.focus();
+    };
+  }, [onClose, onNavigate, photos.length]);
+
   return (
-    <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="relative max-w-4xl w-full" onClick={e => e.stopPropagation()}>
-        <Image src={photos[index].url} alt="Photo" fill className="max-h-[80vh] w-full object-contain rounded-xl" />
+    <div
+      className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+      aria-hidden="true"
+      onClick={onClose}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Photo ${index + 1} sur ${photos.length}`}
+        tabIndex={-1}
+        className="relative max-w-4xl w-full outline-none"
+        onClick={e => e.stopPropagation()}
+      >
+        <Image src={photos[index].url} alt={`Photo ${index + 1}`} fill className="max-h-[80vh] w-full object-contain rounded-xl" />
         <div className="absolute top-3 right-3 flex gap-2">
           {photos.length > 1 && (
-            <span className="bg-black/60 text-white text-xs px-2 py-1 rounded-full">{index + 1} / {photos.length}</span>
+            <span className="bg-black/60 text-white text-xs px-2 py-1 rounded-full" aria-live="polite">{index + 1} / {photos.length}</span>
           )}
-          <button onClick={onClose} className="bg-black/60 text-white rounded-full w-8 h-8 flex items-center justify-center text-lg hover:bg-black/80">✕</button>
+          <button
+            onClick={onClose}
+            aria-label="Fermer la visionneuse"
+            className="bg-black/60 text-white rounded-full w-8 h-8 flex items-center justify-center text-lg hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          >✕</button>
         </div>
         {photos.length > 1 && (
           <>
             <button
               onClick={() => onNavigate(i => i !== null ? (i - 1 + photos.length) % photos.length : 0)}
-              className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 text-white rounded-full w-10 h-10 flex items-center justify-center text-xl hover:bg-black/80">‹</button>
+              aria-label="Photo précédente"
+              className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 text-white rounded-full w-10 h-10 flex items-center justify-center text-xl hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">‹</button>
             <button
               onClick={() => onNavigate(i => i !== null ? (i + 1) % photos.length : 0)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 text-white rounded-full w-10 h-10 flex items-center justify-center text-xl hover:bg-black/80">›</button>
+              aria-label="Photo suivante"
+              className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 text-white rounded-full w-10 h-10 flex items-center justify-center text-xl hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">›</button>
           </>
         )}
       </div>

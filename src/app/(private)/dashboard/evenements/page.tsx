@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
@@ -53,6 +53,8 @@ export default function DashboardEvenementsPage() {
   // Transition modal state
   const [showModal, setShowModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<{ id: string; to: EventStatus; requiresReason?: boolean } | null>(null);
+  const modalRef    = useRef<HTMLDivElement>(null);
+  const modalTriggerRef = useRef<Element | null>(null);
   const [reason, setReason] = useState('');
   const [newDate, setNewDate] = useState('');
 
@@ -138,6 +140,17 @@ export default function DashboardEvenementsPage() {
   }, [profile, supabase]);
 
   useEffect(() => { fetchMyEvents(); }, [fetchMyEvents]);
+
+  // Focus management for transition modal
+  useEffect(() => {
+    if (showModal) {
+      modalTriggerRef.current = document.activeElement;
+      const frame = requestAnimationFrame(() => { modalRef.current?.focus(); });
+      return () => cancelAnimationFrame(frame);
+    } else {
+      if (modalTriggerRef.current instanceof HTMLElement) modalTriggerRef.current.focus();
+    }
+  }, [showModal]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const handleStatusChange = (id: string, to: EventStatus, requiresReason?: boolean) => {
@@ -298,8 +311,20 @@ export default function DashboardEvenementsPage() {
 
       {/* Transition modal */}
       {showModal && pendingAction && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 space-y-4">
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4"
+          aria-hidden="true"
+          onClick={() => { setShowModal(false); setPendingAction(null); }}
+        >
+          <div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Changer le statut de l'événement"
+            tabIndex={-1}
+            className="bg-white rounded-2xl w-full max-w-md p-6 space-y-4 outline-none"
+            onClick={e => e.stopPropagation()}
+          >
             <h3 className="font-black text-gray-900 text-lg">
               {EVENT_STATUS_CONFIG[pendingAction.to]?.label ?? 'Changer le statut'}
             </h3>
