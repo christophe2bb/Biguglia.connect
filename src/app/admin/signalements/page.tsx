@@ -12,7 +12,6 @@ import Avatar from '@/components/ui/Avatar';
 import { formatRelative } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
-import ProtectedPage from '@/components/providers/ProtectedPage';
 import { adminFetch } from '@/lib/admin-fetch';
 
 // ─── Types enrichis ────────────────────────────────────────────────────────────
@@ -164,7 +163,7 @@ export default function AdminSignalementsPage() {
   }, {});
 
   return (
-    <ProtectedPage adminOnly>
+    <>
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
@@ -343,6 +342,6 @@ export default function AdminSignalementsPage() {
       </div>
     </div>
 
-    </ProtectedPage>
+    </>
   );
 }

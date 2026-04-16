@@ -14,7 +14,6 @@ import {
   MessageSquare, BarChart3, Database, Zap, Lock, Bell,
   Gem, FileText, Settings,
 } from 'lucide-react';
-import ProtectedPage from '@/components/providers/ProtectedPage';
 
 // ─── Données spec ─────────────────────────────────────────────────────────────
 
@@ -304,7 +303,7 @@ function GlobalStats() {
 
 export default function SpecPage() {
   return (
-    <ProtectedPage adminOnly>
+    <>
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Header */}
@@ -455,6 +454,6 @@ export default function SpecPage() {
       </div>
     </div>
 
-    </ProtectedPage>
+    </>
   );
 }

@@ -11,7 +11,6 @@ import { useAuthStore } from '@/lib/auth-store';
 import type { AdminArtisanEntry } from '@/app/api/admin/artisans/route';
 import type { Profile } from '@/types';
 import toast from 'react-hot-toast';
-import ProtectedPage from '@/components/providers/ProtectedPage';
 import { adminFetch } from '@/lib/admin-fetch';
 import ArtisanFilters from './_components/ArtisanFilters';
 
@@ -138,7 +137,7 @@ export default function AdminArtisansPage() {
   const pendingCount = artisans.filter(a => a.profile?.role === 'artisan_pending').length;
 
   return (
-    <ProtectedPage adminOnly>
+    <>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
         {/* ── En-tête ── */}
@@ -233,6 +232,6 @@ export default function AdminArtisansPage() {
           onReject={rejectArtisan}
         />
       )}
-    </ProtectedPage>
+    </>
   );
 }

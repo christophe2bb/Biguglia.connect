@@ -7,7 +7,6 @@ import {
   Lock, Bell, Search, Shield, BarChart3, MessageCircle,
   Settings, Database, Zap, FileText, Eye
 } from 'lucide-react';
-import ProtectedPage from '@/components/providers/ProtectedPage';
 
 // ─── Définition des modules ───────────────────────────────────────────────────
 const MODULES = [
@@ -328,7 +327,7 @@ export default function ForumSpecPage() {
   });
 
   return (
-    <ProtectedPage adminOnly>
+    <>
     <div className="max-w-4xl mx-auto px-4 py-8">
 
       {/* Retour */}
@@ -486,6 +485,6 @@ export default function ForumSpecPage() {
       </div>
     </div>
 
-    </ProtectedPage>
+    </>
   );
 }

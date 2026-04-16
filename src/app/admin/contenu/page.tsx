@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, Flag } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
-import ProtectedPage from '@/components/providers/ProtectedPage';
 
 import { TABS, STAT_CARDS } from './_config';
 import { useAdminCounts } from './_hooks/useAdminCounts';
@@ -20,11 +19,11 @@ export default function AdminContenuPage() {
 
   const counts = useAdminCounts(!!profile);
 
-  // Guard supprimé : ProtectedPage adminOnly gère la vérification du rôle
+
   // sans polluer l'historique du navigateur.
 
   return (
-    <ProtectedPage adminOnly>
+    <>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
         {/* Header */}
@@ -89,6 +88,6 @@ export default function AdminContenuPage() {
         {activeTab === 'reviews'   && <ReviewsTab />}
 
       </div>
-    </ProtectedPage>
+    </>
   );
 }

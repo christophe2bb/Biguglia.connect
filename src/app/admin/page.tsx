@@ -5,7 +5,6 @@ import { Users, CheckCircle, AlertTriangle, MessageSquare, Package, Wrench, Flag
 import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
-import ProtectedPage from '@/components/providers/ProtectedPage';
 import type { AdminDashboardStats } from '@/app/api/admin/dashboard/route';
 
 function AdminContent() {
@@ -175,5 +174,5 @@ function AdminContent() {
 }
 
 export default function AdminPage() {
-  return <ProtectedPage adminOnly><AdminContent /></ProtectedPage>;
+  return <><AdminContent /></>;
 }

@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import type { ModerationQueueData, ModerationKPI } from '@/app/api/admin/moderation/queue/route';
-import ProtectedPage from '@/components/providers/ProtectedPage';
 import toast from 'react-hot-toast';
 import { adminFetch } from '@/lib/admin-fetch';
 import {
@@ -304,8 +303,8 @@ function ModerationQueueContent() {
 
 export default function AdminModerationPage() {
   return (
-    <ProtectedPage adminOnly>
+    <>
       <ModerationQueueContent />
-    </ProtectedPage>
+    </>
   );
 }

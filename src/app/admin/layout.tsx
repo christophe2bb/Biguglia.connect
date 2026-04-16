@@ -11,10 +11,7 @@
  *       • redirect('/connexion?next=/admin') si pas de session
  *       • redirect('/')                      si rôle ≠ admin / moderator
  *
- *  2. ProtectedPage (adminOnly) — dans chaque page /admin/* côté client :
- *       garde de secours (store Zustand) si le layout est contourné.
- *
- *  3. API routes admin (/api/admin/**) — getAdminUser(req) :
+ *  2. API routes admin (/api/admin/**) — getAdminUser(req) :
  *       vérification JWT + rôle sur chaque mutation.
  *
  * Un non-admin ne charge JAMAIS l'UI admin — redirection serveur pure.

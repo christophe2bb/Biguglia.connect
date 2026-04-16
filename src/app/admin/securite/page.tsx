@@ -5,7 +5,6 @@ import dynamic from 'next/dynamic';
 import {
   Shield, ChevronLeft, Info, Globe, ExternalLink,
 } from 'lucide-react';
-import ProtectedPage from '@/components/providers/ProtectedPage';
 
 // Lazy-load the interactive guide (all state, all step data)
 const SecuriteGuide = dynamic(() => import('./_components/SecuriteGuide'), {
@@ -20,7 +19,7 @@ const SecuriteGuide = dynamic(() => import('./_components/SecuriteGuide'), {
 
 export default function SecuritePage() {
   return (
-    <ProtectedPage adminOnly>
+    <>
       <div className="max-w-2xl mx-auto px-4 py-10">
 
         {/* ── Retour ── */}
@@ -84,6 +83,6 @@ export default function SecuritePage() {
         </div>
 
       </div>
-    </ProtectedPage>
+    </>
   );
 }

@@ -13,7 +13,6 @@
 
 'use client';
 
-import ProtectedPage from '@/components/providers/ProtectedPage';
 import { useMigration } from './_hooks/useMigration';
 import { SectionTableStatus } from './_components/SectionTableStatus';
 import { SectionRealtime }    from './_components/SectionRealtime';
@@ -33,7 +32,7 @@ export default function MigrationPage() {
           copied, copy } = useMigration();
 
   return (
-    <ProtectedPage adminOnly>
+    <>
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
 
         <SectionTableStatus
@@ -74,6 +73,6 @@ export default function MigrationPage() {
         <SectionAdminLogs copied={copied} copy={copy} />
 
       </div>
-    </ProtectedPage>
+    </>
   );
 }
