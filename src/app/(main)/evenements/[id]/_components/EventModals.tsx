@@ -14,6 +14,7 @@
  */
 
 import { useEffect, useRef, useId } from 'react';
+import Image from 'next/image';
 import { AlertCircle, X } from 'lucide-react';
 import type { EventDetail, PendingTransition } from '../_types';
 import { EVENT_TRANSITION_DESCRIPTIONS } from '../_config';
@@ -259,21 +260,16 @@ export function Lightbox({ photos, idx, onClose }: LightboxProps) {
           <X className="w-5 h-5" aria-hidden="true" />
         </button>
 
-        {/*
-          Intentional native <img>: the lightbox shows a single full-screen photo
-          at a time and benefits from direct browser zoom/pan without Next/Image
-          wrapper constraints. We add `decoding="async"` and `loading="eager"` (the
-          active image must appear instantly) to compensate for the lack of Next/Image
-          optimisation in this context.
-        */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={photos[idx].url}
-          alt={`Photo ${idx + 1} sur ${photos.length}`}
-          decoding="async"
-          loading="eager"
-          className="max-w-full max-h-full object-contain rounded-xl"
-        />
+        <div className="relative w-full max-w-4xl" style={{ aspectRatio: '16/9' }}>
+          <Image
+            src={photos[idx].url}
+            alt={`Photo ${idx + 1} sur ${photos.length}`}
+            fill
+            priority
+            className="object-contain rounded-xl"
+            sizes="(max-width: 768px) 100vw, 80vw"
+          />
+        </div>
       </div>
     </div>
   );
