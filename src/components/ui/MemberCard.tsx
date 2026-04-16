@@ -1,5 +1,3 @@
-'use client';
-
 import Link from 'next/link';
 import Avatar from '@/components/ui/Avatar';
 import ContactButton from '@/components/ui/ContactButton';
