@@ -183,9 +183,9 @@ CREATE INDEX IF NOT EXISTS lf_matches_found_idx ON lf_matches(found_item_id);
 
 ALTER TABLE lf_matches ENABLE ROW LEVEL SECURITY;
 
+-- ⚠️  NEUTRALISÉ — USING(true) exposait match_score, match_status, suggested_by publiquement
+--     Remplacée dans : 20260416_lf_matches_rls.sql
 DROP POLICY IF EXISTS "lf_matches_select" ON lf_matches;
-CREATE POLICY "lf_matches_select" ON lf_matches
-  FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "lf_matches_insert" ON lf_matches;
 CREATE POLICY "lf_matches_insert" ON lf_matches
