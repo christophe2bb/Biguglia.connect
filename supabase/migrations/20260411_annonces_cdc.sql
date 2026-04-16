@@ -202,9 +202,9 @@ CREATE INDEX IF NOT EXISTS lsh_listing_idx ON listing_status_history(listing_id)
 
 ALTER TABLE listing_status_history ENABLE ROW LEVEL SECURITY;
 
+-- ⚠️  NEUTRALISÉ — policy trop permissive (USING true exposait l'historique interne)
+--     Remplacée dans : 20260416_listing_status_history_rls.sql
 DROP POLICY IF EXISTS "lsh_select" ON listing_status_history;
-CREATE POLICY "lsh_select" ON listing_status_history
-  FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "lsh_insert" ON listing_status_history;
 CREATE POLICY "lsh_insert" ON listing_status_history
