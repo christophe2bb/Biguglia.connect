@@ -43,24 +43,25 @@ export function usePublicProfile(userId: string): UsePublicProfileReturn {
 
       let p: PublicProfile | null = null;
 
-      // Attempt A: full row (works when connected + permissive RLS)
+      // Attempt A: full row — colonnes réelles uniquement (bio/city n'existent pas)
+      // RLS : profiles_select_own_or_admin — fonctionne pour le propre profil ou admin
       const { data: pFull } = await supabase
         .from('profiles')
-        .select('id, full_name, email, avatar_url, bio, city, phone, role, status, created_at')
+        .select('id, full_name, email, avatar_url, phone, role, status, created_at, home_sector_id')
         .eq('id', userId)
         .maybeSingle();
 
       if (pFull) {
         p = pFull as PublicProfile;
       } else {
-        // Attempt B: public columns only (no sensitive fields)
+        // Attempt B: via vue public_profiles (pas de données sensibles, accessible à tous)
         const { data: pPublic } = await supabase
-          .from('profiles')
-          .select('id, full_name, avatar_url, bio, city, role, status, created_at')
+          .from('public_profiles')
+          .select('id, full_name, avatar_url, role, created_at')
           .eq('id', userId)
           .maybeSingle();
         if (pPublic) {
-          p = { ...pPublic, email: null, phone: null } as PublicProfile;
+          p = { ...pPublic, email: null, phone: null, home_sector_id: null } as PublicProfile;
         }
       }
 

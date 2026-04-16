@@ -22,11 +22,12 @@ export function emptyStatusCounts(): StatusCounts {
 }
 
 export function computeProfileScore(profile: Record<string, unknown>): number {
+  // bio et city n'existent pas dans la table profiles — score basé sur les colonnes réelles
   const checks = [
     !!profile.full_name,
     !!profile.avatar_url,
-    !!profile.bio,
     !!profile.phone,
+    !!profile.home_sector_id,
   ];
   return Math.round((checks.filter(Boolean).length / checks.length) * 100);
 }
@@ -143,7 +144,7 @@ export function useDashboardStats(): UseDashboardStatsResult {
           .order('created_at', { ascending: false })
           .limit(5),
         supabase.from('profiles')
-          .select('full_name, avatar_url, bio, phone')
+          .select('full_name, avatar_url, phone, home_sector_id')
           .eq('id', profileId).single(),
       ]);
 
