@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * ModerationBadge — Badge de statut de modération pour les auteurs
  *

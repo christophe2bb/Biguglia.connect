@@ -3,7 +3,6 @@
 // Design coloré : accent fort sur l'urgence, barre gauche colorée
 // ─────────────────────────────────────────────────────────────────────────────
 
-'use client';
 
 import Link from 'next/link';
 import { MapPin, HandHeart, AlertCircle, Clock } from 'lucide-react';

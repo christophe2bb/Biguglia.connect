@@ -1,5 +1,3 @@
-'use client';
-
 import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { THEME_CONFIG, type ThemeKey } from '../_config';

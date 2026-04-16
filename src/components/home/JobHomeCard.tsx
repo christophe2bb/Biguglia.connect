@@ -4,7 +4,6 @@
 // Conçu pour être lisible dans une liste 1-colonne, pas dans une grille dense
 // ─────────────────────────────────────────────────────────────────────────────
 
-'use client';
 
 import Link from 'next/link';
 import { MapPin, ArrowRight, Flame, Home, Euro } from 'lucide-react';

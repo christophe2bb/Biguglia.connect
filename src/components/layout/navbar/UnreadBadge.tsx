@@ -1,5 +1,3 @@
-'use client';
-
 /** Badge rouge affiché sur les icônes messages / notifications. */
 export default function UnreadBadge({ count }: { count: number }) {
   if (count <= 0) return null;

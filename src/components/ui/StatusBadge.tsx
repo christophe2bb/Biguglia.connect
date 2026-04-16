@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * StatusBadge — Badge de statut universel pour Biguglia Connect
  *
