@@ -169,9 +169,9 @@ CREATE INDEX IF NOT EXISTS help_participants_user_idx    ON help_request_partici
 
 ALTER TABLE help_request_participants ENABLE ROW LEVEL SECURITY;
 
+-- ⚠️  NEUTRALISÉ — USING(true) exposait user_id, role, state, message publiquement
+--     Remplacée dans : 20260416_help_participants_rls.sql
 DROP POLICY IF EXISTS "help_participants_select" ON help_request_participants;
-CREATE POLICY "help_participants_select" ON help_request_participants
-  FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "help_participants_insert" ON help_request_participants;
 CREATE POLICY "help_participants_insert" ON help_request_participants
