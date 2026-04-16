@@ -68,6 +68,8 @@ export default function ProtectedPage({ children, adminOnly = false }: Props) {
   // Circuit-breaker: track admin check state to avoid infinite loops
   const [adminState, setAdminState] = useState<AdminCheckState>('pending');
   const fetchAttemptedRef = useRef(false);
+  // Timeout de sécurité : si après 6s le profil n'est toujours pas chargé → refus
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isAdminRole = useCallback((p: Profile | null): boolean => {
     return p?.role === 'admin' || p?.role === 'moderator';
@@ -97,10 +99,12 @@ export default function ProtectedPage({ children, adminOnly = false }: Props) {
     if (fetchAttemptedRef.current) {
       if (profile !== null && isAdminRole(profile)) {
         setAdminState('authorized');
-      } else {
-        // Profil chargé mais pas admin, ou DB inaccessible → refus
+      } else if (profile !== null && !isAdminRole(profile)) {
+        // Profil chargé mais rôle insuffisant → refus réel
         setAdminState('unauthorized');
       }
+      // Si profile est encore null après fetch → rester en 'fetching' et attendre
+      // le prochain cycle (AuthProvider peut encore être en train de charger)
       return;
     }
 
@@ -114,17 +118,24 @@ export default function ProtectedPage({ children, adminOnly = false }: Props) {
     fetchAttemptedRef.current = true;
     setAdminState('fetching');
 
+    // Timeout de sécurité : si la DB ne répond pas dans 6s → unauthorized
+    timeoutRef.current = setTimeout(() => {
+      setAdminState((prev) => prev === 'fetching' ? 'unauthorized' : prev);
+    }, 6_000);
+
     const supabase = createClient();
     Promise.resolve(
       supabase
         .from('profiles')
-        .select('*')
+        // Colonnes explicites — compatibles avec la policy RLS profiles_select_own_or_admin
+        .select('id, email, full_name, avatar_url, phone, role, status, legal_consent, legal_consent_at, created_at, updated_at, home_sector_id')
         .eq('id', userId)
         .single()
     ).then(({ data, error }) => {
       if (error) {
-        console.warn('[ProtectedPage] Impossible de charger le profil:', error.message);
-        setAdminState('unauthorized');
+        // Erreur RLS ou réseau — NE PAS rediriger, laisser AuthProvider terminer
+        console.warn('[ProtectedPage] fetchProfile error (attente AuthProvider):', error.message);
+        // On reste en 'fetching' — le useEffect se relancera quand profile change dans le store
         return;
       }
       if (data) {
@@ -137,10 +148,20 @@ export default function ProtectedPage({ children, adminOnly = false }: Props) {
       } else {
         setAdminState('unauthorized');
       }
-    }).catch(() => {
-      setAdminState('unauthorized');
+    }).catch((err) => {
+      console.warn('[ProtectedPage] fetchProfile catch (attente AuthProvider):', err);
+      // Même logique : ne pas rediriger sur erreur réseau transitoire
+    }).finally(() => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     });
   }, [phase, profile, userId, adminOnly, router, isAdminRole, setProfile]);
+
+  // Cleanup timeout au démontage
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   // Redirection quand non autorisé
   useEffect(() => {
