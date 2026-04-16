@@ -24,7 +24,7 @@ import {
   COLLECTIONNEURS_V2_SQL, USER_ROLE_FIX_SQL, MODERATION_FIX_SQL,
   MODERATION_SQL, EVENTS_BASE_SQL, REMINDER_SQL, FORUM_V2_SQL,
   PROFIL_PUBLIC_SQL, LF_HISTORY_SQL, LF_MATCHES_SQL, LF_EXTRAS_SQL,
-  SECTORS_SQL, SEARCH_SQL, STATUS_SQL,
+  SECTORS_SQL, SEARCH_SQL, STATUS_SQL, ADMIN_LOGS_SQL,
 } from '../_sql';
 import { EQUIPMENT_LIFECYCLE_SQL } from '@/lib/equipment';
 import { OUTINGS_LIFECYCLE_SQL }   from '@/lib/outings';
@@ -69,6 +69,7 @@ export const SQL_MAP = {
   sectors:            SECTORS_SQL,
   search:             SEARCH_SQL,
   status:             STATUS_SQL,
+  adminLogs:          ADMIN_LOGS_SQL,
 } as const;
 
 export type SqlKey = keyof typeof SQL_MAP;
