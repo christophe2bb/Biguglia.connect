@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { memo } from 'react';
 import { Trash2 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import { formatRelative, cn } from '@/lib/utils';
@@ -9,7 +9,7 @@ import { RELATED_CONFIG } from '../_config';
 import { resolveDisplayName } from '../_utils';
 
 // ─── Badge de type de contenu lié ─────────────────────────────────────────────
-function TypeBadge({ relatedType }: { relatedType?: string | null }) {
+const TypeBadge = memo(function TypeBadge({ relatedType }: { relatedType?: string | null }) {
   if (!relatedType || !RELATED_CONFIG[relatedType]) return null;
   const cfg  = RELATED_CONFIG[relatedType];
   const Icon = cfg.icon;
@@ -22,7 +22,7 @@ function TypeBadge({ relatedType }: { relatedType?: string | null }) {
       {cfg.label}
     </span>
   );
-}
+});
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface ConversationListItemProps {
@@ -48,8 +48,11 @@ interface ConversationListItemProps {
  *   - Badge de compteur non-lus
  *   - Popup de confirmation de suppression
  *   - Animation de sortie lors de la suppression
+ *
+ * Mémoïsé avec React.memo : évite de re-rendre toute la liste
+ * à chaque frappe dans la barre de recherche.
  */
-export default function ConversationListItem({
+const ConversationListItem = memo(function ConversationListItem({
   conv,
   isDeleting,
   isConfirm,
@@ -193,4 +196,6 @@ export default function ConversationListItem({
       </div>
     </div>
   );
-}
+});
+
+export default ConversationListItem;
