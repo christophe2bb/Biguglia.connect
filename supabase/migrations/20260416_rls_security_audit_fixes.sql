@@ -38,15 +38,9 @@ DROP POLICY IF EXISTS "Profils lisibles par tous"            ON profiles;
 DROP POLICY IF EXISTS "profiles_select_authenticated"        ON profiles;
 DROP POLICY IF EXISTS "profiles_read_authenticated"          ON profiles;
 
--- Etape 2 : Nouvelle policy SELECT — utilisateurs authentifies uniquement
-CREATE POLICY "profiles_read_authenticated"
-  ON profiles FOR SELECT
-  USING (auth.uid() IS NOT NULL);
-
--- Les policies INSERT/UPDATE/DELETE restent inchangees :
--- "Utilisateurs creent leur propre profil"    -> WITH CHECK (auth.uid() = id)
--- "Utilisateurs modifient leur propre profil" -> USING (auth.uid() = id)
--- "Admin modifie tous les profils"            -> USING (is_moderator_or_admin())
+-- ⚠️  La policy SELECT profiles est définie UNIQUEMENT dans :
+--     20260416_profiles_rls_final.sql (source de vérité unique)
+-- Ce bloc ne crée plus de policy ici pour éviter les doublons.
 
 -- ============================================================================
 -- FIX 2 — CRITIQUE : service_requests — SELECT USING(true) -> adresses exposees

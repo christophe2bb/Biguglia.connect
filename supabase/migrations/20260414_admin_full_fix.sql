@@ -48,44 +48,35 @@ END $$;
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- PARTIE 1 : TABLE profiles — RLS + rôle admin
+-- ⚠️  NEUTRALISÉ — les policies profiles sont définies UNE SEULE FOIS dans :
+--     20260416_profiles_rls_final.sql  (source de vérité unique)
+-- Ce bloc supprime uniquement les éventuels résidus pour éviter les conflits.
 -- ════════════════════════════════════════════════════════════════════════════
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Profils publics en lecture"          ON profiles;
-DROP POLICY IF EXISTS "Public profiles readable"            ON profiles;
-DROP POLICY IF EXISTS "Profiles are publicly readable"      ON profiles;
-DROP POLICY IF EXISTS "Allow public select on profiles"     ON profiles;
-DROP POLICY IF EXISTS "Users can view own profile"          ON profiles;
-DROP POLICY IF EXISTS "Profiles select policy"              ON profiles;
-DROP POLICY IF EXISTS "Profils lisibles par tous"           ON profiles;
-
-CREATE POLICY "Profils lisibles par tous" ON profiles
-  FOR SELECT USING (true);
-
+-- Nettoyage des policies héritées (les vraies policies sont dans _final.sql)
+DROP POLICY IF EXISTS "Profils lisibles par tous"                  ON profiles;
+DROP POLICY IF EXISTS "Profils publics en lecture"                 ON profiles;
+DROP POLICY IF EXISTS "Public profiles readable"                   ON profiles;
+DROP POLICY IF EXISTS "Profiles are publicly readable"             ON profiles;
+DROP POLICY IF EXISTS "Allow public select on profiles"            ON profiles;
+DROP POLICY IF EXISTS "Users can view own profile"                 ON profiles;
+DROP POLICY IF EXISTS "Profiles select policy"                     ON profiles;
+DROP POLICY IF EXISTS "profiles_select_authenticated"              ON profiles;
+DROP POLICY IF EXISTS "profiles_read_authenticated"                ON profiles;
+DROP POLICY IF EXISTS "profiles_select_own_or_admin"               ON profiles;
 DROP POLICY IF EXISTS "Users can insert own profile"               ON profiles;
-DROP POLICY IF EXISTS "Utilisateurs créent leur propre profil"    ON profiles;
-CREATE POLICY "Utilisateurs créent leur propre profil" ON profiles
-  FOR INSERT WITH CHECK (auth.uid() = id);
-
+DROP POLICY IF EXISTS "Utilisateurs créent leur propre profil"     ON profiles;
 DROP POLICY IF EXISTS "Users can update own profile"               ON profiles;
 DROP POLICY IF EXISTS "Utilisateurs modifient leur propre profil"  ON profiles;
-CREATE POLICY "Utilisateurs modifient leur propre profil" ON profiles
-  FOR UPDATE USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Admin modifie tous les profils"             ON profiles;
 
-DROP POLICY IF EXISTS "Admin modifie tous les profils" ON profiles;
-CREATE POLICY "Admin modifie tous les profils" ON profiles
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM profiles p2
-      WHERE p2.id = auth.uid()
-        AND p2.role IN ('admin', 'moderator')
-    )
-  );
-
+-- Colonne role (idempotent)
 ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user';
 
+-- Rôle admin initial
 UPDATE profiles
   SET role = 'admin'
   WHERE email = 'chris20600@outlook.fr';

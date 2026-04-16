@@ -1,18 +1,25 @@
 -- ============================================================================
 -- MIGRATION 20260416_profiles_rls_final
--- Script UNIQUE et CONSOLIDÉ — remplace les 3 scripts précédents :
---   • 20260414_profiles_rls_fix.sql
---   • 20260416_rls_security_audit_fixes.sql
---   • 20260416_profiles_rls_hardening.sql
+-- ★ SOURCE DE VÉRITÉ UNIQUE pour les policies RLS de la table profiles ★
+--
+-- Les fichiers suivants ont été NEUTRALISÉS (DROP only, sans CREATE POLICY) :
+--   • 20260414_profiles_rls_fix.sql    → DROP only + commentaire de redirection
+--   • 20260414_admin_full_fix.sql      → bloc profiles remplacé par DROP only
+--   • 20260416_rls_security_audit_fixes.sql  → policies profiles supprimées
+--   • 20260416_profiles_rls_hardening.sql    → précédent brouillon, remplacé ici
+--
+-- CE FICHIER EST LE SEUL QUI CRÉE DES POLICIES SUR profiles.
+-- Pour modifier les règles d'accès à profiles, éditer UNIQUEMENT ce fichier
+-- ou créer une migration postérieure (20260417_...) qui drop/recrée.
 --
 -- ORDRE D'EXÉCUTION GARANTI :
---   1. Fonction is_moderator_or_admin() — doit exister AVANT les policies
---   2. RLS + policies profiles
---   3. RLS + policies service_requests
---   4. Fix recursion conversation_participants / messages / conversations
---   5. Vue public_profiles
+--   1. CREATE FUNCTION is_moderator_or_admin()  ← EN PREMIER (utilisée dans les policies)
+--   2. RLS + 4 policies profiles (SELECT/INSERT/UPDATE×2)
+--   3. RLS + policy service_requests
+--   4. Fix récursion conversation_participants / messages / conversations
+--   5. Vue public_profiles (données non sensibles, pas d'email/phone)
 --
--- IDEMPOTENT : peut être relancé sans erreur (IF NOT EXISTS / DROP IF EXISTS)
+-- IDEMPOTENT : peut être relancé sans erreur (DROP IF EXISTS partout)
 -- ============================================================================
 
 
