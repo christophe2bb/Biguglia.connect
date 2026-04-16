@@ -11,7 +11,7 @@
  * La logique de refus (textarea + suggestions) est ici, pas dans ArtisanCard.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
 import {
   X, CheckCircle, XCircle, Shield, FileText,
@@ -66,6 +66,10 @@ export default function ArtisanDrawer({ artisan, onClose, onApprove, onReject }:
   const [reason, setReason]                 = useState('');
   const [sendingMsg, setSendingMsg]         = useState(false);
 
+  const drawerRef  = useRef<HTMLElement>(null);
+  const triggerRef = useRef<Element | null>(null);
+  const titleId    = useId();
+
   const isPending  = artisan.profile?.role === 'artisan_pending';
   const isVerified = artisan.profile?.role === 'artisan_verified';
   const docCount   = [artisan.doc_kbis_url, artisan.doc_insurance_url, artisan.doc_id_url].filter(Boolean).length;
@@ -77,10 +81,16 @@ export default function ArtisanDrawer({ artisan, onClose, onApprove, onReject }:
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  // Bloquer le scroll du body
+  // Focus management + scroll lock
   useEffect(() => {
+    triggerRef.current = document.activeElement;
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
+    const frame = requestAnimationFrame(() => { drawerRef.current?.focus(); });
+    return () => {
+      cancelAnimationFrame(frame);
+      document.body.style.overflow = '';
+      if (triggerRef.current instanceof HTMLElement) triggerRef.current.focus();
+    };
   }, []);
 
   const handleSendMessage = async () => {
@@ -128,7 +138,14 @@ export default function ArtisanDrawer({ artisan, onClose, onApprove, onReject }:
       />
 
       {/* Panneau */}
-      <aside className="fixed right-0 top-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 flex flex-col overflow-hidden">
+      <aside
+        ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="fixed right-0 top-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 flex flex-col overflow-hidden outline-none"
+      >
 
         {/* En-tête */}
         <div className="flex items-center gap-4 p-5 border-b border-gray-100">
@@ -139,7 +156,7 @@ export default function ArtisanDrawer({ artisan, onClose, onApprove, onReject }:
           />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className="font-bold text-gray-900 text-lg truncate">
+              <span id={titleId} className="font-bold text-gray-900 text-lg truncate">
                 {artisan.profile?.full_name || artisan.business_name}
               </span>
               <Badge variant={isVerified ? 'success' : isPending ? 'warning' : 'default'}>
@@ -176,10 +193,10 @@ export default function ArtisanDrawer({ artisan, onClose, onApprove, onReject }:
             </button>
             <button
               onClick={onClose}
-              className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
-              aria-label="Fermer"
+              className="p-2 rounded-xl hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 transition-colors"
+              aria-label="Fermer le panneau artisan"
             >
-              <X className="w-5 h-5 text-gray-500" />
+              <X className="w-5 h-5 text-gray-500" aria-hidden="true" />
             </button>
           </div>
         </div>

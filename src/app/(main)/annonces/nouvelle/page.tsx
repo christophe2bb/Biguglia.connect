@@ -76,8 +76,8 @@ export default function NouvelleAnnoncePage() {
       {/* Header + back button */}
       <div className="flex items-center gap-3 mb-6">
         {step > 1 && (
-          <button onClick={goBack} className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
-            <ChevronLeft className="w-5 h-5 text-gray-500" />
+          <button onClick={goBack} aria-label="Étape précédente" className="p-2 rounded-xl hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 transition-colors">
+            <ChevronLeft className="w-5 h-5 text-gray-500" aria-hidden="true" />
           </button>
         )}
         <div className="flex-1">

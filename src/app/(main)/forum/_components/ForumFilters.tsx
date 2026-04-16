@@ -229,12 +229,22 @@ export function ForumFilters({
               {topicCount} sujet{topicCount !== 1 ? 's' : ''}
             </span>
           )}
-          <div className="flex gap-0.5 bg-white rounded-xl border border-gray-100 p-0.5 shadow-sm">
-            <button onClick={() => setViewMode('list')} className={cn('p-2 rounded-lg transition-all', viewMode === 'list' ? 'bg-violet-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600')}>
-              <List className="w-3.5 h-3.5" />
+          <div className="flex gap-0.5 bg-white rounded-xl border border-gray-100 p-0.5 shadow-sm" role="group" aria-label="Mode d'affichage">
+            <button
+              onClick={() => setViewMode('list')}
+              aria-label="Affichage liste"
+              aria-pressed={viewMode === 'list'}
+              className={cn('p-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400', viewMode === 'list' ? 'bg-violet-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600')}
+            >
+              <List className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
-            <button onClick={() => setViewMode('grid')} className={cn('p-2 rounded-lg transition-all', viewMode === 'grid' ? 'bg-violet-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600')}>
-              <LayoutGrid className="w-3.5 h-3.5" />
+            <button
+              onClick={() => setViewMode('grid')}
+              aria-label="Affichage grille"
+              aria-pressed={viewMode === 'grid'}
+              className={cn('p-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400', viewMode === 'grid' ? 'bg-violet-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600')}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           </div>
         </div>

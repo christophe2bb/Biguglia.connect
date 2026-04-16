@@ -88,7 +88,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fr">
       <body className="min-h-screen flex flex-col bg-white">
-        {children}
+        {/* Skip-to-content : visible uniquement à la navigation clavier (Tab depuis le haut) */}
+        <a href="#main-content" className="skip-to-content">
+          Aller au contenu principal
+        </a>
+        <div id="main-content">
+          {children}
+        </div>
       </body>
     </html>
   );

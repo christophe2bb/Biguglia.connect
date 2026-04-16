@@ -163,8 +163,8 @@ export default function AdminConfiancePage() {
               <h1 className="text-lg font-black text-gray-900">Confiance & Réputation</h1>
               <p className="text-xs text-gray-500">Modération des avis, membres à risque, badges</p>
             </div>
-            <button onClick={load} className="p-2 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors" title="Actualiser">
-              <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
+            <button onClick={load} aria-label="Actualiser" className="p-2 rounded-xl hover:bg-gray-100 text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 transition-colors" title="Actualiser">
+              <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} aria-hidden="true" />
             </button>
           </div>
 

@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { OUTING_STATUS_CONFIG } from '@/lib/outings';
 import type { OutingStatus } from '@/lib/outings';
@@ -25,17 +28,50 @@ export default function OutingStatusModal({
   onConfirm,
   onClose,
 }: Props) {
+  const dialogRef  = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<Element | null>(null);
+
+  // Focus management + Escape
+  useEffect(() => {
+    if (!show) return;
+    triggerRef.current = document.activeElement;
+    const frame = requestAnimationFrame(() => { dialogRef.current?.focus(); });
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('keydown', handler);
+      if (triggerRef.current instanceof HTMLElement) triggerRef.current.focus();
+    };
+  }, [show, onClose]);
+
   if (!show || !pendingTo) return null;
 
   const toCfg = OUTING_STATUS_CONFIG[pendingTo];
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+      aria-hidden="true"
+      onClick={onClose}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Changer le statut de la sortie"
+        tabIndex={-1}
+        className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl outline-none"
+        onClick={e => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-gray-900">Changer le statut</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="w-5 h-5" />
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-lg p-1"
+            aria-label="Fermer la fenêtre"
+          >
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
@@ -82,3 +118,4 @@ export default function OutingStatusModal({
     </div>
   );
 }
+

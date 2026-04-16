@@ -333,8 +333,8 @@ function MesEchangesContent() {
             <h1 className="text-2xl font-black text-gray-900">Mes échanges</h1>
             <p className="text-gray-500 text-sm">Suivi de toutes vos interactions</p>
           </div>
-          <button onClick={load} className="ml-auto p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
-            <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
+          <button onClick={load} aria-label="Actualiser les échanges" className="ml-auto p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 transition-colors">
+            <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} aria-hidden="true" />
           </button>
         </div>
 
