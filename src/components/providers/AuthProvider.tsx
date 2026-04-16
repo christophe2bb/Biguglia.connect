@@ -95,9 +95,12 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     //     profile=null signifie "profil non disponible" pas "non connecté".
     const fetchProfile = async (userId: string) => {
       try {
+        // Colonnes explicites — jamais de select('*') sur profiles.
+        // La policy RLS "profiles_select_own_or_admin" garantit que seul
+        // l'utilisateur connecté peut lire son propre profil complet ici.
         const { data, error } = await supabase
           .from('profiles')
-          .select('*')
+          .select('id, email, full_name, avatar_url, phone, role, status, legal_consent, legal_consent_at, created_at, updated_at, home_sector_id')
           .eq('id', userId)
           .single();
 
