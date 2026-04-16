@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Users, CheckCircle, AlertTriangle, MessageSquare, Package, Wrench, Flag, TrendingUp, Shield } from 'lucide-react';
+import { Users, CheckCircle, AlertTriangle, MessageSquare, Package, Wrench, Flag, TrendingUp, Shield, ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
@@ -76,6 +76,9 @@ function AdminContent() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <div className="flex items-center gap-3 mb-8">
+        <Link href="/" className="p-2 rounded-xl hover:bg-gray-100 transition-colors" title="Retour au site">
+          <ArrowLeft className="w-5 h-5 text-gray-500" />
+        </Link>
         <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center">
           <TrendingUp className="w-5 h-5 text-white" />
         </div>
