@@ -203,9 +203,9 @@ CREATE INDEX IF NOT EXISTS help_status_history_req_idx ON help_request_status_hi
 
 ALTER TABLE help_request_status_history ENABLE ROW LEVEL SECURITY;
 
+-- ⚠️  NEUTRALISÉ — USING(true) exposait l'historique d'audit publiquement
+--     Remplacée dans : 20260416_help_status_history_rls.sql
 DROP POLICY IF EXISTS "help_status_history_select" ON help_request_status_history;
-CREATE POLICY "help_status_history_select" ON help_request_status_history
-  FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "help_status_history_insert" ON help_request_status_history;
 CREATE POLICY "help_status_history_insert" ON help_request_status_history
