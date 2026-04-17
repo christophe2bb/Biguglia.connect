@@ -123,7 +123,11 @@ export const REDIS_RATE_CONFIGS: Record<RouteGroupRedis, GroupConfig> = {
 // ─── IPs et routes bypassées ─────────────────────────────────────────────────
 
 /** IPs locales exemptées (dev, tests, Vercel preview interne). */
-const LOCAL_IPS = new Set(['127.0.0.1', '::1', 'unknown', 'localhost']);
+const LOCAL_IPS = new Set([
+  '127.0.0.1', '::1', 'unknown', 'localhost',
+  // IP admin / développeur — exempt permanent pour éviter l'auto-ban
+  '90.14.0.155',
+]);
 
 /**
  * Prefixes de routes exemptées du rate-limiting.
@@ -319,7 +323,13 @@ export async function checkRateLimitRedis(
   }
 
   // ── Fallback mémoire ──────────────────────────────────────────────────────
-  // Mapping des groupes Redis vers les groupes mémoire compatibles
+  // Si Redis est configuré mais en erreur (token invalide, réseau), on laisse
+  // passer sans bloquer — mieux vaut pas de rate-limit que bloquer les admins.
+  if (isRedisConfigured()) {
+    console.warn('[rate-limit-redis] Redis configuré mais inaccessible — bypass rate-limit');
+    return { allowed: true, limit: config.maxRequests, retryAfterSecs: 0 };
+  }
+  // Redis absent (dev local) → fallback mémoire
   const memoryGroup = mapToMemoryGroup(group);
   return checkRateLimitMemory(ip, memoryGroup);
 }
