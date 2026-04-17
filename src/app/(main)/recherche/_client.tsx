@@ -1,60 +1,36 @@
+'use client';
 /**
- * RecherchePage — Server Component wrapper
+ * RechercheClient — Client Component interactif
  * ─────────────────────────────────────────────────────────────────────────────
- * Séparation server / client :
- *   • Cette page est un Server Component (pas de 'use client') → pas de JS
- *     envoyé au navigateur pour le shell, metadata SEO possible.
- *   • RechercheClient (dynamic import) porte tout le code interactif.
+ * Porte toute la logique interactive de la page recherche.
+ * Chargé en différé depuis page.tsx (Server Component) via dynamic().
  *
- * Bénéfice perf mobile :
- *   • Le shell HTML est streamed par le serveur (FCP rapide)
- *   • Le JS interactif est différé (TBT réduit)
- *   • Suspense boundary correcte pour useSearchParams
+ * Délègue la logique à useSearchPage et compose les blocs UI :
+ *   SearchFilters        → filtres thèmes + avancés
+ *   SearchResultsHeader  → compteur + vue + suggestions
+ *   ThemeBlockSection    → blocs de résultats par thème
+ *   SearchEmpty          → landing (aucune query)
+ *   SearchNoResults      → aucun résultat
  */
 
-import type { Metadata } from 'next';
-import dynamic from 'next/dynamic';
+import { Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
+import GlobalSearch from '@/components/ui/GlobalSearch';
+import { useSearchPage } from './useSearchPage';
+import SearchFilters from './_components/SearchFilters';
+import SearchResultsHeader from './_components/SearchResultsHeader';
+import ThemeBlockSection from './_components/ThemeBlockSection';
+import { SearchEmpty, SearchNoResults } from './_components/SearchEmpty';
 
-export const metadata: Metadata = {
-  title: 'Recherche — Biguglia Connect',
-  description: 'Recherchez des artisans, annonces, événements, promenades et plus sur Biguglia Connect.',
-  robots: { index: false, follow: true },
-};
-
-// ─── Shell statique affiché immédiatement (SSR, zéro JS) ─────────────────────
-function RechercheShell() {
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b border-gray-200 sticky top-16 z-30">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="h-12 bg-gray-100 rounded-2xl animate-pulse mb-4" />
-          <div className="flex gap-2 overflow-x-auto">
-            {[80, 90, 100, 85, 95, 75].map((w, i) => (
-              <div key={i} className="h-9 rounded-full bg-gray-100 animate-pulse flex-shrink-0" style={{ width: w }} />
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center justify-center min-h-[40vh]">
-        <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
-      </div>
-    </div>
-  );
-}
-
-// ─── Client interactif chargé en différé ─────────────────────────────────────
-const RechercheClient = dynamic(() => import('./_client'), {
-  ssr: false,
-  loading: () => <RechercheShell />,
-});
-
-// ─── Export page Server Component ────────────────────────────────────────────
-export default function RecherchePage() {
-  return (
-    <RechercheClient />
-  );
-}
+// ─── Contenu principal (requiert useSearchParams → Suspense boundary) ─────────
+function RechercheContent() {
+  const {
+    query, loading, blocks, totalCount,
+    view, setView, activeThemes, setActiveThemes,
+    sortBy, setSortBy, filterFree, setFilterFree,
+    filterLocation, setFilterLocation, showFilters, setShowFilters,
+    contextSuggestions, toggleTheme, handleSearch,
+  } = useSearchPage();
 
   const isEmpty = !loading && query.trim() && blocks.length === 0;
 
@@ -141,7 +117,7 @@ export default function RecherchePage() {
 }
 
 // ─── Export avec Suspense (useSearchParams requiert un boundary) ───────────────
-export default function RecherchePage() {
+export default function RechercheClient() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
