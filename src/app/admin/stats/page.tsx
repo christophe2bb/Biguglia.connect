@@ -27,11 +27,23 @@ const SectionListings  = dynamic(() => import('./_components/SectionListings').t
 const SectionRequests  = dynamic(() => import('./_components/SectionRequests').then(m => ({ default: m.SectionRequests })),   { ssr: false });
 
 export default function AdminStatsPage() {
-  const { profile, isAdmin } = useAuthStore();
+  const { phase, profile, isAdmin } = useAuthStore();
   const { stats, loading, lastRefresh, fetchAllStats } = useAdminStats();
 
   useEffect(() => { fetchAllStats(); }, [fetchAllStats]);
 
+  // Pendant l'initialisation du store : skeleton (pas null, évite le flash blanc)
+  if (phase === 'initializing') {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-10">
+        <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-6" />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {[...Array(8)].map((_, i) => <div key={i} className="h-28 bg-gray-100 rounded-2xl animate-pulse" />)}
+        </div>
+      </div>
+    );
+  }
+  // Profil chargé mais pas admin → ne rien afficher (guard serveur aurait dû bloquer)
   if (!profile || !isAdmin()) return null;
 
   return (
