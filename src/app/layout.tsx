@@ -74,7 +74,9 @@ export const metadata: Metadata = {
     apple:   '/favicon.svg',
     shortcut:'/favicon.ico',
   },
-  manifest: '/manifest.json',
+  // manifest is intentionally omitted here — Next.js 14 hardcodes crossOrigin="use-credentials"
+  // on the generated <link rel="manifest"> which breaks PWA installs.
+  // The tag is added manually in the <head> below without the crossOrigin attribute.
 };
 
 export const viewport: Viewport = {
@@ -87,6 +89,11 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr">
+      <head>
+        {/* Manifest sans crossOrigin — Next.js 14 hardcode crossOrigin="use-credentials"
+            via l'API metadata, ce qui empêche le chargement du manifest hors iframe. */}
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body className="min-h-screen flex flex-col bg-white">
         {/* Skip-to-content : visible uniquement à la navigation clavier (Tab depuis le haut) */}
         <a href="#main-content" className="skip-to-content">
