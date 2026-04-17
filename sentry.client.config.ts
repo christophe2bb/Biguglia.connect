@@ -95,6 +95,18 @@ Sentry.init({
       ) {
         return null;
       }
+
+      // ② bis — AbortError "Lock broken by another request with the 'steal' option"
+      // Causé par Supabase Auth qui utilise un verrou IndexedDB pour la session.
+      // Quand l'utilisateur navigue rapidement (ex: /admin → /dashboard), le verrou
+      // précédent est annulé par le nouveau. Ce n'est pas une vraie erreur applicative.
+      if (
+        err.name === 'AbortError' ||
+        msg.includes('lock broken') ||
+        msg.includes('steal')
+      ) {
+        return null;
+      }
     }
 
     // ③ Supprimer les tokens/mots de passe des query strings si présents

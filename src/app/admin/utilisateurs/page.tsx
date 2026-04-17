@@ -12,7 +12,6 @@ import type { AdminUserEntry } from '@/app/api/admin/users/route';
 import type { Profile } from '@/types';
 import { ROLE_LABELS } from '@/lib/utils';
 import toast from 'react-hot-toast';
-import ProtectedPage from '@/components/providers/ProtectedPage';
 import type { UserWithActivity } from './_components/types';
 import UserFilters from './_components/UserFilters';
 import UserTable from './_components/UserTable';
@@ -170,7 +169,7 @@ export default function AdminUtilisateursPage() {
   const artisansPending = users.filter(u => u.role === 'artisan_pending').length;
 
   return (
-    <ProtectedPage adminOnly>
+    <>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
@@ -241,6 +240,6 @@ export default function AdminUtilisateursPage() {
           onResetPassword={resetPassword}
         />
       )}
-    </ProtectedPage>
+    </>
   );
 }

@@ -21,7 +21,6 @@ import {
 } from 'lucide-react';
 import type { ModerationStatsData, ContentType, ByTypeStat, RecentDecision, MemberStat } from '@/app/api/admin/moderation/stats-data/route';
 import Avatar from '@/components/ui/Avatar';
-import ProtectedPage from '@/components/providers/ProtectedPage';
 import { formatRelative } from '@/lib/utils';
 import { CONTENT_TYPE_LABELS } from '@/lib/moderation';
 import toast from 'react-hot-toast';
@@ -330,8 +329,8 @@ function ModerationStatsContent() {
 
 export default function ModerationStatsPage() {
   return (
-    <ProtectedPage adminOnly>
+    <>
       <ModerationStatsContent />
-    </ProtectedPage>
+    </>
   );
 }

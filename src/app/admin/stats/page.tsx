@@ -14,7 +14,6 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { BarChart2, ChevronLeft, RefreshCw } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
-import ProtectedPage from '@/components/providers/ProtectedPage';
 import { useAdminStats } from './_hooks/useAdminStats';
 // Sections chargées en lazy pour réduire le bundle initial de la page admin stats
 import dynamic from 'next/dynamic';
@@ -36,7 +35,7 @@ export default function AdminStatsPage() {
   if (!profile || !isAdmin()) return null;
 
   return (
-    <ProtectedPage adminOnly>
+    <>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
         {/* ── Header ──────────────────────────────────────────────── */}
@@ -94,6 +93,6 @@ export default function AdminStatsPage() {
           </div>
         )}
       </div>
-    </ProtectedPage>
+    </>
   );
 }

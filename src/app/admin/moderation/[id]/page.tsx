@@ -9,7 +9,6 @@
 
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import ProtectedPage from '@/components/providers/ProtectedPage';
 import { useModerationDetail } from './_hooks/useModerationDetail';
 import { resolveContentUrl }   from './_config';
 import { DetailHeader }         from './_components/DetailHeader';
@@ -112,8 +111,8 @@ function ModerationDetailContent() {
 
 export default function AdminModerationDetailPage() {
   return (
-    <ProtectedPage adminOnly>
+    <>
       <ModerationDetailContent />
-    </ProtectedPage>
+    </>
   );
 }

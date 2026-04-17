@@ -11,13 +11,12 @@
  *   • Affichage du détail (meta JSON) au clic sur une ligne
  *   • Export CSV basique via window.open (optionnel)
  *
- * Accès : admins et modérateurs uniquement (protégé par ProtectedPage adminOnly).
+ * Accès : admins et modérateurs uniquement (protégé par verifyAdminLayout côté serveur).
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, RefreshCw, Search, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Clock, User, Tag, Table2 } from 'lucide-react';
-import ProtectedPage from '@/components/providers/ProtectedPage';
 import type { AdminActionLog, AdminLogsResponse } from '@/app/api/admin/logs/route';
 
 // ─── Label helpers ────────────────────────────────────────────────────────────
@@ -438,5 +437,5 @@ function LogsContent() {
 }
 
 export default function AdminLogsPage() {
-  return <ProtectedPage adminOnly><LogsContent /></ProtectedPage>;
+  return <><LogsContent /></>;
 }
