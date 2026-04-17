@@ -30,8 +30,16 @@ function ConnexionForm() {
 
   useEffect(() => {
     if (phase === 'authenticated') {
-      // Déjà connecté → aller directement à la destination ou dashboard
-      router.replace(redirectTo);
+      // Si la destination est une route admin, rediriger via window.location
+      // pour forcer un rechargement complet (le layout serveur verifyAdminLayout
+      // a besoin d'une vraie requête HTTP avec les cookies frais, pas un client-
+      // side navigation qui peut réutiliser un état SSR périmé).
+      // Pour toutes les autres routes, router.replace suffit.
+      if (redirectTo.startsWith('/admin')) {
+        window.location.replace(redirectTo);
+      } else {
+        router.replace(redirectTo);
+      }
     }
   }, [phase, router, redirectTo]);
 
