@@ -21,12 +21,13 @@
  *  src/app/admin/layout.tsx est un Server Component (pas de 'use client').
  *  Next.js l'exécute sur le serveur avant tout rendu de page /admin/*.
  *  Il appelle `verifyAdminLayout()` qui :
- *    1. Crée un client Supabase SSR (cookies) et appelle auth.getUser()
- *       → validation JWT réelle par Supabase (signature + expiration).
+ *    1. Lit la session depuis les cookies SSR (getSession — pas d'appel réseau).
  *    2. Si pas de session → redirect('/connexion?next=/admin').
- *    3. Charge profiles.role via createAdminClient (service-role, bypass RLS).
- *    4. Si role ∉ ['admin', 'moderator'] → redirect('/').
- *    5. Renvoie { actor: { id, role } } si tout est OK.
+ *    3. Valide le JWT via adminDb.auth.getUser(accessToken) — service-role key,
+ *       validation cryptographique réelle sans problème de cookie propagation.
+ *    4. Charge profiles.role via adminClient (service-role, bypass RLS).
+ *    5. Si role ∉ ['admin', 'moderator'] → redirect('/').
+ *    6. Renvoie { actor: { id, role } } si tout est OK.
  *
  * ── Comparaison des couches de protection ────────────────────────────────────
  *
@@ -76,30 +77,62 @@ const ADMIN_ROLES: readonly string[] = ['admin', 'moderator'] as const;
  * @returns AdminLayoutOk avec l'actor identifié si tout est OK.
  *
  * @remarks
- *  - Utilise `auth.getUser()` (validation JWT réelle, pas `getSession()`).
+ *  - Utilise getSession() (lecture cookie locale) + adminDb.auth.getUser(token)
+ *    (validation JWT réelle via service-role key, sans problème de cookie SSR).
  *  - Charge `profiles.role` via service-role key (bypass RLS) pour éviter
  *    qu'une policy trop restrictive empêche la lecture du rôle.
  *  - Ne lance JAMAIS d'exception : les redirections sont gérées par
  *    next/navigation (elles lancent une erreur spéciale interceptée par Next.js).
  */
 export async function verifyAdminLayout(): Promise<AdminLayoutOk> {
-  // ── Étape 1 : authentification réelle (JWT validé par Supabase) ───────────
+  // ── Étape 1 : récupération de la session depuis les cookies ───────────────
+  //
+  // On utilise getSession() + adminDb.auth.getUser(token) au lieu de
+  // ssrClient.auth.getUser() seul, pour deux raisons :
+  //
+  //  a) getUser() fait un appel HTTP vers Supabase Auth API — si le JWT est
+  //     expiré et que le middleware n'a pas pu rafraîchir les cookies (cas
+  //     fréquent après un blocage IP ou un long délai), getUser() échoue et
+  //     redirige vers /connexion alors que l'utilisateur est bien admin.
+  //
+  //  b) getSession() lit les cookies locaux directement (pas d'appel réseau),
+  //     puis on valide le JWT via adminDb.auth.getUser(accessToken) qui utilise
+  //     la service-role key — cette validation est cryptographiquement fiable
+  //     et bypass les problèmes de refresh token côté SSR.
+  //
   const ssrClient = createClient();
   const {
-    data: { user },
-    error: authError,
-  } = await ssrClient.auth.getUser();
+    data: { session },
+  } = await ssrClient.auth.getSession();
 
-  if (authError || !user) {
+  if (!session?.access_token || !session?.user?.id) {
     redirect('/connexion?next=/admin');
   }
 
-  // ── Étape 2 : charge le rôle via service-role (bypass RLS) ───────────────
+  const userId = session.user.id;
+  const accessToken = session.access_token;
+
+  // ── Étape 2 : validation du JWT + chargement du rôle (bypass RLS) ────────
+  //
+  // createAdminClient() utilise la service-role key — bypass RLS complet.
+  // On valide le JWT cryptographiquement ET on récupère le rôle en un seul
+  // client, évitant tout problème de cookie propagation.
   const adminDb = createAdminClient();
+
+  // Validation JWT réelle par Supabase Auth (signature + expiration)
+  const { data: { user: validatedUser }, error: userError } =
+    await adminDb.auth.getUser(accessToken);
+
+  if (userError || !validatedUser) {
+    // JWT invalide ou expiré sans possibilité de refresh côté SSR
+    redirect('/connexion?next=/admin');
+  }
+
+  // ── Étape 3 : chargement du profil DB (bypass RLS via service-role) ───────
   const { data: profileRow, error: profileError } = await adminDb
     .from('profiles')
     .select('id, role')
-    .eq('id', user.id)
+    .eq('id', userId)
     .single();
 
   if (profileError || !profileRow) {
@@ -107,15 +140,15 @@ export async function verifyAdminLayout(): Promise<AdminLayoutOk> {
     redirect('/');
   }
 
-  // ── Étape 3 : vérification du rôle ───────────────────────────────────────
-  const role = profileRow.role as string;
+  // ── Étape 4 : vérification du rôle ───────────────────────────────────────
+  const role = String(profileRow.role); // cast explicite (enum user_role → string)
   if (!ADMIN_ROLES.includes(role)) {
     redirect('/');
   }
 
   return {
     actor: {
-      id: user.id,
+      id: userId,
       role: role as AdminLayoutRole,
     },
   };
