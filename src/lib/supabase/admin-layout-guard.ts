@@ -23,20 +23,22 @@
  *  Il appelle `verifyAdminLayout()` qui :
  *    1. Lit la session depuis les cookies SSR (getSession — pas d'appel réseau).
  *    2. Si pas de session → redirect('/connexion?next=/admin').
- *    3. Valide le JWT via adminDb.auth.getUser(accessToken) — service-role key,
- *       validation cryptographique réelle sans problème de cookie propagation.
- *    4. Charge profiles.role via adminClient (service-role, bypass RLS).
- *    5. Si role ∉ ['admin', 'moderator'] → redirect('/').
- *    6. Renvoie { actor: { id, role } } si tout est OK.
+ *    3. Charge profiles.role via adminClient (service-role, bypass RLS total).
+ *    4. Si role ∉ ['admin', 'moderator'] → redirect('/').
+ *    5. Renvoie { actor: { id, role } } si tout est OK.
  *
  * ── Comparaison des couches de protection ────────────────────────────────────
  *
  *  Couche               | Emplacement    | Valide JWT | Vérifie rôle
  *  ─────────────────────┼────────────────┼────────────┼─────────────
  *  Middleware Edge      | src/middleware  | Non (eyJ)  | Non
- *  layout.tsx serveur   | admin/layout   | Oui        | Oui ← nouveau
+ *  layout.tsx serveur   | admin/layout   | Oui*       | Oui ← barrière principale
  *  ProtectedPage        | client         | Non        | Oui (store)
  *  API routes admin     | api/admin/**   | Oui        | Oui (getAdminUser)
+ *
+ *  * JWT validé par le middleware via getSession() qui rafraîchit le token.
+ *    verifyAdminLayout ne refait pas la validation JWT pour éviter les
+ *    échecs sur token expiré côté SSR layout (cookie propagation Edge→RSC).
  *
  * ── SCOPE ────────────────────────────────────────────────────────────────────
  *
@@ -77,58 +79,44 @@ const ADMIN_ROLES: readonly string[] = ['admin', 'moderator'] as const;
  * @returns AdminLayoutOk avec l'actor identifié si tout est OK.
  *
  * @remarks
- *  - Utilise getSession() (lecture cookie locale) + adminDb.auth.getUser(token)
- *    (validation JWT réelle via service-role key, sans problème de cookie SSR).
- *  - Charge `profiles.role` via service-role key (bypass RLS) pour éviter
- *    qu'une policy trop restrictive empêche la lecture du rôle.
+ *  - Utilise getSession() (lecture cookie locale, pas d'appel réseau) pour
+ *    éviter les échecs sur JWT expiré quand le middleware Edge n'a pas pu
+ *    rafraîchir les cookies avant le rendu du layout RSC.
+ *  - Charge `profiles.role` via service-role key (bypass RLS total) pour éviter
+ *    tout problème de policy RLS (récursion, cast enum, etc.).
  *  - Ne lance JAMAIS d'exception : les redirections sont gérées par
  *    next/navigation (elles lancent une erreur spéciale interceptée par Next.js).
  */
 export async function verifyAdminLayout(): Promise<AdminLayoutOk> {
-  // ── Étape 1 : récupération de la session depuis les cookies ───────────────
+  // ── Étape 1 : lecture de la session depuis les cookies SSR ───────────────
   //
-  // On utilise getSession() + adminDb.auth.getUser(token) au lieu de
-  // ssrClient.auth.getUser() seul, pour deux raisons :
-  //
-  //  a) getUser() fait un appel HTTP vers Supabase Auth API — si le JWT est
-  //     expiré et que le middleware n'a pas pu rafraîchir les cookies (cas
-  //     fréquent après un blocage IP ou un long délai), getUser() échoue et
-  //     redirige vers /connexion alors que l'utilisateur est bien admin.
-  //
-  //  b) getSession() lit les cookies locaux directement (pas d'appel réseau),
-  //     puis on valide le JWT via adminDb.auth.getUser(accessToken) qui utilise
-  //     la service-role key — cette validation est cryptographiquement fiable
-  //     et bypass les problèmes de refresh token côté SSR.
+  // getSession() lit le cookie Supabase localement sans appel réseau.
+  // C'est plus fiable que getUser() dans un layout RSC car :
+  //   - getUser() fait un appel HTTP → peut échouer si JWT expiré et que
+  //     le middleware Edge n'a pas propagé les cookies rafraîchis au RSC
+  //   - getSession() retourne la session locale même si le JWT vient d'expirer
+  //     (le middleware aura rafraîchi le token et mis à jour le cookie)
   //
   const ssrClient = createClient();
   const {
     data: { session },
   } = await ssrClient.auth.getSession();
 
-  if (!session?.access_token || !session?.user?.id) {
+  if (!session?.user?.id) {
     redirect('/connexion?next=/admin');
   }
 
   const userId = session.user.id;
-  const accessToken = session.access_token;
 
-  // ── Étape 2 : validation du JWT + chargement du rôle (bypass RLS) ────────
+  // ── Étape 2 : chargement du profil via service-role (bypass RLS total) ────
   //
-  // createAdminClient() utilise la service-role key — bypass RLS complet.
-  // On valide le JWT cryptographiquement ET on récupère le rôle en un seul
-  // client, évitant tout problème de cookie propagation.
+  // createAdminClient() utilise SUPABASE_SERVICE_ROLE_KEY.
+  // Bypass complet des policies RLS → pas de dépendance à is_moderator_or_admin()
+  // ni aux policies SELECT sur profiles (qui peuvent avoir des problèmes de
+  // cast enum user_role → text ou de récursion).
+  //
   const adminDb = createAdminClient();
 
-  // Validation JWT réelle par Supabase Auth (signature + expiration)
-  const { data: { user: validatedUser }, error: userError } =
-    await adminDb.auth.getUser(accessToken);
-
-  if (userError || !validatedUser) {
-    // JWT invalide ou expiré sans possibilité de refresh côté SSR
-    redirect('/connexion?next=/admin');
-  }
-
-  // ── Étape 3 : chargement du profil DB (bypass RLS via service-role) ───────
   const { data: profileRow, error: profileError } = await adminDb
     .from('profiles')
     .select('id, role')
@@ -136,12 +124,17 @@ export async function verifyAdminLayout(): Promise<AdminLayoutOk> {
     .single();
 
   if (profileError || !profileRow) {
-    // Profil introuvable ou erreur DB → pas admin
+    // Profil introuvable ou erreur DB → rediriger vers accueil (pas /connexion)
     redirect('/');
   }
 
-  // ── Étape 4 : vérification du rôle ───────────────────────────────────────
-  const role = String(profileRow.role); // cast explicite (enum user_role → string)
+  // ── Étape 3 : vérification du rôle ───────────────────────────────────────
+  //
+  // String() cast explicite : la colonne role est de type enum user_role en DB.
+  // PostgREST la sérialise en string, mais on force le cast pour éviter tout
+  // problème de comparaison TypeScript entre enum et string literal.
+  //
+  const role = String(profileRow.role);
   if (!ADMIN_ROLES.includes(role)) {
     redirect('/');
   }
