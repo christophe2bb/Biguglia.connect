@@ -26,22 +26,18 @@ function ConnexionForm() {
   const redirectTo = rawNext.startsWith('/') ? rawNext : '/dashboard';
 
   // ── Si l'utilisateur est déjà connecté → rediriger immédiatement ─────────
+  // Exception : si la destination est /admin, NE PAS rediriger automatiquement
+  // pour éviter la boucle /connexion → /admin → /connexion → …
+  // (verifyAdminLayout côté serveur peut échouer si la session est expirée).
+  // Dans ce cas, on affiche un bouton "Accéder à l'administration".
   const { phase, profile } = useAuthStore();
+  const isAdminRedirect = redirectTo.startsWith('/admin');
 
   useEffect(() => {
-    if (phase === 'authenticated') {
-      // Si la destination est une route admin, rediriger via window.location
-      // pour forcer un rechargement complet (le layout serveur verifyAdminLayout
-      // a besoin d'une vraie requête HTTP avec les cookies frais, pas un client-
-      // side navigation qui peut réutiliser un état SSR périmé).
-      // Pour toutes les autres routes, router.replace suffit.
-      if (redirectTo.startsWith('/admin')) {
-        window.location.replace(redirectTo);
-      } else {
-        router.replace(redirectTo);
-      }
+    if (phase === 'authenticated' && !isAdminRedirect) {
+      router.replace(redirectTo);
     }
-  }, [phase, router, redirectTo]);
+  }, [phase, router, redirectTo, isAdminRedirect]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,14 +79,49 @@ function ConnexionForm() {
     }
   };
 
-  // Pendant l'initialisation ou si déjà connecté → ne rien afficher (redirection en cours)
-  if (phase === 'initializing' || phase === 'authenticated') {
+  // Pendant l'initialisation → afficher un spinner
+  if (phase === 'initializing') {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
         <div className="w-10 h-10 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-gray-500 text-sm">
-          {phase === 'authenticated' ? 'Déjà connecté, redirection...' : 'Vérification en cours...'}
+        <p className="text-gray-500 text-sm">Vérification en cours...</p>
+      </div>
+    );
+  }
+
+  // Déjà connecté et destination non-admin → spinner (redirection auto en cours)
+  if (phase === 'authenticated' && !isAdminRedirect) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
+        <div className="w-10 h-10 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-gray-500 text-sm">Déjà connecté, redirection...</p>
+      </div>
+    );
+  }
+
+  // Déjà connecté et destination /admin → bouton manuel (évite la boucle)
+  if (phase === 'authenticated' && isAdminRedirect) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
+        <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">Vous êtes connecté</h2>
+        <p className="text-gray-500 text-sm mb-6">
+          {profile?.role === 'admin' || profile?.role === 'moderator'
+            ? 'Cliquez pour accéder au panneau d\'administration.'
+            : 'Votre session est active. Accédez à l\'administration ci-dessous.'}
         </p>
+        <Button
+          onClick={() => window.location.href = redirectTo}
+          className="w-full"
+          size="lg"
+        >
+          Accéder à l&apos;administration
+        </Button>
+        <div className="mt-4">
+          <Link href="/dashboard" className="text-sm text-brand-600 hover:text-brand-700">
+            Retour au tableau de bord
+          </Link>
+        </div>
       </div>
     );
   }
