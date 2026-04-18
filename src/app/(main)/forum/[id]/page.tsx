@@ -11,6 +11,9 @@ import { notFound } from 'next/navigation';
 import ForumTopicClient from './ForumTopicClient';
 import type { TopicExtended, TopicPhoto, InitialTopicData } from './_types';
 import type { ForumTopic, ForumReply } from '@/types';
+import { JsonLd, breadcrumbSchema, articleSchema } from '@/components/seo/JsonLd';
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 
 type Props = { params: { id: string } };
 
@@ -164,5 +167,34 @@ export default async function ForumTopicPage({ params }: Props) {
 
   if (!initialData) notFound();
 
-  return <ForumTopicClient initialData={initialData} />;
+  const topic = initialData.topic;
+
+  // ── Structured data ──────────────────────────────────────────────────────
+  const topicTitle  = (topic as { title?: string }).title ?? 'Discussion';
+  const topicContent = (topic as { content?: string }).content ?? '';
+  const topicDate    = (topic as { created_at?: string }).created_at ?? new Date().toISOString();
+  const topicAuthor  = (topic as { author?: { full_name?: string } }).author?.full_name ?? undefined;
+
+  const breadcrumb = breadcrumbSchema([
+    { name: 'Accueil',         url: '/' },
+    { name: 'Forum Biguglia', url: '/forum' },
+    { name: topicTitle,       url: `/forum/${params.id}` },
+  ]);
+
+  const articleLd = articleSchema({
+    headline:     topicTitle,
+    description:  topicContent.slice(0, 200) || `Discussion sur le forum de Biguglia Connect.`,
+    url:          `/forum/${params.id}`,
+    datePublished: topicDate,
+    author:       topicAuthor,
+    articleBody:  topicContent,
+  });
+
+  return (
+    <>
+      <JsonLd data={breadcrumb} />
+      <JsonLd data={articleLd} />
+      <ForumTopicClient initialData={initialData} />
+    </>
+  );
 }

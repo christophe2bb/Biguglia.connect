@@ -30,6 +30,7 @@ import StatusBadge from '@/components/ui/StatusBadge';
 import Avatar from '@/components/ui/Avatar';
 import EvenementInteractiveClient from './EvenementDetailClient';
 import type { EventDetail } from './_types';
+import { JsonLd, breadcrumbSchema, eventSchema } from '@/components/seo/JsonLd';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 
@@ -123,7 +124,26 @@ export default async function EventDetailPage({ params }: Props) {
   const daysLabel = daysUntilLabel(event.event_date);
   const author = event.author as { full_name?: string; avatar_url?: string | null } | undefined;
 
+  // ── Structured data ────────────────────────────────────────────────────────
+  const breadcrumb = breadcrumbSchema([
+    { name: 'Accueil',               url: '/' },
+    { name: 'Événements Biguglia',   url: '/evenements' },
+    { name: event.title,             url: `/evenements/${params.id}` },
+  ]);
+
+  const eventJsonLd = eventSchema({
+    name:        event.title,
+    description: event.description?.slice(0, 300) ?? `Événement à ${event.location ?? 'Biguglia'}`,
+    url:         `/evenements/${params.id}`,
+    startDate:   event.event_date + (event.start_time ? `T${event.start_time}` : 'T00:00:00'),
+    ...(event.end_time && { endDate: event.event_date + `T${event.end_time}` }),
+    location:    event.location ?? 'Biguglia',
+  });
+
   return (
+    <>
+      <JsonLd data={breadcrumb} />
+      <JsonLd data={eventJsonLd} />
     <div className="min-h-screen bg-gray-50">
 
       {/* ── Hero (server-rendered) ────────────────────────────────────────── */}
@@ -250,5 +270,6 @@ export default async function EventDetailPage({ params }: Props) {
         <EvenementInteractiveClient initialEvent={event} />
       </div>
     </div>
+    </>
   );
 }
