@@ -3,13 +3,21 @@
 // Souscrit aux INSERT sur `messages` et `notifications` pour incrémenter le
 // compteur instantanément sans refaire de SELECT lourd.
 // En cas d'erreur de canal, une reconnexion exponentielle est tentée, et un
-// polling de secours (10 s) est activé en attendant.
+// polling de secours (15 s) est activé en attendant la reconnexion.
+//
+// Intervalles :
+//   RECONNECT_DELAYS   : [1 s, 2 s, 5 s, 10 s, 30 s] — backoff exponentiel
+//   REALTIME_POLL_MS   : 15 s — polling de secours quand le canal est DOWN
+//   (le polling de sécurité global dans useUnreadCounts est à 60 s)
 
 import { createClient } from '@/lib/supabase/client';
 import { isSystem, totalUnreadMsgs } from './unreadHelpers';
 import { fetchCounts, type UnreadRefs } from './unreadFetch';
 
 const RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000];
+
+/** Intervalle du polling de secours quand le canal Realtime est indisponible. */
+const REALTIME_POLL_MS = 15_000;
 
 type SetCounts = (
   updater: { messages: number; notifications: number; total: number } |
@@ -111,13 +119,13 @@ export function connectRealtime(
         refs.reconnectRef.current = setTimeout(() => {
           if (refs.mountedRef.current) connectRealtime(supabase, userId, refs, setCounts);
         }, delay);
-        // Polling de secours pendant la reconnexion
+        // Polling de secours pendant la reconnexion (15 s — moins agressif que 10 s)
         if (!refs.realtimePollRef.current) {
           refs.realtimePollRef.current = setInterval(() => {
             if (refs.mountedRef.current) {
               fetchCounts(supabase, userId, refs, setCounts as Parameters<typeof fetchCounts>[3]);
             }
-          }, 10000);
+          }, REALTIME_POLL_MS);
         }
       }
     });

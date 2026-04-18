@@ -15,7 +15,7 @@ import { useState, useRef, useCallback, MutableRefObject } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Profile } from '@/types';
 import { MessageWithSender, ConversationApiResponse } from '../_types';
-import { RECONNECT_DELAYS, FALLBACK_POLL_INTERVAL } from '../_config';
+import { RECONNECT_DELAYS, FALLBACK_POLL_INTERVAL, POLL_INIT_DELAY } from '../_config';
 import { getToken } from './useConversationData';
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -45,6 +45,8 @@ export function useConversationRealtime(
   const reconnectRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectIdxRef = useRef(0);
   const pollRef         = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Timer d'initialisation : attend POLL_INIT_DELAY avant de démarrer le polling initial. */
+  const pollInitRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Lookup profil avec cache ───────────────────────────────────────────────
   const getSenderProfile = useCallback(async (senderId: string): Promise<Profile | undefined> => {
@@ -104,9 +106,16 @@ export function useConversationRealtime(
     if (!profile || !conversationId) return;
     if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; }
 
-    // Polling principal (bypass RLS récursive) jusqu'à confirmation SUBSCRIBED
-    if (!pollRef.current) {
-      pollRef.current = setInterval(pollNewMessages, FALLBACK_POLL_INTERVAL);
+    // Polling de secours — démarré après POLL_INIT_DELAY pour laisser le temps
+    // au canal Realtime de s'établir sans effectuer une requête inutile.
+    if (!pollRef.current && !pollInitRef.current) {
+      pollInitRef.current = setTimeout(() => {
+        pollInitRef.current = null;
+        // Vérifier que le realtime n'est pas déjà établi
+        if (!pollRef.current && mountedRef.current) {
+          pollRef.current = setInterval(pollNewMessages, FALLBACK_POLL_INTERVAL);
+        }
+      }, POLL_INIT_DELAY);
     }
 
     const channel = supabase
@@ -136,7 +145,8 @@ export function useConversationRealtime(
         if (status === 'SUBSCRIBED') {
           setRealtimeOk(true);
           reconnectIdxRef.current = 0;
-          // Realtime opérationnel — polling devient redondant
+          // Realtime opérationnel — annuler le polling (init timer + intervalle)
+          if (pollInitRef.current) { clearTimeout(pollInitRef.current); pollInitRef.current = null; }
           if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
           setRealtimeOk(false);
@@ -160,6 +170,7 @@ export function useConversationRealtime(
     if (channelRef.current) supabase.removeChannel(channelRef.current);
     if (reconnectRef.current) clearTimeout(reconnectRef.current);
     if (pollRef.current) clearInterval(pollRef.current);
+    if (pollInitRef.current) clearTimeout(pollInitRef.current);
   }, [supabase]);
 
   return { realtimeOk, connect, cleanup };
