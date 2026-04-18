@@ -4,41 +4,44 @@
  * Page SEO d'entrée pour les recherches "emploi Biguglia",
  * "travail Biguglia", "recrutement Haute-Corse".
  *
- * Architecture SSR : données réelles Supabase + JSON-LD complet.
+ * Architecture SSR : données réelles Supabase + JSON-LD complet
+ * (BreadcrumbList + FAQPage + JobPosting + Occupation + ItemList).
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Briefcase, ChevronRight, MapPin, ArrowRight, Clock, Users, TrendingUp } from 'lucide-react';
+import { Briefcase, ChevronRight, MapPin, ArrowRight, Clock, Users, TrendingUp, CheckCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { JsonLd, breadcrumbSchema, faqSchema, jobPostingSchema } from '@/components/seo/JsonLd';
+import { JsonLd, breadcrumbSchema, faqSchema, jobPostingSchema, occupationSchema, collectionPageSchema } from '@/components/seo/JsonLd';
 import { GEO } from '@/lib/seo/local-data';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 
 export const metadata: Metadata = {
-  title: 'Emploi à Biguglia — Offres & Recrutement Local en Haute-Corse',
+  title: 'Emploi à Biguglia — Offres & Recrutement Local en Haute-Corse (2B)',
   description:
-    'Offres d\'emploi à Biguglia et en Haute-Corse : CDI, CDD, saisonnier, extra. Postulez directement aux employeurs locaux ou déposez votre CV. Recrutement sans intermédiaire.',
+    'Offres d\'emploi à Biguglia et en Haute-Corse : CDI, CDD, saisonnier, extra, alternance. Postulez directement aux employeurs locaux ou déposez votre CV. Recrutement gratuit et sans intermédiaire à Biguglia (20620).',
   keywords: [
     'emploi Biguglia', 'travail Biguglia', 'recrutement Biguglia',
     'offre emploi Haute-Corse', 'CDI Biguglia', 'CDD Corse',
     'job Biguglia', 'annonce emploi Corse', 'cherche emploi Biguglia',
+    'saisonnier Biguglia', 'alternance Biguglia', 'emploi 20620',
+    'recrutement Haute-Corse 2B', 'travailler Biguglia',
   ],
   alternates: { canonical: `${SITE_URL}/emploi-biguglia` },
   openGraph: {
-    title:       'Emploi à Biguglia — Offres & Recrutement Local',
-    description: 'CDI, CDD, saisonnier à Biguglia. Postulez aux employeurs locaux sans intermédiaire.',
+    title:       'Emploi à Biguglia — Offres & Recrutement Local (Haute-Corse)',
+    description: 'CDI, CDD, saisonnier, alternance à Biguglia. Postulez directement aux employeurs locaux sans intermédiaire.',
     url:         `${SITE_URL}/emploi-biguglia`,
-    images:      [{ url: `${SITE_URL}/images/biguglia-hero.jpg`, width: 1200, height: 630 }],
+    images:      [{ url: `${SITE_URL}/images/biguglia-hero.jpg`, width: 1200, height: 630, alt: 'Emploi et recrutement à Biguglia, Haute-Corse' }],
     type:        'website',
   },
 };
 
 // ─── Données live ─────────────────────────────────────────────────────────────
 
-interface JobOffer { id: string; title: string; contract_type: string | null; published_at: string | null; }
+interface JobOffer  { id: string; title: string; contract_type: string | null; published_at: string | null; }
 interface JobDemand { id: string; title: string; contract_type: string | null; published_at: string | null; }
 
 async function fetchRecentJobs(): Promise<{ offers: JobOffer[]; demands: JobDemand[]; totalOffers: number; totalDemands: number }> {
@@ -57,9 +60,9 @@ async function fetchRecentJobs(): Promise<{ offers: JobOffer[]; demands: JobDema
         .limit(4),
     ]);
     return {
-      offers:       (offers ?? []) as JobOffer[],
+      offers:       (offers  ?? []) as JobOffer[],
       demands:      (demands ?? []) as JobDemand[],
-      totalOffers:  totalOffers ?? 0,
+      totalOffers:  totalOffers  ?? 0,
       totalDemands: totalDemands ?? 0,
     };
   } catch {
@@ -71,11 +74,11 @@ async function fetchRecentJobs(): Promise<{ offers: JobOffer[]; demands: JobDema
 
 function formatDate(iso: string | null): string {
   if (!iso) return '';
-  const d = new Date(iso);
+  const d    = new Date(iso);
   const diff = Math.floor((Date.now() - d.getTime()) / 86_400_000);
   if (diff === 0) return 'Aujourd\'hui';
   if (diff === 1) return 'Hier';
-  if (diff < 7) return `Il y a ${diff} jours`;
+  if (diff < 7)  return `Il y a ${diff} jours`;
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
@@ -85,11 +88,48 @@ const CONTRACT_LABELS: Record<string, string> = {
   alternance: 'Alternance', extra: 'Extra',
 };
 
+// ─── Secteurs d'emploi à Biguglia ─────────────────────────────────────────────
+
+const JOB_SECTORS = [
+  { slug: 'batiment',      emoji: '🏗️', title: 'BTP & Construction',       desc: 'Maçons, électriciens, plombiers, charpentiers — forte demande liée à la croissance résidentielle.', href: '/emploi/offres?secteur=batiment' },
+  { slug: 'restauration',  emoji: '🍽️', title: 'Restauration & Tourisme',  desc: 'Cuisiniers, serveurs, agents d\'accueil — emplois saisonniers mai–septembre notamment.', href: '/emploi/offres?secteur=restauration' },
+  { slug: 'commerce',      emoji: '🛒', title: 'Commerce & Distribution',  desc: 'Caissiers, logisticiens, managers — zone commerciale de Lucciana/Biguglia très active.', href: '/emploi/offres?secteur=commerce' },
+  { slug: 'services',      emoji: '🤝', title: 'Services à la personne',   desc: 'Aides à domicile, auxiliaires de vie, animateurs — demande croissante pour seniors.', href: '/emploi/offres?secteur=services' },
+  { slug: 'agriculture',   emoji: '🌾', title: 'Agriculture & Maraîchage', desc: 'Travailleurs saisonniers, agents viticoles — plaine orientale de Haute-Corse.', href: '/emploi/offres?secteur=agriculture' },
+  { slug: 'transport',     emoji: '🚚', title: 'Transport & Logistique',   desc: 'Chauffeurs, caristes, préparateurs de commandes — zone industrielle de Biguglia.', href: '/emploi/offres?secteur=transport' },
+];
+
+// ─── FAQ enrichie (7 questions) ───────────────────────────────────────────────
+
 const FAQ = [
-  { q: 'Comment trouver un emploi à Biguglia ?', a: 'Biguglia Connect centralise toutes les offres d\'emploi locales à Biguglia et en Haute-Corse. Parcourez les annonces, filtrez par type de contrat et postulez directement auprès des employeurs.' },
-  { q: 'Quels types de contrats sont proposés à Biguglia ?', a: 'CDI, CDD, emploi saisonnier (tourisme, agriculture), extra, stage, alternance et missions ponctuelles. Le tissu économique local comprend le commerce, l\'artisanat, la restauration et les services.' },
-  { q: 'Comment publier une offre d\'emploi à Biguglia ?', a: 'Créez un compte sur Biguglia Connect et déposez votre offre gratuitement. Elle sera visible par tous les habitants et candidats locaux.' },
-  { q: 'Les candidats de Biguglia peuvent-ils déposer un CV ?', a: 'Oui, les candidats peuvent publier leur profil de recherche d\'emploi ("demande d\'emploi") sur Biguglia Connect et être contactés directement par les employeurs locaux.' },
+  {
+    q: 'Comment trouver un emploi à Biguglia ?',
+    a: 'Biguglia Connect centralise toutes les offres d\'emploi locales à Biguglia, Borgo, Furiani, Lucciana et la plaine de Haute-Corse. Parcourez les annonces par secteur ou type de contrat et postulez directement auprès des employeurs locaux, sans intermédiaire.',
+  },
+  {
+    q: 'Quels types de contrats sont proposés à Biguglia ?',
+    a: 'CDI, CDD, emploi saisonnier (tourisme, agriculture mai–septembre), extra, stage, alternance et missions ponctuelles. Le tissu économique local comprend le commerce de la zone Lucciana, l\'artisanat du bâtiment, la restauration, les services à la personne et la logistique.',
+  },
+  {
+    q: 'Y a-t-il des emplois saisonniers à Biguglia ?',
+    a: 'Oui, la saison touristique génère de nombreux emplois saisonniers entre mai et septembre dans l\'hôtellerie, la restauration, les loisirs nautiques et l\'agriculture (maraîchage, vignes). Consultez les annonces de la catégorie "Saisonnier" sur Biguglia Connect.',
+  },
+  {
+    q: 'Comment publier une offre d\'emploi à Biguglia ?',
+    a: 'Créez un compte gratuit sur Biguglia Connect et déposez votre offre en 3 minutes. Elle sera visible par tous les habitants de Biguglia et des communes voisines, indexée sur Google et accessible depuis les mobiles.',
+  },
+  {
+    q: 'Les candidats de Biguglia peuvent-ils déposer un CV ?',
+    a: 'Oui, les candidats peuvent publier leur profil de recherche d\'emploi (CV) sur Biguglia Connect. Précisez votre secteur, votre disponibilité et votre zone d\'intervention pour être contacté directement par les employeurs locaux.',
+  },
+  {
+    q: 'Biguglia Connect prend-il une commission sur le recrutement ?',
+    a: 'Non, Biguglia Connect est entièrement gratuit pour les candidats comme pour les employeurs locaux. Aucune commission, aucun abonnement. L\'objectif est de faciliter le lien direct entre habitants et entreprises du bassin de Biguglia.',
+  },
+  {
+    q: 'Quels secteurs recrutent le plus à Biguglia et en Haute-Corse ?',
+    a: 'Les secteurs les plus actifs sont le BTP (bâtiment et travaux publics), les services à la personne (aide à domicile, soins), la restauration et l\'hôtellerie (saisonnière), le commerce et la grande distribution (zone de Lucciana), et la logistique/transport liée à la zone industrielle de Biguglia.',
+  },
 ];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -97,28 +137,39 @@ const FAQ = [
 export default async function EmploiBigugliaPage() {
   const { offers, demands, totalOffers, totalDemands } = await fetchRecentJobs();
 
-  const breadcrumb = breadcrumbSchema([
+  // ── JSON-LD ──────────────────────────────────────────────────────────────────
+  const breadcrumb   = breadcrumbSchema([
     { name: 'Accueil', url: '/' },
     { name: `Emploi à ${GEO.city}`, url: '/emploi-biguglia' },
   ]);
-  const faq = faqSchema(FAQ);
+  const faq          = faqSchema(FAQ);
+  const collection   = collectionPageSchema({
+    name:        `Emploi & Recrutement à ${GEO.city}`,
+    description: `Offres d'emploi et profils de candidats à ${GEO.city}, ${GEO.department}. CDI, CDD, saisonnier, alternance.`,
+    url:         '/emploi-biguglia',
+  });
 
-  // JSON-LD JobPosting aggregation
+  // Occupation schemas — top secteurs
+  const occupationSchemas = JOB_SECTORS.map(s =>
+    occupationSchema({ name: s.title, description: s.desc, url: s.href })
+  );
+
+  // ItemList offres
   const jobListSchema = offers.length > 0 ? {
-    '@context': 'https://schema.org',
-    '@type':    'ItemList',
-    name:       `Offres d'emploi à ${GEO.city}`,
-    url:        `${SITE_URL}/emploi-biguglia`,
-    numberOfItems: totalOffers,
+    '@context':      'https://schema.org',
+    '@type':         'ItemList',
+    name:            `Offres d'emploi à ${GEO.city}`,
+    url:             `${SITE_URL}/emploi-biguglia`,
+    numberOfItems:   totalOffers,
     itemListElement: offers.map((o, i) => ({
-      '@type':    'ListItem',
-      position:   i + 1,
-      url:        `${SITE_URL}/emploi/offres/${o.id}`,
-      name:       o.title,
+      '@type':   'ListItem',
+      position:  i + 1,
+      url:       `${SITE_URL}/emploi/offres/${o.id}`,
+      name:      o.title,
     })),
   } : null;
 
-  // JSON-LD JobPosting individuels (max 3 pour les rich snippets Google)
+  // JobPosting individuels (max 3)
   const jobPostingSchemas = offers.slice(0, 3).map(o =>
     jobPostingSchema({
       title:        o.title,
@@ -127,16 +178,16 @@ export default async function EmploiBigugliaPage() {
       datePosted:   o.published_at ?? new Date().toISOString(),
       contractType: o.contract_type ?? undefined,
       city:         GEO.city,
-    }),
+    })
   );
 
-  // JSON-LD ItemList pour les demandes d'emploi (candidats)
+  // ItemList demandes
   const demandListSchema = demands.length > 0 ? {
-    '@context':  'https://schema.org',
-    '@type':     'ItemList',
-    name:        `Candidats disponibles à ${GEO.city}`,
-    url:         `${SITE_URL}/emploi-biguglia`,
-    numberOfItems: totalDemands,
+    '@context':      'https://schema.org',
+    '@type':         'ItemList',
+    name:            `Candidats disponibles à ${GEO.city}`,
+    url:             `${SITE_URL}/emploi-biguglia`,
+    numberOfItems:   totalDemands,
     itemListElement: demands.map((d, i) => ({
       '@type':   'ListItem',
       position:  i + 1,
@@ -147,13 +198,18 @@ export default async function EmploiBigugliaPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* ── JSON-LD ── */}
       <JsonLd data={breadcrumb} />
       <JsonLd data={faq} />
-      {jobListSchema && <JsonLd data={jobListSchema} />}
+      <JsonLd data={collection} />
+      {occupationSchemas.map((s, i) => <JsonLd key={i} data={s} />)}
+      {jobListSchema    && <JsonLd data={jobListSchema} />}
       {demandListSchema && <JsonLd data={demandListSchema} />}
-      {jobPostingSchemas.map((schema, i) => <JsonLd key={i} data={schema} />)}
+      {jobPostingSchemas.map((schema, i) => <JsonLd key={`jp-${i}`} data={schema} />)}
 
-      {/* ── HERO ── */}
+      {/* ══════════════════════════════════════════
+          HERO
+      ══════════════════════════════════════════ */}
       <section className="bg-gradient-to-br from-cyan-700 via-cyan-800 to-indigo-900 relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.05]"
           style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
@@ -165,9 +221,9 @@ export default async function EmploiBigugliaPage() {
           </nav>
 
           <div className="inline-flex items-center gap-2 bg-white/15 border border-white/25 rounded-full px-4 py-2 mb-5">
-            <span className="w-2 h-2 bg-cyan-300 rounded-full animate-pulse" />
+            <MapPin className="w-3.5 h-3.5 text-white/80" />
             <span className="text-white/90 text-xs font-bold">
-              {totalOffers > 0 ? `${totalOffers} offres actives` : 'Recrutement local'} · {GEO.city}
+              {totalOffers > 0 ? `${totalOffers} offres actives` : 'Recrutement local'} · {GEO.city} · {GEO.postalCode}
             </span>
           </div>
 
@@ -177,8 +233,23 @@ export default async function EmploiBigugliaPage() {
           </h1>
           <p className="text-white/75 text-lg max-w-2xl leading-relaxed mb-6">
             Trouvez un emploi à Biguglia ou recrutez localement.
-            CDI, CDD, saisonnier, extra — toutes les annonces du bassin de Haute-Corse.
+            CDI, CDD, saisonnier, alternance — toutes les annonces du bassin de Haute-Corse,
+            directement entre employeurs et candidats locaux.
           </p>
+
+          {/* Stats bar */}
+          <div className="grid grid-cols-3 gap-4 max-w-sm mb-8">
+            {[
+              { value: totalOffers  > 0 ? `${totalOffers}`  : '—', label: 'Offres d\'emploi' },
+              { value: totalDemands > 0 ? `${totalDemands}` : '—', label: 'Candidats' },
+              { value: '100 %',                                      label: 'Local & gratuit' },
+            ].map(s => (
+              <div key={s.label} className="text-center">
+                <p className="text-2xl font-black text-white">{s.value}</p>
+                <p className="text-white/60 text-xs">{s.label}</p>
+              </div>
+            ))}
+          </div>
 
           <div className="flex flex-wrap gap-3">
             <Link href="/emploi/offres"
@@ -193,60 +264,67 @@ export default async function EmploiBigugliaPage() {
         </div>
       </section>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 space-y-14">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 space-y-16">
 
-        {/* ── STATS ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[
-            { emoji: '💼', value: totalOffers > 0 ? `${totalOffers}` : '—',  label: 'Offres d\'emploi actives',  color: 'bg-cyan-500' },
-            { emoji: '🙋', value: totalDemands > 0 ? `${totalDemands}` : '—', label: 'Candidats disponibles',    color: 'bg-purple-500' },
-            { emoji: '🏡', value: GEO.city,                                    label: 'Emploi 100 % local',       color: 'bg-emerald-500' },
-          ].map(s => (
-            <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-5 text-center shadow-sm">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3 text-white text-xl ${s.color}`}>{s.emoji}</div>
-              <p className="text-2xl font-black text-gray-900">{s.value}</p>
-              <p className="text-xs text-gray-500 mt-1">{s.label}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* ── ÉDITO LOCAL — économie locale Biguglia ── */}
+        {/* ══════════════════════════════════════════
+            ÉDITO LOCAL — économie de Biguglia
+        ══════════════════════════════════════════ */}
         <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
           <h2 className="text-xl font-black text-gray-900 mb-4">
-            Le marché de l'emploi à {GEO.city} et en Haute-Corse
+            Le marché du travail à {GEO.city} et en Haute-Corse
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-gray-600 leading-relaxed">
             <div className="space-y-3">
               <p>
-                L'économie de Biguglia repose sur plusieurs piliers : le <strong>commerce et la grande distribution</strong>
-                (zone commerciale de Lucciana), l'<strong>artisanat du bâtiment</strong> (forte demande liée à la croissance
-                résidentielle), la <strong>restauration et le tourisme</strong> (proximité de Bastia et de l'aéroport Napoléon Bonaparte),
-                et les <strong>services à la personne</strong> pour une population vieillissante.
+                L'économie de Biguglia est portée par plusieurs secteurs clés. La <strong>zone commerciale
+                de Lucciana</strong> — l'une des plus importantes de Haute-Corse — génère de nombreux postes
+                dans le commerce, la distribution et la logistique. La croissance résidentielle soutient
+                une forte demande dans le <strong>BTP</strong> : maçonnerie, plomberie, électricité,
+                menuiserie et peinture.
               </p>
               <p>
-                La saison touristique (mai–septembre) génère de nombreux <strong>emplois saisonniers</strong> dans
-                l'hôtellerie, la restauration et les loisirs. Les contrats extra et CDD courte durée sont très courants
-                dans ce bassin d'emploi.
+                La proximité de l'<strong>aéroport Napoléon Bonaparte de Bastia-Poretta</strong> favorise
+                les activités touristiques et les emplois saisonniers (mai–septembre) dans l'hôtellerie,
+                la restauration et les loisirs. Le maraîchage de la plaine orientale offre aussi des emplois
+                agricoles temporaires.
               </p>
             </div>
             <div className="space-y-3">
               <p>
-                <strong>Secteurs qui recrutent à Biguglia :</strong> bâtiment & travaux publics (BTP),
-                aide à domicile & soins, restauration rapide et traditionnelle, logistique & transport (proximité
-                de la zone industrielle), agriculture & maraîchage (plaine orientale).
+                <strong>Atouts pour les chercheurs d'emploi :</strong> Biguglia se situe à 8 km de Bastia
+                (préfecture de Haute-Corse), ce qui ouvre l'accès à un bassin d'emploi élargi sans quitter
+                la commune. Les transports en commun (lignes de bus) permettent de rejoindre Bastia,
+                Borgo et Lucciana facilement.
               </p>
               <p>
-                <strong>Astuce candidats :</strong> déposez votre profil de recherche d'emploi sur Biguglia Connect
-                pour être visible des employeurs locaux. Précisez votre disponibilité, vos compétences et votre
-                zone géographique (Biguglia, Borgo, Furiani, Lucciana, Bastia).
+                <strong>Conseil candidats :</strong> créez votre profil sur Biguglia Connect, précisez vos
+                compétences et votre disponibilité (temps plein, mi-temps, saisonnier) et laissez les
+                employeurs locaux vous contacter directement. Aucune commission, aucun intermédiaire.
               </p>
             </div>
+          </div>
+          {/* Garanties */}
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              { emoji: '🆓', title: '100 % gratuit',        desc: 'Dépôt d\'offres et de CV entièrement gratuit pour tous.' },
+              { emoji: '⚡', title: 'Contact direct',        desc: 'Employeurs et candidats communiquent sans intermédiaire.' },
+              { emoji: '📍', title: 'Emploi local',          desc: 'Uniquement des offres de Biguglia et du bassin de Haute-Corse.' },
+            ].map(g => (
+              <div key={g.title} className="flex items-start gap-3 bg-cyan-50 rounded-2xl border border-cyan-100 p-4">
+                <span className="text-xl flex-shrink-0">{g.emoji}</span>
+                <div>
+                  <p className="font-bold text-gray-900 text-sm">{g.title}</p>
+                  <p className="text-xs text-gray-500 leading-relaxed mt-0.5">{g.desc}</p>
+                </div>
+              </div>
+            ))}
           </div>
           <div className="mt-5 flex flex-wrap gap-3 text-xs">
             {[
               { href: '/emploi/offres',          label: '💼 Voir toutes les offres' },
               { href: '/emploi/demandes',         label: '🙋 Candidats disponibles' },
-              { href: '/artisans-biguglia',       label: '🔧 Artisans — travaux Biguglia' },
+              { href: '/artisans-biguglia',       label: '🔧 Artisans — BTP Biguglia' },
+              { href: '/services-biguglia',       label: '🛠️ Services locaux' },
               { href: '/forum-biguglia',          label: '💬 Forum : conseils carrière' },
             ].map(l => (
               <Link key={l.href} href={l.href}
@@ -257,12 +335,42 @@ export default async function EmploiBigugliaPage() {
           </div>
         </section>
 
-        {/* ── DERNIÈRES OFFRES ── */}
+        {/* ══════════════════════════════════════════
+            SECTEURS QUI RECRUTENT
+        ══════════════════════════════════════════ */}
+        <section>
+          <h2 className="text-2xl font-black text-gray-900 mb-2">
+            Secteurs qui recrutent à {GEO.city}
+          </h2>
+          <p className="text-gray-500 text-sm mb-6">
+            Cliquez sur un secteur pour voir les offres et profils disponibles à Biguglia.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {JOB_SECTORS.map(sector => (
+              <Link key={sector.slug} href={sector.href}>
+                <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md hover:border-cyan-200 hover:-translate-y-0.5 transition-all h-full flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">{sector.emoji}</span>
+                    <h3 className="font-black text-gray-900 text-sm">{sector.title}</h3>
+                  </div>
+                  <p className="text-xs text-gray-600 leading-relaxed flex-1">{sector.desc}</p>
+                  <div className="flex items-center gap-1 text-xs font-bold text-cyan-600 mt-auto">
+                    Voir les offres <ChevronRight className="w-3 h-3" />
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* ══════════════════════════════════════════
+            DERNIÈRES OFFRES
+        ══════════════════════════════════════════ */}
         {offers.length > 0 && (
           <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-cyan-600" /> Dernières offres d'emploi
+                <Briefcase className="w-5 h-5 text-cyan-600" /> Dernières offres d'emploi à {GEO.city}
               </h2>
               <Link href="/emploi/offres"
                 className="flex items-center gap-1 text-sm font-bold text-cyan-600 hover:text-cyan-700">
@@ -291,12 +399,14 @@ export default async function EmploiBigugliaPage() {
           </section>
         )}
 
-        {/* ── CANDIDATS ── */}
+        {/* ══════════════════════════════════════════
+            CANDIDATS
+        ══════════════════════════════════════════ */}
         {demands.length > 0 && (
           <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
-                <Users className="w-5 h-5 text-purple-600" /> Candidats disponibles
+                <Users className="w-5 h-5 text-purple-600" /> Candidats disponibles à {GEO.city}
               </h2>
               <Link href="/emploi/demandes"
                 className="flex items-center gap-1 text-sm font-bold text-purple-600 hover:text-purple-700">
@@ -325,12 +435,14 @@ export default async function EmploiBigugliaPage() {
           </section>
         )}
 
-        {/* ── PUBLIER ── */}
+        {/* ══════════════════════════════════════════
+            PUBLIER OFFRE / CV
+        ══════════════════════════════════════════ */}
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="bg-gradient-to-br from-cyan-600 to-cyan-700 rounded-2xl p-6 text-white">
             <p className="text-2xl mb-2">💼</p>
-            <h3 className="font-black text-lg mb-1">Vous recrutez ?</h3>
-            <p className="text-white/75 text-sm mb-4 leading-relaxed">Publiez votre offre d'emploi gratuitement. Visible par tous les habitants de Biguglia.</p>
+            <h3 className="font-black text-lg mb-1">Vous recrutez à {GEO.city} ?</h3>
+            <p className="text-white/75 text-sm mb-4 leading-relaxed">Publiez votre offre d'emploi gratuitement. Visible par tous les habitants de Biguglia et des communes voisines.</p>
             <Link href="/emploi/offres/publier"
               className="inline-flex items-center gap-2 bg-white text-cyan-700 font-black px-4 py-2 rounded-xl text-sm hover:bg-cyan-50 transition-all">
               Publier une offre <ArrowRight className="w-4 h-4" />
@@ -339,17 +451,19 @@ export default async function EmploiBigugliaPage() {
           <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-2xl p-6 text-white">
             <p className="text-2xl mb-2">🙋</p>
             <h3 className="font-black text-lg mb-1">Vous cherchez un emploi ?</h3>
-            <p className="text-white/75 text-sm mb-4 leading-relaxed">Déposez votre profil et soyez contacté par les employeurs locaux de Biguglia.</p>
+            <p className="text-white/75 text-sm mb-4 leading-relaxed">Déposez votre profil et soyez contacté par les employeurs locaux de Biguglia — sans CV papier ni intermédiaire.</p>
             <Link href="/emploi/demandes/publier"
               className="inline-flex items-center gap-2 bg-white text-purple-700 font-black px-4 py-2 rounded-xl text-sm hover:bg-purple-50 transition-all">
-              Déposer mon CV <ArrowRight className="w-4 h-4" />
+              Déposer mon profil <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </section>
 
-        {/* ── FAQ ── */}
+        {/* ══════════════════════════════════════════
+            FAQ enrichie (7 questions)
+        ══════════════════════════════════════════ */}
         <section>
-          <h2 className="text-xl font-black text-gray-900 mb-5">
+          <h2 className="text-2xl font-black text-gray-900 mb-6">
             Questions fréquentes — Emploi à {GEO.city}
           </h2>
           <div className="space-y-3">
@@ -367,16 +481,23 @@ export default async function EmploiBigugliaPage() {
           </div>
         </section>
 
-        {/* ── MAILLAGE ── */}
+        {/* ══════════════════════════════════════════
+            MAILLAGE INTERNE
+        ══════════════════════════════════════════ */}
         <section>
-          <h2 className="text-lg font-black text-gray-900 mb-4">Autres ressources à {GEO.city}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <h2 className="text-xl font-black text-gray-900 mb-4">
+            Autres ressources locales à {GEO.city}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {[
-              { href: '/services-biguglia',     emoji: '🔧', title: 'Services & Artisans',  desc: 'Trouvez un artisan local' },
-              { href: '/evenements-biguglia',   emoji: '🎉', title: 'Événements',            desc: 'Agenda de Biguglia' },
-              { href: '/associations-biguglia', emoji: '🏛️', title: 'Associations',         desc: 'Clubs et vie associative' },
-              { href: '/annonces-biguglia',     emoji: '📦', title: 'Petites annonces',      desc: 'Achat, vente, dons entre voisins' },
-              { href: '/forum-biguglia',        emoji: '💬', title: 'Forum des habitants',   desc: 'Questions & entraide locale' },
+              { href: '/services-biguglia',     emoji: '🔧', title: 'Services & Artisans',   desc: 'Trouvez un artisan — BTP Biguglia' },
+              { href: '/artisans-biguglia',     emoji: '🏗️', title: 'Artisans vérifiés',     desc: 'Profils & contacts directs' },
+              { href: '/evenements-biguglia',   emoji: '🎉', title: 'Événements',             desc: 'Agenda complet de Biguglia' },
+              { href: '/associations-biguglia', emoji: '🏛️', title: 'Associations',           desc: 'Clubs & bénévolat local' },
+              { href: '/forum-biguglia',        emoji: '💬', title: 'Forum des habitants',    desc: 'Conseils carrière & entraide' },
+              { href: '/annonces-biguglia',     emoji: '📦', title: 'Petites annonces',       desc: 'Achat, vente, dons entre voisins' },
+              { href: '/coups-de-main',         emoji: '🤝', title: 'Coups de main',          desc: 'Entraide et petits services' },
+              { href: '/communaute',            emoji: '🏘️', title: 'Communauté',             desc: 'Membres actifs de Biguglia' },
             ].map(l => (
               <Link key={l.href} href={l.href}>
                 <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-all flex items-center gap-3">

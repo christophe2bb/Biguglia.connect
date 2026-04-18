@@ -261,3 +261,145 @@ export function artisanPersonSchema(artisan: {
     worksFor: { '@type': 'Organization', name: 'Biguglia Connect' },
   };
 }
+
+/**
+ * Service — schéma pour un service / catégorie de métier
+ * Utilisé sur /services-biguglia et /artisans/metier/[slug]
+ */
+export function serviceSchema(svc: {
+  name:        string;
+  description: string;
+  url:         string;
+  provider?:   string;
+  city?:       string;
+}) {
+  return {
+    '@context':  'https://schema.org',
+    '@type':     'Service',
+    name:        svc.name,
+    description: svc.description,
+    url:         svc.url.startsWith('http') ? svc.url : `${SITE_URL}${svc.url}`,
+    serviceType: svc.name,
+    provider: {
+      '@type': 'Organization',
+      name:    svc.provider ?? 'Biguglia Connect',
+      url:     SITE_URL,
+    },
+    areaServed: {
+      '@type':        'City',
+      name:           svc.city ?? 'Biguglia',
+      addressCountry: 'FR',
+      addressRegion:  'Haute-Corse',
+    },
+  };
+}
+
+/**
+ * Occupation — schéma pour un métier / secteur d'emploi
+ * Utilisé sur /emploi-biguglia
+ */
+export function occupationSchema(occ: {
+  name:        string;
+  description: string;
+  url:         string;
+}) {
+  return {
+    '@context':           'https://schema.org',
+    '@type':              'Occupation',
+    name:                 occ.name,
+    description:          occ.description,
+    url:                  occ.url.startsWith('http') ? occ.url : `${SITE_URL}${occ.url}`,
+    occupationLocation:  { '@type': 'City', name: 'Biguglia', addressRegion: 'Haute-Corse' },
+    estimatedSalary:     { '@type': 'MonetaryAmountDistribution', name: 'Salaire estimé', currency: 'EUR', duration: 'P1M' },
+  };
+}
+
+/**
+ * DiscussionForumPosting — schéma pour un sujet de forum
+ * Utilisé sur /forum-biguglia
+ */
+export function forumPostingSchema(post: {
+  name:        string;
+  url:         string;
+  dateCreated: string;
+  author?:     string;
+}) {
+  return {
+    '@context':   'https://schema.org',
+    '@type':      'DiscussionForumPosting',
+    name:         post.name,
+    url:          post.url.startsWith('http') ? post.url : `${SITE_URL}${post.url}`,
+    dateCreated:  post.dateCreated,
+    ...(post.author && {
+      author: { '@type': 'Person', name: post.author },
+    }),
+    sharedContent: {
+      '@type': 'WebPage',
+      url:     post.url.startsWith('http') ? post.url : `${SITE_URL}${post.url}`,
+    },
+  };
+}
+
+/**
+ * CollectionPage — schéma pour une page de liste / hub
+ * Utilisé sur les pages -biguglia
+ */
+export function collectionPageSchema(page: {
+  name:        string;
+  description: string;
+  url:         string;
+}) {
+  return {
+    '@context':   'https://schema.org',
+    '@type':      'CollectionPage',
+    name:         page.name,
+    description:  page.description,
+    url:          page.url.startsWith('http') ? page.url : `${SITE_URL}${page.url}`,
+    inLanguage:   'fr',
+    publisher: {
+      '@type': 'Organization',
+      name:    'Biguglia Connect',
+      url:     SITE_URL,
+    },
+  };
+}
+
+/**
+ * SiteNavigationElement — booste la compréhension de la structure du site
+ */
+export function siteNavigationSchema(links: Array<{ name: string; url: string }>) {
+  return {
+    '@context': 'https://schema.org',
+    '@type':    'SiteLinksSearchBox',
+    url:        SITE_URL,
+    potentialAction: {
+      '@type':       'SearchAction',
+      target:        { '@type': 'EntryPoint', urlTemplate: `${SITE_URL}/recherche?q={search_term_string}` },
+      'query-input': 'required name=search_term_string',
+    },
+  };
+}
+
+/**
+ * ItemListSchema — helper générique pour une liste d'items
+ */
+export function itemListSchema(opts: {
+  name:  string;
+  url:   string;
+  items: Array<{ name: string; url: string; description?: string }>;
+}) {
+  return {
+    '@context':      'https://schema.org',
+    '@type':         'ItemList',
+    name:            opts.name,
+    url:             opts.url.startsWith('http') ? opts.url : `${SITE_URL}${opts.url}`,
+    numberOfItems:   opts.items.length,
+    itemListElement: opts.items.map((item, i) => ({
+      '@type':      'ListItem',
+      position:     i + 1,
+      name:         item.name,
+      url:          item.url.startsWith('http') ? item.url : `${SITE_URL}${item.url}`,
+      ...(item.description && { description: item.description }),
+    })),
+  };
+}
