@@ -536,6 +536,58 @@ export default async function EvenementsBigugliaPage() {
         </section>
 
         {/* ══════════════════════════════════════════
+            LIENS CONTEXTUELS — catégories & fiches liées
+        ══════════════════════════════════════════ */}
+        <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+          <h2 className="text-xl font-black text-gray-900 mb-2">
+            Filtres & ressources associées — Accès direct
+          </h2>
+          <p className="text-gray-500 text-sm mb-5">
+            Accédez directement aux sous-catégories d'événements et aux pages locales liées.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-3">Par catégorie d'événement</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { href: '/evenements?categorie=sport',       label: '⚽ Sport — SC Biguglia' },
+                  { href: '/evenements?categorie=culture',     label: '🎭 Culture & polyphonie' },
+                  { href: '/evenements?categorie=fete',        label: '🎉 Fêtes patronales' },
+                  { href: '/evenements?categorie=nature',      label: '🌿 Sorties étang & nature' },
+                  { href: '/evenements?categorie=marche',      label: '🛒 Marchés de producteurs' },
+                  { href: '/evenements?categorie=atelier',     label: '🎨 Ateliers & cours' },
+                  { href: '/evenements?categorie=association', label: '🏛️ Événements associatifs' },
+                ].map(l => (
+                  <Link key={l.href} href={l.href}
+                    className="inline-flex items-center gap-1 bg-violet-50 border border-violet-200 text-violet-700 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-violet-100 transition-all">
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-3">Pages & contenus liés</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { href: '/associations-biguglia',            label: '🏛️ SC Biguglia & clubs' },
+                  { href: '/promenades',                       label: '🥾 Randonnées & étang' },
+                  { href: '/annonces?type=don',                label: '🎁 Vide-greniers locaux' },
+                  { href: '/forum?categorie=vie_locale',       label: '🏘️ Forum Vie locale' },
+                  { href: '/forum?categorie=nature',           label: '🌿 Forum Étang & nature' },
+                  { href: '/communaute',                       label: '👥 Communauté Biguglia' },
+                  { href: '/evenements/nouveau',               label: '+ Publier un événement' },
+                ].map(l => (
+                  <Link key={l.href} href={l.href}
+                    className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 text-gray-600 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-all">
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ══════════════════════════════════════════
             FAQ enrichie (7 questions)
         ══════════════════════════════════════════ */}
         <section>

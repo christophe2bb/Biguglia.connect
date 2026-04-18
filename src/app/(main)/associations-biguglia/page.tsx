@@ -524,6 +524,58 @@ export default async function AssociationsBigugliaPage() {
         </section>
 
         {/* ══════════════════════════════════════════
+            LIENS CONTEXTUELS — catégories & fiches clubs
+        ══════════════════════════════════════════ */}
+        <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+          <h2 className="text-xl font-black text-gray-900 mb-2">
+            Parcourir par type d'association — Accès direct
+          </h2>
+          <p className="text-gray-500 text-sm mb-5">
+            Accédez directement aux catégories d'associations de Biguglia et aux ressources de bénévolat associées.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-3">Par catégorie d'association</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { href: '/associations?categorie=sport',    label: '⚽ Clubs sportifs' },
+                  { href: '/associations?categorie=culture',  label: '🎭 Associations culturelles' },
+                  { href: '/associations?categorie=nature',   label: '🌿 Protection étang & nature' },
+                  { href: '/associations?categorie=social',   label: '🤝 Bénévolat & social' },
+                  { href: '/associations?categorie=seniors',  label: '👴 Clubs seniors' },
+                  { href: '/associations?categorie=jeunesse', label: '🎓 Jeunesse & soutien scolaire' },
+                  { href: '/associations/nouvelle',           label: '+ Référencer mon association' },
+                ].map(l => (
+                  <Link key={l.href} href={l.href}
+                    className="inline-flex items-center gap-1 bg-violet-50 border border-violet-200 text-violet-700 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-violet-100 transition-all">
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-3">Pages & ressources liées</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { href: '/evenements-biguglia',            label: '🎉 Événements & agenda' },
+                  { href: '/evenements?categorie=sport',     label: '⚽ Matchs SC Biguglia' },
+                  { href: '/evenements?categorie=nature',    label: '🌿 Sorties nature étang' },
+                  { href: '/emploi-biguglia',                label: '💼 Bénévolat & missions' },
+                  { href: '/forum?categorie=vie_locale',     label: '💬 Forum Vie locale' },
+                  { href: '/promenades',                     label: '🥾 Randonnées & sentiers' },
+                  { href: '/communaute',                     label: '👥 Communauté Biguglia' },
+                ].map(l => (
+                  <Link key={l.href} href={l.href}
+                    className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 text-gray-600 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-all">
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ══════════════════════════════════════════
             FAQ enrichie (6 questions)
         ══════════════════════════════════════════ */}
         <section>

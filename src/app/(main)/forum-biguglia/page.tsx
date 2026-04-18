@@ -479,6 +479,59 @@ export default async function ForumBigugliaPage() {
         </div>
 
         {/* ══════════════════════════════════════════
+            LIENS CONTEXTUELS — catégories forum & ressources
+        ══════════════════════════════════════════ */}
+        <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+          <h2 className="text-xl font-black text-gray-900 mb-2">
+            Accès direct — Catégories & ressources liées
+          </h2>
+          <p className="text-gray-500 text-sm mb-5">
+            Naviguez directement vers les catégories du forum et les pages de contenu associées.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-3">Catégories du forum</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { href: '/forum?categorie=vie_locale', label: '🏘️ Vie locale' },
+                  { href: '/forum?categorie=travaux',    label: '🔧 Travaux & artisans' },
+                  { href: '/forum?categorie=entraide',   label: '🤝 Entraide' },
+                  { href: '/forum?categorie=nature',     label: '🌿 Étang & nature' },
+                  { href: '/forum?categorie=loisirs',    label: '🎉 Loisirs' },
+                  { href: '/forum?categorie=securite',   label: '🔒 Sécurité' },
+                  { href: '/forum?categorie=annonces',   label: '📢 Annonces forum' },
+                  { href: '/forum?action=new',           label: '+ Nouveau sujet' },
+                ].map(l => (
+                  <Link key={l.href} href={l.href}
+                    className="inline-flex items-center gap-1 bg-violet-50 border border-violet-200 text-violet-700 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-violet-100 transition-all">
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-3">Ressources directement liées</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { href: '/artisans-biguglia',         label: '🔧 Artisans recommandés' },
+                  { href: '/artisans/metier/plomberie', label: '🚿 Plombiers Biguglia' },
+                  { href: '/artisans/metier/electricite',label: '⚡ Électriciens Biguglia' },
+                  { href: '/coups-de-main',             label: '🙏 Coups de main' },
+                  { href: '/annonces-biguglia',         label: '📦 Petites annonces' },
+                  { href: '/perdu-trouve',              label: '🔍 Objets perdus' },
+                  { href: '/evenements-biguglia',       label: '🎉 Événements locaux' },
+                ].map(l => (
+                  <Link key={l.href} href={l.href}
+                    className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 text-gray-600 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-all">
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ══════════════════════════════════════════
             FAQ enrichie (7 questions)
         ══════════════════════════════════════════ */}
         <section>
