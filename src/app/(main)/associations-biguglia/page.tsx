@@ -131,6 +131,14 @@ const FAQ = [
     q: 'Y a-t-il des associations de bénévolat à Biguglia ?',
     a: 'Oui, plusieurs associations proposent des missions de bénévolat à Biguglia : aide alimentaire, accompagnement de seniors, soutien scolaire, environnement. Consultez la catégorie "Social" de l\'annuaire pour trouver une mission qui correspond à vos disponibilités et compétences.',
   },
+  {
+    q: 'Comment créer une association à Biguglia ?',
+    a: 'La création d\'une association loi 1901 à Biguglia se fait en déposant les statuts en préfecture de Haute-Corse (Bastia) ou en ligne sur associations.gouv.fr. Il faut au minimum deux membres fondateurs, des statuts rédigés et un procès-verbal constitutif. Une fois créée, référencez gratuitement votre association sur Biguglia Connect pour toucher toute la communauté locale.',
+  },
+  {
+    q: 'Existe-t-il des associations de soutien scolaire à Biguglia ?',
+    a: 'Des associations et des particuliers proposent du soutien scolaire à Biguglia et dans les communes voisines. Consultez la catégorie "Jeunesse" de l\'annuaire Biguglia Connect ou publiez une demande sur le forum pour trouver un accompagnement scolaire adapté.',
+  },
 ];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -438,6 +446,54 @@ export default async function AssociationsBigugliaPage() {
                 </div>
               </Link>
             ))}
+          </div>
+        </section>
+
+        {/* ══════════════════════════════════════════
+            GUIDE POUR CRÉER / REJOINDRE
+        ══════════════════════════════════════════ */}
+        <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+          <h2 className="text-xl font-black text-gray-900 mb-4">
+            Créer ou rejoindre une association à {GEO.city}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-gray-600 leading-relaxed">
+            <div className="space-y-3">
+              <p className="font-semibold text-gray-900">👤 Je veux rejoindre une association</p>
+              <ol className="list-decimal list-inside space-y-1.5">
+                <li>Consultez l\'annuaire des associations sur Biguglia Connect</li>
+                <li>Lisez la description, les activités et les créneaux de l\'association</li>
+                <li>Contactez directement les responsables via la messagerie</li>
+                <li>Participez à une séance de découverte avant de vous adhérer</li>
+              </ol>
+              <p className="text-xs text-gray-500 italic">
+                La plupart des associations de Biguglia acceptent les adhésions en début de saison
+                (septembre–octobre). Certaines acceptent toute l\'année.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <p className="font-semibold text-gray-900">🏛️ Je veux créer une association</p>
+              <ol className="list-decimal list-inside space-y-1.5">
+                <li>Rédigez les statuts (au moins 2 membres fondateurs)</li>
+                <li>Déposez la déclaration en préfecture de Haute-Corse (Bastia)
+                  ou sur <span className="text-violet-600 font-semibold">associations.gouv.fr</span></li>
+                <li>Publiez le profil de votre association sur Biguglia Connect</li>
+                <li>Partagez vos événements et recrutez vos premiers bénévoles</li>
+              </ol>
+              <p className="text-xs text-gray-500 italic">
+                Délai de création : 5 à 10 jours ouvrés. La déclaration est gratuite
+                et le récépissé arrive par mail.
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3 text-xs">
+            <Link href="/associations/nouvelle"
+              className="inline-flex items-center gap-1.5 bg-violet-600 text-white font-bold px-3 py-1.5 rounded-lg hover:bg-violet-700 transition-all">
+              + Référencer mon association
+            </Link>
+            <Link href="/evenements-biguglia"
+              className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-all">
+              🎉 Publier un événement associatif
+            </Link>
           </div>
         </section>
 

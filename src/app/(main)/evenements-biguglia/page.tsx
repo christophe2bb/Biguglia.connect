@@ -159,6 +159,14 @@ const FAQ = [
     q: 'Peut-on assister aux événements de Biguglia sans compte ?',
     a: 'Vous pouvez consulter l\'agenda et les détails des événements publics sans créer de compte. Pour publier un événement, recevoir des rappels et interagir avec les organisateurs, un compte gratuit Biguglia Connect est nécessaire.',
   },
+  {
+    q: 'Où trouver l\'agenda officiel de la commune de Biguglia ?',
+    a: 'L\'agenda officiel est disponible sur le site de la mairie de Biguglia. Biguglia Connect complète cet agenda avec les événements publiés par les associations, les habitants et les commerces locaux — pour une vue complète de la vie de Biguglia.',
+  },
+  {
+    q: 'Quels événements ont lieu l\'été à Biguglia ?',
+    a: 'L\'été est la saison la plus animée à Biguglia : concerts en plein air, fêtes de village, tournois sportifs (SC Biguglia), marchés nocturnes de producteurs, sorties kayak sur l\'étang et journées nature dans la réserve. De nombreux événements sont gratuits et ouverts à tous.',
+  },
 ];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -438,6 +446,77 @@ export default async function EvenementsBigugliaPage() {
             </Link>
           </section>
         )}
+
+        {/* ══════════════════════════════════════════
+            CALENDRIER SÉASONNIER
+        ══════════════════════════════════════════ */}
+        <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+          <h2 className="text-xl font-black text-gray-900 mb-4">
+            La vie événementielle de Biguglia au fil des saisons
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {[
+              {
+                saison: 'Printemps (mars–mai)',
+                emoji: '🌻',
+                events: [
+                  'Sorties naturalistes à l\'étang (flamants roses en migration)',
+                  'Début du championnat de football SC Biguglia',
+                  'Marchés de producteurs saisonniers',
+                  'Activités jeunesse et scolaires',
+                ],
+              },
+              {
+                saison: 'Été (juin–août)',
+                emoji: '☀️',
+                events: [
+                  'Fêtes patronales et concerts de polyphonie corse',
+                  'Tournois sportifs (SC Biguglia, pétanque)',
+                  'Marchés nocturnes de producteurs locaux',
+                  'Sorties kayak et nature réserve de l\'étang',
+                ],
+              },
+              {
+                saison: 'Automne (sept–nov)',
+                emoji: '🍂',
+                events: [
+                  'Brocantes et vide-greniers locaux',
+                  'Ateliers culturels (langue corse, artisanat)',
+                  'Repérage des espèces d\'oiseaux migrateurs',
+                  'Reprise des activités associatives',
+                ],
+              },
+              {
+                saison: 'Hiver (déc–fév)',
+                emoji: '❄️',
+                events: [
+                  'Fêtes de fin d\'année et marché de Noël local',
+                  'Tournois de football en salle',
+                  'Ateliers cuisine corses et gastronomie',
+                  'Réunions et AG des associations de Biguglia',
+                ],
+              },
+            ].map(s => (
+              <div key={s.saison} className="bg-gray-50 rounded-2xl p-4">
+                <p className="font-black text-gray-900 text-sm mb-2">{s.emoji} {s.saison}</p>
+                <ul className="space-y-1">
+                  {s.events.map(ev => (
+                    <li key={ev} className="text-xs text-gray-600 flex items-start gap-1.5">
+                      <span className="text-violet-400 mt-0.5 flex-shrink-0">›</span>
+                      {ev}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 text-xs text-gray-500 italic">
+            Les dates exactes sont publiées sur Biguglia Connect au fil de l\'année par les organisateurs.
+            Consultez aussi le site officiel de la{' '}
+            <a href="https://www.biguglia.fr" target="_blank" rel="noopener noreferrer"
+              className="text-violet-600 font-semibold hover:underline">mairie de Biguglia</a>.
+          </p>
+        </section>
 
         {/* ══════════════════════════════════════════
             CATÉGORIES

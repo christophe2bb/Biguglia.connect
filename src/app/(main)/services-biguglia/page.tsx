@@ -130,6 +130,34 @@ const SERVICE_CATEGORIES = [
   },
 ];
 
+// ─── Services d’urgence — contenu éditorial spécifique ──────────────────────────────────────────────────────────────
+const EMERGENCY_SERVICES = [
+  {
+    emoji: '🚨',
+    title: 'Plombier urgence Biguglia',
+    desc:  'Fuite d\'eau, dégât des eaux, chauffe-eau en panne — intervention rapide 7j/7, y compris le week-end.',
+    href:  '/artisans/metier/plomberie',
+  },
+  {
+    emoji: '⚡',
+    title: 'Électricien urgence Biguglia',
+    desc:  'Panne de courant, court-circuit, disjoncteur — dépannage électrique en urgence sur Biguglia et Haute-Corse.',
+    href:  '/artisans/metier/electricite',
+  },
+  {
+    emoji: '🔑',
+    title: 'Serrurier urgence Biguglia',
+    desc:  'Clé cassée, porte claque, cambriolage — serrurier disponible rapidement à Biguglia et communes voisines.',
+    href:  '/artisans/metier/serrurerie',
+  },
+  {
+    emoji: '🌪️',
+    title: 'Vitrerie urgence Biguglia',
+    desc:  'Vitre cassée, fenêtre fracturée — remplacement de vitres en urgence pour sécuriser votre logement à Biguglia.',
+    href:  '/artisans/metier/vitrerie',
+  },
+];
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function ServicesBigugliaPage() {
@@ -353,6 +381,86 @@ export default async function ServicesBigugliaPage() {
                 </div>
               </Link>
             ))}
+          </div>
+        </section>
+
+        {/* ══════════════════════════════════════════
+            SERVICES D’URGENCE
+        ══════════════════════════════════════════ */}
+        <section className="bg-red-50 rounded-3xl border border-red-100 p-6 sm:p-8">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-2xl">🚨</span>
+            <h2 className="text-xl font-black text-gray-900">Services d\'urgence à {GEO.city}</h2>
+          </div>
+          <p className="text-sm text-gray-600 mb-5 leading-relaxed">
+            Fuite, panne, serrure bloquée — certains artisans de Biguglia proposent des interventions
+            d\'urgence 7j/7. Précisez <strong>« urgence »</strong> dans votre message pour une réponse
+            sous 2 heures. Les services d\'urgence sont payants mais sans surprice de facturation.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {EMERGENCY_SERVICES.map(srv => (
+              <Link key={srv.title} href={srv.href}>
+                <div className="bg-white rounded-2xl border border-red-100 p-4 hover:shadow-md hover:border-red-200 transition-all flex items-start gap-3">
+                  <span className="text-2xl flex-shrink-0">{srv.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-gray-900 text-sm">{srv.title}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{srv.desc}</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* ══════════════════════════════════════════
+            CALENDRIER SÉASONNIER
+        ══════════════════════════════════════════ */}
+        <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+          <h2 className="text-xl font-black text-gray-900 mb-4">
+            Quand réaliser vos travaux à {GEO.city} ?
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-gray-600 leading-relaxed">
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <span className="text-xl">☀️</span>
+                <div>
+                  <p className="font-bold text-gray-900">Printemps – été (mars–octobre)</p>
+                  <p>Période de forte activité : ravalement de façade, peinture extérieure, jardinage,
+                  terrasses, piscines. Prévoyez 3 à 6 semaines de délai pour les artisans les plus demandés.
+                  Réservez tôt, surtout pour les gros chantiers.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-xl">🍂</span>
+                <div>
+                  <p className="font-bold text-gray-900">Automne (octobre–décembre)</p>
+                  <p>Idéal pour l\'isolation thermique, le chauffage (chauffe-eau, climatisation), la
+                  plomberie intérieure et les travaux d\'aménagement. Délais plus courts, parfois
+                  tarifs négociables.</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <span className="text-xl">❄️</span>
+                <div>
+                  <p className="font-bold text-gray-900">Hiver (janvier–février)</p>
+                  <p>Meilleure disponibilité des artisans, délais plus courts. Parfait pour la mise aux normes
+                  électrique, la plomberie (tuyaux hors-gel), la peinture intérieure et les
+                  travaux de menuiserie. Certains artisans offrent des réductions hors saison.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-xl">📌</span>
+                <div>
+                  <p className="font-bold text-gray-900">Toute l\'année</p>
+                  <p>Plomberie d\'urgence, dépannage électrique et serrurerie interviennent 365 jours par an
+                  à Biguglia. Pour les urgences, contactez directement via Biguglia Connect en précisant
+                  votre situation.</p>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
