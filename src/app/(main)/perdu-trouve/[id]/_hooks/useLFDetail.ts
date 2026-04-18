@@ -32,14 +32,15 @@ export type UseLFDetailReturn = {
   handlePrint: () => void;
 };
 
-export function useLFDetail(id: string): UseLFDetailReturn {
+export function useLFDetail(id: string, initialItem?: LFItem): UseLFDetailReturn {
   const router   = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
-  const [item,          setItem]          = useState<LFItem | null>(null);
+  // Initialisé avec les données serveur si disponibles (évite le double-fetch)
+  const [item,          setItem]          = useState<LFItem | null>(initialItem ?? null);
   const [comments,      setComments]      = useState<LFComment[]>([]);
   const [history,       setHistory]       = useState<LFStatusHistory[]>([]);
-  const [loading,       setLoading]       = useState(true);
+  const [loading,       setLoading]       = useState(!initialItem); // pas de loading si données serveur fournies
   const [notFound,      setNotFound]      = useState(false);
   const [lightboxOpen,  setLightboxOpen]  = useState(false);
   const [lightboxIdx,   setLightboxIdx]   = useState(0);

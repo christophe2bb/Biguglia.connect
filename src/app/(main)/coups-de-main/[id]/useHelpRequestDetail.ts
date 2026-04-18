@@ -8,14 +8,15 @@ import toast from 'react-hot-toast';
 import { TYPE_CONFIG } from '../_constants';
 import type { HelpRequest, HelpComment, HelpParticipant, UseHelpDetailReturn } from './_types';
 
-export function useHelpRequestDetail(): UseHelpDetailReturn {
+export function useHelpRequestDetail(initialItem: HelpRequest): UseHelpDetailReturn {
   const { id } = useParams<{ id: string }>();
   const { profile } = useAuthStore();
   const router = useRouter();
   const supabase = createClient();
 
-  const [item, setItem] = useState<HelpRequest | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Initialisé avec les données serveur (évite le double-fetch)
+  const [item, setItem] = useState<HelpRequest | null>(initialItem);
+  const [loading, setLoading] = useState(false); // déjà chargé côté serveur
   const [notFound, setNotFound] = useState(false);
 
   const [comments, setComments] = useState<HelpComment[]>([]);
@@ -82,11 +83,11 @@ export function useHelpRequestDetail(): UseHelpDetailReturn {
     setLoadingPart(false);
   }, [id, supabase, profile]);
 
+  // Charge les données dynamiques (commentaires, participants) au montage
   useEffect(() => {
-    fetchItem();
     fetchComments();
     fetchParticipants();
-  }, [fetchItem, fetchComments, fetchParticipants]);
+  }, [fetchComments, fetchParticipants]);
 
   const handleSendComment = async () => {
     if (!commentText.trim() || !profile || sendingComment) return;

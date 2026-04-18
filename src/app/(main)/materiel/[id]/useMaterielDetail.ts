@@ -11,16 +11,17 @@ import {
 } from '@/lib/equipment';
 import type { UseMaterielDetailReturn } from './_types';
 
-export function useMaterielDetail(): UseMaterielDetailReturn {
+export function useMaterielDetail(initialItem: EquipmentItemFull): UseMaterielDetailReturn {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { profile } = useAuthStore();
 
-  const [item, setItem]           = useState<EquipmentItemFull | null>(null);
+  // Initialisé avec les données serveur (évite le double-fetch)
+  const [item, setItem]           = useState<EquipmentItemFull | null>(initialItem);
   const [requests, setRequests]   = useState<EquipmentRequest[]>([]);
   const [activeLoan, setActiveLoan] = useState<EquipmentLoan | null>(null);
   const [history, setHistory]     = useState<EquipmentStatusHistory[]>([]);
-  const [loading, setLoading]     = useState(true);
+  const [loading, setLoading]     = useState(false); // déjà chargé côté serveur
   const [showHistory, setShowHistory]       = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [requestForm, setRequestForm]         = useState({ start_date: '', end_date: '', message: '' });

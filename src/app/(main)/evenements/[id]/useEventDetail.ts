@@ -27,18 +27,19 @@ import type {
   UseEventDetailReturn,
 } from './_types';
 
-export function useEventDetail(): UseEventDetailReturn {
+export function useEventDetail(initialEvent: EventDetail): UseEventDetailReturn {
   const { id } = useParams<{ id: string }>();
   const router  = useRouter();
   const { profile } = useAuthStore();
   const supabase = createClient();
 
   // ─── State ──────────────────────────────────────────────────────────────────
-  const [event,         setEvent]         = useState<EventDetail | null>(null);
+  // Initialisé avec les données serveur (évite le double-fetch au chargement)
+  const [event,         setEvent]         = useState<EventDetail | null>(initialEvent);
   const [participants,  setParticipants]  = useState<Participant[]>([]);
   const [comments,      setComments]      = useState<EventComment[]>([]);
   const [statusHistory, setStatusHistory] = useState<StatusHistoryItem[]>([]);
-  const [loading,       setLoading]       = useState(true);
+  const [loading,       setLoading]       = useState(false); // déjà chargé côté serveur
   const [activeTab,     setActiveTab]     = useState<TabId>('info');
   const [commenting,    setCommenting]    = useState(false);
   const [commentText,   setCommentText]   = useState('');
@@ -137,7 +138,24 @@ export function useEventDetail(): UseEventDetailReturn {
     setStatusHistory(((data ?? []) as unknown) as StatusHistoryItem[]);
   }, [id, supabase]);
 
-  useEffect(() => { fetchEvent(); }, [fetchEvent]);
+  // Met à jour l'état user_joined après hydration (nécessite auth)
+  useEffect(() => {
+    if (!profile) return;
+    supabase
+      .from('event_participants')
+      .select('status')
+      .eq('event_id', id)
+      .eq('user_id', profile.id)
+      .maybeSingle()
+      .then(({ data: myPart }) => {
+        setEvent(prev => prev ? {
+          ...prev,
+          user_joined: !!myPart && myPart.status !== 'annule',
+          user_participant_status: myPart?.status ?? null,
+        } : prev);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id, id]);
   useEffect(() => {
     if (activeTab === 'participants') fetchParticipants();
     if (activeTab === 'discussion')  fetchComments();

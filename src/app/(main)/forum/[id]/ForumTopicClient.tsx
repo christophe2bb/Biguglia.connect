@@ -10,9 +10,14 @@ import { TopicHeader }   from './_components/TopicHeader';
 import { TopicBody }     from './_components/TopicBody';
 import { ReplyCard }     from './_components/ReplyCard';
 import { ReplyComposer } from './_components/ReplyComposer';
+import type { InitialTopicData } from './_types';
+
+interface Props {
+  initialData?: InitialTopicData;
+}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-export default function ForumTopicClient() {
+export default function ForumTopicClient({ initialData }: Props) {
   const { profile, isModerator, loading: authLoading } = useAuthStore();
 
   const {
@@ -24,7 +29,7 @@ export default function ForumTopicClient() {
     moderateAction, markSolution, quoteReply, cancelQuote,
     toggleFollow, copyLink, toggleResolved,
     replyRef,
-  } = useTopicPage();
+  } = useTopicPage(initialData);
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {

@@ -14,8 +14,13 @@ import { ActivitiesPanel }  from './_components/ActivitiesPanel';
 import { RelatedLinks }     from './_components/RelatedLinks';
 import { ContactSidebar }   from './_components/ContactSidebar';
 import { QuickInfoSidebar } from './_components/QuickInfoSidebar';
+import type { Association } from './_types';
 
-export default function AssociationDetailClient() {
+interface Props {
+  initialItem?: Association;
+}
+
+export default function AssociationDetailClient({ initialItem }: Props) {
   const params    = useParams();
   const id        = params.id as string;
   const { profile } = useAuthStore();
@@ -25,7 +30,7 @@ export default function AssociationDetailClient() {
     loading, error,
     saved, lightboxOpen, lightboxIdx,
     toggleSave, handleShare, openLightbox, closeLightbox,
-  } = useAssociationDetail(id);
+  } = useAssociationDetail(id, initialItem);
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {

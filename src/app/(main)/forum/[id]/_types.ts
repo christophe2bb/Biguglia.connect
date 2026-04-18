@@ -1,6 +1,14 @@
 // ─── Forum [id] — shared types ─────────────────────────────────────────────────
 import { ForumTopic, ForumReply, ForumSector, ForumCategory } from '@/types';
 
+/** Initial server-fetched data passed from page.tsx to the client */
+export interface InitialTopicData {
+  topic:      TopicExtended;
+  replies:    ForumReply[];
+  topicPhotos: TopicPhoto[];
+  isV2:       boolean;
+}
+
 /** ForumTopic extended with v2-specific optional fields */
 export type TopicExtended = ForumTopic & {
   post_type?: string;
