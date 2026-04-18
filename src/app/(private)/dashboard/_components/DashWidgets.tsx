@@ -1,4 +1,4 @@
-'use client';
+
 
 /**
  * Shared presentational micro-components for the dashboard.

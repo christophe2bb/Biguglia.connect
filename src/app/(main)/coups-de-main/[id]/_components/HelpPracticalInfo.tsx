@@ -1,4 +1,4 @@
-'use client';
+
 
 import { MapPin, Clock, Calendar, Users, Heart } from 'lucide-react';
 import { SectorBadge } from '@/components/ui/SectorFilter';

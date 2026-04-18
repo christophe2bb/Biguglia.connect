@@ -1,4 +1,4 @@
-'use client';
+
 
 /**
  * ArtisanGuide — Panneau d'instructions pour valider un artisan.

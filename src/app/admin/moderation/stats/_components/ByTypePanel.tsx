@@ -1,4 +1,4 @@
-'use client';
+
 
 /**
  * ByTypePanel — Répartition par thème (type de contenu) + décisions récentes.

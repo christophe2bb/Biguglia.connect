@@ -1,4 +1,4 @@
-'use client';
+
 /**
  * ResultCard — affichage d'un résultat en vue liste ou grille
  */

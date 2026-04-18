@@ -4,7 +4,7 @@
 // IMPORTANT: 'use client' obligatoire — new Date() cause un hydration mismatch
 // ─────────────────────────────────────────────────────────────────────────────
 
-'use client';
+
 
 import Link from 'next/link';
 import { Calendar, MapPin, ArrowRight, Footprints, Clock } from 'lucide-react';

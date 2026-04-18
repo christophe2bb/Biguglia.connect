@@ -5,7 +5,7 @@
 // si ce composant est rendu côté serveur (valeur différente entre SSR et client)
 // ─────────────────────────────────────────────────────────────────────────────
 
-'use client';
+
 
 import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';

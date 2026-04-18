@@ -1,4 +1,4 @@
-'use client';
+
 
 import { AlertCircle, BarChart3 } from 'lucide-react';
 import { RISK_CONFIG } from '../_config';

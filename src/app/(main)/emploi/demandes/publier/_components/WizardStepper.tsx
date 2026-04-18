@@ -1,4 +1,4 @@
-'use client';
+
 
 import { CheckCircle } from 'lucide-react';
 import { STEPS } from '../_config';

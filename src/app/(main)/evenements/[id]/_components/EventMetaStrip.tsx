@@ -1,4 +1,4 @@
-'use client';
+
 
 /**
  * EventMetaStrip — Bande de 4 méta-données : date, horaire, lieu, tarif.

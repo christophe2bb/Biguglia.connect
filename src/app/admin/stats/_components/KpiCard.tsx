@@ -1,4 +1,4 @@
-'use client';
+
 
 interface Props {
   icon:   React.ElementType;

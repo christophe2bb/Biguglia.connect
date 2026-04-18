@@ -1,4 +1,4 @@
-'use client';
+
 
 import Link from 'next/link';
 import { MessageSquare, Bell, Activity, ChevronRight } from 'lucide-react';

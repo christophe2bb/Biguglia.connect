@@ -1,4 +1,4 @@
-'use client';
+
 
 import Link from 'next/link';
 import { BarChart3, TrendingUp, Eye, Heart, Zap } from 'lucide-react';

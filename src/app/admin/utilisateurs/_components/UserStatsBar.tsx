@@ -1,4 +1,4 @@
-'use client';
+
 
 /**
  * UserStatsBar — Bande de statistiques rapides pour la liste des utilisateurs.
