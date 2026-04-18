@@ -1,20 +1,28 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Users, CheckCircle, AlertTriangle, MessageSquare, Package, Wrench, Flag, TrendingUp, Shield, ArrowLeft } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { TrendingUp, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
-import Link from 'next/link';
 import type { AdminDashboardStats } from '@/app/api/admin/dashboard/route';
+
+import AdminStatsGrid   from './_components/AdminStatsGrid';
+import AdminNavGrid     from './_components/AdminNavGrid';
+
+/** Bannière artisans — chargée après hydratation (peu critique au démarrage). */
+const AdminArtisansBanner = dynamic(
+  () => import('./_components/AdminArtisansBanner'),
+  { ssr: false, loading: () => <div className="h-24 rounded-2xl bg-gray-100 animate-pulse" /> },
+);
 
 function AdminContent() {
   const { profile } = useAuthStore();
   const profileId = profile?.id;
-  const [stats, setStats] = useState<AdminDashboardStats | null>(null);
+  const [stats, setStats]     = useState<AdminDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Requêtes Supabase directes côté client (anon key + RLS correcte)
-  // Plus rapide et fiable que de passer par l'API route (pas de problème cookie SSR)
   const fetchData = useCallback(async () => {
     if (!profileId) return;
     try {
@@ -60,20 +68,9 @@ function AdminContent() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const statCards = [
-    { icon: Users,         label: 'Utilisateurs',      value: stats?.total_users        ?? 0, color: 'text-blue-600',   bg: 'bg-blue-50' },
-    { icon: Wrench,        label: 'Artisans vérifiés',  value: stats?.verified_artisans  ?? 0, color: 'text-green-600',  bg: 'bg-green-50' },
-    { icon: AlertTriangle, label: 'En attente',         value: stats?.pending_artisans   ?? 0, color: 'text-orange-600', bg: 'bg-orange-50', highlight: (stats?.pending_artisans ?? 0) > 0 },
-    { icon: Package,       label: 'Annonces actives',   value: stats?.total_listings     ?? 0, color: 'text-purple-600', bg: 'bg-purple-50' },
-    { icon: MessageSquare, label: 'Messages',           value: stats?.total_messages     ?? 0, color: 'text-brand-600',  bg: 'bg-brand-50' },
-    { icon: Flag,          label: 'Signalements',       value: stats?.pending_reports    ?? 0, color: 'text-red-600',    bg: 'bg-red-50',   highlight: (stats?.pending_reports ?? 0) > 0 },
-    { icon: Shield,        label: 'En modération',      value: stats?.pending_moderation ?? 0, color: 'text-amber-600',  bg: 'bg-amber-50', highlight: (stats?.pending_moderation ?? 0) > 0 },
-    { icon: TrendingUp,    label: 'Posts forum',        value: stats?.total_forum_posts  ?? 0, color: 'text-teal-600',   bg: 'bg-teal-50' },
-    { icon: CheckCircle,   label: 'Matériel dispo',     value: stats?.total_equipment    ?? 0, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-  ];
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      {/* Header */}
       <div className="flex items-center gap-3 mb-8">
         <Link href="/" className="p-2 rounded-xl hover:bg-gray-100 transition-colors" title="Retour au site">
           <ArrowLeft className="w-5 h-5 text-gray-500" />
@@ -87,92 +84,18 @@ function AdminContent() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
-        {statCards.map(({ icon: Icon, label, value, color, bg, highlight }) => (
-          <div key={label} className={`bg-white rounded-2xl border ${highlight ? 'border-orange-300 shadow-sm' : 'border-gray-100'} p-5`}>
-            <div className={`inline-flex p-2 rounded-xl ${bg} mb-3`}><Icon className={`w-5 h-5 ${color}`} /></div>
-            <div className="text-2xl font-bold text-gray-900">{loading ? '—' : value}</div>
-            <div className="text-sm text-gray-500">{label}</div>
-          </div>
-        ))}
-      </div>
+      {/* KPIs */}
+      <AdminStatsGrid stats={stats} loading={loading} />
 
-      {/* Navigation admin */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-        {[
-          { href: '/admin/stats',       label: 'Statistiques',              desc: 'Graphiques & activité complète',                                 icon: '📊', highlight: true },
-          { href: '/admin/artisans',    label: 'Gestion artisans',          desc: 'Valider, refuser, suspendre',                                    icon: '⚒️' },
-          { href: '/admin/utilisateurs',label: 'Utilisateurs',              desc: 'Gérer les comptes',                                              icon: '👥' },
-          { href: '/admin/contenu',     label: 'Contenu',                   desc: 'Annonces, forum, avis, matériel',                                icon: '📋' },
-          { href: '/admin/moderation',  label: 'Modération',                desc: 'File de validation des publications',                             icon: '🛡️', highlight: (stats?.pending_moderation ?? 0) > 0, badge: stats?.pending_moderation },
-          { href: '/admin/signalements',label: 'Signalements',              desc: 'Modérer le contenu',                                             icon: '🚩' },
-          { href: '/admin/confiance',   label: 'Confiance & Réputation',    desc: 'Modérer les avis, membres à risque, badges',                     icon: '🛡️', highlight: false },
-          { href: '/admin/migration',   label: 'Migration DB',              desc: 'Tables thèmes (collectionneurs, promenades, événements)',         icon: '🗄️', highlight: false },
-          { href: '/admin/spec',        label: 'Spécification fonctionnelle',desc: 'Cahier des charges Collectionneurs v2.0 — état du développement',icon: '📋', highlight: false },
-          { href: '/admin/securite',    label: 'Sécurité & Cloudflare',     desc: 'Guide Cloudflare WAF, anti-DDoS, headers',                       icon: '🛡️', highlight: false },
-          { href: '/admin/logs',        label: 'Journal des actions',       desc: 'Traçabilité de toutes les mutations admin',                       icon: '📋', highlight: false },
-        ].map(({ href, label, desc, icon, highlight, badge }) => (
-          <Link key={href} href={href}>
-            <div className={`relative bg-white rounded-2xl border p-5 hover:shadow-sm transition-all cursor-pointer ${highlight ? 'border-brand-300 bg-brand-50/30' : 'border-gray-100 hover:border-gray-200'}`}>
-              {badge !== undefined && badge > 0 && (
-                <span className="absolute -top-2 -right-2 min-w-[1.4rem] h-6 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center animate-pulse shadow">
-                  {badge > 99 ? '99+' : badge}
-                </span>
-              )}
-              <div className="text-2xl mb-2">{icon}</div>
-              <div className={`font-semibold ${highlight ? 'text-brand-700' : 'text-gray-900'}`}>{label}</div>
-              <div className="text-sm text-gray-500">{desc}</div>
-            </div>
-          </Link>
-        ))}
-      </div>
+      {/* Navigation */}
+      <AdminNavGrid stats={stats} />
 
-      {/* Artisans en attente — lien direct vers la page de gestion */}
-      <Link href="/admin/artisans">
-        <div className={`rounded-2xl border-2 p-5 flex items-center gap-4 hover:shadow-md transition-all cursor-pointer group ${
-          (stats?.pending_artisans ?? 0) > 0
-            ? 'bg-gradient-to-r from-orange-50 to-amber-50 border-orange-300'
-            : 'bg-green-50 border-green-200'
-        }`}>
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform ${
-            (stats?.pending_artisans ?? 0) > 0 ? 'bg-orange-100' : 'bg-green-100'
-          }`}>
-            {(stats?.pending_artisans ?? 0) > 0
-              ? <AlertTriangle className="w-6 h-6 text-orange-600" />
-              : <CheckCircle className="w-6 h-6 text-green-600" />
-            }
-          </div>
-          <div className="flex-1">
-            {(stats?.pending_artisans ?? 0) > 0 ? (
-              <>
-                <p className="font-bold text-orange-900 text-base">
-                  {stats?.pending_artisans} dossier{(stats?.pending_artisans ?? 0) > 1 ? 's' : ''} artisan en attente
-                </p>
-                <p className="text-sm text-orange-700 mt-0.5">
-                  Cliquez pour ouvrir la page de gestion et valider les profils.
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="font-bold text-green-800 text-base">Aucune demande artisan en attente ✓</p>
-                <p className="text-sm text-green-600 mt-0.5">Cliquez pour gérer les artisans vérifiés.</p>
-              </>
-            )}
-          </div>
-          <div className={`flex-shrink-0 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors flex items-center gap-2 ${
-            (stats?.pending_artisans ?? 0) > 0
-              ? 'bg-orange-600 group-hover:bg-orange-700'
-              : 'bg-green-600 group-hover:bg-green-700'
-          }`}>
-            <Wrench className="w-4 h-4" /> Gérer les artisans
-          </div>
-        </div>
-      </Link>
+      {/* Bannière artisans — lazy */}
+      <AdminArtisansBanner stats={stats} />
     </div>
   );
 }
 
 export default function AdminPage() {
-  return <><AdminContent /></>;
+  return <AdminContent />;
 }

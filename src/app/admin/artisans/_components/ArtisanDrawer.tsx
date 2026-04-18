@@ -4,23 +4,22 @@
  * ArtisanDrawer — Panneau latéral de détails + décision artisan (lazy-loaded).
  *
  * Affiché quand l'admin clique sur "Voir le dossier" dans ArtisanCard.
- * Chargé en lazy depuis page.tsx via dynamic() pour ne pas alourdir
- * le bundle initial.
+ * Chargé en lazy depuis page.tsx via dynamic() pour ne pas alourdir le bundle initial.
  *
- * Contient : infos légales, documents, checkbox local + boutons Approuver/Refuser.
- * La logique de refus (textarea + suggestions) est ici, pas dans ArtisanCard.
+ * La décision (approuver / refuser / révoquer) est déléguée à ArtisanDecisionFooter.
  */
 
 import { useState, useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
 import {
-  X, CheckCircle, XCircle, Shield, FileText,
+  X, Shield, FileText,
   Phone, Briefcase, MapPin, Clock, AlertCircle, MessageSquare,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
 import { ROLE_LABELS, formatRelative } from '@/lib/utils';
 import DocLink from './DocLink';
+import ArtisanDecisionFooter from './ArtisanDecisionFooter';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import type { Profile } from '@/types';
@@ -44,27 +43,15 @@ interface ArtisanEntry {
   trade_category?: { name: string; icon: string };
 }
 
-const REJECT_SUGGESTIONS = [
-  "Documents manquants : veuillez joindre votre attestation d'assurance en cours de validité.",
-  'Documents manquants : veuillez joindre votre Kbis ou justificatif d\'immatriculation.',
-  'Documents manquants : veuillez joindre une pièce d\'identité en cours de validité.',
-  'Les documents fournis sont illisibles ou incomplets. Veuillez les renvoyer.',
-  'Votre assurance est expirée. Veuillez fournir une attestation en cours de validité.',
-  'Activité non éligible à la plateforme Biguglia Connect.',
-];
-
 interface ArtisanDrawerProps {
-  artisan: ArtisanEntry;
-  onClose: () => void;
+  artisan:   ArtisanEntry;
+  onClose:   () => void;
   onApprove: (userId: string) => void;
-  onReject: (userId: string, reason: string) => void;
+  onReject:  (userId: string, reason: string) => void;
 }
 
 export default function ArtisanDrawer({ artisan, onClose, onApprove, onReject }: ArtisanDrawerProps) {
-  const [confirmedLocal, setConfirmedLocal] = useState(false);
-  const [rejecting, setRejecting]           = useState(false);
-  const [reason, setReason]                 = useState('');
-  const [sendingMsg, setSendingMsg]         = useState(false);
+  const [sendingMsg, setSendingMsg] = useState(false);
 
   const drawerRef  = useRef<HTMLElement>(null);
   const triggerRef = useRef<Element | null>(null);
@@ -219,7 +206,7 @@ export default function ArtisanDrawer({ artisan, onClose, onApprove, onReject }:
               )}
               {artisan.service_area && (
                 <div className="bg-gray-50 rounded-xl border border-gray-100 px-3 py-2">
-                  <span className="text-xs text-gray-400 block mb-0.5">Zone d'intervention</span>
+                  <span className="text-xs text-gray-400 block mb-0.5">Zone d&apos;intervention</span>
                   <div className="font-medium text-gray-800 flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5 text-gray-400" />
                     {artisan.service_area}
@@ -307,106 +294,14 @@ export default function ArtisanDrawer({ artisan, onClose, onApprove, onReject }:
         </div>
 
         {/* Pied fixe : décision */}
-        <div className="border-t border-gray-100 p-5 bg-gray-50/50 space-y-4">
-          {isPending && !rejecting && (
-            <>
-              <label className="flex items-center gap-3 cursor-pointer bg-green-50 border border-green-200 rounded-xl p-3 hover:bg-green-100 transition-colors">
-                <input
-                  type="checkbox"
-                  className="w-5 h-5 accent-green-600 flex-shrink-0"
-                  checked={confirmedLocal}
-                  onChange={e => setConfirmedLocal(e.target.checked)}
-                />
-                <div>
-                  <span className="text-sm font-semibold text-green-800">✅ Je confirme que cet artisan est de Biguglia</span>
-                  <p className="text-xs text-green-600 mt-0.5">Cochez pour activer le bouton d&apos;approbation</p>
-                </div>
-              </label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setRejecting(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 border-2 border-red-200 text-red-600 text-sm font-semibold rounded-xl hover:bg-red-50 transition-colors"
-                >
-                  <XCircle className="w-4 h-4" /> Refuser
-                </button>
-                <button
-                  onClick={() => {
-                    if (!confirmedLocal) { toast.error('Cochez d\'abord la case "Artisan de Biguglia"'); return; }
-                    onApprove(artisan.user_id);
-                    onClose();
-                  }}
-                  disabled={!confirmedLocal}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <CheckCircle className="w-4 h-4" /> ✅ Approuver le profil
-                </button>
-              </div>
-            </>
-          )}
-
-          {isPending && rejecting && (
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Motif du refus <span className="text-red-500">*</span>
-                </label>
-                <div className="space-y-1.5 mb-3 max-h-32 overflow-y-auto">
-                  {REJECT_SUGGESTIONS.map(s => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setReason(s)}
-                      className="w-full text-left text-xs px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-brand-300 hover:bg-brand-50 transition-colors"
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-                <textarea
-                  value={reason}
-                  onChange={e => setReason(e.target.value)}
-                  placeholder="Ou saisissez un motif personnalisé..."
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none h-20 focus:outline-none focus:ring-2 focus:ring-red-300"
-                />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => { setRejecting(false); setReason(''); }}
-                  className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={() => {
-                    if (!reason.trim()) { toast.error('Indiquez un motif de refus'); return; }
-                    onReject(artisan.user_id, reason);
-                    onClose();
-                  }}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition-colors"
-                >
-                  Confirmer le refus
-                </button>
-              </div>
-            </div>
-          )}
-
-          {isVerified && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
-                <CheckCircle className="w-4 h-4" /> Profil validé
-              </div>
-              <button
-                onClick={() => {
-                  const r = window.prompt('Motif de révocation (sera envoyé à l\'artisan) :');
-                  if (r !== null) { onReject(artisan.user_id, r || 'Profil suspendu par l\'administrateur.'); onClose(); }
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
-              >
-                <XCircle className="w-3.5 h-3.5" /> Révoquer
-              </button>
-            </div>
-          )}
-        </div>
+        <ArtisanDecisionFooter
+          userId={artisan.user_id}
+          isPending={isPending}
+          isVerified={isVerified}
+          onApprove={onApprove}
+          onReject={onReject}
+          onClose={onClose}
+        />
       </aside>
     </>
   );
