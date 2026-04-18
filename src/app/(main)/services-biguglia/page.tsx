@@ -510,6 +510,68 @@ export default async function ServicesBigugliaPage() {
         </section>
 
         {/* ══════════════════════════════════════════
+            LIENS CONTEXTUELS — sous-catégories & fiches
+        ══════════════════════════════════════════ */}
+        <section className="bg-gradient-to-br from-sky-50 to-indigo-50 rounded-3xl border border-sky-100 p-6 sm:p-8">
+          <h2 className="text-xl font-black text-gray-900 mb-2">
+            Trouvez le bon prestataire à {GEO.city}
+          </h2>
+          <p className="text-gray-500 text-sm mb-5">
+            Accédez directement aux fiches métier, aux profils disponibles et aux ressources liées.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-3">Fiches métier directes</p>
+              <div className="space-y-2">
+                {[
+                  { href: '/artisans/metier/plomberie',     emoji: '🚿', label: 'Plombiers à Biguglia',     sub: 'Fuite, chauffe-eau, sdb' },
+                  { href: '/artisans/metier/electricite',   emoji: '⚡', label: 'Électriciens à Biguglia',  sub: 'Tableau, mise aux normes' },
+                  { href: '/artisans/metier/maconnerie',    emoji: '🏗️', label: 'Maçons à Biguglia',        sub: 'Gros œuvre, façades, dallage' },
+                  { href: '/artisans/metier/peinture',      emoji: '🎨', label: 'Peintres à Biguglia',      sub: 'Intérieur, extérieur, ravalement' },
+                  { href: '/artisans/metier/menuiserie',    emoji: '🪵', label: 'Menuisiers à Biguglia',    sub: 'Fenêtres, portes, parquet' },
+                  { href: '/artisans/metier/jardinage',     emoji: '🌿', label: 'Jardiniers à Biguglia',    sub: 'Entretien, taille, élagage' },
+                ].map(m => (
+                  <Link key={m.href} href={m.href}>
+                    <div className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 px-3 py-2 hover:shadow-sm hover:border-brand-200 transition-all">
+                      <span className="text-lg flex-shrink-0">{m.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-gray-900 line-clamp-1">{m.label}</p>
+                        <p className="text-xs text-gray-500">{m.sub}</p>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-3">Catégories & ressources liées</p>
+              <div className="space-y-2">
+                {[
+                  { href: '/artisans-biguglia',                emoji: '🔧', label: 'Annuaire artisans Biguglia',    sub: 'Tous les métiers vérifiés' },
+                  { href: '/artisans/demande',                 emoji: '📝', label: 'Déposer une demande de devis', sub: 'Gratuit, sans engagement' },
+                  { href: '/artisans?categorie=serrurerie',    emoji: '🔑', label: 'Serruriers à Biguglia',        sub: 'Urgence, remplacement' },
+                  { href: '/artisans?categorie=climatisation', emoji: '❄️', label: 'Climatisation Biguglia',       sub: 'Pompe à chaleur, clim réversible' },
+                  { href: '/artisans?categorie=carrelage',     emoji: '🪟', label: 'Carreleurs à Biguglia',        sub: 'Salle de bain, cuisine, terrasse' },
+                  { href: '/materiel',                         emoji: '🛠️', label: 'Matériel à emprunter',         sub: 'Perceuse, échelle, karcher…' },
+                ].map(m => (
+                  <Link key={m.href} href={m.href}>
+                    <div className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 px-3 py-2 hover:shadow-sm hover:border-sky-200 transition-all">
+                      <span className="text-lg flex-shrink-0">{m.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-gray-900 line-clamp-1">{m.label}</p>
+                        <p className="text-xs text-gray-500">{m.sub}</p>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ══════════════════════════════════════════
             MAILLAGE INTERNE — pages voisines
         ══════════════════════════════════════════ */}
         <section>

@@ -512,6 +512,58 @@ export default async function EmploiBigugliaPage() {
         </section>
 
         {/* ══════════════════════════════════════════
+            LIENS CONTEXTUELS — secteurs & sous-pages liées
+        ══════════════════════════════════════════ */}
+        <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+          <h2 className="text-xl font-black text-gray-900 mb-2">
+            Secteurs, offres et profils — Accès direct
+          </h2>
+          <p className="text-gray-500 text-sm mb-5">
+            Naviguez directement vers les sous-catégories d'emploi et les ressources locales associées.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-3">Par type de contrat</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { href: '/emploi/offres?type=cdi',        label: '📋 CDI à Biguglia' },
+                  { href: '/emploi/offres?type=cdd',        label: '📄 CDD à Biguglia' },
+                  { href: '/emploi/offres?type=saisonnier', label: '☀️ Saisonniers' },
+                  { href: '/emploi/offres?type=alternance', label: '🎓 Alternance' },
+                  { href: '/emploi/offres?type=extra',      label: '⚡ Extras & extras' },
+                  { href: '/emploi/demandes',               label: '🙋 Candidats disponibles' },
+                  { href: '/emploi/offres/publier',         label: '+ Publier une offre' },
+                ].map(l => (
+                  <Link key={l.href} href={l.href}
+                    className="inline-flex items-center gap-1 bg-cyan-50 border border-cyan-200 text-cyan-700 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-cyan-100 transition-all">
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-3">Contenus locaux associés</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { href: '/artisans-biguglia',              label: '🔧 Artisans BTP Biguglia' },
+                  { href: '/services-biguglia',              label: '⚙️ Services locaux' },
+                  { href: '/associations-biguglia',          label: '🏛️ Bénévolat & associations' },
+                  { href: '/forum?categorie=travaux',        label: '💬 Forum Travaux' },
+                  { href: '/forum?categorie=vie_locale',     label: '🏘️ Forum Vie locale' },
+                  { href: '/communaute',                     label: '🏘️ Communauté Biguglia' },
+                  { href: '/annonces-biguglia',              label: '📦 Petites annonces' },
+                ].map(l => (
+                  <Link key={l.href} href={l.href}
+                    className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 text-gray-600 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-purple-50 hover:border-purple-200 hover:text-purple-700 transition-all">
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ══════════════════════════════════════════
             FAQ enrichie (7 questions)
         ══════════════════════════════════════════ */}
         <section>

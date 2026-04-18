@@ -339,6 +339,58 @@ export default async function ArtisansBigugliaPage() {
         </section>
 
         {/* ══════════════════════════════════════════
+            ACCÈS RAPIDE — Top métiers & fiches liées
+        ══════════════════════════════════════════ */}
+        <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+          <h2 className="text-xl font-black text-gray-900 mb-2">
+            Accès rapide — Métiers les plus demandés à {GEO.city}
+          </h2>
+          <p className="text-gray-500 text-sm mb-5">
+            Cliquez sur un métier pour accéder directement aux artisans vérifiés et disponibles à Biguglia.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            {[
+              { slug: 'plomberie',    emoji: '🚿', label: 'Plombiers Biguglia',     color: 'bg-sky-50 border-sky-200 text-sky-700 hover:bg-sky-100' },
+              { slug: 'electricite', emoji: '⚡', label: 'Électriciens Biguglia',   color: 'bg-yellow-50 border-yellow-200 text-yellow-700 hover:bg-yellow-100' },
+              { slug: 'maconnerie',  emoji: '🏗️', label: 'Maçons Biguglia',         color: 'bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100' },
+              { slug: 'peinture',    emoji: '🎨', label: 'Peintres Biguglia',       color: 'bg-pink-50 border-pink-200 text-pink-700 hover:bg-pink-100' },
+              { slug: 'menuiserie',  emoji: '🪵', label: 'Menuisiers Biguglia',     color: 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100' },
+              { slug: 'jardinage',   emoji: '🌿', label: 'Jardiniers Biguglia',     color: 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' },
+              { slug: 'serrurerie',  emoji: '🔑', label: 'Serruriers Biguglia',     color: 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100' },
+              { slug: 'carrelage',   emoji: '🪟', label: 'Carreleurs Biguglia',     color: 'bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100' },
+            ].map(m => (
+              <Link key={m.slug} href={`/artisans/metier/${m.slug}`}>
+                <div className={`flex items-center gap-2 border rounded-xl px-3 py-2.5 text-xs font-bold transition-all ${m.color}`}>
+                  <span>{m.emoji}</span>
+                  <span className="line-clamp-1">{m.label}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+          {/* Liens contextuels croisés */}
+          <div className="border-t border-gray-100 pt-5">
+            <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-3">Pages liées</p>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {[
+                { href: '/services-biguglia',              label: '⚙️ Services à Biguglia' },
+                { href: '/artisans/demande',               label: '📝 Déposer une demande de devis' },
+                { href: '/artisans?categorie=plomberie',   label: '🚿 Plombiers disponibles' },
+                { href: '/artisans?categorie=electricite', label: '⚡ Électriciens disponibles' },
+                { href: '/artisans?categorie=maconnerie',  label: '🏗️ Maçons disponibles' },
+                { href: '/forum?categorie=travaux',        label: '💬 Forum Travaux' },
+                { href: '/emploi-biguglia',                label: '💼 Emploi BTP Biguglia' },
+                { href: '/annonces-biguglia',              label: '📦 Matériaux & annonces' },
+              ].map(l => (
+                <Link key={l.href} href={l.href}
+                  className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 text-gray-600 font-semibold px-2.5 py-1 rounded-lg hover:bg-brand-50 hover:border-brand-200 hover:text-brand-700 transition-all">
+                  {l.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ══════════════════════════════════════════
             FAQ
         ══════════════════════════════════════════ */}
         <section>

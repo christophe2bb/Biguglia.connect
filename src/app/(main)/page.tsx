@@ -382,15 +382,18 @@ export default function HomePage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
-              { href: '/artisans-biguglia',         emoji: '🔧', title: 'Artisans à Biguglia',    desc: 'Plombiers, électriciens, maçons, peintres… vérifiés',    color: 'from-brand-50 to-brand-100 border-brand-200 text-brand-700' },
-              { href: '/services-biguglia',         emoji: '⚙️', title: 'Services à Biguglia',    desc: 'Tous les services locaux avec devis gratuit',            color: 'from-sky-50 to-sky-100 border-sky-200 text-sky-700' },
-              { href: '/emploi-biguglia',           emoji: '💼', title: 'Emploi à Biguglia',      desc: 'CDI, CDD, saisonnier — recrutement local',              color: 'from-amber-50 to-amber-100 border-amber-200 text-amber-700' },
-              { href: '/evenements-biguglia',       emoji: '🎉', title: 'Événements à Biguglia',  desc: 'Agenda complet fêtes, marchés, concerts, sport',        color: 'from-orange-50 to-orange-100 border-orange-200 text-orange-700' },
-              { href: '/associations-biguglia',     emoji: '🏛️', title: 'Associations à Biguglia',desc: 'Clubs, bénévolat et vie associative locale',            color: 'from-purple-50 to-purple-100 border-purple-200 text-purple-700' },
-              { href: '/forum-biguglia',            emoji: '💬', title: 'Forum des habitants',    desc: 'Questions, entraide et infos de voisinage',             color: 'from-violet-50 to-violet-100 border-violet-200 text-violet-700' },
-              { href: '/annonces-biguglia',         emoji: '📦', title: 'Annonces à Biguglia',    desc: 'Achetez, vendez, donnez entre voisins',                 color: 'from-emerald-50 to-emerald-100 border-emerald-200 text-emerald-700' },
-              { href: '/communaute',                emoji: '🏘️', title: 'Communauté Biguglia',   desc: 'Membres actifs, badges et contributions',               color: 'from-teal-50 to-teal-100 border-teal-200 text-teal-700' },
-              { href: '/artisans/metier/plomberie', emoji: '🚿', title: 'Plombiers à Biguglia',   desc: 'Plombiers vérifiés pour fuite, chauffe-eau…',            color: 'from-blue-50 to-blue-100 border-blue-200 text-blue-700' },
+              { href: '/artisans-biguglia',              emoji: '🔧', title: 'Artisans à Biguglia',        desc: 'Plombiers, électriciens, maçons, peintres… vérifiés',    color: 'from-brand-50 to-brand-100 border-brand-200 text-brand-700' },
+              { href: '/services-biguglia',              emoji: '⚙️', title: 'Services à Biguglia',        desc: 'Tous les services locaux avec devis gratuit',            color: 'from-sky-50 to-sky-100 border-sky-200 text-sky-700' },
+              { href: '/emploi-biguglia',                emoji: '💼', title: 'Emploi à Biguglia',          desc: 'CDI, CDD, saisonnier — recrutement local',              color: 'from-amber-50 to-amber-100 border-amber-200 text-amber-700' },
+              { href: '/evenements-biguglia',            emoji: '🎉', title: 'Événements à Biguglia',      desc: 'Agenda complet fêtes, marchés, concerts, sport',        color: 'from-orange-50 to-orange-100 border-orange-200 text-orange-700' },
+              { href: '/associations-biguglia',          emoji: '🏛️', title: 'Associations à Biguglia',   desc: 'Clubs, bénévolat et vie associative locale',            color: 'from-purple-50 to-purple-100 border-purple-200 text-purple-700' },
+              { href: '/forum-biguglia',                 emoji: '💬', title: 'Forum des habitants',        desc: 'Questions, entraide et infos de voisinage',             color: 'from-violet-50 to-violet-100 border-violet-200 text-violet-700' },
+              { href: '/annonces-biguglia',              emoji: '📦', title: 'Annonces à Biguglia',        desc: 'Achetez, vendez, donnez entre voisins',                 color: 'from-emerald-50 to-emerald-100 border-emerald-200 text-emerald-700' },
+              { href: '/communaute',                     emoji: '🏘️', title: 'Communauté Biguglia',       desc: 'Membres actifs, badges et contributions',               color: 'from-teal-50 to-teal-100 border-teal-200 text-teal-700' },
+              { href: '/artisans/metier/plomberie',      emoji: '🚿', title: 'Plombiers à Biguglia',       desc: 'Plombiers vérifiés pour fuite, chauffe-eau…',            color: 'from-blue-50 to-blue-100 border-blue-200 text-blue-700' },
+              { href: '/artisans/metier/electricite',    emoji: '⚡', title: 'Électriciens à Biguglia',   desc: 'Mise aux normes, tableau, dépannage électrique',        color: 'from-yellow-50 to-yellow-100 border-yellow-200 text-yellow-700' },
+              { href: '/artisans/metier/maconnerie',     emoji: '🏗️', title: 'Maçons à Biguglia',         desc: 'Gros œuvre, façade, dallage, clôtures',                 color: 'from-stone-50 to-stone-100 border-stone-200 text-stone-700' },
+              { href: '/artisans/metier/peinture',       emoji: '🎨', title: 'Peintres à Biguglia',        desc: 'Peinture intérieure, extérieure, ravalement',           color: 'from-pink-50 to-pink-100 border-pink-200 text-pink-700' },
             ].map(card => (
               <Link key={card.href} href={card.href}>
                 <div className={`bg-gradient-to-br ${card.color} border rounded-2xl p-4 hover:shadow-md hover:-translate-y-0.5 transition-all h-full flex items-start gap-3`}>
