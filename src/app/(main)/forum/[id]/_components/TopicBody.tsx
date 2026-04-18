@@ -76,9 +76,10 @@ function Lightbox({
   return (
     <div
       className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
-      aria-hidden="true"
       onClick={onClose}
     >
+      {/* Backdrop — masqué aux AT */}
+      <div className="absolute inset-0" aria-hidden="true" />
       <div
         ref={dialogRef}
         role="dialog"

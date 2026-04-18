@@ -141,7 +141,7 @@ export default function DashboardEvenementsPage() {
 
   useEffect(() => { fetchMyEvents(); }, [fetchMyEvents]);
 
-  // Focus management for transition modal
+  // Focus management + Escape for transition modal
   useEffect(() => {
     if (showModal) {
       modalTriggerRef.current = document.activeElement;
@@ -150,6 +150,19 @@ export default function DashboardEvenementsPage() {
     } else {
       if (modalTriggerRef.current instanceof HTMLElement) modalTriggerRef.current.focus();
     }
+  }, [showModal]);
+
+  useEffect(() => {
+    if (!showModal) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setShowModal(false);
+        setPendingAction(null);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
   }, [showModal]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────

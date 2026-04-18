@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import {
@@ -15,11 +15,14 @@ import toast from 'react-hot-toast';
 import type { UserWithActivity } from './_components/types';
 import UserFilters from './_components/UserFilters';
 import UserTable from './_components/UserTable';
+import UserStatsBar from './_components/UserStatsBar';
 
 // Lazy-load heavy drawer (visible only on demand)
 const UserDrawer = dynamic(() => import('./_components/UserDrawer'), {
   loading: () => null,
 });
+
+const PAGE_SIZE = 20;
 
 const ROLE_OPTIONS = [
   { value: 'resident', label: '🏘️ Habitant' },
@@ -37,6 +40,7 @@ export default function AdminUtilisateursPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'activity'>('date');
   const [selectedUser, setSelectedUser] = useState<UserWithActivity | null>(null);
+  const [page, setPage] = useState(1);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -72,6 +76,7 @@ export default function AdminUtilisateursPage() {
       }));
 
       setUsers(profiles);
+      setPage(1); // reset to first page on fresh load
     } catch (err) {
       toast.error('Erreur réseau : ' + String(err));
     }
@@ -81,6 +86,9 @@ export default function AdminUtilisateursPage() {
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => { setPage(1); }, [search, roleFilter, statusFilter, sortBy]);
 
   const suspendUser = async (userId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
@@ -147,26 +155,34 @@ export default function AdminUtilisateursPage() {
     toast.success(`Email de réinitialisation envoyé à ${email}`);
   };
 
-  // Filtering and sorting
-  let filtered = users.filter(u =>
-    (!roleFilter || u.role === roleFilter) &&
-    (!statusFilter || u.status === statusFilter) &&
-    (!search ||
-      u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-      u.email?.toLowerCase().includes(search.toLowerCase()) ||
-      u.phone?.includes(search)
-    )
-  );
+  // Filtering and sorting (memoised)
+  const filtered = useMemo(() => {
+    let list = users.filter(u =>
+      (!roleFilter || u.role === roleFilter) &&
+      (!statusFilter || u.status === statusFilter) &&
+      (!search ||
+        u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+        u.email?.toLowerCase().includes(search.toLowerCase()) ||
+        u.phone?.includes(search)
+      )
+    );
+    if (sortBy === 'name') list = [...list].sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
+    if (sortBy === 'activity') list = [...list].sort((a, b) => {
+      const aTotal = Object.values(a._counts || {}).reduce((s, v) => s + v, 0);
+      const bTotal = Object.values(b._counts || {}).reduce((s, v) => s + v, 0);
+      return bTotal - aTotal;
+    });
+    return list;
+  }, [users, search, roleFilter, statusFilter, sortBy]);
 
-  if (sortBy === 'name') filtered = [...filtered].sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
-  if (sortBy === 'activity') filtered = [...filtered].sort((a, b) => {
-    const aTotal = Object.values(a._counts || {}).reduce((s, v) => s + v, 0);
-    const bTotal = Object.values(b._counts || {}).reduce((s, v) => s + v, 0);
-    return bTotal - aTotal;
-  });
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const suspended = users.filter(u => u.status === 'suspended').length;
+  // Stats bar
+  const suspended      = users.filter(u => u.status === 'suspended').length;
   const artisansPending = users.filter(u => u.role === 'artisan_pending').length;
+  const admins         = users.filter(u => u.role === 'moderator' || (u.role as string) === 'admin').length;
 
   return (
     <>
@@ -183,6 +199,14 @@ export default function AdminUtilisateursPage() {
             <p className="text-sm text-gray-500">Vision complète de tous les inscrits · Pouvoirs complets</p>
           </div>
         </div>
+
+        {/* Stats bar */}
+        <UserStatsBar
+          total={users.length}
+          artisansPending={artisansPending}
+          suspended={suspended}
+          admins={admins}
+        />
 
         {/* Alertes */}
         {(artisansPending > 0 || suspended > 0) && (
@@ -218,10 +242,14 @@ export default function AdminUtilisateursPage() {
           onRefresh={fetchUsers}
         />
 
-        {/* User list via UserTable */}
+        {/* User list with pagination */}
         <UserTable
-          users={filtered}
+          users={paginated}
           loading={loading}
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          onSelect={setSelectedUser}
           onSuspend={suspendUser}
           onDelete={deleteUser}
           onChangeRole={changeRole}

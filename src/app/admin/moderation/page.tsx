@@ -7,13 +7,13 @@
  * (protégé par getAdminUser — service-role, bypass RLS).
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import {
   Shield, CheckCircle,
   RefreshCw, ArrowLeft,
-  BarChart3, AlertCircle, Info,
+  BarChart3, AlertCircle, Info, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import type { ModerationQueueData, ModerationKPI } from '@/app/api/admin/moderation/queue/route';
@@ -51,6 +51,8 @@ type QueueItem = ApiQueueItem & {
   content_type: ContentType;
 };
 
+const PAGE_SIZE = 20;
+
 function ModerationQueueContent() {
   const { profile } = useAuthStore();
 
@@ -59,6 +61,7 @@ function ModerationQueueContent() {
   const [loading, setLoading]         = useState(true);
   const [processing, setProcessing]   = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<QueueItem | null>(null);
+  const [page, setPage]               = useState(1);
 
   const [filterStatus, setFilterStatus]       = useState<string>('en_attente_validation');
   const [filterType, setFilterType]           = useState<string>('all');
@@ -99,6 +102,7 @@ function ModerationQueueContent() {
 
       setItems(results);
       setKpi(data.kpi);
+      setPage(1); // reset to first page on fresh fetch
     } catch (err) {
       console.error('[moderation queue] fetch error:', err);
       toast.error('Impossible de charger la file de modération.');
@@ -131,6 +135,13 @@ function ModerationQueueContent() {
   };
 
   const pendingCount = kpi?.pending ?? 0;
+
+  // Pagination (client-side slice of already-filtered server results)
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const paginated  = useMemo(
+    () => items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [items, page]
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -259,6 +270,9 @@ function ModerationQueueContent() {
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-500">
               <span className="font-semibold text-gray-900">{items.length}</span> publication{items.length > 1 ? 's' : ''}
+              {totalPages > 1 && (
+                <span className="ml-2 text-gray-400">· page {page}/{totalPages}</span>
+              )}
             </p>
             {processing && (
               <div className="flex items-center gap-2 text-sm text-brand-600">
@@ -267,13 +281,34 @@ function ModerationQueueContent() {
               </div>
             )}
           </div>
-          {items.map(item => (
+          {paginated.map(item => (
             <QueueRow
               key={item.id}
               item={item}
               onQuickDecision={handleQuickDecision}
             />
           ))}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" /> Précédent
+              </button>
+              <span className="text-sm text-gray-500">Page {page} / {totalPages}</span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Suivant <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       )}
 

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { Flag, X, Loader2, ChevronDown } from 'lucide-react';
+import { useState, useRef, useEffect, useId } from 'react';
+import { Flag, X, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import toast from 'react-hot-toast';
@@ -22,13 +22,13 @@ export type ReportTargetType =
   | 'help_request';
 
 const REPORT_REASONS: { value: string; label: string; emoji: string }[] = [
-  { value: 'fake',       label: 'Fausse annonce / fake',       emoji: '🤥' },
-  { value: 'spam',       label: 'Spam ou contenu répété',       emoji: '📢' },
+  { value: 'fake',       label: 'Fausse annonce / fake',         emoji: '🤥' },
+  { value: 'spam',       label: 'Spam ou contenu répété',         emoji: '📢' },
   { value: 'insulte',    label: 'Insulte / propos irrespectueux', emoji: '😡' },
-  { value: 'arnaque',    label: 'Arnaque / tentative de fraude', emoji: '⚠️' },
-  { value: 'interdit',   label: 'Contenu interdit / illégal',   emoji: '🚫' },
+  { value: 'arnaque',    label: 'Arnaque / tentative de fraude',  emoji: '⚠️' },
+  { value: 'interdit',   label: 'Contenu interdit / illégal',     emoji: '🚫' },
   { value: 'hors_sujet', label: 'Hors sujet / mauvaise catégorie', emoji: '📂' },
-  { value: 'autre',      label: 'Autre raison',                 emoji: '💬' },
+  { value: 'autre',      label: 'Autre raison',                   emoji: '💬' },
 ];
 
 interface ReportButtonProps {
@@ -56,6 +56,8 @@ export default function ReportButton({
   const [sending, setSending]   = useState(false);
   const [done, setDone]         = useState(false);
   const panelRef                = useRef<HTMLDivElement>(null);
+  const triggerRef              = useRef<HTMLButtonElement>(null);
+  const panelId                 = useId();
 
   // Fermer au clic extérieur
   useEffect(() => {
@@ -64,6 +66,20 @@ export default function ReportButton({
     };
     if (open) document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  // Fermer à Escape + restituer le focus au déclencheur
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
   }, [open]);
 
   const handleSubmit = async () => {
@@ -82,7 +98,6 @@ export default function ReportButton({
     });
 
     if (error) {
-      // Doublon = déjà signalé
       if (error.code === '23505') toast.success('⚠️ Vous avez déjà signalé ce contenu');
       else toast.error('Erreur : ' + error.message);
     } else {
@@ -93,63 +108,79 @@ export default function ReportButton({
     setSending(false);
   };
 
-  const trigger = (
-    <button
-      type="button"
-      onClick={e => { e.stopPropagation(); if (!profile) { toast.error('Connectez-vous'); return; } setOpen(v => !v); }}
-      title="Signaler ce contenu"
-      className={`
-        transition-all
-        ${variant === 'icon'
-          ? 'p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50'
-          : variant === 'mini'
-          ? 'flex items-center gap-1 text-xs text-gray-400 hover:text-red-500'
-          : 'flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border border-gray-200 text-gray-500 hover:border-red-300 hover:text-red-500 hover:bg-red-50'
-        }
-        ${className}
-      `}
-    >
-      <Flag className={variant === 'icon' ? 'w-3.5 h-3.5' : 'w-3 h-3'} />
-      {variant !== 'icon' && <span>Signaler</span>}
-    </button>
-  );
-
   if (!profile) {
     return (
-      <Link href="/connexion" title="Signaler" className={`p-1.5 rounded-lg text-gray-300 hover:text-red-400 transition-all ${className}`}>
-        <Flag className="w-3.5 h-3.5" />
+      <Link
+        href="/connexion"
+        aria-label="Signaler ce contenu (connexion requise)"
+        className={`p-1.5 rounded-lg text-gray-300 hover:text-red-400 transition-all ${className}`}
+      >
+        <Flag className="w-3.5 h-3.5" aria-hidden="true" />
       </Link>
     );
   }
 
   return (
     <div className="relative inline-block" ref={panelRef}>
-      {trigger}
+      {/* Trigger */}
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-controls={panelId}
+        aria-label="Signaler ce contenu"
+        className={`
+          transition-all
+          ${variant === 'icon'
+            ? 'p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50'
+            : variant === 'mini'
+            ? 'flex items-center gap-1 text-xs text-gray-400 hover:text-red-500'
+            : 'flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border border-gray-200 text-gray-500 hover:border-red-300 hover:text-red-500 hover:bg-red-50'
+          }
+          ${className}
+        `}
+      >
+        <Flag className={variant === 'icon' ? 'w-3.5 h-3.5' : 'w-3 h-3'} aria-hidden="true" />
+        {variant !== 'icon' && <span>Signaler</span>}
+      </button>
 
       {open && (
-        <div className="absolute right-0 top-8 z-50 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+        <div
+          id={panelId}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Signaler ce contenu"
+          className="absolute right-0 top-8 z-50 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-red-50 border-b border-red-100">
             <div className="flex items-center gap-2">
-              <Flag className="w-4 h-4 text-red-500" />
-              <span className="text-sm font-bold text-red-700">Signaler ce contenu</span>
+              <Flag className="w-4 h-4 text-red-500" aria-hidden="true" />
+              <span className="text-sm font-bold text-red-700" id={`${panelId}-title`}>Signaler ce contenu</span>
             </div>
-            <button type="button" onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600">
-              <X className="w-4 h-4" />
+            <button
+              type="button"
+              onClick={() => { setOpen(false); triggerRef.current?.focus(); }}
+              aria-label="Fermer le formulaire de signalement"
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
 
           {done ? (
-            <div className="px-4 py-6 text-center">
-              <span className="text-3xl">✅</span>
+            <div className="px-4 py-6 text-center" aria-live="polite">
+              <span className="text-3xl" aria-hidden="true">✅</span>
               <p className="mt-2 font-bold text-emerald-700 text-sm">Merci pour votre signalement !</p>
               <p className="text-xs text-gray-400 mt-1">Notre équipe va examiner ce contenu.</p>
             </div>
           ) : (
             <div className="p-4 space-y-3">
               {/* Raisons */}
-              <div>
-                <p className="text-xs font-semibold text-gray-600 mb-2">Raison du signalement *</p>
+              <fieldset>
+                <legend className="text-xs font-semibold text-gray-600 mb-2">Raison du signalement *</legend>
                 <div className="space-y-1">
                   {REPORT_REASONS.map(r => (
                     <label key={r.value} className="flex items-center gap-2.5 cursor-pointer group">
@@ -162,17 +193,20 @@ export default function ReportButton({
                         className="w-4 h-4 text-red-500 border-gray-300 focus:ring-red-400"
                       />
                       <span className="text-sm text-gray-700 group-hover:text-gray-900">
-                        {r.emoji} {r.label}
+                        <span aria-hidden="true">{r.emoji}</span> {r.label}
                       </span>
                     </label>
                   ))}
                 </div>
-              </div>
+              </fieldset>
 
               {/* Détail optionnel */}
               <div>
-                <p className="text-xs font-semibold text-gray-600 mb-1">Précisions (optionnel)</p>
+                <label htmlFor={`${panelId}-detail`} className="text-xs font-semibold text-gray-600 mb-1 block">
+                  Précisions (optionnel)
+                </label>
                 <textarea
+                  id={`${panelId}-detail`}
                   value={detail}
                   onChange={e => setDetail(e.target.value)}
                   maxLength={300}
@@ -189,7 +223,10 @@ export default function ReportButton({
                 disabled={!reason || sending}
                 className="w-full flex items-center justify-center gap-2 bg-red-500 text-white font-bold py-2.5 rounded-xl text-sm hover:bg-red-600 disabled:opacity-50 transition-all"
               >
-                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Flag className="w-4 h-4" />}
+                {sending
+                  ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                  : <Flag className="w-4 h-4" aria-hidden="true" />
+                }
                 Envoyer le signalement
               </button>
 

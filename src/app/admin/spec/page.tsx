@@ -1,8 +1,7 @@
-'use client';
-
 /**
  * Biguglia Connect — Cahier des charges & Spécification Fonctionnelle
  * Module Collectionneurs Premium v2.0
+ * Server Component — aucune interactivité client requise
  * Page consultable par l'admin pour vérifier l'état du développement.
  */
 

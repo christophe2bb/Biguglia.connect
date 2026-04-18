@@ -1,15 +1,15 @@
 'use client';
 
 /**
- * UserTable — Liste des utilisateurs avec lazy-loading des cartes.
+ * UserTable — Liste des utilisateurs avec lazy-loading des cartes et pagination.
  *
- * Reçoit la liste filtrée/triée depuis la page parente et affiche
+ * Reçoit la liste paginée depuis la page parente et affiche
  * chaque entrée via UserCard (chargée en lazy).
- * Séparation nette : logique de fetch dans page.tsx, rendu ici.
+ * Séparation nette : logique de fetch/filtre dans page.tsx, rendu ici.
  */
 
 import dynamic from 'next/dynamic';
-import { Users } from 'lucide-react';
+import { Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { UserWithActivity } from './types';
 
 // Lazy-load heavy card component
@@ -20,6 +20,10 @@ const UserCard = dynamic(() => import('./UserCard'), {
 interface UserTableProps {
   users: UserWithActivity[];
   loading: boolean;
+  page: number;
+  totalPages: number;
+  onPageChange: (p: number) => void;
+  onSelect: (user: UserWithActivity) => void;
   onSuspend: (id: string, status: string) => void;
   onDelete: (id: string, name: string) => void;
   onChangeRole: (id: string, role: string) => void;
@@ -29,6 +33,10 @@ interface UserTableProps {
 export default function UserTable({
   users,
   loading,
+  page,
+  totalPages,
+  onPageChange,
+  onSelect,
   onSuspend,
   onDelete,
   onChangeRole,
@@ -55,17 +63,41 @@ export default function UserTable({
   }
 
   return (
-    <div className="space-y-3">
-      {users.map(user => (
-        <UserCard
-          key={user.id}
-          user={user}
-          onSuspend={onSuspend}
-          onDelete={onDelete}
-          onChangeRole={onChangeRole}
-          onResetPassword={onResetPassword}
-        />
-      ))}
+    <div>
+      <div className="space-y-3">
+        {users.map(user => (
+          <div key={user.id} onClick={() => onSelect(user)} className="cursor-pointer">
+            <UserCard
+              user={user}
+              onSuspend={onSuspend}
+              onDelete={onDelete}
+              onChangeRole={onChangeRole}
+              onResetPassword={onResetPassword}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-6">
+          <button
+            onClick={() => onPageChange(Math.max(1, page - 1))}
+            disabled={page <= 1}
+            className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" /> Précédent
+          </button>
+          <span className="text-sm text-gray-500">Page {page} / {totalPages}</span>
+          <button
+            onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+            disabled={page >= totalPages}
+            className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Suivant <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

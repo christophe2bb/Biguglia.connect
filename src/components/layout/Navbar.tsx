@@ -111,11 +111,13 @@ export default function Navbar() {
               />
             ) : (
               <button
+                type="button"
                 onClick={() => setSearchOpen(true)}
+                aria-label="Ouvrir la recherche"
                 className="flex items-center gap-2 w-full px-3 h-9 rounded-2xl border border-gray-200 bg-gray-50 text-gray-400 text-sm hover:bg-white hover:border-gray-300 hover:text-gray-600 transition-all shadow-sm"
               >
-                <Search className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate">Rechercher…</span>
+                <Search className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+                <span className="truncate" aria-hidden="true">Rechercher…</span>
               </button>
             )}
           </div>
@@ -133,9 +135,9 @@ export default function Navbar() {
                       ? 'bg-brand-50 text-brand-600'
                       : 'text-gray-500 hover:bg-gray-100'
                   )}
-                  title={unread.messages > 0 ? `${unread.messages} message(s)` : 'Messages'}
+                  aria-label={unread.messages > 0 ? `Messages — ${unread.messages} non lu(s)` : 'Messages'}
                 >
-                  <MessageSquare className="w-5 h-5" />
+                  <MessageSquare className="w-5 h-5" aria-hidden="true" />
                   <UnreadBadge count={unread.messages} />
                 </Link>
 
@@ -148,9 +150,9 @@ export default function Navbar() {
                       ? 'bg-brand-50 text-brand-600'
                       : 'text-gray-500 hover:bg-gray-100'
                   )}
-                  title={unread.notifications > 0 ? `${unread.notifications} notification(s)` : 'Notifications'}
+                  aria-label={unread.notifications > 0 ? `Notifications — ${unread.notifications} non lue(s)` : 'Notifications'}
                 >
-                  <Bell className="w-5 h-5" />
+                  <Bell className="w-5 h-5" aria-hidden="true" />
                   <UnreadBadge count={unread.notifications} />
                 </Link>
 
@@ -186,18 +188,20 @@ export default function Navbar() {
             <Link
               href="/recherche"
               className="lg:hidden p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors"
-              title="Rechercher"
+              aria-label="Rechercher"
             >
-              <Search className="w-5 h-5" />
+              <Search className="w-5 h-5" aria-hidden="true" />
             </Link>
 
             {/* Burger mobile */}
             <button
+              type="button"
               className="lg:hidden p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors"
               onClick={() => setMenuOpen(!menuOpen)}
-              aria-label={menuOpen ? 'Fermer' : 'Menu'}
+              aria-expanded={menuOpen}
+              aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu de navigation'}
             >
-              {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {menuOpen ? <X className="w-5 h-5" aria-hidden="true" /> : <Menu className="w-5 h-5" aria-hidden="true" />}
             </button>
           </div>
         </div>

@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import {
-  CheckCircle, ChevronLeft,
+  CheckCircle, ChevronLeft, ChevronRight,
   AlertCircle, Shield,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
@@ -13,6 +13,7 @@ import type { Profile } from '@/types';
 import toast from 'react-hot-toast';
 import { adminFetch } from '@/lib/admin-fetch';
 import ArtisanFilters from './_components/ArtisanFilters';
+import ArtisanGuide from './_components/ArtisanGuide';
 
 interface ArtisanEntry {
   id: string;
@@ -42,6 +43,8 @@ const ArtisanDrawer = dynamic(() => import('./_components/ArtisanDrawer'), {
   loading: () => null,
 });
 
+const PAGE_SIZE = 10;
+
 export default function AdminArtisansPage() {
   useAuthStore();
   const [artisans, setArtisans] = useState<ArtisanEntry[]>([]);
@@ -50,6 +53,7 @@ export default function AdminArtisansPage() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'pending' | 'verified' | 'all'>('pending');
   const [selectedArtisan, setSelectedArtisan] = useState<ArtisanEntry | null>(null);
+  const [page, setPage] = useState(1);
 
   const fetchArtisans = useCallback(async () => {
     setLoading(true);
@@ -82,6 +86,7 @@ export default function AdminArtisansPage() {
         profile:          a.profile as ArtisanEntry['profile'],
       }));
       setArtisans(list);
+      setPage(1); // reset to first page on fresh load
     } catch (err) {
       setLoadError('Impossible de charger les artisans.');
       console.error('[artisans] fetch error:', err);
@@ -93,6 +98,9 @@ export default function AdminArtisansPage() {
   useEffect(() => {
     fetchArtisans();
   }, [filter, fetchArtisans]);
+
+  // Reset page when search changes
+  useEffect(() => { setPage(1); }, [search]);
 
   const approveArtisan = async (artisanUserId: string) => {
     const res = await adminFetch(`/api/admin/artisans/${artisanUserId}`, {
@@ -126,15 +134,19 @@ export default function AdminArtisansPage() {
     fetchArtisans();
   };
 
-  const filtered = artisans.filter(a =>
+  const filtered = useMemo(() => artisans.filter(a =>
     !search ||
     a.business_name?.toLowerCase().includes(search.toLowerCase()) ||
     a.profile?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
     a.profile?.email?.toLowerCase().includes(search.toLowerCase()) ||
     a.profile?.phone?.toLowerCase().includes(search.toLowerCase())
-  );
+  ), [artisans, search]);
 
   const pendingCount = artisans.filter(a => a.profile?.role === 'artisan_pending').length;
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <>
@@ -170,20 +182,10 @@ export default function AdminArtisansPage() {
           </div>
         )}
 
-        {/* ── Guide ── */}
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6">
-          <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2 text-sm">
-            <Shield className="w-4 h-4" /> Comment valider un artisan
-          </h3>
-          <ol className="text-xs text-blue-700 space-y-1 list-decimal list-inside">
-            <li>Cliquez sur <strong>«&nbsp;Voir le dossier&nbsp;»</strong> pour voir les détails complets</li>
-            <li>Vérifiez les informations (nom, téléphone, catégorie, documents éventuels)</li>
-            <li>Utilisez <strong>«&nbsp;Envoyer un message&nbsp;»</strong> pour demander des informations supplémentaires</li>
-            <li>Cochez <strong>«&nbsp;Artisan de Biguglia ✓&nbsp;»</strong> puis cliquez sur <strong>«&nbsp;Approuver&nbsp;»</strong></li>
-          </ol>
-        </div>
+        {/* ── Guide (lazy-loaded) ── */}
+        <ArtisanGuide />
 
-        {/* ── Filtres (extracted component) ── */}
+        {/* ── Filtres ── */}
         <ArtisanFilters
           search={search}
           filter={filter}
@@ -194,7 +196,7 @@ export default function AdminArtisansPage() {
           onRefresh={fetchArtisans}
         />
 
-        {/* ── Liste ── */}
+        {/* ── Liste paginée ── */}
         {loading ? (
           <div className="space-y-4">
             {[...Array(3)].map((_, i) => <div key={i} className="h-32 bg-gray-100 rounded-2xl animate-pulse" />)}
@@ -210,16 +212,40 @@ export default function AdminArtisansPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {filtered.map(artisan => (
-              <ArtisanCard
-                key={artisan.id}
-                artisan={artisan}
-                onApprove={approveArtisan}
-                onReject={rejectArtisan}
-              />
-            ))}
-          </div>
+          <>
+            <div className="space-y-4">
+              {paginated.map(artisan => (
+                <div key={artisan.id} onClick={() => setSelectedArtisan(artisan)} className="cursor-pointer">
+                  <ArtisanCard
+                    artisan={artisan}
+                    onApprove={approveArtisan}
+                    onReject={rejectArtisan}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" /> Précédent
+                </button>
+                <span className="text-sm text-gray-500">Page {page} / {totalPages}</span>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Suivant <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
