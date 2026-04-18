@@ -84,10 +84,12 @@ export default function AssociationForm({
           <p className="text-sm font-bold text-gray-700">Bloc 2 — Identité de l&apos;association</p>
           <input type="text" placeholder="Nom de l'association *" required value={form.name}
             onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            aria-label="Nom de l'association (obligatoire)"
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
           />
           <input type="text" placeholder='Slogan / phrase courte (ex: "Faire vivre le sport pour tous à Biguglia")'
             value={form.slogan} onChange={e => setForm(f => ({ ...f, slogan: e.target.value }))}
+            aria-label="Slogan ou phrase courte de l'association"
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
           />
           <div>
@@ -108,10 +110,12 @@ export default function AssociationForm({
             </div>
           </div>
           <textarea placeholder="Description courte * (1-2 phrases visibles immédiatement)" rows={2} required
+            aria-label="Description courte (obligatoire) — 1 ou 2 phrases visibles immédiatement"
             value={form.description_short} onChange={e => setForm(f => ({ ...f, description_short: e.target.value }))}
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-300"
           />
           <textarea placeholder="Présentation complète — histoire, mission, actions, public, valeurs…" rows={5}
+            aria-label="Présentation complète de l'association"
             value={form.description_full} onChange={e => setForm(f => ({ ...f, description_full: e.target.value }))}
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-300"
           />
@@ -124,6 +128,7 @@ export default function AssociationForm({
               </select>
             </div>
             <input type="text" placeholder="Adresse / lieu principal"
+              aria-label="Adresse ou lieu principal"
               value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
               className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 mt-5"
             />
@@ -193,6 +198,7 @@ export default function AssociationForm({
               </select>
             </div>
             <input type="text" placeholder="Jours et horaires (ex: Lundi 18h-20h)"
+              aria-label="Jours et horaires (exemple : Lundi 18h-20h)"
               value={form.schedule} onChange={e => setForm(f => ({ ...f, schedule: e.target.value }))}
               className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 mt-5"
             />
@@ -322,6 +328,7 @@ export default function AssociationForm({
               <div className="grid grid-cols-2 gap-3">
                 <input type="text" placeholder="Nom du contact *" value={form.contact_name}
                   onChange={e => setForm(f => ({ ...f, contact_name: e.target.value }))}
+                  aria-label="Nom du contact (obligatoire)"
                   className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
                 />
                 <select value={form.contact_role} onChange={e => setForm(f => ({ ...f, contact_role: e.target.value }))}
@@ -333,24 +340,29 @@ export default function AssociationForm({
               <div className="grid grid-cols-2 gap-3">
                 <input type="tel" placeholder="Téléphone" value={form.contact_phone}
                   onChange={e => setForm(f => ({ ...f, contact_phone: e.target.value }))}
+                  aria-label="Téléphone du contact"
                   className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
                 />
                 <input type="email" placeholder="Email" value={form.contact_email}
                   onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))}
+                  aria-label="Adresse email du contact"
                   className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
                 />
               </div>
               <input type="url" placeholder="Site web (https://…)" value={form.contact_website}
                 onChange={e => setForm(f => ({ ...f, contact_website: e.target.value }))}
+                aria-label="Site web de l'association"
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
               />
               <div className="grid grid-cols-2 gap-3">
                 <input type="url" placeholder="Facebook (https://…)" value={form.contact_facebook}
                   onChange={e => setForm(f => ({ ...f, contact_facebook: e.target.value }))}
+                  aria-label="Page Facebook de l'association"
                   className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
                 />
                 <input type="url" placeholder="Instagram (https://…)" value={form.contact_instagram}
                   onChange={e => setForm(f => ({ ...f, contact_instagram: e.target.value }))}
+                  aria-label="Compte Instagram de l'association"
                   className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
                 />
               </div>
@@ -385,12 +397,14 @@ export default function AssociationForm({
             {form.declared && (
               <input type="text" placeholder="N° RNA (optionnel)" value={form.rna_number}
                 onChange={e => setForm(f => ({ ...f, rna_number: e.target.value }))}
+                aria-label="Numéro RNA de l'association (optionnel)"
                 className="mt-3 w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
               />
             )}
             {form.places_limited && (
               <input type="number" placeholder="Nombre de places disponibles" min={1} value={form.capacity}
                 onChange={e => setForm(f => ({ ...f, capacity: e.target.value }))}
+                aria-label="Nombre de places disponibles"
                 className="mt-3 w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
               />
             )}

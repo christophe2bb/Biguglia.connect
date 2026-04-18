@@ -1,17 +1,29 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, Flag } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 
+import dynamic from 'next/dynamic';
+import { Loader2 } from 'lucide-react';
 import { TABS, STAT_CARDS } from './_config';
 import { useAdminCounts } from './_hooks/useAdminCounts';
-import ListingsTab  from './_components/ListingsTab';
-import ForumTab     from './_components/ForumTab';
-import EquipmentTab from './_components/EquipmentTab';
-import ReviewsTab   from './_components/ReviewsTab';
 import type { TabId } from './_types';
+
+// NOTE: next/dynamic requires options to be inline object literals (webpack static analysis)
+const TabSpinner = () => (
+  <div className="flex items-center justify-center py-16">
+    <Loader2 className="w-6 h-6 animate-spin text-brand-500 mr-2" />
+    <span className="text-sm text-gray-400">Chargement…</span>
+  </div>
+);
+
+// Lazy-load each tab panel — only the active tab's bundle is fetched
+const ListingsTab  = dynamic(() => import('./_components/ListingsTab'),  { loading: () => <TabSpinner /> });
+const ForumTab     = dynamic(() => import('./_components/ForumTab'),     { loading: () => <TabSpinner /> });
+const EquipmentTab = dynamic(() => import('./_components/EquipmentTab'), { loading: () => <TabSpinner /> });
+const ReviewsTab   = dynamic(() => import('./_components/ReviewsTab'),   { loading: () => <TabSpinner /> });
 
 export default function AdminContenuPage() {
   const { profile } = useAuthStore();

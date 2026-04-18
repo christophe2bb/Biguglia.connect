@@ -9,43 +9,56 @@
  * SÉCURITÉ : toutes les données sont chargées via GET /api/admin/moderation/stats-data
  * (protégé par getAdminUser — service-role, bypass RLS).
  * Plus aucune requête Supabase directe depuis le navigateur.
+ *
+ * Architecture : 4 panneaux lazy-chargés → seuls les imports actifs atterrissent
+ * dans le bundle initial.
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import {
-  ArrowLeft, Clock,
-  AlertTriangle, Users, BarChart3, RefreshCw, Star, Flag,
-  Package, Wrench, Heart, Footprints, Calendar, MapPin,
-  BookOpen, Handshake, ChevronRight, Activity,
-} from 'lucide-react';
-import type { ModerationStatsData, ContentType, ByTypeStat, RecentDecision, MemberStat } from '@/app/api/admin/moderation/stats-data/route';
-import Avatar from '@/components/ui/Avatar';
-import { formatRelative } from '@/lib/utils';
-import { CONTENT_TYPE_LABELS } from '@/lib/moderation';
+import dynamic from 'next/dynamic';
+import { ArrowLeft, BarChart3, RefreshCw } from 'lucide-react';
+import type { ModerationStatsData } from '@/app/api/admin/moderation/stats-data/route';
 import toast from 'react-hot-toast';
 import { adminFetch } from '@/lib/admin-fetch';
 
-// ─── Config icônes contenu ────────────────────────────────────────────────────
-const CONTENT_ICONS: Record<ContentType, React.ElementType> = {
-  listing: Package, equipment: Wrench, help_request: Heart,
-  outing: Footprints, event: Calendar, lost_found: MapPin,
-  collection_item: Star, association: Handshake, forum_post: BookOpen,
-};
-
-// ─── Composants ──────────────────────────────────────────────────────────────
-function BigStat({ value, label, emoji, color, subtext }: {
-  value: string | number; label: string; emoji: string; color: string; subtext?: string;
-}) {
+// ─── Spinner inline ────────────────────────────────────────────────────────────
+function PanelSkeleton() {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 text-center">
-      <div className="text-3xl mb-1">{emoji}</div>
-      <div className={`text-3xl font-black ${color}`}>{value}</div>
-      <div className="text-sm font-medium text-gray-600 mt-1">{label}</div>
-      {subtext && <div className="text-xs text-gray-400 mt-0.5">{subtext}</div>}
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="h-28 bg-gray-100 rounded-2xl animate-pulse" />
+      ))}
     </div>
   );
 }
+
+// ─── Lazy panels ──────────────────────────────────────────────────────────────
+const StatsOverview = dynamic(() => import('./_components/StatsOverview'), {
+  loading: () => <PanelSkeleton />,
+});
+
+const RatesPanel = dynamic(() => import('./_components/RatesPanel'), {
+  loading: () => (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {[...Array(3)].map((_, i) => (
+        <div key={i} className="h-28 bg-gray-100 rounded-2xl animate-pulse" />
+      ))}
+    </div>
+  ),
+});
+
+const ByTypePanel = dynamic(() => import('./_components/ByTypePanel'), {
+  loading: () => (
+    <div className="h-48 bg-gray-100 rounded-2xl animate-pulse" />
+  ),
+});
+
+const MembersPanel = dynamic(() => import('./_components/MembersPanel'), {
+  loading: () => (
+    <div className="h-40 bg-gray-100 rounded-2xl animate-pulse" />
+  ),
+});
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 function ModerationStatsContent() {
@@ -72,13 +85,6 @@ function ModerationStatsContent() {
   }, []);
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
-
-  const acceptanceRate = stats && stats.total > 0
-    ? Math.round((stats.published / stats.total) * 100) : 0;
-  const refusalRate = stats && stats.total > 0
-    ? Math.round((stats.refused / stats.total) * 100) : 0;
-  const correctionRate = stats && stats.total > 0
-    ? Math.round((stats.correction / stats.total) * 100) : 0;
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
@@ -108,219 +114,22 @@ function ModerationStatsContent() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="h-28 bg-gray-100 rounded-2xl animate-pulse" />
-          ))}
-        </div>
+        <PanelSkeleton />
       ) : !stats ? (
         <p className="text-gray-500 text-center py-12">Données non disponibles</p>
       ) : (
         <div className="space-y-8">
           {/* KPIs principaux */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <BigStat value={stats.total}     label="Total traité"     emoji="📊" color="text-gray-900" />
-            <BigStat value={stats.pending}   label="En attente"       emoji="⏳" color="text-amber-600" subtext="à traiter" />
-            <BigStat value={stats.last24h}   label="Dernières 24h"    emoji="🕐" color="text-indigo-600" subtext="nouvelles soumissions" />
-            <BigStat
-              value={stats.avgReviewHours != null ? `${stats.avgReviewHours.toFixed(1)}h` : '—'}
-              label="Délai moyen"
-              emoji="⏱️"
-              color={stats.avgReviewHours != null && stats.avgReviewHours <= 24 ? 'text-emerald-600' : 'text-red-600'}
-              subtext="objectif <24h"
-            />
-          </div>
+          <StatsOverview stats={stats} />
 
-          {/* Taux */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {[
-              { label: 'Taux d\'acceptation', value: acceptanceRate, count: stats.published, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', emoji: '✅' },
-              { label: 'Taux de refus',       value: refusalRate,    count: stats.refused,   color: 'text-red-600',     bg: 'bg-red-50',     border: 'border-red-200',     emoji: '❌' },
-              { label: 'Taux de correction',  value: correctionRate, count: stats.correction, color: 'text-amber-600',  bg: 'bg-amber-50',   border: 'border-amber-200',   emoji: '✏️' },
-            ].map(({ label, value, count, color, bg, border, emoji }) => (
-              <div key={label} className={`rounded-2xl border p-5 ${bg} ${border}`}>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-semibold text-gray-700">{emoji} {label}</span>
-                  <span className={`text-3xl font-black ${color}`}>{value}%</span>
-                </div>
-                <div className="w-full h-3 bg-white/60 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full bg-current ${color} transition-all`} style={{ width: `${value}%` }} />
-                </div>
-                <p className={`text-xs ${color} mt-2`}>{count} publication{count > 1 ? 's' : ''}</p>
-              </div>
-            ))}
-          </div>
+          {/* Taux + alertes risque */}
+          <RatesPanel stats={stats} />
 
-          {/* Risques + alertes */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className={`rounded-2xl border p-4 ${stats.highRisk > 0 ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-100'}`}>
-              <div className="flex items-center gap-2 mb-2">
-                <AlertTriangle className={`w-5 h-5 ${stats.highRisk > 0 ? 'text-orange-600' : 'text-gray-400'}`} />
-                <span className="font-semibold text-gray-700">Haut risque</span>
-              </div>
-              <p className={`text-3xl font-black ${stats.highRisk > 0 ? 'text-orange-700' : 'text-gray-400'}`}>{stats.highRisk}</p>
-              <p className="text-xs text-gray-500 mt-1">publications nécessitant attention</p>
-            </div>
-            <div className="rounded-2xl border border-gray-100 bg-white p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Users className="w-5 h-5 text-blue-600" />
-                <span className="font-semibold text-gray-700">Nouveaux auteurs</span>
-              </div>
-              <p className="text-3xl font-black text-blue-700">{stats.newAuthors}</p>
-              <p className="text-xs text-gray-500 mt-1">en attente (membres récents)</p>
-            </div>
-            <div className="rounded-2xl border border-gray-100 bg-white p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Activity className="w-5 h-5 text-purple-600" />
-                <span className="font-semibold text-gray-700">Archivées</span>
-              </div>
-              <p className="text-3xl font-black text-gray-600">{stats.archived}</p>
-              <p className="text-xs text-gray-500 mt-1">publications archivées</p>
-            </div>
-          </div>
+          {/* Répartition par thème + décisions récentes */}
+          <ByTypePanel stats={stats} />
 
-          {/* Répartition par thème */}
-          {stats.byType.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 p-6">
-              <h2 className="text-base font-bold text-gray-900 mb-5 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-indigo-500" />
-                Répartition par thème
-              </h2>
-              <div className="space-y-3">
-                {stats.byType.map(({ type, count, pending, refused }: ByTypeStat) => {
-                  const meta = CONTENT_TYPE_LABELS[type as ContentType];
-                  const Icon = CONTENT_ICONS[type as ContentType] || Package;
-                  return (
-                    <div key={type} className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0">
-                        <Icon className="w-4 h-4 text-gray-500" />
-                      </div>
-                      <span className="text-sm text-gray-700 w-28 flex-shrink-0">
-                        {meta?.emoji} {meta?.label}
-                      </span>
-                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-brand-400 rounded-full"
-                          style={{ width: `${stats.total > 0 ? (count / stats.total) * 100 : 0}%` }}
-                        />
-                      </div>
-                      <span className="text-sm font-bold text-gray-800 w-8 text-right">{count}</span>
-                      {pending > 0 && (
-                        <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">
-                          {pending} en attente
-                        </span>
-                      )}
-                      {refused > 0 && (
-                        <span className="text-xs font-semibold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full border border-red-200">
-                          {refused} refusées
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Décisions récentes */}
-            {stats.recentDecisions.length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 p-6">
-                <h2 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-gray-500" />
-                  Décisions récentes
-                </h2>
-                <div className="space-y-2.5">
-                  {stats.recentDecisions.map((dec: RecentDecision) => {
-                    const Icon = CONTENT_ICONS[dec.content_type as ContentType] || Package;
-                    const statusColor =
-                      dec.status === 'publie' ? 'text-emerald-600' :
-                      dec.status === 'refuse'  ? 'text-red-600' :
-                      'text-amber-600';
-                    const statusEmoji =
-                      dec.status === 'publie' ? '✅' :
-                      dec.status === 'refuse'  ? '❌' : '✏️';
-                    return (
-                      <Link
-                        key={dec.id}
-                        href={`/admin/moderation/${dec.id}`}
-                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors group"
-                      >
-                        <Icon className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-gray-800 truncate">{dec.content_title}</p>
-                          <p className="text-[10px] text-gray-400">
-                            {dec.author?.full_name} · {formatRelative(dec.reviewed_at)}
-                          </p>
-                        </div>
-                        <span className={`text-xs font-bold flex-shrink-0 ${statusColor}`}>
-                          {statusEmoji}
-                        </span>
-                        <ChevronRight className="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors" />
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Membres surveillés */}
-            <div className="space-y-6">
-              {stats.problematicMembers.length > 0 && (
-                <div className="bg-white rounded-2xl border border-red-100 p-5">
-                  <h2 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <Flag className="w-5 h-5 text-red-500" />
-                    Membres surveillés
-                  </h2>
-                  <div className="space-y-2.5">
-                    {stats.problematicMembers.map((m: MemberStat) => (
-                      <div key={m.id} className="flex items-center gap-3">
-                        <Avatar src={m.avatar_url} name={m.full_name} size="xs" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-gray-800 truncate">{m.full_name}</p>
-                          <p className="text-[10px] text-gray-400">
-                            {m.publication_count} pub · {m.reports_received} signalement{m.reports_received > 1 ? 's' : ''}
-                          </p>
-                        </div>
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200">
-                          ⚠️ Surveillé
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {stats.trustedMembers.length > 0 && (
-                <div className="bg-white rounded-2xl border border-emerald-100 p-5">
-                  <h2 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <Star className="w-5 h-5 text-emerald-500" />
-                    Membres de confiance
-                  </h2>
-                  <div className="space-y-2.5">
-                    {stats.trustedMembers.map((m: MemberStat) => (
-                      <div key={m.id} className="flex items-center gap-3">
-                        <Avatar src={m.avatar_url} name={m.full_name} size="xs" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-gray-800 truncate">{m.full_name}</p>
-                          <p className="text-[10px] text-gray-400">
-                            {m.publication_count} publications
-                          </p>
-                        </div>
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                          m.trust_level === 'de_confiance'
-                            ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        }`}>
-                          {m.trust_level === 'de_confiance' ? '🏆' : '✅'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          {/* Membres surveillés + de confiance */}
+          <MembersPanel stats={stats} />
         </div>
       )}
     </div>
@@ -328,9 +137,5 @@ function ModerationStatsContent() {
 }
 
 export default function ModerationStatsPage() {
-  return (
-    <>
-      <ModerationStatsContent />
-    </>
-  );
+  return <ModerationStatsContent />;
 }

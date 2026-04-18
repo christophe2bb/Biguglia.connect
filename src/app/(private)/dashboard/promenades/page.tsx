@@ -15,9 +15,21 @@ import {
   legacyToFrenchStatus, computeDisplayStatus,
   type OutingStatus,
 } from '@/lib/outings';
-import OutingCard, { type OutingWithStats } from './_widgets/OutingCard';
-import ParticipantsTab, { type Participant } from './_widgets/ParticipantsTab';
-import HistoriqueTab from './_widgets/HistoriqueTab';
+import dynamic from 'next/dynamic';
+import type { OutingWithStats } from './_widgets/OutingCard';
+import type { Participant } from './_widgets/ParticipantsTab';
+
+// NOTE: next/dynamic requires options to be inline object literals (webpack static analysis)
+const TabSpinner = () => (
+  <div className="flex items-center justify-center py-10">
+    <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+  </div>
+);
+
+// Lazy-load tab panels — only the active tab bundle is loaded
+const OutingCard      = dynamic(() => import('./_widgets/OutingCard'),      { loading: () => <TabSpinner /> });
+const ParticipantsTab = dynamic(() => import('./_widgets/ParticipantsTab'), { loading: () => <TabSpinner /> });
+const HistoriqueTab   = dynamic(() => import('./_widgets/HistoriqueTab'),   { loading: () => <TabSpinner /> });
 
 type DashboardStats = {
   total: number;
