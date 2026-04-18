@@ -9,10 +9,18 @@
  *   DateSeparator   — séparateur de date entre groupes
  *   SystemMessage   — bulle message bot/système
  *   MessageBubble   — bulle utilisateur avec menu de suppression
+ *
+ * Pagination : les MSG_INITIAL derniers messages sont affichés ; un bouton
+ * « Voir les anciens messages » charge MSG_PAGE de plus vers le haut.
  */
 
-import { useState, useRef } from 'react';
-import { MessageSquare, CheckCheck, Trash2, Bot, AlertCircle } from 'lucide-react';
+import { useState, useRef, useCallback } from 'react';
+import { MessageSquare, CheckCheck, Trash2, Bot, AlertCircle, ChevronUp } from 'lucide-react';
+
+/** Nombre de messages affichés au chargement initial */
+const MSG_INITIAL = 30;
+/** Nombre de messages supplémentaires chargés à chaque "Voir plus" */
+const MSG_PAGE = 20;
 import Avatar from '@/components/ui/Avatar';
 import { cn, formatRelative } from '@/lib/utils';
 import { ProfileWithEmail, GroupedMessage } from '../_types';
@@ -214,6 +222,18 @@ export function MessageList({
 }: MessageListProps) {
   const conf = relatedType ? CONTEXT_CONFIG[relatedType] : null;
 
+  // ── Pagination : on affiche les N derniers messages ───────────────────────
+  const [visibleCount, setVisibleCount] = useState(MSG_INITIAL);
+  const totalMessages = grouped.length;
+  // Toujours afficher les messages les plus récents (fin du tableau)
+  const startIdx = Math.max(0, totalMessages - visibleCount);
+  const visibleGrouped = grouped.slice(startIdx);
+  const hasOlder = startIdx > 0;
+
+  const loadOlder = useCallback(() => {
+    setVisibleCount(c => c + MSG_PAGE);
+  }, []);
+
   return (
     <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-1 pb-4 px-1">
       {/* Skeleton */}
@@ -251,47 +271,64 @@ export function MessageList({
           )}
         </div>
       ) : (
-        grouped.map(({ msg, showSep }, i) => {
-          const isMe = msg.sender_id === currentUserId;
-          const isTemp = msg.id.startsWith('temp-');
-          const isSystem =
-            msg.is_system ||
-            msg.content?.startsWith('👋') ||
-            msg.content?.startsWith('✅') ||
-            msg.content?.startsWith('🤝') ||
-            msg.content?.includes('Échange confirmé') ||
-            msg.content?.includes('Conversation créée') ||
-            msg.content?.includes('je vous contacte') ||
-            msg.content?.includes('via biguglia connect');
-
-          const showAvatar =
-            !isMe && !isSystem &&
-            (i === 0 || grouped[i - 1]?.msg.sender_id !== msg.sender_id);
-
-          const isLastFromSender =
-            isMe && !isSystem &&
-            (i === grouped.length - 1 || grouped[i + 1]?.msg.sender_id !== currentUserId);
-
-          return (
-            <div key={msg.id}>
-              {showSep && <DateSeparator date={msg.created_at} />}
-              {isSystem ? (
-                <SystemMessage content={msg.content ?? ''} />
-              ) : (
-                <MessageBubble
-                  msg={msg}
-                  isMe={isMe}
-                  isTemp={isTemp}
-                  showAvatar={showAvatar}
-                  isLastFromSender={isLastFromSender}
-                  isDeleting={deletingMsgId === msg.id}
-                  onDelete={onDeleteMessage}
-                  currentUserId={currentUserId ?? ''}
-                />
-              )}
+        <>
+          {/* Bouton charger les messages plus anciens */}
+          {hasOlder && (
+            <div className="flex justify-center py-3">
+              <button
+                onClick={loadOlder}
+                className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-semibold rounded-xl transition-colors"
+              >
+                <ChevronUp className="w-3.5 h-3.5" />
+                Voir les {Math.min(MSG_PAGE, startIdx)} messages précédents
+              </button>
             </div>
-          );
-        })
+          )}
+
+          {visibleGrouped.map(({ msg, showSep }, i) => {
+            // Indices relatifs dans le sous-tableau visible
+            const globalI = startIdx + i;
+            const isMe = msg.sender_id === currentUserId;
+            const isTemp = msg.id.startsWith('temp-');
+            const isSystem =
+              msg.is_system ||
+              msg.content?.startsWith('👋') ||
+              msg.content?.startsWith('✅') ||
+              msg.content?.startsWith('🤝') ||
+              msg.content?.includes('Échange confirmé') ||
+              msg.content?.includes('Conversation créée') ||
+              msg.content?.includes('je vous contacte') ||
+              msg.content?.includes('via biguglia connect');
+
+            const showAvatar =
+              !isMe && !isSystem &&
+              (globalI === 0 || grouped[globalI - 1]?.msg.sender_id !== msg.sender_id);
+
+            const isLastFromSender =
+              isMe && !isSystem &&
+              (globalI === grouped.length - 1 || grouped[globalI + 1]?.msg.sender_id !== currentUserId);
+
+            return (
+              <div key={msg.id}>
+                {showSep && <DateSeparator date={msg.created_at} />}
+                {isSystem ? (
+                  <SystemMessage content={msg.content ?? ''} />
+                ) : (
+                  <MessageBubble
+                    msg={msg}
+                    isMe={isMe}
+                    isTemp={isTemp}
+                    showAvatar={showAvatar}
+                    isLastFromSender={isLastFromSender}
+                    isDeleting={deletingMsgId === msg.id}
+                    onDelete={onDeleteMessage}
+                    currentUserId={currentUserId ?? ''}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </>
       )}
 
       <div ref={messagesEndRef} />

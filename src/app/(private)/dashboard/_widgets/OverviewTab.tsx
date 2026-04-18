@@ -1,10 +1,11 @@
 'use client';
 
+import { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import {
   MessageSquare, Bell, Activity, Star, Package, Eye, Heart, Wrench,
   Users, Repeat2, Trophy, HelpCircle, Zap, User, Edit3, ChevronRight,
-  TrendingUp, Clock, BarChart3,
+  TrendingUp, Clock, BarChart3, ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TrustScoreCard } from '@/components/ui/TrustScore';
@@ -17,6 +18,8 @@ import {
 import { QUICK_ACTIONS } from '../_constants';
 import CommunitiesSection from './CommunitiesSection';
 import dynamic from 'next/dynamic';
+
+const ACTIVITY_PAGE = 5;
 
 // PersonalizedSuggestions : lazy — accède localStorage, non critique au premier rendu
 const PersonalizedSuggestions = dynamic(() => import('./PersonalizedSuggestions'), { ssr: false });
@@ -46,45 +49,80 @@ export default function OverviewTab({
 }: Props) {
   const { stats, todos, activeInteractions, recentActivity, loading } = dashData;
 
+  // ── Pagination de l'activité récente ──────────────────────────────────────
+  const [activityVisible, setActivityVisible] = useState(ACTIVITY_PAGE);
+  const visibleActivity = useMemo(
+    () => recentActivity.slice(0, activityVisible),
+    [recentActivity, activityVisible],
+  );
+  const hasMoreActivity = recentActivity.length > activityVisible;
+  const showMoreActivity = useCallback(
+    () => setActivityVisible(v => v + ACTIVITY_PAGE),
+    [],
+  );
+
+  // ── Mémoïsation des lignes de stats (évite re-render à chaque frappe onglet)
+  const statRow1 = useMemo(() => (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <StatCard icon={MessageSquare} label="Messages non lus"   value={unread.messages}       href="/messages"
+        color="text-emerald-600" bg="bg-emerald-50" badge={unread.messages} />
+      <StatCard icon={Bell}          label="Notifications"       value={unread.notifications}  href="/notifications"
+        color="text-blue-600" bg="bg-blue-50" badge={unread.notifications} />
+      <StatCard icon={Activity}      label="Échanges actifs"     value={stats.activeInteractions + stats.pendingInteractions}
+        href="/mes-echanges"   color="text-indigo-600" bg="bg-indigo-50"
+        badge={stats.pendingInteractions} accent={stats.pendingInteractions > 0} />
+      <StatCard icon={Star}          label="Avis à laisser"      value={stats.reviewsToGive}
+        href="/mes-echanges?filter=to_review" color="text-amber-600" bg="bg-amber-50" badge={stats.reviewsToGive} />
+    </div>
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ), [
+    unread.messages, unread.notifications,
+    stats.activeInteractions, stats.pendingInteractions, stats.reviewsToGive,
+  ]);
+
+  const statRow2 = useMemo(() => (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <StatCard icon={Package} label="Annonces actives"    value={stats.activeListings}   href="/annonces"             color="text-brand-600"  bg="bg-brand-50" />
+      <StatCard icon={Eye}     label="Vues totales"        value={stats.totalViews}        href="/dashboard/contenus"   color="text-purple-600" bg="bg-purple-50" />
+      <StatCard icon={Heart}   label="Aides ouvertes"      value={stats.openHelps}         href="/coups-de-main"        color="text-rose-600"   bg="bg-rose-50" />
+      <StatCard icon={Wrench}  label="Matériel disponible" value={stats.activeEquipment}   href="/materiel"             color="text-sky-600"    bg="bg-sky-50" />
+    </div>
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ), [stats.activeListings, stats.totalViews, stats.openHelps, stats.activeEquipment]);
+
+  const statRow3 = useMemo(() => (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <StatCard icon={Users}      label="Participations" value={stats.eventParticipations + stats.outingParticipations}
+        href="/mes-echanges" color="text-emerald-600" bg="bg-emerald-50" />
+      <StatCard icon={Repeat2}    label="Prêts actifs"   value={stats.activeLends + stats.activeBorrows}
+        href="/materiel" color="text-sky-700" bg="bg-sky-50" />
+      <StatCard icon={Trophy}     label="Collections"    value={stats.activeCollections}   href="/dashboard/collectionneurs" color="text-amber-600" bg="bg-amber-50" />
+      <StatCard icon={HelpCircle} label="Perdu/Trouvé"   value={stats.activeLostFound}     href="/perdu-trouve"              color="text-red-600"   bg="bg-red-50" />
+    </div>
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ), [
+    stats.eventParticipations, stats.outingParticipations,
+    stats.activeLends, stats.activeBorrows,
+    stats.activeCollections, stats.activeLostFound,
+  ]);
+
   return (
     <div className="space-y-6">
 
-      {/* ── Stats row 1: communication ─── */}
+      {/* ── Stats row 1: communication (mémoïsé) ─── */}
       <div>
         <div className="flex items-center gap-2 mb-3">
           <BarChart3 className="w-4 h-4 text-gray-400" />
           <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Résumé de votre activité</span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard icon={MessageSquare} label="Messages non lus"   value={unread.messages}       href="/messages"
-            color="text-emerald-600" bg="bg-emerald-50" badge={unread.messages} />
-          <StatCard icon={Bell}          label="Notifications"       value={unread.notifications}  href="/notifications"
-            color="text-blue-600" bg="bg-blue-50" badge={unread.notifications} />
-          <StatCard icon={Activity}      label="Échanges actifs"     value={stats.activeInteractions + stats.pendingInteractions}
-            href="/mes-echanges"   color="text-indigo-600" bg="bg-indigo-50"
-            badge={stats.pendingInteractions} accent={stats.pendingInteractions > 0} />
-          <StatCard icon={Star}          label="Avis à laisser"      value={stats.reviewsToGive}
-            href="/mes-echanges?filter=to_review" color="text-amber-600" bg="bg-amber-50" badge={stats.reviewsToGive} />
-        </div>
+        {statRow1}
       </div>
 
-      {/* ── Stats row 2: content ─── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard icon={Package} label="Annonces actives"    value={stats.activeListings}   href="/annonces"             color="text-brand-600"  bg="bg-brand-50" />
-        <StatCard icon={Eye}     label="Vues totales"        value={stats.totalViews}        href="/dashboard/contenus"   color="text-purple-600" bg="bg-purple-50" />
-        <StatCard icon={Heart}   label="Aides ouvertes"      value={stats.openHelps}         href="/coups-de-main"        color="text-rose-600"   bg="bg-rose-50" />
-        <StatCard icon={Wrench}  label="Matériel disponible" value={stats.activeEquipment}   href="/materiel"             color="text-sky-600"    bg="bg-sky-50" />
-      </div>
+      {/* ── Stats row 2: content (mémoïsé) ─── */}
+      {statRow2}
 
-      {/* ── Stats row 3: participations / collections / lf ─── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard icon={Users}      label="Participations" value={stats.eventParticipations + stats.outingParticipations}
-          href="/mes-echanges" color="text-emerald-600" bg="bg-emerald-50" />
-        <StatCard icon={Repeat2}    label="Prêts actifs"   value={stats.activeLends + stats.activeBorrows}
-          href="/materiel" color="text-sky-700" bg="bg-sky-50" />
-        <StatCard icon={Trophy}     label="Collections"    value={stats.activeCollections}   href="/dashboard/collectionneurs" color="text-amber-600" bg="bg-amber-50" />
-        <StatCard icon={HelpCircle} label="Perdu/Trouvé"   value={stats.activeLostFound}     href="/perdu-trouve"              color="text-red-600"   bg="bg-red-50" />
-      </div>
+      {/* ── Stats row 3: participations / collections / lf (mémoïsé) ─── */}
+      {statRow3}
 
       {/* ── Todo list ─── */}
       {todos.length > 0 && (
@@ -153,7 +191,7 @@ export default function OverviewTab({
               </div>
             ) : (
               <div className="space-y-1">
-                {recentActivity.map(act => (
+                {visibleActivity.map(act => (
                   <Link key={act.id} href={act.href}>
                     <div className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors">
                       <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 text-sm">
@@ -171,6 +209,15 @@ export default function OverviewTab({
                     </div>
                   </Link>
                 ))}
+                {hasMoreActivity && (
+                  <button
+                    onClick={showMoreActivity}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-purple-600 hover:text-purple-700 transition-colors border-t border-gray-50 mt-1"
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                    {Math.min(ACTIVITY_PAGE, recentActivity.length - activityVisible)} de plus
+                  </button>
+                )}
               </div>
             )}
           </div>

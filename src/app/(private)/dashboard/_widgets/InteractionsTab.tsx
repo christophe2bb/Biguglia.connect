@@ -1,7 +1,9 @@
 
+'use client';
 
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
-import { Activity, Users, Inbox, Send, ChevronRight } from 'lucide-react';
+import { Activity, Users, Inbox, Send, ChevronRight, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { useDashboardData } from '@/hooks/useDashboardData';
 import { SectionHeader, InteractionRow, SkeletonRows } from '../_components/DashWidgets';
@@ -9,8 +11,30 @@ import { SectionHeader, InteractionRow, SkeletonRows } from '../_components/Dash
 type DashData = ReturnType<typeof useDashboardData>;
 interface Props { dashData: DashData }
 
+const PAGE_SIZE = 5;
+
 export default function InteractionsTab({ dashData }: Props) {
   const { stats, activeInteractions, participations, loading } = dashData;
+
+  // ── Pagination des échanges actifs ────────────────────────────────────────
+  const [interactionsVisible, setInteractionsVisible] = useState(PAGE_SIZE);
+  const visibleInteractions = activeInteractions.slice(0, interactionsVisible);
+  const hasMoreInteractions = activeInteractions.length > interactionsVisible;
+
+  const showMoreInteractions = useCallback(
+    () => setInteractionsVisible(v => v + PAGE_SIZE),
+    [],
+  );
+
+  // ── Pagination des participations ─────────────────────────────────────────
+  const [participationsVisible, setParticipationsVisible] = useState(PAGE_SIZE);
+  const visibleParticipations = participations.slice(0, participationsVisible);
+  const hasMoreParticipations = participations.length > participationsVisible;
+
+  const showMoreParticipations = useCallback(
+    () => setParticipationsVisible(v => v + PAGE_SIZE),
+    [],
+  );
 
   return (
     <div className="space-y-5">
@@ -38,7 +62,7 @@ export default function InteractionsTab({ dashData }: Props) {
             </Link>
           </div>
           <div className="p-3 space-y-1">
-            {participations.slice(0, 5).map(p => (
+            {visibleParticipations.map(p => (
               <Link key={p.id} href={p.href}>
                 <div className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-base"
@@ -62,6 +86,15 @@ export default function InteractionsTab({ dashData }: Props) {
                 </div>
               </Link>
             ))}
+            {hasMoreParticipations && (
+              <button
+                onClick={showMoreParticipations}
+                className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors border-t border-gray-50 mt-1"
+              >
+                <ChevronDown className="w-3.5 h-3.5" />
+                {Math.min(PAGE_SIZE, participations.length - participationsVisible)} de plus
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -93,12 +126,22 @@ export default function InteractionsTab({ dashData }: Props) {
             </div>
           ) : (
             <div className="space-y-1">
-              {activeInteractions.map(item => (
+              {visibleInteractions.map(item => (
                 <InteractionRow key={item.id} item={item} />
               ))}
-              <Link href="/mes-echanges" className="block text-center text-xs font-semibold text-indigo-600 hover:text-indigo-700 mt-3 py-2">
-                Voir tous mes échanges →
-              </Link>
+              {hasMoreInteractions ? (
+                <button
+                  onClick={showMoreInteractions}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors border-t border-gray-50 mt-1"
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                  {Math.min(PAGE_SIZE, activeInteractions.length - interactionsVisible)} de plus
+                </button>
+              ) : (
+                <Link href="/mes-echanges" className="block text-center text-xs font-semibold text-indigo-600 hover:text-indigo-700 mt-3 py-2">
+                  Voir tous mes échanges →
+                </Link>
+              )}
             </div>
           )}
         </div>

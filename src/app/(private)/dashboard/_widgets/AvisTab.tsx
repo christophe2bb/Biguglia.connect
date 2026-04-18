@@ -1,7 +1,9 @@
 
+'use client';
 
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
-import { Star } from 'lucide-react';
+import { Star, ChevronDown } from 'lucide-react';
 import { cn, formatRelative } from '@/lib/utils';
 import Avatar from '@/components/ui/Avatar';
 import type { useDashboardData } from '@/hooks/useDashboardData';
@@ -10,8 +12,20 @@ import { SectionHeader, SkeletonRows } from '../_components/DashWidgets';
 type DashData = ReturnType<typeof useDashboardData>;
 interface Props { dashData: DashData }
 
+const PAGE_SIZE = 5;
+
 export default function AvisTab({ dashData }: Props) {
   const { stats, recentReviews, loading } = dashData;
+
+  // ── Pagination des avis ────────────────────────────────────────────────────
+  const [reviewsVisible, setReviewsVisible] = useState(PAGE_SIZE);
+  const visibleReviews = recentReviews.slice(0, reviewsVisible);
+  const hasMoreReviews = recentReviews.length > reviewsVisible;
+
+  const showMoreReviews = useCallback(
+    () => setReviewsVisible(v => v + PAGE_SIZE),
+    [],
+  );
 
   return (
     <div className="space-y-5">
@@ -53,10 +67,15 @@ export default function AvisTab({ dashData }: Props) {
 
       {/* ── Reviews list ─── */}
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-50">
+        <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
           <h3 className="font-bold text-gray-900 flex items-center gap-2">
             <Star className="w-4 h-4 text-amber-500" /> Avis reçus
           </h3>
+          {recentReviews.length > 0 && (
+            <span className="text-xs text-gray-400">
+              {Math.min(reviewsVisible, recentReviews.length)} / {recentReviews.length}
+            </span>
+          )}
         </div>
         <div className="p-4">
           {loading ? <SkeletonRows n={3} h="h-16" /> :
@@ -67,7 +86,7 @@ export default function AvisTab({ dashData }: Props) {
             </div>
           ) : (
             <div className="space-y-3">
-              {recentReviews.map(r => (
+              {visibleReviews.map(r => (
                 <div key={r.id} className="p-4 bg-gray-50 rounded-xl">
                   <div className="flex items-start gap-3">
                     <Avatar src={r.authorAvatar} name={r.authorName} size="sm" />
@@ -86,9 +105,21 @@ export default function AvisTab({ dashData }: Props) {
                   </div>
                 </div>
               ))}
-              <Link href="/dashboard/avis" className="block text-center text-xs font-semibold text-amber-600 hover:text-amber-700 py-2">
-                Voir tous les avis →
-              </Link>
+
+              {/* ── Bouton Voir plus ── */}
+              {hasMoreReviews ? (
+                <button
+                  onClick={showMoreReviews}
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-amber-600 hover:text-amber-700 transition-colors border-t border-gray-100 mt-1"
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                  {Math.min(PAGE_SIZE, recentReviews.length - reviewsVisible)} avis de plus
+                </button>
+              ) : (
+                <Link href="/dashboard/avis" className="block text-center text-xs font-semibold text-amber-600 hover:text-amber-700 py-2">
+                  Voir tous les avis →
+                </Link>
+              )}
             </div>
           )}
         </div>
