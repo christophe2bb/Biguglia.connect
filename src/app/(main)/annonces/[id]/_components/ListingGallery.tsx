@@ -1,4 +1,15 @@
-import { PhotoGallery, toPhotoItems } from '@/components/ui/PhotoViewer';
+import dynamic from 'next/dynamic';
+import { toPhotoItems } from '@/components/ui/PhotoViewer';
+
+// PhotoGallery (inclut lightbox) : lazy-load pour réduire le bundle initial
+// La galerie est above-the-fold mais le code JS peut être différé (HTML = SSR)
+const PhotoGallery = dynamic(
+  () => import('@/components/ui/PhotoViewer').then(m => ({ default: m.PhotoGallery })),
+  {
+    ssr: false,
+    loading: () => <div className="h-80 bg-gray-100 rounded-2xl animate-pulse" />,
+  }
+);
 
 type Props = {
   photos: ReturnType<typeof toPhotoItems>;

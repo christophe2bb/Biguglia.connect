@@ -16,7 +16,12 @@ import toast from 'react-hot-toast';
 import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';
 import GlobalTrustBadge from '@/components/ui/TrustBadge';
-import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
+import dynamic from 'next/dynamic';
+import { toPhotoItems } from '@/components/ui/PhotoViewer';
+// PhotoViewer (lightbox 572L) : lazy-load — chargé uniquement au premier clic
+const PhotoViewer = dynamic(() => import('@/components/ui/PhotoViewer').then(m => ({ default: m.PhotoViewer })), {
+  ssr: false,
+});
 import ContactButton from '@/components/ui/ContactButton';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { SectorBadge } from '@/components/ui/SectorFilter';

@@ -114,7 +114,28 @@ const nextConfig = {
   // ─── Experimental optimisations ─────────────────────────────────────────────
   experimental: {
     // Optimise package imports to reduce JS bundle size (tree-shaking icons etc.)
-    optimizePackageImports: ['lucide-react', '@supabase/supabase-js'],
+    // Next.js rewrites barrel imports into direct sub-path imports at build time,
+    // eliminating unused exports without requiring manual import path changes.
+    // Impact estimé : -15 à -30 KB gzipped sur le bundle client initial.
+    optimizePackageImports: [
+      'lucide-react',          // ~1000 icônes → seules les utilisées sont bundlées
+      '@supabase/supabase-js', // SDK Supabase complet → seuls les modules utilisés
+      'date-fns',              // 200+ helpers → seuls les imports actifs (~5)
+      'recharts',              // 60+ composants → uniquement admin/stats (lazy)
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-select',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-tooltip',
+      '@radix-ui/react-popover',
+      '@radix-ui/react-avatar',
+      '@radix-ui/react-checkbox',
+      '@radix-ui/react-label',
+      '@radix-ui/react-radio-group',
+      '@radix-ui/react-slider',
+      '@radix-ui/react-switch',
+      '@radix-ui/react-toast',
+    ],
   },
 
   images: {

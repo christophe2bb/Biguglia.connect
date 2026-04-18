@@ -1,6 +1,12 @@
 import Link from 'next/link';
-import { TrustScoreFull } from '@/components/ui/TrustScore';
+import dynamic from 'next/dynamic';
 import type { ExtListing } from '../_types';
+
+// TrustScore (492L) — chargé en différé : composant secondaire below-the-fold
+const TrustScoreFull = dynamic(
+  () => import('@/components/ui/TrustScore').then(m => ({ default: m.TrustScoreFull })),
+  { ssr: false, loading: () => <div className="h-24 bg-gray-50 rounded-xl animate-pulse" /> }
+);
 
 type Props = { listing: ExtListing };
 
