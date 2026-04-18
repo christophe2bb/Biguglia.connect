@@ -23,19 +23,23 @@ export type UseAssociationDetailReturn = {
   closeLightbox: () => void;
 };
 
-export function useAssociationDetail(id: string): UseAssociationDetailReturn {
+export function useAssociationDetail(
+  id: string,
+  initialItem?: Association,
+): UseAssociationDetailReturn {
   const supabase = createClient();
 
-  const [asso, setAsso] = useState<Association | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  // Seed with server-provided data when available
+  const [asso, setAsso]           = useState<Association | null>(initialItem ?? null);
+  const [loading, setLoading]     = useState(!initialItem);
+  const [error, setError]         = useState<string | null>(null);
+  const [saved, setSaved]         = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxIdx, setLightboxIdx] = useState(0);
+  const [lightboxIdx, setLightboxIdx]   = useState(0);
 
-  // ── Fetch association ────────────────────────────────────────────────────────
+  // ── Fetch association (only when no server data) ──────────────────────────
   useEffect(() => {
-    if (!id) return;
+    if (initialItem || !id) return;
     (async () => {
       setLoading(true);
       const { data, error: err } = await supabase

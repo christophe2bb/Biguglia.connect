@@ -6,19 +6,20 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { ForumTopic, ForumReply } from '@/types';
 import toast from 'react-hot-toast';
-import { TopicExtended, TopicPhoto, UseTopicPageReturn } from './_types';
+import { TopicExtended, TopicPhoto, UseTopicPageReturn, InitialTopicData } from './_types';
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
-export function useTopicPage(): UseTopicPageReturn {
+export function useTopicPage(initialData?: InitialTopicData): UseTopicPageReturn {
   const { id } = useParams();
   const topicId = id as string;
   const router = useRouter();
   const { profile, isModerator } = useAuthStore();
 
-  const [topic,         setTopic]         = useState<TopicExtended | null>(null);
-  const [replies,       setReplies]       = useState<ForumReply[]>([]);
-  const [topicPhotos,   setTopicPhotos]   = useState<TopicPhoto[]>([]);
-  const [loading,       setLoading]       = useState(true);
+  // Seed state from server data when available
+  const [topic,         setTopic]         = useState<TopicExtended | null>(initialData?.topic ?? null);
+  const [replies,       setReplies]       = useState<ForumReply[]>(initialData?.replies ?? []);
+  const [topicPhotos,   setTopicPhotos]   = useState<TopicPhoto[]>(initialData?.topicPhotos ?? []);
+  const [loading,       setLoading]       = useState(!initialData);
   const [newReply,      setNewReply]      = useState('');
   const [quotedReply,   setQuotedReply]   = useState<ForumReply | null>(null);
   const [submitting,    setSubmitting]    = useState(false);
@@ -28,9 +29,9 @@ export function useTopicPage(): UseTopicPageReturn {
   const replyRef = useRef<HTMLTextAreaElement>(null);
 
   // ── Indicateur v2 (forum_topics vs forum_posts) ───────────────────────────
-  const isV2Ref = useRef(false);
+  const isV2Ref = useRef(initialData?.isV2 ?? false);
 
-  // ── Fetch ──────────────────────────────────────────────────────────────────
+  // ── Fetch (only needed when no server data provided) ──────────────────────
   const fetchTopic = useCallback(async () => {
     const supabase = createClient();
 
@@ -64,9 +65,6 @@ export function useTopicPage(): UseTopicPageReturn {
     }
 
     // Auteur — lecture via public_profiles (id, full_name, avatar_url, role)
-    // RLS profiles durcissée : email/phone non exposés, vue public_profiles
-    // accessible aux utilisateurs connectés uniquement. Les visiteurs anonymes
-    // verront author = null (UI gère déjà ce cas avec un fallback avatar).
     if (topicData?.author_id) {
       const { data: authorData } = await supabase
         .from('public_profiles').select('id, full_name, avatar_url, role')
@@ -93,7 +91,6 @@ export function useTopicPage(): UseTopicPageReturn {
     for (const r of (repliesRaw || []) as Record<string, unknown>[]) {
       const authorId = r.author_id as string | undefined;
       if (authorId && !profileCache[authorId]) {
-        // Via public_profiles — ne contient pas email/phone
         const { data: cp } = await supabase
           .from('public_profiles').select('id, full_name, avatar_url, role').eq('id', authorId).single();
         if (cp) profileCache[authorId] = cp;
@@ -121,14 +118,6 @@ export function useTopicPage(): UseTopicPageReturn {
     }
     setReplies(enriched);
 
-    // Suivi
-    if (profile?.id && isV2) {
-      const { data: followData } = await supabase
-        .from('forum_follows').select('id')
-        .eq('topic_id', topicId).eq('user_id', profile.id).single();
-      setIsFollowing(!!followData);
-    }
-
     // Photos
     try {
       const { data: photoData } = await supabase
@@ -138,9 +127,34 @@ export function useTopicPage(): UseTopicPageReturn {
     } catch { /* Table optionnelle */ }
 
     setLoading(false);
-  }, [topicId, router, profile?.id]);
+  }, [topicId, router]);
 
-  useEffect(() => { if (topicId) fetchTopic(); }, [fetchTopic, topicId]);
+  // Only fetch on client if no server data was provided
+  useEffect(() => {
+    if (!initialData && topicId) fetchTopic();
+  }, [fetchTopic, topicId, initialData]);
+
+  // ── Load follow status for authenticated users ──────────────────────────
+  useEffect(() => {
+    if (!profile?.id || !isV2Ref.current) return;
+    (async () => {
+      const supabase = createClient();
+      const { data: followData } = await supabase
+        .from('forum_follows').select('id')
+        .eq('topic_id', topicId).eq('user_id', profile.id).single();
+      setIsFollowing(!!followData);
+    })();
+  }, [profile?.id, topicId]);
+
+  // ── Increment view count when initial data was server-provided ──────────
+  useEffect(() => {
+    if (!initialData || !topicId) return;
+    (async () => {
+      const supabase = createClient();
+      const table = initialData.isV2 ? 'forum_topics' : 'forum_posts';
+      await supabase.from(table).update({ views: (initialData.topic.views || 0) + 1 }).eq('id', topicId);
+    })();
+  }, [initialData, topicId]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
