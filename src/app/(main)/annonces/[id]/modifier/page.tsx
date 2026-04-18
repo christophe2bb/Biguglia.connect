@@ -404,7 +404,7 @@ export default function ModifierAnnoncePage() {
             {/* New photos */}
             {newPreviews.map((src, i) => (
               <div key={i} className="relative w-24 h-24 group">
-                <Image src={src} alt="" fill className="object-cover rounded-xl border-2 border-blue-300" />
+                <Image src={src} alt="" fill unoptimized sizes="96px" className="object-cover rounded-xl border-2 border-blue-300" />
                 <button
                   type="button"
                   onClick={() => removeNewPhoto(i)}

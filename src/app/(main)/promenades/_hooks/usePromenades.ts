@@ -20,7 +20,8 @@ export function usePromenades(
 
   // Form state
   const [showForm, setShowForm] = useState(false);
-  const [photos, setPhotos] = useState<File[]>([]);
+  const [photos, setPhotos]           = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<PromenadeFormState>(DEFAULT_PROMENADE_FORM);
 
@@ -158,7 +159,10 @@ export function usePromenades(
     }
     toast.success('🌿 Itinéraire publié !', { duration: 4000 });
     setForm(DEFAULT_PROMENADE_FORM);
+    // Revoke all blob URLs before clearing
+    photoPreviews.forEach(url => URL.revokeObjectURL(url));
     setPhotos([]);
+    setPhotoPreviews([]);
     setShowForm(false);
     await fetchPromenades();
     setSubmitting(false);
@@ -170,6 +174,7 @@ export function usePromenades(
     dbReady,
     showForm, setShowForm,
     photos, setPhotos,
+    photoPreviews, setPhotoPreviews,
     submitting,
     form, setForm,
     fetchPromenades,

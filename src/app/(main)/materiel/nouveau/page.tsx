@@ -39,6 +39,7 @@ export default function NouveauMaterielPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [categories, setCategories] = useState<EquipmentCategory[]>([]);
   const [photos, setPhotos] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<1 | 2>(1); // formulaire en 2 étapes : essentiel / détails
 
@@ -86,9 +87,11 @@ export default function NouveauMaterielPage() {
 
   const handlePhotoAdd = (files: FileList | null) => {
     if (!files) return;
-    const newPhotos = Array.from(files).filter(f => f.type.startsWith('image/'));
-    if (photos.length + newPhotos.length > 5) { toast.error('Maximum 5 photos'); return; }
-    setPhotos(prev => [...prev, ...newPhotos]);
+    const newFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+    if (photos.length + newFiles.length > 5) { toast.error('Maximum 5 photos'); return; }
+    const newUrls = newFiles.map(f => URL.createObjectURL(f));
+    setPhotos(prev => [...prev, ...newFiles]);
+    setPhotoPreviews(prev => [...prev, ...newUrls]);
   };
 
   const validateStep1 = () => {
@@ -287,13 +290,17 @@ export default function NouveauMaterielPage() {
                 onChange={(e) => handlePhotoAdd(e.target.files)} />
               {photos.length > 0 && (
                 <div className="flex flex-wrap gap-3 mt-4">
-                  {photos.map((photo, i) => (
+                  {photos.map((_photo, i) => (
                     <div key={i} className="relative w-20 h-20 group">
-                      <Image src={URL.createObjectURL(photo)} alt="" fill className="object-cover rounded-xl" />
+                      <Image src={photoPreviews[i]} alt="" fill unoptimized sizes="80px" className="object-cover rounded-xl" />
                       {i === 0 && (
                         <span className="absolute bottom-1 left-1 text-[9px] bg-teal-600 text-white px-1 rounded">Photo principale</span>
                       )}
-                      <button type="button" onClick={() => setPhotos(p => p.filter((_, j) => j !== i))}
+                      <button type="button" onClick={() => {
+                        URL.revokeObjectURL(photoPreviews[i]);
+                        setPhotos(p => p.filter((_, j) => j !== i));
+                        setPhotoPreviews(p => p.filter((_, j) => j !== i));
+                      }}
                         className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <X className="w-3 h-3" />
                       </button>

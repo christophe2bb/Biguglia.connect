@@ -383,6 +383,8 @@ export default function PromenadePage() {
                 setShowForm={promenadHook.setShowForm}
                 photos={promenadHook.photos}
                 setPhotos={promenadHook.setPhotos}
+                photoPreviews={promenadHook.photoPreviews}
+                setPhotoPreviews={promenadHook.setPhotoPreviews}
                 submitting={promenadHook.submitting}
                 form={promenadHook.form}
                 setForm={promenadHook.setForm}

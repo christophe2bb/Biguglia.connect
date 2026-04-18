@@ -76,7 +76,7 @@ export default function StepPhotos({
                 photo.error    ? 'border-red-400'             : '',
               )}
             >
-              <Image src={photo.preview} alt="" fill className="object-cover" />
+              <Image src={photo.preview} alt="" fill unoptimized sizes="(max-width:640px) 50vw, 25vw" className="object-cover" />
 
               {/* Overlay au survol */}
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">

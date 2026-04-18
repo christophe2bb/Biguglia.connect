@@ -206,6 +206,7 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
             priority
             className="object-contain select-none"
             sizes="100vw"
+            unoptimized={photo.url.startsWith('blob:')}
           />
         </div>
 
@@ -238,7 +239,7 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
                     : 'border-white/20 opacity-60 hover:opacity-100 hover:border-white/50'
                 )}
               >
-                <Image src={p.url} alt="" fill className="object-cover" />
+                <Image src={p.url} alt="" fill sizes="56px" unoptimized={p.url.startsWith('blob:')} className="object-cover" />
                 {(p.isPrimary || i === 0) && (
                   <div className="absolute top-0.5 left-0.5">
                     <Crown className="w-2.5 h-2.5 text-amber-400 drop-shadow" aria-hidden="true" />
@@ -285,7 +286,7 @@ export function PhotoGallery({
       <>
         <div className={cn('relative overflow-hidden rounded-xl cursor-pointer group', className)}
           onClick={() => openAt(0)}>
-          <Image src={primary.url} alt={title || 'Photo'} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
+          <Image src={primary.url} alt={title || 'Photo'} fill sizes="(max-width:640px) 100vw, 50vw" unoptimized={primary.url.startsWith('blob:')} className="object-cover group-hover:scale-105 transition-transform duration-300" />
           {extra > 0 && (
             <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs font-bold px-2 py-1 rounded-full backdrop-blur-sm">
               +{extra} photo{extra > 1 ? 's' : ''}
@@ -311,7 +312,7 @@ export function PhotoGallery({
         {/* Photo principale */}
         <div className={cn('relative rounded-2xl overflow-hidden bg-gray-100 cursor-pointer group', mainHeight)}
           onClick={() => openAt(0)}>
-          <Image src={primary.url} alt={title || 'Photo principale'} fill className="object-cover group-hover:scale-[1.02] transition-transform duration-300" />
+          <Image src={primary.url} alt={title || 'Photo principale'} fill sizes="(max-width:640px) 100vw, (max-width:1024px) 75vw, 60vw" unoptimized={primary.url.startsWith('blob:')} className="object-cover group-hover:scale-[1.02] transition-transform duration-300" />
 
           {/* Overlay hover */}
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors flex items-center justify-center">
@@ -342,7 +343,7 @@ export function PhotoGallery({
               return (
                 <div key={i} className="relative h-20 sm:h-24 rounded-xl overflow-hidden bg-gray-100 cursor-pointer group"
                   onClick={() => openAt(i + 1)}>
-                  <Image src={p.url} alt="" fill className="object-cover group-hover:scale-105 transition-transform duration-200" />
+                  <Image src={p.url} alt="" fill sizes="(max-width:640px) 96px, 128px" unoptimized={p.url.startsWith('blob:')} className="object-cover group-hover:scale-105 transition-transform duration-200" />
                   {isLast && (
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                       <span className="text-white font-black text-lg">+{remaining + 1}</span>
@@ -497,7 +498,7 @@ export function PhotoUploaderField({
             >
               {/* Image */}
               <div className="relative aspect-square">
-                <Image src={photo.url} alt="" fill className="object-cover" />
+                <Image src={photo.url} alt="" fill sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw" unoptimized={photo.url.startsWith('blob:')} className="object-cover" />
               </div>
 
               {/* Overlay actions */}
