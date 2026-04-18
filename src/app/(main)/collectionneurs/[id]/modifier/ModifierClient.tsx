@@ -683,7 +683,7 @@ export default function ModifierClient() {
                         photo.is_cover ? 'border-amber-400' : 'border-gray-200',
                         photo.error ? 'border-red-400' : ''
                       )}>
-                        <Image src={photo.preview} alt="" fill className="object-cover" />
+                        <Image src={photo.preview} alt="" fill unoptimized sizes="(max-width:640px) 50vw, 25vw" className="object-cover" />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
                           {!photo.is_cover && (
                             <button onClick={() => setCover(i)} className="p-1.5 bg-amber-400 rounded-full text-white"><Star className="w-3 h-3" /></button>

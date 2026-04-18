@@ -36,6 +36,7 @@ export default function ModifierMaterielPage() {
   const [categories, setCategories]         = useState<Category[]>([]);
   const [existingPhotos, setExistingPhotos] = useState<ExistingPhoto[]>([]);
   const [newPhotos, setNewPhotos]           = useState<File[]>([]);
+  const [newPreviews, setNewPreviews]       = useState<string[]>([]);
   const [deletedPhotoIds, setDeletedPhotoIds] = useState<string[]>([]);
   const [loading, setLoading]               = useState(true);
   const [saving, setSaving]                 = useState(false);
@@ -428,12 +429,16 @@ export default function ModifierMaterielPage() {
                 </button>
               </div>
             ))}
-            {newPhotos.map((photo, i) => (
+            {newPhotos.map((_photo, i) => (
               <div key={i} className="relative w-24 h-24 group">
-                <Image src={URL.createObjectURL(photo)} alt="" fill className="object-cover rounded-xl border-2 border-brand-300" />
+                <Image src={newPreviews[i]} alt="" fill unoptimized sizes="96px" className="object-cover rounded-xl border-2 border-brand-300" />
                 <button
                   type="button"
-                  onClick={() => setNewPhotos(p => p.filter((_, j) => j !== i))}
+                  onClick={() => {
+                    URL.revokeObjectURL(newPreviews[i]);
+                    setNewPhotos(p => p.filter((_, j) => j !== i));
+                    setNewPreviews(p => p.filter((_, j) => j !== i));
+                  }}
                   className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -462,6 +467,8 @@ export default function ModifierMaterielPage() {
               if (existingPhotos.length + newPhotos.length + files.length > 5) {
                 toast.error('Max 5 photos'); return;
               }
+              const urls = files.map(f => URL.createObjectURL(f));
+              setNewPreviews(p => [...p, ...urls]);
               setNewPhotos(p => [...p, ...files]);
             }}
           />

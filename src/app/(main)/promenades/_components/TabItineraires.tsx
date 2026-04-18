@@ -32,6 +32,8 @@ interface Props {
   setShowForm: (v: boolean) => void;
   photos: File[];
   setPhotos: React.Dispatch<React.SetStateAction<File[]>>;
+  photoPreviews: string[];
+  setPhotoPreviews: React.Dispatch<React.SetStateAction<string[]>>;
   submitting: boolean;
   form: PromenadeFormState;
   setForm: React.Dispatch<React.SetStateAction<PromenadeFormState>>;
@@ -48,7 +50,7 @@ export default function TabItineraires({
   promenades, loadingPromenades, totalCount, activeFiltersCount,
   quickFilter, advFilters, filterSector, setFilterSector, setAdvFilters, setQuickFilter,
   viewMode,
-  showForm, setShowForm, photos, setPhotos, submitting, form, setForm, fileInputRef, handleSubmit,
+  showForm, setShowForm, photos, setPhotos, photoPreviews, setPhotoPreviews, submitting, form, setForm, fileInputRef, handleSubmit,
   userId, profileId,
   handleLike,
 }: Props) {
@@ -225,18 +227,19 @@ export default function TabItineraires({
             <div>
               <label className="block text-xs font-bold text-gray-600 mb-2">Photos (max 5) — partagez les plus beaux points du parcours</label>
               <div className="flex gap-2 flex-wrap">
-                {photos.map((file, i) => {
-                  const url = URL.createObjectURL(file);
-                  return (
+                {photos.map((_file, i) => (
                     <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
-                      <Image src={url} alt="" fill className="object-cover" />
-                      <button type="button" onClick={() => setPhotos(p => p.filter((_, idx) => idx !== i))}
+                      <Image src={photoPreviews[i]} alt="" fill unoptimized sizes="80px" className="object-cover" />
+                      <button type="button" onClick={() => {
+                        URL.revokeObjectURL(photoPreviews[i]);
+                        setPhotos(p => p.filter((_, idx) => idx !== i));
+                        setPhotoPreviews(p => p.filter((_, idx) => idx !== i));
+                      }}
                         className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-black/80">
                         <X className="w-3 h-3" />
                       </button>
                     </div>
-                  );
-                })}
+                ))}
                 {photos.length < 5 && (
                   <button type="button" onClick={() => fileInputRef.current?.click()}
                     className="w-20 h-20 rounded-xl border-2 border-dashed border-emerald-300 flex flex-col items-center justify-center text-emerald-400 hover:bg-emerald-50 hover:border-emerald-400 transition-all">
@@ -245,7 +248,12 @@ export default function TabItineraires({
                 )}
               </div>
               <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden"
-                onChange={e => { const files = Array.from(e.target.files || []); setPhotos(prev => [...prev, ...files].slice(0, 5)); }} />
+                onChange={e => {
+                  const newFiles = Array.from(e.target.files || []).slice(0, 5 - photos.length);
+                  const newUrls = newFiles.map(f => URL.createObjectURL(f));
+                  setPhotos(prev => [...prev, ...newFiles].slice(0, 5));
+                  setPhotoPreviews(prev => [...prev, ...newUrls].slice(0, 5));
+                }} />
             </div>
           </div>
 

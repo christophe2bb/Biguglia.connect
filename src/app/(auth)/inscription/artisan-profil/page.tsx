@@ -110,6 +110,7 @@ export default function ArtisanProfilPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [categories, setCategories] = useState<TradeCategory[]>([]);
   const [photos, setPhotos] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   const emptyDoc = useCallback((): DocUpload => ({ file: null, uploading: false, url: null, name: '' }), []);
@@ -157,9 +158,11 @@ export default function ArtisanProfilPage() {
 
   const handlePhotoAdd = (files: FileList | null) => {
     if (!files) return;
-    const newPhotos = Array.from(files).filter(f => f.type.startsWith('image/'));
-    if (photos.length + newPhotos.length > 8) { toast.error('Maximum 8 photos de galerie'); return; }
-    setPhotos(prev => [...prev, ...newPhotos]);
+    const newFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+    if (photos.length + newFiles.length > 8) { toast.error('Maximum 8 photos de galerie'); return; }
+    const newUrls = newFiles.map(f => URL.createObjectURL(f));
+    setPhotos(prev => [...prev, ...newFiles]);
+    setPhotoPreviews(prev => [...prev, ...newUrls]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -458,10 +461,14 @@ export default function ArtisanProfilPage() {
             <div className="flex flex-wrap gap-3 mt-4">
               {photos.map((photo, i) => (
                 <div key={i} className="relative w-24 h-24 group">
-                  <Image src={URL.createObjectURL(photo)} alt="" fill className="object-cover rounded-xl" />
+                  <Image src={photoPreviews[i]} alt="" fill unoptimized sizes="96px" className="object-cover rounded-xl" />
                   <button
                     type="button"
-                    onClick={() => setPhotos(p => p.filter((_, j) => j !== i))}
+                    onClick={() => {
+                      URL.revokeObjectURL(photoPreviews[i]);
+                      setPhotos(p => p.filter((_, j) => j !== i));
+                      setPhotoPreviews(p => p.filter((_, j) => j !== i));
+                    }}
                     className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <X className="w-3 h-3" />
