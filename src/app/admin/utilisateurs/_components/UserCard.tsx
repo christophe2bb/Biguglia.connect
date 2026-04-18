@@ -1,33 +1,43 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import {
-  UserX, UserCheck, Trash2,
   Mail, Calendar, Phone,
   ChevronDown, ChevronUp,
-  Crown, Eye, HardHat, Users,
+  HardHat, Users,
   MessageSquare, Package, FileText, Wrench,
-  MoreVertical,
+  MoreVertical, UserX, UserCheck, Trash2,
 } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import Avatar from '@/components/ui/Avatar';
-import { ROLE_LABELS, formatDate, formatRelative } from '@/lib/utils';
+import { ROLE_LABELS, formatDate } from '@/lib/utils';
 import type { UserWithActivity } from './types';
 
+/** Section dépliable avec rôle, infos complètes et actions — chargée en lazy. */
+const UserDetailsPanel = dynamic(() => import('./UserDetailsPanel'), {
+  loading: () => (
+    <div className="border-t border-gray-100 p-5 space-y-3">
+      {[1, 2, 3].map(i => (
+        <div key={i} className="h-10 bg-gray-100 rounded-xl animate-pulse" />
+      ))}
+    </div>
+  ),
+});
+
 const ROLE_OPTIONS = [
-  { value: 'resident', label: '🏘️ Habitant', color: 'text-blue-700', bg: 'bg-blue-50' },
-  { value: 'artisan_pending', label: '⏳ Artisan en attente', color: 'text-amber-700', bg: 'bg-amber-50' },
-  { value: 'artisan_verified', label: '✅ Artisan vérifié', color: 'text-green-700', bg: 'bg-green-50' },
-  { value: 'moderator', label: '🛡️ Modérateur', color: 'text-purple-700', bg: 'bg-purple-50' },
+  { value: 'resident',         label: '🏘️ Habitant',           color: 'text-blue-700',   bg: 'bg-blue-50'   },
+  { value: 'artisan_pending',  label: '⏳ Artisan en attente',  color: 'text-amber-700',  bg: 'bg-amber-50'  },
+  { value: 'artisan_verified', label: '✅ Artisan vérifié',     color: 'text-green-700',  bg: 'bg-green-50'  },
+  { value: 'moderator',        label: '🛡️ Modérateur',         color: 'text-purple-700', bg: 'bg-purple-50' },
 ];
 
 interface UserCardProps {
-  user: UserWithActivity;
-  onSuspend: (id: string, status: string) => void;
-  onDelete: (id: string, name: string) => void;
-  onChangeRole: (id: string, role: string) => void;
-  onResetPassword: (email: string) => void;
+  user:            UserWithActivity;
+  onSuspend:       (id: string, status: string) => void;
+  onDelete:        (id: string, name: string)   => void;
+  onChangeRole:    (id: string, role: string)   => void;
+  onResetPassword: (email: string)              => void;
 }
 
 export default function UserCard({
@@ -35,27 +45,30 @@ export default function UserCard({
 }: UserCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
   const isSuspended = user.status === 'suspended';
-  const isArtisan = user.role === 'artisan_verified' || user.role === 'artisan_pending';
+  const isArtisan   = user.role === 'artisan_verified' || user.role === 'artisan_pending';
 
   const roleBadgeVariant = () => {
     if (user.role === 'artisan_verified') return 'success';
-    if (user.role === 'artisan_pending') return 'warning';
-    if (user.role === 'moderator') return 'purple';
+    if (user.role === 'artisan_pending')  return 'warning';
+    if (user.role === 'moderator')        return 'purple';
     return 'default';
   };
 
   return (
     <div className={`bg-white rounded-2xl border-2 overflow-hidden transition-all ${
-      isSuspended ? 'border-red-200 opacity-80' :
-      user.role === 'artisan_pending' ? 'border-amber-200' :
-      user.role === 'artisan_verified' ? 'border-green-200' :
+      isSuspended                         ? 'border-red-200 opacity-80'  :
+      user.role === 'artisan_pending'     ? 'border-amber-200'           :
+      user.role === 'artisan_verified'    ? 'border-green-200'           :
       'border-gray-100'
     }`}>
-      {/* Header */}
+
+      {/* ── Header ── */}
       <div className="p-5">
         <div className="flex items-start gap-4">
           <Avatar src={user.avatar_url} name={user.full_name || user.email} size="lg" />
+
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <span className="font-bold text-gray-900">{user.full_name || 'Sans nom'}</span>
@@ -65,6 +78,7 @@ export default function UserCard({
                 <span className="text-xs text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">✓ CGU acceptées</span>
               )}
             </div>
+
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 mb-1">
               <span className="flex items-center gap-1">
                 <Mail className="w-3 h-3" />
@@ -80,11 +94,12 @@ export default function UserCard({
                 <Calendar className="w-3 h-3" /> Inscrit le {formatDate(user.created_at)}
               </span>
             </div>
+
             {isArtisan && user.artisan_profile && (
               <div className="text-xs text-gray-600 bg-gray-50 rounded-lg px-2 py-1 inline-flex items-center gap-1.5 mt-1">
                 {user.artisan_profile.artisan_type === 'professionnel'
                   ? <HardHat className="w-3 h-3 text-blue-500" />
-                  : <Users className="w-3 h-3 text-green-500" />
+                  : <Users   className="w-3 h-3 text-green-500" />
                 }
                 {user.artisan_profile.trade_category?.icon} {user.artisan_profile.trade_category?.name}
                 {' — '}
@@ -108,6 +123,7 @@ export default function UserCard({
             >
               <MoreVertical className="w-4 h-4 text-gray-500" />
             </button>
+
             {menuOpen && (
               <div className="absolute right-0 top-8 z-10 bg-white border border-gray-200 rounded-xl shadow-lg w-52 py-1 text-sm">
                 <button
@@ -139,10 +155,10 @@ export default function UserCard({
         {user._counts && (
           <div className="flex flex-wrap gap-3 mt-3">
             {[
-              { icon: MessageSquare, label: 'Messages', val: user._counts.messages, color: 'text-brand-600' },
-              { icon: Package, label: 'Annonces', val: user._counts.listings, color: 'text-purple-600' },
-              { icon: FileText, label: 'Posts forum', val: user._counts.forum_posts, color: 'text-teal-600' },
-              { icon: Wrench, label: 'Demandes', val: user._counts.service_requests, color: 'text-indigo-600' },
+              { icon: MessageSquare, label: 'Messages',  val: user._counts.messages,        color: 'text-brand-600'  },
+              { icon: Package,       label: 'Annonces',  val: user._counts.listings,         color: 'text-purple-600' },
+              { icon: FileText,      label: 'Posts forum',val: user._counts.forum_posts,     color: 'text-teal-600'   },
+              { icon: Wrench,        label: 'Demandes',  val: user._counts.service_requests, color: 'text-indigo-600' },
             ].map(({ icon: Icon, label, val, color }) => (
               <div key={label} className="flex items-center gap-1 text-xs text-gray-500">
                 <Icon className={`w-3.5 h-3.5 ${color}`} />
@@ -154,118 +170,15 @@ export default function UserCard({
         )}
       </div>
 
-      {/* Détails dépliables */}
+      {/* ── Détails dépliables (chargés en lazy) ── */}
       {expanded && (
-        <div className="border-t border-gray-100 p-5 bg-gray-50/50 space-y-5">
-
-          {/* Changement de rôle */}
-          <div>
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-              <Crown className="w-3.5 h-3.5" /> Modifier le rôle
-            </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {ROLE_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => onChangeRole(user.id, opt.value)}
-                  className={`px-3 py-2 rounded-xl text-xs font-medium border-2 transition-all text-left ${
-                    user.role === opt.value
-                      ? `${opt.bg} ${opt.color} border-current`
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Infos complètes */}
-          <div>
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-              <Eye className="w-3.5 h-3.5" /> Informations complètes
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-              <div className="bg-white rounded-xl border border-gray-200 px-3 py-2">
-                <span className="text-xs text-gray-400">ID utilisateur</span>
-                <div className="font-mono text-xs text-gray-600 truncate">{user.id}</div>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 px-3 py-2">
-                <span className="text-xs text-gray-400">Statut compte</span>
-                <div className="font-medium text-gray-800 capitalize">{user.status}</div>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 px-3 py-2">
-                <span className="text-xs text-gray-400">Date d&apos;inscription</span>
-                <div className="font-medium text-gray-800">{formatDate(user.created_at)}</div>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 px-3 py-2">
-                <span className="text-xs text-gray-400">Dernière mise à jour</span>
-                <div className="font-medium text-gray-800">{formatRelative(user.updated_at)}</div>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 px-3 py-2">
-                <span className="text-xs text-gray-400">CGU acceptées</span>
-                <div className="font-medium text-gray-800">
-                  {user.legal_consent ? `✅ Oui${user.legal_consent_at ? ` · ${formatDate(user.legal_consent_at)}` : ''}` : '❌ Non'}
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 px-3 py-2">
-                <span className="text-xs text-gray-400">Téléphone</span>
-                <div className="font-medium text-gray-800">{user.phone || 'Non renseigné'}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Artisan profil */}
-          {isArtisan && user.artisan_profile && (
-            <div>
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                <HardHat className="w-3.5 h-3.5" /> Profil artisan
-              </h4>
-              <div className="flex items-center justify-between bg-white rounded-xl border border-gray-200 px-4 py-3">
-                <div>
-                  <span className="font-medium text-gray-900">{user.artisan_profile.business_name}</span>
-                  <span className="text-gray-400 mx-2">·</span>
-                  <span className="text-sm text-gray-500">
-                    {user.artisan_profile.trade_category?.icon} {user.artisan_profile.trade_category?.name}
-                  </span>
-                </div>
-                <Link
-                  href="/admin/artisans"
-                  className="text-xs text-brand-600 hover:underline"
-                >
-                  Gérer le dossier →
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {/* Actions destructives */}
-          <div className="border-t border-gray-200 pt-4 flex flex-wrap gap-3">
-            <button
-              onClick={() => onSuspend(user.id, user.status)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                isSuspended
-                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                  : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-              }`}
-            >
-              {isSuspended ? <UserCheck className="w-4 h-4" /> : <UserX className="w-4 h-4" />}
-              {isSuspended ? 'Réactiver ce compte' : 'Suspendre ce compte'}
-            </button>
-            <button
-              onClick={() => onResetPassword(user.email)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
-            >
-              <Mail className="w-4 h-4" /> Envoyer réinitialisation MDP
-            </button>
-            <button
-              onClick={() => onDelete(user.id, user.full_name || user.email)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors ml-auto"
-            >
-              <Trash2 className="w-4 h-4" /> Supprimer définitivement
-            </button>
-          </div>
-        </div>
+        <UserDetailsPanel
+          user={user}
+          onSuspend={onSuspend}
+          onDelete={onDelete}
+          onChangeRole={onChangeRole}
+          onResetPassword={onResetPassword}
+        />
       )}
     </div>
   );
