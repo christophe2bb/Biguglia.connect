@@ -11,7 +11,7 @@
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Package, ChevronRight, MapPin, ArrowRight, Tag, Gift, Shield, Clock } from 'lucide-react';
+import { Package, ChevronRight, MapPin, ArrowRight, Tag, Gift, Shield, Clock, CheckCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { JsonLd, breadcrumbSchema, faqSchema, collectionPageSchema } from '@/components/seo/JsonLd';
 import { GEO } from '@/lib/seo/local-data';
@@ -173,6 +173,14 @@ const FAQ = [
   {
     q: 'Biguglia Connect prend-il une commission sur les ventes ?',
     a: 'Non, Biguglia Connect est entièrement gratuit pour les particuliers. Déposer une annonce, contacter un vendeur et consulter les offres est 100 % gratuit. L\'objectif est de faciliter les échanges de proximité entre habitants de Biguglia et du bassin de Haute-Corse.',
+  },
+  {
+    q: 'Comment éviter les arnaques dans les petites annonces à Biguglia ?',
+    a: 'Privilégiez toujours les rencontres en personne dans un lieu public (mairie de Biguglia, parking de la médiathèque, place principale). N\'envoyez jamais d\'argent à l\'avance sans avoir vu l\'objet. Méfiez-vous des prix anormalement bas. Sur Biguglia Connect, consultez l\'historique et les évaluations du vendeur avant tout achat.',
+  },
+  {
+    q: 'Peut-on vendre des produits artisanaux corses sur Biguglia Connect ?',
+    a: 'Oui, les habitants et artisans de Biguglia peuvent publier des annonces pour vendre leurs productions locales : miel du maquis, confitures, charcuterie, poteries, produits du terroir corse. Ces annonces sont particulièrement appréciées par les résidents et les visiteurs de Haute-Corse.',
   },
 ];
 
@@ -476,6 +484,43 @@ export default async function AnnoncesBigugliaPage() {
               </Link>
             </div>
           )}
+        </section>
+
+        {/* ══════════════════════════════════════════
+            GUIDE ACHETEUR / VENDEUR
+        ══════════════════════════════════════════ */}
+        <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+          <h2 className="text-xl font-black text-gray-900 mb-4 flex items-center gap-2">
+            <Shield className="w-5 h-5 text-emerald-600" /> Conseils pour acheter et vendre en sécurité à {GEO.city}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <p className="text-sm font-bold text-gray-900 mb-2">🛍️ Pour les acheteurs</p>
+              <ul className="space-y-2 text-sm text-gray-600">
+                <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                  <span>Rencontrez le vendeur dans un <strong>lieu public</strong> (mairie, parking médiathèque)</span></li>
+                <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                  <span>Vérifiez le <strong>score de confiance</strong> du vendeur sur son profil</span></li>
+                <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                  <span>Testez l\'objet avant de payer, n\'envoyez jamais d\'argent à l\'avance</span></li>
+                <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                  <span>Méfiez-vous des prix anormalement bas ou des urgences invoquées</span></li>
+              </ul>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-gray-900 mb-2">📸 Pour les vendeurs</p>
+              <ul className="space-y-2 text-sm text-gray-600">
+                <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                  <span>Ajoutez <strong>des photos</strong> claires sous bonne lumière (+3× plus de contacts)</span></li>
+                <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                  <span>Décrivez l\'état réel de l\'objet et mentionnez les défauts éventuels</span></li>
+                <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                  <span>Fixez un <strong>prix réaliste</strong> (consultez les annonces similaires)</span></li>
+                <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                  <span>Indiquez votre zone (Biguglia, Borgo…) pour attirer les acheteurs locaux</span></li>
+              </ul>
+            </div>
+          </div>
         </section>
 
         {/* ══════════════════════════════════════════

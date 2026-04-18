@@ -79,6 +79,14 @@ const FAQ = [
     q: 'Y a-t-il des artisans disponibles rapidement à Biguglia ?',
     a: 'Plusieurs artisans proposent des interventions sous 24 à 48 h. En cas d\'urgence (fuite, panne électrique), précisez-le dans votre message pour obtenir une réponse prioritaire.',
   },
+  {
+    q: 'Faut-il un devis écrit avant de faire des travaux à Biguglia ?',
+    a: 'Oui, un devis écrit est obligatoire pour tout travail dont le montant dépasse 150 €. Il doit préciser la nature des travaux, les matériaux utilisés, la main-d\'œuvre et le délai d\'exécution. Sur Biguglia Connect, vous pouvez demander plusieurs devis comparatifs directement depuis la plateforme.',
+  },
+  {
+    q: 'L\'assurance décennale est-elle obligatoire pour les artisans à Biguglia ?',
+    a: 'Oui, l\'assurance décennale est obligatoire pour tous les travaux de construction, rénovation et gros œuvre. Elle couvre les dommages pendant 10 ans après la réception des travaux. Sur Biguglia Connect, nous vérifions la validité de cette assurance avant tout référencement.',
+  },
 ];
 
 // ─── JSON-LD ──────────────────────────────────────────────────────────────────
@@ -352,6 +360,59 @@ export default async function ArtisansBigugliaPage() {
                 </div>
               </details>
             ))}
+          </div>
+        </section>
+
+        {/* ══════════════════════════════════════════
+            GUIDE TRAVAUX BIGUGLIA — conseil éditorial
+        ══════════════════════════════════════════ */}
+        <section className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-3xl border border-amber-100 p-6 sm:p-8">
+          <h2 className="text-xl font-black text-gray-900 mb-4 flex items-center gap-2">
+            <span>📋</span> Guide pratique : faire appel à un artisan à {GEO.city}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-gray-600 leading-relaxed">
+            <div className="space-y-3">
+              <p>
+                <strong>Réglementation locale :</strong> à Biguglia, tout projet de construction ou de
+                modification de façade nécessite une <strong>déclaration préalable de travaux</strong> ou
+                un <strong>permis de construire</strong> auprès de la mairie (04 95 30 22 00).
+                Les artisans référencés sur Biguglia Connect connaissent ces démarches et peuvent vous
+                accompagner dans vos demandes administratives.
+              </p>
+              <p>
+                <strong>Travaux d\'urgence :</strong> fuite d\'eau, panne électrique, serrurerie —
+                plusieurs artisans de Biguglia proposent des interventions d\'urgence 7j/7.
+                Précisez «&nbsp;urgent&nbsp;» dans votre message pour une réponse prioritaire sous 2 heures.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <p>
+                <strong>Saisons et délais :</strong> la demande en artisans est maximale de mars à octobre
+                à Biguglia (rénovations, extérieurs). Planifiez vos travaux en hiver pour obtenir des
+                délais plus courts et des tarifs parfois négociables. Les travaux d\'isolation et de
+                chauffage sont idéalement réalisés en automne.
+              </p>
+              <p>
+                <strong>Budget :</strong> demandez toujours au moins <strong>3 devis comparatifs</strong>.
+                Un devis écrit est obligatoire au-delà de 150 €. Vérifiez que le devis inclut
+                la fourniture des matériaux, la main-d\'œuvre et les délais d\'exécution.
+                Les garanties légales (biennale, décennale) doivent être mentionnées.
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3 text-xs">
+            <Link href="/artisans/demande"
+              className="inline-flex items-center gap-1.5 bg-amber-500 text-white font-bold px-3 py-1.5 rounded-lg hover:bg-amber-600 transition-all">
+              📝 Demander 3 devis en 2 min
+            </Link>
+            <Link href="/forum-biguglia"
+              className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700 transition-all">
+              💬 Conseils travaux sur le forum
+            </Link>
+            <Link href="/services-biguglia"
+              className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700 transition-all">
+              🔧 Services d\'urgence Biguglia
+            </Link>
           </div>
         </section>
 

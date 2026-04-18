@@ -130,6 +130,14 @@ const FAQ = [
     q: 'Quels secteurs recrutent le plus à Biguglia et en Haute-Corse ?',
     a: 'Les secteurs les plus actifs sont le BTP (bâtiment et travaux publics), les services à la personne (aide à domicile, soins), la restauration et l\'hôtellerie (saisonnière), le commerce et la grande distribution (zone de Lucciana), et la logistique/transport liée à la zone industrielle de Biguglia.',
   },
+  {
+    q: 'Où s\'inscrire à France Travail depuis Biguglia ?',
+    a: 'L\'agence France Travail la plus proche de Biguglia est l\'agence de Bastia (8 km), accessible en bus depuis la commune. Vous pouvez également vous inscrire et gérer votre dossier en ligne sur francetravail.fr. Biguglia Connect complète cette offre avec des annonces locales directement entre habitants et employeurs.',
+  },
+  {
+    q: 'Y a-t-il des formations disponibles pour les demandeurs d\'emploi à Biguglia ?',
+    a: 'L\'AFPA et le GRETA de Haute-Corse proposent des formations professionnelles dans la région de Bastia. Des formations en présentiel ou à distance sont accessibles dans les secteurs du BTP, de la restauration, des services à la personne et de la logistique. Renseignez-vous auprès de France Travail Bastia ou de la Chambre des Métiers de Haute-Corse.',
+  },
 ];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -434,6 +442,50 @@ export default async function EmploiBigugliaPage() {
             </div>
           </section>
         )}
+
+        {/* ══════════════════════════════════════════
+            RESSOURCES EMPLOI LOCALES
+        ══════════════════════════════════════════ */}
+        <section className="bg-cyan-50 rounded-3xl border border-cyan-100 p-6 sm:p-8">
+          <h2 className="text-xl font-black text-gray-900 mb-4 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-cyan-600" /> Ressources emploi à Biguglia et en Haute-Corse
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-gray-600 leading-relaxed">
+            <div className="space-y-3">
+              <p>
+                <strong>France Travail Bastia</strong> — l\'agence la plus proche de Biguglia (8 km).
+                Inscription, indemnisation, offres d\'emploi et formations. Accessible en bus depuis
+                Biguglia. Site officiel : <span className="text-cyan-600 font-semibold">francetravail.fr</span>.
+              </p>
+              <p>
+                <strong>Chambre des Métiers et de l\'Artisanat de Haute-Corse</strong> — répertoire des
+                entreprises artisanales, formations professionnelles, apprentissage et aides à la création
+                d\'entreprise. Idéal pour les métiers du BTP et des services.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <p>
+                <strong>AFPA et GRETA de Haute-Corse</strong> — formations professionnelles
+                continues (présentiel et à distance) dans les secteurs du BTP, de la restauration,
+                des services à la personne et de la logistique. Financements possibles via France Travail
+                ou le Compte Personnel de Formation (CPF).
+              </p>
+              <p>
+                <strong>Mission Locale Haute-Corse</strong> — accompagnement des jeunes de 16 à 25 ans
+                dans leur insertion professionnelle. Aide à la recherche d\'emploi, accès à la formation
+                et dispositifs spécifiques (CIVIS, garantie jeunes) accessibles depuis Biguglia.
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 p-4 bg-white rounded-2xl border border-cyan-100">
+            <p className="text-xs text-gray-500 font-semibold mb-2">💡 Conseil Biguglia Connect</p>
+            <p className="text-sm text-gray-600 leading-relaxed">
+              Complétez vos démarches officielles par votre profil sur Biguglia Connect :
+              des PME locales et des artisans de Biguglia y publient des offres non déposées
+              ailleurs. Contact direct, réponse rapide, zéro commission.
+            </p>
+          </div>
+        </section>
 
         {/* ══════════════════════════════════════════
             PUBLIER OFFRE / CV
