@@ -213,26 +213,15 @@ describe("updateSession — guards d'authentification", () => {
   });
 
   // ── 2. Routes protégées sans session → redirection ───────────────────────────
+  //
+  // NOTE : les routes /admin/** sont intentionnellement exclues de ce bloc.
+  // Le middleware ne redirige PAS /admin directement — il délègue au layout
+  // serveur (src/app/admin/layout.tsx) qui valide le JWT + rôle admin.
+  // Cette approche évite les faux-négatifs dus aux cookies expirés ou chunked.
+  // Voir : src/lib/supabase/middleware.ts → commentaire "Pour /admin : pas de redirection ici"
 
   describe('Routes protégées — utilisateur non connecté → /connexion', () => {
     const protectedRoutes = [
-      // /admin — toutes les pages réelles
-      '/admin',
-      '/admin/artisans',
-      '/admin/utilisateurs',
-      '/admin/signalements',
-      '/admin/stats',
-      '/admin/contenu',
-      '/admin/migration',
-      '/admin/securite',
-      '/admin/confiance',
-      '/admin/moderation',
-      '/admin/moderation/f47ac10b-58cc-4372-a567-0e02b2c3d479',
-      '/admin/moderation/stats',
-      '/admin/spec',
-      '/admin/spec/forum',
-      '/admin/spec/materiel',
-      '/admin/spec/perdu-trouve',
       // /dashboard — toutes les pages réelles
       '/dashboard',
       '/dashboard/artisan',
@@ -392,32 +381,28 @@ describe("updateSession — guards d'authentification", () => {
       expect(url.searchParams.get('next')).toBe('/messages/abc-123');
     });
 
-    it('/admin/stats → /connexion?next=%2Fadmin%2Fstats', async () => {
+    // NOTE : /admin/** n'est PAS redirigé par le middleware (délégué au layout serveur).
+    // Les tests ci-dessous vérifient le comportement réel : pas de redirection middleware.
+    it('/admin/stats → middleware passe (redirection gérée par le layout serveur)', async () => {
       mockCookieValue = null;
       const req = makeRequest('/admin/stats');
       await updateSession(req);
-
-      expect(redirectCalls.length).toBe(1);
-      expect(redirectCalls[0].searchParams.get('next')).toBe('/admin/stats');
+      // Le middleware ne redirige pas /admin — 0 redirect, nextCalled=true
+      expect(redirectCalls.length).toBe(0);
     });
 
-    it('/admin/moderation/stats → ?next bien encodé avec sous-chemin imbriqué', async () => {
+    it('/admin/moderation/stats → middleware passe (redirection gérée par le layout serveur)', async () => {
       mockCookieValue = null;
       const req = makeRequest('/admin/moderation/stats');
       await updateSession(req);
-
-      expect(redirectCalls.length).toBe(1);
-      expect(redirectCalls[0].pathname).toBe('/connexion');
-      expect(redirectCalls[0].searchParams.get('next')).toBe('/admin/moderation/stats');
+      expect(redirectCalls.length).toBe(0);
     });
 
-    it('/admin/spec/forum → ?next correct pour route spec imbriquée', async () => {
+    it('/admin/spec/forum → middleware passe (redirection gérée par le layout serveur)', async () => {
       mockCookieValue = null;
       const req = makeRequest('/admin/spec/forum');
       await updateSession(req);
-
-      expect(redirectCalls.length).toBe(1);
-      expect(redirectCalls[0].searchParams.get('next')).toBe('/admin/spec/forum');
+      expect(redirectCalls.length).toBe(0);
     });
   });
 
@@ -496,7 +481,8 @@ describe("updateSession — guards d'authentification", () => {
   describe('Cookies invalides — hasValidToken doit rejeter', () => {
     it('Cookie JSON valide mais access_token absent → redirige', async () => {
       mockCookieValue = JSON.stringify({ refresh_token: 'only-refresh' });
-      const req = makeRequest('/admin');
+      // Utilise /dashboard (redirigé par le middleware, contrairement à /admin)
+      const req = makeRequest('/dashboard');
       await updateSession(req);
       expect(redirectCalls.length).toBe(1);
       expect(redirectCalls[0].pathname).toBe('/connexion');
@@ -535,14 +521,16 @@ describe("updateSession — guards d'authentification", () => {
     it('Cookie JSON cassé dans le chunk .0 → redirige', async () => {
       mockCookieValue = null;
       mockChunkCookie = 'broken{json}chunk';
-      const req = makeRequest('/admin/stats');
+      // Utilise /profil (redirigé par le middleware, contrairement à /admin)
+      const req = makeRequest('/profil');
       await updateSession(req);
       expect(redirectCalls.length).toBe(1);
     });
 
     it('Cookie vide (chaîne vide) → redirige', async () => {
       mockCookieValue = '';
-      const req = makeRequest('/admin');
+      // Utilise /messages (redirigé par le middleware, contrairement à /admin)
+      const req = makeRequest('/messages');
       await updateSession(req);
       // Chaîne vide → cookies.get retourne undefined (pas de valeur)
       expect(redirectCalls.length).toBe(1);
