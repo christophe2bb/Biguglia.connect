@@ -47,11 +47,42 @@ vi.mock('next/navigation', () => ({
 }));
 
 // ── Mock next/headers (requis par createClient → createServerClient → cookies()) ──
+//
+// mockCookieGet est réassignable par chaque test :
+//   • undefined (défaut) → pas de cookie → guard redirige vers /connexion
+//   • { value: FAKE_JWT_COOKIE } → cookie valide factice → guard continue vers getUser/DB
+
+let mockCookieGet: ((name: string) => { value: string } | undefined) = () => undefined;
+
+// JWT factice : header.payload.sig — payload = base64url({ sub, exp })
+// On construit manuellement pour éviter toute dépendance à Buffer/atob dans les tests
+// sub = "uuid-user-0001", exp = 9999999999 (futur lointain)
+const FAKE_JWT_PAYLOAD_OBJ = { sub: 'uuid-user-0001', exp: 9999999999 };
+const FAKE_JWT_PAYLOAD = btoa(JSON.stringify(FAKE_JWT_PAYLOAD_OBJ))
+  .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+const FAKE_JWT = `eyJhbGciOiJIUzI1NiJ9.${FAKE_JWT_PAYLOAD}.fake-signature`;
+const FAKE_COOKIE_VALUE = JSON.stringify({ access_token: FAKE_JWT, refresh_token: 'fake-refresh', expires_at: 9999999999 });
+
+/**
+ * Active le faux cookie d'authentification pour le test courant.
+ * Doit être appelée AVANT setup() dans chaque test qui requiert un userId valide.
+ * Le guard cherche un cookie dont le nom contient 'auth-token' (ex: sb--auth-token).
+ */
+function withFakeCookie() {
+  mockCookieGet = (name: string) => {
+    if (name.includes('auth-token')) {
+      return { value: FAKE_COOKIE_VALUE };
+    }
+    return undefined;
+  };
+}
 
 vi.mock('next/headers', () => ({
   cookies: () => ({
+    get:    (name: string) => mockCookieGet(name),
     getAll: () => [],
-    set: vi.fn(),
+    set:    vi.fn(),
+    delete: vi.fn(),
   }),
 }));
 
@@ -150,6 +181,9 @@ describe('verifyAdminLayout()', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     redirectCalls.length = 0;
+    // Réinitialise le mock cookie à "pas de cookie" avant chaque test.
+    // Les tests nécessitant un userId doivent appeler withFakeCookie() explicitement.
+    mockCookieGet = () => undefined;
   });
 
   // ── 1. Pas de session ───────────────────────────────────────────────────────
@@ -177,6 +211,7 @@ describe('verifyAdminLayout()', () => {
   // ── 3. Profil introuvable ───────────────────────────────────────────────────
 
   it('redirige vers / si le profil est introuvable (data=null)', async () => {
+    withFakeCookie();
     setup({ user: { id: USER_ID } }, { role: null });
 
     const { redirected, redirectUrl } = await callGuard();
@@ -188,6 +223,7 @@ describe('verifyAdminLayout()', () => {
   // ── 4. Erreur DB profil ─────────────────────────────────────────────────────
 
   it('redirige vers / si la requête DB du profil échoue', async () => {
+    withFakeCookie();
     setup({ user: { id: USER_ID } }, { role: 'admin', dbError: true });
 
     const { redirected, redirectUrl } = await callGuard();
@@ -199,6 +235,7 @@ describe('verifyAdminLayout()', () => {
   // ── 5. Rôle insuffisant : resident ─────────────────────────────────────────
 
   it('redirige vers / si le rôle est resident', async () => {
+    withFakeCookie();
     setup({ user: { id: USER_ID } }, { role: 'resident' });
 
     const { redirected, redirectUrl } = await callGuard();
@@ -210,6 +247,7 @@ describe('verifyAdminLayout()', () => {
   // ── 6. Rôle insuffisant : artisan_verified ──────────────────────────────────
 
   it('redirige vers / si le rôle est artisan_verified', async () => {
+    withFakeCookie();
     setup({ user: { id: USER_ID } }, { role: 'artisan_verified' });
 
     const { redirected, redirectUrl } = await callGuard();
@@ -221,6 +259,7 @@ describe('verifyAdminLayout()', () => {
   // ── 7. Rôle insuffisant : artisan_pending ──────────────────────────────────
 
   it('redirige vers / si le rôle est artisan_pending', async () => {
+    withFakeCookie();
     setup({ user: { id: USER_ID } }, { role: 'artisan_pending' });
 
     const { redirected, redirectUrl } = await callGuard();
@@ -232,6 +271,7 @@ describe('verifyAdminLayout()', () => {
   // ── 8. Rôle admin ──────────────────────────────────────────────────────────
 
   it('retourne { actor: { id, role: "admin" } } pour le rôle admin', async () => {
+    withFakeCookie();
     setup({ user: { id: USER_ID } }, { role: 'admin' });
 
     const { redirected, result } = await callGuard();
@@ -245,6 +285,7 @@ describe('verifyAdminLayout()', () => {
   // ── 9. Rôle moderator ──────────────────────────────────────────────────────
 
   it('retourne { actor: { id, role: "moderator" } } pour le rôle moderator', async () => {
+    withFakeCookie();
     setup({ user: { id: USER_ID } }, { role: 'moderator' });
 
     const { redirected, result } = await callGuard();
@@ -255,13 +296,26 @@ describe('verifyAdminLayout()', () => {
     expect(result!.actor.role).toBe('moderator');
   });
 
-  // ── 10. actor.id = user.id (pas profileRow.id) ─────────────────────────────
+  // ── 10. actor.id = userId extrait du cookie JWT (sub), pas profileRow.id ────
+  //
+  // Depuis la refactorisation du guard (2026-04-17), l'userId est extrait
+  // directement depuis le payload JWT du cookie (champ `sub`), et non plus
+  // via getUser(). Ce test vérifie que le sub du cookie est bien retourné.
 
   it("actor.id provient de user.id (auth), pas uniquement de profileRow", async () => {
     const SPECIFIC_USER_ID = 'uuid-specific-9999';
-    mockSsrClientInstance   = makeSsrClient({ user: { id: SPECIFIC_USER_ID } });
+
+    // Construire un faux cookie JWT avec sub = SPECIFIC_USER_ID
+    const specificPayload = btoa(JSON.stringify({ sub: SPECIFIC_USER_ID, exp: 9999999999 }))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    const specificJwt = `eyJhbGciOiJIUzI1NiJ9.${specificPayload}.fake-sig`;
+    const specificCookieValue = JSON.stringify({ access_token: specificJwt, refresh_token: 'fake', expires_at: 9999999999 });
+
+    mockCookieGet = (name: string) =>
+      name.includes('auth-token') ? { value: specificCookieValue } : undefined;
+
+    // makeAdminDb retourne un profil avec le même ID pour que le guard réussisse
     mockAdminClientInstance = makeAdminDb({ role: 'admin' });
-    mockCreateClient.mockReturnValue(mockSsrClientInstance);
     mockCreateAdminClient.mockReturnValue(mockAdminClientInstance);
 
     const { result } = await callGuard();

@@ -55,6 +55,17 @@ const AUTH_FUNCTIONS = [
   'auth.getSession',
   'createAdminClient',  // admin client implique une vérification en amont
   'getAdminUser',       // guard admin — vérifie session + rôle admin/moderator
+  'isAuthorized',       // garde de route par token/env (ex: test-sentry)
+];
+
+/**
+ * Routes légitimement semi-publiques (protégées par token d'env ou NODE_ENV,
+ * pas par session utilisateur). Exclues du scan de secret leaks.
+ */
+const SECRET_LEAK_WHITELIST = [
+  // Route de monitoring Sentry : vérifie !!process.env.VAR (booléen, pas la valeur)
+  // et retourne 403 en production sans SENTRY_TEST_ENABLED=true
+  join(process.cwd(), 'src', 'app', 'api', 'test-sentry', 'route.ts'),
 ];
 
 /** Patterns qui indiquent une fuite potentielle de secrets. */
@@ -169,6 +180,9 @@ describe('Sécurité API — absence de debug/diagnostic routes', () => {
     const leakingFiles: Array<{ file: string; pattern: string; line: number }> = [];
 
     for (const routeFile of routeFiles) {
+      // Exclure les routes whitelistées (protégées par token/env, pas par session)
+      if (SECRET_LEAK_WHITELIST.includes(routeFile)) continue;
+
       const content = readFileSync(routeFile, 'utf-8');
       const lines = content.split('\n');
 
