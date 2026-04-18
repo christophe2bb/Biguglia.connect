@@ -1,4 +1,4 @@
-'use client';
+
 
 import { STATUS_CONFIG } from '../_constants';
 import type { LFStatus } from '../_types';

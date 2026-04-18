@@ -1,4 +1,4 @@
-'use client';
+
 
 import { History } from 'lucide-react';
 import { formatRelative } from '@/lib/utils';

@@ -5,7 +5,7 @@
 // utilisent Date.now() — doit rester côté client pour éviter hydration mismatch
 // ─────────────────────────────────────────────────────────────────────────────
 
-'use client';
+
 
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';

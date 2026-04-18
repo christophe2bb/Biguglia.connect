@@ -1,4 +1,4 @@
-'use client';
+
 
 import { CheckCircle2 } from 'lucide-react';
 import { formatRelative } from '@/lib/utils';

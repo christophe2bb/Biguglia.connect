@@ -1,4 +1,4 @@
-'use client';
+
 
 /**
  * StatsOverview — KPIs principaux pour le tableau de bord de modération.

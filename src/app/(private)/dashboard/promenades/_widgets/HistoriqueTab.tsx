@@ -1,4 +1,4 @@
-'use client';
+
 
 import Link from 'next/link';
 import { Clock, ChevronRight } from 'lucide-react';

@@ -1,4 +1,4 @@
-'use client';
+
 
 import { Star } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';

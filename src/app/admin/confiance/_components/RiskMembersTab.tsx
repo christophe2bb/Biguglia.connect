@@ -1,4 +1,4 @@
-'use client';
+
 
 import Link from 'next/link';
 import { Shield, Star, AlertTriangle, ChevronRight } from 'lucide-react';

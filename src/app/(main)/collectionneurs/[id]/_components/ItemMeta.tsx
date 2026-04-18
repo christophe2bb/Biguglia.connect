@@ -1,4 +1,4 @@
-'use client';
+
 
 import {
   ArrowLeftRight, CheckCircle2, Clock, Eye, Gem, MapPin,

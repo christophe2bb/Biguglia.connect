@@ -1,4 +1,4 @@
-'use client';
+
 
 import {
   Users, Wrench, MessageSquare, Package,

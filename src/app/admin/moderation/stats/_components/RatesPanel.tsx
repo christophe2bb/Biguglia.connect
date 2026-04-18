@@ -1,4 +1,4 @@
-'use client';
+
 
 /**
  * RatesPanel — Taux acceptation / refus / correction + alertes risque.

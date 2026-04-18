@@ -1,4 +1,4 @@
-'use client';
+
 
 /**
  * MembersPanel — Membres surveillés et membres de confiance.

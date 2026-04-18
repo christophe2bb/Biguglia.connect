@@ -1,4 +1,4 @@
-'use client';
+
 
 import Link from 'next/link';
 import { Activity, Users, Inbox, Send, ChevronRight } from 'lucide-react';

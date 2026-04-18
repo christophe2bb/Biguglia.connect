@@ -1,4 +1,4 @@
-'use client';
+
 
 import { EVENT_STATUS_CONFIG, type EventStatus } from '@/lib/events';
 

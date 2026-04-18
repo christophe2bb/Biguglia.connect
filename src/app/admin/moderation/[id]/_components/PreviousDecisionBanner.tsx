@@ -1,4 +1,4 @@
-'use client';
+
 
 import { Archive, CheckCircle, XCircle } from 'lucide-react';
 import { formatRelative } from '@/lib/utils';

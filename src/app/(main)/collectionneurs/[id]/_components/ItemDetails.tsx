@@ -1,4 +1,4 @@
-'use client';
+
 
 import {
   AlertTriangle, Calendar, CheckCircle2, Gem, Info,
