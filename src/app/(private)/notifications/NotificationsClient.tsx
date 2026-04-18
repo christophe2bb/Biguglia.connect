@@ -86,9 +86,11 @@ const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'reminders', label: 'Rappels',    icon: Clock },
 ];
 
-// ─── Pagination ───────────────────────────────────────────────────────────────
-const PAGE_SIZE = 30;   // notifications affichées par page
-const FETCH_LIMIT = 200; // fetch max côté DB (pour avoir les compteurs exacts par onglet)
+// ─── Pagination ────────────────────────────────────────────────────────────────
+/** Nombre de notifications chargées par page (vraie pagination serveur). */
+const PAGE_SIZE = 30;
+/** Plafond pour le fetch léger des compteurs d'onglets (sans corps). */
+const COUNTS_LIMIT = 500;
 
 // ─── Regroupement par date ────────────────────────────────────────────────────
 function groupByDate(notifs: Notification[]): { label: string; items: Notification[] }[] {
@@ -125,41 +127,167 @@ function PriorityDot({ priority }: { priority: 'high' | 'medium' | 'low' }) {
   return null;
 }
 
+/** Extrait les types appartenant à un onglet donné. */
+function tabTypes(tabId: TabId): string[] | null {
+  if (tabId === 'all' || tabId === 'unread') return null;
+  return Object.entries(NOTIF_CONFIG)
+    .filter(([, cfg]) => cfg.tab === tabId)
+    .map(([type]) => type);
+}
+
 const RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000];
+
+// ─── Compteurs légers (toujours chargés) ──────────────────────────────────────
+interface TabCounters {
+  all: number;
+  unread: number;
+  messages: number;
+  activity: number;
+  system: number;
+  reminders: number;
+  messagesUnread: number;
+  activityUnread: number;
+  systemUnread: number;
+  remindersUnread: number;
+}
 
 export default function NotificationsClient() {
   const { profile } = useAuthStore();
-  // ── Suppression de router : ProtectedPage gère la redirection sans polluer l'historique
+
+  // ── Notifications affichées (page courante) ────────────────────────────────
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [activeTab, setActiveTab] = useState<TabId>('all');
+  // ── Compteurs légers (onglets) ─────────────────────────────────────────────
+  const [counters, setCounters] = useState<TabCounters>({
+    all: 0, unread: 0,
+    messages: 0, activity: 0, system: 0, reminders: 0,
+    messagesUnread: 0, activityUnread: 0, systemUnread: 0, remindersUnread: 0,
+  });
+
+  const [loading, setLoading]       = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [activeTab, setActiveTab]   = useState<TabId>('all');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  // ── Pagination : nombre de notifications actuellement visibles ────────────
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  // cursor = created_at du dernier élément chargé (pour fetch suivant)
+  const [cursor, setCursor]         = useState<string | null>(null);
+  const [hasMore, setHasMore]       = useState(false);
+
   const channelRef   = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectIdx = useRef(0);
   const mountedRef   = useRef(true);
 
-  // Remettre à zéro la pagination quand l'onglet ou la recherche changent
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [activeTab, searchQuery]);
+  // ── Réinitialisation quand l'onglet ou la recherche changent ───────────────
+  const resetPagination = useCallback(() => {
+    setNotifications([]);
+    setCursor(null);
+    setHasMore(false);
+  }, []);
 
-  // ── Chargement ───────────────────────────────────────────────────────────
-  const fetchNotifications = useCallback(async () => {
+  // ── Compteurs légers : ids + is_read seulement ─────────────────────────────
+  const fetchCounters = useCallback(async () => {
     if (!profile) return;
     const supabase = createClient();
+    // On récupère seulement type + is_read pour calculer les compteurs
     const { data } = await supabase
+      .from('notifications')
+      .select('type, is_read')
+      .eq('user_id', profile.id)
+      .limit(COUNTS_LIMIT);
+
+    if (!mountedRef.current || !data) return;
+    const rows = data as { type: string; is_read: boolean }[];
+    const tab = (t: string) => getConfig(t).tab;
+    setCounters({
+      all:             rows.length,
+      unread:          rows.filter(r => !r.is_read).length,
+      messages:        rows.filter(r => tab(r.type) === 'messages').length,
+      activity:        rows.filter(r => tab(r.type) === 'activity').length,
+      system:          rows.filter(r => tab(r.type) === 'system').length,
+      reminders:       rows.filter(r => tab(r.type) === 'reminders').length,
+      messagesUnread:  rows.filter(r => !r.is_read && tab(r.type) === 'messages').length,
+      activityUnread:  rows.filter(r => !r.is_read && tab(r.type) === 'activity').length,
+      systemUnread:    rows.filter(r => !r.is_read && tab(r.type) === 'system').length,
+      remindersUnread: rows.filter(r => !r.is_read && tab(r.type) === 'reminders').length,
+    });
+  }, [profile]);
+
+  // ── Chargement d'une page de notifications ─────────────────────────────────
+  const fetchPage = useCallback(async (
+    tabId: TabId,
+    query: string,
+    afterCursor: string | null,
+    append: boolean,
+  ) => {
+    if (!profile) return;
+    const supabase = createClient();
+
+    let q = supabase
       .from('notifications')
       .select('*')
       .eq('user_id', profile.id)
       .order('created_at', { ascending: false })
-      .limit(FETCH_LIMIT);
-    if (mountedRef.current) {
-      setNotifications((data as Notification[]) || []);
-      setLoading(false);
+      .limit(PAGE_SIZE + 1); // +1 pour savoir s'il y a une page suivante
+
+    // Filtre onglet
+    if (tabId === 'unread') {
+      q = q.eq('is_read', false);
+    } else {
+      const types = tabTypes(tabId);
+      if (types) q = q.in('type', types);
     }
+
+    // Filtre recherche (côté serveur si pas d'index full-text disponible, on garde côté client)
+    // Cursor-based pagination : les éléments plus anciens que le curseur
+    if (afterCursor) q = q.lt('created_at', afterCursor);
+
+    const { data } = await q;
+    if (!mountedRef.current || !data) return;
+
+    // Filtrage recherche côté client (léger, sur PAGE_SIZE items seulement)
+    let items = data as Notification[];
+    if (query) {
+      const lq = query.toLowerCase();
+      items = items.filter(n =>
+        n.title?.toLowerCase().includes(lq) ||
+        (n as unknown as { body?: string }).body?.toLowerCase().includes(lq) ||
+        n.type?.toLowerCase().includes(lq)
+      );
+    }
+
+    const pageItems = items.slice(0, PAGE_SIZE);
+    const nextCursor = items.length > PAGE_SIZE && items[PAGE_SIZE - 1]
+      ? items[PAGE_SIZE - 1].created_at
+      : null;
+
+    setNotifications(prev => append ? [...prev, ...pageItems] : pageItems);
+    setCursor(nextCursor);
+    setHasMore(items.length > PAGE_SIZE);
   }, [profile]);
+
+  // ── Chargement initial (reset + première page) ─────────────────────────────
+  const loadTab = useCallback(async (tabId: TabId, query: string) => {
+    setLoading(true);
+    resetPagination();
+    await fetchPage(tabId, query, null, false);
+    if (mountedRef.current) setLoading(false);
+  }, [fetchPage, resetPagination]);
+
+  // ── Charger plus (page suivante) ───────────────────────────────────────────
+  const loadMore = useCallback(async () => {
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    await fetchPage(activeTab, searchQuery, cursor, true);
+    if (mountedRef.current) setLoadingMore(false);
+  }, [cursor, loadingMore, fetchPage, activeTab, searchQuery]);
+
+  // ── Actualiser (re-charge la première page + compteurs) ────────────────────
+  const refresh = useCallback(async () => {
+    await Promise.all([
+      loadTab(activeTab, searchQuery),
+      fetchCounters(),
+    ]);
+  }, [loadTab, activeTab, searchQuery, fetchCounters]);
 
   // ── Realtime ─────────────────────────────────────────────────────────────
   const connectRealtime = useCallback(() => {
@@ -173,7 +301,21 @@ export default function NotificationsClient() {
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${profile.id}` },
         (payload) => {
           if (!mountedRef.current) return;
-          setNotifications(prev => [payload.new as Notification, ...prev]);
+          const n = payload.new as Notification;
+          // Injecter en tête si compatible avec l'onglet actif
+          const types = tabTypes(activeTab);
+          const matchesTab =
+            activeTab === 'all' ||
+            (activeTab === 'unread' && !n.is_read) ||
+            (types && types.includes(n.type));
+          if (matchesTab) {
+            setNotifications(prev => [n, ...prev]);
+          }
+          setCounters(c => ({
+            ...c,
+            all: c.all + 1,
+            unread: c.unread + (n.is_read ? 0 : 1),
+          }));
           window.dispatchEvent(new Event('new-notification'));
         }
       )
@@ -181,7 +323,11 @@ export default function NotificationsClient() {
         { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${profile.id}` },
         (payload) => {
           if (!mountedRef.current) return;
-          setNotifications(prev => prev.map(n => n.id === payload.new.id ? { ...n, ...payload.new } as Notification : n));
+          setNotifications(prev =>
+            prev.map(n => n.id === payload.new.id ? { ...n, ...payload.new } as Notification : n)
+          );
+          // Recalculer les compteurs via un fetch léger
+          fetchCounters();
         }
       )
       .subscribe((status) => {
@@ -193,24 +339,26 @@ export default function NotificationsClient() {
           reconnectIdx.current = Math.min(reconnectIdx.current + 1, RECONNECT_DELAYS.length - 1);
           if (reconnectRef.current) clearTimeout(reconnectRef.current);
           reconnectRef.current = setTimeout(() => { if (mountedRef.current) connectRealtime(); }, delay);
-          fetchNotifications();
+          fetchCounters();
         }
       });
 
     channelRef.current = channel;
-  }, [profile, fetchNotifications]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, fetchCounters]);
 
+  // ── Effet principal : chargement initial ──────────────────────────────────
   useEffect(() => {
     mountedRef.current = true;
-    // Pas de router.push ici — ProtectedPage (adminOnly=false) redirige sans polluer l'historique
     if (!profile) return;
-    fetchNotifications();
+    loadTab(activeTab, searchQuery);
+    fetchCounters();
     connectRealtime();
-    // Quand on arrive sur la page notifications → forcer recalcul du badge immédiatement
     window.dispatchEvent(new Event('new-notification'));
     const handleVis = () => {
       if (document.visibilityState === 'visible') {
-        fetchNotifications();
+        loadTab(activeTab, searchQuery);
+        fetchCounters();
         window.dispatchEvent(new Event('new-notification'));
       }
     };
@@ -222,15 +370,23 @@ export default function NotificationsClient() {
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
       document.removeEventListener('visibilitychange', handleVis);
     };
-  }, [profile, fetchNotifications, connectRealtime]);
+  // Initial mount only — tab/search changes handled by separate effect
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id]);
+
+  // ── Recharger quand l'onglet ou la recherche changent ─────────────────────
+  useEffect(() => {
+    if (!profile) return;
+    loadTab(activeTab, searchQuery);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, searchQuery]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const markAllRead = async () => {
     if (!profile) return;
     const supabase = createClient();
-    // Optimistic update immédiat
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-    // Écriture BDD puis signal (après await → is_read visible en BDD)
+    setCounters(c => ({ ...c, unread: 0, messagesUnread: 0, activityUnread: 0, systemUnread: 0, remindersUnread: 0 }));
     await supabase.from('notifications').update({ is_read: true }).eq('user_id', profile.id).eq('is_read', false);
     toast.success('Toutes les notifications marquées comme lues');
     window.dispatchEvent(new Event('new-notification'));
@@ -239,9 +395,8 @@ export default function NotificationsClient() {
   const markOneRead = useCallback(async (notif: Notification) => {
     if (notif.is_read) return;
     const supabase = createClient();
-    // 1. Optimistic update local immédiat — point rouge disparaît tout de suite
     setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
-    // 2. Écriture BDD (await) puis signal — fetchCounts lira is_read=true en BDD
+    setCounters(c => ({ ...c, unread: Math.max(0, c.unread - 1) }));
     await supabase.from('notifications').update({ is_read: true }).eq('id', notif.id);
     window.dispatchEvent(new Event('new-notification'));
   }, []);
@@ -250,57 +405,34 @@ export default function NotificationsClient() {
     e.preventDefault();
     e.stopPropagation();
     setDeletingId(id);
-    // Optimistic local d'abord
     setNotifications(prev => prev.filter(n => n.id !== id));
+    setCounters(c => ({ ...c, all: Math.max(0, c.all - 1) }));
     await new Promise(r => setTimeout(r, 250));
     const supabase = createClient();
     await supabase.from('notifications').delete().eq('id', id);
     setDeletingId(null);
-    // Signal après écriture BDD
     window.dispatchEvent(new Event('new-notification'));
   };
 
-  // ── Filtrage ──────────────────────────────────────────────────────────────
-  const filtered = notifications.filter(n => {
-    if (activeTab === 'unread' && n.is_read) return false;
-    if (activeTab !== 'all' && activeTab !== 'unread') {
-      const cfg = getConfig(n.type);
-      if (cfg.tab !== activeTab) return false;
-    }
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return (
-        n.title?.toLowerCase().includes(q) ||
-        (n as unknown as { body?: string }).body?.toLowerCase().includes(q) ||
-        n.type?.toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
+  // ── Données affichées ─────────────────────────────────────────────────────
+  const groups = groupByDate(notifications);
 
-  // ── Pagination : slice pour n'afficher que visibleCount éléments ──────────
-  const paginatedFiltered = filtered.slice(0, visibleCount);
-  const hasMore = filtered.length > visibleCount;
-
-  const unreadCount  = notifications.filter(n => !n.is_read).length;
   const tabCounts: Record<TabId, number> = {
-    all:       notifications.length,
-    unread:    unreadCount,
-    messages:  notifications.filter(n => getConfig(n.type).tab === 'messages').length,
-    activity:  notifications.filter(n => getConfig(n.type).tab === 'activity').length,
-    system:    notifications.filter(n => getConfig(n.type).tab === 'system').length,
-    reminders: notifications.filter(n => getConfig(n.type).tab === 'reminders').length,
+    all:       counters.all,
+    unread:    counters.unread,
+    messages:  counters.messages,
+    activity:  counters.activity,
+    system:    counters.system,
+    reminders: counters.reminders,
   };
   const tabUnread: Record<TabId, number> = {
-    all:       unreadCount,
-    unread:    unreadCount,
-    messages:  notifications.filter(n => !n.is_read && getConfig(n.type).tab === 'messages').length,
-    activity:  notifications.filter(n => !n.is_read && getConfig(n.type).tab === 'activity').length,
-    system:    notifications.filter(n => !n.is_read && getConfig(n.type).tab === 'system').length,
-    reminders: notifications.filter(n => !n.is_read && getConfig(n.type).tab === 'reminders').length,
+    all:       counters.unread,
+    unread:    counters.unread,
+    messages:  counters.messagesUnread,
+    activity:  counters.activityUnread,
+    system:    counters.systemUnread,
+    reminders: counters.remindersUnread,
   };
-
-  const groups = groupByDate(paginatedFiltered);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
@@ -311,24 +443,24 @@ export default function NotificationsClient() {
           <div className="relative">
             <div className={cn(
               'w-11 h-11 rounded-2xl flex items-center justify-center transition-colors',
-              unreadCount > 0 ? 'bg-brand-50' : 'bg-gray-100'
+              counters.unread > 0 ? 'bg-brand-50' : 'bg-gray-100'
             )}>
-              {unreadCount > 0
+              {counters.unread > 0
                 ? <Bell className="w-5 h-5 text-brand-600" />
                 : <BellOff className="w-5 h-5 text-gray-400" />
               }
             </div>
-            {unreadCount > 0 && (
+            {counters.unread > 0 && (
               <span className="absolute -top-1 -right-1 min-w-[20px] h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 shadow border-2 border-white animate-bounce">
-                {unreadCount > 99 ? '99+' : unreadCount}
+                {counters.unread > 99 ? '99+' : counters.unread}
               </span>
             )}
           </div>
           <div>
             <h1 className="text-xl font-black text-gray-900">Notifications</h1>
             <p className="text-sm text-gray-500">
-              {unreadCount > 0
-                ? <span className="text-red-500 font-semibold">{unreadCount} non lue{unreadCount > 1 ? 's' : ''} — votre attention est requise</span>
+              {counters.unread > 0
+                ? <span className="text-red-500 font-semibold">{counters.unread} non lue{counters.unread > 1 ? 's' : ''} — votre attention est requise</span>
                 : <span className="text-emerald-600 font-semibold">✓ Tout est à jour</span>}
             </p>
           </div>
@@ -336,13 +468,13 @@ export default function NotificationsClient() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={fetchNotifications}
+            onClick={refresh}
             aria-label="Actualiser les notifications"
             className="p-2 rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
           >
             <RefreshCw className="w-4 h-4" aria-hidden="true" />
           </button>
-          {unreadCount > 0 && (
+          {counters.unread > 0 && (
             <button
               onClick={markAllRead}
               aria-label="Marquer toutes les notifications comme lues"
@@ -416,7 +548,7 @@ export default function NotificationsClient() {
             <div key={i} className="h-20 bg-gray-100 rounded-2xl animate-pulse" />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : notifications.length === 0 ? (
         <div className="text-center py-16">
           <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
             {activeTab === 'unread'
@@ -564,15 +696,19 @@ export default function NotificationsClient() {
           {/* ── Bas de page : compteur + bouton « Voir plus » ─────────────────── */}
           <div className="flex flex-col items-center gap-3 py-2">
             <p className="text-xs text-gray-400">
-              {Math.min(visibleCount, filtered.length)} / {filtered.length} notification{filtered.length > 1 ? 's' : ''}
+              {notifications.length} notification{notifications.length > 1 ? 's' : ''} affichée{notifications.length > 1 ? 's' : ''}
             </p>
             {hasMore && (
               <button
-                onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <ChevronDown className="w-4 h-4" aria-hidden="true" />
-                Voir {Math.min(PAGE_SIZE, filtered.length - visibleCount)} de plus
+                {loadingMore
+                  ? <span className="w-4 h-4 border-2 border-gray-300 border-t-brand-500 rounded-full animate-spin" />
+                  : <ChevronDown className="w-4 h-4" aria-hidden="true" />
+                }
+                {loadingMore ? 'Chargement…' : `Voir ${PAGE_SIZE} de plus`}
               </button>
             )}
           </div>
