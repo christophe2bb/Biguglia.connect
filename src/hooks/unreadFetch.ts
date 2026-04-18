@@ -3,9 +3,15 @@
 // Appelle /api/messages/unread (admin client côté serveur, bypass RLS) pour
 // obtenir participations + messages candidats + count notifications.
 // Met à jour readMap et unreadMap, puis appelle setCounts.
+//
+// ── Optimisations v2 ──────────────────────────────────────────────────────────
+//   1. Token Bearer mis en cache module-level (évite un getSession() réseau
+//      à chaque appel de fetchCounts — économie ~150-200 ms / appel).
+//   2. `is_system` calculé côté serveur → payload JSON réduit (plus de `content`).
+//   3. `since` construit depuis readMap → borne inférieure correcte dès le 1er appel.
 
 import { createClient } from '@/lib/supabase/client';
-import { isSystem, totalUnreadMsgs } from './unreadHelpers';
+import { totalUnreadMsgs } from './unreadHelpers';
 
 type SetCounts = (c: { messages: number; notifications: number; total: number }) => void;
 
@@ -15,6 +21,35 @@ export type UnreadRefs = {
   readMapRef:   React.MutableRefObject<Record<string, number>>;
   unreadMapRef: React.MutableRefObject<Record<string, Set<string>>>;
 };
+
+// ── Cache module-level du token Bearer ───────────────────────────────────────
+// Évite un aller-retour réseau vers Supabase Auth à chaque appel de fetchCounts.
+// Le token est rafraîchi automatiquement à l'expiration (< Date.now()).
+let _cachedToken: string | null    = null;
+let _tokenExpiresAt: number        = 0;    // ms
+
+async function getBearerToken(supabase: ReturnType<typeof createClient>): Promise<string | null> {
+  const now = Date.now();
+  // Marge de 60 s avant expiration pour éviter d'envoyer un token expirant
+  if (_cachedToken && _tokenExpiresAt - now > 60_000) return _cachedToken;
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    _cachedToken    = null;
+    _tokenExpiresAt = 0;
+    return null;
+  }
+  _cachedToken    = session.access_token;
+  // expires_at est en secondes (standard JWT)
+  _tokenExpiresAt = (session.expires_at ?? 0) * 1000;
+  return _cachedToken;
+}
+
+/** Invalide le cache de token (ex. à la déconnexion). */
+export function invalidateBearerCache(): void {
+  _cachedToken    = null;
+  _tokenExpiresAt = 0;
+}
 
 /**
  * Interroge l'API /api/messages/unread, reconstruit readMap + unreadMap,
@@ -31,27 +66,38 @@ export async function fetchCounts(
 ): Promise<void> {
   if (refs.fetchingRef.current) return;
   refs.fetchingRef.current = true;
-  const lockTimeout = setTimeout(() => { refs.fetchingRef.current = false; }, 15000);
+  const lockTimeout = setTimeout(() => { refs.fetchingRef.current = false; }, 15_000);
 
   try {
-    // Calculer la date la plus ancienne dans readMap pour filtrer les messages
+    // ── Calculer `since` depuis le readMap (timestamp le plus ancien) ────────
+    // Si readMap est vide (1er appel), on n'envoie pas since=1970 : l'API
+    // utilisera alors le joined_at minimal des participations comme borne basse.
     const convIds = Object.keys(refs.readMapRef.current);
-    const oldestTs  = convIds.length > 0
-      ? Math.min(...convIds.map(cid => refs.readMapRef.current[cid]))
-      : 0;
-    const oldestISO = new Date(Math.max(oldestTs, 0)).toISOString();
+    let sinceParam = '';
+    if (convIds.length > 0) {
+      const oldestTs  = Math.min(...convIds.map(cid => refs.readMapRef.current[cid]));
+      // 60 s de marge pour absorber les messages arrivés juste avant la lecture
+      const effectiveTs = Math.max(oldestTs - 60_000, 0);
+      sinceParam = `&since=${encodeURIComponent(new Date(effectiveTs).toISOString())}`;
+    }
 
-    // Token Bearer pour l'auth côté API route
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
+    // ── Token Bearer mis en cache (évite getSession() réseau à chaque appel) ─
+    const token = await getBearerToken(supabase);
 
-    const res = await fetch(`/api/messages/unread?since=${encodeURIComponent(oldestISO)}`, {
+    const res = await fetch(`/api/messages/unread?v=2${sinceParam}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
+      // Permet au navigateur de réutiliser la réponse mise en cache (max-age=5 s)
+      // sans recréer de connexion TCP inutile.
+      cache: 'default',
     }).catch(() => null);
 
     if (!res || !res.ok) {
-      if (res?.status === 401 && refs.mountedRef.current) {
-        setCounts({ messages: 0, notifications: 0, total: 0 });
+      if (res?.status === 401) {
+        // Token expiré — invalider le cache et forcer un refresh
+        invalidateBearerCache();
+        if (refs.mountedRef.current) {
+          setCounts({ messages: 0, notifications: 0, total: 0 });
+        }
       }
       return;
     }
@@ -65,7 +111,8 @@ export async function fetchCounts(
       notifications: unreadNotifs = 0,
     } = data as {
       participations: Array<{ conversation_id: string; last_read_at: string | null; joined_at: string | null }>;
-      messages:       Array<{ id: string; conversation_id: string; created_at: string; content: string; sender_id: string }>;
+      // v2 : is_system calculé côté serveur (plus de `content` dans le payload)
+      messages:       Array<{ id: string; conversation_id: string; created_at: string; sender_id: string; is_system: boolean }>;
       notifications:  number;
     };
 
@@ -82,9 +129,10 @@ export async function fetchCounts(
     participations.forEach(c => { newUnreadMap[c.conversation_id] = new Set(); });
 
     for (const m of candidateMsgs) {
+      if (m.is_system) continue;                                   // filtré côté serveur
       const readAt = refs.readMapRef.current[m.conversation_id] ?? 0;
       const msgAt  = new Date(m.created_at).getTime();
-      if (msgAt > readAt && !isSystem(m.content || '')) {
+      if (msgAt > readAt) {
         if (!newUnreadMap[m.conversation_id]) newUnreadMap[m.conversation_id] = new Set();
         newUnreadMap[m.conversation_id].add(m.id);
       }

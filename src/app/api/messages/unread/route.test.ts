@@ -71,7 +71,7 @@ function buildAdminMock({
   participations = [] as Array<{ conversation_id: string; last_read_at: string | null; joined_at: string | null }>,
   participationsError = null as { message: string } | null,
   notificationCount = 0,
-  messages = [] as Array<{ id: string; conversation_id: string; created_at: string; content: string; sender_id: string }>,
+  messages = [] as Array<{ id: string; conversation_id: string; created_at: string; content: string; sender_id: string; is_system?: boolean }>,
   messagesError = null as { message: string } | null,
   patchError = null as { message: string } | null,
   // captureInFilter lets us record which convIds were passed to .in()
@@ -80,7 +80,7 @@ function buildAdminMock({
   // Chainable builder pour Supabase query
   const buildChain = (resolveValue: unknown) => {
     const chain: Record<string, unknown> = {};
-    const methods = ['select', 'eq', 'neq', 'gt', 'in', 'update', 'limit'] as const;
+    const methods = ['select', 'eq', 'neq', 'gt', 'in', 'update', 'limit', 'order'] as const;
     methods.forEach(m => {
       chain[m] = (...args: unknown[]) => {
         // Capture les ids passés à .in()
@@ -133,7 +133,8 @@ function buildAdminMock({
 
     if (table === 'messages') {
       const msgChain: Record<string, unknown> = {};
-      ['select', 'eq', 'neq', 'gt', 'limit'].forEach(m => { msgChain[m] = () => msgChain; });
+      // 'order' est maintenant utilisé par la route v2 (.order('created_at', …))
+      ['select', 'eq', 'neq', 'gt', 'limit', 'order'].forEach(m => { msgChain[m] = () => msgChain; });
       // .in() with capture
       msgChain['in'] = (_col: string, ids: string[]) => {
         if (captureInFilter) captureInFilter(ids);
@@ -335,6 +336,9 @@ describe('GET /api/messages/unread', () => {
     expect(json.participations).toHaveLength(1);
     expect(json.messages).toHaveLength(1);
     expect(json.messages[0].id).toBe('msg-1');
+    // v2 : `content` est remplacé par `is_system` calculé côté serveur
+    expect(json.messages[0]).not.toHaveProperty('content');
+    expect(typeof json.messages[0].is_system).toBe('boolean');
     expect(json.notifications).toBe(3);
   });
 });
