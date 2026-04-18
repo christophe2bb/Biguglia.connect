@@ -49,5 +49,19 @@ export const EXCHANGEABLE_TYPES: Record<string, {
 /** Délais successifs entre tentatives de reconnexion Realtime (ms) */
 export const RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000] as const;
 
-/** Intervalle du polling de secours quand le Realtime est indisponible (ms) */
-export const FALLBACK_POLL_INTERVAL = 5000;
+/**
+ * Intervalle du polling de secours quand le Realtime est indisponible (ms).
+ * 8 s offre un bon compromis entre réactivité et charge serveur :
+ *   - Assez rapide pour ne pas bloquer l'UX d'une conversation
+ *   - Nettement moins agressif que 5 s (−37 % de requêtes)
+ *   - Ce polling est UNIQUEMENT actif lorsque le canal Supabase Realtime
+ *     est en erreur/déconnecté — il est annulé dès que SUBSCRIBED est reçu.
+ */
+export const FALLBACK_POLL_INTERVAL = 8_000;
+
+/**
+ * Délai d'initialisation du polling de secours (ms).
+ * On attend ce délai avant de démarrer le polling initial (avant SUBSCRIBED),
+ * pour laisser le temps au canal Realtime de s'établir sans requête inutile.
+ */
+export const POLL_INIT_DELAY = 2_000;
