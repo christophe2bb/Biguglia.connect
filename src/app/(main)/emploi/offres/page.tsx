@@ -32,7 +32,7 @@ import { JobOfferCard } from '@/components/jobs/JobOfferCard';
 import { JobFiltersClient } from './JobFiltersClient';
 import { SortSelectClient } from './SortSelectClient';
 import type { JobOfferFilters } from '@/types/jobs';
-import { JsonLd, breadcrumbSchema, faqSchema } from '@/components/seo/JsonLd';
+import { JsonLd, breadcrumbSchema, faqSchema, collectionPageSchema, itemListSchema, jobPostingSchema } from '@/components/seo/JsonLd';
 
 interface PageProps {
   searchParams: {
@@ -96,10 +96,35 @@ export default async function OffresEmploiPage({ searchParams }: PageProps) {
     { q: 'Comment publier une offre d\'emploi pour Biguglia ?', a: 'Cliquez sur "Publier une offre" et remplissez le formulaire. La diffusion est gratuite et votre offre est visible dès validation.' },
   ]);
 
+  // ItemList : les premières offres visibles
+  const itemList = itemListSchema({
+    name:  'Offres d\'emploi à Biguglia',
+    url:   `${SITE_URL}/emploi/offres`,
+    items: offers.slice(0, 10).map((o) => ({
+      name: o.title,
+      url:  `${SITE_URL}/emploi/offres/${o.slug}`,
+      description: o.short_description ?? undefined,
+    })),
+  });
+
+  // JobPosting pour les 3 premières offres
+  const jobPostings = offers.slice(0, 3).map((o) =>
+    jobPostingSchema({
+      title:        o.title,
+      description:  o.short_description ?? `Offre d'emploi à ${o.location_city ?? 'Biguglia'}.`,
+      datePosted:   o.created_at,
+      url:          `${SITE_URL}/emploi/offres/${o.slug}`,
+      contractType: o.contract_type,
+      city:         o.location_city ?? 'Biguglia',
+    })
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
       <JsonLd data={breadcrumb} />
       <JsonLd data={faq} />
+      <JsonLd data={itemList} />
+      {jobPostings.map((jp, i) => <JsonLd key={i} data={jp} />)}
 
       {/* ── HERO ──────────────────────────────────────────────────── */}
       <div className="bg-gradient-to-br from-brand-500 via-brand-600 to-brand-700 text-white">

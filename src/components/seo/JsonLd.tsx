@@ -403,3 +403,268 @@ export function itemListSchema(opts: {
     })),
   };
 }
+
+// ─── Helpers supplémentaires ──────────────────────────────────────────────────
+
+/**
+ * Product + Offer — schéma pour une petite annonce / listing
+ * Génère des rich results "Product" dans Google (prix, disponibilité)
+ */
+export function productOfferSchema(listing: {
+  name:        string;
+  description: string;
+  url:         string;
+  price?:      number | null;
+  currency?:   string;
+  condition?:  'NewCondition' | 'UsedCondition' | 'RefurbishedCondition';
+  image?:      string;
+  seller?:     string;
+  availability?: 'InStock' | 'OutOfStock' | 'Discontinued';
+}) {
+  return {
+    '@context':   'https://schema.org',
+    '@type':      'Product',
+    name:         listing.name,
+    description:  listing.description,
+    url:          listing.url.startsWith('http') ? listing.url : `${SITE_URL}${listing.url}`,
+    ...(listing.image && { image: listing.image }),
+    offers: {
+      '@type':          'Offer',
+      price:            listing.price ?? 0,
+      priceCurrency:    listing.currency ?? 'EUR',
+      availability:     `https://schema.org/${listing.availability ?? 'InStock'}`,
+      itemCondition:    `https://schema.org/${listing.condition ?? 'UsedCondition'}`,
+      url:              listing.url.startsWith('http') ? listing.url : `${SITE_URL}${listing.url}`,
+      seller: {
+        '@type': 'Person',
+        name:    listing.seller ?? 'Habitant de Biguglia',
+      },
+      areaServed: {
+        '@type':        'City',
+        name:           'Biguglia',
+        addressRegion:  'Haute-Corse',
+        addressCountry: 'FR',
+      },
+    },
+  };
+}
+
+/**
+ * SportsOrganization — club sportif (SC Biguglia, etc.)
+ */
+export function sportsOrganizationSchema(org: {
+  name:       string;
+  url:        string;
+  sport?:     string;
+  city?:      string;
+  image?:     string;
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type':    'SportsOrganization',
+    name:       org.name,
+    url:        org.url.startsWith('http') ? org.url : `${SITE_URL}${org.url}`,
+    sport:      org.sport ?? 'Football',
+    ...(org.image && { image: org.image }),
+    location: {
+      '@type':  'Place',
+      name:     org.city ?? 'Biguglia',
+      address: {
+        '@type':           'PostalAddress',
+        addressLocality:   org.city ?? 'Biguglia',
+        addressRegion:     'Haute-Corse',
+        postalCode:        '20620',
+        addressCountry:    'FR',
+      },
+    },
+    memberOf: {
+      '@type': 'Organization',
+      name:    'Biguglia Connect',
+      url:     SITE_URL,
+    },
+  };
+}
+
+/**
+ * HowTo — guide étape par étape
+ * Génère des rich results "How-to" dans Google
+ */
+export function howToSchema(guide: {
+  name:        string;
+  description: string;
+  url:         string;
+  steps:       Array<{ name: string; text: string }>;
+  totalTime?:  string;   // ISO 8601 duration, ex: "PT10M"
+  image?:      string;
+}) {
+  return {
+    '@context':   'https://schema.org',
+    '@type':      'HowTo',
+    name:         guide.name,
+    description:  guide.description,
+    url:          guide.url.startsWith('http') ? guide.url : `${SITE_URL}${guide.url}`,
+    ...(guide.image     && { image: guide.image }),
+    ...(guide.totalTime && { totalTime: guide.totalTime }),
+    step: guide.steps.map((s, i) => ({
+      '@type':  'HowToStep',
+      position: i + 1,
+      name:     s.name,
+      text:     s.text,
+    })),
+    tool: { '@type': 'HowToTool', name: 'Biguglia Connect' },
+  };
+}
+
+/**
+ * Article — schéma pour une discussion de forum ou contenu éditorial
+ */
+export function articleSchema(article: {
+  headline:     string;
+  description:  string;
+  url:          string;
+  datePublished: string;
+  dateModified?: string;
+  author?:      string;
+  image?:       string;
+  articleBody?: string;
+}) {
+  return {
+    '@context':     'https://schema.org',
+    '@type':        'Article',
+    headline:       article.headline,
+    description:    article.description,
+    url:            article.url.startsWith('http') ? article.url : `${SITE_URL}${article.url}`,
+    datePublished:  article.datePublished,
+    dateModified:   article.dateModified ?? article.datePublished,
+    ...(article.image       && { image: article.image }),
+    ...(article.articleBody && { articleBody: article.articleBody.slice(0, 500) }),
+    author: {
+      '@type': 'Person',
+      name:    article.author ?? 'Habitant de Biguglia',
+    },
+    publisher: {
+      '@type': 'Organization',
+      name:    'Biguglia Connect',
+      url:     SITE_URL,
+      logo:    { '@type': 'ImageObject', url: `${SITE_URL}/images/biguglia-hero.jpg` },
+    },
+    inLanguage:  'fr',
+    isPartOf: {
+      '@type': 'WebSite',
+      name:    'Biguglia Connect',
+      url:     SITE_URL,
+    },
+  };
+}
+
+/**
+ * LocalBusiness spécifique — pour une page de service/artisan
+ * Avec plus de détails que le schema global (aggregateRating, priceRange)
+ */
+export function localServiceSchema(svc: {
+  name:          string;
+  description:   string;
+  url:           string;
+  serviceType:   string;
+  telephone?:    string;
+  priceRange?:   string;
+  reviewCount?:  number;
+  ratingValue?:  number;
+  image?:        string;
+}) {
+  return {
+    '@context':  'https://schema.org',
+    '@type':     'LocalBusiness',
+    name:        svc.name,
+    description: svc.description,
+    url:         svc.url.startsWith('http') ? svc.url : `${SITE_URL}${svc.url}`,
+    serviceType: svc.serviceType,
+    ...(svc.telephone  && { telephone:  svc.telephone }),
+    ...(svc.priceRange && { priceRange: svc.priceRange }),
+    ...(svc.image      && { image:      svc.image }),
+    ...(svc.reviewCount && svc.ratingValue && {
+      aggregateRating: {
+        '@type':       'AggregateRating',
+        ratingValue:   svc.ratingValue,
+        reviewCount:   svc.reviewCount,
+        bestRating:    5,
+        worstRating:   1,
+      },
+    }),
+    address: {
+      '@type':           'PostalAddress',
+      addressLocality:   'Biguglia',
+      addressRegion:     'Haute-Corse',
+      postalCode:        '20620',
+      addressCountry:    'FR',
+    },
+    geo: {
+      '@type':    'GeoCoordinates',
+      latitude:   42.5747,
+      longitude:   9.4436,
+    },
+    areaServed: {
+      '@type':        'City',
+      name:           'Biguglia',
+      addressCountry: 'FR',
+      addressRegion:  'Haute-Corse',
+    },
+  };
+}
+
+/**
+ * WebPage — schéma générique pour une page de contenu (CGU, aide, mentions…)
+ */
+export function webPageSchema(page: {
+  name:        string;
+  description: string;
+  url:         string;
+  type?:       'WebPage' | 'AboutPage' | 'ContactPage' | 'FAQPage';
+}) {
+  return {
+    '@context':   'https://schema.org',
+    '@type':      page.type ?? 'WebPage',
+    name:         page.name,
+    description:  page.description,
+    url:          page.url.startsWith('http') ? page.url : `${SITE_URL}${page.url}`,
+    inLanguage:   'fr',
+    isPartOf:     { '@type': 'WebSite', name: 'Biguglia Connect', url: SITE_URL },
+    publisher:    { '@type': 'Organization', name: 'Biguglia Connect', url: SITE_URL },
+    breadcrumb:   { '@type': 'BreadcrumbList', itemListElement: [] },
+  };
+}
+
+/**
+ * Place + TouristAttraction — pour une sortie / promenade nature
+ */
+export function placeSchema(place: {
+  name:        string;
+  description: string;
+  url:         string;
+  latitude?:   number;
+  longitude?:  number;
+  type?:       'TouristAttraction' | 'LandmarksOrHistoricalBuildings' | 'Park';
+}) {
+  return {
+    '@context':   'https://schema.org',
+    '@type':      place.type ?? 'TouristAttraction',
+    name:         place.name,
+    description:  place.description,
+    url:          place.url.startsWith('http') ? place.url : `${SITE_URL}${place.url}`,
+    ...(place.latitude && place.longitude && {
+      geo: {
+        '@type':    'GeoCoordinates',
+        latitude:   place.latitude,
+        longitude:  place.longitude,
+      },
+    }),
+    address: {
+      '@type':           'PostalAddress',
+      addressLocality:   'Biguglia',
+      addressRegion:     'Haute-Corse',
+      postalCode:        '20620',
+      addressCountry:    'FR',
+    },
+    touristType: ['Nature', 'Outdoor activities', 'Local community'],
+  };
+}

@@ -31,6 +31,7 @@ import Avatar               from '@/components/ui/Avatar';
 import ContactButton        from '@/components/ui/ContactButton';
 import type { ExtListing, AuthorProfile } from './_types';
 import type { Listing } from '@/types';
+import { JsonLd, breadcrumbSchema, productOfferSchema } from '@/components/seo/JsonLd';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 
@@ -136,7 +137,29 @@ export default async function AnnonceDetailPage({ params }: Props) {
   const author = listing.user as { full_name?: string; avatar_url?: string | null; created_at?: string } | undefined;
   const isExpired = listing.expires_at ? new Date(listing.expires_at) < new Date() : false;
 
+  // ── Structured data ──────────────────────────────────────────────────────
+  const breadcrumb = breadcrumbSchema([
+    { name: 'Accueil',             url: '/' },
+    { name: 'Petites annonces',    url: '/annonces' },
+    { name: listing.title,         url: `/annonces/${params.id}` },
+  ]);
+
+  const rawPhotosForLd = listing.photos as Array<{ url: string }> | undefined;
+  const productLd = productOfferSchema({
+    name:        listing.title,
+    description: (listing.description ?? listing.title).slice(0, 300),
+    url:         `/annonces/${params.id}`,
+    price:       typeof listing.price === 'number' ? listing.price : null,
+    image:       rawPhotosForLd?.[0]?.url,
+    seller:      (listing.user as { full_name?: string } | undefined)?.full_name ?? undefined,
+    availability: isExpired || currentStatus !== 'active' ? 'OutOfStock' : 'InStock',
+    condition:   'UsedCondition',
+  });
+
   return (
+    <>
+      <JsonLd data={breadcrumb} />
+      <JsonLd data={productLd} />
     <div className="min-h-screen bg-gray-50">
 
       {/* ── Sticky top bar (back + view count + actions client) ─────────────── */}
@@ -285,5 +308,6 @@ export default async function AnnonceDetailPage({ params }: Props) {
         <AnnonceActions listing={listing} variant="mobile-bar" />
       </div>
     </div>
+    </>
   );
 }
