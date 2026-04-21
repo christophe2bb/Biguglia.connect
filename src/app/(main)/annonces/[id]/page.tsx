@@ -25,7 +25,16 @@ import { StatusTimeline }   from './_components/StatusTimeline';
 import { SimilarListings }  from './_components/SimilarListings';
 import { SellerReputation } from './_components/SellerReputation';
 import AnnonceActions       from './_components/AnnonceActions';
-import { toPhotoItems }     from '@/components/ui/photo-utils';
+// Inline — évite toute dépendance externe qui pourrait être undefined en production
+// (ancienne version importait depuis PhotoViewer 'use client' → TypeError en SSR)
+function toPhotoItemsLocal(
+  photos: Array<{ url: string; display_order?: number; id?: string }> | null | undefined,
+) {
+  if (!photos?.length) return [];
+  return [...photos]
+    .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
+    .map((p, i) => ({ ...p, isPrimary: i === 0 }));
+}
 import { formatDate }       from '@/lib/utils';
 import Avatar               from '@/components/ui/Avatar';
 import ContactButton        from '@/components/ui/ContactButton';
@@ -143,7 +152,7 @@ export default async function AnnonceDetailPage({ params }: Props) {
   const currentStatus = (listing.status as string) || 'active';
   const timelineSteps = buildTimeline(currentStatus);
   const rawPhotos = listing.photos as Array<{ id: string; url: string; display_order: number }> | undefined;
-  const photos = toPhotoItems(rawPhotos);
+  const photos = toPhotoItemsLocal(rawPhotos);
   const author = listing.user as { full_name?: string; avatar_url?: string | null; created_at?: string } | undefined;
   const isExpired = listing.expires_at ? new Date(listing.expires_at) < new Date() : false;
 

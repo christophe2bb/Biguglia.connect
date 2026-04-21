@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { toPhotoItems } from '@/components/ui/photo-utils';
+import type { PhotoItem } from '@/components/ui/photo-utils';
 
 // PhotoGallery (inclut lightbox) : lazy-load pour réduire le bundle initial
 // La galerie est above-the-fold mais le code JS peut être différé (HTML = SSR)
@@ -14,7 +14,7 @@ const PhotoGallery = dynamic(
 );
 
 type Props = {
-  photos: ReturnType<typeof toPhotoItems>;
+  photos: PhotoItem[];
   categoryIcon?: string;
   title: string;
 };
