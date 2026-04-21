@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import { Camera } from 'lucide-react';
-import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
+import { PhotoViewer } from '@/components/ui/PhotoViewer';
+import { toPhotoItems } from '@/components/ui/photo-utils';
 
 type PhotoItem = ReturnType<typeof toPhotoItems>[number];
 

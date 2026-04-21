@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import { Package } from 'lucide-react';
-import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
+import { PhotoViewer } from '@/components/ui/PhotoViewer';
+import { toPhotoItems } from '@/components/ui/photo-utils';
 import type { LFItem } from '../_types';
 
 type Props = {

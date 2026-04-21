@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { toPhotoItems } from '@/components/ui/PhotoViewer';
+import { toPhotoItems } from '@/components/ui/photo-utils';
 import toast from 'react-hot-toast';
 import { Listing } from '@/types';
 import type { ExtListing, ShareMethod, AuthorProfile } from '../_types';

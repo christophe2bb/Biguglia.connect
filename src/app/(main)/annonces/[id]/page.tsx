@@ -25,7 +25,7 @@ import { StatusTimeline }   from './_components/StatusTimeline';
 import { SimilarListings }  from './_components/SimilarListings';
 import { SellerReputation } from './_components/SellerReputation';
 import AnnonceActions       from './_components/AnnonceActions';
-import { toPhotoItems }     from '@/components/ui/PhotoViewer';
+import { toPhotoItems }     from '@/components/ui/photo-utils';
 import { formatDate }       from '@/lib/utils';
 import Avatar               from '@/components/ui/Avatar';
 import ContactButton        from '@/components/ui/ContactButton';
