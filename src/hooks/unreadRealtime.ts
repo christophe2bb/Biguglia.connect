@@ -9,6 +9,10 @@
 //   RECONNECT_DELAYS   : [1 s, 2 s, 5 s, 10 s, 30 s] — backoff exponentiel
 //   REALTIME_POLL_MS   : 15 s — polling de secours quand le canal est DOWN
 //   (le polling de sécurité global dans useUnreadCounts est à 60 s)
+//
+// Fix BIGUGLIA-CONNECT-NEXTJS-6 :
+//   connectingRef : verrou anti-double-invoke (React Strict Mode) pour éviter
+//   le bug Supabase « cannot add postgres_changes listener after subscribe() ».
 
 import { createClient } from '@/lib/supabase/client';
 import { isSystem, totalUnreadMsgs } from './unreadHelpers';
@@ -59,6 +63,8 @@ export type RealtimeRefs = UnreadRefs & {
   reconnectIdx:    React.MutableRefObject<number>;
   realtimePollRef: React.MutableRefObject<ReturnType<typeof setInterval> | null>;
   hookStartRef:    React.MutableRefObject<number>;
+  /** Verrou anti-double-invoke : true quand un canal est en cours de souscription. */
+  connectingRef:   React.MutableRefObject<boolean>;
 };
 
 /**
@@ -74,6 +80,13 @@ export function connectRealtime(
   refs: RealtimeRefs,
   setCounts: SetCounts,
 ): void {
+  // Guard : si une souscription est déjà en cours, ignorer l'appel concurrent.
+  // Évite le bug Supabase « cannot add postgres_changes listener after subscribe() »
+  // déclenché par React Strict Mode (double-invoke des useEffect en dev) ou par
+  // des reconnexions rapides avant que le statut SUBSCRIBED soit reçu.
+  if (refs.connectingRef.current) return;
+  refs.connectingRef.current = true;
+
   // Nettoyage du canal précédent
   if (refs.channelRef.current) {
     supabase.removeChannel(refs.channelRef.current);
@@ -131,6 +144,8 @@ export function connectRealtime(
 
     // ── Statut du canal ──────────────────────────────────────────────────────
     .subscribe(status => {
+      // Libérer le verrou dès que le canal est dans un état terminal
+      refs.connectingRef.current = false;
       if (!refs.mountedRef.current) return;
 
       if (status === 'SUBSCRIBED') {

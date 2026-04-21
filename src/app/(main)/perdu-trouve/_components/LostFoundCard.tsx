@@ -13,7 +13,7 @@ import {
 import toast from 'react-hot-toast';
 import ReportButton from '@/components/ui/ReportButton';
 import dynamic from 'next/dynamic';
-import { toPhotoItems } from '@/components/ui/PhotoViewer';
+import { toPhotoItems } from '@/components/ui/photo-utils';
 // PhotoViewer (lightbox 572L) : lazy-load — chargé uniquement au premier clic
 const PhotoViewer = dynamic(() => import('@/components/ui/PhotoViewer').then(m => ({ default: m.PhotoViewer })), {
   ssr: false,

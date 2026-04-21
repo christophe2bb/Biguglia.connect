@@ -77,12 +77,6 @@ export function useConversationList({
       const convId = detail?.conversationId;
       const readAt = detail?.readAt ?? Date.now();
 
-      const prevUnread = fetch.conversationsRef.current.find(c => c.id === convId)?.unread_count ?? '?';
-      console.info(
-        `[badge:messages-read:page] convId=${convId?.slice(0, 8) ?? 'undefined'} ` +
-        `readAt=${new Date(readAt).toISOString()} unread_count_avant=${prevUnread} → remise à 0`
-      );
-
       if (convId) {
         const current = fetch.localReadMapRef.current[convId] ?? 0;
         fetch.localReadMapRef.current[convId] = Math.max(readAt, current);
