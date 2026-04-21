@@ -2,6 +2,47 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSupabaseProjectRef } from '@/lib/supabase/env';
 
+// ─── Purge des cookies Supabase corrompus (migration @supabase/ssr 0.3 → 0.6) ─
+//
+// @supabase/ssr 0.6 a changé le format d'encodage des cookies de session.
+// Les anciens cookies (format 0.3, encodage binaire non-UTF-8) causent l'erreur :
+//   "Detected stale cookie data that does not decode to a UTF-8 string"
+// et empêchent l'accès à l'application tant qu'ils ne sont pas purgés.
+//
+// Solution : détecter les cookies Supabase dont la valeur n'est pas du JSON
+// valide (ou ne décode pas en UTF-8) et les expirer immédiatement.
+// Le navigateur les supprimera et créera de nouveaux cookies au format 0.6
+// lors de la prochaine authentification.
+function purgeStaleSupabaseCookies(
+  request: NextRequest,
+  response: NextResponse,
+  cookiePrefix: string,
+): boolean {
+  let purged = false;
+  const allCookies = request.cookies.getAll();
+  for (const cookie of allCookies) {
+    if (!cookie.name.startsWith(cookiePrefix)) continue;
+    try {
+      // Teste si la valeur décode en UTF-8 JSON valide
+      const decoded = decodeURIComponent(cookie.value);
+      JSON.parse(decoded);
+      // Si le JSON ne contient pas access_token ni les clés attendues,
+      // c'est peut-être un vieux format — on laisse passer (pas forcément corrompu)
+    } catch {
+      // Échec de décodage URI ou de parse JSON → cookie corrompu (ancien format 0.3)
+      response.cookies.set(cookie.name, '', {
+        maxAge: 0,
+        path: '/',
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+      });
+      purged = true;
+    }
+  }
+  return purged;
+}
+
 /**
  * updateSession — Rafraîchit la session Supabase et applique les guards de navigation.
  *
@@ -109,6 +150,15 @@ function hasValidToken(request: NextRequest): boolean {
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
+
+  // ── Purge des cookies Supabase corrompus (migration ssr 0.3 → 0.6) ──────────
+  // Détecte et expire les cookies au format binaire/non-UTF-8 laissés par
+  // @supabase/ssr 0.3. On continue le flow normal : hasValidToken() renverra
+  // false (cookie purgé = absent) → le guard redirigera vers /connexion si
+  // la route est protégée. Les Set-Cookie d'expiration sont portés par
+  // supabaseResponse, qui sera retourné à la fin de la fonction.
+  const cookiePrefix = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
+  purgeStaleSupabaseCookies(request, supabaseResponse, cookiePrefix);
 
   // Créer le client pour rafraîchir les cookies de session (obligatoire
   // même sans guard : maintient la session active côté serveur)
