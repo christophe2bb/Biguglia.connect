@@ -19,6 +19,34 @@ const RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000];
 /** Intervalle du polling de secours quand le canal Realtime est indisponible. */
 const REALTIME_POLL_MS = 15_000;
 
+/** Délai de debounce pour les refetch déclenchés par événements Realtime (ms). */
+const REALTIME_DEBOUNCE_MS = 1_000;
+
+/** Map debounce par userId pour éviter les rafales d'événements CDC. */
+const _debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+/**
+ * Planifie un fetchCounts avec debounce pour un utilisateur donné.
+ * Absorbe les rafales d'événements Postgres CDC (ex. UPDATE notifications
+ * en cascade) en ne déclenchant qu'un seul fetch après REALTIME_DEBOUNCE_MS.
+ */
+function scheduleRealtimeFetch(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  refs: RealtimeRefs,
+  setCounts: SetCounts,
+): void {
+  const existing = _debounceTimers.get(userId);
+  if (existing) clearTimeout(existing);
+  _debounceTimers.set(userId, setTimeout(() => {
+    _debounceTimers.delete(userId);
+    if (refs.mountedRef.current) {
+      refs.fetchingRef.current = false;
+      fetchCounts(supabase, userId, refs, setCounts as Parameters<typeof fetchCounts>[3]);
+    }
+  }, REALTIME_DEBOUNCE_MS));
+}
+
 type SetCounts = (
   updater: { messages: number; notifications: number; total: number } |
            ((prev: { messages: number; notifications: number; total: number }) =>
@@ -90,13 +118,15 @@ export function connectRealtime(
       setCounts(prev => ({ ...prev, notifications: prev.notifications + 1, total: prev.total + 1 }));
     })
 
-    // ── Notification mise à jour (ex. lu) → refetch ──────────────────────────
+    // ── Notification mise à jour (ex. lu) → refetch debounced ─────────────────
+    // IMPORTANT : on passe par scheduleRealtimeFetch (debounce 1 s) pour absorber
+    // les rafales d'événements UPDATE CDC (ex. mark-all-read déclenche N updates
+    // simultanés qui sinon lanceraient N fetchCounts en parallèle).
     .on('postgres_changes', {
       event: 'UPDATE', schema: 'public', table: 'notifications',
       filter: `user_id=eq.${userId}`,
     }, () => {
-      refs.fetchingRef.current = false;
-      fetchCounts(supabase, userId, refs, setCounts as Parameters<typeof fetchCounts>[3]);
+      scheduleRealtimeFetch(supabase, userId, refs, setCounts);
     })
 
     // ── Statut du canal ──────────────────────────────────────────────────────
@@ -109,7 +139,9 @@ export function connectRealtime(
           clearInterval(refs.realtimePollRef.current);
           refs.realtimePollRef.current = null;
         }
-        fetchCounts(supabase, userId, refs, setCounts as Parameters<typeof fetchCounts>[3]);
+        // Debounce au SUBSCRIBED aussi : évite un double-fetch si le canal
+        // se reconnecte en rafale (ex. réseau instable).
+        scheduleRealtimeFetch(supabase, userId, refs, setCounts);
 
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
         // Reconnexion exponentielle
