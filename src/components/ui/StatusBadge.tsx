@@ -11,7 +11,7 @@ import {
   CheckCircle2, Clock, XCircle, AlertCircle, Package,
   Lock, Zap, Users, CalendarCheck, CalendarX, Eye, EyeOff,
   Star, Recycle, BadgeCheck, Handshake, HandHeart,
-  MapPin, Pause, Play, RefreshCw,
+  Pause, Play, RefreshCw,
 } from 'lucide-react';
 
 // ─── Config complète ───────────────────────────────────────────────────────────

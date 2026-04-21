@@ -52,6 +52,7 @@ import { PATCH as patchReport } from '@/app/api/admin/reports/[id]/route';
 import {
   makeAdminGuardOk, makeAdminGuardFail,
   makeDb, makeReq,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   ADMIN_ID, MODERATOR_ID, TARGET_ID,
 } from './_mock-admin-guard';
 

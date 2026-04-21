@@ -18,6 +18,11 @@
  *   • Contenu des champs de formulaire (aucune PII)
  *   • Erreurs tierces (extensions navigateur, analytics)
  *   • Erreurs réseau attendues (offline, timeout utilisateur)
+ *
+ * Optimisation bundle :
+ *   • replayIntegration chargé en LAZY via lazyLoadIntegration
+ *     → le chunk Replay (~50 KB gzippé) n'est téléchargé qu'au premier événement
+ *     → économie ~50 KB sur le First Load JS de toutes les pages
  */
 
 import * as Sentry from '@sentry/nextjs';
@@ -55,13 +60,6 @@ Sentry.init({
 
   // ── Intégrations client ───────────────────────────────────────────────────
   integrations: [
-    // Replay de session (requis pour replaysOnErrorSampleRate)
-    Sentry.replayIntegration({
-      // Masque tous les textes + inputs par défaut (RGPD)
-      maskAllText:    true,
-      blockAllMedia:  true,
-    }),
-
     // Feedback utilisateur (bouton "Signaler un bug" intégrable)
     // Désactivé par défaut — activer si on veut le widget in-app
     // Sentry.feedbackIntegration({ colorScheme: 'light' }),
@@ -125,3 +123,26 @@ Sentry.init({
   // On set manuellement l'userId Supabase (UUID sans PII) via Sentry.setUser().
   sendDefaultPii: false,
 });
+
+// ── Replay de session — LAZY LOAD ──────────────────────────────────────────
+//
+// Le SDK Replay pèse ~50 KB gzippé. Chargé dans integrations[], il serait
+// inclus dans TOUS les bundles clients. Avec lazyLoadIntegration() :
+//   • Le chunk Replay N'EST PAS inclus dans le bundle initial
+//   • Il est téléchargé depuis le CDN Sentry uniquement au premier événement
+//   • Économie réelle : ~50 KB gzippé sur le First Load JS de toutes pages
+//
+// Doit être appelé APRÈS Sentry.init() pour que addIntegration() fonctionne.
+Sentry.lazyLoadIntegration('replayIntegration')
+  .then((replayIntegration) => {
+    Sentry.addIntegration(
+      replayIntegration({
+        maskAllText:   true,  // Masque tous les textes (RGPD)
+        blockAllMedia: true,  // Bloque les médias (RGPD)
+      }),
+    );
+  })
+  .catch(() => {
+    // Silencieux — si le CDN Sentry est inaccessible (ad-blocker, offline),
+    // le replay n'est simplement pas chargé ; le reste de Sentry continue.
+  });

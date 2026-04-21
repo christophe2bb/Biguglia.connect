@@ -4,10 +4,16 @@ import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import { AlertCircle, Building2, Plus, Users, Calendar, MessageSquare, Handshake, Zap, UserCheck, Loader2, X } from 'lucide-react';
 import { useAssociations } from './_hooks/useAssociations';
+import dynamic from 'next/dynamic';
 import AssociationCard from './_components/AssociationCard';
-import AssociationForm from './_components/AssociationForm';
 import AssociationFilters from './_components/AssociationFilters';
 import AssociationsSidebar from './_components/AssociationsSidebar';
+
+// Lazy : le formulaire n’est visible qu’après clic "Créer" — économie ~15 KB
+const AssociationForm = dynamic(() => import('./_components/AssociationForm'), {
+  loading: () => <div className="h-64 animate-pulse bg-gray-100 rounded-2xl" />,
+  ssr: false,
+});
 
 export default function AssociationsPage() {
   const { profile } = useAuthStore();

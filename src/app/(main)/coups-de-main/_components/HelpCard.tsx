@@ -73,7 +73,7 @@ export default function HelpCard({
 }: Props) {
   const supabaseRef = useRef(createClient());
   const supabase = supabaseRef.current;
-  const router = useRouter();
+  const _router = useRouter();
   const [openChat, setOpenChat] = useState(false);
   const [openShare, setOpenShare] = useState(false);
   const [expanded, setExpanded] = useState(false);

@@ -56,7 +56,10 @@ import { assertCsrfSafe, getUserFromRequest, getUserIdBearerFirst } from '@/lib/
 import { createAdminClient }                      from '@/lib/supabase/server';
 import {
   makeAdminGuardOk, makeAdminGuardFail,
-  makeDb, makeReq,
+  makeDb,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  makeReq,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   ADMIN_ID, MODERATOR_ID, TARGET_ID,
 } from './_mock-admin-guard';
 

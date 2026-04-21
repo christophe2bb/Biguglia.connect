@@ -322,7 +322,7 @@ export default async function ArtisanTradePage(
         ══════════════════════════════════════════ */}
         <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
           <h2 className="text-xl font-black text-gray-900 mb-4">
-            {trade.namePlural} à {GEO.city} : zone d'intervention et conseils
+            {trade.namePlural} à {GEO.city} : zone d&apos;intervention et conseils
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-gray-600 leading-relaxed">
             <div className="space-y-3">
@@ -338,14 +338,14 @@ export default async function ArtisanTradePage(
             </div>
             <div className="space-y-3">
               <p>
-                <strong>Avant de signer un devis :</strong> vérifiez que l'artisan dispose d'une assurance
+                <strong>Avant de signer un devis :</strong> vérifiez que l&apos;artisan dispose d&apos;une assurance
                 responsabilité civile professionnelle (RC Pro) en cours de validité et, pour les travaux
-                de construction, d'une assurance décennale. Ces documents sont contrôlés par notre équipe
+                de construction, d&apos;une assurance décennale. Ces documents sont contrôlés par notre équipe
                 avant chaque référencement.
               </p>
               <p>
                 <strong>Délais habituels à {GEO.city} :</strong> pour une intervention courante, comptez
-                2 à 5 jours ouvrés. En cas d'urgence (fuite, panne, court-circuit), signalez-le dans
+                2 à 5 jours ouvrés. En cas d&apos;urgence (fuite, panne, court-circuit), signalez-le dans
                 votre message — plusieurs {trade.namePlural.toLowerCase()} proposent des interventions sous 24 h.
               </p>
             </div>

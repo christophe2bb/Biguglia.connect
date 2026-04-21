@@ -23,7 +23,7 @@ import {
 import toast from 'react-hot-toast';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 import {
-  MODE_CONFIG, STATUS_CONFIG,
+  STATUS_CONFIG,
   type CollectionMode, type CollectionStatus, type CollectionItem,
 } from '@/lib/collectionneurs-config';
 
@@ -66,7 +66,7 @@ const TABS: { key: DashTab; label: string; icon: React.ElementType; color: strin
 // ─── Main component ────────────────────────────────────────────────────────────
 
 function CollectionneursDashboardContent() {
-  const router   = useRouter();
+  const _router   = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const { profile } = useAuthStore();
   const profileId   = profile?.id;

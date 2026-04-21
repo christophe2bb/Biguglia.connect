@@ -16,12 +16,14 @@ import { useSavedEvents }  from './_hooks/useSavedEvents';
 import { useEventForm }    from './_hooks/useEventForm';
 import { useEventFilters } from './_hooks/useEventFilters';
 
+import dynamic from 'next/dynamic';
 import TabAgenda   from './_components/TabAgenda';
 import TabSemaine  from './_components/TabSemaine';
 import TabListe    from './_components/TabListe';
-import TabForum    from './_components/TabForum';
-import TabCreer    from './_components/TabCreer';
-import EventSidebar from './_components/EventSidebar';
+// Tabs non-initiaux — lazy loaded pour réduire le bundle initial (~15 KB)
+const TabForum    = dynamic(() => import('./_components/TabForum'),    { ssr: false });
+const TabCreer    = dynamic(() => import('./_components/TabCreer'),    { ssr: false });
+const EventSidebar = dynamic(() => import('./_components/EventSidebar'), { ssr: false });
 
 import type { ActiveTab } from './_types';
 import SectionTracker from '@/components/ui/SectionTracker';

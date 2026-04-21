@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
-  Activity, Clock, CheckCheck, AlertCircle, Star, ArrowLeft,
+  Activity, Clock, AlertCircle, Star, ArrowLeft,
   Inbox, Send, RefreshCw, ChevronRight, MessageSquare, XCircle,
   ShoppingBag, Wrench, HandHeart, Users, MapPin, Calendar,
-  ShoppingCart, Filter, Loader2, CheckCircle,
+  ShoppingCart, CheckCircle,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -220,10 +220,10 @@ function MesInteractionsContent() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md p-8">
           <AlertCircle className="w-12 h-12 mx-auto mb-4 text-amber-400" />
-          <h2 className="text-xl font-black text-gray-900 mb-2">Système d'échanges</h2>
+          <h2 className="text-xl font-black text-gray-900 mb-2">Système d&apos;échanges</h2>
           <p className="text-gray-600 mb-4">
-            Le tableau d'échanges sera disponible dès que vous aurez vos premières interactions.
-            En attendant, utilisez la messagerie pour contacter d'autres membres.
+            Le tableau d&apos;échanges sera disponible dès que vous aurez vos premières interactions.
+            En attendant, utilisez la messagerie pour contacter d&apos;autres membres.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/messages" className="flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 text-white text-sm font-bold rounded-xl hover:bg-brand-700 transition-colors">
@@ -322,7 +322,7 @@ function MesInteractionsContent() {
             ))}
             <Link href="/mes-echanges"
               className="block w-full text-center py-3 text-sm font-semibold text-brand-600 hover:text-brand-700 border border-dashed border-brand-200 rounded-2xl hover:bg-brand-50 transition-colors">
-              Ouvrir le centre d'échanges complet →
+              Ouvrir le centre d&apos;échanges complet →
             </Link>
           </div>
         )}

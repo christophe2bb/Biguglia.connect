@@ -7,7 +7,7 @@
 
 
 import Link from 'next/link';
-import { Calendar, MapPin, ArrowRight, Footprints, Clock } from 'lucide-react';
+import { Calendar, MapPin, ArrowRight, Footprints } from 'lucide-react';
 import type { HomeFeedItem } from '@/services/home/types';
 import { cn } from '@/lib/utils';
 

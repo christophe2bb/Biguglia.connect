@@ -7,7 +7,7 @@ import {
   Calendar, Clock, MapPin, Users, Bell, ArrowRight,
   Bookmark, BookmarkCheck, Shield,
 } from 'lucide-react';
-import Avatar from '@/components/ui/Avatar';
+
 import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';
 import { PhotoViewer } from '@/components/ui/PhotoViewer';
@@ -34,7 +34,8 @@ export default function EventCard({
 }: Props) {
   const isSaved   = savedEvents?.has(event.id) ?? false;
   const cat       = getCat(event.category);
-  const CatIcon   = cat.icon;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _CatIcon   = cat.icon;
   const dateLabel = formatEventDate(event.event_date);
   const countdown = daysUntil(event.event_date);
   const fillPct   = event.max_participants && event.participants_count !== undefined

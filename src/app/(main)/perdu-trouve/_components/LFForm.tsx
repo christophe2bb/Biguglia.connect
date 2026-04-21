@@ -1,7 +1,6 @@
 'use client';
 
 import Image from 'next/image';
-import { useRef } from 'react';
 import {
   X, Camera, EyeOff, AlertCircle, Loader2, Shield,
 } from 'lucide-react';

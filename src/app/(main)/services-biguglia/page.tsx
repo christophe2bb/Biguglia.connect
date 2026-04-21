@@ -11,7 +11,7 @@
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Shield, Star, ChevronRight, MapPin, ArrowRight, CheckCircle } from 'lucide-react';
+import { ChevronRight, MapPin, ArrowRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import {
   JsonLd, breadcrumbSchema, faqSchema, serviceSchema, collectionPageSchema, itemListSchema,
@@ -259,12 +259,12 @@ export default async function ServicesBigugliaPage() {
         ══════════════════════════════════════════ */}
         <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
           <h2 className="text-xl font-black text-gray-900 mb-4">
-            Services locaux à {GEO.city} : ce qu'il faut savoir
+            Services locaux à {GEO.city} : ce qu&apos;il faut savoir
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-gray-600 leading-relaxed">
             <div className="space-y-3">
               <p>
-                Biguglia, nichée entre <strong>l'étang de Biguglia</strong> — plus grand étang naturel de Corse,
+                Biguglia, nichée entre <strong>l&apos;étang de Biguglia</strong> — plus grand étang naturel de Corse,
                 classé réserve naturelle régionale — et la mer Tyrrhénienne, est une commune en pleine expansion.
                 Sa proximité avec Bastia (8 km) et la plaine orientale en fait un territoire très demandé pour
                 les <strong>services à domicile</strong>, les <strong>travaux de rénovation</strong> et les
@@ -279,7 +279,7 @@ export default async function ServicesBigugliaPage() {
             </div>
             <div className="space-y-3">
               <p>
-                <strong>Zone d'intervention principale :</strong> les prestataires référencés couvrent également{' '}
+                <strong>Zone d&apos;intervention principale :</strong> les prestataires référencés couvrent également{' '}
                 <Link href="/artisans?ville=Borgo" className="text-brand-600 font-semibold hover:underline">Borgo</Link>,{' '}
                 <Link href="/artisans?ville=Furiani" className="text-brand-600 font-semibold hover:underline">Furiani</Link>,{' '}
                 <Link href="/artisans?ville=Lucciana" className="text-brand-600 font-semibold hover:underline">Lucciana</Link>,{' '}
@@ -288,8 +288,8 @@ export default async function ServicesBigugliaPage() {
               </p>
               <p>
                 <strong>Conseils avant tout travaux :</strong> demandez toujours au moins trois devis comparatifs,
-                vérifiez la validité de l'assurance décennale pour les travaux de construction, et privilégiez les
-                artisans disposant d'avis vérifiés de voisins dans un rayon de 10 km. Sur Biguglia Connect, ces
+                vérifiez la validité de l&apos;assurance décennale pour les travaux de construction, et privilégiez les
+                artisans disposant d&apos;avis vérifiés de voisins dans un rayon de 10 km. Sur Biguglia Connect, ces
                 informations sont contrôlées manuellement par notre équipe.
               </p>
             </div>
@@ -390,12 +390,12 @@ export default async function ServicesBigugliaPage() {
         <section className="bg-red-50 rounded-3xl border border-red-100 p-6 sm:p-8">
           <div className="flex items-center gap-3 mb-2">
             <span className="text-2xl">🚨</span>
-            <h2 className="text-xl font-black text-gray-900">Services d\'urgence à {GEO.city}</h2>
+            <h2 className="text-xl font-black text-gray-900">Services d\&apos;urgence à {GEO.city}</h2>
           </div>
           <p className="text-sm text-gray-600 mb-5 leading-relaxed">
             Fuite, panne, serrure bloquée — certains artisans de Biguglia proposent des interventions
-            d\'urgence 7j/7. Précisez <strong>« urgence »</strong> dans votre message pour une réponse
-            sous 2 heures. Les services d\'urgence sont payants mais sans surprice de facturation.
+            d\&apos;urgence 7j/7. Précisez <strong>« urgence »</strong> dans votre message pour une réponse
+            sous 2 heures. Les services d\&apos;urgence sont payants mais sans surprice de facturation.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {EMERGENCY_SERVICES.map(srv => (
@@ -435,8 +435,8 @@ export default async function ServicesBigugliaPage() {
                 <span className="text-xl">🍂</span>
                 <div>
                   <p className="font-bold text-gray-900">Automne (octobre–décembre)</p>
-                  <p>Idéal pour l\'isolation thermique, le chauffage (chauffe-eau, climatisation), la
-                  plomberie intérieure et les travaux d\'aménagement. Délais plus courts, parfois
+                  <p>Idéal pour l\&apos;isolation thermique, le chauffage (chauffe-eau, climatisation), la
+                  plomberie intérieure et les travaux d\&apos;aménagement. Délais plus courts, parfois
                   tarifs négociables.</p>
                 </div>
               </div>
@@ -454,8 +454,8 @@ export default async function ServicesBigugliaPage() {
               <div className="flex items-start gap-3">
                 <span className="text-xl">📌</span>
                 <div>
-                  <p className="font-bold text-gray-900">Toute l\'année</p>
-                  <p>Plomberie d\'urgence, dépannage électrique et serrurerie interviennent 365 jours par an
+                  <p className="font-bold text-gray-900">Toute l\&apos;année</p>
+                  <p>Plomberie d\&apos;urgence, dépannage électrique et serrurerie interviennent 365 jours par an
                   à Biguglia. Pour les urgences, contactez directement via Biguglia Connect en précisant
                   votre situation.</p>
                 </div>
@@ -626,7 +626,7 @@ export default async function ServicesBigugliaPage() {
               </Link>
               <Link href="/artisans"
                 className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-white/10 transition-all">
-                Voir l'annuaire artisans
+                Voir l&apos;annuaire artisans
               </Link>
             </div>
           </div>

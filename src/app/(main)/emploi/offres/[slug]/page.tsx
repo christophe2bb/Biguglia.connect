@@ -4,7 +4,6 @@
  */
 
 import Image from 'next/image';
-import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import {
   MapPin, Euro, Clock, Calendar, Briefcase, User, Home, Utensils,

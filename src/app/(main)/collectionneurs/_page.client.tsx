@@ -40,6 +40,7 @@ export default function CollectionneursPage() {
   // Load forum when the tab is first opened
   useEffect(() => {
     if (activeTab === 'forum') forum.fetchForum();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, forum.fetchForum]);
 
   return (

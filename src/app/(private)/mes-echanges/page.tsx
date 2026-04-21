@@ -6,15 +6,15 @@ import { useAuthStore } from '@/lib/auth-store';
 import {
   Activity, Clock, CheckCheck, AlertCircle, Star,
   ShoppingCart, Wrench, HandHeart, Users, MapPin, Calendar,
-  MessageSquare, ChevronRight, Filter, RefreshCw, ArrowRight,
+  MessageSquare, ChevronRight, RefreshCw, ArrowRight,
   ShoppingBag, XCircle,
 } from 'lucide-react';
 import Link from 'next/link';
-import Avatar from '@/components/ui/Avatar';
+
 import { cn, formatRelative } from '@/lib/utils';
 import ProtectedPage from '@/components/providers/ProtectedPage';
-import { ReviewPromptBanner } from '@/components/ui/ReviewForm';
-import type { InteractionSourceType } from '@/lib/trust';
+
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type InteractionStatus = 'requested' | 'pending' | 'accepted' | 'rejected' | 'in_progress' | 'done' | 'cancelled' | 'disputed';

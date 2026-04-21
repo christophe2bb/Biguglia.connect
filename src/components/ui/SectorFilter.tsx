@@ -16,7 +16,7 @@
  *  - className    : classes CSS additionnelles
  */
 
-import { SECTORS, SECTOR_COLORS, Sector } from '@/lib/sectors';
+import { SECTORS, SECTOR_COLORS } from '@/lib/sectors';
 import { MapPin } from 'lucide-react';
 
 interface SectorFilterProps {

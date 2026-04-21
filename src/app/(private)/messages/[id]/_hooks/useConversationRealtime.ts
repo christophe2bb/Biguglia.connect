@@ -99,6 +99,7 @@ export function useConversationRealtime(
     } catch (err) {
       console.warn('[useConversationRealtime] poll error:', err);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, profile, supabase, profileCacheRef, lastMsgIdRef, setMessages, markAsRead, scrollToBottom]);
 
   // ── Connexion Realtime ────────────────────────────────────────────────────

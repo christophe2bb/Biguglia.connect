@@ -90,7 +90,7 @@ export default function PromenadesSidebar({
         </h3>
         <div className="grid grid-cols-2 gap-2">
           {Object.entries(TYPE_CONFIG).map(([key, cfg]) => {
-            const Icon = cfg.icon;
+            const _Icon = cfg.icon;
             const isActive = quickFilter === key && activeTab === 'itineraires';
             return (
               <button key={key}

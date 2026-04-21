@@ -13,9 +13,9 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { cn } from '@/lib/utils';
 import {
-  ArrowLeft, Save, Loader2, Trash2, AlertCircle, Check,
-  Camera, Plus, X, Star, Sparkles, MapPin, Truck, Package,
-  Info, Tag, Eye, ArrowLeftRight, Gift, Search, Gem,
+  ArrowLeft, Save, Loader2, Trash2, AlertCircle,
+  Camera, Plus, X, Star, MapPin, Truck, Package,
+  Info, Tag, ArrowLeftRight, Gift, Search, Gem,
   ChevronDown, ChevronUp,
 } from 'lucide-react';
 import toast from 'react-hot-toast';

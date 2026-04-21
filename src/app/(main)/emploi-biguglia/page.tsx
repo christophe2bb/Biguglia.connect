@@ -11,7 +11,7 @@
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Briefcase, ChevronRight, MapPin, ArrowRight, Clock, Users, TrendingUp, CheckCircle } from 'lucide-react';
+import { Briefcase, ChevronRight, MapPin, ArrowRight, Clock, Users, TrendingUp } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { JsonLd, breadcrumbSchema, faqSchema, jobPostingSchema, occupationSchema, collectionPageSchema } from '@/components/seo/JsonLd';
 import { GEO } from '@/lib/seo/local-data';
@@ -262,7 +262,7 @@ export default async function EmploiBigugliaPage() {
           <div className="flex flex-wrap gap-3">
             <Link href="/emploi/offres"
               className="inline-flex items-center gap-2 bg-white text-cyan-800 font-black px-6 py-3 rounded-xl text-sm hover:bg-cyan-50 transition-all shadow-md">
-              💼 Voir les offres d'emploi <ArrowRight className="w-4 h-4" />
+              💼 Voir les offres d&apos;emploi <ArrowRight className="w-4 h-4" />
             </Link>
             <Link href="/emploi/demandes"
               className="inline-flex items-center gap-2 border border-white/30 text-white font-bold px-5 py-3 rounded-xl text-sm hover:bg-white/10 transition-all">
@@ -284,23 +284,23 @@ export default async function EmploiBigugliaPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-gray-600 leading-relaxed">
             <div className="space-y-3">
               <p>
-                L'économie de Biguglia est portée par plusieurs secteurs clés. La <strong>zone commerciale
-                de Lucciana</strong> — l'une des plus importantes de Haute-Corse — génère de nombreux postes
+                L&apos;économie de Biguglia est portée par plusieurs secteurs clés. La <strong>zone commerciale
+                de Lucciana</strong> — l&apos;une des plus importantes de Haute-Corse — génère de nombreux postes
                 dans le commerce, la distribution et la logistique. La croissance résidentielle soutient
                 une forte demande dans le <strong>BTP</strong> : maçonnerie, plomberie, électricité,
                 menuiserie et peinture.
               </p>
               <p>
-                La proximité de l'<strong>aéroport Napoléon Bonaparte de Bastia-Poretta</strong> favorise
-                les activités touristiques et les emplois saisonniers (mai–septembre) dans l'hôtellerie,
+                La proximité de l&apos;<strong>aéroport Napoléon Bonaparte de Bastia-Poretta</strong> favorise
+                les activités touristiques et les emplois saisonniers (mai–septembre) dans l&apos;hôtellerie,
                 la restauration et les loisirs. Le maraîchage de la plaine orientale offre aussi des emplois
                 agricoles temporaires.
               </p>
             </div>
             <div className="space-y-3">
               <p>
-                <strong>Atouts pour les chercheurs d'emploi :</strong> Biguglia se situe à 8 km de Bastia
-                (préfecture de Haute-Corse), ce qui ouvre l'accès à un bassin d'emploi élargi sans quitter
+                <strong>Atouts pour les chercheurs d&apos;emploi :</strong> Biguglia se situe à 8 km de Bastia
+                (préfecture de Haute-Corse), ce qui ouvre l&apos;accès à un bassin d&apos;emploi élargi sans quitter
                 la commune. Les transports en commun (lignes de bus) permettent de rejoindre Bastia,
                 Borgo et Lucciana facilement.
               </p>
@@ -378,7 +378,7 @@ export default async function EmploiBigugliaPage() {
           <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-cyan-600" /> Dernières offres d'emploi à {GEO.city}
+                <Briefcase className="w-5 h-5 text-cyan-600" /> Dernières offres d&apos;emploi à {GEO.city}
               </h2>
               <Link href="/emploi/offres"
                 className="flex items-center gap-1 text-sm font-bold text-cyan-600 hover:text-cyan-700">
@@ -453,14 +453,14 @@ export default async function EmploiBigugliaPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-gray-600 leading-relaxed">
             <div className="space-y-3">
               <p>
-                <strong>France Travail Bastia</strong> — l\'agence la plus proche de Biguglia (8 km).
-                Inscription, indemnisation, offres d\'emploi et formations. Accessible en bus depuis
+                <strong>France Travail Bastia</strong> — l\&apos;agence la plus proche de Biguglia (8 km).
+                Inscription, indemnisation, offres d\&apos;emploi et formations. Accessible en bus depuis
                 Biguglia. Site officiel : <span className="text-cyan-600 font-semibold">francetravail.fr</span>.
               </p>
               <p>
-                <strong>Chambre des Métiers et de l\'Artisanat de Haute-Corse</strong> — répertoire des
+                <strong>Chambre des Métiers et de l\&apos;Artisanat de Haute-Corse</strong> — répertoire des
                 entreprises artisanales, formations professionnelles, apprentissage et aides à la création
-                d\'entreprise. Idéal pour les métiers du BTP et des services.
+                d\&apos;entreprise. Idéal pour les métiers du BTP et des services.
               </p>
             </div>
             <div className="space-y-3">
@@ -472,7 +472,7 @@ export default async function EmploiBigugliaPage() {
               </p>
               <p>
                 <strong>Mission Locale Haute-Corse</strong> — accompagnement des jeunes de 16 à 25 ans
-                dans leur insertion professionnelle. Aide à la recherche d\'emploi, accès à la formation
+                dans leur insertion professionnelle. Aide à la recherche d\&apos;emploi, accès à la formation
                 et dispositifs spécifiques (CIVIS, garantie jeunes) accessibles depuis Biguglia.
               </p>
             </div>
@@ -494,7 +494,7 @@ export default async function EmploiBigugliaPage() {
           <div className="bg-gradient-to-br from-cyan-600 to-cyan-700 rounded-2xl p-6 text-white">
             <p className="text-2xl mb-2">💼</p>
             <h3 className="font-black text-lg mb-1">Vous recrutez à {GEO.city} ?</h3>
-            <p className="text-white/75 text-sm mb-4 leading-relaxed">Publiez votre offre d'emploi gratuitement. Visible par tous les habitants de Biguglia et des communes voisines.</p>
+            <p className="text-white/75 text-sm mb-4 leading-relaxed">Publiez votre offre d&apos;emploi gratuitement. Visible par tous les habitants de Biguglia et des communes voisines.</p>
             <Link href="/emploi/offres/publier"
               className="inline-flex items-center gap-2 bg-white text-cyan-700 font-black px-4 py-2 rounded-xl text-sm hover:bg-cyan-50 transition-all">
               Publier une offre <ArrowRight className="w-4 h-4" />
@@ -519,7 +519,7 @@ export default async function EmploiBigugliaPage() {
             Secteurs, offres et profils — Accès direct
           </h2>
           <p className="text-gray-500 text-sm mb-5">
-            Naviguez directement vers les sous-catégories d'emploi et les ressources locales associées.
+            Naviguez directement vers les sous-catégories d&apos;emploi et les ressources locales associées.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>

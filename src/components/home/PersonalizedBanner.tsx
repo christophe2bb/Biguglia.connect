@@ -165,6 +165,7 @@ export default function PersonalizedBanner({
         });
       } catch { /* silencieux */ }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.role]);
 
   // Phase d'initialisation — skeleton minimaliste

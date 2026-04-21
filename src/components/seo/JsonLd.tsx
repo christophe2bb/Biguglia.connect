@@ -367,7 +367,7 @@ export function collectionPageSchema(page: {
 /**
  * SiteNavigationElement — booste la compréhension de la structure du site
  */
-export function siteNavigationSchema(links: Array<{ name: string; url: string }>) {
+export function siteNavigationSchema(_links: Array<{ name: string; url: string }>) {
   return {
     '@context': 'https://schema.org',
     '@type':    'SiteLinksSearchBox',

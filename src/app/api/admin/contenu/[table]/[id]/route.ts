@@ -172,8 +172,6 @@ export async function DELETE(req: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'id manquant dans l\'URL.' }, { status: 400 });
   }
 
-  const { adminClient } = guard;
-
   const { actor: deleteActor, adminClient: deleteClient } = guard;
 
   const { error } = await deleteClient

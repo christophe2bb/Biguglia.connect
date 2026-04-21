@@ -2,19 +2,19 @@
 
 import Image from 'next/image';
 import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Package, Wrench, Heart, Calendar, Footprints, BookOpen,
-  Handshake, MapPin, Plus, Edit3, Eye, Pause, Trash2,
-  RotateCcw, Share2, ChevronRight, Loader2, ArrowLeft,
+  Handshake, MapPin, Edit3, Eye,
+  Loader2, ArrowLeft,
   Filter, Search,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { cn, formatRelative } from '@/lib/utils';
 import ProtectedPage from '@/components/providers/ProtectedPage';
-import Avatar from '@/components/ui/Avatar';
+
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 type ContentTheme = 'all' | 'listing' | 'equipment' | 'help' | 'event' | 'outing' | 'forum' | 'association';
@@ -126,7 +126,7 @@ function ContentCard({ item }: { item: ContentItem }) {
 function MesContenusContent() {
   const { profile } = useAuthStore();
   const profileId = profile?.id;
-  const router = useRouter();
+  const _router = useRouter();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<ContentItem[]>([]);
   const [activeTheme, setActiveTheme] = useState<ContentTheme>('all');
@@ -138,7 +138,7 @@ function MesContenusContent() {
     const load = async () => {
       setLoading(true);
       const supabase = createClient();
-      const today = new Date().toISOString().split('T')[0];
+      const _today = new Date().toISOString().split('T')[0];
 
       const [
         { data: listings },

@@ -16,7 +16,7 @@ import {
   UserX, UserCheck, Trash2, Mail,
   Crown, Eye, HardHat,
 } from 'lucide-react';
-import { ROLE_LABELS, formatDate, formatRelative } from '@/lib/utils';
+import { formatDate, formatRelative } from '@/lib/utils';
 import type { UserWithActivity } from './types';
 
 const ROLE_OPTIONS = [

@@ -142,10 +142,14 @@ export function useUnreadCounts(): UnreadCounts {
     };
     window.addEventListener('new-notification', handleNewNotif);
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     return () => {
       mountedRef.current = false;
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       if (channelRef.current)      supabase.removeChannel(channelRef.current);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       if (reconnectRef.current)    clearTimeout(reconnectRef.current);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       if (realtimePollRef.current) clearInterval(realtimePollRef.current);
       if (safePollRef.current)     clearInterval(safePollRef.current);
       if (debounceRef.current)     clearTimeout(debounceRef.current);

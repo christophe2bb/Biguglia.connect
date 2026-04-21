@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import {
   Star, Eye, Clock, CheckCircle, ChevronLeft,
-  Wrench, MapPin, Package, TrendingUp, Users, Bell, MessageSquare,
+  Wrench, MapPin, Package, TrendingUp, Bell, MessageSquare,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -14,7 +14,7 @@ import Link from 'next/link';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
 import ProtectedPage from '@/components/providers/ProtectedPage';
-import { STATUS_LABELS, formatRelative, cn } from '@/lib/utils';
+import { STATUS_LABELS, cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 // Lazy-load heavy panels (only fetched after initial render)

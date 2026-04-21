@@ -31,7 +31,6 @@ import {
   buildPagination,
   type JobOfferRow,
   type JobOfferRowWithAuthor,
-  type AuthorJoinRow,
 } from './shared';
 
 // ─── Helpers locaux ────────────────────────────────────────────────────────────

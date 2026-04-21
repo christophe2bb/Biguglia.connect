@@ -56,7 +56,7 @@ import { join } from 'path';
 // Sans ça, SUPABASE_URL vaut '' dans middleware.ts → SUPABASE_PROJECT_REF = ''
 // → SUPABASE_COOKIE_NAME = 'sb--auth-token' → les tests de cookie échouent.
 const TEST_SUPABASE_URL  = 'https://qmrkacrpncdkhofiqlrg.supabase.co';
-const TEST_SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhbm9uS2V5IjoibW9jayJ9.mock';
+const _TEST_SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhbm9uS2V5IjoibW9jayJ9.mock';
 
 vi.hoisted(() => {
   process.env.NEXT_PUBLIC_SUPABASE_URL      = 'https://qmrkacrpncdkhofiqlrg.supabase.co';
@@ -114,7 +114,7 @@ vi.mock('next/server', () => {
       this.url = url;
     }
 
-    static next({ request }: { request: { headers: Headers } } = { request: { headers: new Headers() } }) {
+    static next({ request: _request }: { request: { headers: Headers } } = { request: { headers: new Headers() } }) {
       nextCalled = true;
       const r = new MockNextResponse(200);
       r.headers = new Map<string, string>();

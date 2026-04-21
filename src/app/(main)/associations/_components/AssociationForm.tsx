@@ -1,7 +1,6 @@
 'use client';
 
 import Image from 'next/image';
-import { useRef } from 'react';
 import { X, Camera, Loader2 } from 'lucide-react';
 import SectorFilter from '@/components/ui/SectorFilter';
 import { cn } from '@/lib/utils';
@@ -30,7 +29,7 @@ export default function AssociationForm({
   editingAsso, photoRef, onPhotoSelect, onRemovePhoto, onToggle,
   onCancel, onSubmit,
 }: AssociationFormProps) {
-  const catConf = CAT_CONFIG[form.category];
+  const _catConf = CAT_CONFIG[form.category];
 
   return (
     <div className="bg-white rounded-2xl border border-violet-200 shadow-md p-6 mb-8">

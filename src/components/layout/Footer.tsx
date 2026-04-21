@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import Logo from '@/components/ui/Logo';
-import { MapPin, Mail, Phone, Heart } from 'lucide-react';
+
+import { MapPin, Mail, Heart } from 'lucide-react';
 
 export default function Footer() {
   return (

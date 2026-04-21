@@ -18,7 +18,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import {
   Bookmark, BookmarkCheck, Share2, Check, HandHeart,
-  Loader2, Pencil, Star, ChevronRight,
+  Loader2, Pencil, Star,
 } from 'lucide-react';
 import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';
@@ -49,7 +49,7 @@ export default function HelpRequestDetailClient({ item, variant }: Props) {
   const d = useHelpRequestDetail(item);
 
   const allPhotos = toPhotoItems(item.photos ?? []);
-  const catConf = CATEGORIES.find(c => c.value === item.category) ?? CATEGORIES[CATEGORIES.length - 1];
+  const _catConf = CATEGORIES.find(c => c.value === item.category) ?? CATEGORIES[CATEGORIES.length - 1];
 
   // ── topbar: favoris + partage + signaler + éditer ────────────────────────
   if (variant === 'topbar') {

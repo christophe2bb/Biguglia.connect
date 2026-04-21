@@ -13,10 +13,12 @@ import { QUICK_FILTERS, DEFAULT_ADV_FILTERS } from './_constants';
 import { usePromenades } from './_hooks/usePromenades';
 import { useForum } from './_hooks/useForum';
 import { useOutings } from './_hooks/useOutings';
+import dynamic from 'next/dynamic';
 import TabItineraires from './_components/TabItineraires';
-import TabForum from './_components/TabForum';
-import TabAgenda from './_components/TabAgenda';
-import PromenadesSidebar from './_components/PromenadesSidebar';
+// Tabs secondaires — lazy loaded (non affichés sur l’onglet par défaut)
+const TabForum        = dynamic(() => import('./_components/TabForum'),        { ssr: false });
+const TabAgenda       = dynamic(() => import('./_components/TabAgenda'),       { ssr: false });
+const PromenadesSidebar = dynamic(() => import('./_components/PromenadesSidebar'), { ssr: false });
 import type { AdvFilters } from './_types';
 
 export default function PromenadePage() {

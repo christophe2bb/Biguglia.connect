@@ -6,7 +6,6 @@ import { Plus, X, Loader2, Users, Camera } from 'lucide-react';
 import SectorFilter from '@/components/ui/SectorFilter';
 import { cn } from '@/lib/utils';
 import OutingCard from './OutingCard';
-import { DIFF_CONFIG } from '../_constants';
 import type { GroupOuting, OutingFormState } from '../_types';
 
 interface Props {

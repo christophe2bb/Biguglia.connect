@@ -84,7 +84,7 @@ export default async function CommunautePage() {
   const ar = artisans.status === 'fulfilled' ? artisans.value : [];
   const he = helpers.status === 'fulfilled' ? helpers.value : [];
   const me = members.status === 'fulfilled' ? members.value : [];
-  const ev = events.status === 'fulfilled' ? events.value : [];
+  const _ev = events.status === 'fulfilled' ? events.value : [];
 
   // Badges à expliquer (par famille)
   const badgeFamilies: Array<{

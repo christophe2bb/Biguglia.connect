@@ -11,7 +11,7 @@
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { MessageCircle, ChevronRight, MapPin, ArrowRight, Users, Heart, Lightbulb, Shield } from 'lucide-react';
+import { MessageCircle, ChevronRight, MapPin, ArrowRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import {
   JsonLd, breadcrumbSchema, faqSchema, forumPostingSchema, collectionPageSchema,
@@ -260,7 +260,7 @@ export default async function ForumBigugliaPage() {
           </h1>
           <p className="text-white/75 text-lg max-w-2xl leading-relaxed mb-6">
             Échangez avec vos voisins de {GEO.city} : posez vos questions sur la vie locale,
-            partagez des conseils, recommandez des artisans, discutez de l'étang et signalez
+            partagez des conseils, recommandez des artisans, discutez de l&apos;étang et signalez
             des informations utiles au village.
           </p>
 
@@ -323,7 +323,7 @@ export default async function ForumBigugliaPage() {
             Les catégories les plus actives à {GEO.city}
           </h2>
           <p className="text-gray-500 text-sm mb-6">
-            Des centaines d'échanges entre habitants sur ces thèmes — rejoignez la conversation.
+            Des centaines d&apos;échanges entre habitants sur ces thèmes — rejoignez la conversation.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {TOPIC_SPOTLIGHTS.map(topic => (
@@ -360,28 +360,28 @@ export default async function ForumBigugliaPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-gray-600 leading-relaxed">
             <div className="space-y-3">
               <p>
-                Le forum de Biguglia Connect est le lieu d'échange privilégié des habitants de la commune.
+                Le forum de Biguglia Connect est le lieu d&apos;échange privilégié des habitants de la commune.
                 Les sujets les plus populaires traitent de la <strong>vie pratique quotidienne</strong> :
-                recommandations d'artisans fiables, signalement de problèmes de voirie, informations sur
+                recommandations d&apos;artisans fiables, signalement de problèmes de voirie, informations sur
                 les arrêtés municipaux et les chantiers en cours.
               </p>
               <p>
-                Les catégories <strong>"Entraide"</strong> et <strong>"Vie locale"</strong> rassemblent
+                Les catégories <strong>&quot;Entraide&quot;</strong> et <strong>&quot;Vie locale&quot;</strong> rassemblent
                 les demandes de coups de main, les partages de bonnes adresses (commerçants, médecins,
                 restaurants) et les alertes de voisinage. Un espace bienveillant, modéré par notre équipe.
               </p>
             </div>
             <div className="space-y-3">
               <p>
-                <strong>Forum & étang de Biguglia :</strong> la catégorie "Nature" est particulièrement
-                active. Les habitants échangent sur la faune de l'étang (réserve naturelle régionale),
-                les sorties naturalistes, la qualité de l'eau et les initiatives de préservation.
+                <strong>Forum & étang de Biguglia :</strong> la catégorie &quot;Nature&quot; est particulièrement
+                active. Les habitants échangent sur la faune de l&apos;étang (réserve naturelle régionale),
+                les sorties naturalistes, la qualité de l&apos;eau et les initiatives de préservation.
                 Un lien fort entre la communauté et son environnement exceptionnel.
               </p>
               <p>
-                <strong>Charte de bonne conduite :</strong> le forum est modéré par l'équipe Biguglia Connect.
+                <strong>Charte de bonne conduite :</strong> le forum est modéré par l&apos;équipe Biguglia Connect.
                 Bienveillance, respect et utilité sont les trois piliers. Les discussions restent indexables
-                par les moteurs de recherche — votre question peut aider d'autres habitants.
+                par les moteurs de recherche — votre question peut aider d&apos;autres habitants.
               </p>
             </div>
           </div>
@@ -561,7 +561,7 @@ export default async function ForumBigugliaPage() {
         ══════════════════════════════════════════ */}
         <section>
           <h2 className="text-xl font-black text-gray-900 mb-4">
-            Explorez d'autres espaces de la communauté
+            Explorez d&apos;autres espaces de la communauté
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {[

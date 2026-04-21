@@ -335,7 +335,7 @@ const routeParams = (convId = CONV_ID) => ({ params: { id: convId } });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-async function adminMock(opts?: AdminMockOptions) {
+async function _adminMock(opts?: AdminMockOptions) {
   return buildAdminMock(opts) as unknown as ReturnType<typeof createAdminClient>;
 }
 

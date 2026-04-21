@@ -12,11 +12,11 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
   HandHeart, ShoppingCart, Wrench, Users, MapPin, Calendar,
-  CheckCheck, Clock, XCircle, AlertCircle, ChevronDown, ChevronUp,
+  CheckCheck, Clock, XCircle, ChevronDown, ChevronUp,
   Star, ArrowRight, Loader2, MessageSquare,
 } from 'lucide-react';
 import Link from 'next/link';
-import { cn, formatRelative } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

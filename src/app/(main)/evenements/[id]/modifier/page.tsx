@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import { createClient } from '@/lib/supabase/client';
 import {
-  Calendar, MapPin, Clock, Users, ArrowLeft, PartyPopper,
+  Calendar, MapPin, Clock, Users, ArrowLeft,
   ImageIcon, X, Loader2, Euro, Globe, Phone,
   Accessibility, Tag, Save, AlertCircle,
 } from 'lucide-react';

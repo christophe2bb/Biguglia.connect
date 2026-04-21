@@ -48,7 +48,7 @@ interface Props {
 
 export default function TabItineraires({
   promenades, loadingPromenades, totalCount, activeFiltersCount,
-  quickFilter, advFilters, filterSector, setFilterSector, setAdvFilters, setQuickFilter,
+  quickFilter: _quickFilter, advFilters: _advFilters, filterSector: _filterSector, setFilterSector, setAdvFilters, setQuickFilter,
   viewMode,
   showForm, setShowForm, photos, setPhotos, photoPreviews, setPhotoPreviews, submitting, form, setForm, fileInputRef, handleSubmit,
   userId, profileId,
