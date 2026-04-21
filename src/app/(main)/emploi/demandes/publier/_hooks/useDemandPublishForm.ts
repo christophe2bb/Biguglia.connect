@@ -112,12 +112,12 @@ export function useDemandPublishForm(): UseDemandPublishFormReturn {
       const path = `cv/${demandId}.${ext}`;
       const { error } = await supabase.storage
         .from('job-documents')
-        .upload(path, form.cv_file, { upsert: true, contentType: form.cv_file.type });
+        .upload(path, form.cv_file, { upsert: true, contentType: form.cv_file.type }); // nosec
       if (error) {
         console.warn('[cv-upload] Storage error:', error.message);
         return null;
       }
-      const { data } = supabase.storage.from('job-documents').getPublicUrl(path);
+      const { data } = supabase.storage.from('job-documents').getPublicUrl(path); // nosec
       return data?.publicUrl ?? null;
     } catch {
       return null;

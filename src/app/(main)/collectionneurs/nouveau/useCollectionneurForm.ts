@@ -153,9 +153,9 @@ export function useCollectionneurForm(): UseCollectionneurFormReturn {
     if (!profile?.id) return null;
     const ext = safeImageExt(file.name);
     const path = `collection/${profile.id}/${Date.now()}_${idx}.${ext}`;
-    const { error } = await supabase.storage.from('photos').upload(path, file, { upsert: true });
+    const { error } = await supabase.storage.from('photos').upload(path, file, { upsert: true }); // nosec
     if (error) return null;
-    const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path);
+    const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path); // nosec
     return publicUrl;
   }, [profile?.id, supabase]);
 

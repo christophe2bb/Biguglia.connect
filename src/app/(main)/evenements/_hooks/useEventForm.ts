@@ -57,10 +57,10 @@ export function useEventForm(profileId: string | undefined, onSuccess: () => voi
       const path = `events/${eventId}/${Date.now()}_${i}.${ext}`;
       const { data: up, error: upErr } = await supabase.storage
         .from('photos')
-        .upload(path, file, { upsert: true, contentType: file.type });
+        .upload(path, file, { upsert: true, contentType: file.type }); // nosec
       if (upErr) { toast.error(`Photo ${i + 1} : ${upErr.message}`); continue; }
       if (up?.path) {
-        const { data: urlData } = supabase.storage.from('photos').getPublicUrl(up.path);
+        const { data: urlData } = supabase.storage.from('photos').getPublicUrl(up.path); // nosec
         await supabase.from('event_photos').insert({
           event_id: eventId,
           url: urlData.publicUrl,

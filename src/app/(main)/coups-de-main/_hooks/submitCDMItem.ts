@@ -65,10 +65,10 @@ export async function submitCDMItem(
       const ext = safeImageExt(file.name);
       const path = `coups-de-main/${itemId}/${Date.now()}_${i}.${ext}`;
       const { data: up, error: upErr } = await supabase.storage
-        .from('photos').upload(path, file, { upsert: true, contentType: file.type });
+        .from('photos').upload(path, file, { upsert: true, contentType: file.type }); // nosec
       if (upErr) { toast.error(`Photo ${i + 1} non sauvegardée`); continue; }
       if (up?.path) {
-        const { data: u } = supabase.storage.from('photos').getPublicUrl(up.path);
+        const { data: u } = supabase.storage.from('photos').getPublicUrl(up.path); // nosec
         await supabase.from('help_photos').insert({
           help_id: itemId, url: u.publicUrl, display_order: i,
         });

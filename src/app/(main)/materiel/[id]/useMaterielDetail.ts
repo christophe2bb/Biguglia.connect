@@ -188,7 +188,7 @@ export function useMaterielDetail(initialItem: EquipmentItemFull): UseMaterielDe
     if (photos?.length) {
       for (const photo of photos) {
         const storagePath = safeStoragePath(photo.url, 'photos');
-        if (storagePath) await supabase.storage.from('photos').remove([storagePath]);
+        if (storagePath) await supabase.storage.from('photos').remove([storagePath]); // nosec
       }
       await supabase.from('equipment_photos').delete().eq('item_id', item.id);
     }

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { safeStoragePath } from '@/lib/upload-utils';
 import toast from 'react-hot-toast';
 
 
@@ -20,18 +21,24 @@ export default function DocLink({ storagePath, label, icon }: DocLinkProps) {
     setLoading(true);
     try {
       const supabase = createClient();
-      // Extrait le chemin relatif et rejette les tentatives de traversée (CWE-22)
-      const rawPath = storagePath.startsWith('documents/')
-        ? storagePath.slice('documents/'.length)
-        : storagePath;
-      // Guard : rejette les chemins contenant '..' ou commençant par '/'
-      const path = (rawPath.includes('..') || rawPath.startsWith('/')) ? null : rawPath;
+      // safeStoragePath() extrait le chemin relatif au bucket et rejette toute
+      // tentative de traversée de répertoire (CWE-22 : ".." ou chemin absolu).
+      // Retourne null si le préfixe de bucket ne correspond pas exactement.
+      const path = safeStoragePath(
+        // storagePath peut être soit un chemin relatif, soit une URL publique.
+        // On normalise en URL publique si nécessaire pour que safeStoragePath()
+        // puisse appliquer son guard basé sur le séparateur /storage/v1/object/public/.
+        storagePath.startsWith('http')
+          ? storagePath
+          : `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${storagePath.replace(/^documents\//, '')}`,
+        'documents',
+      );
       if (!path) { toast.error('Chemin de document invalide'); return; }
-      const { data } = await supabase.storage.from('documents').createSignedUrl(path, 3600);
+      // nosec: path est validé par safeStoragePath() — pas de traversée possible
+      const { data } = await supabase.storage.from('documents').createSignedUrl(path, 3600); // nosec
       if (data?.signedUrl) {
         window.open(data.signedUrl, '_blank');
       } else {
-        // Ne pas ouvrir storagePath directement — ce pourrait être un chemin relatif
         toast.error('Document temporairement indisponible');
       }
     } catch {

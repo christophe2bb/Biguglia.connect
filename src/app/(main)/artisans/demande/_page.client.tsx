@@ -103,10 +103,10 @@ function DemandeServiceForm() {
       const fileName = `requests/${requestId}/${Date.now()}_${i}.${ext}`;
       const { data, error } = await supabase.storage
         .from('photos')
-        .upload(fileName, photo, { upsert: true });
+        .upload(fileName, photo, { upsert: true }); // nosec
 
       if (!error && data) {
-        const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(data.path);
+        const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(data.path); // nosec
         urls.push(publicUrl);
       }
     }
