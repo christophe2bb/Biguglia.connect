@@ -15,6 +15,27 @@ Exécuter les migrations dans l'ordre dans **Supabase → SQL Editor** :
 | 7 | `supabase/migrations/20260411_help_requests_cdc.sql` | Module Coups de main |
 | 8 | `supabase/migrations/20260411_lost_found_cdc.sql` | Module Perdu / Trouvé |
 | 9 | `supabase/migrations/20260411_annonces_cdc.sql` | Module Petites Annonces CDC |
+| 10 | `supabase/migrations/20260412_conversations_unique.sql` | Anti-duplication conversations |
+| 11 | `supabase/migrations/20260413_listings_all_missing_columns.sql` | Colonnes manquantes table listings (consolidé) |
+| 12 | `supabase/migrations/20260413_listings_optional_columns.sql` | Colonnes optionnelles manquantes listings |
+| 13 | `supabase/migrations/20260413_moderation_queue_fix.sql` | Correction colonnes manquantes moderation_queue |
+| 14 | `supabase/migrations/20260414_admin_full_fix.sql` | Fix complet Admin + Listings + Profiles RLS |
+| 15 | `supabase/migrations/20260414_profiles_rls_fix.sql` | Correction RLS profiles |
+| 16 | `supabase/migrations/20260416_event_comments_delete_policy.sql` | Politique DELETE commentaires événements |
+| 17 | `supabase/migrations/20260416_help_participants_rls.sql` | RLS participants coups de main |
+| 18 | `supabase/migrations/20260416_help_status_history_rls.sql` | RLS historique statuts coups de main |
+| 19 | `supabase/migrations/20260416_job_demands_rls_normalize.sql` | Normalisation RLS demandes emploi |
+| 20 | `supabase/migrations/20260416_lf_matches_rls.sql` | RLS correspondances perdu/trouvé |
+| 21 | `supabase/migrations/20260416_listing_status_history_rls.sql` | RLS historique statuts annonces |
+| 22 | `supabase/migrations/20260416_profiles_rls_final.sql` | RLS profiles — version finale |
+| 23 | `supabase/migrations/20260416_profiles_rls_hardening.sql` | Durcissement RLS profiles |
+| 24 | `supabase/migrations/20260416_rls_security_audit_fixes.sql` | Corrections audit sécurité RLS |
+| 25 | `supabase/migrations/20260417_fix_admin_access.sql` | Correction accès admin |
+| 26 | `supabase/migrations/20260417_rls_close_open_policies.sql` | Fermeture policies RLS ouvertes |
+| 27 | `supabase/migrations/20260417_rls_fix_real_issues.sql` | Correction problèmes RLS réels |
+| 28 | `supabase/migrations/20260418_perf_indexes.sql` | Index de performance |
+| 29 | `supabase/migrations/20260421_cleanup_duplicate_policies.sql` | Nettoyage policies RLS dupliquées |
+| 30 | `supabase/migrations/20260421_unindexed_fk.sql` | Index sur clés étrangères non couvertes |
 
 > Pour chaque fichier : copier le contenu → coller dans SQL Editor → cliquer **Run** → vérifier "Success. No rows returned."
 
