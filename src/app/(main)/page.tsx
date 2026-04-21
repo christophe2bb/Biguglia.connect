@@ -26,6 +26,12 @@ import HomeJobsSection      from '@/components/home/HomeJobsSection';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 
+// La page fait des requêtes Supabase via des Server Components async (HomeFeedSection,
+// HomeCommunitySection, HomeJobsSection). On la marque force-dynamic pour éviter un
+// pré-rendu statique au build qui échouerait sans DB connectée.
+// Sur Vercel, Next.js ISR régénère la page automatiquement à chaque requête.
+export const dynamic  = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Biguglia Connect — Artisans, Annonces & Communauté Locale',
   description:
