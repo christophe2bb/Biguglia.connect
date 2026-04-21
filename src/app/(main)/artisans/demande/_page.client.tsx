@@ -12,6 +12,7 @@ import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Select from '@/components/ui/Select';
 import SectorFilter from '@/components/ui/SectorFilter';
+import { safeImageExt } from '@/lib/upload-utils';
 
 function DemandeServiceForm() {
   const searchParams = useSearchParams();
@@ -96,8 +97,10 @@ function DemandeServiceForm() {
     const supabase = createClient();
     const urls: string[] = [];
 
-    for (const photo of photos) {
-      const fileName = `requests/${requestId}/${Date.now()}-${photo.name}`;
+    for (let i = 0; i < photos.length; i++) {
+      const photo = photos[i];
+      const ext = safeImageExt(photo.name);
+      const fileName = `requests/${requestId}/${Date.now()}_${i}.${ext}`;
       const { data, error } = await supabase.storage
         .from('photos')
         .upload(fileName, photo, { upsert: true });

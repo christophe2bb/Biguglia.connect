@@ -16,15 +16,41 @@ interface JsonLdProps {
 }
 
 /**
+ * Échappe les séquences dangereuses dans une chaîne JSON-LD pour éviter
+ * les injections XSS par fermeture prématurée du tag <script>.
+ *
+ * Remplace :
+ *   </script>  →  <\/script>   (fermeture de balise)
+ *   <!--       →  <\!--        (ouverture de commentaire HTML)
+ *   -->        →  --\>         (fermeture de commentaire HTML — défense en profondeur)
+ *
+ * Ces substitutions sont transparentes pour les parseurs JSON-LD
+ * (les consommateurs SERPs/Schema.org ignorent l'échappement JS).
+ *
+ * Ref : https://cheatsheetseries.owasp.org/cheatsheets/XSS_Prevention_Cheat_Sheet.html
+ */
+function safeJsonLd(data: Record<string, unknown>): string {
+  return JSON.stringify(data, null, 0)
+    .replace(/<\/script>/gi, '<\\/script>')
+    .replace(/<!--/g,        '<\\!--')
+    .replace(/-->/g,         '--\\>');
+}
+
+/**
  * Injecte un bloc <script type="application/ld+json"> dans le <head>.
  * Next.js App Router l'élève automatiquement dans le <head>.
+ *
+ * La sortie est assainie via safeJsonLd() pour prévenir les injections XSS
+ * par fermeture prématurée du tag <script> (ex. si data contient "</script>").
  */
 export function JsonLd({ data }: JsonLdProps) {
   return (
     <script
       type="application/ld+json"
-      // biome-ignore lint — innerHTML nécessaire pour JSON-LD
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data, null, 0) }}
+      // dangerouslySetInnerHTML est intentionnel ici : c'est le seul moyen
+      // d'injecter du JSON-LD dans une balise <script>. La sortie est
+      // assainie par safeJsonLd() — voir ci-dessus.
+      dangerouslySetInnerHTML={{ __html: safeJsonLd(data) }}
     />
   );
 }

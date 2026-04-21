@@ -31,6 +31,7 @@ import StatusManager from '@/components/ui/StatusManager';
 import ContactButton from '@/components/ui/ContactButton';
 import toast from 'react-hot-toast';
 import type { ExtListing, ShareMethod } from '../_types';
+import { safeStoragePath } from '@/lib/upload-utils';
 
 const LS_KEY = 'annonces_favorites';
 
@@ -108,8 +109,8 @@ export default function AnnonceActions({ listing, variant = 'topbar' }: Props) {
     const photos = listing.photos as Array<{ id: string; url: string }> | undefined;
     if (photos?.length) {
       for (const photo of photos) {
-        const parts = photo.url.split('/storage/v1/object/public/photos/');
-        if (parts[1]) await supabase.storage.from('photos').remove([parts[1]]);
+        const storagePath = safeStoragePath(photo.url, 'photos');
+        if (storagePath) await supabase.storage.from('photos').remove([storagePath]);
       }
       await supabase.from('listing_photos').delete().eq('listing_id', listing.id);
     }

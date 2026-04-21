@@ -15,6 +15,7 @@ import { ROLE_LABELS } from '@/lib/utils';
 import Link from 'next/link';
 import { UserRatingBadge } from '@/components/ui/RatingWidget';
 import SectorFilter from '@/components/ui/SectorFilter';
+import { safeImageExt } from '@/lib/upload-utils';
 
 function ProfilContent() {
   const { profile, setProfile } = useAuthStore();
@@ -46,7 +47,7 @@ function ProfilContent() {
     setUploadingPhoto(true);
     const supabase = createClient();
 
-    const ext = file.name.split('.').pop();
+    const ext = safeImageExt(file.name);
     const path = `${profile.id}/avatar.${ext}`;
 
     const { error: uploadError } = await supabase.storage

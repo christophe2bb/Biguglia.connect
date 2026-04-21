@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import type { LFItem, LFStatus, LFFormValues } from '../_types';
 import { SENSITIVE_CATEGORIES } from '../_constants';
+import { safeImageExt } from '@/lib/upload-utils';
 
 export async function submitLFItem(
   form: LFFormValues,
@@ -86,7 +87,7 @@ export async function submitLFItem(
   if (photos.length > 0 && itemId) {
     for (let i = 0; i < photos.length; i++) {
       const file = photos[i];
-      const ext  = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
+      const ext = safeImageExt(file.name);
       const path = `lost-found/${itemId}/${Date.now()}_${i}.${ext}`;
       const { data: up, error: upErr } = await supabase.storage
         .from('photos').upload(path, file, { upsert: true, contentType: file.type });

@@ -5,6 +5,7 @@ import { ExternalLink } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 
+
 interface DocLinkProps {
   storagePath?: string;
   label: string;
@@ -19,18 +20,22 @@ export default function DocLink({ storagePath, label, icon }: DocLinkProps) {
     setLoading(true);
     try {
       const supabase = createClient();
-      const path = storagePath.startsWith('documents/')
+      // Extrait le chemin relatif et rejette les tentatives de traversée (CWE-22)
+      const rawPath = storagePath.startsWith('documents/')
         ? storagePath.slice('documents/'.length)
         : storagePath;
+      // Guard : rejette les chemins contenant '..' ou commençant par '/'
+      const path = (rawPath.includes('..') || rawPath.startsWith('/')) ? null : rawPath;
+      if (!path) { toast.error('Chemin de document invalide'); return; }
       const { data } = await supabase.storage.from('documents').createSignedUrl(path, 3600);
       if (data?.signedUrl) {
         window.open(data.signedUrl, '_blank');
       } else {
-        window.open(storagePath, '_blank');
-        toast('Ouverture directe — URL sécurisée non disponible', { icon: '⚠️' });
+        // Ne pas ouvrir storagePath directement — ce pourrait être un chemin relatif
+        toast.error('Document temporairement indisponible');
       }
     } catch {
-      window.open(storagePath, '_blank');
+      toast.error('Impossible d\'ouvrir le document');
     } finally {
       setLoading(false);
     }
