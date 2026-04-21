@@ -16,6 +16,7 @@
  *  - Stratégie admin (bypass RLS) + fallback client anon pour getJobDemandBySlug
  */
 
+import { unstable_cache } from 'next/cache';
 import { createJobsClient, createJobsAdminClient } from '@/lib/supabase/server';
 import type {
   JobDemandFilters,
@@ -237,7 +238,7 @@ export async function getJobDemandBySlug(
 /**
  * Retourne les `limit` demandes les plus récentes pour le fil Home.
  */
-export async function getRecentJobDemands(
+async function _getRecentJobDemands(
   limit: number = 5,
   sectorId?: string,
 ): Promise<JobDemandSearchResult[]> {
@@ -266,3 +267,9 @@ export async function getRecentJobDemands(
   // data est inféré JobDemandRow[] — aucun cast
   return (data ?? []).map(toSearchResult);
 }
+
+export const getRecentJobDemands = unstable_cache(
+  (limit = 5, sectorId?: string) => _getRecentJobDemands(limit, sectorId),
+  ['jobs-recent-demands'],
+  { revalidate: 60, tags: ['jobs-demands'] },
+);
