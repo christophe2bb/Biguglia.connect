@@ -63,7 +63,6 @@ Dans **Database > Replication**, activer :
 | `NEXT_PUBLIC_SUPABASE_URL` | ✅ Requis | URL du projet Supabase (ex : `https://xxxx.supabase.co`) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ Requis | Clé publique Supabase (`sb_publishable_...`) |
 | `NEXT_PUBLIC_SITE_URL` | ✅ Requis | URL du site déployé (ex : `https://biguglia-connect.vercel.app`) |
-| `NEXT_PUBLIC_ADMIN_EMAIL` | ✅ Requis | Email de l'administrateur |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ Requis | Clé service role (côté serveur uniquement, ne jamais exposer côté client) |
 | `UPSTASH_REDIS_REST_URL` | ⚠️ Fortement recommandé | URL REST Upstash (ex : `https://xxx.upstash.io`) — voir §5b ci-dessous |
 | `UPSTASH_REDIS_REST_TOKEN` | ⚠️ Fortement recommandé | Token Bearer Upstash — voir §5b ci-dessous |
@@ -91,7 +90,6 @@ vercel --name biguglia-connect
 vercel env add NEXT_PUBLIC_SUPABASE_URL
 vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
 vercel env add NEXT_PUBLIC_SITE_URL
-vercel env add NEXT_PUBLIC_ADMIN_EMAIL
 vercel env add SUPABASE_SERVICE_ROLE_KEY
 vercel env add UPSTASH_REDIS_REST_URL
 vercel env add UPSTASH_REDIS_REST_TOKEN
