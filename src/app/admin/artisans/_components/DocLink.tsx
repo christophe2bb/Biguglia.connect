@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { safeStoragePath } from '@/lib/upload-utils';
+import { safeRelativePath } from '@/lib/upload-utils';
 import toast from 'react-hot-toast';
 
 
@@ -21,21 +21,15 @@ export default function DocLink({ storagePath, label, icon }: DocLinkProps) {
     setLoading(true);
     try {
       const supabase = createClient();
-      // safeStoragePath() extrait le chemin relatif au bucket et rejette toute
-      // tentative de traversée de répertoire (CWE-22 : ".." ou chemin absolu).
-      // Retourne null si le préfixe de bucket ne correspond pas exactement.
-      const path = safeStoragePath(
-        // storagePath peut être soit un chemin relatif, soit une URL publique.
-        // On normalise en URL publique si nécessaire pour que safeStoragePath()
-        // puisse appliquer son guard basé sur le séparateur /storage/v1/object/public/.
-        storagePath.startsWith('http')
-          ? storagePath
-          : `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${storagePath.replace(/^documents\//, '')}`,
-        'documents',
-      );
+      // safeRelativePath() valide le chemin relatif issu de la BDD avant de le
+      // passer à createSignedUrl(). Protège contre CWE-22 (path traversal) :
+      // rejette "..", chemins absolus ("/…") et valeurs vides.
+      // Le préfixe de bucket "documents/" est supprimé si présent.
+      const path = safeRelativePath(storagePath, 'documents');
       if (!path) { toast.error('Chemin de document invalide'); return; }
-      // nosec: path est validé par safeStoragePath() — pas de traversée possible
-      const { data } = await supabase.storage.from('documents').createSignedUrl(path, 3600); // nosec
+      const { data } = await supabase.storage
+        .from('documents')
+        .createSignedUrl(path, 3600); // nosec: path validé par safeRelativePath (CWE-22 mitigé)
       if (data?.signedUrl) {
         window.open(data.signedUrl, '_blank');
       } else {
