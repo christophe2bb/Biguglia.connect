@@ -26,9 +26,17 @@ export function useConversationPage(conversationId: string) {
   const supabase = supabaseRef.current;
 
   // ── Scroll + messagesEndRef ────────────────────────────────────────────────
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior }), 50);
+  // Utilise requestAnimationFrame plutôt que setTimeout pour éviter les
+  // "forced reflow" signalés dans les DevTools (layout thrashing ~65 ms).
+  // rAF garantit que le DOM est prêt avant d'appeler scrollIntoView.
+  const messagesEndRef  = useRef<HTMLDivElement>(null);
+  const rafScrollRef    = useRef<number | null>(null);
+  const scrollToBottom  = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    if (rafScrollRef.current !== null) cancelAnimationFrame(rafScrollRef.current);
+    rafScrollRef.current = requestAnimationFrame(() => {
+      rafScrollRef.current = null;
+      messagesEndRef.current?.scrollIntoView({ behavior });
+    });
   }, []);
 
   // ── Marquer comme lu ──────────────────────────────────────────────────────
@@ -76,6 +84,11 @@ export function useConversationPage(conversationId: string) {
       data.mountedRef.current = false;
       realtime.cleanup();
       document.removeEventListener('visibilitychange', handleVis);
+      // Annuler le scroll rAF en vol si le composant se démonte
+      if (rafScrollRef.current !== null) {
+        cancelAnimationFrame(rafScrollRef.current);
+        rafScrollRef.current = null;
+      }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, conversationId, profile?.id, data.load, realtime.connect, realtime.cleanup, markAsRead]);

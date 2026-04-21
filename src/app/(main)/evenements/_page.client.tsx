@@ -73,10 +73,11 @@ export default function EvenementsPage() {
   return (
     <div className="min-h-screen relative">
       <SectionTracker section="evenements" />
-      {/* Background */}
-      <Image src="/images/biguglia-etang.jpg" alt="" aria-hidden fill
-        style={{ objectFit: 'cover', objectPosition: 'center top',
-          position: 'fixed', zIndex: 0, opacity: 0.2, pointerEvents: 'none' }} />
+      {/* Background — wrapper div gère le positionnement fixed ; Image fill ne peut pas avoir style.position */}
+      <div aria-hidden="true" style={{ position: 'fixed', inset: 0, zIndex: 0, opacity: 0.2, pointerEvents: 'none' }}>
+        <Image src="/images/biguglia-etang.jpg" alt="" fill
+          style={{ objectFit: 'cover', objectPosition: 'center top' }} />
+      </div>
 
       <div className="relative" style={{ zIndex: 1 }}>
         {!dbReady && (

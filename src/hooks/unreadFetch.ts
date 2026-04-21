@@ -9,6 +9,12 @@
 //      à chaque appel de fetchCounts — économie ~150-200 ms / appel).
 //   2. `is_system` calculé côté serveur → payload JSON réduit (plus de `content`).
 //   3. `since` construit depuis readMap → borne inférieure correcte dès le 1er appel.
+//
+// ── Gestion 429 (rate-limit) ──────────────────────────────────────────────────
+//   Quand l'API retourne 429, on active un back-off exponentiel modulaire :
+//   le fetch est suspendu pendant `_rateLimitUntil` ms puis relancé normalement.
+//   Les tentatives s'espacent de 5 s → 10 s → 20 s → 40 s → 60 s (cap).
+//   Dès qu'une requête réussit (2xx), le compteur revient à 0.
 
 import { createClient } from '@/lib/supabase/client';
 import { totalUnreadMsgs } from './unreadHelpers';
@@ -27,6 +33,12 @@ export type UnreadRefs = {
 // Le token est rafraîchi automatiquement à l'expiration (< Date.now()).
 let _cachedToken: string | null    = null;
 let _tokenExpiresAt: number        = 0;    // ms
+
+// ── Back-off 429 (rate-limit) ─────────────────────────────────────────────────
+// Suspend tous les fetchCounts jusqu'à _rateLimitUntil (timestamp ms).
+let _rateLimitUntil: number        = 0;
+let _rateLimitCount: number        = 0;
+const RATE_LIMIT_DELAYS_MS         = [5_000, 10_000, 20_000, 40_000, 60_000] as const;
 
 async function getBearerToken(supabase: ReturnType<typeof createClient>): Promise<string | null> {
   const now = Date.now();
@@ -49,6 +61,29 @@ async function getBearerToken(supabase: ReturnType<typeof createClient>): Promis
 export function invalidateBearerCache(): void {
   _cachedToken    = null;
   _tokenExpiresAt = 0;
+  // Réinitialise aussi le back-off 429 lors d'un changement de session
+  _rateLimitUntil = 0;
+  _rateLimitCount = 0;
+}
+
+/**
+ * Calcule et applique un back-off après une réponse 429.
+ * Retourne le délai appliqué en ms (pour les logs).
+ */
+function applyRateLimitBackoff(retryAfterHeader: string | null): number {
+  // Respect du header Retry-After si présent (secondes entières)
+  const serverDelay = retryAfterHeader ? parseInt(retryAfterHeader, 10) * 1_000 : 0;
+  const expDelay    = RATE_LIMIT_DELAYS_MS[Math.min(_rateLimitCount, RATE_LIMIT_DELAYS_MS.length - 1)];
+  const delay       = Math.max(serverDelay || 0, expDelay);
+  _rateLimitUntil   = Date.now() + delay;
+  _rateLimitCount   = Math.min(_rateLimitCount + 1, RATE_LIMIT_DELAYS_MS.length - 1);
+  return delay;
+}
+
+/** Remet à zéro le back-off après un succès. */
+function resetRateLimitBackoff(): void {
+  _rateLimitUntil = 0;
+  _rateLimitCount = 0;
 }
 
 /**
@@ -65,6 +100,11 @@ export async function fetchCounts(
   setCounts: SetCounts,
 ): Promise<void> {
   if (refs.fetchingRef.current) return;
+
+  // ── Vérification du back-off 429 ─────────────────────────────────────────
+  // Si on est encore en période de suspension, on abandonne silencieusement.
+  if (_rateLimitUntil > Date.now()) return;
+
   refs.fetchingRef.current = true;
   const lockTimeout = setTimeout(() => { refs.fetchingRef.current = false; }, 15_000);
 
@@ -98,9 +138,22 @@ export async function fetchCounts(
         if (refs.mountedRef.current) {
           setCounts({ messages: 0, notifications: 0, total: 0 });
         }
+      } else if (res?.status === 429) {
+        // Rate-limit atteint — back-off exponentiel, NE PAS reset les compteurs
+        const delay = applyRateLimitBackoff(res.headers.get('Retry-After'));
+        console.warn(`[unreadFetch] 429 rate-limit — back-off ${delay / 1000}s (tentative #${_rateLimitCount})`);
+      } else if (res && !res.ok) {
+        // Autre erreur HTTP (5xx, etc.) — vérifier que la réponse n'est pas du HTML
+        const ct = res.headers.get('content-type') ?? '';
+        if (!ct.includes('application/json')) {
+          console.warn(`[unreadFetch] Réponse non-JSON (${res.status}) : probablement une page d'erreur proxy`);
+        }
       }
       return;
     }
+
+    // Succès — réinitialiser le back-off 429
+    resetRateLimitBackoff();
 
     const data = await res.json().catch(() => null);
     if (!data) return;

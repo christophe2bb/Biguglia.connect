@@ -62,9 +62,18 @@ export function useConversationRealtime(
     }
   }, [supabase, profileCacheRef]);
 
+  // ── Back-off 429 pour le polling de secours ──────────────────────────────
+  const pollRateLimitUntilRef  = useRef<number>(0);
+  const pollRateLimitCountRef  = useRef<number>(0);
+  const POLL_RATE_LIMIT_DELAYS = [5_000, 10_000, 20_000, 40_000, 60_000] as const;
+
   // ── Polling de secours ────────────────────────────────────────────────────
   const pollNewMessages = useCallback(async () => {
     if (!mountedRef.current || !profile) return;
+
+    // Vérification du back-off 429
+    if (pollRateLimitUntilRef.current > Date.now()) return;
+
     try {
       const token = await getToken(supabase);
       if (!token) return;
@@ -72,7 +81,25 @@ export function useConversationRealtime(
       const res = await fetch(`/api/messages/conversation/${conversationId}`, {
         headers: { Authorization: `Bearer ${token}` },
       }).catch(() => null);
-      if (!res?.ok) return;
+
+      if (!res) return;
+
+      // Gestion 429 — back-off exponentiel
+      if (res.status === 429) {
+        const serverDelay = parseInt(res.headers.get('Retry-After') ?? '0', 10) * 1_000;
+        const expDelay    = POLL_RATE_LIMIT_DELAYS[Math.min(pollRateLimitCountRef.current, POLL_RATE_LIMIT_DELAYS.length - 1)];
+        const delay       = Math.max(serverDelay, expDelay);
+        pollRateLimitUntilRef.current = Date.now() + delay;
+        pollRateLimitCountRef.current = Math.min(pollRateLimitCountRef.current + 1, POLL_RATE_LIMIT_DELAYS.length - 1);
+        console.warn(`[useConversationRealtime] 429 — poll suspendu ${delay / 1000}s`);
+        return;
+      }
+
+      if (!res.ok) return;
+
+      // Succès — réinitialiser le back-off
+      pollRateLimitUntilRef.current = 0;
+      pollRateLimitCountRef.current = 0;
 
       const data = await res.json().catch(() => null) as ConversationApiResponse | null;
       if (!data?.messages) return;
