@@ -3,6 +3,8 @@
 // Gère : low-activity, empty, error avec call-to-action contextuel
 // ─────────────────────────────────────────────────────────────────────────────
 
+'use client';
+
 import Link from 'next/link';
 import { PenLine, RefreshCw, MapPin } from 'lucide-react';
 import type { HomeSectionId } from '@/services/home/types';
