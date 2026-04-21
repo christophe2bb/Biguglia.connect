@@ -13,6 +13,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
+import { unstable_cache } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 
 // ─── Types publics ────────────────────────────────────────────────────────────
@@ -80,7 +81,10 @@ function daysFromNow(days: number): string {
 
 // ─── fetchCommunityStats ─────────────────────────────────────────────────────
 
-export async function fetchCommunityStats(): Promise<CommunityStats> {
+// ─── fetchCommunityStats — cachée 120s ───────────────────────────────────────
+// 6 requêtes COUNT(*) sur des tables entières : résultat identique pour tous
+// les visiteurs. Cache 120s sur Vercel (régénération en arrière-plan).
+async function _fetchCommunityStats(): Promise<CommunityStats> {
   const supabase = createClient();
   const since1Week = daysAgo(7);
 
@@ -117,9 +121,17 @@ export async function fetchCommunityStats(): Promise<CommunityStats> {
   };
 }
 
+export const fetchCommunityStats = unstable_cache(
+  _fetchCommunityStats,
+  ['community-stats'],
+  { revalidate: 120, tags: ['community-stats'] },
+);
+
 // ─── fetchTopArtisans ─────────────────────────────────────────────────────────
 
-export async function fetchTopArtisans(limit = 4): Promise<SpotlightArtisan[]> {
+// ─── fetchTopArtisans — cachée 300s ─────────────────────────────────────────
+// La liste des artisans vedettes change rarement. Cache 5min.
+async function _fetchTopArtisans(limit = 4): Promise<SpotlightArtisan[]> {
   const supabase = createClient();
 
   // Artisans vérifiés avec leur score de confiance
@@ -202,9 +214,16 @@ export async function fetchTopArtisans(limit = 4): Promise<SpotlightArtisan[]> {
     .slice(0, limit);
 }
 
+export const fetchTopArtisans = unstable_cache(
+  (limit = 4) => _fetchTopArtisans(limit),
+  ['community-top-artisans'],
+  { revalidate: 300, tags: ['community-artisans'] },
+);
+
 // ─── fetchRecentHelpers ───────────────────────────────────────────────────────
 
-export async function fetchRecentHelpers(limit = 5): Promise<SpotlightHelper[]> {
+// cachée 60s — les coups de main récents changent parfois
+async function _fetchRecentHelpers(limit = 5): Promise<SpotlightHelper[]> {
   const supabase = createClient();
   const since30 = daysAgo(30);
 
@@ -231,9 +250,16 @@ export async function fetchRecentHelpers(limit = 5): Promise<SpotlightHelper[]> 
   }));
 }
 
+export const fetchRecentHelpers = unstable_cache(
+  (limit = 5) => _fetchRecentHelpers(limit),
+  ['community-recent-helpers'],
+  { revalidate: 60, tags: ['community-helpers'] },
+);
+
 // ─── fetchActiveMembersSpotlight ─────────────────────────────────────────────
 
-export async function fetchActiveMembersSpotlight(limit = 6): Promise<SpotlightMember[]> {
+// cachée 120s
+async function _fetchActiveMembersSpotlight(limit = 6): Promise<SpotlightMember[]> {
   const supabase = createClient();
 
   // Membres récents actifs avec trust_profile_stats
@@ -273,9 +299,15 @@ export async function fetchActiveMembersSpotlight(limit = 6): Promise<SpotlightM
     .slice(0, limit);
 }
 
+export const fetchActiveMembersSpotlight = unstable_cache(
+  (limit = 6) => _fetchActiveMembersSpotlight(limit),
+  ['community-members-spotlight'],
+  { revalidate: 120, tags: ['community-members'] },
+);
+
 // ─── fetchRecentEvents ────────────────────────────────────────────────────────
 
-export async function fetchRecentEvents(limit = 3): Promise<SpotlightEvent[]> {
+async function _fetchRecentEvents(limit = 3): Promise<SpotlightEvent[]> {
   const supabase = createClient();
   const today = new Date().toISOString().slice(0, 10);
   const in3Weeks = daysFromNow(21).slice(0, 10);
@@ -296,3 +328,9 @@ export async function fetchRecentEvents(limit = 3): Promise<SpotlightEvent[]> {
     participant_count: 0,
   }));
 }
+
+export const fetchRecentEvents = unstable_cache(
+  (limit = 3) => _fetchRecentEvents(limit),
+  ['community-recent-events'],
+  { revalidate: 60, tags: ['community-events'] },
+);

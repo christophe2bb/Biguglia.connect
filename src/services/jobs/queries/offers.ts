@@ -15,6 +15,7 @@
  *  - La jointure author est optionnelle (toAuthorProfile → undefined si absente)
  */
 
+import { unstable_cache } from 'next/cache';
 import { createJobsClient } from '@/lib/supabase/server';
 import type {
   JobOfferFilters,
@@ -231,7 +232,7 @@ export async function getJobOfferBySlug(
 /**
  * Retourne les `limit` offres les plus récentes pour le fil Home.
  */
-export async function getRecentJobOffers(
+async function _getRecentJobOffers(
   limit: number = 5,
   sectorId?: string,
 ): Promise<JobOfferSearchResult[]> {
@@ -260,3 +261,9 @@ export async function getRecentJobOffers(
   // data est inféré JobOfferRow[] — aucun cast
   return (data ?? []).map(toSearchResult);
 }
+
+export const getRecentJobOffers = unstable_cache(
+  (limit = 5, sectorId?: string) => _getRecentJobOffers(limit, sectorId),
+  ['jobs-recent-offers'],
+  { revalidate: 60, tags: ['jobs-offers'] },
+);

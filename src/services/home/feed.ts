@@ -4,6 +4,7 @@
 // Appelé exclusivement côté serveur (SSR) — aucune logique UI ici.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { unstable_cache } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import type { HomeFeedItem, HomeFeedResult, HomeSection } from './types';
 import {
@@ -451,7 +452,10 @@ function buildForYouSection(
 
 // ─── Point d'entrée principal ─────────────────────────────────────────────────
 
-export async function getHomeFeed(
+// ─── Version interne (non cachée) ────────────────────────────────────────────
+// getHomeFeed est appelée avec currentUserId : on ne cache que le feed anonyme
+// (currentUserId=null) car le feed personnalisé varie par utilisateur.
+async function _getHomeFeed(
   currentUserId: string | null = null,
   userContext: UserFeedContext = {},
 ): Promise<HomeFeedResult> {
@@ -514,4 +518,25 @@ export async function getHomeFeed(
     generatedAt: new Date().toISOString(),
     hasContent: totalItems > 0,
   };
+}
+
+// ─── Cache ISR : feed anonyme mis en cache 60s ────────────────────────────────
+// • Les visiteurs non connectés partagent le même résultat pendant 60s.
+// • Les utilisateurs connectés (currentUserId != null) sautent le cache
+//   pour recevoir un feed filtré (leurs propres contenus exclus).
+// • revalidate: 60 → Vercel régénère en arrière-plan toutes les 60s.
+const _getCachedHomeFeed = unstable_cache(
+  () => _getHomeFeed(null, {}),
+  ['home-feed-anon'],
+  { revalidate: 60, tags: ['home-feed'] },
+);
+
+export async function getHomeFeed(
+  currentUserId: string | null = null,
+  userContext: UserFeedContext = {},
+): Promise<HomeFeedResult> {
+  // Feed personnalisé → pas de cache partagé
+  if (currentUserId) return _getHomeFeed(currentUserId, userContext);
+  // Feed anonyme → cache 60s
+  return _getCachedHomeFeed();
 }

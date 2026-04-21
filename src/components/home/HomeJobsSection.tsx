@@ -6,11 +6,12 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { getRecentJobOffers, getRecentJobDemands } from '@/services/jobs/queries';
+import type { JobOfferSearchResult, JobDemandSearchResult } from '@/types/jobs/_search';
 import { JobOfferHomeCard, JobDemandHomeCard } from './JobHomeCard';
 
 export default async function HomeJobsSection() {
-  let recentOffers: Awaited<ReturnType<typeof getRecentJobOffers>> = [];
-  let recentDemands: Awaited<ReturnType<typeof getRecentJobDemands>> = [];
+  let recentOffers: JobOfferSearchResult[] = [];
+  let recentDemands: JobDemandSearchResult[] = [];
 
   try {
     [recentOffers, recentDemands] = await Promise.all([
