@@ -4,7 +4,6 @@ import { ForumSector, ForumTopic } from '@/types';
 import { MessageCircle, Plus, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { cn } from '@/lib/utils';
 import { TopicCard } from './TopicCard';
 
 interface Props {

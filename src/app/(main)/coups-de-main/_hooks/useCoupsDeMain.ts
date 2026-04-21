@@ -17,6 +17,7 @@ export function useCoupsDeMain() {
   const form    = useCDMForm(data.fetchItems);
 
   // Chargement initial
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { data.fetchItems(); }, [data.fetchItems]);
 
   // Wrapper handleSubmit : injecte profileId (garde la même signature qu'avant)

@@ -78,7 +78,7 @@ function buildAdminMock({
   captureInFilter = null as ((ids: string[]) => void) | null,
 } = {}) {
   // Chainable builder pour Supabase query
-  const buildChain = (resolveValue: unknown) => {
+  const _buildChain = (resolveValue: unknown) => {
     const chain: Record<string, unknown> = {};
     const methods = ['select', 'eq', 'neq', 'gt', 'in', 'update', 'limit', 'order'] as const;
     methods.forEach(m => {
@@ -189,7 +189,7 @@ describe('GET /api/messages/unread', () => {
     const CONV_B2 = 'conv-b2';
 
     // Messages dans les conversations de B — A ne doit PAS les voir
-    const MSG_B = [
+    const _MSG_B = [
       { id: 'msg-b1', conversation_id: CONV_B1, created_at: new Date().toISOString(), content: 'Secret de B', sender_id: USER_B },
       { id: 'msg-b2', conversation_id: CONV_B2, created_at: new Date().toISOString(), content: 'Autre secret', sender_id: USER_B },
     ];

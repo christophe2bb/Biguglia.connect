@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
   MapPin, MessageSquare, Footprints, Users, Eye, Baby, Dog,
-  ParkingSquare, BarChart3, Star, Calendar, Loader2, Send, Pencil, Trash2,
+  ParkingSquare, BarChart3, Calendar, Loader2, Send, Pencil, Trash2,
 } from 'lucide-react';
 import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';

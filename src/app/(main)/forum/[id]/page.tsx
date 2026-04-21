@@ -13,7 +13,7 @@ import type { TopicExtended, TopicPhoto, InitialTopicData } from './_types';
 import type { ForumTopic, ForumReply } from '@/types';
 import { JsonLd, breadcrumbSchema, articleSchema } from '@/components/seo/JsonLd';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
+const _SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 
 type Props = { params: { id: string } };
 

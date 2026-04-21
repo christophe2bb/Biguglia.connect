@@ -11,7 +11,7 @@
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Package, ChevronRight, MapPin, ArrowRight, Tag, Gift, Shield, Clock, CheckCircle } from 'lucide-react';
+import { ChevronRight, MapPin, ArrowRight, Shield, Clock, CheckCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { JsonLd, breadcrumbSchema, faqSchema, collectionPageSchema } from '@/components/seo/JsonLd';
 import { GEO } from '@/lib/seo/local-data';
@@ -333,33 +333,33 @@ export default async function AnnoncesBigugliaPage() {
               <p>
                 Biguglia et sa plaine orientale constituent un bassin de vie dense avec une forte demande
                 pour les échanges de proximité. Acheter et vendre localement permet de{' '}
-                <strong>récupérer immédiatement</strong> l'objet, d'éviter les frais de port et de{' '}
-                <strong>contribuer à l'économie circulaire</strong> du village.
+                <strong>récupérer immédiatement</strong> l&apos;objet, d&apos;éviter les frais de port et de{' '}
+                <strong>contribuer à l&apos;économie circulaire</strong> du village.
               </p>
               <p>
                 Les objets les plus échangés entre habitants de Biguglia : mobilier de jardin et parasols
-                (avant/après l'été), matériel de bricolage, vélos et trottinettes, vêtements enfants,
+                (avant/après l&apos;été), matériel de bricolage, vélos et trottinettes, vêtements enfants,
                 électroménager de cuisine et produits artisanaux corses (miel, confiture, poterie).
               </p>
               <p>
                 <strong>Zone couverte :</strong> les annonces de Biguglia Connect sont visibles par tous
                 les habitants de la commune et des environs — Borgo, Furiani, Lucciana, Bastia et la
-                plaine de Haute-Corse. Idéal pour toucher un maximum d'acheteurs potentiels à proximité.
+                plaine de Haute-Corse. Idéal pour toucher un maximum d&apos;acheteurs potentiels à proximité.
               </p>
             </div>
             <div className="space-y-3">
               <p>
                 <strong>Conseils pour sécuriser votre transaction :</strong> préférez les rencontres dans
                 un lieu public (mairie de Biguglia, parking de la médiathèque, place du village). Vérifiez
-                l'objet avant de payer. Consultez le profil du vendeur et ses évaluations sur Biguglia Connect.
+                l&apos;objet avant de payer. Consultez le profil du vendeur et ses évaluations sur Biguglia Connect.
               </p>
               <p>
                 <strong>Dons gratuits :</strong> de nombreux habitants préfèrent donner plutôt que jeter.
-                Consultez la catégorie "Dons gratuits" pour récupérer des objets utiles à Biguglia et
+                Consultez la catégorie &quot;Dons gratuits&quot; pour récupérer des objets utiles à Biguglia et
                 dans les communes voisines. Cette pratique réduit les déchets et renforce les liens de voisinage.
               </p>
               <p>
-                <strong>Matériel partagé :</strong> pour du matériel dont vous n'avez besoin qu'une fois
+                <strong>Matériel partagé :</strong> pour du matériel dont vous n&apos;avez besoin qu&apos;une fois
                 (perceuse, échelle, tondeuse…), consultez aussi la section{' '}
                 <Link href="/materiel" className="text-emerald-600 font-semibold hover:underline">
                   Matériel partagé
@@ -407,7 +407,7 @@ export default async function AnnoncesBigugliaPage() {
         ══════════════════════════════════════════ */}
         <section>
           <h2 className="text-2xl font-black text-gray-900 mb-2">
-            Catégories d'annonces à {GEO.city}
+            Catégories d&apos;annonces à {GEO.city}
           </h2>
           <p className="text-gray-500 text-sm mb-6">
             Cliquez sur une catégorie pour voir toutes les annonces disponibles à Biguglia et alentours.
@@ -502,7 +502,7 @@ export default async function AnnoncesBigugliaPage() {
                 <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
                   <span>Vérifiez le <strong>score de confiance</strong> du vendeur sur son profil</span></li>
                 <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                  <span>Testez l\'objet avant de payer, n\'envoyez jamais d\'argent à l\'avance</span></li>
+                  <span>Testez l\&apos;objet avant de payer, n\&apos;envoyez jamais d\&apos;argent à l\&apos;avance</span></li>
                 <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
                   <span>Méfiez-vous des prix anormalement bas ou des urgences invoquées</span></li>
               </ul>
@@ -513,7 +513,7 @@ export default async function AnnoncesBigugliaPage() {
                 <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
                   <span>Ajoutez <strong>des photos</strong> claires sous bonne lumière (+3× plus de contacts)</span></li>
                 <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                  <span>Décrivez l\'état réel de l\'objet et mentionnez les défauts éventuels</span></li>
+                  <span>Décrivez l\&apos;état réel de l\&apos;objet et mentionnez les défauts éventuels</span></li>
                 <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
                   <span>Fixez un <strong>prix réaliste</strong> (consultez les annonces similaires)</span></li>
                 <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
@@ -534,9 +534,9 @@ export default async function AnnoncesBigugliaPage() {
             </h2>
           </div>
           <p className="text-sm text-gray-600 leading-relaxed mb-5 max-w-2xl">
-            L'économie circulaire est très active à Biguglia. Plutôt que de jeter, de nombreux habitants donnent
-            gratuitement leurs objets dont ils n'ont plus besoin. Meubles, électroménager, vêtements, livres,
-            jouets — tout est possible. C'est bon pour l'environnement et ça renforce les liens de voisinage.
+            L&apos;économie circulaire est très active à Biguglia. Plutôt que de jeter, de nombreux habitants donnent
+            gratuitement leurs objets dont ils n&apos;ont plus besoin. Meubles, électroménager, vêtements, livres,
+            jouets — tout est possible. C&apos;est bon pour l&apos;environnement et ça renforce les liens de voisinage.
             {donCount > 0 ? ` ${donCount} dons gratuits disponibles en ce moment.` : ''}
           </p>
           <div className="flex flex-wrap gap-3">

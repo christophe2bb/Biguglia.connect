@@ -5,7 +5,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import {
   CheckCircle, ChevronLeft, ChevronRight,
-  AlertCircle, Shield,
+  AlertCircle,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import type { AdminArtisanEntry } from '@/app/api/admin/artisans/route';

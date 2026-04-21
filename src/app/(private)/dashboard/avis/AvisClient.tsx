@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Star, ArrowLeft, Award, ThumbsUp, Send, Clock,
-  ChevronRight, Loader2, MessageSquare, Shield,
+  ChevronRight, MessageSquare, Shield,
   Tag, CheckCircle, AlertCircle, Sparkles,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -104,7 +104,7 @@ function ReviewCard({ review }: { review: ReviewItem }) {
             </div>
           )}
           {review.comment ? (
-            <p className="text-sm text-gray-700 leading-relaxed italic">"{review.comment}"</p>
+            <p className="text-sm text-gray-700 leading-relaxed italic">&quot;{review.comment}&quot;</p>
           ) : (
             <p className="text-xs text-gray-400 italic">Aucun commentaire</p>
           )}
@@ -453,7 +453,7 @@ function MesAvisContent() {
                   {received.length === 0 ? (
                     <div className="text-center py-2">
                       <Award className="w-10 h-10 mx-auto mb-2 text-amber-200" />
-                      <p className="font-bold text-amber-800">Pas encore d'avis reçus</p>
+                      <p className="font-bold text-amber-800">Pas encore d&apos;avis reçus</p>
                       <p className="text-sm text-amber-600 mt-1 mb-4">Terminez vos premiers échanges pour recevoir des évaluations.</p>
                       <Link href="/mes-echanges" className="inline-flex items-center gap-2 bg-amber-600 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-amber-700 transition-colors">
                         Mes échanges <ChevronRight className="w-4 h-4" />
@@ -500,8 +500,8 @@ function MesAvisContent() {
               given.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
                   <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm font-medium">Vous n'avez pas encore laissé d'avis</p>
-                  <p className="text-xs mt-1">Évaluez vos partenaires d'échange après chaque interaction terminée.</p>
+                  <p className="text-sm font-medium">Vous n&apos;avez pas encore laissé d&apos;avis</p>
+                  <p className="text-xs mt-1">Évaluez vos partenaires d&apos;échange après chaque interaction terminée.</p>
                   <button
                     onClick={() => setTab('pending')}
                     className="inline-flex items-center gap-1.5 mt-4 bg-amber-600 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-amber-700 transition-colors"

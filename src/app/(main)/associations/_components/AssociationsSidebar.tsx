@@ -38,7 +38,7 @@ interface AssociationsSidebarProps {
 
 export default function AssociationsSidebar({
   assos, filterCat, setFilterCat, filterSector, setFilterSector,
-  savedAssos, showSavedOnly, setShowSavedOnly, setShowAdvFilters,
+  savedAssos, _showSavedOnly, setShowSavedOnly, setShowAdvFilters,
   urgentCount, volunteerCount, eventsAssosCount, donationsCount,
   totalActive, sectorCounts, profile,
 }: AssociationsSidebarProps) {

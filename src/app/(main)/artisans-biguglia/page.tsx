@@ -12,7 +12,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
-  Shield, Star, CheckCircle, ArrowRight, MapPin, ChevronRight,
+  ArrowRight, MapPin, ChevronRight,
   Users, Wrench, Phone,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
@@ -182,7 +182,7 @@ export default async function ArtisansBigugliaPage() {
 
           <p className="text-white/75 text-base sm:text-lg max-w-2xl leading-relaxed mb-8">
             Trouvez le bon artisan à {GEO.city} et en {GEO.department} — plombiers, électriciens, maçons, peintres,
-            menuisiers et bien d'autres. Tous vérifiés manuellement, tous recommandés par vos voisins.
+            menuisiers et bien d&apos;autres. Tous vérifiés manuellement, tous recommandés par vos voisins.
           </p>
 
           {/* Stats */}
@@ -236,15 +236,15 @@ export default async function ArtisansBigugliaPage() {
             </div>
             <div className="space-y-3">
               <p>
-                <strong>Zone d'intervention :</strong> tous les artisans référencés sur Biguglia Connect couvrent
+                <strong>Zone d&apos;intervention :</strong> tous les artisans référencés sur Biguglia Connect couvrent
                 Biguglia et ses communes voisines — <Link href="/artisans?ville=Borgo" className="text-brand-600 font-semibold hover:underline">Borgo</Link>,{' '}
                 <Link href="/artisans?ville=Furiani" className="text-brand-600 font-semibold hover:underline">Furiani</Link>,{' '}
                 <Link href="/artisans?ville=Lucciana" className="text-brand-600 font-semibold hover:underline">Lucciana</Link>,{' '}
                 <Link href="/artisans?ville=Bastia" className="text-brand-600 font-semibold hover:underline">Bastia</Link>{' '}
-                et l'ensemble du bassin de Haute-Corse (2B).
+                et l&apos;ensemble du bassin de Haute-Corse (2B).
               </p>
               <p>
-                <strong>Comment bien choisir ?</strong> Vérifiez toujours le SIRET, l'assurance RC Pro et la
+                <strong>Comment bien choisir ?</strong> Vérifiez toujours le SIRET, l&apos;assurance RC Pro et la
                 décennale avant de signer un devis. Sur Biguglia Connect, ces informations sont contrôlées
                 manuellement par notre équipe. Consultez plusieurs devis et lisez les avis de vos voisins.
               </p>
@@ -432,8 +432,8 @@ export default async function ArtisansBigugliaPage() {
                 accompagner dans vos demandes administratives.
               </p>
               <p>
-                <strong>Travaux d\'urgence :</strong> fuite d\'eau, panne électrique, serrurerie —
-                plusieurs artisans de Biguglia proposent des interventions d\'urgence 7j/7.
+                <strong>Travaux d\&apos;urgence :</strong> fuite d\&apos;eau, panne électrique, serrurerie —
+                plusieurs artisans de Biguglia proposent des interventions d\&apos;urgence 7j/7.
                 Précisez «&nbsp;urgent&nbsp;» dans votre message pour une réponse prioritaire sous 2 heures.
               </p>
             </div>
@@ -441,13 +441,13 @@ export default async function ArtisansBigugliaPage() {
               <p>
                 <strong>Saisons et délais :</strong> la demande en artisans est maximale de mars à octobre
                 à Biguglia (rénovations, extérieurs). Planifiez vos travaux en hiver pour obtenir des
-                délais plus courts et des tarifs parfois négociables. Les travaux d\'isolation et de
+                délais plus courts et des tarifs parfois négociables. Les travaux d\&apos;isolation et de
                 chauffage sont idéalement réalisés en automne.
               </p>
               <p>
                 <strong>Budget :</strong> demandez toujours au moins <strong>3 devis comparatifs</strong>.
                 Un devis écrit est obligatoire au-delà de 150 €. Vérifiez que le devis inclut
-                la fourniture des matériaux, la main-d\'œuvre et les délais d\'exécution.
+                la fourniture des matériaux, la main-d\&apos;œuvre et les délais d\&apos;exécution.
                 Les garanties légales (biennale, décennale) doivent être mentionnées.
               </p>
             </div>
@@ -463,7 +463,7 @@ export default async function ArtisansBigugliaPage() {
             </Link>
             <Link href="/services-biguglia"
               className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700 transition-all">
-              🔧 Services d\'urgence Biguglia
+              🔧 Services d\&apos;urgence Biguglia
             </Link>
           </div>
         </section>
@@ -473,7 +473,7 @@ export default async function ArtisansBigugliaPage() {
         ══════════════════════════════════════════ */}
         <section>
           <h2 className="text-lg font-black text-gray-900 mb-4">
-            Explorez d'autres services à {GEO.city}
+            Explorez d&apos;autres services à {GEO.city}
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
@@ -520,7 +520,7 @@ export default async function ArtisansBigugliaPage() {
               </Link>
               <Link href="/artisans"
                 className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-white/10 transition-all">
-                Voir l'annuaire artisans
+                Voir l&apos;annuaire artisans
               </Link>
             </div>
           </div>

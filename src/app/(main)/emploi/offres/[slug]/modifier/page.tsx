@@ -27,7 +27,7 @@ const SALARY_PERIOD_LABELS: Record<string, string> = {
 };
 
 const CONTRACT_TYPES = Object.entries(CONTRACT_TYPE_LABELS) as [string, string][];
-const JOB_CATEGORIES = Object.entries(JOB_CATEGORY_LABELS) as [string, string][];
+const _JOB_CATEGORIES = Object.entries(JOB_CATEGORY_LABELS) as [string, string][];
 const SECTORS = Object.entries(SECTOR_LABELS) as [string, string][];
 
 export default function ModifierOffrePage() {
@@ -377,6 +377,7 @@ export default function ModifierOffrePage() {
                 { key: 'has_driving_license', label: '🪪 Permis exigé', icon: null },
               ].map(({ key, label }) => (
                 <label key={key} className="flex items-center gap-2 text-sm cursor-pointer p-2.5 rounded-xl border border-gray-200 hover:bg-gray-50">
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   <input type="checkbox" checked={(form as any)[key]} onChange={e => set(key, e.target.checked)} className="w-4 h-4 accent-brand-500" />
                   {label}
                 </label>

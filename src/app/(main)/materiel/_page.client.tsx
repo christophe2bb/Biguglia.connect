@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, Search, Filter, Package, Users, Wrench, Gift } from 'lucide-react';
+import { Plus, Search, Filter, Package, Users, Gift } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -13,7 +13,7 @@ import Button from '@/components/ui/Button';
 import EmptyState from '@/components/ui/EmptyState';
 import Avatar from '@/components/ui/Avatar';
 import { CONDITION_LABELS } from '@/lib/utils';
-import { EQUIPMENT_STATUS_CONFIG, EquipmentStatus, isPubliclyVisible } from '@/lib/equipment';
+import { EQUIPMENT_STATUS_CONFIG, EquipmentStatus, _isPubliclyVisible } from '@/lib/equipment';
 import type { EquipmentItemFull } from '@/lib/equipment';
 import SectionTracker from '@/components/ui/SectionTracker';
 import SectorFilter, { SectorBadge } from '@/components/ui/SectorFilter';

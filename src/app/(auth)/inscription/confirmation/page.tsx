@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { Suspense } from 'react';
 import { Mail, CheckCircle, Hammer } from 'lucide-react';
 
 function ConfirmationContent({ artisan }: { artisan: boolean }) {
@@ -67,7 +66,7 @@ function ConfirmationContent({ artisan }: { artisan: boolean }) {
   );
 }
 
-function ConfirmationPageInner() {
+function _ConfirmationPageInner() {
   // Lire le paramètre artisan côté client via searchParams n'est pas possible dans un Server Component
   // On utilise une approche côté client ci-dessous
   return null;

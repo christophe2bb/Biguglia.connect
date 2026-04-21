@@ -5,8 +5,8 @@ import Avatar from '@/components/ui/Avatar';
 import { cn } from '@/lib/utils';
 import { THEME_CONFIG, type InteractionSourceType } from '@/lib/trust';
 import type { AdminReviewEntry, AdminRiskMember, AdminThemeStat } from '@/app/api/admin/confiance/route';
-import { adminFetch } from '@/lib/admin-fetch';
-import toast from 'react-hot-toast';
+
+
 
 interface StatsTabProps {
   reviews: AdminReviewEntry[];

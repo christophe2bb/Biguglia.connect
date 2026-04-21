@@ -25,12 +25,7 @@ const UserDetailsPanel = dynamic(() => import('./UserDetailsPanel'), {
   ),
 });
 
-const ROLE_OPTIONS = [
-  { value: 'resident',         label: '🏘️ Habitant',           color: 'text-blue-700',   bg: 'bg-blue-50'   },
-  { value: 'artisan_pending',  label: '⏳ Artisan en attente',  color: 'text-amber-700',  bg: 'bg-amber-50'  },
-  { value: 'artisan_verified', label: '✅ Artisan vérifié',     color: 'text-green-700',  bg: 'bg-green-50'  },
-  { value: 'moderator',        label: '🛡️ Modérateur',         color: 'text-purple-700', bg: 'bg-purple-50' },
-];
+
 
 interface UserCardProps {
   user:            UserWithActivity;

@@ -52,7 +52,7 @@ import { PATCH as patchReport } from '@/app/api/admin/reports/[id]/route';
 import {
   makeAdminGuardOk, makeAdminGuardFail,
   makeDb, makeReq,
-  ADMIN_ID, MODERATOR_ID, TARGET_ID,
+  ADMIN_ID, MODERATOR_ID, _TARGET_ID,
 } from './_mock-admin-guard';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────

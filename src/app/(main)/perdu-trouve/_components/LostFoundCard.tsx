@@ -61,7 +61,7 @@ export default function LostFoundCard({
   const shareRef = useRef<HTMLDivElement>(null);
 
   const CatIcon          = CATEGORIES.find(c => c.value === item.category)?.icon ?? Package;
-  const cfg              = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.perdu;
+  const _cfg              = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.perdu;
   const isActive         = ACTIVE_STATUSES.includes(item.status);
   const allPhotos        = toPhotoItems(item.photos ?? []);
   const allowedTransitions = ALLOWED_TRANSITIONS[item.status] ?? [];

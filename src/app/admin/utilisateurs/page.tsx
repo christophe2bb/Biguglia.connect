@@ -10,7 +10,6 @@ import { useAuthStore } from '@/lib/auth-store';
 import { adminFetch } from '@/lib/admin-fetch';
 import type { AdminUserEntry } from '@/app/api/admin/users/route';
 import type { Profile } from '@/types';
-import { ROLE_LABELS } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import type { UserWithActivity } from './_components/types';
 import UserFilters from './_components/UserFilters';

@@ -10,9 +10,9 @@
 import { useState } from 'react';
 import {
   ChevronDown, CheckCircle2, Archive, Trash2, Pause, Play,
-  Eye, EyeOff, AlertCircle, Handshake, RotateCcw, X,
-  BadgeCheck, Clock, Lock, Zap, Users, CalendarX, Package,
-  Shield, Star,
+  EyeOff, RotateCcw, X,
+  BadgeCheck, Lock, Zap, CalendarX,
+  Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STATUS_CONFIG } from './StatusBadge';
@@ -207,7 +207,8 @@ export default function StatusManager({
     : currentStatus;
 
   const actions = TRANSITIONS[contentType]?.[normalizedStatus] || [];
-  const statusConf = STATUS_CONFIG[normalizedStatus] || STATUS_CONFIG.active;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _statusConf = STATUS_CONFIG[normalizedStatus] || STATUS_CONFIG.active;
 
   const handleAction = async (action: StatusAction) => {
     if (action.confirmMessage) {

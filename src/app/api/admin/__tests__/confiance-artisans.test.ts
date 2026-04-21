@@ -311,10 +311,8 @@ describe('GET /api/admin/confiance', () => {
 
   it('[confiance-10] riskMembers enrichis avec profil (full_name, role)', async () => {
     const db = makeDb();
-    let reviewCallCount = 0;
     vi.spyOn(db, 'from').mockImplementation((table: string) => {
       if (table === 'reviews') {
-        reviewCallCount++;
         return makeAutoChain({ data: [], error: null }) as unknown as ReturnType<typeof db.from>;
       }
       if (table === 'trust_profile_stats') {

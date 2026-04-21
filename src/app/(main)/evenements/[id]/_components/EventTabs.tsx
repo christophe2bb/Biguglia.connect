@@ -120,7 +120,7 @@ export default function EventTabs({
               <div>
                 <h3 className="font-bold text-gray-900 mb-2">Photos</h3>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                  {allPhotos.map((p, i) => (
+                  {allPhotos.map((p, _i) => (
                     <div key={p.id} className="aspect-square rounded-xl overflow-hidden border border-gray-100">
                       <Image src={p.url} alt="" fill className="object-cover" />
                     </div>

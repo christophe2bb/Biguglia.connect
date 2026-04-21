@@ -5,7 +5,7 @@
 
 
 import Link from 'next/link';
-import { MapPin, HandHeart, AlertCircle, Clock } from 'lucide-react';
+import { MapPin, HandHeart, AlertCircle } from 'lucide-react';
 import type { HomeFeedItem } from '@/services/home/types';
 import FreshnessIndicator from './FreshnessIndicator';
 import { cn } from '@/lib/utils';

@@ -11,7 +11,7 @@
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Calendar, ChevronRight, MapPin, ArrowRight, Clock, Star } from 'lucide-react';
+import { Calendar, ChevronRight, MapPin, ArrowRight, Clock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { JsonLd, breadcrumbSchema, faqSchema, collectionPageSchema } from '@/components/seo/JsonLd';
 import { GEO } from '@/lib/seo/local-data';
@@ -274,11 +274,11 @@ export default async function EvenementsBigugliaPage() {
 
           <h1 className="text-4xl sm:text-5xl font-black text-white leading-tight mb-4">
             Événements à Biguglia<br />
-            <span className="text-violet-300">L'agenda local</span>
+            <span className="text-violet-300">L&apos;agenda local</span>
           </h1>
           <p className="text-white/75 text-lg max-w-2xl leading-relaxed mb-6">
-            SC Biguglia, fêtes patronales, marchés de producteurs corses, sorties nature à l'étang,
-            concerts, ateliers… Tout l'agenda de Biguglia et de la plaine orientale de Haute-Corse.
+            SC Biguglia, fêtes patronales, marchés de producteurs corses, sorties nature à l&apos;étang,
+            concerts, ateliers… Tout l&apos;agenda de Biguglia et de la plaine orientale de Haute-Corse.
           </p>
 
           {/* Stats bar */}
@@ -320,13 +320,13 @@ export default async function EvenementsBigugliaPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-gray-600 leading-relaxed">
             <div className="space-y-3">
               <p>
-                Biguglia est une commune vivante dont l'agenda reflète la richesse humaine et naturelle
+                Biguglia est une commune vivante dont l&apos;agenda reflète la richesse humaine et naturelle
                 de la Corse. Le <strong>SC Biguglia</strong>, club de football historique, fédère toute
-                la commune autour de ses matchs et tournois. L'équipe seniors comme les jeunes catégories
+                la commune autour de ses matchs et tournois. L&apos;équipe seniors comme les jeunes catégories
                 représentent Biguglia dans les championnats régionaux de Haute-Corse.
               </p>
               <p>
-                L'<strong>étang de Biguglia</strong> — plus grand étang naturel de Corse et réserve
+                L&apos;<strong>étang de Biguglia</strong> — plus grand étang naturel de Corse et réserve
                 naturelle régionale classée — génère une effervescence autour de la nature. Des associations
                 locales organisent régulièrement des sorties pour observer les <strong>flamants roses</strong>,
                 hérons cendrés, martins-pêcheurs et autres espèces protégées de cette zone humide unique.
@@ -336,13 +336,13 @@ export default async function EvenementsBigugliaPage() {
               <p>
                 <strong>Traditions et fêtes corses :</strong> Biguglia célèbre ses fêtes patronales avec
                 processions religieuses, concerts de polyphonie corse (A Filetta, Canta u Populu), marchés
-                de producteurs locaux (miel du maquis, charcuterie, fromages corses, vins de l'île) et
-                animations pour enfants. L'été, les soirées festives rassemblent habitants et vacanciers.
+                de producteurs locaux (miel du maquis, charcuterie, fromages corses, vins de l&apos;île) et
+                animations pour enfants. L&apos;été, les soirées festives rassemblent habitants et vacanciers.
               </p>
               <p>
                 <strong>Publiez votre événement gratuitement</strong> sur Biguglia Connect pour le faire
                 connaître à toute la communauté locale. Les événements publiés sont indexés par Google et
-                visibles dans l'agenda de Biguglia — une visibilité maximale pour votre initiative.
+                visibles dans l&apos;agenda de Biguglia — une visibilité maximale pour votre initiative.
               </p>
             </div>
           </div>
@@ -370,7 +370,7 @@ export default async function EvenementsBigugliaPage() {
             Événements récurrents à {GEO.city}
           </h2>
           <p className="text-gray-500 text-sm mb-6">
-            Ces événements ont lieu régulièrement à Biguglia tout au long de l'année.
+            Ces événements ont lieu régulièrement à Biguglia tout au long de l&apos;année.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {RECURRING_EVENTS.map(ev => (
@@ -511,7 +511,7 @@ export default async function EvenementsBigugliaPage() {
             ))}
           </div>
           <p className="mt-4 text-xs text-gray-500 italic">
-            Les dates exactes sont publiées sur Biguglia Connect au fil de l\'année par les organisateurs.
+            Les dates exactes sont publiées sur Biguglia Connect au fil de l\&apos;année par les organisateurs.
             Consultez aussi le site officiel de la{' '}
             <a href="https://www.biguglia.fr" target="_blank" rel="noopener noreferrer"
               className="text-violet-600 font-semibold hover:underline">mairie de Biguglia</a>.
@@ -522,7 +522,7 @@ export default async function EvenementsBigugliaPage() {
             CATÉGORIES
         ══════════════════════════════════════════ */}
         <section>
-          <h2 className="text-xl font-black text-gray-900 mb-4">Types d'événements à {GEO.city}</h2>
+          <h2 className="text-xl font-black text-gray-900 mb-4">Types d&apos;événements à {GEO.city}</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {Object.entries(EVENT_CATEGORIES).map(([key, cat]) => (
               <Link key={key} href={`/evenements?categorie=${key}`}>
@@ -543,11 +543,11 @@ export default async function EvenementsBigugliaPage() {
             Filtres & ressources associées — Accès direct
           </h2>
           <p className="text-gray-500 text-sm mb-5">
-            Accédez directement aux sous-catégories d'événements et aux pages locales liées.
+            Accédez directement aux sous-catégories d&apos;événements et aux pages locales liées.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
-              <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-3">Par catégorie d'événement</p>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-3">Par catégorie d&apos;événement</p>
               <div className="flex flex-wrap gap-2">
                 {[
                   { href: '/evenements?categorie=sport',       label: '⚽ Sport — SC Biguglia' },

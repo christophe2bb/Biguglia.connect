@@ -4,12 +4,11 @@
  */
 
 import Image from 'next/image';
-import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import {
   MapPin, Euro, Clock, Calendar, Search, User, Car, ArrowLeft,
   FileText, Eye, CheckCircle, Star, GraduationCap,
-  ChevronRight, Flame, Building2, Briefcase,
+  ChevronRight, Flame, Briefcase,
 } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/server';
 import type { JobDemandSearchResult } from '@/types/jobs';

@@ -285,7 +285,7 @@ function ReviewCard({ review }: { review: Review }) {
 
           {/* Comment */}
           {review.comment ? (
-            <p className="text-sm text-gray-700 leading-relaxed italic">"{review.comment}"</p>
+            <p className="text-sm text-gray-700 leading-relaxed italic">&quot;{review.comment}&quot;</p>
           ) : (
             <p className="text-xs text-gray-400 italic">Pas de commentaire écrit</p>
           )}
@@ -352,7 +352,7 @@ export function TrustScoreFull({ profile, className }: TrustScoreFullProps) {
     });
   }, [profile.id]);
 
-  const trust = computeUnifiedTrustScore({ ...profile, stats, badges });
+  const _trust = computeUnifiedTrustScore({ ...profile, stats, badges });
   const displayReviews = showAll ? reviews : reviews.slice(0, 3);
 
   if (loading) {

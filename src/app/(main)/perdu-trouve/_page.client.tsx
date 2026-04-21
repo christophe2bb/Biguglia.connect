@@ -6,7 +6,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { Search, Plus, AlertCircle, Users, BookOpen, Loader2, Zap } from 'lucide-react';
 
 import { useLostFound } from './_hooks/useLostFound';
-import { ACTIVE_STATUSES, INFO_BLOCKS } from './_constants';
+import { INFO_BLOCKS } from './_constants';
 import LostFoundCard from './_components/LostFoundCard';
 import LFForm        from './_components/LFForm';
 import LFFilters     from './_components/LFFilters';
@@ -47,6 +47,7 @@ export default function PerduTrouvePage() {
     if (profile?.home_sector_id) {
       setFilterSector(profile.home_sector_id);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.home_sector_id]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);

@@ -15,7 +15,7 @@
 import { useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
 import {
-  X, Mail, Phone, Calendar, Crown, Eye,
+  X, Mail, Phone, Crown, Eye,
   HardHat, Users, UserX, UserCheck, Trash2,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';

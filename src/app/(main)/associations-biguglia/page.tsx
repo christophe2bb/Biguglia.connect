@@ -11,7 +11,7 @@
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Users, ChevronRight, MapPin, ArrowRight, Heart, Trophy, Music, Leaf } from 'lucide-react';
+import { Users, ChevronRight, MapPin, ArrowRight, Heart } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { JsonLd, breadcrumbSchema, faqSchema, collectionPageSchema } from '@/components/seo/JsonLd';
 import { GEO } from '@/lib/seo/local-data';
@@ -260,7 +260,7 @@ export default async function AssociationsBigugliaPage() {
           </h1>
           <p className="text-white/75 text-lg max-w-2xl leading-relaxed mb-6">
             SC Biguglia, clubs sportifs, associations culturelles corses, groupes environnementaux
-            de l'étang, seniors et bénévolat — toute la vie associative de Biguglia réunie sur une
+            de l&apos;étang, seniors et bénévolat — toute la vie associative de Biguglia réunie sur une
             seule plateforme.
           </p>
 
@@ -303,22 +303,22 @@ export default async function AssociationsBigugliaPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm text-gray-600 leading-relaxed">
             <div className="space-y-3">
               <p>
-                Le <strong>SC Biguglia (Sporting Club Biguglia)</strong> est l'association la plus emblématique
-                de la commune. Ce club de football rassemble des joueurs de tous âges — de l'U6 aux seniors —
+                Le <strong>SC Biguglia (Sporting Club Biguglia)</strong> est l&apos;association la plus emblématique
+                de la commune. Ce club de football rassemble des joueurs de tous âges — de l&apos;U6 aux seniors —
                 bénévoles et supporters depuis des décennies. Ses matchs à domicile sont de véritables
                 événements fédérateurs pour toute la communauté.
               </p>
               <p>
                 Au-delà du football, Biguglia compte des <strong>associations culturelles</strong> actives :
-                transmission de la polyphonie corse, préservation de l'artisanat traditionnel, pratique
+                transmission de la polyphonie corse, préservation de l&apos;artisanat traditionnel, pratique
                 de la langue corse et promotion de la gastronomie locale. Ces groupes animent les fêtes
                 patronales et participent aux événements culturels de Haute-Corse.
               </p>
             </div>
             <div className="space-y-3">
               <p>
-                L'<strong>étang de Biguglia</strong> — plus grand étang naturel de Corse et réserve
-                naturelle régionale — est au cœur d'un réseau d'associations environnementales.
+                L&apos;<strong>étang de Biguglia</strong> — plus grand étang naturel de Corse et réserve
+                naturelle régionale — est au cœur d&apos;un réseau d&apos;associations environnementales.
                 Ornithologues, naturalistes et citoyens engagés organisent des sorties aux flamants roses,
                 des ateliers de sensibilisation et des actions de préservation de cette zone humide classée.
               </p>
@@ -431,7 +431,7 @@ export default async function AssociationsBigugliaPage() {
         ══════════════════════════════════════════ */}
         <section>
           <h2 className="text-xl font-black text-gray-900 mb-4">
-            Catégories d'associations à {GEO.city}
+            Catégories d&apos;associations à {GEO.city}
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {Object.entries(ASSOC_CATEGORIES).map(([key, cat]) => (
@@ -460,14 +460,14 @@ export default async function AssociationsBigugliaPage() {
             <div className="space-y-3">
               <p className="font-semibold text-gray-900">👤 Je veux rejoindre une association</p>
               <ol className="list-decimal list-inside space-y-1.5">
-                <li>Consultez l\'annuaire des associations sur Biguglia Connect</li>
-                <li>Lisez la description, les activités et les créneaux de l\'association</li>
+                <li>Consultez l\&apos;annuaire des associations sur Biguglia Connect</li>
+                <li>Lisez la description, les activités et les créneaux de l\&apos;association</li>
                 <li>Contactez directement les responsables via la messagerie</li>
                 <li>Participez à une séance de découverte avant de vous adhérer</li>
               </ol>
               <p className="text-xs text-gray-500 italic">
                 La plupart des associations de Biguglia acceptent les adhésions en début de saison
-                (septembre–octobre). Certaines acceptent toute l\'année.
+                (septembre–octobre). Certaines acceptent toute l\&apos;année.
               </p>
             </div>
             <div className="space-y-3">
@@ -507,8 +507,8 @@ export default async function AssociationsBigugliaPage() {
             <p className="text-3xl mb-3">🤝</p>
             <h2 className="text-xl font-black mb-2">Vous cherchez à vous engager à {GEO.city} ?</h2>
             <p className="text-white/75 text-sm max-w-md mx-auto mb-5 leading-relaxed">
-              Des associations locales cherchent des bénévoles toute l'année. Rejoignez un club sportif,
-              une association culturelle ou un groupe de protection de l'étang de Biguglia.
+              Des associations locales cherchent des bénévoles toute l&apos;année. Rejoignez un club sportif,
+              une association culturelle ou un groupe de protection de l&apos;étang de Biguglia.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link href="/associations"
@@ -528,14 +528,14 @@ export default async function AssociationsBigugliaPage() {
         ══════════════════════════════════════════ */}
         <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
           <h2 className="text-xl font-black text-gray-900 mb-2">
-            Parcourir par type d'association — Accès direct
+            Parcourir par type d&apos;association — Accès direct
           </h2>
           <p className="text-gray-500 text-sm mb-5">
-            Accédez directement aux catégories d'associations de Biguglia et aux ressources de bénévolat associées.
+            Accédez directement aux catégories d&apos;associations de Biguglia et aux ressources de bénévolat associées.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
-              <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-3">Par catégorie d'association</p>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-3">Par catégorie d&apos;association</p>
               <div className="flex flex-wrap gap-2">
                 {[
                   { href: '/associations?categorie=sport',    label: '⚽ Clubs sportifs' },

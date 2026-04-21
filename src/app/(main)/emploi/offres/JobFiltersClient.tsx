@@ -26,7 +26,7 @@ import {
 // Secteurs : liste centrale
 const SECTORS = [...JOB_SECTORS];
 
-const SALARY_STEPS = [0, 1000, 1200, 1500, 1800, 2000, 2500, 3000, 4000];
+const _SALARY_STEPS = [0, 1000, 1200, 1500, 1800, 2000, 2500, 3000, 4000];
 
 interface Props {
   filters: Partial<JobOfferFilters>;

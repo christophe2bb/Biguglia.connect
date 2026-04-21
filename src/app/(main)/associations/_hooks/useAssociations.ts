@@ -15,6 +15,7 @@ export function useAssociations() {
   const mutations = useAssoMutations(data.fetchAssos);
 
   // Chargement initial + rechargement à chaque changement de filtre
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { data.fetchAssos(); }, [data.fetchAssos]);
 
   // ── Vue filtrée par favoris ───────────────────────────────────────────────

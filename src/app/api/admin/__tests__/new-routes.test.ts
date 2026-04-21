@@ -36,8 +36,8 @@ import {
   makeAdminGuardOk,
   makeAdminGuardFail,
   makeDb,
-  makeReq,
-  mockCsrfPass,
+  _makeReq,
+  _mockCsrfPass,
   ADMIN_ID,
   MODERATOR_ID,
 } from './_mock-admin-guard';

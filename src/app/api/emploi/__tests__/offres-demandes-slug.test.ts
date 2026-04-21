@@ -40,10 +40,10 @@
  */
 
 import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
-import { NextRequest } from 'next/server';
+import { _NextRequest } from 'next/server';
 import { GET as getOffer, PATCH as patchOffer, DELETE as deleteOffer }
   from '@/app/api/emploi/offres/[slug]/route';
-import { GET as getDemand, PATCH as patchDemand, DELETE as deleteDemand }
+import { GET as _getDemand, PATCH as patchDemand, DELETE as deleteDemand }
   from '@/app/api/emploi/demandes/[slug]/route';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -104,7 +104,7 @@ function makeEmploiDb(opts: {
       const eqSlugFull = vi.fn().mockReturnValue({ single: singleFull });
 
       // update chain
-      const eqUpdate = vi.fn().mockResolvedValue(
+      const _eqUpdate = vi.fn().mockResolvedValue(
         updateError
           ? { data: null, error: { message: 'update error' } }
           : { data: { slug: SLUG }, error: null }
@@ -114,7 +114,7 @@ function makeEmploiDb(opts: {
           updateError ? { data: null, error: { message: 'update error' } } : { data: { slug: SLUG }, error: null }
         ),
       });
-      const updateEqFn = vi.fn().mockReturnValue({ select: selectAfterUpdate, ...({ then: undefined }) });
+      const _updateEqFn = vi.fn().mockReturnValue({ select: selectAfterUpdate, ...({ then: undefined }) });
       // The PATCH route calls .update().eq('id', id).select('slug').single()
       const updateMock = vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({

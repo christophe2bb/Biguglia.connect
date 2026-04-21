@@ -113,7 +113,7 @@ export default function ArtisanProfilPage() {
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const emptyDoc = useCallback((): DocUpload => ({ file: null, uploading: false, url: null, name: '' }), []);
+  const _emptyDoc = useCallback((): DocUpload => ({ file: null, uploading: false, url: null, name: '' }), []);
   const [docKbis, setDocKbis] = useState<DocUpload>({ file: null, uploading: false, url: null, name: '' });
   const [docInsurance, setDocInsurance] = useState<DocUpload>({ file: null, uploading: false, url: null, name: '' });
   const [docId, setDocId] = useState<DocUpload>({ file: null, uploading: false, url: null, name: '' });

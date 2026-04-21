@@ -56,8 +56,8 @@ import { assertCsrfSafe, getUserFromRequest, getUserIdBearerFirst } from '@/lib/
 import { createAdminClient }                      from '@/lib/supabase/server';
 import {
   makeAdminGuardOk, makeAdminGuardFail,
-  makeDb, makeReq,
-  ADMIN_ID, MODERATOR_ID, TARGET_ID,
+  makeDb, _makeReq,
+  _ADMIN_ID, _MODERATOR_ID, _TARGET_ID,
 } from './_mock-admin-guard';
 
 const mockGuard = getAdminUser      as MockedFunction<typeof getAdminUser>;

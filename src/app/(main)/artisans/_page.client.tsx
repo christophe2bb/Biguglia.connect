@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Search, Filter, Star, MapPin, Shield, Clock } from 'lucide-react';
+import { Search, MapPin, Shield, Clock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { ArtisanProfile, TradeCategory } from '@/types';
 import Link from 'next/link';

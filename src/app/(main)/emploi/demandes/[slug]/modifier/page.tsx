@@ -361,6 +361,7 @@ export default function ModifierDemandePage() {
                 { key: 'is_urgent', label: '🔥 Disponible rapidement' },
               ].map(({ key, label }) => (
                 <label key={key} className="flex items-center gap-2 text-sm cursor-pointer p-2.5 rounded-xl border border-gray-200 hover:bg-gray-50">
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   <input type="checkbox" checked={(form as any)[key]} onChange={e => set(key, e.target.checked)} className="w-4 h-4 accent-purple-500" />
                   {label}
                 </label>

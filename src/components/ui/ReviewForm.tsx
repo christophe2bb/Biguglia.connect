@@ -352,7 +352,7 @@ export default function ReviewForm({
               >
                 {submitting
                   ? <><Loader2 className="w-4 h-4 animate-spin" /> Envoi…</>
-                  : <><CheckCircle className="w-4 h-4" /> Soumettre l'avis</>
+                  : <><CheckCircle className="w-4 h-4" /> Soumettre l&apos;avis</>
                 }
               </button>
             </div>

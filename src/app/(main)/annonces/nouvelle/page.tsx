@@ -16,7 +16,7 @@ import { useNewListingForm } from './_hooks/useNewListingForm';
 import { LISTING_TYPES, CONDITION_OPTIONS, WIZARD_STEPS, ENGAGEMENT_ITEMS } from './_config';
 
 export default function NouvelleAnnoncePage() {
-  const router = useRouter();
+  const _router = useRouter();
   const {
     step, goNext, goBack,
     form, setField,
