@@ -39,95 +39,105 @@ type Props = { params: { id: string } };
 
 // ─── Fetch data (réutilisé par generateMetadata + page) ──────────────────────
 async function fetchListing(id: string) {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('listings')
-    .select('*, category:listing_categories(*), photos:listing_photos(id, url, display_order)')
-    .eq('id', id)
-    .single();
-
-  if (error || !data) return null;
-
-  // Sort photos
-  if (data.photos) {
-    data.photos.sort(
-      (a: { display_order: number }, b: { display_order: number }) =>
-        a.display_order - b.display_order,
-    );
-  }
-
-  // Fetch author
-  let userData: AuthorProfile | null = null;
-  if (data.user_id) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id, full_name, avatar_url, created_at, role')
-      .eq('id', data.user_id)
-      .single();
-    userData = profile;
-  }
-
-  // Fetch similar (same category, active, different id)
-  let similar: Listing[] = [];
-  if (data.category_id) {
-    const { data: simData } = await supabase
+  try {
+    const supabase = createClient();
+    const { data, error } = await supabase
       .from('listings')
-      .select('*, category:listing_categories(*), photos:listing_photos(url)')
-      .eq('category_id', data.category_id)
-      .eq('status', 'active')
-      .neq('id', id)
-      .limit(3)
-      .order('created_at', { ascending: false });
-    similar = (simData as Listing[]) || [];
-  }
-
-  // Increment view counter (fire-and-forget, no await)
-  if (data.views_count !== undefined) {
-    supabase
-      .from('listings')
-      .update({ views_count: (data.views_count || 0) + 1 })
+      .select('*, category:listing_categories(*), photos:listing_photos(id, url, display_order)')
       .eq('id', id)
-      .then(() => { /* ignore */ });
-  }
+      .single();
 
-  return { listing: { ...data, user: userData } as unknown as ExtListing, similar };
+    if (error || !data) return null;
+
+    // Sort photos
+    if (data.photos) {
+      data.photos.sort(
+        (a: { display_order: number }, b: { display_order: number }) =>
+          a.display_order - b.display_order,
+      );
+    }
+
+    // Fetch author
+    let userData: AuthorProfile | null = null;
+    if (data.user_id) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url, created_at, role')
+        .eq('id', data.user_id)
+        .single();
+      userData = profile;
+    }
+
+    // Fetch similar (same category, active, different id)
+    let similar: Listing[] = [];
+    if (data.category_id) {
+      const { data: simData } = await supabase
+        .from('listings')
+        .select('*, category:listing_categories(*), photos:listing_photos(url)')
+        .eq('category_id', data.category_id)
+        .eq('status', 'active')
+        .neq('id', id)
+        .limit(3)
+        .order('created_at', { ascending: false });
+      similar = (simData as Listing[]) || [];
+    }
+
+    // Increment view counter (fire-and-forget — swallow all errors to avoid crash)
+    if (data.views_count !== undefined) {
+      void Promise.resolve(
+        supabase
+          .from('listings')
+          .update({ views_count: (data.views_count || 0) + 1 })
+          .eq('id', id),
+      ).catch(() => { /* ignore — non-critical */ });
+    }
+
+    return { listing: { ...data, user: userData } as unknown as ExtListing, similar };
+  } catch {
+    // DB/network error — treat as not-found to avoid global-error crash
+    return null;
+  }
 }
 
 // ─── Metadata ────────────────────────────────────────────────────────────────
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const result = await fetchListing(params.id);
-  if (!result) return { title: 'Annonce introuvable — Biguglia Connect' };
+  try {
+    const result = await fetchListing(params.id);
+    if (!result) return { title: 'Annonce introuvable — Biguglia Connect' };
 
-  const { listing } = result;
-  const categoryName = listing.category?.name ?? '';
-  const title = `${listing.title}${categoryName ? ` — ${categoryName}` : ''} | Biguglia Connect`;
-  const description = listing.description
-    ? listing.description.slice(0, 155)
-    : `Annonce : ${listing.title} sur Biguglia Connect.`;
+    const { listing } = result;
+    const categoryName = listing.category?.name ?? '';
+    const title = `${listing.title}${categoryName ? ` — ${categoryName}` : ''} | Biguglia Connect`;
+    const description = listing.description
+      ? listing.description.slice(0, 155)
+      : `Annonce : ${listing.title} sur Biguglia Connect.`;
 
-  // First photo for OG
-  const photos = listing.photos as Array<{ url: string }> | undefined;
-  const ogImage = photos?.[0]?.url ?? `${SITE_URL}/images/biguglia-village.jpg`;
+    // First photo for OG
+    const photos = listing.photos as Array<{ url: string }> | undefined;
+    const ogImage = photos?.[0]?.url ?? `${SITE_URL}/images/biguglia-village.jpg`;
 
-  return {
-    title,
-    description,
-    alternates: { canonical: `${SITE_URL}/annonces/${params.id}` },
-    openGraph: {
+    return {
       title,
       description,
-      url: `${SITE_URL}/annonces/${params.id}`,
-      images: [{ url: ogImage, width: 1200, height: 630, alt: listing.title }],
-      type: 'website',
-    },
-    twitter: { card: 'summary_large_image', title, description },
-  };
+      alternates: { canonical: `${SITE_URL}/annonces/${params.id}` },
+      openGraph: {
+        title,
+        description,
+        url: `${SITE_URL}/annonces/${params.id}`,
+        images: [{ url: ogImage, width: 1200, height: 630, alt: listing.title }],
+        type: 'website',
+      },
+      twitter: { card: 'summary_large_image', title, description },
+    };
+  } catch {
+    return { title: 'Annonce — Biguglia Connect' };
+  }
 }
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default async function AnnonceDetailPage({ params }: Props) {
   const result = await fetchListing(params.id);
-  if (!result) notFound();
+  if (!result) return notFound();
 
   const { listing, similar } = result;
   const currentStatus = (listing.status as string) || 'active';
