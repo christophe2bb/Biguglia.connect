@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { Share2, Pencil, Trash2 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';

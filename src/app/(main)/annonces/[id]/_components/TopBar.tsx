@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import {
   ChevronLeft, Eye, Heart, Share2, Copy, MessageCircle, Pencil,

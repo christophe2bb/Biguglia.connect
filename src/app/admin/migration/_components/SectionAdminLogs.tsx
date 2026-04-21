@@ -7,6 +7,8 @@
 
 'use client';
 
+'use client';
+
 import { ClipboardList, Copy, Check, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import type { SqlKey } from '../_hooks/useMigration';

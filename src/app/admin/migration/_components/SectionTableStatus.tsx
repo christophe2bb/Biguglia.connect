@@ -4,6 +4,8 @@
 
 'use client';
 
+'use client';
+
 import { CheckCircle, XCircle, Copy, Check, Database, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { TABLES_TO_CHECK } from '../_config';
 import type { TableStatus } from '../_types';

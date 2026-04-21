@@ -2,6 +2,8 @@
  * SectionHeader — en-tête de section réutilisable.
  */
 
+'use client';
+
 import type { LucideIcon } from 'lucide-react';
 
 interface SectionHeaderProps {

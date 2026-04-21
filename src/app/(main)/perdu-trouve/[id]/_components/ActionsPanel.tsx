@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { Pencil, Trash2, Printer } from 'lucide-react';
 import ContactButton from '@/components/ui/ContactButton';

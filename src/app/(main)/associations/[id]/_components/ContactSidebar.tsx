@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { Phone, Mail, Globe, ExternalLink, Users } from 'lucide-react';
 import ContactButton from '@/components/ui/ContactButton';

@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { Users, X, Loader2, CheckCircle2 } from 'lucide-react';
 import { formatRelative } from '@/lib/utils';
