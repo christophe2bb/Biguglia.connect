@@ -21,6 +21,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import toast from 'react-hot-toast';
 
 import { EMPTY_FORM, MAX_PHOTOS, MAX_FILE_MB, FALLBACK_CATEGORIES } from './_config';
+import { safeImageExt } from '@/lib/upload-utils';
 import type {
   CollectionneurFormData,
   CollectionCategory,
@@ -150,7 +151,7 @@ export function useCollectionneurForm(): UseCollectionneurFormReturn {
   // ─── Upload d'une photo ──────────────────────────────────────────────────
   const uploadPhoto = useCallback(async (file: File, idx: number): Promise<string | null> => {
     if (!profile?.id) return null;
-    const ext  = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const ext = safeImageExt(file.name);
     const path = `collection/${profile.id}/${Date.now()}_${idx}.${ext}`;
     const { error } = await supabase.storage.from('photos').upload(path, file, { upsert: true });
     if (error) return null;

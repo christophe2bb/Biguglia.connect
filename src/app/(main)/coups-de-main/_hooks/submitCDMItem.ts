@@ -4,6 +4,7 @@
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import type { HelpRequest, HelpFormValues } from '../_types';
+import { safeImageExt } from '@/lib/upload-utils';
 
 export async function submitCDMItem(
   form: HelpFormValues,
@@ -61,7 +62,7 @@ export async function submitCDMItem(
   if (photos.length > 0 && itemId) {
     for (let i = 0; i < photos.length; i++) {
       const file = photos[i];
-      const ext  = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
+      const ext = safeImageExt(file.name);
       const path = `coups-de-main/${itemId}/${Date.now()}_${i}.${ext}`;
       const { data: up, error: upErr } = await supabase.storage
         .from('photos').upload(path, file, { upsert: true, contentType: file.type });

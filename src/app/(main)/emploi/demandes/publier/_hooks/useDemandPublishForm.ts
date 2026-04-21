@@ -19,6 +19,7 @@ import {
 } from '@/types/jobs/constants';
 import { INITIAL } from '../_config';
 import type { FormData, Step } from '../_types';
+import { safeDocExt } from '@/lib/upload-utils';
 
 /* ── Types du hook ────────────────────────────────────────────────────────── */
 export interface UseDemandPublishFormReturn {
@@ -107,7 +108,7 @@ export function useDemandPublishForm(): UseDemandPublishFormReturn {
     if (!form.cv_file) return null;
     try {
       const supabase = createClient();
-      const ext  = form.cv_file.name.split('.').pop() ?? 'pdf';
+      const ext = safeDocExt(form.cv_file.name);
       const path = `cv/${demandId}.${ext}`;
       const { error } = await supabase.storage
         .from('job-documents')

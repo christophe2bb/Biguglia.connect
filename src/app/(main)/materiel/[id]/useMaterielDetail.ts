@@ -10,6 +10,7 @@ import {
   EquipmentItemFull, EquipmentRequest, EquipmentLoan, EquipmentStatusHistory,
 } from '@/lib/equipment';
 import type { UseMaterielDetailReturn } from './_types';
+import { safeStoragePath } from '@/lib/upload-utils';
 
 export function useMaterielDetail(initialItem: EquipmentItemFull): UseMaterielDetailReturn {
   const { id } = useParams<{ id: string }>();
@@ -186,8 +187,8 @@ export function useMaterielDetail(initialItem: EquipmentItemFull): UseMaterielDe
     const photos = item.photos as Array<{ url: string }> | undefined;
     if (photos?.length) {
       for (const photo of photos) {
-        const parts = photo.url.split('/storage/v1/object/public/photos/');
-        if (parts[1]) await supabase.storage.from('photos').remove([parts[1]]);
+        const storagePath = safeStoragePath(photo.url, 'photos');
+        if (storagePath) await supabase.storage.from('photos').remove([storagePath]);
       }
       await supabase.from('equipment_photos').delete().eq('item_id', item.id);
     }

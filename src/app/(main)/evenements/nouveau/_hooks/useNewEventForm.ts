@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import { type EventForm, type FormStep, DEFAULT_FORM, STEPS } from '../_config';
+import { safeImageExt } from '@/lib/upload-utils';
 
 // ── Return type ───────────────────────────────────────────────────────────────
 
@@ -180,7 +181,7 @@ export function useNewEventForm(
         toast.loading(`Upload ${photos.length} photo(s)...`, { id: 'photo-upload' });
         for (let i = 0; i < photos.length; i++) {
           const file = photos[i];
-          const ext  = file.name.split('.').pop() ?? 'jpg';
+          const ext = safeImageExt(file.name);
           const path = `events/${eventId}/${Date.now()}_${i}.${ext}`;
           const { error: uploadErr } = await supabase.storage
             .from('photos').upload(path, file, { upsert: true });

@@ -29,6 +29,7 @@ import {
 import { EQUIPMENT_LIFECYCLE_SQL } from '@/lib/equipment';
 import { OUTINGS_LIFECYCLE_SQL }   from '@/lib/outings';
 import { EVENT_LIFECYCLE_SQL, EVENT_FIX_SQL } from '@/lib/events';
+import { safeImageExt } from '@/lib/upload-utils';
 
 // ─── SQL map ─────────────────────────────────────────────────────────────────
 
@@ -233,7 +234,7 @@ export function useMigration() {
   // ── Real upload test ─────────────────────────────────────────────────────────
   const testRealUpload = useCallback(async (file: File) => {
     setTestingUpload(true);
-    const ext  = file.name.split('.').pop() ?? 'jpg';
+    const ext  = safeImageExt(file.name);
     const path = `__diagnostic__/real_test_${Date.now()}.${ext}`;
     const { data, error } = await supabase.storage
       .from('photos')

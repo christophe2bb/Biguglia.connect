@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { legacyToFrenchStatus, OUTING_STATUS_CONFIG } from '@/lib/outings';
 import type { GroupOuting, OutingFormState } from '../_types';
 import { DEFAULT_OUTING_FORM } from '../_constants';
+import { safeImageExt } from '@/lib/upload-utils';
 
 export function useOutings(profile: { id: string } | null | undefined) {
   const supabase = useMemo(() => createClient(), []);
@@ -197,7 +198,7 @@ export function useOutings(profile: { id: string } | null | undefined) {
     if (outingPhotos.length > 0 && outingId) {
       for (let i = 0; i < outingPhotos.length; i++) {
         const file = outingPhotos[i];
-        const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
+        const ext = safeImageExt(file.name);
         const path = `outings/${outingId}/${Date.now()}_${i}.${ext}`;
         const { data: up, error: upErr } = await supabase.storage.from('photos').upload(path, file, { upsert: true, contentType: file.type });
         if (upErr) { toast.error(`Photo ${i + 1} : ${upErr.message}`); continue; }

@@ -13,6 +13,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Textarea from '@/components/ui/Textarea';
 import toast from 'react-hot-toast';
+import { safeDocExt } from '@/lib/upload-utils';
 
 interface DocUpload {
   file: File | null;
@@ -40,7 +41,7 @@ function DocumentUploader({
     onChange(updated);
 
     const supabase = createClient();
-    const ext = file.name.split('.').pop()?.toLowerCase() || 'pdf';
+    const ext = safeDocExt(file.name);
     // Chemin : userId/nom-doc-timestamp.ext  → bucket privé "documents"
     const path = `${userId}/${label.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.${ext}`;
 
