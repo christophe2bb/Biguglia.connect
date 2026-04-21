@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { toPhotoItems } from '@/components/ui/PhotoViewer';
+import { toPhotoItems } from '@/components/ui/photo-utils';
 import toast from 'react-hot-toast';
 import { normalizeStatus, normalizeType, STATUS_CONFIG } from '../_config';
 import type { LFItem, LFComment, LFStatusHistory, LFStatus, ShareMode } from '../_types';

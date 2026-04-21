@@ -3,7 +3,8 @@
 import Image from 'next/image';
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Package } from 'lucide-react';
-import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
+import { PhotoViewer } from '@/components/ui/PhotoViewer';
+import { toPhotoItems } from '@/components/ui/photo-utils';
 import { cn } from '@/lib/utils';
 import type { SortedPhoto } from '../_types';
 

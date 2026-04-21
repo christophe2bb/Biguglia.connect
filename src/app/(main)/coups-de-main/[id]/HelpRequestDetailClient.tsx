@@ -35,7 +35,7 @@ const PhotoViewer = dynamic(
   () => import('@/components/ui/PhotoViewer').then(m => m.PhotoViewer),
   { ssr: false },
 );
-import { toPhotoItems } from '@/components/ui/PhotoViewer';
+import { toPhotoItems } from '@/components/ui/photo-utils';
 
 type Variant = 'topbar' | 'photo-overlay' | 'main-content' | 'sidebar' | 'mobile-bar' | 'lightbox';
 

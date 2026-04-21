@@ -59,6 +59,8 @@ export function useUnreadCounts(): UnreadCounts {
   const reconnectRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectIdx     = useRef(0);
   const realtimePollRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Verrou anti-double-invoke (React Strict Mode) — évite « cannot add postgres_changes listener after subscribe() »
+  const connectingRef    = useRef(false);
   const safePollRef      = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /** Debounce : évite d'empiler les appels déclenchés par rafales d'événements. */
@@ -83,9 +85,10 @@ export function useUnreadCounts(): UnreadCounts {
 
     const supabase = createClient();
     const userId   = profileId;
+    connectingRef.current = false; // réinitialise le verrou à chaque montâge
     const refs     = {
       fetchingRef, mountedRef, readMapRef, unreadMapRef,
-      channelRef, reconnectRef, reconnectIdx, realtimePollRef, hookStartRef,
+      channelRef, reconnectRef, reconnectIdx, realtimePollRef, hookStartRef, connectingRef,
     };
 
     // Chargement initial + realtime

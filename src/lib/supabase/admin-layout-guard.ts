@@ -65,7 +65,6 @@ function extractUserIdFromCookie(): string | null {
       if (token) {
         const userId = decodeJwtSub(token);
         if (userId) {
-          console.log('[verifyAdminLayout] userId extrait du cookie JSON brut:', userId);
           return userId;
         }
       }
@@ -85,7 +84,6 @@ function extractUserIdFromCookie(): string | null {
       if (token) {
         const userId = decodeJwtSub(token);
         if (userId) {
-          console.log('[verifyAdminLayout] userId extrait du cookie chunké .0:', userId);
           return userId;
         }
       }
@@ -94,7 +92,6 @@ function extractUserIdFromCookie(): string | null {
     }
   }
 
-  console.log('[verifyAdminLayout] aucun cookie Supabase valide trouvé (cookieName:', cookieName, ')');
   return null;
 }
 
@@ -118,10 +115,8 @@ function decodeJwtSub(token: string): string | null {
     // Vérifier l'expiration (exp = timestamp Unix en secondes)
     const exp = decoded.exp as number | undefined;
     if (exp && exp < Math.floor(Date.now() / 1000)) {
-      console.log('[verifyAdminLayout] JWT expiré (exp:', exp, ', now:', Math.floor(Date.now() / 1000), ')');
-      // On continue quand même : la DB validera via le userId
-      // Si le JWT est expiré mais le userId valide en DB avec rôle admin → on laisse passer
-      // La sécurité réelle est assurée par la vérification du profil en DB
+      // JWT expiré — on continue quand même : la DB validera via le userId.
+      // La sécurité réelle est assurée par la vérification du profil en DB.
     }
 
     return sub;
@@ -136,10 +131,7 @@ export async function verifyAdminLayout(): Promise<AdminLayoutOk> {
   // createBrowserClient.
   const userId = extractUserIdFromCookie();
 
-  console.log('[verifyAdminLayout] userId depuis cookie:', userId);
-
   if (!userId) {
-    console.log('[verifyAdminLayout] → redirect /connexion (pas de cookie valide)');
     redirect('/connexion?next=/admin');
   }
 
@@ -155,28 +147,16 @@ export async function verifyAdminLayout(): Promise<AdminLayoutOk> {
     .eq('id', userId)
     .single();
 
-  console.log('[verifyAdminLayout] profil (service-role):', {
-    data: profileRow ? { id: profileRow.id, role: profileRow.role } : null,
-    errorMsg: profileError?.message ?? null,
-    errorCode: profileError?.code ?? null,
-  });
-
   if (profileError || !profileRow) {
-    console.log('[verifyAdminLayout] → redirect / (profil introuvable pour userId:', userId, ')');
     redirect('/');
   }
 
   // ── Étape 3 : Vérifier le rôle ───────────────────────────────────────────
   const role = String(profileRow.role);
 
-  console.log('[verifyAdminLayout] rôle:', role, '| admin?', ADMIN_ROLES.includes(role));
-
   if (!ADMIN_ROLES.includes(role)) {
-    console.log('[verifyAdminLayout] → redirect / (rôle insuffisant:', role, ')');
     redirect('/');
   }
-
-  console.log('[verifyAdminLayout] ✅ accès accordé — userId:', userId, '| rôle:', role);
 
   return {
     actor: { id: userId, role: role as AdminLayoutRole },

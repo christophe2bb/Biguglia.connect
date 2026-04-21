@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { Flame } from 'lucide-react';
-import { toPhotoItems } from '@/components/ui/PhotoViewer';
+import { toPhotoItems } from '@/components/ui/photo-utils';
 import StatusBadge from '@/components/ui/StatusBadge';
 import GlobalTrustBadge from '@/components/ui/TrustBadge';
 import { formatRelative } from '@/lib/utils';

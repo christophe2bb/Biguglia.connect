@@ -10,6 +10,11 @@
  *  - Mise à jour optimiste de la liste (tri + badge non-lu)
  *  - Rejet des événements rejoués (antérieurs au montage)
  *  - Reconnexion exponentielle via RECONNECT_DELAYS
+ *
+ * Fix BIGUGLIA-CONNECT-NEXTJS-6 :
+ *  - Verrou connectingRef pour éviter le bug Supabase
+ *    « cannot add postgres_changes listener after subscribe() »
+ *    déclenché par React Strict Mode (double-invoke) ou reconnexion concurrente.
  */
 
 import { useRef, useCallback, MutableRefObject } from 'react';
@@ -49,6 +54,9 @@ export function useConversationListRealtime(
   const reconnectIdx    = useRef(0);
   // Timestamp de montage — rejette les événements realtime rejoués (antérieurs)
   const pageStartRef    = useRef<number>(Date.now());
+  // Verrou anti-double-invoke (React Strict Mode) — évite le bug Supabase
+  // « cannot add postgres_changes listener after subscribe() »
+  const connectingRef   = useRef(false);
 
   // ── Handler message INSERT ─────────────────────────────────────────────────
   const handleInsert = useCallback((msg: RealtimeMsg) => {
@@ -69,13 +77,6 @@ export function useConversationListRealtime(
       const isOther  = msg.sender_id !== profileId;
       const willCount = isOther && !isSys && !replayed;
 
-      console.info(
-        `[badge:realtime:page] conv=${msg.conversation_id.slice(0, 8)} ` +
-        `msgId=${msg.id.slice(0, 8)} created_at=${msg.created_at} ` +
-        `replayed=${replayed}(pageStart=${new Date(pageStartRef.current).toISOString()}) ` +
-        `isOther=${isOther} isSystem=${isSys} → COMPTÉ=${willCount}`
-      );
-
       if (replayed) return prev;
       if (willCount) conv.unread_count = (conv.unread_count || 0) + 1;
       updated.splice(idx, 1);
@@ -88,6 +89,13 @@ export function useConversationListRealtime(
   // ── Connexion Realtime ─────────────────────────────────────────────────────
   const connect = useCallback(() => {
     if (!profileId) return;
+    // Guard : si une souscription est déjà en cours, on ignore l'appel concurrent
+    // (ex. React Strict Mode double-invoke, ou reconnexion rapide).
+    // Sans ce verrou, Supabase lève « cannot add postgres_changes listener
+    // after subscribe() » car le channel précédent est encore en état SUBSCRIBING.
+    if (connectingRef.current) return;
+    connectingRef.current = true;
+
     if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; }
 
     // Réinitialiser pageStart à chaque (re)connexion
@@ -101,6 +109,8 @@ export function useConversationListRealtime(
         (payload) => handleInsert(payload.new as RealtimeMsg),
       )
       .subscribe((status) => {
+        // Libérer le verrou dès que le canal a un statut terminal
+        connectingRef.current = false;
         if (!mountedRef.current) return;
         if (status === 'SUBSCRIBED') {
           reconnectIdx.current = 0;
@@ -117,6 +127,7 @@ export function useConversationListRealtime(
 
   // ── Nettoyage ─────────────────────────────────────────────────────────────
   const cleanup = useCallback(() => {
+    connectingRef.current = false;
     if (channelRef.current) supabase.removeChannel(channelRef.current);
     if (reconnectRef.current) clearTimeout(reconnectRef.current);
   }, [supabase]);

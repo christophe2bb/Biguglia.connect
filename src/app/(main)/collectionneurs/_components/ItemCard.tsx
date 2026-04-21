@@ -10,7 +10,8 @@ import {
 import Avatar from '@/components/ui/Avatar';
 import toast from 'react-hot-toast';
 import ContactButton from '@/components/ui/ContactButton';
-import { PhotoViewer, toPhotoItems } from '@/components/ui/PhotoViewer';
+import { PhotoViewer } from '@/components/ui/PhotoViewer';
+import { toPhotoItems } from '@/components/ui/photo-utils';
 import { SectorBadge } from '@/components/ui/SectorFilter';
 import { cn, formatRelative } from '@/lib/utils';
 import {
