@@ -108,7 +108,7 @@ export default function ArtisanExpandedPanel({ artisan, onApprove, onReject }: A
       {/* ── Actions : artisan en attente ── */}
       {isPending && (
         <div className="border-t border-gray-200 pt-4 space-y-4">
-          <label className="flex items-center gap-3 cursor-pointer bg-green-50 border border-green-200 rounded-xl p-3 hover:bg-green-100 transition-colors">
+          <label aria-label="Vérifié" className="flex items-center gap-3 cursor-pointer bg-green-50 border border-green-200 rounded-xl p-3 hover:bg-green-100 transition-colors">
             <input
               type="checkbox"
               className="w-5 h-5 accent-green-600 flex-shrink-0"
@@ -146,9 +146,9 @@ export default function ArtisanExpandedPanel({ artisan, onApprove, onReject }: A
           ) : (
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <p className="block text-sm font-medium text-gray-700 mb-1.5">
                   Motif du refus <span className="text-red-500">*</span>
-                </label>
+                </p>
                 <p className="text-xs text-gray-500 mb-2">Ce message sera envoyé à l&apos;artisan par notification.</p>
                 <div className="space-y-2 mb-3">
                   {REJECT_SUGGESTIONS.map(s => (

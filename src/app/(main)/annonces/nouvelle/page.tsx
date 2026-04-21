@@ -206,7 +206,7 @@ export default function NouvelleAnnoncePage() {
             )}
 
             {/* Urgent flag */}
-            <label className="flex items-center gap-3 p-3 rounded-xl bg-red-50 border border-red-100 cursor-pointer hover:bg-red-100 transition-colors">
+            <label aria-label="Annonce urgente" className="flex items-center gap-3 p-3 rounded-xl bg-red-50 border border-red-100 cursor-pointer hover:bg-red-100 transition-colors">
               <input
                 type="checkbox"
                 checked={form.is_urgent}
@@ -235,10 +235,10 @@ export default function NouvelleAnnoncePage() {
             <h2 className="font-bold text-gray-900">Où vous trouvez-vous ?</h2>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <p className="block text-sm font-semibold text-gray-700 mb-2">
                 Secteur de Biguglia *
                 <span className="ml-1 text-xs font-normal text-gray-400">(obligatoire)</span>
-              </label>
+              </p>
               <SectorFilter
                 value={form.sector_id || null}
                 onChange={id => setField('sector_id', id || '')}

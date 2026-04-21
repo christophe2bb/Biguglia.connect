@@ -49,9 +49,9 @@ export default function StepObjet({ form, update, tagInput, onTagInputChange }: 
 
       {/* Titre */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">
           Titre <span className="text-red-500">*</span>
-        </label>
+        </p>
         <input
           type="text"
           value={form.title}
@@ -65,9 +65,9 @@ export default function StepObjet({ form, update, tagInput, onTagInputChange }: 
 
       {/* Description */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">
           Description détaillée <span className="text-red-500">*</span>
-        </label>
+        </p>
         <textarea
           value={form.description}
           onChange={e => update('description', e.target.value)}
@@ -82,9 +82,9 @@ export default function StepObjet({ form, update, tagInput, onTagInputChange }: 
       {/* État + Rareté */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <p className="block text-sm font-semibold text-gray-700 mb-1.5">
             État <span className="text-red-500">*</span>
-          </label>
+          </p>
           <select
             value={form.condition}
             onChange={e => update('condition', e.target.value as ConditionLevel)}
@@ -96,7 +96,7 @@ export default function StepObjet({ form, update, tagInput, onTagInputChange }: 
           </select>
         </div>
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">Rareté</label>
+          <p className="block text-sm font-semibold text-gray-700 mb-1.5">Rareté</p>
           <select
             value={form.rarity_level}
             onChange={e => update('rarity_level', e.target.value as RarityLevel)}
@@ -136,7 +136,7 @@ export default function StepObjet({ form, update, tagInput, onTagInputChange }: 
           ))}
         </div>
         <div>
-          <label className={LABEL_CLS}>Défauts / Usures à signaler</label>
+          <p className={LABEL_CLS}>Défauts / Usures à signaler</p>
           <input
             type="text"
             value={form.defects_noted}
@@ -159,9 +159,9 @@ export default function StepObjet({ form, update, tagInput, onTagInputChange }: 
       {/* Prix (vente) */}
       {form.mode === 'vente' && (
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <p className="block text-sm font-semibold text-gray-700 mb-1.5">
             Prix (€) <span className="text-red-500">*</span>
-          </label>
+          </p>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">€</span>
             <input
@@ -178,9 +178,9 @@ export default function StepObjet({ form, update, tagInput, onTagInputChange }: 
       {/* Échange attendu */}
       {(form.mode as CollectionMode) === 'echange' && (
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <p className="block text-sm font-semibold text-gray-700 mb-1.5">
             Objet(s) souhaité(s) en échange
-          </label>
+          </p>
           <textarea
             value={form.exchange_expected}
             onChange={e => update('exchange_expected', e.target.value)}
@@ -198,7 +198,7 @@ export default function StepObjet({ form, update, tagInput, onTagInputChange }: 
         </h3>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={cn(LABEL_CLS)}>Ville <span className="text-red-500">*</span></label>
+            <p className={cn(LABEL_CLS)}>Ville <span className="text-red-500">*</span></p>
             <input
               type="text" value={form.city}
               onChange={e => update('city', e.target.value)}
@@ -207,7 +207,7 @@ export default function StepObjet({ form, update, tagInput, onTagInputChange }: 
             />
           </div>
           <div>
-            <label className={LABEL_CLS}>Code postal</label>
+            <p className={LABEL_CLS}>Code postal</p>
             <input
               type="text" value={form.postal_code}
               onChange={e => update('postal_code', e.target.value)}
@@ -217,7 +217,7 @@ export default function StepObjet({ form, update, tagInput, onTagInputChange }: 
           </div>
         </div>
         <div>
-          <label className={cn(LABEL_CLS)}>Secteur <span className="text-gray-400">(fortement recommandé)</span></label>
+          <p className={cn(LABEL_CLS)}>Secteur <span className="text-gray-400">(fortement recommandé)</span></p>
           <SectorFilter
             value={form.sector_id || null}
             onChange={id => update('sector_id', id || '')}

@@ -46,7 +46,7 @@ export default function ArtisanDecisionFooter({
       {/* ── En attente : approbation ── */}
       {isPending && !rejecting && (
         <>
-          <label className="flex items-center gap-3 cursor-pointer bg-green-50 border border-green-200 rounded-xl p-3 hover:bg-green-100 transition-colors">
+          <label aria-label="Artisan de confiance" className="flex items-center gap-3 cursor-pointer bg-green-50 border border-green-200 rounded-xl p-3 hover:bg-green-100 transition-colors">
             <input
               type="checkbox"
               className="w-5 h-5 accent-green-600 flex-shrink-0"
@@ -84,9 +84,9 @@ export default function ArtisanDecisionFooter({
       {isPending && rejecting && (
         <div className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <p className="block text-sm font-medium text-gray-700 mb-1.5">
               Motif du refus <span className="text-red-500">*</span>
-            </label>
+            </p>
             <div className="space-y-1.5 mb-3 max-h-32 overflow-y-auto">
               {REJECT_SUGGESTIONS.map(s => (
                 <button

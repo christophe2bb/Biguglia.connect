@@ -88,7 +88,7 @@ export function MessageComposer({
             }
             className="flex-1 bg-transparent text-sm text-gray-800 placeholder:text-gray-400 outline-none"
             disabled={sending}
-            autoFocus
+            autoFocus // eslint-disable-line jsx-a11y/no-autofocus
           />
           {sending && <RefreshCw className="w-4 h-4 text-gray-400 animate-spin flex-shrink-0" />}
         </div>

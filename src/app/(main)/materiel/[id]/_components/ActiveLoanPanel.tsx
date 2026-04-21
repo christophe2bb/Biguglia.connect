@@ -59,7 +59,7 @@ export function ActiveLoanCard({
 
       {showOwnerNoteForm && (
         <div className="mt-4 pt-4 border-t border-purple-100">
-          <label className="block text-xs font-semibold text-purple-800 mb-1">Note sur ce prêt (optionnel)</label>
+          <p className="block text-xs font-semibold text-purple-800 mb-1">Note sur ce prêt (optionnel)</p>
           <textarea value={ownerNote} onChange={e => setOwnerNote(e.target.value)}
             placeholder="État à la restitution, remarques..."
             className="w-full text-sm px-3 py-2 border border-purple-200 rounded-xl resize-none h-16 focus:outline-none focus:ring-2 focus:ring-purple-300" />

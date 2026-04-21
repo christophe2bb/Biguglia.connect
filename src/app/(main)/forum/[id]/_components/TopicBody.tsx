@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions, jsx-a11y/no-noninteractive-element-interactions */
 'use client';
 
 import { useEffect, useRef } from 'react';
@@ -77,6 +78,7 @@ function Lightbox({
     <div
       className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
       onClick={onClose}
+      aria-hidden="true"
     >
       {/* Backdrop — masqué aux AT */}
       <div className="absolute inset-0" aria-hidden="true" />

@@ -250,7 +250,7 @@ function StepWrite({
 
         {/* Urgence */}
         <div>
-          <label className="block text-sm font-bold text-gray-700 mb-2">Niveau d&apos;urgence</label>
+          <p className="block text-sm font-bold text-gray-700 mb-2">Niveau d&apos;urgence</p>
           <div className="flex gap-2">
             {URGENCY_LEVELS.map(u => (
               <button
@@ -287,10 +287,10 @@ function StepWrite({
 
         {/* Photos */}
         <div>
-          <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
+          <p className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
             <Camera className="w-4 h-4 text-gray-400" />
             Photos <span className="text-gray-400 font-normal">(optionnel — max 5, 8 Mo)</span>
-          </label>
+          </p>
 
           {photos.length < 5 && (
             <button
@@ -352,9 +352,9 @@ function StepWrite({
 
         {/* Tags */}
         <div>
-          <label className="block text-sm font-bold text-gray-700 mb-1.5 flex items-center gap-1.5">
+          <p className="block text-sm font-bold text-gray-700 mb-1.5 flex items-center gap-1.5">
             <Tag className="w-3.5 h-3.5" /> Mots-clés <span className="text-gray-400 font-normal">(optionnel — max 5)</span>
-          </label>
+          </p>
           <div className="flex flex-wrap gap-1.5 p-2 border border-gray-200 rounded-xl bg-gray-50 min-h-[44px]">
             {form.tags.map(tag => (
               <span key={tag} className="flex items-center gap-1 bg-violet-100 text-violet-700 text-xs px-2 py-1 rounded-lg">

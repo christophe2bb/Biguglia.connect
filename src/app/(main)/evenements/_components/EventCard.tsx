@@ -58,7 +58,7 @@ export default function EventCard({
         isAnnule && 'opacity-60',
       )}>
         {event.cover_photo && !isPastEvent && (
-          <div className="relative h-28 cursor-pointer" onClick={() => setLightboxOpen(true)}>
+          <div className="relative h-28 cursor-pointer" role="button" tabIndex={0} onClick={() => setLightboxOpen(true)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightboxOpen(true); } }}>
             <Image src={event.cover_photo} alt={event.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" />
           </div>
         )}
@@ -137,7 +137,7 @@ export default function EventCard({
       {/* Zone photo */}
       <div className="relative h-44 overflow-hidden">
         {event.cover_photo ? (
-          <div className="relative w-full h-full cursor-pointer" onClick={() => setLightboxOpen(true)}>
+          <div className="relative w-full h-full cursor-pointer" role="button" tabIndex={0} onClick={() => setLightboxOpen(true)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightboxOpen(true); } }}>
             <Image src={event.cover_photo} alt={event.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover group-hover:scale-105 transition-transform duration-500" />
           </div>
         ) : (

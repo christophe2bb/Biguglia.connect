@@ -61,7 +61,7 @@ export default function SearchInput({
         onBlur={onBlur}
         onKeyDown={onKeyDown}
         placeholder={placeholder}
-        autoFocus={autoFocus}
+        autoFocus={autoFocus} // eslint-disable-line jsx-a11y/no-autofocus
         className={cn(
           'w-full rounded-2xl border-2 border-white/60 bg-white shadow-xl',
           'placeholder:text-gray-400 text-gray-900 font-medium',

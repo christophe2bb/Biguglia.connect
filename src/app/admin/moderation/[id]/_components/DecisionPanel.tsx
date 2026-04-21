@@ -66,9 +66,9 @@ export function DecisionPanel({
         {/* Motifs de refus */}
         {selectedDecision === 'refuser' && (
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <p className="block text-sm font-semibold text-gray-700 mb-2">
               Motif de refus <span className="text-red-500">*</span>
-            </label>
+            </p>
             <div className="space-y-1.5">
               {REFUSAL_REASONS.map(r => (
                 <label
@@ -100,9 +100,9 @@ export function DecisionPanel({
         {/* Motifs de correction */}
         {selectedDecision === 'demander_correction' && (
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <p className="block text-sm font-semibold text-gray-700 mb-2">
               Correction demandée <span className="text-red-500">*</span>
-            </label>
+            </p>
             <div className="space-y-1.5">
               {CORRECTION_REASONS.map(r => (
                 <label
@@ -128,9 +128,9 @@ export function DecisionPanel({
 
         {/* Note interne */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <p className="block text-sm font-semibold text-gray-700 mb-1.5">
             Note interne <span className="text-gray-400 font-normal">(visible par l&apos;équipe uniquement)</span>
-          </label>
+          </p>
           <textarea
             value={moderatorNote}
             onChange={e => onNoteChange(e.target.value)}

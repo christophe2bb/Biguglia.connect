@@ -104,7 +104,7 @@ export default function TabItineraires({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-gray-600 mb-1.5">Type d&apos;activité *</label>
+                <p className="block text-xs font-bold text-gray-600 mb-1.5">Type d&apos;activité *</p>
                 <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300 bg-white">
                   {Object.entries(TYPE_CONFIG).map(([k, v]) => (
@@ -113,7 +113,7 @@ export default function TabItineraires({
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-600 mb-1.5">Difficulté</label>
+                <p className="block text-xs font-bold text-gray-600 mb-1.5">Difficulté</p>
                 <div className="flex gap-1.5">
                   {(['facile', 'moyen', 'difficile'] as const).map(d => (
                     <button key={d} type="button" onClick={() => setForm(f => ({ ...f, difficulty: d }))}
@@ -132,13 +132,13 @@ export default function TabItineraires({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-gray-600 mb-1.5">Distance (km)</label>
+                <p className="block text-xs font-bold text-gray-600 mb-1.5">Distance (km)</p>
                 <input type="number" step="0.1" min="0" placeholder="ex: 3.5"
                   value={form.distance_km} onChange={e => setForm(f => ({ ...f, distance_km: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-600 mb-1.5">Durée (min)</label>
+                <p className="block text-xs font-bold text-gray-600 mb-1.5">Durée (min)</p>
                 <input type="number" min="0" placeholder="ex: 45"
                   value={form.duration_min} onChange={e => setForm(f => ({ ...f, duration_min: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" />
@@ -150,7 +150,7 @@ export default function TabItineraires({
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" />
 
             <div>
-              <label className="block text-xs font-bold text-gray-600 mb-1.5">Secteur géographique</label>
+              <p className="block text-xs font-bold text-gray-600 mb-1.5">Secteur géographique</p>
               <SectorFilter value={form.sector_id || null} onChange={v => setForm(f => ({ ...f, sector_id: v || '' }))} showAll compact label="" />
             </div>
 
@@ -159,7 +159,7 @@ export default function TabItineraires({
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-300" />
 
             <div>
-              <label className="block text-xs font-bold text-gray-600 mb-2">Caractéristiques du parcours</label>
+              <p className="block text-xs font-bold text-gray-600 mb-2">Caractéristiques du parcours</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {[
                   { key: 'dogs_allowed',      label: '🐕 Chiens acceptés',   cls: 'amber' },
@@ -181,7 +181,7 @@ export default function TabItineraires({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-600 mb-2">Niveau d&apos;ombre</label>
+              <p className="block text-xs font-bold text-gray-600 mb-2">Niveau d&apos;ombre</p>
               <div className="flex gap-2">
                 {([
                   { val: 'none',    label: '☀️ Exposé' },
@@ -197,7 +197,7 @@ export default function TabItineraires({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-600 mb-2">Meilleur moment de la journée</label>
+              <p className="block text-xs font-bold text-gray-600 mb-2">Meilleur moment de la journée</p>
               <div className="flex gap-2">
                 {([
                   { val: 'morning', label: '🌄 Matin' },
@@ -225,7 +225,7 @@ export default function TabItineraires({
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" />
 
             <div>
-              <label className="block text-xs font-bold text-gray-600 mb-2">Photos (max 5) — partagez les plus beaux points du parcours</label>
+              <p className="block text-xs font-bold text-gray-600 mb-2">Photos (max 5) — partagez les plus beaux points du parcours</p>
               <div className="flex gap-2 flex-wrap">
                 {photos.map((_file, i) => (
                     <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200 shadow-sm">

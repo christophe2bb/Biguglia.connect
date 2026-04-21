@@ -19,9 +19,9 @@ export function StepExperience({ form, set, setCvFile }: Props) {
 
       {/* Niveau d'expérience */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">
           Niveau d&apos;expérience
-        </label>
+        </p>
         <select
           value={form.experience_level}
           onChange={e => set('experience_level', e.target.value)}
@@ -38,9 +38,9 @@ export function StepExperience({ form, set, setCvFile }: Props) {
 
       {/* Résumé de l'expérience */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">
           Résumé de votre expérience <span className="text-gray-400 font-normal">(optionnel)</span>
-        </label>
+        </p>
         <textarea
           rows={4}
           placeholder="Listez vos expériences passées, formations, compétences clés…"
@@ -52,7 +52,7 @@ export function StepExperience({ form, set, setCvFile }: Props) {
 
       {/* Badges permis / véhicule */}
       <div className="flex flex-col gap-3">
-        <label className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl cursor-pointer">
+        <label aria-label="Permis de conduire" className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl cursor-pointer">
           <input
             type="checkbox"
             checked={form.has_driving_license}
@@ -65,7 +65,7 @@ export function StepExperience({ form, set, setCvFile }: Props) {
           </div>
         </label>
 
-        <label className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl cursor-pointer">
+        <label aria-label="Véhicule personnel" className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl cursor-pointer">
           <input
             type="checkbox"
             checked={form.has_vehicle}

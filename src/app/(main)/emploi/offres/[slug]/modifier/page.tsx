@@ -238,7 +238,7 @@ export default function ModifierOffrePage() {
             <h2 className="font-black text-gray-800">📋 Poste</h2>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Intitulé du poste *</label>
+              <p className="block text-sm font-semibold text-gray-700 mb-1">Intitulé du poste *</p>
               <input
                 type="text" value={form.title} onChange={e => set('title', e.target.value)}
                 required className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-brand-400 outline-none text-sm"
@@ -248,14 +248,14 @@ export default function ModifierOffrePage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Type de contrat</label>
+                <p className="block text-sm font-semibold text-gray-700 mb-1">Type de contrat</p>
                 <select value={form.contract_type} onChange={e => set('contract_type', e.target.value)}
                   className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-brand-400 outline-none">
                   {CONTRACT_TYPES.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Catégorie</label>
+                <p className="block text-sm font-semibold text-gray-700 mb-1">Catégorie</p>
                 <select value={form.experience_level} onChange={e => set('experience_level', e.target.value)}
                   className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-brand-400 outline-none">
                   <option value="">Non précisé</option>
@@ -268,14 +268,14 @@ export default function ModifierOffrePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Description courte</label>
+              <p className="block text-sm font-semibold text-gray-700 mb-1">Description courte</p>
               <textarea value={form.short_description} onChange={e => set('short_description', e.target.value)}
                 rows={2} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-brand-400 outline-none resize-none"
                 placeholder="Résumé de l'offre en 1-2 phrases…" />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Description complète</label>
+              <p className="block text-sm font-semibold text-gray-700 mb-1">Description complète</p>
               <textarea value={form.full_description} onChange={e => set('full_description', e.target.value)}
                 rows={5} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-brand-400 outline-none resize-none"
                 placeholder="Missions, profil recherché, conditions…" />
@@ -288,13 +288,13 @@ export default function ModifierOffrePage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Entreprise</label>
+                <p className="block text-sm font-semibold text-gray-700 mb-1">Entreprise</p>
                 <input type="text" value={form.employer_name} onChange={e => set('employer_name', e.target.value)}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-brand-400 outline-none"
                   placeholder="Nom de l'entreprise" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Ville *</label>
+                <p className="block text-sm font-semibold text-gray-700 mb-1">Ville *</p>
                 <input type="text" value={form.location_city} onChange={e => set('location_city', e.target.value)}
                   required className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-brand-400 outline-none"
                   placeholder="Ex : Biguglia" />
@@ -302,14 +302,14 @@ export default function ModifierOffrePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Adresse (optionnel)</label>
+              <p className="block text-sm font-semibold text-gray-700 mb-1">Adresse (optionnel)</p>
               <input type="text" value={form.location_address} onChange={e => set('location_address', e.target.value)}
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-brand-400 outline-none"
                 placeholder="Zone Lido, route nationale…" />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> Secteur</label>
+              <p className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> Secteur</p>
               <select value={form.sector_id} onChange={e => set('sector_id', e.target.value)}
                 className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-brand-400 outline-none">
                 <option value="">Non précisé</option>
@@ -353,7 +353,7 @@ export default function ModifierOffrePage() {
 
             <div className="flex items-center gap-3">
               <div className="flex-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Heures / semaine</label>
+                <p className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Heures / semaine</p>
                 <input type="number" min="0" value={form.weekly_hours} onChange={e => set('weekly_hours', e.target.value)}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-brand-400 outline-none"
                   placeholder="Ex : 35, 39, 25…" />
@@ -390,7 +390,7 @@ export default function ModifierOffrePage() {
             <h2 className="font-black text-gray-800">📞 Contact</h2>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Mode de contact</label>
+              <p className="block text-sm font-semibold text-gray-700 mb-1">Mode de contact</p>
               <div className="flex gap-3">
                 {[['email', '📧 Email'], ['phone', '📱 Téléphone'], ['mixed', '🔀 Les deux']].map(([val, lbl]) => (
                   <label key={val} className="flex items-center gap-1.5 text-sm cursor-pointer">
@@ -403,7 +403,7 @@ export default function ModifierOffrePage() {
 
             {(form.application_mode === 'email' || form.application_mode === 'mixed') && (
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Email de contact</label>
+                <p className="block text-sm font-semibold text-gray-700 mb-1">Email de contact</p>
                 <input type="email" value={form.contact_email} onChange={e => set('contact_email', e.target.value)}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-brand-400 outline-none"
                   placeholder="recrutement@exemple.fr" />
@@ -412,7 +412,7 @@ export default function ModifierOffrePage() {
 
             {(form.application_mode === 'phone' || form.application_mode === 'mixed') && (
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Téléphone de contact</label>
+                <p className="block text-sm font-semibold text-gray-700 mb-1">Téléphone de contact</p>
                 <input type="tel" value={form.contact_phone} onChange={e => set('contact_phone', e.target.value)}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-brand-400 outline-none"
                   placeholder="06 00 00 00 00" />
@@ -420,7 +420,7 @@ export default function ModifierOffrePage() {
             )}
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Instructions (optionnel)</label>
+              <p className="block text-sm font-semibold text-gray-700 mb-1">Instructions (optionnel)</p>
               <textarea value={form.contact_instructions} onChange={e => set('contact_instructions', e.target.value)}
                 rows={2} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-brand-400 outline-none resize-none"
                 placeholder="Ex : Appelez uniquement le matin…" />

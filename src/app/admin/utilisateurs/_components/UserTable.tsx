@@ -66,7 +66,7 @@ export default function UserTable({
     <div>
       <div className="space-y-3">
         {users.map(user => (
-          <div key={user.id} onClick={() => onSelect(user)} className="cursor-pointer">
+          <div key={user.id} onClick={() => onSelect(user)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(user); } }} role="button" tabIndex={0} className="cursor-pointer">
             <UserCard
               user={user}
               onSuspend={onSuspend}

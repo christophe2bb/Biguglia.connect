@@ -25,9 +25,9 @@ export function StepProfile({ form, set, toggleContractType }: Props) {
 
       {/* Titre */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">
           Titre de votre recherche <span className="text-red-500">*</span>
-        </label>
+        </p>
         <input
           type="text"
           placeholder="Ex : Serveur(se), Aide-soignant(e), Maçon qualifié…"
@@ -42,9 +42,9 @@ export function StepProfile({ form, set, toggleContractType }: Props) {
 
       {/* Catégorie de métier */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">
           Catégorie de métier <span className="text-red-500">*</span>
-        </label>
+        </p>
         <select
           value={form.job_category}
           onChange={e => set('job_category', e.target.value)}
@@ -61,10 +61,10 @@ export function StepProfile({ form, set, toggleContractType }: Props) {
 
       {/* Types de contrat */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <p className="block text-sm font-semibold text-gray-700 mb-2">
           Types de contrat recherchés <span className="text-red-500">*</span>
           <span className="text-gray-400 font-normal ml-1">(plusieurs choix possibles)</span>
-        </label>
+        </p>
         <div className="grid grid-cols-2 gap-2">
           {CONTRACT_TYPES.map(type => {
             const checked = form.contract_types.includes(type);
@@ -99,9 +99,9 @@ export function StepProfile({ form, set, toggleContractType }: Props) {
 
       {/* Description / Motivations */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">
           Présentation / Motivations <span className="text-red-500">*</span>
-        </label>
+        </p>
         <textarea
           rows={5}
           placeholder="Présentez-vous, vos motivations, le type de poste que vous recherchez…"

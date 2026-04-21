@@ -421,7 +421,7 @@ export default function ModifierClient() {
             <div className="p-4 pt-0 space-y-4">
               {/* Mode */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Mode d&apos;annonce</label>
+                <p className="block text-sm font-medium text-gray-700 mb-2">Mode d&apos;annonce</p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {(Object.entries(MODE_CONFIG) as [CollectionMode, typeof MODE_CONFIG.vente][]).map(([mode, cfg]) => {
                     const Icon = cfg.icon;
@@ -439,7 +439,7 @@ export default function ModifierClient() {
 
               {/* Statut */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Statut</label>
+                <p className="block text-sm font-medium text-gray-700 mb-2">Statut</p>
                 <div className="flex flex-wrap gap-2">
                   {(Object.entries(STATUS_CONFIG) as [CollectionStatus, typeof STATUS_CONFIG.actif][]).filter(([, v]) => !v.closed || ['vendu','echange','donne','trouve'].includes(Object.keys(STATUS_CONFIG).find(k => STATUS_CONFIG[k as CollectionStatus] === v)!)).map(([status, cfg]) => (
                     <button key={status} onClick={() => update('status', status)}
@@ -462,7 +462,7 @@ export default function ModifierClient() {
             <div className="p-4 pt-0 space-y-4">
               {/* Catégorie */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Catégorie</label>
+                <p className="block text-sm font-medium text-gray-700 mb-2">Catégorie</p>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-3">
                   {categories.map(cat => (
                     <button key={cat.id} onClick={() => update('category_id', cat.id)}
@@ -480,7 +480,7 @@ export default function ModifierClient() {
 
               {/* Titre */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Titre <span className="text-red-500">*</span></label>
+                <p className="block text-sm font-medium text-gray-700 mb-1.5">Titre <span className="text-red-500">*</span></p>
                 <input type="text" value={form.title} onChange={e => update('title', e.target.value)} maxLength={120}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 <p className="text-xs text-gray-400 mt-1">{form.title.length}/120</p>
@@ -488,7 +488,7 @@ export default function ModifierClient() {
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Description <span className="text-red-500">*</span></label>
+                <p className="block text-sm font-medium text-gray-700 mb-1.5">Description <span className="text-red-500">*</span></p>
                 <textarea value={form.description} onChange={e => update('description', e.target.value)}
                   rows={5} maxLength={2000} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none text-sm" />
                 <p className="text-xs text-gray-400 mt-1">{form.description.length}/2000</p>
@@ -497,7 +497,7 @@ export default function ModifierClient() {
               {/* État + Rareté */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">État</label>
+                  <p className="block text-sm font-medium text-gray-700 mb-1.5">État</p>
                   <select value={form.condition} onChange={e => update('condition', e.target.value as ConditionLevel)}
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm bg-white">
                     {(Object.entries(CONDITION_CONFIG) as [ConditionLevel, { label: string }][]).map(([k, v]) => (
@@ -506,7 +506,7 @@ export default function ModifierClient() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Rareté</label>
+                  <p className="block text-sm font-medium text-gray-700 mb-1.5">Rareté</p>
                   <select value={form.rarity_level} onChange={e => update('rarity_level', e.target.value as RarityLevel)}
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm bg-white">
                     {(Object.entries(RARITY_CONFIG) as [RarityLevel, { label: string; icon: string }][]).map(([k, v]) => (
@@ -518,7 +518,7 @@ export default function ModifierClient() {
 
               {/* Tags */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Tags</label>
+                <p className="block text-sm font-medium text-gray-700 mb-1.5">Tags</p>
                 <div className="flex flex-wrap gap-2 mb-2">
                   {form.tags.map((tag, i) => (
                     <span key={i} className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm border border-blue-200">
@@ -573,7 +573,7 @@ export default function ModifierClient() {
                 </div>
               ))}
               <div className="col-span-2">
-                <label className="block text-xs font-medium text-gray-600 mb-1">Défauts à signaler</label>
+                <p className="block text-xs font-medium text-gray-600 mb-1">Défauts à signaler</p>
                 <input type="text" value={form.defects_noted}
                   onChange={e => update('defects_noted', e.target.value)}
                   placeholder="Ex: Petite éraflure, couleur passée…"
@@ -598,7 +598,7 @@ export default function ModifierClient() {
             <div className="p-4 pt-0 space-y-3">
               {form.mode === 'vente' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Prix (€)</label>
+                  <p className="block text-sm font-medium text-gray-700 mb-1.5">Prix (€)</p>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">€</span>
                     <input type="number" min={0} value={form.price} onChange={e => update('price', e.target.value)}
@@ -608,7 +608,7 @@ export default function ModifierClient() {
               )}
               {form.mode === 'echange' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Objet(s) souhaité(s) en échange</label>
+                  <p className="block text-sm font-medium text-gray-700 mb-1.5">Objet(s) souhaité(s) en échange</p>
                   <textarea value={form.exchange_expected} onChange={e => update('exchange_expected', e.target.value)}
                     rows={2} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none text-sm"
                     placeholder="Ce que vous souhaitez en retour…" />
@@ -635,12 +635,12 @@ export default function ModifierClient() {
             <div className="p-4 pt-0 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Ville <span className="text-red-500">*</span></label>
+                  <p className="block text-xs font-medium text-gray-600 mb-1">Ville <span className="text-red-500">*</span></p>
                   <input type="text" value={form.city} onChange={e => update('city', e.target.value)}
                     className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Code postal</label>
+                  <p className="block text-xs font-medium text-gray-600 mb-1">Code postal</p>
                   <input type="text" value={form.postal_code} onChange={e => update('postal_code', e.target.value)}
                     className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm" />
                 </div>

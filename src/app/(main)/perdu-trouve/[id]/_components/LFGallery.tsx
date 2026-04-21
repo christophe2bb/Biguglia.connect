@@ -28,7 +28,10 @@ export function LFGallery({ item, photos, lightboxOpen, lightboxIdx, onOpen, onC
       {/* Cover photo */}
       <div
         className="relative h-72 sm:h-96 cursor-pointer"
+        role="button"
+        tabIndex={0}
         onClick={() => onOpen(0)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(0); } }}
       >
         <Image src={photos[0].url} alt={item.title} fill className="object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />

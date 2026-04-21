@@ -101,7 +101,10 @@ export default function ItemCard({ item, currentUserId, onFavoriteToggle, viewMo
           {/* Thumbnail */}
           <div
             className="relative w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100 cursor-pointer"
+            role="button"
+            tabIndex={coverPhoto ? 0 : undefined}
             onClick={() => { if (coverPhoto) { setLightboxIdx(0); setLightboxOpen(true); } }}
+            onKeyDown={(e) => { if (coverPhoto && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setLightboxIdx(0); setLightboxOpen(true); } }}
           >
             {coverUrl
               ? <Image src={coverUrl} alt={item.title} fill sizes="96px" className="object-cover" />
@@ -165,7 +168,10 @@ export default function ItemCard({ item, currentUserId, onFavoriteToggle, viewMo
       {/* Photo */}
       <div
         className="relative aspect-square bg-gray-50 overflow-hidden cursor-pointer"
+        role="button"
+        tabIndex={coverPhoto ? 0 : undefined}
         onClick={() => { if (coverPhoto) { setLightboxIdx(0); setLightboxOpen(true); } }}
+        onKeyDown={(e) => { if (coverPhoto && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setLightboxIdx(0); setLightboxOpen(true); } }}
       >
         {coverUrl ? (
           <>

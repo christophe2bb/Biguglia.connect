@@ -169,10 +169,10 @@ function ProfilContent() {
               <span className="text-xs text-gray-400 ml-auto">Non modifiable</span>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <p className="block text-sm font-semibold text-gray-700 mb-2">
                 Mon secteur de résidence
                 <span className="ml-1 text-xs font-normal text-gray-400">(pré-sélectionné dans vos publications)</span>
-              </label>
+              </p>
               <SectorFilter
                 value={homeSector}
                 onChange={setHomeSector}

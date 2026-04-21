@@ -18,9 +18,9 @@ export function StepPratique({ form, setField }: Props) {
 
       {/* Location */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">
           <MapPin className="inline w-3.5 h-3.5 mr-1" />Lieu *
-        </label>
+        </p>
         <input
           type="text" placeholder="Ex: Place du village, Salle des fêtes..."
           value={form.location} onChange={e => setField('location', e.target.value)}
@@ -30,10 +30,10 @@ export function StepPratique({ form, setField }: Props) {
 
       {/* Sector */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">
           Secteur concerné
           <span className="ml-1 text-xs font-normal text-gray-400">(facultatif — ou « Toute la ville »)</span>
-        </label>
+        </p>
         <SectorFilter
           value={form.sector_id || null}
           onChange={id => setField('sector_id', id || '')}
@@ -44,7 +44,7 @@ export function StepPratique({ form, setField }: Props) {
       {/* Location area + detail */}
       <div className="grid sm:grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">Zone / Quartier (précision libre)</label>
+          <p className="block text-sm font-semibold text-gray-700 mb-1.5">Zone / Quartier (précision libre)</p>
           <input
             type="text" placeholder="Ex: Centre-ville, Nord..."
             value={form.location_area} onChange={e => setField('location_area', e.target.value)}
@@ -52,7 +52,7 @@ export function StepPratique({ form, setField }: Props) {
           />
         </div>
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">Détails lieu</label>
+          <p className="block text-sm font-semibold text-gray-700 mb-1.5">Détails lieu</p>
           <input
             type="text" placeholder="Ex: Entrée rue de la Paix, 1er étage..."
             value={form.location_detail} onChange={e => setField('location_detail', e.target.value)}
@@ -63,9 +63,9 @@ export function StepPratique({ form, setField }: Props) {
 
       {/* Target audience */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">
           <Tag className="inline w-3.5 h-3.5 mr-1" />Public cible
-        </label>
+        </p>
         <input
           type="text" placeholder="Ex: Tout public, Familles, 18+, Enfants 6-12 ans..."
           value={form.target_audience} onChange={e => setField('target_audience', e.target.value)}
@@ -75,9 +75,9 @@ export function StepPratique({ form, setField }: Props) {
 
       {/* Accessibility */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">
           <Accessibility className="inline w-3.5 h-3.5 mr-1" />Accessibilité
-        </label>
+        </p>
         <input
           type="text" placeholder="Ex: PMR, interprète LSF, rampe d'accès..."
           value={form.accessibility} onChange={e => setField('accessibility', e.target.value)}
@@ -87,9 +87,9 @@ export function StepPratique({ form, setField }: Props) {
 
       {/* Contact */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">
           <Phone className="inline w-3.5 h-3.5 mr-1" />Contact
-        </label>
+        </p>
         <input
           type="text" placeholder="Téléphone, email, WhatsApp..."
           value={form.contact_info} onChange={e => setField('contact_info', e.target.value)}
@@ -112,9 +112,9 @@ export function StepPratique({ form, setField }: Props) {
 
       {/* Tags */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">
           Mots-clés <span className="text-gray-400 font-normal">(séparés par des virgules)</span>
-        </label>
+        </p>
         <input
           type="text" placeholder="Ex: musique, famille, gratuit, été..."
           value={form.tags} onChange={e => setField('tags', e.target.value)}

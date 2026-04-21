@@ -46,9 +46,9 @@ export function StepContact({ form, set }: Props) {
 
       {/* Mode de contact */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <p className="block text-sm font-semibold text-gray-700 mb-2">
           Mode de contact préféré <span className="text-red-500">*</span>
-        </label>
+        </p>
         <div className="grid grid-cols-3 gap-3">
           {[
             { value: 'email', label: '📧 Email'       },
@@ -78,9 +78,9 @@ export function StepContact({ form, set }: Props) {
       {/* Email */}
       {(form.contact_mode === 'email' || form.contact_mode === 'mixed') && (
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <p className="block text-sm font-semibold text-gray-700 mb-1.5">
             Email de contact <span className="text-red-500">*</span>
-          </label>
+          </p>
           <input
             type="email" placeholder="votre@email.fr"
             value={form.contact_email}
@@ -93,9 +93,9 @@ export function StepContact({ form, set }: Props) {
       {/* Téléphone */}
       {(form.contact_mode === 'phone' || form.contact_mode === 'mixed') && (
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <p className="block text-sm font-semibold text-gray-700 mb-1.5">
             Téléphone <span className="text-red-500">*</span>
-          </label>
+          </p>
           <input
             type="tel" placeholder="06 XX XX XX XX"
             value={form.contact_phone}

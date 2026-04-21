@@ -76,13 +76,13 @@ export default function TabAgenda({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-gray-600 mb-1">Date *</label>
+                <p className="block text-xs font-bold text-gray-600 mb-1">Date *</p>
                 <input type="date" required value={outingForm.outing_date} min={new Date().toISOString().split('T')[0]}
                   onChange={e => setOutingForm(f => ({ ...f, outing_date: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-600 mb-1">Heure de départ</label>
+                <p className="block text-xs font-bold text-gray-600 mb-1">Heure de départ</p>
                 <input type="time" value={outingForm.outing_time}
                   onChange={e => setOutingForm(f => ({ ...f, outing_time: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" />
@@ -90,7 +90,7 @@ export default function TabAgenda({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-600 mb-1">Niveau de difficulté</label>
+              <p className="block text-xs font-bold text-gray-600 mb-1">Niveau de difficulté</p>
               <div className="flex gap-2">
                 {(['facile', 'moyen', 'difficile'] as const).map(d => (
                   <button key={d} type="button" onClick={() => setOutingForm(f => ({ ...f, difficulty: d }))}
@@ -111,14 +111,14 @@ export default function TabAgenda({
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" />
 
             <div>
-              <label className="block text-xs font-bold text-gray-600 mb-1">Participants maximum</label>
+              <p className="block text-xs font-bold text-gray-600 mb-1">Participants maximum</p>
               <input type="number" min="2" max="100" value={outingForm.max_participants}
                 onChange={e => setOutingForm(f => ({ ...f, max_participants: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-600 mb-2">Options de la sortie</label>
+              <p className="block text-xs font-bold text-gray-600 mb-2">Options de la sortie</p>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { key: 'parking_available',   label: '🅿️ Parking',    cls: 'blue' },
@@ -145,7 +145,7 @@ export default function TabAgenda({
             )}
 
             <div>
-              <label className="block text-xs font-bold text-gray-600 mb-1.5">Secteur géographique</label>
+              <p className="block text-xs font-bold text-gray-600 mb-1.5">Secteur géographique</p>
               <SectorFilter value={outingForm.sector_id || null} onChange={v => setOutingForm(f => ({ ...f, sector_id: v || '' }))} showAll compact label="" />
             </div>
 
@@ -154,7 +154,7 @@ export default function TabAgenda({
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-300" />
 
             <div>
-              <label className="block text-xs font-bold text-gray-600 mb-2">Photos (max 3)</label>
+              <p className="block text-xs font-bold text-gray-600 mb-2">Photos (max 3)</p>
               <div className="flex gap-2 flex-wrap">
                 {outingPreviews.map((src, i) => (
                   <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200 shadow-sm">

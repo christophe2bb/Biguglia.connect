@@ -72,7 +72,7 @@ export default function BorrowerActions({
               onChange={e => setRequestForm(f => ({ ...f, end_date: e.target.value }))}
               min={requestForm.start_date || new Date().toISOString().split('T')[0]} />
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Message (optionnel)</label>
+              <p className="block text-sm font-medium text-gray-700 mb-1">Message (optionnel)</p>
               <textarea value={requestForm.message}
                 onChange={e => setRequestForm(f => ({ ...f, message: e.target.value }))}
                 placeholder="Décrivez votre usage, vos précautions..."

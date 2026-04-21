@@ -19,9 +19,9 @@ export function StepAvailability({ form, set }: Props) {
 
       {/* Disponibilité */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <p className="block text-sm font-semibold text-gray-700 mb-2">
           Disponibilité <span className="text-red-500">*</span>
-        </label>
+        </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {Object.entries(AVAILABILITY_LABELS).map(([value, label]) => (
             <label
@@ -49,9 +49,9 @@ export function StepAvailability({ form, set }: Props) {
       {/* Date de disponibilité */}
       {form.availability_type === 'date' && (
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <p className="block text-sm font-semibold text-gray-700 mb-1.5">
             Date de disponibilité
-          </label>
+          </p>
           <input
             type="date"
             value={form.available_from}
@@ -64,9 +64,9 @@ export function StepAvailability({ form, set }: Props) {
       {/* Ville + Secteur */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <p className="block text-sm font-semibold text-gray-700 mb-1.5">
             Ville <span className="text-red-500">*</span>
-          </label>
+          </p>
           <div className="relative">
             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -80,9 +80,9 @@ export function StepAvailability({ form, set }: Props) {
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <p className="block text-sm font-semibold text-gray-700 mb-1.5">
             Secteur préféré
-          </label>
+          </p>
           <select
             value={form.sector_id}
             onChange={e => set('sector_id', e.target.value)}

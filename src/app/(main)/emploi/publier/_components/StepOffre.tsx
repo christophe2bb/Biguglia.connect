@@ -21,9 +21,9 @@ export default function StepOffre({ form, set }: Props) {
 
       {/* Title */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">
           Intitulé du poste <span className="text-red-500">*</span>
-        </label>
+        </p>
         <input
           type="text"
           placeholder="Ex : Serveur(se), Maçon, Aide à domicile…"
@@ -37,9 +37,9 @@ export default function StepOffre({ form, set }: Props) {
       {/* Category + Contract type */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <p className="block text-sm font-semibold text-gray-700 mb-1.5">
             Catégorie <span className="text-red-500">*</span>
-          </label>
+          </p>
           <select
             value={form.job_category}
             onChange={e => set('job_category', e.target.value)}
@@ -54,9 +54,9 @@ export default function StepOffre({ form, set }: Props) {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <p className="block text-sm font-semibold text-gray-700 mb-1.5">
             Type de contrat <span className="text-red-500">*</span>
-          </label>
+          </p>
           <select
             value={form.contract_type}
             onChange={e => set('contract_type', e.target.value)}
@@ -74,9 +74,9 @@ export default function StepOffre({ form, set }: Props) {
 
       {/* Description */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">
           Description du poste <span className="text-red-500">*</span>
-        </label>
+        </p>
         <textarea
           rows={6}
           placeholder="Missions principales, responsabilités, profil recherché, ambiance de travail…"

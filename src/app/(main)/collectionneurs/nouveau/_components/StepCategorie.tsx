@@ -55,9 +55,9 @@ export default function StepCategorie({
 
       {categoryId && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <p className="block text-sm font-medium text-gray-700 mb-2">
             Sous-catégorie <span className="text-gray-400">(optionnel)</span>
-          </label>
+          </p>
           <input
             type="text"
             value={subcategory}

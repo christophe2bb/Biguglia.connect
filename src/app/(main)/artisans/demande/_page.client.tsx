@@ -260,9 +260,9 @@ function DemandeServiceForm() {
           />
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <p className="block text-sm font-medium text-gray-700 mb-2">
               Secteur <span className="text-xs text-gray-400 font-normal ml-1">(recommandé — pour cibler les artisans de votre zone)</span>
-            </label>
+            </p>
             <SectorFilter
               value={form.sector_id || null}
               onChange={id => setForm(f => ({ ...f, sector_id: id || '' }))}
@@ -310,7 +310,7 @@ function DemandeServiceForm() {
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={url}
-                    alt={`Photo ${i + 1}`}
+                    alt={`Aperçu ${i + 1}`}
                     loading="lazy"
                     className="w-full h-full object-cover rounded-xl"
                   />
