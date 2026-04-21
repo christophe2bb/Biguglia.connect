@@ -1,3 +1,5 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { ChevronLeft, Footprints, BarChart3 } from 'lucide-react';

@@ -4,6 +4,8 @@
 
 'use client';
 
+'use client';
+
 import {
   HardDrive, RefreshCw, Loader2, CheckCircle, XCircle,
   AlertTriangle, ImageIcon, Upload, Wrench, MessageSquare,

@@ -1,3 +1,5 @@
+'use client';
+
 import { Clock, AlertTriangle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { formatDate } from '@/lib/utils';

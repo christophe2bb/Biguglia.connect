@@ -6,6 +6,8 @@
  *   preview  — affiche le SQL dans un <pre> max-h-80 scrollable
  */
 
+'use client';
+
 import { Copy, Check } from 'lucide-react';
 
 interface CopyBlockProps {

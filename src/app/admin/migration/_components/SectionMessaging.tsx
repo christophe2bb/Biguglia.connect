@@ -4,6 +4,8 @@
 
 'use client';
 
+'use client';
+
 import { AlertTriangle, MessageSquare, Tag, Search, Info, Copy, Check } from 'lucide-react';
 import type { SqlKey } from '../_hooks/useMigration';
 import { SQL_MAP } from '../_hooks/useMigration';

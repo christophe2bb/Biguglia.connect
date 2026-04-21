@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { Calendar, MessageSquare } from 'lucide-react';
 import ContactButton from '@/components/ui/ContactButton';

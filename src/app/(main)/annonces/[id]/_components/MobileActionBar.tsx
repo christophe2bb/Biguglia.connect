@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { Heart, Phone } from 'lucide-react';
 import ContactButton from '@/components/ui/ContactButton';

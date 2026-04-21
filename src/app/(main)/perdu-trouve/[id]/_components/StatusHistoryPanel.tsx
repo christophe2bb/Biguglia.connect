@@ -1,3 +1,5 @@
+'use client';
+
 import { Eye, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatRelative } from '@/lib/utils';
 import { STATUS_CONFIG } from '../_config';
