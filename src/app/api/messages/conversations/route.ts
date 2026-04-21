@@ -9,8 +9,41 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
+
+// ── Schémas de validation Zod ─────────────────────────────────────────────────
+
+/**
+ * Regex UUID permissive : accepte les UUIDs standards (v1-v8) ainsi que les
+ * UUIDs nil (000…) utilisés en tests et certains clients.
+ * Zod v4 .uuid() impose version 1-8 ce qui rejette les UUIDs nil de fixtures.
+ */
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** PATCH /api/messages/conversations — marquer une conversation comme lue */
+const PatchSchema = z.object({
+  conversationId: z
+    .string()
+    .regex(UUID_REGEX, 'conversationId doit être un UUID valide'),
+  lastReadAt: z.string().datetime().optional(),
+});
+
+/** DELETE /api/messages/conversations?conversationId=xxx — query param */
+const DeleteQuerySchema = z.object({
+  conversationId: z
+    .string()
+    .regex(UUID_REGEX, 'conversationId doit être un UUID valide'),
+});
+
+/** Helper : retourne une 400 formatée Zod */
+function zodError(err: z.ZodError): NextResponse {
+  return NextResponse.json(
+    { error: 'Paramètres invalides', details: err.flatten().fieldErrors },
+    { status: 400 },
+  );
+}
 
 export async function GET(req: NextRequest): Promise<Response> {
   const userId = await getUserIdBearerFirst(req);
@@ -159,17 +192,18 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
 
-  let body: { conversationId?: string; lastReadAt?: string };
+  // ── Validation Zod du corps ────────────────────────────────────────────────
+  let rawBody: unknown;
   try {
-    body = await req.json();
+    rawBody = await req.json();
   } catch {
-    return NextResponse.json({ error: 'Corps invalide' }, { status: 400 });
+    return NextResponse.json({ error: 'Corps invalide — JSON attendu' }, { status: 400 });
   }
 
-  const { conversationId, lastReadAt } = body;
-  if (!conversationId) {
-    return NextResponse.json({ error: 'conversationId requis' }, { status: 400 });
-  }
+  const parsed = PatchSchema.safeParse(rawBody);
+  if (!parsed.success) return zodError(parsed.error);
+
+  const { conversationId, lastReadAt } = parsed.data;
 
   const admin = createAdminClient();
   const { error } = await admin
@@ -194,17 +228,21 @@ export async function PATCH(req: NextRequest): Promise<Response> {
  * dans n'importe quelle conversation en forgeant la requête.
  */
 export async function DELETE(req: NextRequest): Promise<Response> {
-  const { searchParams } = new URL(req.url);
-  const conversationId = searchParams.get('conversationId');
-
-  if (!conversationId) {
-    return NextResponse.json({ error: 'conversationId requis' }, { status: 400 });
-  }
-
+  // ── Auth en premier (401 avant 400) ──────────────────────────────────────
   const userId = await getUserIdBearerFirst(req);
   if (!userId) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
+
+  const { searchParams } = new URL(req.url);
+
+  // ── Validation Zod du query param ─────────────────────────────────────────
+  const queryParsed = DeleteQuerySchema.safeParse({
+    conversationId: searchParams.get('conversationId'),
+  });
+  if (!queryParsed.success) return zodError(queryParsed.error);
+
+  const { conversationId } = queryParsed.data;
 
   const admin = createAdminClient();
 
