@@ -6,7 +6,7 @@
  * Problème résolu :
  *   Les mutations admin (suspension, suppression, changement de rôle, validation
  *   artisan, modération) étaient exécutées directement depuis le navigateur via
- *   createClient() (anon key). La sécurité reposait uniquement sur les policies
+ *   await createClient() (anon key). La sécurité reposait uniquement sur les policies
  *   RLS de Supabase. Une policy trop large permettrait à un non-admin d'exécuter
  *   les mêmes requêtes depuis la console ou un script.
  *

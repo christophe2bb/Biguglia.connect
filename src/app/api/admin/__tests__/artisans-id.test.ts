@@ -56,7 +56,7 @@ const REASON_OK  = 'Dossier incomplet, photos manquantes.';
 const REASON_SHORT = 'Court';
 const REASON_LONG  = 'x'.repeat(501);
 
-function makeParams(id = TARGET_ID) { return { params: { id } }; }
+function makeParams(id = TARGET_ID) { return { params: Promise.resolve({ id }) }; }
 
 function patchReq(body: unknown) {
   return makeReq(`https://app.test/api/admin/artisans/${TARGET_ID}`, 'PATCH', body);

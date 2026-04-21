@@ -41,11 +41,12 @@ import {
 import ProtectedContact from '@/components/jobs/ProtectedContact';
 
 interface PageProps {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps) {
-  const demand = await getDemand(params.slug);
+  const { slug } = await params;
+  const demand = await getDemand(slug);
   if (!demand) return { title: 'Demande non trouvée - Biguglia Connect' };
   return {
     title: `${demand.title} – ${demand.location_label} | Biguglia Connect`,
@@ -63,7 +64,8 @@ const AVAILABILITY_LABELS: Record<string, { label: string; color: string; bg: st
 
 
 export default async function DemandDetailPage({ params }: PageProps) {
-  const demand = await getDemand(params.slug);
+  const { slug } = await params;
+  const demand = await getDemand(slug);
 
   /* ── Table DB pas encore créée OU demande introuvable ── */
   if (!demand) {

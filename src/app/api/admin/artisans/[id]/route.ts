@@ -20,7 +20,7 @@ import { logAdminAction } from '@/lib/admin/action-logger';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface RouteParams {
-  params: { id: string }; // artisanUserId (profiles.id du compte artisan)
+  params: Promise<{ id: string }>; // artisanUserId (profiles.id du compte artisan)
 }
 
 // ── Schéma Zod ────────────────────────────────────────────────────────────────
@@ -40,6 +40,8 @@ type PatchBody = z.infer<typeof PatchSchema>;
 // ── PATCH /api/admin/artisans/[id] ────────────────────────────────────────────
 
 export async function PATCH(req: Request, { params }: RouteParams): Promise<Response> {
+  const { id } = await params;
+
   const csrfError = assertCsrfSafe(req);
   if (csrfError) return csrfError;
 
@@ -47,7 +49,7 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
   if (!guard.ok) return guard.response;
 
   const { actor, adminClient } = guard;
-  const artisanUserId = params.id;
+  const artisanUserId = id;
 
   // Parse + validate body
   let rawBody: unknown;

@@ -234,7 +234,7 @@ function patchReportReq(body: unknown) {
 }
 
 function makeReportParams(id = REPORT_ID) {
-  return { params: { id } };
+  return { params: Promise.resolve({ id }) };
 }
 
 // =============================================================================

@@ -62,7 +62,7 @@ export async function checkJobOwnership(
 ): Promise<boolean> {
   try {
     // ── 0. Récupérer l'utilisateur connecté ────────────────────────────────
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
 

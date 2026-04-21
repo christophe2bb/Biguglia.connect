@@ -25,11 +25,11 @@ import MaterielDetailClient from './MaterielDetailClient';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 
-type Props = { params: { id: string } };
+type Props = { params: Promise<{ id: string }> };
 
 // ─── Fetch data ───────────────────────────────────────────────────────────────
 async function fetchMateriel(id: string): Promise<EquipmentItemFull | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('equipment_items')
     .select('*, category:equipment_categories(*), photos:equipment_photos(id, url, display_order, is_cover)')
@@ -56,7 +56,8 @@ async function fetchMateriel(id: string): Promise<EquipmentItemFull | null> {
 
 // ─── Metadata ────────────────────────────────────────────────────────────────
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const item = await fetchMateriel(params.id);
+  const { id } = await params;
+  const item = await fetchMateriel(id);
   if (!item) return { title: 'Matériel introuvable — Biguglia Connect' };
 
   const categoryName = (item.category as { name?: string } | null)?.name ?? '';
@@ -71,11 +72,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: { canonical: `${SITE_URL}/materiel/${params.id}` },
+    alternates: { canonical: `${SITE_URL}/materiel/${id}` },
     openGraph: {
       title,
       description,
-      url: `${SITE_URL}/materiel/${params.id}`,
+      url: `${SITE_URL}/materiel/${id}`,
       images: [{ url: ogImage, width: 1200, height: 630, alt: item.title }],
     },
     twitter: { card: 'summary_large_image', title, description },
@@ -84,7 +85,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default async function MaterielDetailPage({ params }: Props) {
-  const item = await fetchMateriel(params.id);
+  const { id } = await params;
+  const item = await fetchMateriel(id);
   if (!item) notFound();
 
   const rawPhotos = item.photos as Array<{ id: string; url: string; display_order?: number; is_cover?: boolean }> | undefined;

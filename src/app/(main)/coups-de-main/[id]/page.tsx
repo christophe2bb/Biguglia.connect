@@ -32,7 +32,7 @@ type Props = { params: Promise<{ id: string }> };
 
 // ─── Fetch data ───────────────────────────────────────────────────────────────
 async function fetchHelpRequest(id: string): Promise<HelpRequest | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('help_requests')
     .select('*, author:profiles(full_name, avatar_url, created_at), photos:help_photos(url, display_order, caption)')

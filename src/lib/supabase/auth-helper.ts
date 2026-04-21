@@ -6,11 +6,11 @@
  * ║  SCOPE : API Routes uniquement  (src/app/api/**)                    ║
  * ║                                                                      ║
  * ║  NE PAS utiliser dans :                                              ║
- * ║  • Server Components  → utiliser createClient() de server.ts        ║
- * ║  • Client Components  → utiliser createClient() de client.ts        ║
+ * ║  • Server Components  → utiliser await createClient() de server.ts        ║
+ * ║  • Client Components  → utiliser await createClient() de client.ts        ║
  * ║  • Middleware         → utiliser createServerClient() de middleware  ║
  * ║  • Services client-side (trust.ts, publish-*.ts)                    ║
- * ║    → ils appellent createClient() navigateur, pas des API Routes     ║
+ * ║    → ils appellent await createClient() navigateur, pas des API Routes     ║
  * ╚══════════════════════════════════════════════════════════════════════╝
  *
  * Trois fonctions d'auth :
@@ -147,7 +147,7 @@ export async function getUserFromRequest(
 ): Promise<{ id: string; email?: string } | null> {
   // Méthode 1 : cookies SSR
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (user) return user;
   } catch { /* ignore */ }
@@ -181,7 +181,7 @@ export async function getUserIdBearerFirst(req: Request): Promise<string | null>
 
   // Méthode 2 : cookies SSR (fallback)
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (user?.id) return user.id;
   } catch { /* ignore */ }

@@ -55,12 +55,14 @@ import { join } from 'path';
 //
 // Sans ça, SUPABASE_URL vaut '' dans middleware.ts → SUPABASE_PROJECT_REF = ''
 // → SUPABASE_COOKIE_NAME = 'sb--auth-token' → les tests de cookie échouent.
-const TEST_SUPABASE_URL  = 'https://qmrkacrpncdkhofiqlrg.supabase.co';
-const _TEST_SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhbm9uS2V5IjoibW9jayJ9.mock';
+// Les valeurs ci-dessous sont des données de test fictives — aucun secret réel.
+// nosec: test-only mock values, not real credentials
+const TEST_SUPABASE_URL  = 'https://qmrkacrpncdkhofiqlrg.supabase.co'; // pragma: allowlist secret
+const _TEST_SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhbm9uS2V5IjoibW9jayJ9.mock'; // pragma: allowlist secret
 
 vi.hoisted(() => {
-  process.env.NEXT_PUBLIC_SUPABASE_URL      = 'https://qmrkacrpncdkhofiqlrg.supabase.co';
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhbm9uS2V5IjoibW9jayJ9.mock';
+  process.env.NEXT_PUBLIC_SUPABASE_URL      = 'https://qmrkacrpncdkhofiqlrg.supabase.co'; // pragma: allowlist secret
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhbm9uS2V5IjoibW9jayJ9.mock'; // pragma: allowlist secret
 });
 
 // ─── Mock @supabase/ssr ────────────────────────────────────────────────────────
@@ -168,9 +170,9 @@ import { NextRequest } from 'next/server';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Token JWT valide (non expiré) dans un cookie JSON brut */
+/** Token JWT valide (non expiré) dans un cookie JSON brut — valeur fictive de test */
 const VALID_COOKIE = JSON.stringify({
-  access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.signature',
+  access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.signature', // pragma: allowlist secret
   refresh_token: 'mock-refresh-token',
   expires_at: Math.floor(Date.now() / 1000) + 3600, // expire dans 1h
 });
@@ -428,7 +430,7 @@ describe("updateSession — guards d'authentification", () => {
     it('Cookie chunké format .0 avec access_token valide → accès accordé', async () => {
       mockCookieValue  = null; // pas de cookie principal
       mockChunkCookie  = JSON.stringify({
-        access_token:  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.chunk.sig',
+        access_token:  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.chunk.sig', // pragma: allowlist secret
         refresh_token: 'refresh-chunk',
         expires_at:    Math.floor(Date.now() / 1000) + 3600,
       });
@@ -441,7 +443,7 @@ describe("updateSession — guards d'authentification", () => {
     it('Cookie chunké format .0 URL-encodé → accès accordé', async () => {
       mockCookieValue = null;
       mockChunkCookie = encodeURIComponent(JSON.stringify({
-        access_token:  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.encoded-chunk.sig',
+        access_token:  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.encoded-chunk.sig', // pragma: allowlist secret
         refresh_token: 'refresh-chunk',
         expires_at:    Math.floor(Date.now() / 1000) + 3600,
       }));
@@ -453,7 +455,7 @@ describe("updateSession — guards d'authentification", () => {
 
     it('Cookie expiré (expires_at passé) → accès autorisé (refresh côté client)', async () => {
       mockCookieValue = JSON.stringify({
-        access_token:  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.expired.signature',
+        access_token:  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.expired.signature', // pragma: allowlist secret
         refresh_token: 'mock-refresh-token',
         expires_at:    Math.floor(Date.now() / 1000) - 3600, // expiré il y a 1h
       });
@@ -466,7 +468,7 @@ describe("updateSession — guards d'authentification", () => {
     it('Cookie chunké expiré → accès autorisé (refresh côté client)', async () => {
       mockCookieValue = null;
       mockChunkCookie = JSON.stringify({
-        access_token:  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.expired-chunk.sig',
+        access_token:  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.expired-chunk.sig', // pragma: allowlist secret
         refresh_token: 'refresh-chunk',
         expires_at:    Math.floor(Date.now() / 1000) - 7200, // expiré il y a 2h
       });

@@ -37,9 +37,10 @@ const FORBIDDEN = NextResponse.json({ error: 'Accès refusé' }, { status: 403 }
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const conversationId = params.id;
+  const { id } = await params;
+  const conversationId = id;
   if (!conversationId) return NextResponse.json({ error: 'ID manquant' }, { status: 400 });
 
   const userId = await getUserIdBearerFirst(req);
@@ -93,9 +94,10 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const conversationId = params.id;
+  const { id } = await params;
+  const conversationId = id;
   const userId = await getUserIdBearerFirst(req);
   if (!userId) return UNAUTH;
 
@@ -139,9 +141,10 @@ export async function PATCH(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const conversationId = params.id;
+  const { id } = await params;
+  const conversationId = id;
   const userId = await getUserIdBearerFirst(req);
   if (!userId) return UNAUTH;
 
@@ -179,9 +182,10 @@ export async function POST(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const conversationId = params.id;
+  const { id } = await params;
+  const conversationId = id;
   const messageId = new URL(req.url).searchParams.get('messageId');
   if (!messageId) return NextResponse.json({ error: 'messageId requis' }, { status: 400 });
 

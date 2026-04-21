@@ -27,11 +27,11 @@ import type { ArtisanProfile, Review } from '@/types';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 
-type Props = { params: { id: string } };
+type Props = { params: Promise<{ id: string }> };
 
 // ─── Fetch data ───────────────────────────────────────────────────────────────
 async function fetchArtisan(id: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from('artisan_profiles')
@@ -57,7 +57,8 @@ async function fetchArtisan(id: string) {
 
 // ─── Metadata ────────────────────────────────────────────────────────────────
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const result = await fetchArtisan(params.id);
+  const { id } = await params;
+  const result = await fetchArtisan(id);
   if (!result) return { title: 'Artisan introuvable — Biguglia Connect' };
 
   const { artisan } = result;
@@ -73,10 +74,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: { canonical: `${SITE_URL}/artisans/${params.id}` },
+    alternates: { canonical: `${SITE_URL}/artisans/${id}` },
     openGraph: {
       title, description,
-      url: `${SITE_URL}/artisans/${params.id}`,
+      url: `${SITE_URL}/artisans/${id}`,
       images: [{ url: ogImage, width: 1200, height: 630, alt: artisan.business_name }],
       type: 'profile',
     },
@@ -86,7 +87,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default async function ArtisanDetailPage({ params }: Props) {
-  const result = await fetchArtisan(params.id);
+  const { id } = await params;
+  const result = await fetchArtisan(id);
   if (!result) notFound();
 
   const { artisan, reviews } = result;

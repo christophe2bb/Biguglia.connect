@@ -68,12 +68,14 @@ type DecisionBody = z.infer<typeof DecisionSchema>;
 // ─── Types de réponse ────────────────────────────────────────────────────────
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 // ─── PATCH /api/admin/moderation/[id]/decision ───────────────────────────────
 
 export async function PATCH(req: Request, { params }: RouteParams): Promise<Response> {
+  const { id } = await params;
+
   const csrfError = assertCsrfSafe(req);
   if (csrfError) return csrfError;
 
@@ -81,7 +83,7 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
   if (!guard.ok) return guard.response;
 
   const { actor, adminClient } = guard;
-  const queueId = params.id;
+  const queueId = id;
 
   // Parse + validate body
   let rawBody: unknown;

@@ -34,7 +34,7 @@ import { SortSelectClient } from './SortSelectClient';
 import type { JobDemandFilters } from '@/types/jobs';
 
 interface PageProps {
-  searchParams: {
+  searchParams: Promise<{
     query?: string;
     page?: string;
     sortBy?: string;
@@ -43,23 +43,24 @@ interface PageProps {
     isUrgent?: string;
     hasLicense?: string;
     hasVehicle?: string;
-  };
+  }>;
 }
 
 
 export default async function DemandesEmploiPage({ searchParams }: PageProps) {
+  const sp = await searchParams;
   /* ── Filtres depuis l'URL ─────────────────────────────────────── */
-  const currentPage = searchParams.page ? parseInt(searchParams.page) : 1;
+  const currentPage = sp.page ? parseInt(sp.page) : 1;
 
   const filters: Partial<JobDemandFilters> = {
-    query: searchParams.query,
+    query: sp.query,
     page: currentPage,
-    sortBy: searchParams.sortBy as JobDemandFilters['sortBy'],
-    categories: searchParams.categories?.split(',') as JobDemandFilters['categories'],
-    sectorId: searchParams.sectorId,
-    isUrgent: searchParams.isUrgent === 'true' ? true : undefined,
-    hasLicense: searchParams.hasLicense === 'true' ? true : undefined,
-    hasVehicle: searchParams.hasVehicle === 'true' ? true : undefined,
+    sortBy: sp.sortBy as JobDemandFilters['sortBy'],
+    categories: sp.categories?.split(',') as JobDemandFilters['categories'],
+    sectorId: sp.sectorId,
+    isUrgent: sp.isUrgent === 'true' ? true : undefined,
+    hasLicense: sp.hasLicense === 'true' ? true : undefined,
+    hasVehicle: sp.hasVehicle === 'true' ? true : undefined,
   };
 
   /* ── Fetch ────────────────────────────────────────────────────── */
@@ -76,9 +77,9 @@ export default async function DemandesEmploiPage({ searchParams }: PageProps) {
 
   /* ── Pagination helper ────────────────────────────────────────── */
   const pageUrl = (p: number) => {
-    const sp = new URLSearchParams(searchParams as Record<string, string>);
-    sp.set('page', String(p));
-    return `/emploi/demandes?${sp.toString()}`;
+    const urlSp = new URLSearchParams(sp as Record<string, string>);
+    urlSp.set('page', String(p));
+    return `/emploi/demandes?${urlSp.toString()}`;
   };
 
   return (
@@ -190,7 +191,7 @@ export default async function DemandesEmploiPage({ searchParams }: PageProps) {
               <div className="flex items-center gap-3">
                 <SortSelectClient
                   currentSort={filters.sortBy || 'date_desc'}
-                  currentParams={searchParams as Record<string, string>}
+                  currentParams={sp as Record<string, string>}
                 />
               </div>
             </div>

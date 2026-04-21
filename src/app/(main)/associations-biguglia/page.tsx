@@ -51,7 +51,7 @@ interface AssociationRow {
 
 async function fetchAssociations(): Promise<{ assocs: AssociationRow[]; total: number }> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data, count } = await supabase
       .from('associations')
       .select('id, name, category, description, city', { count: 'exact' })

@@ -11,12 +11,12 @@ import { notFound } from 'next/navigation';
 import AssociationDetailClient from './AssociationDetailClient';
 import type { Association } from './_types';
 
-type Props = { params: { id: string } };
+type Props = { params: Promise<{ id: string }> };
 
 // ─── Server fetch helper ────────────────────────────────────────────────────
 async function fetchAssociation(id: string): Promise<Association | null> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from('associations')
       .select('*, author:profiles(full_name, avatar_url), photos:asso_photos(url, display_order)')
@@ -43,12 +43,13 @@ async function fetchAssociation(id: string): Promise<Association | null> {
 
 // ─── generateMetadata ───────────────────────────────────────────────────────
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data } = await supabase
       .from('associations')
       .select('name, description_short')
-      .eq('id', params.id)
+      .eq('id', id)
       .single();
 
     if (!data) return { title: 'Association introuvable — Biguglia Connect' };
@@ -70,7 +71,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 export default async function AssociationDetailPage({ params }: Props) {
-  const initialItem = await fetchAssociation(params.id);
+  const { id } = await params;
+  const initialItem = await fetchAssociation(id);
 
   if (!initialItem) notFound();
 

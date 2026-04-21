@@ -18,8 +18,8 @@ import type { Database } from '@/types/supabase';
  * Les variables d'environnement sont validées centralement par env.ts :
  * pas de duplication de `cleanEnv()`, même comportement partout.
  */
-export function createClient() {
-  const cookieStore = cookies();
+export async function createClient() {
+  const cookieStore = await cookies();
   const { url, anonKey } = getSupabaseEnv();
 
   return createServerClient(url, anonKey, {

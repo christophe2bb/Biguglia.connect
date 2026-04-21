@@ -46,12 +46,14 @@ type PatchBody = z.infer<typeof PatchSchema>;
 // ─── Route params ────────────────────────────────────────────────────────────
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 // ─── PATCH /api/admin/confiance/[id] ─────────────────────────────────────────
 
 export async function PATCH(req: Request, { params }: RouteParams): Promise<Response> {
+  const { id } = await params;
+
   const csrfError = assertCsrfSafe(req);
   if (csrfError) return csrfError;
 
@@ -59,7 +61,7 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
   if (!guard.ok) return guard.response;
 
   const { actor, adminClient } = guard;
-  const targetId = params.id;
+  const targetId = id;
 
   // Parse + validate body
   let rawBody: unknown;

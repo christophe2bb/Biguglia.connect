@@ -52,7 +52,7 @@ interface EventRow {
 
 async function fetchUpcomingEvents(): Promise<{ events: EventRow[]; total: number }> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const today = new Date().toISOString().split('T')[0];
     const { data, count } = await supabase
       .from('events')

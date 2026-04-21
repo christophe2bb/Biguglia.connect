@@ -24,11 +24,12 @@ import ProtectedContact from '@/components/jobs/ProtectedContact';
 import OwnerActions from '@/components/jobs/OwnerActions';
 
 interface PageProps {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps) {
-  const offer = await getJobOfferBySlug(params.slug);
+  const { slug } = await params;
+  const offer = await getJobOfferBySlug(slug);
   if (!offer) return { title: 'Offre non trouvée - Biguglia Connect' };
   return {
     title: `${offer.title}${offer.employer_name ? ` – ${offer.employer_name}` : ''} | Biguglia Connect`,
@@ -49,7 +50,8 @@ const CONTRACT_COLOR_MAP: Record<string, { bg: string; text: string; border: str
 
 
 export default async function OffreDetailPage({ params }: PageProps) {
-  const offer = await getJobOfferBySlug(params.slug);
+  const { slug } = await params;
+  const offer = await getJobOfferBySlug(slug);
 
   /* ── Table DB pas encore créée OU annonce introuvable ── */
   if (!offer) {

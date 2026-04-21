@@ -49,8 +49,8 @@ const ADMIN_ROLES: readonly string[] = ['admin', 'moderator'] as const;
  * Décode le payload Base64 du JWT access_token sans vérifier la signature
  * (la vérification de rôle via service-role key est la vraie garantie de sécurité).
  */
-function extractUserIdFromCookie(): string | null {
-  const cookieStore = cookies();
+async function extractUserIdFromCookie(): Promise<string | null> {
+  const cookieStore = await cookies();
   const projectRef  = getSupabaseProjectRef();
   const cookieName  = `sb-${projectRef}-auth-token`;
 
@@ -129,7 +129,7 @@ export async function verifyAdminLayout(): Promise<AdminLayoutOk> {
   // ── Étape 1 : Extraire le userId depuis le cookie ─────────────────────────
   // Contourne le bug getSession() qui ne lit pas le cookie JSON brut de
   // createBrowserClient.
-  const userId = extractUserIdFromCookie();
+  const userId = await extractUserIdFromCookie();
 
   if (!userId) {
     redirect('/connexion?next=/admin');

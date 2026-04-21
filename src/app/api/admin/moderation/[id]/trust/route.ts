@@ -35,12 +35,13 @@ const TrustSchema = z.object({
 // ─── Route params ────────────────────────────────────────────────────────────
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 // ─── PATCH /api/admin/moderation/[id]/trust ──────────────────────────────────
 
 export async function PATCH(req: Request, { params }: RouteParams) {
+  const { id } = await params;
   const csrfError = assertCsrfSafe(req);
   if (csrfError) return csrfError;
 
@@ -48,7 +49,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
   if (!guard.ok) return guard.response;
 
   const { adminClient } = guard;
-  const queueId = params.id;
+  const queueId = id;
 
   // Parse + validate body
   let rawBody: unknown;

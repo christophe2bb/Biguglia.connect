@@ -163,7 +163,7 @@ function makeReqWithOrigin(method: string, body?: unknown): Request {
   });
 }
 
-function makeParams(slug = SLUG) { return { params: { slug } }; }
+function makeParams(slug = SLUG) { return { params: Promise.resolve({ slug }) }; }
 
 // ─── Authenticate helpers ─────────────────────────────────────────────────────
 
