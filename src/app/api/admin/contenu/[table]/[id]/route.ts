@@ -74,7 +74,7 @@ function buildUpdatePayload(body: PatchBody): Record<string, unknown> {
 // ─── Validation des params de route ─────────────────────────────────────────
 
 interface RouteParams {
-  params: { table: string; id: string };
+  params: Promise<{ table: string; id: string }>;
 }
 
 function validateTable(raw: string): AllowedTable | null {
@@ -86,21 +86,21 @@ function validateTable(raw: string): AllowedTable | null {
 // ─── PATCH /api/admin/contenu/[table]/[id] ────────────────────────────────────
 
 export async function PATCH(req: Request, { params }: RouteParams) {
+  const { table: rawTable, id } = await params;
   const csrfError = assertCsrfSafe(req);
   if (csrfError) return csrfError;
 
   const guard = await getAdminUser(req);
   if (!guard.ok) return guard.response;
 
-  const table = validateTable(params.table);
+  const table = validateTable(rawTable);
   if (!table) {
     return NextResponse.json(
-      { error: `Table non autorisée : "${params.table}". Tables supportées : ${ALLOWED_TABLES.join(', ')}.` },
+      { error: `Table non autorisée : "${rawTable}". Tables supportées : ${ALLOWED_TABLES.join(', ')}.` },
       { status: 400 },
     );
   }
 
-  const { id } = params;
   if (!id) {
     return NextResponse.json({ error: 'id manquant dans l\'URL.' }, { status: 400 });
   }
@@ -153,21 +153,21 @@ export async function PATCH(req: Request, { params }: RouteParams) {
 // ─── DELETE /api/admin/contenu/[table]/[id] ───────────────────────────────────
 
 export async function DELETE(req: Request, { params }: RouteParams) {
+  const { table: rawTable, id } = await params;
   const csrfError = assertCsrfSafe(req);
   if (csrfError) return csrfError;
 
   const guard = await getAdminUser(req);
   if (!guard.ok) return guard.response;
 
-  const table = validateTable(params.table);
+  const table = validateTable(rawTable);
   if (!table) {
     return NextResponse.json(
-      { error: `Table non autorisée : "${params.table}". Tables supportées : ${ALLOWED_TABLES.join(', ')}.` },
+      { error: `Table non autorisée : "${rawTable}". Tables supportées : ${ALLOWED_TABLES.join(', ')}.` },
       { status: 400 },
     );
   }
 
-  const { id } = params;
   if (!id) {
     return NextResponse.json({ error: 'id manquant dans l\'URL.' }, { status: 400 });
   }

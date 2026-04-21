@@ -52,7 +52,7 @@ const mockCsrf  = assertCsrfSafe as MockedFunction<typeof assertCsrfSafe>;
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeParams(id = TARGET_ID) {
-  return { params: { id } };
+  return { params: Promise.resolve({ id }) };
 }
 
 function patchReq(body: unknown) {
@@ -91,7 +91,7 @@ describe('PATCH /api/admin/users/[id]', () => {
     const db = makeDb({ profiles: { update: () => ({ data: null, error: null }) } });
     mockGuard.mockResolvedValue(makeAdminGuardOk('admin', db, ADMIN_ID));
     // target = ADMIN_ID (même que l'acteur)
-    const res = await PATCH(patchReq({ action: 'set_status', status: 'suspended' }), { params: { id: ADMIN_ID } });
+    const res = await PATCH(patchReq({ action: 'set_status', status: 'suspended' }), { params: Promise.resolve({ id: ADMIN_ID }) });
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toMatch(/lui-même/);
@@ -239,7 +239,7 @@ describe('DELETE /api/admin/users/[id]', () => {
   it('400 si admin tente de se supprimer lui-même', async () => {
     const db = makeDb();
     mockGuard.mockResolvedValue(makeAdminGuardOk('admin', db, ADMIN_ID));
-    const res = await DELETE(deleteReq(ADMIN_ID), { params: { id: ADMIN_ID } });
+    const res = await DELETE(deleteReq(ADMIN_ID), { params: Promise.resolve({ id: ADMIN_ID }) });
     expect(res.status).toBe(400);
   });
 

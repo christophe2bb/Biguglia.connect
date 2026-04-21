@@ -20,7 +20,7 @@ import { logAdminAction } from '@/lib/admin/action-logger';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -49,6 +49,8 @@ type PatchBody = z.infer<typeof PatchSchema>;
 // ── PATCH /api/admin/users/[id] ───────────────────────────────────────────────
 
 export async function PATCH(req: Request, { params }: RouteParams): Promise<Response> {
+  const { id } = await params;
+
   // CSRF — exige Origin same-host si cookie-only
   const csrfError = assertCsrfSafe(req);
   if (csrfError) return csrfError;
@@ -58,7 +60,7 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
   if (!guard.ok) return guard.response;
 
   const { actor, adminClient } = guard;
-  const targetId = params.id;
+  const targetId = id;
 
   // Self-modification interdite
   if (targetId === actor.id) {
@@ -164,6 +166,8 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
 // ── DELETE /api/admin/users/[id] ─────────────────────────────────────────────
 
 export async function DELETE(req: Request, { params }: RouteParams): Promise<Response> {
+  const { id } = await params;
+
   const csrfError = assertCsrfSafe(req);
   if (csrfError) return csrfError;
 
@@ -180,7 +184,7 @@ export async function DELETE(req: Request, { params }: RouteParams): Promise<Res
     );
   }
 
-  const targetId = params.id;
+  const targetId = id;
 
   if (targetId === actor.id) {
     return NextResponse.json(

@@ -214,7 +214,7 @@ describe('[Perm-2] Routes admin inaccessibles aux utilisateurs standards → 403
       makeNextReq(`https://app.test/api/admin/confiance/${TARGET_ID}`, 'PATCH', {
         action: 'moderate_review', moderation_status: 'hidden',
       }) as Request,
-      { params: { id: TARGET_ID } },
+      { params: Promise.resolve({ id: TARGET_ID }) },
     );
     expect(res.status).toBe(403);
   });
@@ -224,7 +224,7 @@ describe('[Perm-2] Routes admin inaccessibles aux utilisateurs standards → 403
       makeNextReq(`https://app.test/api/admin/moderation/${QUEUE_ID}`, 'PATCH', {
         decision: 'accepter',
       }) as Request,
-      { params: { id: QUEUE_ID } },
+      { params: Promise.resolve({ id: QUEUE_ID }) },
     );
     expect(res.status).toBe(403);
   });
@@ -342,7 +342,7 @@ describe('[Perm-4] Injection de champs serveur — reviewed_by, moderateur fixé
         reviewed_by: 'uuid-hacker-injection', // tentative d'injection
         status: 'publie',                      // tentative d'injection
       }) as Request,
-      { params: { id: QUEUE_ID } },
+      { params: Promise.resolve({ id: QUEUE_ID }) },
     );
 
     if (updateSpy.mock.calls.length > 0) {
@@ -367,7 +367,7 @@ describe('[Perm-4] Injection de champs serveur — reviewed_by, moderateur fixé
         action: 'moderate_review',
         moderation_status: 'hidden',
       }) as Request,
-      { params: { id: TARGET_ID } },
+      { params: Promise.resolve({ id: TARGET_ID }) },
     );
 
     if (res.status === 200) {
@@ -389,7 +389,7 @@ describe('[Perm-4] Injection de champs serveur — reviewed_by, moderateur fixé
         decision: 'accepter',
         moderator_note: 'A'.repeat(1001), // > 1000 chars
       }) as Request,
-      { params: { id: QUEUE_ID } },
+      { params: Promise.resolve({ id: QUEUE_ID }) },
     );
     expect(res.status).toBe(400);
   });
@@ -419,7 +419,7 @@ describe('[Perm-5] Protection CSRF — mutations bloquées sans header Origin', 
       makeReqNoOrigin(`https://app.test/api/admin/confiance/${TARGET_ID}`, 'PATCH', {
         action: 'moderate_review', moderation_status: 'hidden',
       }),
-      { params: { id: TARGET_ID } },
+      { params: Promise.resolve({ id: TARGET_ID }) },
     );
     expect([403, 401]).toContain(res.status);
   });
@@ -432,7 +432,7 @@ describe('[Perm-5] Protection CSRF — mutations bloquées sans header Origin', 
       makeReqNoOrigin(`https://app.test/api/admin/moderation/${QUEUE_ID}`, 'PATCH', {
         decision: 'accepter',
       }),
-      { params: { id: QUEUE_ID } },
+      { params: Promise.resolve({ id: QUEUE_ID }) },
     );
     expect([403, 401]).toContain(res.status);
   });
@@ -445,7 +445,7 @@ describe('[Perm-5] Protection CSRF — mutations bloquées sans header Origin', 
       makeReqNoOrigin(`https://app.test/api/admin/moderation/${QUEUE_ID}/decision`, 'PATCH', {
         decision: 'accepter',
       }),
-      { params: { id: QUEUE_ID } },
+      { params: Promise.resolve({ id: QUEUE_ID }) },
     );
     expect([403, 401]).toContain(res.status);
   });
@@ -490,7 +490,7 @@ describe('[Perm-6] Validation Zod — entrées malformées ou malveillantes', ()
       makeNextReq(`https://app.test/api/admin/confiance/${TARGET_ID}`, 'PATCH', {
         action: 'supprimer_tous_les_comptes', // action inconnue
       }) as Request,
-      { params: { id: TARGET_ID } },
+      { params: Promise.resolve({ id: TARGET_ID }) },
     );
     expect(res.status).toBe(400);
   });
@@ -503,7 +503,7 @@ describe('[Perm-6] Validation Zod — entrées malformées ou malveillantes', ()
       makeNextReq(`https://app.test/api/admin/moderation/${QUEUE_ID}`, 'PATCH', {
         decision: 'approve_and_delete_db', // valeur arbitraire
       }) as Request,
-      { params: { id: QUEUE_ID } },
+      { params: Promise.resolve({ id: QUEUE_ID }) },
     );
     expect(res.status).toBe(400);
   });
@@ -519,7 +519,7 @@ describe('[Perm-6] Validation Zod — entrées malformées ou malveillantes', ()
       makeNextReq(`https://app.test/api/admin/moderation/${QUEUE_ID}/decision`, 'PATCH', {
         decision: 'refuser', // reason manquante
       }) as Request,
-      { params: { id: QUEUE_ID } },
+      { params: Promise.resolve({ id: QUEUE_ID }) },
     );
     expect(res.status).toBe(400);
   });
@@ -533,7 +533,7 @@ describe('[Perm-6] Validation Zod — entrées malformées ou malveillantes', ()
         action: 'moderate_review',
         moderation_status: 'visible_to_all_bypass_rls', // valeur injectée
       }) as Request,
-      { params: { id: TARGET_ID } },
+      { params: Promise.resolve({ id: TARGET_ID }) },
     );
     expect(res.status).toBe(400);
   });
@@ -598,7 +598,7 @@ describe('[Perm-7] Modérateur vs Admin — droits différenciés', () => {
       makeNextReq(`https://app.test/api/admin/moderation/${QUEUE_ID}/decision`, 'PATCH', {
         decision: 'accepter',
       }) as Request,
-      { params: { id: QUEUE_ID } },
+      { params: Promise.resolve({ id: QUEUE_ID }) },
     );
     expect(res.status).toBe(200);
   });

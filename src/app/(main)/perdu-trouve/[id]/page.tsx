@@ -24,7 +24,7 @@ import type { LFItem } from './_types';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 
-type Props = { params: { id: string } };
+type Props = { params: Promise<{ id: string }> };
 
 // ─── Fetch data ───────────────────────────────────────────────────────────────
 async function fetchLFItem(id: string): Promise<LFItem | null> {
@@ -61,7 +61,8 @@ async function fetchLFItem(id: string): Promise<LFItem | null> {
 
 // ─── Metadata ────────────────────────────────────────────────────────────────
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const item = await fetchLFItem(params.id);
+  const { id } = await params;
+  const item = await fetchLFItem(id);
   if (!item) return { title: 'Annonce introuvable — Biguglia Connect' };
 
   const typeLabel = item.type === 'perdu' ? 'Perdu' : 'Trouvé';
@@ -76,11 +77,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: { canonical: `${SITE_URL}/perdu-trouve/${params.id}` },
+    alternates: { canonical: `${SITE_URL}/perdu-trouve/${id}` },
     openGraph: {
       title,
       description,
-      url: `${SITE_URL}/perdu-trouve/${params.id}`,
+      url: `${SITE_URL}/perdu-trouve/${id}`,
       images: [{ url: ogImage, width: 1200, height: 630, alt: item.title }],
     },
     twitter: { card: 'summary_large_image', title, description },
@@ -89,7 +90,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default async function PerduTrouveDetailPage({ params }: Props) {
-  const item = await fetchLFItem(params.id);
+  const { id } = await params;
+  const item = await fetchLFItem(id);
   if (!item) notFound();
 
   return (

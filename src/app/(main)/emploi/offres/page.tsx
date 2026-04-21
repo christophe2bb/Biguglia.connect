@@ -35,7 +35,7 @@ import type { JobOfferFilters } from '@/types/jobs';
 import { JsonLd, breadcrumbSchema, faqSchema, itemListSchema, jobPostingSchema } from '@/components/seo/JsonLd';
 
 interface PageProps {
-  searchParams: {
+  searchParams: Promise<{
     query?: string;
     page?: string;
     sortBy?: string;
@@ -45,24 +45,25 @@ interface PageProps {
     isUrgent?: string;
     providesHousing?: string;
     salaryMin?: string;
-  };
+  }>;
 }
 
 
 export default async function OffresEmploiPage({ searchParams }: PageProps) {
+  const sp = await searchParams;
   /* ── Filtres depuis l'URL ─────────────────────────────────────── */
-  const currentPage = searchParams.page ? parseInt(searchParams.page) : 1;
+  const currentPage = sp.page ? parseInt(sp.page) : 1;
 
   const filters: Partial<JobOfferFilters> = {
-    query: searchParams.query,
+    query: sp.query,
     page: currentPage,
-    sortBy: searchParams.sortBy as JobOfferFilters['sortBy'],
-    categories: searchParams.categories?.split(',') as JobOfferFilters['categories'],
-    contractTypes: searchParams.contractTypes?.split(',') as JobOfferFilters['contractTypes'],
-    sectorId: searchParams.sectorId,
-    isUrgent: searchParams.isUrgent === 'true' ? true : undefined,
-    providesHousing: searchParams.providesHousing === 'true' ? true : undefined,
-    salaryMin: searchParams.salaryMin ? parseInt(searchParams.salaryMin) : undefined,
+    sortBy: sp.sortBy as JobOfferFilters['sortBy'],
+    categories: sp.categories?.split(',') as JobOfferFilters['categories'],
+    contractTypes: sp.contractTypes?.split(',') as JobOfferFilters['contractTypes'],
+    sectorId: sp.sectorId,
+    isUrgent: sp.isUrgent === 'true' ? true : undefined,
+    providesHousing: sp.providesHousing === 'true' ? true : undefined,
+    salaryMin: sp.salaryMin ? parseInt(sp.salaryMin) : undefined,
   };
 
   /* ── Fetch ────────────────────────────────────────────────────── */
@@ -80,9 +81,9 @@ export default async function OffresEmploiPage({ searchParams }: PageProps) {
 
   /* ── Pagination helper ────────────────────────────────────────── */
   const pageUrl = (p: number) => {
-    const sp = new URLSearchParams(searchParams as Record<string, string>);
-    sp.set('page', String(p));
-    return `/emploi/offres?${sp.toString()}`;
+    const urlSp = new URLSearchParams(sp as Record<string, string>);
+    urlSp.set('page', String(p));
+    return `/emploi/offres?${urlSp.toString()}`;
   };
 
   const breadcrumb = breadcrumbSchema([
@@ -232,7 +233,7 @@ export default async function OffresEmploiPage({ searchParams }: PageProps) {
               <div className="flex items-center gap-3">
                 <SortSelectClient
                   currentSort={filters.sortBy || 'date_desc'}
-                  currentParams={searchParams as Record<string, string>}
+                  currentParams={sp as Record<string, string>}
                 />
               </div>
             </div>

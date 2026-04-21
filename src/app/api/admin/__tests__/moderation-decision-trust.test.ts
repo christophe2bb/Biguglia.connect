@@ -78,7 +78,7 @@ const QUEUE_ID   = 'uuid-queue-dddd';
 const CONTENT_ID = 'uuid-content-eeee';
 const AUTHOR_ID  = 'uuid-author-ffff';
 
-function makeParams(id = QUEUE_ID) { return { params: { id } }; }
+function makeParams(id = QUEUE_ID) { return { params: Promise.resolve({ id }) }; }
 
 function decisionReq(body: unknown) {
   return makeReq(`https://app.test/api/admin/moderation/${QUEUE_ID}/decision`, 'PATCH', body);

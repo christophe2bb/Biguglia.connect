@@ -189,7 +189,7 @@ describe('PATCH /api/admin/confiance/[id]', () => {
     mockCsrf.mockReset();
   });
 
-  const params = { params: { id: REVIEW_ID } };
+  const params = { params: Promise.resolve({ id: REVIEW_ID }) };
 
   it('retourne 401 si guard renvoie 401', async () => {
     mockCsrf.mockReturnValueOnce(null);
@@ -263,7 +263,7 @@ describe('PATCH /api/admin/confiance/[id]', () => {
         action: 'award_badge',
         badge_code: 'artisan_verifie',
       }),
-      { params: { id: PROFILE_ID } },
+      { params: Promise.resolve({ id: PROFILE_ID }) },
     );
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -287,7 +287,7 @@ describe('PATCH /api/admin/confiance/[id]', () => {
         action: 'award_badge',
         badge_code: 'artisan_verifie',
       }),
-      { params: { id: PROFILE_ID } },
+      { params: Promise.resolve({ id: PROFILE_ID }) },
     );
     expect(res.status).toBe(404);
   });
@@ -322,7 +322,7 @@ describe('PATCH /api/admin/moderation/[id] (décision rapide)', () => {
     mockCsrf.mockReset();
   });
 
-  const params = { params: { id: QUEUE_ID } };
+  const params = { params: Promise.resolve({ id: QUEUE_ID }) };
 
   it('retourne 401 si guard renvoie 401', async () => {
     mockCsrf.mockReturnValueOnce(null);
@@ -423,7 +423,7 @@ describe('PATCH /api/admin/moderation/[id]/decision', () => {
     mockCsrf.mockReset();
   });
 
-  const params = { params: { id: QUEUE_ID } };
+  const params = { params: Promise.resolve({ id: QUEUE_ID }) };
   const queueItemFixture = {
     id: QUEUE_ID, content_type: 'listing', content_id: 'listing-001', status: 'en_attente_validation',
   };

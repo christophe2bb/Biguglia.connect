@@ -10,7 +10,7 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { getUserFromRequest, assertCsrfSafe } from '@/lib/supabase/auth-helper';
 
 interface RouteParams {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 // ── Types Supabase locaux ─────────────────────────────────────────────────────
@@ -91,6 +91,7 @@ function zodError(err: z.ZodError) {
 
 // ── GET /api/emploi/demandes/[slug] ──────────────────────────────────────────
 export async function GET(req: Request, { params }: RouteParams) {
+  const { slug } = await params;
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
@@ -98,7 +99,7 @@ export async function GET(req: Request, { params }: RouteParams) {
   const { data: demand, error } = await admin
     .from('job_demands')
     .select('*')
-    .eq('slug', params.slug)
+    .eq('slug', slug)
     .single();
 
   if (error || !demand) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 });
@@ -111,6 +112,8 @@ export async function GET(req: Request, { params }: RouteParams) {
 
 // ── DELETE /api/emploi/demandes/[slug] ───────────────────────────────────────
 export async function DELETE(req: Request, { params }: RouteParams) {
+  const { slug } = await params;
+
   const csrfError = assertCsrfSafe(req);
   if (csrfError) return csrfError;
 
@@ -121,7 +124,7 @@ export async function DELETE(req: Request, { params }: RouteParams) {
   const { data: demand, error: fetchErr } = await admin
     .from('job_demands')
     .select('id, user_id')
-    .eq('slug', params.slug)
+    .eq('slug', slug)
     .single();
 
   if (fetchErr || !demand) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 });
@@ -140,6 +143,8 @@ export async function DELETE(req: Request, { params }: RouteParams) {
 
 // ── PATCH /api/emploi/demandes/[slug] ────────────────────────────────────────
 export async function PATCH(req: Request, { params }: RouteParams) {
+  const { slug } = await params;
+
   const csrfError = assertCsrfSafe(req);
   if (csrfError) return csrfError;
 
@@ -167,7 +172,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
   const { data: demand, error: fetchErr } = await admin
     .from('job_demands')
     .select('id, user_id')
-    .eq('slug', params.slug)
+    .eq('slug', slug)
     .single();
 
   if (fetchErr || !demand) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 });

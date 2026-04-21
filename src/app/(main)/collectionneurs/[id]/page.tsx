@@ -8,15 +8,16 @@ import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import CollectionItemDetailClient from './CollectionItemDetailClient';
 
-type Props = { params: { id: string } };
+type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
   try {
     const supabase = await createClient();
     const { data } = await supabase
       .from('collection_items')
       .select('title, description, category:collection_categories(name)')
-      .eq('id', params.id)
+      .eq('id', id)
       .single();
 
     if (!data) return { title: 'Objet introuvable — Biguglia Connect' };

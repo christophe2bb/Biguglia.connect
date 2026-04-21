@@ -1,5 +1,6 @@
+'use client';
 // ─────────────────────────────────────────────────────────────────────────────
-// GlobalSearchWrapper — Enveloppe pour GlobalSearch dans le contexte SSR
+// GlobalSearchWrapper — Client Component (Next.js 15: ssr:false requires 'use client')
 // ─────────────────────────────────────────────────────────────────────────────
 // Ce wrapper est utilisé dans la home page (Server Component).
 // GlobalSearch nécessite 'use client' (hooks, keyboard events).

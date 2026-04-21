@@ -34,7 +34,7 @@ import { JsonLd, breadcrumbSchema, eventSchema } from '@/components/seo/JsonLd';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 
-type Props = { params: { id: string } };
+type Props = { params: Promise<{ id: string }> };
 
 // ─── Fetch data ───────────────────────────────────────────────────────────────
 async function fetchEvent(id: string): Promise<EventDetail | null> {
@@ -73,7 +73,8 @@ async function fetchEvent(id: string): Promise<EventDetail | null> {
 
 // ─── Metadata ────────────────────────────────────────────────────────────────
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const event = await fetchEvent(params.id);
+  const { id } = await params;
+  const event = await fetchEvent(id);
   if (!event) return { title: 'Événement introuvable — Biguglia Connect' };
 
   const title = `${event.title} | Biguglia Connect`;
@@ -88,11 +89,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: { canonical: `${SITE_URL}/evenements/${params.id}` },
+    alternates: { canonical: `${SITE_URL}/evenements/${id}` },
     openGraph: {
       title,
       description,
-      url: `${SITE_URL}/evenements/${params.id}`,
+      url: `${SITE_URL}/evenements/${id}`,
       images: [{ url: ogImage, width: 1200, height: 630, alt: event.title }],
       type: 'website',
     },
@@ -102,7 +103,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default async function EventDetailPage({ params }: Props) {
-  const event = await fetchEvent(params.id);
+  const { id } = await params;
+  const event = await fetchEvent(id);
   if (!event) notFound();
 
   const cat = EVENT_CATEGORY_CONFIG[event.category as keyof typeof EVENT_CATEGORY_CONFIG]
@@ -128,13 +130,13 @@ export default async function EventDetailPage({ params }: Props) {
   const breadcrumb = breadcrumbSchema([
     { name: 'Accueil',               url: '/' },
     { name: 'Événements Biguglia',   url: '/evenements' },
-    { name: event.title,             url: `/evenements/${params.id}` },
+    { name: event.title,             url: `/evenements/${id}` },
   ]);
 
   const eventJsonLd = eventSchema({
     name:        event.title,
     description: event.description?.slice(0, 300) ?? `Événement à ${event.location ?? 'Biguglia'}`,
-    url:         `/evenements/${params.id}`,
+    url:         `/evenements/${id}`,
     startDate:   event.event_date + (event.start_time ? `T${event.start_time}` : 'T00:00:00'),
     ...(event.end_time && { endDate: event.event_date + `T${event.end_time}` }),
     location:    event.location ?? 'Biguglia',

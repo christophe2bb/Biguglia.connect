@@ -15,7 +15,7 @@ import { JsonLd, breadcrumbSchema, articleSchema } from '@/components/seo/JsonLd
 
 const _SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 
-type Props = { params: { id: string } };
+type Props = { params: Promise<{ id: string }> };
 
 // ─── Server fetch helper ────────────────────────────────────────────────────
 async function fetchTopicData(id: string): Promise<InitialTopicData | null> {
@@ -124,13 +124,14 @@ async function fetchTopicData(id: string): Promise<InitialTopicData | null> {
 
 // ─── generateMetadata ───────────────────────────────────────────────────────
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
   try {
     const supabase = await createClient();
 
     const { data: topicV2 } = await supabase
       .from('forum_topics')
       .select('title, content')
-      .eq('id', params.id)
+      .eq('id', id)
       .single();
 
     if (topicV2) {
@@ -144,7 +145,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { data: postV1 } = await supabase
       .from('forum_posts')
       .select('title, content')
-      .eq('id', params.id)
+      .eq('id', id)
       .single();
 
     if (postV1) {
@@ -163,7 +164,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 export default async function ForumTopicPage({ params }: Props) {
-  const initialData = await fetchTopicData(params.id);
+  const { id } = await params;
+  const initialData = await fetchTopicData(id);
 
   if (!initialData) notFound();
 
@@ -178,13 +180,13 @@ export default async function ForumTopicPage({ params }: Props) {
   const breadcrumb = breadcrumbSchema([
     { name: 'Accueil',         url: '/' },
     { name: 'Forum Biguglia', url: '/forum' },
-    { name: topicTitle,       url: `/forum/${params.id}` },
+    { name: topicTitle,       url: `/forum/${id}` },
   ]);
 
   const articleLd = articleSchema({
     headline:     topicTitle,
     description:  topicContent.slice(0, 200) || `Discussion sur le forum de Biguglia Connect.`,
-    url:          `/forum/${params.id}`,
+    url:          `/forum/${id}`,
     datePublished: topicDate,
     author:       topicAuthor,
     articleBody:  topicContent,

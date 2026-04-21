@@ -76,12 +76,13 @@ function _ConfirmationPageInner() {
 import type { Metadata } from 'next';
 export const metadata: Metadata = { title: 'Confirmation — Biguglia Connect' };
 
-export default function ConfirmationPage({
+export default async function ConfirmationPage({
   searchParams,
 }: {
-  searchParams: { artisan?: string };
+  searchParams: Promise<{ artisan?: string }>;
 }) {
-  const isArtisan = searchParams?.artisan === '1';
+  const params = await searchParams;
+  const isArtisan = params?.artisan === '1';
   return (
     <div className="min-h-screen gradient-hero flex items-center justify-center p-4">
       <div className="w-full max-w-md">

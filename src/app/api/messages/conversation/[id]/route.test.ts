@@ -331,7 +331,7 @@ function makeDeleteReq(msgId: string, convId = CONV_ID): NextRequest {
   );
 }
 
-const routeParams = (convId = CONV_ID) => ({ params: { id: convId } });
+const routeParams = (convId = CONV_ID) => ({ params: Promise.resolve({ id: convId }) });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

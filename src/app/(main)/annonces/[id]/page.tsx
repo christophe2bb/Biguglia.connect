@@ -44,7 +44,7 @@ import { JsonLd, breadcrumbSchema, productOfferSchema } from '@/components/seo/J
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 
-type Props = { params: { id: string } };
+type Props = { params: Promise<{ id: string }> };
 
 // ─── Fetch data (réutilisé par generateMetadata + page) ──────────────────────
 async function fetchListing(id: string) {
@@ -110,8 +110,9 @@ async function fetchListing(id: string) {
 
 // ─── Metadata ────────────────────────────────────────────────────────────────
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
   try {
-    const result = await fetchListing(params.id);
+    const result = await fetchListing(id);
     if (!result) return { title: 'Annonce introuvable — Biguglia Connect' };
 
     const { listing } = result;
@@ -128,11 +129,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
       title,
       description,
-      alternates: { canonical: `${SITE_URL}/annonces/${params.id}` },
+      alternates: { canonical: `${SITE_URL}/annonces/${id}` },
       openGraph: {
         title,
         description,
-        url: `${SITE_URL}/annonces/${params.id}`,
+        url: `${SITE_URL}/annonces/${id}`,
         images: [{ url: ogImage, width: 1200, height: 630, alt: listing.title }],
         type: 'website',
       },
@@ -145,7 +146,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default async function AnnonceDetailPage({ params }: Props) {
-  const result = await fetchListing(params.id);
+  const { id } = await params;
+  const result = await fetchListing(id);
   if (!result) return notFound();
 
   const { listing, similar } = result;
@@ -160,14 +162,14 @@ export default async function AnnonceDetailPage({ params }: Props) {
   const breadcrumb = breadcrumbSchema([
     { name: 'Accueil',             url: '/' },
     { name: 'Petites annonces',    url: '/annonces' },
-    { name: listing.title,         url: `/annonces/${params.id}` },
+    { name: listing.title,         url: `/annonces/${id}` },
   ]);
 
   const rawPhotosForLd = listing.photos as Array<{ url: string }> | undefined;
   const productLd = productOfferSchema({
     name:        listing.title,
     description: (listing.description ?? listing.title).slice(0, 300),
-    url:         `/annonces/${params.id}`,
+    url:         `/annonces/${id}`,
     price:       typeof listing.price === 'number' ? listing.price : null,
     image:       rawPhotosForLd?.[0]?.url,
     seller:      (listing.user as { full_name?: string } | undefined)?.full_name ?? undefined,

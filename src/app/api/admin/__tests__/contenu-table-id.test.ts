@@ -56,7 +56,7 @@ const mockCsrf  = assertCsrfSafe as MockedFunction<typeof assertCsrfSafe>;
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeParams(table: string, id = TARGET_ID) {
-  return { params: { table, id } };
+  return { params: Promise.resolve({ table, id }) };
 }
 
 function patchReq(body: unknown, table = 'listings') {

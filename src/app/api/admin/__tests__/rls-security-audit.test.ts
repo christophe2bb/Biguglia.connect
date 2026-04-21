@@ -166,7 +166,7 @@ describe('A. Isolation profil — IDOR protection', () => {
 
     const res = await patchUser(
       patchReq(`https://app.test/api/admin/users/${TARGET_UUID}`, { action: 'set_status', status: 'suspended' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     // Doit être refusé — pas admin
@@ -182,7 +182,7 @@ describe('A. Isolation profil — IDOR protection', () => {
 
     const res = await patchUser(
       patchReq(`https://app.test/api/admin/users/${TARGET_UUID}`, { action: 'set_status', status: 'active' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(401);
@@ -197,7 +197,7 @@ describe('A. Isolation profil — IDOR protection', () => {
 
     const res = await patchUser(
       patchReq(`https://app.test/api/admin/users/${ADMIN_UUID}`, { action: 'set_status', status: 'suspended' }),
-      { params: { id: ADMIN_UUID } },
+      { params: Promise.resolve({ id: ADMIN_UUID }) },
     );
 
     expect(res.status).toBe(400);
@@ -214,7 +214,7 @@ describe('A. Isolation profil — IDOR protection', () => {
 
     const res = await deleteUser(
       deleteReq(`https://app.test/api/admin/users/${ADMIN_UUID}`),
-      { params: { id: ADMIN_UUID } },
+      { params: Promise.resolve({ id: ADMIN_UUID }) },
     );
 
     expect(res.status).toBe(400);
@@ -243,7 +243,7 @@ describe('B. Escalade de privilèges — séparation admin / moderator', () => {
 
     const res = await patchUser(
       patchReq(`https://app.test/api/admin/users/${TARGET_UUID}`, { action: 'set_role', role: 'admin' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(403);
@@ -260,7 +260,7 @@ describe('B. Escalade de privilèges — séparation admin / moderator', () => {
 
     const res = await deleteUser(
       deleteReq(`https://app.test/api/admin/users/${TARGET_UUID}`),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(403);
@@ -285,7 +285,7 @@ describe('B. Escalade de privilèges — séparation admin / moderator', () => {
     const res = await patchReport(
       patchReq(`https://app.test/api/admin/reports/${TARGET_UUID}`,
                { action: 'ban_user', targetId: TARGET_UUID }),  // UUID valide pour passer Zod
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(403);
@@ -305,7 +305,7 @@ describe('B. Escalade de privilèges — séparation admin / moderator', () => {
     const res = await patchUser(
       patchReq(`https://app.test/api/admin/users/${OWNER_ID}`,
                { action: 'set_role', role: 'admin' }),
-      { params: { id: OWNER_ID } },
+      { params: Promise.resolve({ id: OWNER_ID }) },
     );
 
     expect(res.status).toBe(403);
@@ -331,7 +331,7 @@ describe('B. Escalade de privilèges — séparation admin / moderator', () => {
 
     const res = await patchArtisan(
       patchReq(`https://app.test/api/admin/artisans/${TARGET_UUID}`, { action: 'approve' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(200);
@@ -355,7 +355,7 @@ describe('B. Escalade de privilèges — séparation admin / moderator', () => {
 
     const res = await patchUser(
       patchReq(`https://app.test/api/admin/users/${TARGET_UUID}`, { action: 'set_status', status: 'active' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(200);
@@ -573,7 +573,7 @@ describe('D. Données sensibles admin — guard systématique', () => {
     mockGuard.mockResolvedValue(makeAdminGuardFail(401));
     const res = await patchReport(
       patchReq(`https://app.test/api/admin/reports/${TARGET_UUID}`, { action: 'update_status', status: 'resolved' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
     expect(res.status).toBe(401);
   });
@@ -586,7 +586,7 @@ describe('D. Données sensibles admin — guard systématique', () => {
     mockGuard.mockResolvedValue(makeAdminGuardFail(403));
     const res = await patchUser(
       patchReq(`https://app.test/api/admin/users/${TARGET_UUID}`, { action: 'set_status', status: 'active' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
     expect(res.status).toBe(403);
   });
@@ -599,7 +599,7 @@ describe('D. Données sensibles admin — guard systématique', () => {
     mockGuard.mockResolvedValue(makeAdminGuardFail(403));
     const res = await deleteUser(
       deleteReq(`https://app.test/api/admin/users/${TARGET_UUID}`),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
     expect(res.status).toBe(403);
   });
@@ -612,7 +612,7 @@ describe('D. Données sensibles admin — guard systématique', () => {
     mockGuard.mockResolvedValue(makeAdminGuardFail(403));
     const res = await patchArtisan(
       patchReq(`https://app.test/api/admin/artisans/${TARGET_UUID}`, { action: 'approve' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
     expect(res.status).toBe(403);
   });
@@ -626,7 +626,7 @@ describe('D. Données sensibles admin — guard systématique', () => {
     const res = await patchConfiance(
       patchReq(`https://app.test/api/admin/confiance/${TARGET_UUID}`,
                { action: 'moderate_review', moderation_status: 'hidden' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
     expect(res.status).toBe(401);
   });
@@ -730,7 +730,7 @@ describe('F. CSRF — protection des mutations sensibles', () => {
         headers: { 'Content-Type': 'application/json' }, // PAS d'Origin
         body: JSON.stringify({ action: 'set_status', status: 'suspended' }),
       }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(403);
@@ -751,7 +751,7 @@ describe('F. CSRF — protection des mutations sensibles', () => {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' }, // PAS d'Origin
       }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(403);
@@ -773,7 +773,7 @@ describe('F. CSRF — protection des mutations sensibles', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'ban_user', targetId: TARGET_UUID }),
       }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(403);
@@ -795,7 +795,7 @@ describe('F. CSRF — protection des mutations sensibles', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'moderate_review', moderation_status: 'hidden' }),
       }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(403);
@@ -822,7 +822,7 @@ describe('G. Validation des entrées — protection contre les injections', () =
 
     const res = await patchUser(
       patchReq(`https://app.test/api/admin/users/${TARGET_UUID}`, { action: 'hack_admin' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(400);
@@ -840,7 +840,7 @@ describe('G. Validation des entrées — protection contre les injections', () =
     const res = await patchUser(
       patchReq(`https://app.test/api/admin/users/${TARGET_UUID}`,
                { action: 'set_status', status: 'zombie' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(400);
@@ -859,7 +859,7 @@ describe('G. Validation des entrées — protection contre les injections', () =
         headers: { 'Content-Type': 'application/json', Origin: 'https://app.test' },
         body: '{not-valid-json',
       }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(400);
@@ -877,7 +877,7 @@ describe('G. Validation des entrées — protection contre les injections', () =
     const res = await patchReport(
       patchReq(`https://app.test/api/admin/reports/${TARGET_UUID}`,
                { action: 'ban_user', targetId: '../../etc/passwd' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(400);
@@ -899,7 +899,7 @@ describe('G. Validation des entrées — protection contre les injections', () =
         is_admin: true,          // champ non attendu
         role: 'admin',           // champ non attendu (devrait être ignoré/rejeté)
       }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     // Zod .strict() doit rejeter ce body avec des champs non définis dans le schéma
@@ -944,7 +944,7 @@ describe('G. Validation des entrées — protection contre les injections', () =
     const res = await patchConfiance(
       patchReq(`https://app.test/api/admin/confiance/${TARGET_UUID}`,
                { action: 'award_badge', badge_code: '' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(400);
@@ -960,7 +960,7 @@ describe('G. Validation des entrées — protection contre les injections', () =
     const res = await patchConfiance(
       patchReq(`https://app.test/api/admin/confiance/${TARGET_UUID}`,
                { action: 'moderate_review', moderation_status: 'approved' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(400);
@@ -992,7 +992,7 @@ describe('H. Admin confiance — modération avis et attribution badge', () => {
     const res = await patchConfiance(
       patchReq(`https://app.test/api/admin/confiance/${TARGET_UUID}`,
                { action: 'moderate_review', moderation_status: 'visible' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(200);
@@ -1016,7 +1016,7 @@ describe('H. Admin confiance — modération avis et attribution badge', () => {
     const res = await patchConfiance(
       patchReq(`https://app.test/api/admin/confiance/${TARGET_UUID}`,
                { action: 'moderate_review', moderation_status: 'hidden' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(200);
@@ -1039,7 +1039,7 @@ describe('H. Admin confiance — modération avis et attribution badge', () => {
     const res = await patchConfiance(
       patchReq(`https://app.test/api/admin/confiance/${TARGET_UUID}`,
                { action: 'moderate_review', moderation_status: 'deleted' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(200);
@@ -1062,7 +1062,7 @@ describe('H. Admin confiance — modération avis et attribution badge', () => {
     const res = await patchConfiance(
       patchReq(`https://app.test/api/admin/confiance/${TARGET_UUID}`,
                { action: 'moderate_review', moderation_status: 'hidden' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(500);
@@ -1082,7 +1082,7 @@ describe('H. Admin confiance — modération avis et attribution badge', () => {
     const res = await patchConfiance(
       patchReq(`https://app.test/api/admin/confiance/${TARGET_UUID}`,
                { action: 'moderate_review', moderation_status: 'visible' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(200);
@@ -1132,7 +1132,7 @@ describe('H. Admin confiance — modération avis et attribution badge', () => {
     const res = await patchConfiance(
       patchReq(`https://app.test/api/admin/confiance/${TARGET_UUID}`,
                { action: 'award_badge', badge_code: 'expert_artisan' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(200);
@@ -1174,7 +1174,7 @@ describe('H. Admin confiance — modération avis et attribution badge', () => {
     const res = await patchConfiance(
       patchReq(`https://app.test/api/admin/confiance/${TARGET_UUID}`,
                { action: 'award_badge', badge_code: 'expert_artisan' }),
-      { params: { id: TARGET_UUID } },
+      { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
     expect(res.status).toBe(404);
