@@ -92,7 +92,6 @@ Exécuter dans l'ordre dans Supabase → SQL Editor :
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
 NEXT_PUBLIC_SITE_URL=https://votre-domaine.vercel.app
-NEXT_PUBLIC_ADMIN_EMAIL=admin@votre-domaine.fr
 SUPABASE_SERVICE_ROLE_KEY=eyJ...   # server-side uniquement
 ```
 
