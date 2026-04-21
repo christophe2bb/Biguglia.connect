@@ -2,6 +2,15 @@
   "name": "biguglia-connect",
   "version": "0.1.0",
   "private": true,
+  "browserslist": [
+    "chrome >= 100",
+    "edge >= 100",
+    "firefox >= 100",
+    "safari >= 15.6",
+    "ios_saf >= 15.6",
+    "opera >= 86",
+    "samsung >= 17"
+  ],
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
