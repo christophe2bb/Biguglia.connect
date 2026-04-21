@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
 
   // ── Déclencher le reset via Supabase Auth Admin ───────────────────────────
   // On utilise l'URL du serveur (SSR) plutôt que window.location côté client
-  const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://biguglia-connect.vercel.app'}/auth/callback?next=/profil`;
+  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app'}/auth/callback?next=/profil`;
 
   const { error: resetError } = await adminDb.auth.admin.generateLink({
     type: 'recovery',
