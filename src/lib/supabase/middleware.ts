@@ -149,15 +149,6 @@ export async function updateSession(request: NextRequest) {
 
   const isAdminRoute = pathname === '/admin' || pathname.startsWith('/admin/');
 
-  if (isAdminRoute) {
-    const tokenPresent = hasValidToken(request);
-    console.log('[middleware] /admin →', {
-      pathname,
-      tokenPresent,
-      cookieNames: request.cookies.getAll().map(c => c.name),
-    });
-  }
-
   // Pour /admin : pas de redirection ici — laisser le layout serveur décider.
   // Il a accès aux cookies SSR et valide le JWT + rôle correctement.
   // Si on redirige ici sur un faux-négatif, l'utilisateur ne peut jamais entrer.

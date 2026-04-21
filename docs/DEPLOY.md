@@ -101,8 +101,18 @@ Dans **Database > Replication**, activer :
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ Requis | Clé service role (côté serveur uniquement, ne jamais exposer côté client) |
 | `UPSTASH_REDIS_REST_URL` | ⚠️ Fortement recommandé | URL REST Upstash (ex : `https://xxx.upstash.io`) — voir §5b ci-dessous |
 | `UPSTASH_REDIS_REST_TOKEN` | ⚠️ Fortement recommandé | Token Bearer Upstash — voir §5b ci-dessous |
+| `NEXT_PUBLIC_SENTRY_DSN` | ⚠️ Fortement recommandé | DSN public Sentry — monitoring client (erreurs JS, Core Web Vitals, Replay) |
+| `SENTRY_DSN` | ⚠️ Fortement recommandé | DSN Sentry côté serveur (mêmes valeur que `NEXT_PUBLIC_SENTRY_DSN`) |
+| `SENTRY_ORG` | ⚠️ Recommandé build | Slug de l'organisation Sentry (ex : `biguglia-connect`) — upload source maps |
+| `SENTRY_PROJECT` | ⚠️ Recommandé build | Slug du projet Sentry (ex : `biguglia-connect-nextjs`) — upload source maps |
+| `SENTRY_AUTH_TOKEN` | ⚠️ Recommandé build | Auth token Sentry pour l'upload des source maps au build (générer dans Sentry → Settings → Auth Tokens) |
 
 > ⚠️ Ne jamais committer `.env.local`. Toutes ces valeurs sont confidentielles.
+
+> 🚨 **Sans `NEXT_PUBLIC_SENTRY_DSN` / `SENTRY_DSN`**, Sentry est **silencieusement désactivé** :
+> aucune erreur de production ne remonte au tableau de bord.
+> Sans `SENTRY_AUTH_TOKEN`, les source maps ne sont pas uploadées :
+> les stack traces Sentry afficheront du code minifié illisible.
 
 > 🚨 **Sans `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`**, le rate-limiting
 > fonctionne en **mode mémoire locale** : chaque instance Vercel Edge possède ses propres
@@ -128,6 +138,11 @@ vercel env add NEXT_PUBLIC_SITE_URL
 vercel env add SUPABASE_SERVICE_ROLE_KEY
 vercel env add UPSTASH_REDIS_REST_URL
 vercel env add UPSTASH_REDIS_REST_TOKEN
+vercel env add NEXT_PUBLIC_SENTRY_DSN
+vercel env add SENTRY_DSN
+vercel env add SENTRY_ORG
+vercel env add SENTRY_PROJECT
+vercel env add SENTRY_AUTH_TOKEN
 vercel --prod
 ```
 
@@ -184,6 +199,42 @@ qu'elles sont bien définies en **Production** (pas seulement Preview) et redép
 
 ---
 
+## 🐛 Étape 5c : Configurer Sentry (monitoring erreurs production)
+
+> **Pourquoi c'est important :** Sans Sentry, les erreurs de production sont invisibles.
+> Le code gère gracieusement l'absence du DSN (pas de crash) mais **aucune alerte n'est
+> envoyée** en cas d'erreur côté client ou serveur. En production, Sentry est indispensable
+> pour détecter les régressions avant que les utilisateurs ne les signalent.
+
+### Créer un projet Sentry
+
+1. Aller sur **https://sentry.io** (compte gratuit disponible)
+2. Créer une organisation : `biguglia-connect`
+3. Créer un projet : **Next.js** → nom `biguglia-connect-nextjs`
+4. Récupérer le **DSN** dans **Settings → Projects → biguglia-connect-nextjs → Client Keys (DSN)**
+5. Générer un **Auth Token** dans **Settings → Auth Tokens → Create New Token**
+   - Cocher les scopes : `project:releases`, `org:read`
+
+### Variables à ajouter dans Vercel
+
+| Variable | Valeur | Scope |
+|---|---|---|
+| `NEXT_PUBLIC_SENTRY_DSN` | `https://xxx@xxx.ingest.sentry.io/xxx` | Production + Preview |
+| `SENTRY_DSN` | *(même valeur que `NEXT_PUBLIC_SENTRY_DSN`)* | Production + Preview |
+| `SENTRY_ORG` | `biguglia-connect` | Production + Preview + Build |
+| `SENTRY_PROJECT` | `biguglia-connect-nextjs` | Production + Preview + Build |
+| `SENTRY_AUTH_TOKEN` | `sntrys_xxx` | Production + Preview + Build |
+
+### Vérifier que Sentry est actif
+
+Après déploiement, visiter `/test-sentry` sur votre domaine (route de test).
+Les logs Vercel ne doivent **plus** contenir :
+```
+[Sentry] DSN absent — monitoring client désactivé.
+```
+
+---
+
 ## 👤 Étape 6 : Créer le compte administrateur
 
 1. S'inscrire sur `/inscription`
@@ -199,11 +250,21 @@ UPDATE profiles SET role = 'admin' WHERE email = 'votre@email.fr';
 
 ## ✅ Vérifications post-déploiement
 
+### Fonctionnel
 - [ ] `/annonces` — page liste charge sans erreur
+- [ ] `/annonces/[id]` — page détail affiche le squelette puis le contenu
 - [ ] `/perdu-trouve` — pas de bandeau "Migration nécessaire"
+- [ ] `/perdu-trouve/[id]` — page détail charge correctement
 - [ ] `/coups-de-main` — pas de bandeau "Migration nécessaire"
+- [ ] `/associations/[id]` — page détail charge correctement
 - [ ] `/connexion` — inscription + connexion fonctionnelle
+- [ ] `/auth/reset-password` — email de reset pointe vers le bon domaine (NEXT_PUBLIC_SITE_URL)
 - [ ] `/admin` — accessible avec le compte admin
 - [ ] Storage `photos` — upload depuis `/annonces/nouvelle` fonctionne
 - [ ] Messagerie — `/messages` charge et envoie un message
+
+### Infrastructure
 - [ ] Logs Vercel — absence du message `[rate-limit] Redis non configuré — fallback mémoire actif`
+- [ ] Logs Vercel — absence du message `[Sentry] DSN absent — monitoring client désactivé`
+- [ ] Sentry dashboard — les erreurs remontent bien (tester via `/test-sentry`)
+- [ ] CSP — aucune violation CSP dans la console navigateur
