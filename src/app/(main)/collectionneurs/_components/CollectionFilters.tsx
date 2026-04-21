@@ -150,7 +150,7 @@ export function AdvancedFilters({
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
           {/* Status */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Statut</label>
+            <p className="block text-xs font-semibold text-gray-500 mb-1">Statut</p>
             <select
               value={selectedStatus}
               onChange={e => setSelectedStatus(e.target.value as typeof selectedStatus)}
@@ -164,7 +164,7 @@ export function AdvancedFilters({
 
           {/* Condition */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">État</label>
+            <p className="block text-xs font-semibold text-gray-500 mb-1">État</p>
             <select
               value={selectedCond}
               onChange={e => setSelectedCond(e.target.value as ConditionLevel | 'all')}
@@ -179,7 +179,7 @@ export function AdvancedFilters({
 
           {/* Rarity */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Rareté</label>
+            <p className="block text-xs font-semibold text-gray-500 mb-1">Rareté</p>
             <select
               value={selectedRarity}
               onChange={e => setSelectedRarity(e.target.value as RarityLevel | 'all')}
@@ -194,7 +194,7 @@ export function AdvancedFilters({
 
           {/* Price min */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Prix min (€)</label>
+            <p className="block text-xs font-semibold text-gray-500 mb-1">Prix min (€)</p>
             <input
               type="number" placeholder="0" value={priceMin}
               onChange={e => setPriceMin(e.target.value)}
@@ -204,7 +204,7 @@ export function AdvancedFilters({
 
           {/* Price max */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Prix max (€)</label>
+            <p className="block text-xs font-semibold text-gray-500 mb-1">Prix max (€)</p>
             <input
               type="number" placeholder="∞" value={priceMax}
               onChange={e => setPriceMax(e.target.value)}
@@ -214,7 +214,7 @@ export function AdvancedFilters({
 
           {/* Sort */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Trier par</label>
+            <p className="block text-xs font-semibold text-gray-500 mb-1">Trier par</p>
             <select
               value={sortBy}
               onChange={e => setSortBy(e.target.value as typeof sortBy)}

@@ -232,7 +232,7 @@ export default function ModifierMaterielPage() {
 
           {/* État */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">État</label>
+            <p className="block text-sm font-medium text-gray-700 mb-2">État</p>
             <div className="grid grid-cols-2 gap-2">
               {(Object.entries(CONDITION_CONFIG) as [ConditionLabel, typeof CONDITION_CONFIG[ConditionLabel]][]).map(([key, cfg]) => (
                 <button
@@ -304,7 +304,7 @@ export default function ModifierMaterielPage() {
 
           {/* Mode de disponibilité */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Mode de disponibilité</label>
+            <p className="block text-sm font-medium text-gray-700 mb-2">Mode de disponibilité</p>
             <div className="space-y-2">
               {(Object.entries(AVAILABILITY_MODE_CONFIG) as [AvailabilityMode, typeof AVAILABILITY_MODE_CONFIG[AvailabilityMode]][]).map(([key, cfg]) => (
                 <button
@@ -326,7 +326,7 @@ export default function ModifierMaterielPage() {
           {/* Délai de préavis (si pas toujours dispo) */}
           {form.availability_mode !== 'toujours' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Délai de préavis minimum</label>
+              <p className="block text-sm font-medium text-gray-700 mb-2">Délai de préavis minimum</p>
               <div className="flex gap-2 flex-wrap">
                 {NOTICE_HOURS.map(h => (
                   <button
@@ -344,7 +344,7 @@ export default function ModifierMaterielPage() {
 
           {/* Mode de remise */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Mode de remise</label>
+            <p className="block text-sm font-medium text-gray-700 mb-2">Mode de remise</p>
             <div className="space-y-2">
               {(Object.entries(PICKUP_MODE_CONFIG) as [PickupMode, typeof PICKUP_MODE_CONFIG[PickupMode]][]).map(([key, cfg]) => (
                 <button
@@ -362,7 +362,7 @@ export default function ModifierMaterielPage() {
 
           {/* Durée conseillée */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Durée de prêt conseillée</label>
+            <p className="block text-sm font-medium text-gray-700 mb-2">Durée de prêt conseillée</p>
             <div className="flex gap-2 flex-wrap">
               {(Object.entries(LEND_DURATION_HINTS) as [LendDurationHint, { label: string }][]).map(([key, cfg]) => (
                 <button

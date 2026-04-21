@@ -136,7 +136,7 @@ export default function LostFoundCard({
       {/* ── Photo / header ── */}
       <div className="relative h-44 overflow-hidden">
         {item.photos && item.photos.length > 0 ? (
-          <div className="w-full h-full cursor-pointer" onClick={() => { setLightboxIdx(0); setLightboxOpen(true); }}>
+          <div className="w-full h-full cursor-pointer" role="button" tabIndex={0} onClick={() => { setLightboxIdx(0); setLightboxOpen(true); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightboxIdx(0); setLightboxOpen(true); } }}>
             <Image src={item.photos[0].url} alt={item.title} fill className="object-cover" />
             {allPhotos.length > 1 && (
               <div className="absolute bottom-2 right-10 bg-black/60 text-white text-xs font-bold px-2 py-0.5 rounded-full z-10">

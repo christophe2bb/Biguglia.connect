@@ -105,7 +105,7 @@ export default function HelpForm({
 
           {/* Titre */}
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1.5">2. Titre de l&apos;annonce *</label>
+            <p className="block text-sm font-bold text-gray-700 mb-1.5">2. Titre de l&apos;annonce *</p>
             <input type="text"
               placeholder={
                 form.help_type === 'demande'
@@ -128,7 +128,7 @@ export default function HelpForm({
 
           {/* Catégorie */}
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1.5">3. Catégorie *</label>
+            <p className="block text-sm font-bold text-gray-700 mb-1.5">3. Catégorie *</p>
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
               {CATEGORIES.map(cat => {
                 const Icon = cat.icon;
@@ -149,7 +149,7 @@ export default function HelpForm({
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1.5">4. Description détaillée *</label>
+            <p className="block text-sm font-bold text-gray-700 mb-1.5">4. Description détaillée *</p>
             <textarea placeholder="Décrivez votre demande ou offre en détail…" rows={4}
               value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
@@ -186,7 +186,7 @@ export default function HelpForm({
 
           {/* Urgence */}
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">5. Niveau d&apos;urgence</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">5. Niveau d&apos;urgence</p>
             <div className="grid grid-cols-2 gap-2">
               {(Object.entries(URGENCY_CONFIG) as [UrgencyLevel, typeof URGENCY_CONFIG[UrgencyLevel]][]).map(([key, conf]) => (
                 <button key={key} type="button" onClick={() => setForm(f => ({ ...f, urgency: key }))}
@@ -205,12 +205,12 @@ export default function HelpForm({
           {/* Date / heure */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">6. Date souhaitée</label>
+              <p className="block text-xs font-semibold text-gray-600 mb-1">6. Date souhaitée</p>
               <input type="date" value={form.help_date} onChange={e => setForm(f => ({ ...f, help_date: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Heure</label>
+              <p className="block text-xs font-semibold text-gray-600 mb-1">Heure</p>
               <input type="text" placeholder="Ex : 14h, matin…" value={form.help_time}
                 onChange={e => setForm(f => ({ ...f, help_time: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" />
@@ -219,10 +219,10 @@ export default function HelpForm({
 
           {/* Secteur */}
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-2">
+            <p className="block text-xs font-semibold text-gray-600 mb-2">
               Secteur <span className="text-red-500">*</span>
               <span className="text-gray-400 font-normal ml-1">— dans quel quartier ?</span>
-            </label>
+            </p>
             <SectorFilter
               value={form.sector_id || null}
               onChange={id => setForm(f => ({ ...f, sector_id: id || '' }))}
@@ -234,7 +234,7 @@ export default function HelpForm({
 
           {/* Lieu */}
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">7. Lieu</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">7. Lieu</p>
             <div className="grid grid-cols-2 gap-3">
               <select value={form.location_area} onChange={e => setForm(f => ({ ...f, location_area: e.target.value }))}
                 className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none">
@@ -252,7 +252,7 @@ export default function HelpForm({
 
           {/* Durée */}
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">8. Durée estimée</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">8. Durée estimée</p>
             <div className="flex flex-wrap gap-2">
               {DURATION_OPTIONS.map(d => (
                 <button key={d.value} type="button" onClick={() => setForm(f => ({ ...f, duration: d.value }))}
@@ -267,7 +267,7 @@ export default function HelpForm({
 
           {/* Personnes */}
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">9. Nombre de personnes</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1">9. Nombre de personnes</p>
             <div className="flex items-center gap-3">
               <button type="button"
                 onClick={() => setForm(f => ({ ...f, persons_needed: Math.max(1, f.persons_needed - 1) }))}
@@ -294,7 +294,7 @@ export default function HelpForm({
 
           {/* Contrepartie */}
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">10. Compensation / contrepartie</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">10. Compensation / contrepartie</p>
             <div className="grid grid-cols-2 gap-2">
               {(Object.entries(COMPENSATION_CONFIG) as [Compensation, typeof COMPENSATION_CONFIG[Compensation]][]).map(([key, conf]) => (
                 <button key={key} type="button" onClick={() => setForm(f => ({ ...f, compensation: key }))}
@@ -312,7 +312,7 @@ export default function HelpForm({
 
           {/* Matériel */}
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">11. Matériel nécessaire</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">11. Matériel nécessaire</p>
             <div className="flex flex-wrap gap-2">
               {EQUIPMENT_OPTIONS.map(e => (
                 <button key={e} type="button" onClick={() => onToggleArr('equipment', e)}
@@ -327,7 +327,7 @@ export default function HelpForm({
 
           {/* Pour qui */}
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">12. Pour qui ?</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">12. Pour qui ?</p>
             <div className="flex flex-wrap gap-2">
               {FOR_WHO_OPTIONS.map(fw => (
                 <button key={fw} type="button" onClick={() => setForm(f => ({ ...f, for_who: fw }))}
@@ -342,7 +342,7 @@ export default function HelpForm({
 
           {/* Photos */}
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">13. Photos (optionnel, max 5)</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">13. Photos (optionnel, max 5)</p>
             <div className="flex flex-wrap gap-2 mb-2">
               {previews.map((src, i) => (
                 <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200 group/p">
@@ -377,7 +377,7 @@ export default function HelpForm({
 
           {/* Conditions */}
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">14. Conditions / précautions</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">14. Conditions / précautions</p>
             <div className="grid grid-cols-2 gap-2">
               {CONDITIONS_OPTIONS.map(c => (
                 <label key={c} className="flex items-center gap-2 cursor-pointer">
@@ -402,7 +402,7 @@ export default function HelpForm({
 
           {/* Visibilité */}
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">15. Visibilité</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">15. Visibilité</p>
             <div className="grid grid-cols-2 gap-3">
               {([
                 { v: 'public'   as Visibility, l: '🌍 Visible par toute la communauté', icon: Eye },
@@ -420,7 +420,7 @@ export default function HelpForm({
 
           {/* Contact */}
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">16. Mode de contact</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">16. Mode de contact</p>
             <div className="grid grid-cols-2 gap-3">
               {([
                 { v: 'messagerie'       as ContactMode, l: '💬 Messagerie plateforme uniquement' },
@@ -438,7 +438,7 @@ export default function HelpForm({
 
           {/* Nom affiché */}
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">17. Nom affiché</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">17. Nom affiché</p>
             <div className="flex gap-2">
               {([
                 { v: 'prenom'           as DisplayName, l: 'Prénom seul' },

@@ -137,7 +137,7 @@ export function ForumFilters({
         {showFilters && (
           <div className="pt-3 border-t border-gray-100 space-y-3">
             <div>
-              <label className="text-xs font-black text-gray-500 mb-2 block uppercase tracking-wide">Type de post</label>
+              <p className="text-xs font-black text-gray-500 mb-2 block uppercase tracking-wide">Type de post</p>
               <div className="flex flex-wrap gap-1.5">
                 {Object.entries(POST_TYPE_CONFIG).map(([key, cfg]) => {
                   const I = cfg.icon;
@@ -156,7 +156,7 @@ export function ForumFilters({
             <div className="grid grid-cols-3 gap-3">
               {/* Statut */}
               <div>
-                <label className="text-xs font-black text-gray-500 mb-1.5 block uppercase tracking-wide">Statut</label>
+                <p className="text-xs font-black text-gray-500 mb-1.5 block uppercase tracking-wide">Statut</p>
                 <div className="flex gap-1.5">
                   {([{ val: 'all', label: 'Tous' }, { val: 'ouvert', label: '🟢 Ouverts' }, { val: 'resolu', label: '✅ Résolus' }] as const).map(s => (
                     <button key={s.val} onClick={() => setStatusFilter(s.val)}
@@ -169,7 +169,7 @@ export function ForumFilters({
 
               {/* Urgence */}
               <div>
-                <label className="text-xs font-black text-gray-500 mb-1.5 block uppercase tracking-wide">Urgence</label>
+                <p className="text-xs font-black text-gray-500 mb-1.5 block uppercase tracking-wide">Urgence</p>
                 <div className="flex gap-1.5">
                   <button onClick={() => setUrgencyFilter('all')}
                     className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-all', urgencyFilter === 'all' ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
@@ -184,7 +184,7 @@ export function ForumFilters({
 
               {/* Vue */}
               <div>
-                <label className="text-xs font-black text-gray-500 mb-1.5 block uppercase tracking-wide">Vue</label>
+                <p className="text-xs font-black text-gray-500 mb-1.5 block uppercase tracking-wide">Vue</p>
                 <div className="flex gap-1.5">
                   <button onClick={() => setViewMode('list')} className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1', viewMode === 'list' ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
                     <List className="w-3.5 h-3.5" /> Liste

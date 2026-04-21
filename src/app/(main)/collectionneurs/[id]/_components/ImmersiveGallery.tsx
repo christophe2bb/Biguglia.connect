@@ -36,7 +36,10 @@ export function ImmersiveGallery({ photos, title }: Props) {
       {/* Image principale */}
       <div
         className="relative aspect-[4/3] bg-gray-50 rounded-3xl overflow-hidden cursor-zoom-in group"
+        role="button"
+        tabIndex={0}
         onClick={() => setLightboxOpen(true)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightboxOpen(true); } }}
       >
         <Image
           src={photos[activeIdx]?.url}

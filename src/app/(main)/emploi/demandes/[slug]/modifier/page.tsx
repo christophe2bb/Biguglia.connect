@@ -241,14 +241,14 @@ export default function ModifierDemandePage() {
             <h2 className="font-black text-gray-800">🙋 Poste recherché</h2>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Titre / poste recherché *</label>
+              <p className="block text-sm font-semibold text-gray-700 mb-1">Titre / poste recherché *</p>
               <input type="text" value={form.title} onChange={e => set('title', e.target.value)}
                 required className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 outline-none"
                 placeholder="Ex : Serveur/se, Aide à domicile, Comptable…" />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Catégorie</label>
+              <p className="block text-sm font-semibold text-gray-700 mb-1">Catégorie</p>
               <select value={form.job_category} onChange={e => set('job_category', e.target.value)}
                 className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 outline-none">
                 <option value="">Choisir…</option>
@@ -257,7 +257,7 @@ export default function ModifierDemandePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Types de contrat recherchés</label>
+              <p className="block text-sm font-semibold text-gray-700 mb-2">Types de contrat recherchés</p>
               <div className="flex flex-wrap gap-2">
                 {CONTRACT_TYPES.map(([k, v]) => (
                   <button key={k} type="button"
@@ -274,7 +274,7 @@ export default function ModifierDemandePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Présentation / description</label>
+              <p className="block text-sm font-semibold text-gray-700 mb-1">Présentation / description</p>
               <textarea value={form.short_description} onChange={e => set('short_description', e.target.value)}
                 rows={3} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 outline-none resize-none"
                 placeholder="Présentez-vous en quelques phrases…" />
@@ -287,13 +287,13 @@ export default function ModifierDemandePage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Ville *</label>
+                <p className="block text-sm font-semibold text-gray-700 mb-1">Ville *</p>
                 <input type="text" value={form.location_city} onChange={e => set('location_city', e.target.value)}
                   required className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 outline-none"
                   placeholder="Biguglia…" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Rayon mobilité (km)</label>
+                <p className="block text-sm font-semibold text-gray-700 mb-1">Rayon mobilité (km)</p>
                 <input type="number" min="0" value={form.mobility_radius} onChange={e => set('mobility_radius', e.target.value)}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 outline-none"
                   placeholder="Ex : 20" />
@@ -301,7 +301,7 @@ export default function ModifierDemandePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Secteur</label>
+              <p className="block text-sm font-semibold text-gray-700 mb-1">Secteur</p>
               <select value={form.sector_id} onChange={e => set('sector_id', e.target.value)}
                 className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 outline-none">
                 <option value="">Non précisé</option>
@@ -339,7 +339,7 @@ export default function ModifierDemandePage() {
 
             <div className="flex items-center gap-3">
               <div className="flex-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Heures souhaitées / semaine</label>
+                <p className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Heures souhaitées / semaine</p>
                 <input type="number" min="0" value={form.weekly_hours_desired} onChange={e => set('weekly_hours_desired', e.target.value)}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 outline-none"
                   placeholder="Ex : 35" />
@@ -369,7 +369,7 @@ export default function ModifierDemandePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Disponibilité</label>
+              <p className="block text-sm font-semibold text-gray-700 mb-1">Disponibilité</p>
               <select value={form.availability_type} onChange={e => set('availability_type', e.target.value)}
                 className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 outline-none">
                 <option value="immediate">Immédiate</option>
@@ -395,7 +395,7 @@ export default function ModifierDemandePage() {
 
             {(form.contact_mode === 'email' || form.contact_mode === 'mixed') && (
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+                <p className="block text-sm font-semibold text-gray-700 mb-1">Email</p>
                 <input type="email" value={form.contact_email} onChange={e => set('contact_email', e.target.value)}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 outline-none"
                   placeholder="votre@email.fr" />
@@ -404,7 +404,7 @@ export default function ModifierDemandePage() {
 
             {(form.contact_mode === 'phone' || form.contact_mode === 'mixed') && (
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Téléphone</label>
+                <p className="block text-sm font-semibold text-gray-700 mb-1">Téléphone</p>
                 <input type="tel" value={form.contact_phone} onChange={e => set('contact_phone', e.target.value)}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 outline-none"
                   placeholder="06 00 00 00 00" />

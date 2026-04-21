@@ -107,10 +107,10 @@ export default function LFForm({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-2">
+            <p className="block text-xs font-semibold text-gray-600 mb-2">
               📍 Secteur <span className="text-red-500">*</span>
               <span className="text-gray-400 font-normal ml-1">(où avez-vous perdu/trouvé l&apos;objet ?)</span>
-            </label>
+            </p>
             <SectorFilter
               value={form.sector_id || null}
               onChange={id => setForm(f => ({ ...f, sector_id: id || '' }))}
@@ -141,7 +141,7 @@ export default function LFForm({
           />
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Catégorie</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">Catégorie</p>
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
               {CATEGORIES.map(cat => {
                 const Icon = cat.icon;
@@ -184,7 +184,7 @@ export default function LFForm({
           />
 
           {!isPerdu && (
-            <label className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
+            <label aria-label="Récompense proposée" className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
               <input type="checkbox" checked={form.keep_secret}
                 onChange={e => setForm(f => ({ ...f, keep_secret: e.target.checked }))} className="mt-0.5 rounded" />
               <div>
@@ -210,7 +210,7 @@ export default function LFForm({
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Date *</label>
+              <p className="block text-xs font-semibold text-gray-600 mb-1">Date *</p>
               <input type="date" required value={form.lost_date}
                 onChange={e => setForm(f => ({ ...f, lost_date: e.target.value }))}
                 max={new Date().toISOString().split('T')[0]}
@@ -218,7 +218,7 @@ export default function LFForm({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Heure approximative</label>
+              <p className="block text-xs font-semibold text-gray-600 mb-1">Heure approximative</p>
               <input type="time" value={form.lost_time}
                 onChange={e => setForm(f => ({ ...f, lost_time: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
@@ -227,7 +227,7 @@ export default function LFForm({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Lieu principal *</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1">Lieu principal *</p>
             <select value={form.location_area} onChange={e => setForm(f => ({ ...f, location_area: e.target.value }))}
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white">
               <option value="">Choisir un lieu…</option>
@@ -373,7 +373,7 @@ export default function LFForm({
                   </label>
                   {form.deposited && (
                     <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Déposé où ?</label>
+                      <p className="block text-xs font-semibold text-gray-600 mb-1">Déposé où ?</p>
                       <div className="flex gap-2 flex-wrap">
                         {DEPOSIT_LOCATIONS.map(d => (
                           <button key={d} type="button" onClick={() => setForm(f => ({ ...f, deposited_at: d }))}

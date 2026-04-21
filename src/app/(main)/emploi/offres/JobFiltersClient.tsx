@@ -313,17 +313,21 @@ export function JobFiltersClient({ filters, totalResults }: Props) {
         <Section id="options" title="Options" count={(local.isUrgent ? 1 : 0) + (local.providesHousing ? 1 : 0)}>
           <div className="space-y-3">
             {/* Urgent */}
-            <label className="flex items-center gap-3 cursor-pointer group">
-              <div
+            <div className="flex items-center gap-3 cursor-pointer group">
+              <button
+                type="button"
+                role="switch"
+                aria-label="Recrutement urgent"
+                aria-checked={!!local.isUrgent}
                 onClick={() => update({ isUrgent: local.isUrgent ? undefined : true })}
-                className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer flex-shrink-0 ${
+                className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-1 ${
                   local.isUrgent ? 'bg-red-500' : 'bg-gray-200'
                 }`}
               >
-                <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
                   local.isUrgent ? 'translate-x-5' : 'translate-x-0'
                 }`} />
-              </div>
+              </button>
               <div>
                 <span className="text-sm font-semibold text-gray-800 flex items-center gap-1">
                   <Flame className="w-4 h-4 text-red-500" />
@@ -331,20 +335,24 @@ export function JobFiltersClient({ filters, totalResults }: Props) {
                 </span>
                 <p className="text-xs text-gray-400">Afficher uniquement les offres urgentes</p>
               </div>
-            </label>
+            </div>
 
             {/* Logement */}
-            <label className="flex items-center gap-3 cursor-pointer group">
-              <div
+            <div className="flex items-center gap-3 cursor-pointer group">
+              <button
+                type="button"
+                role="switch"
+                aria-label="Logement fourni"
+                aria-checked={!!local.providesHousing}
                 onClick={() => update({ providesHousing: local.providesHousing ? undefined : true })}
-                className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer flex-shrink-0 ${
+                className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 ${
                   local.providesHousing ? 'bg-indigo-500' : 'bg-gray-200'
                 }`}
               >
-                <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
                   local.providesHousing ? 'translate-x-5' : 'translate-x-0'
                 }`} />
-              </div>
+              </button>
               <div>
                 <span className="text-sm font-semibold text-gray-800 flex items-center gap-1">
                   <Home className="w-4 h-4 text-indigo-500" />
@@ -352,7 +360,7 @@ export function JobFiltersClient({ filters, totalResults }: Props) {
                 </span>
                 <p className="text-xs text-gray-400">Offres avec logement inclus</p>
               </div>
-            </label>
+            </div>
           </div>
         </Section>
 

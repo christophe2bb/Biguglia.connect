@@ -39,7 +39,7 @@ export default function BadgesTab() {
         </h2>
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-gray-600 mb-1">ID utilisateur (UUID)</label>
+            <p className="block text-xs font-bold text-gray-600 mb-1">ID utilisateur (UUID)</p>
             <input
               type="text"
               value={badgeTarget}
@@ -49,7 +49,7 @@ export default function BadgesTab() {
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-600 mb-1">Badge</label>
+            <p className="block text-xs font-bold text-gray-600 mb-1">Badge</p>
             <select
               value={badgeCode}
               onChange={e => setBadgeCode(e.target.value as BadgeCode)}

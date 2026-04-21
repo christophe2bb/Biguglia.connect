@@ -107,7 +107,7 @@ export default function StepConditions({ form, set, toggleBenefit }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Heures / semaine</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">Heures / semaine</p>
             <div className="relative">
               <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input type="number" placeholder="Ex : 35, 39, 25…"
@@ -116,7 +116,7 @@ export default function StepConditions({ form, set, toggleBenefit }: Props) {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Date de début</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">Date de début</p>
             <input type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)}
               className={INPUT} />
           </div>
@@ -124,16 +124,16 @@ export default function StepConditions({ form, set, toggleBenefit }: Props) {
 
         {showEndDate && (
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Date de fin (si connue)</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">Date de fin (si connue)</p>
             <input type="date" value={form.end_date} onChange={e => set('end_date', e.target.value)}
               className={INPUT} />
           </div>
         )}
 
         <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+          <p className="block text-xs font-semibold text-gray-600 mb-1.5">
             Précisions horaires <span className="text-gray-400 font-normal">(optionnel)</span>
-          </label>
+          </p>
           <input type="text"
             placeholder="Ex : Du lundi au vendredi, service du midi uniquement, week-ends inclus…"
             value={form.schedule_details} onChange={e => set('schedule_details', e.target.value)}
@@ -200,7 +200,7 @@ export default function StepConditions({ form, set, toggleBenefit }: Props) {
           <Home className="w-4 h-4 text-indigo-600" /> Hébergement &amp; Repas
         </h3>
 
-        <label className="flex items-center gap-3 p-4 bg-indigo-50 border border-indigo-200 rounded-xl cursor-pointer">
+        <label aria-label="Logement fourni" className="flex items-center gap-3 p-4 bg-indigo-50 border border-indigo-200 rounded-xl cursor-pointer">
           <input type="checkbox" checked={form.provides_housing}
             onChange={e => set('provides_housing', e.target.checked)}
             className="w-5 h-5 text-indigo-500 rounded border-gray-300" />
@@ -217,7 +217,7 @@ export default function StepConditions({ form, set, toggleBenefit }: Props) {
             className="w-full px-4 py-3 border-2 border-indigo-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 bg-white" />
         )}
 
-        <label className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl cursor-pointer">
+        <label aria-label="Repas fournis" className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl cursor-pointer">
           <input type="checkbox" checked={form.provides_meals}
             onChange={e => set('provides_meals', e.target.checked)}
             className="w-5 h-5 text-green-500 rounded border-gray-300" />

@@ -17,9 +17,9 @@ export default function StepEmployeur({ form, set }: Props) {
 
       {/* Employer name */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">
           Nom de l&apos;entreprise / employeur <span className="text-red-500">*</span>
-        </label>
+        </p>
         <input
           type="text"
           placeholder="Restaurant Le Maquis, SARL BTP Corse…"
@@ -32,9 +32,9 @@ export default function StepEmployeur({ form, set }: Props) {
       {/* City + Address */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <p className="block text-sm font-semibold text-gray-700 mb-1.5">
             Ville <span className="text-red-500">*</span>
-          </label>
+          </p>
           <div className="relative">
             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -47,7 +47,7 @@ export default function StepEmployeur({ form, set }: Props) {
           </div>
         </div>
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">Adresse (optionnel)</label>
+          <p className="block text-sm font-semibold text-gray-700 mb-1.5">Adresse (optionnel)</p>
           <input
             type="text"
             placeholder="Zone Lido, route nationale…"
@@ -107,7 +107,7 @@ export default function StepEmployeur({ form, set }: Props) {
       </div>
 
       {/* Urgent toggle */}
-      <label className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl cursor-pointer">
+      <label aria-label="Recrutement urgent" className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl cursor-pointer">
         <input
           type="checkbox"
           checked={form.is_urgent}

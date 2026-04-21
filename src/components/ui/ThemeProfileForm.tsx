@@ -202,9 +202,9 @@ export default function ThemeProfileForm({
     <div className="space-y-5">
       {/* Bio */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <p className="block text-sm font-medium text-gray-700 mb-1">
           À propos de vous dans ce thème
-        </label>
+        </p>
         <textarea
           value={bio}
           onChange={(e) => setBio(e.target.value)}
@@ -219,7 +219,7 @@ export default function ThemeProfileForm({
       {/* Niveau */}
       {labels.levelOptions.length > 0 && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Niveau / Rôle</label>
+          <p className="block text-sm font-medium text-gray-700 mb-1">Niveau / Rôle</p>
           <div className="flex flex-wrap gap-2">
             {labels.levelOptions.map((opt) => (
               <button
@@ -286,9 +286,9 @@ export default function ThemeProfileForm({
 
       {/* Zone */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <p className="block text-sm font-medium text-gray-700 mb-1">
           Zone / Quartier
-        </label>
+        </p>
         <input
           type="text"
           value={locationZone}

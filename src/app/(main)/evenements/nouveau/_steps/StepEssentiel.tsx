@@ -23,7 +23,7 @@ export function StepEssentiel({ form, setField, organizerPlaceholder }: Props) {
 
       {/* Title */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Titre *</label>
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">Titre *</p>
         <input
           type="text" required placeholder="Ex: Tournoi de pétanque inter-quartiers"
           value={form.title} onChange={e => setField('title', e.target.value)}
@@ -33,9 +33,9 @@ export function StepEssentiel({ form, setField, organizerPlaceholder }: Props) {
 
       {/* Subtitle */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">
           Sous-titre <span className="text-gray-400 font-normal">(optionnel)</span>
-        </label>
+        </p>
         <input
           type="text" placeholder="Courte accroche ou précision"
           value={form.subtitle} onChange={e => setField('subtitle', e.target.value)}
@@ -45,7 +45,7 @@ export function StepEssentiel({ form, setField, organizerPlaceholder }: Props) {
 
       {/* Category grid */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Catégorie *</label>
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">Catégorie *</p>
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
           {EVENT_CATEGORIES_LIST.map(c => (
             <button
@@ -65,7 +65,7 @@ export function StepEssentiel({ form, setField, organizerPlaceholder }: Props) {
 
       {/* Organizer */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Organisateur</label>
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">Organisateur</p>
         <input
           type="text" placeholder={organizerPlaceholder}
           value={form.organizer_name} onChange={e => setField('organizer_name', e.target.value)}
@@ -75,7 +75,7 @@ export function StepEssentiel({ form, setField, organizerPlaceholder }: Props) {
 
       {/* Description */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Description</label>
+        <p className="block text-sm font-semibold text-gray-700 mb-1.5">Description</p>
         <textarea
           placeholder="Décrivez l'événement, le programme, les informations pratiques..."
           rows={5} value={form.description} onChange={e => setField('description', e.target.value)}

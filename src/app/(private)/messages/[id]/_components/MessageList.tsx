@@ -174,6 +174,7 @@ function MessageBubble({
 
       {/* Popup confirmation suppression */}
       {menuOpen && isMe && (
+        // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
         <div
           data-msg-menu="popup"
           className="flex justify-end pr-10 mt-1"

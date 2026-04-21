@@ -92,7 +92,7 @@ export default function AssociationForm({
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
           />
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Catégorie</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">Catégorie</p>
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
               {(Object.entries(CAT_CONFIG) as [AssoCategory, typeof CAT_CONFIG[AssoCategory]][]).map(([key, conf]) => {
                 const Icon = conf.icon;
@@ -120,7 +120,7 @@ export default function AssociationForm({
           />
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Commune / zone</label>
+              <p className="block text-xs font-semibold text-gray-600 mb-1">Commune / zone</p>
               <select value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-300">
                 {['Biguglia', 'Biguglia et alentours', 'Toute la région'].map(l => <option key={l} value={l}>{l}</option>)}
@@ -133,7 +133,7 @@ export default function AssociationForm({
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Secteur principal <span className="font-normal text-gray-400">(recommandé)</span></label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">Secteur principal <span className="font-normal text-gray-400">(recommandé)</span></p>
             <SectorFilter value={form.sector_id || null} onChange={id => setForm(f => ({ ...f, sector_id: id || '' }))} allowCitywide compact />
           </div>
           <div className="flex justify-between">
@@ -148,7 +148,7 @@ export default function AssociationForm({
         <div className="space-y-4">
           <p className="text-sm font-bold text-gray-700">Bloc 3 — Ce que vous proposez</p>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Public concerné</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">Public concerné</p>
             <div className="flex flex-wrap gap-2">
               {PUBLIC_OPTIONS.map(p => (
                 <button key={p} type="button" onClick={() => onToggle('public_target', p)}
@@ -161,14 +161,14 @@ export default function AssociationForm({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Âge minimum</label>
+              <p className="block text-xs font-semibold text-gray-600 mb-1">Âge minimum</p>
               <input type="number" placeholder="ex: 6" min={0} max={120} value={form.age_min}
                 onChange={e => setForm(f => ({ ...f, age_min: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Âge maximum</label>
+              <p className="block text-xs font-semibold text-gray-600 mb-1">Âge maximum</p>
               <input type="number" placeholder="ex: 18" min={0} max={120} value={form.age_max}
                 onChange={e => setForm(f => ({ ...f, age_max: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
@@ -176,7 +176,7 @@ export default function AssociationForm({
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Activités proposées</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">Activités proposées</p>
             <div className="flex flex-wrap gap-2">
               {ACTIVITY_OPTIONS.map(a => (
                 <button key={a} type="button" onClick={() => onToggle('activities', a)}
@@ -189,7 +189,7 @@ export default function AssociationForm({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Fréquence</label>
+              <p className="block text-xs font-semibold text-gray-600 mb-1">Fréquence</p>
               <select value={form.frequency} onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-300">
                 <option value="">—</option>
@@ -203,7 +203,7 @@ export default function AssociationForm({
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Adhésion / tarif</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">Adhésion / tarif</p>
             <div className="flex gap-2 flex-wrap mb-2">
               {[['gratuit','Gratuit'],['cotisation','Cotisation annuelle'],['libre','Participation libre'],['autre','Autre']].map(([v,l]) => (
                 <button key={v} type="button" onClick={() => setForm(f => ({ ...f, price_type: v }))}
@@ -221,7 +221,7 @@ export default function AssociationForm({
             )}
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Tags</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">Tags</p>
             <div className="flex flex-wrap gap-2">
               {TAG_OPTIONS.map(t => (
                 <button key={t} type="button" onClick={() => onToggle('tags', t)}
@@ -244,7 +244,7 @@ export default function AssociationForm({
         <div className="space-y-4">
           <p className="text-sm font-bold text-gray-700">Bloc 4 — Besoins actuels &amp; engagements (CDC §7.2-7.3)</p>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">L&apos;association recherche actuellement :</label>
+            <p className="block text-xs font-semibold text-gray-600 mb-1.5">L&apos;association recherche actuellement :</p>
             <div className="flex flex-wrap gap-2">
               {NEEDS_OPTIONS.map(n => (
                 <button key={n} type="button" onClick={() => onToggle('needs', n)}

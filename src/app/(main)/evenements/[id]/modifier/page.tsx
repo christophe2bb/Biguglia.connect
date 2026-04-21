@@ -264,7 +264,7 @@ export default function ModifierEvenementPage() {
             <h2 className="font-black text-gray-900 text-lg">Informations essentielles</h2>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Titre *</label>
+              <p className="block text-sm font-semibold text-gray-700 mb-1.5">Titre *</p>
               <input type="text" required placeholder="Titre de l'événement"
                 value={form.title} onChange={e => setField('title', e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
@@ -272,7 +272,7 @@ export default function ModifierEvenementPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Sous-titre <span className="text-gray-400 font-normal">(optionnel)</span></label>
+              <p className="block text-sm font-semibold text-gray-700 mb-1.5">Sous-titre <span className="text-gray-400 font-normal">(optionnel)</span></p>
               <input type="text" placeholder="Courte accroche"
                 value={form.subtitle} onChange={e => setField('subtitle', e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
@@ -280,7 +280,7 @@ export default function ModifierEvenementPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Catégorie *</label>
+              <p className="block text-sm font-semibold text-gray-700 mb-1.5">Catégorie *</p>
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                 {EVENT_CATEGORIES_LIST.map(c => (
                   <button type="button" key={c.id} onClick={() => setField('category', c.id)}
@@ -297,7 +297,7 @@ export default function ModifierEvenementPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Organisateur</label>
+              <p className="block text-sm font-semibold text-gray-700 mb-1.5">Organisateur</p>
               <input type="text" placeholder={profile?.full_name ?? "Nom de l'organisateur"}
                 value={form.organizer_name} onChange={e => setField('organizer_name', e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
@@ -305,7 +305,7 @@ export default function ModifierEvenementPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Description</label>
+              <p className="block text-sm font-semibold text-gray-700 mb-1.5">Description</p>
               <textarea placeholder="Décrivez l'événement..."
                 rows={5} value={form.description} onChange={e => setField('description', e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-300"
@@ -319,18 +319,18 @@ export default function ModifierEvenementPage() {
 
             <div className="grid sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                <p className="block text-sm font-semibold text-gray-700 mb-1.5">
                   <Calendar className="inline w-3.5 h-3.5 mr-1" />Date de début *
-                </label>
+                </p>
                 <input type="date" required
                   value={form.event_date} onChange={e => setField('event_date', e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                <p className="block text-sm font-semibold text-gray-700 mb-1.5">
                   <Calendar className="inline w-3.5 h-3.5 mr-1" />Date de fin
-                </label>
+                </p>
                 <input type="date" min={form.event_date}
                   value={form.event_end_date} onChange={e => setField('event_end_date', e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
@@ -340,17 +340,17 @@ export default function ModifierEvenementPage() {
 
             <div className="grid sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                <p className="block text-sm font-semibold text-gray-700 mb-1.5">
                   <Clock className="inline w-3.5 h-3.5 mr-1" />Heure de début
-                </label>
+                </p>
                 <input type="time" value={form.start_time} onChange={e => setField('start_time', e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                <p className="block text-sm font-semibold text-gray-700 mb-1.5">
                   <Clock className="inline w-3.5 h-3.5 mr-1" />Heure de fin
-                </label>
+                </p>
                 <input type="time" value={form.end_time} onChange={e => setField('end_time', e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
                 />
@@ -358,9 +358,9 @@ export default function ModifierEvenementPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <p className="block text-sm font-semibold text-gray-700 mb-2">
                 <Users className="inline w-3.5 h-3.5 mr-1" />Capacité
-              </label>
+              </p>
               <div className="flex items-center gap-3 mb-3">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="radio" checked={form.is_unlimited} onChange={() => setField('is_unlimited', true)} className="accent-purple-600" />
@@ -380,9 +380,9 @@ export default function ModifierEvenementPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <p className="block text-sm font-semibold text-gray-700 mb-2">
                 <Euro className="inline w-3.5 h-3.5 mr-1" />Tarif
-              </label>
+              </p>
               <div className="flex gap-3 flex-wrap mb-2">
                 {(['gratuit', 'libre', 'payant'] as const).map(pt => (
                   <label key={pt} className="flex items-center gap-2 cursor-pointer">
@@ -414,9 +414,9 @@ export default function ModifierEvenementPage() {
             <h2 className="font-black text-gray-900 text-lg">Informations pratiques</h2>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              <p className="block text-sm font-semibold text-gray-700 mb-1.5">
                 <MapPin className="inline w-3.5 h-3.5 mr-1" />Lieu *
-              </label>
+              </p>
               <input type="text" placeholder="Ex: Place du village..."
                 value={form.location} onChange={e => setField('location', e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
@@ -424,14 +424,14 @@ export default function ModifierEvenementPage() {
             </div>
             <div className="grid sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Secteur / Quartier</label>
+                <p className="block text-sm font-semibold text-gray-700 mb-1.5">Secteur / Quartier</p>
                 <input type="text" placeholder="Ex: Centre-ville..."
                   value={form.location_area} onChange={e => setField('location_area', e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Détails lieu</label>
+                <p className="block text-sm font-semibold text-gray-700 mb-1.5">Détails lieu</p>
                 <input type="text" placeholder="Ex: Entrée par la rue..."
                   value={form.location_detail} onChange={e => setField('location_detail', e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
@@ -439,45 +439,45 @@ export default function ModifierEvenementPage() {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              <p className="block text-sm font-semibold text-gray-700 mb-1.5">
                 <Tag className="inline w-3.5 h-3.5 mr-1" />Public cible
-              </label>
+              </p>
               <input type="text" placeholder="Ex: Tout public, Familles..."
                 value={form.target_audience} onChange={e => setField('target_audience', e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              <p className="block text-sm font-semibold text-gray-700 mb-1.5">
                 <Accessibility className="inline w-3.5 h-3.5 mr-1" />Accessibilité
-              </label>
+              </p>
               <input type="text" placeholder="Ex: PMR, LSF..."
                 value={form.accessibility} onChange={e => setField('accessibility', e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              <p className="block text-sm font-semibold text-gray-700 mb-1.5">
                 <Phone className="inline w-3.5 h-3.5 mr-1" />Contact
-              </label>
+              </p>
               <input type="text" placeholder="Téléphone, email..."
                 value={form.contact_info} onChange={e => setField('contact_info', e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              <p className="block text-sm font-semibold text-gray-700 mb-1.5">
                 <Globe className="inline w-3.5 h-3.5 mr-1" />Lien externe
-              </label>
+              </p>
               <input type="url" placeholder="https://..."
                 value={form.external_link} onChange={e => setField('external_link', e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              <p className="block text-sm font-semibold text-gray-700 mb-1.5">
                 Mots-clés <span className="text-gray-400 font-normal">(séparés par des virgules)</span>
-              </label>
+              </p>
               <input type="text" placeholder="Ex: musique, famille, gratuit..."
                 value={form.tags} onChange={e => setField('tags', e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"

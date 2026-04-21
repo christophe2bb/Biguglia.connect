@@ -225,17 +225,21 @@ export function DemandFiltersClient({ filters, totalResults }: Props) {
         }>
           <div className="space-y-3">
             {/* Disponible rapidement */}
-            <label className="flex items-center gap-3 cursor-pointer group">
-              <div
+            <div className="flex items-center gap-3 cursor-pointer group">
+              <button
+                type="button"
+                role="switch"
+                aria-label="Disponible rapidement"
+                aria-checked={!!local.isUrgent}
                 onClick={() => update({ isUrgent: local.isUrgent ? undefined : true })}
-                className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer flex-shrink-0 ${
+                className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-1 ${
                   local.isUrgent ? 'bg-red-500' : 'bg-gray-200'
                 }`}
               >
-                <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
                   local.isUrgent ? 'translate-x-5' : 'translate-x-0'
                 }`} />
-              </div>
+              </button>
               <div>
                 <span className="text-sm font-semibold text-gray-800 flex items-center gap-1">
                   <Flame className="w-4 h-4 text-red-500" />
@@ -243,40 +247,48 @@ export function DemandFiltersClient({ filters, totalResults }: Props) {
                 </span>
                 <p className="text-xs text-gray-400">Candidats disponibles immédiatement</p>
               </div>
-            </label>
+            </div>
 
             {/* Permis de conduire */}
-            <label className="flex items-center gap-3 cursor-pointer group">
-              <div
+            <div className="flex items-center gap-3 cursor-pointer group">
+              <button
+                type="button"
+                role="switch"
+                aria-label="Permis de conduire"
+                aria-checked={!!local.hasLicense}
                 onClick={() => update({ hasLicense: local.hasLicense ? undefined : true })}
-                className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer flex-shrink-0 ${
+                className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1 ${
                   local.hasLicense ? 'bg-blue-500' : 'bg-gray-200'
                 }`}
               >
-                <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
                   local.hasLicense ? 'translate-x-5' : 'translate-x-0'
                 }`} />
-              </div>
+              </button>
               <div>
                 <span className="text-sm font-semibold text-gray-800">
                   🪪 Permis de conduire
                 </span>
                 <p className="text-xs text-gray-400">Candidats avec permis</p>
               </div>
-            </label>
+            </div>
 
             {/* Véhicule */}
-            <label className="flex items-center gap-3 cursor-pointer group">
-              <div
+            <div className="flex items-center gap-3 cursor-pointer group">
+              <button
+                type="button"
+                role="switch"
+                aria-label="Véhicule personnel"
+                aria-checked={!!local.hasVehicle}
                 onClick={() => update({ hasVehicle: local.hasVehicle ? undefined : true })}
-                className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer flex-shrink-0 ${
+                className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-1 ${
                   local.hasVehicle ? 'bg-green-500' : 'bg-gray-200'
                 }`}
               >
-                <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
                   local.hasVehicle ? 'translate-x-5' : 'translate-x-0'
                 }`} />
-              </div>
+              </button>
               <div>
                 <span className="text-sm font-semibold text-gray-800 flex items-center gap-1">
                   <Car className="w-4 h-4 text-green-600" />
@@ -284,7 +296,7 @@ export function DemandFiltersClient({ filters, totalResults }: Props) {
                 </span>
                 <p className="text-xs text-gray-400">Candidats avec leur propre véhicule</p>
               </div>
-            </label>
+            </div>
           </div>
         </Section>
 

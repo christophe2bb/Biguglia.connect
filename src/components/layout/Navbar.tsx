@@ -103,7 +103,7 @@ export default function Navbar() {
                 size="sm"
                 placeholder="Rechercher…"
                 className="w-full"
-                autoFocus
+                autoFocus // eslint-disable-line jsx-a11y/no-autofocus
                 onSearch={(q) => {
                   setSearchOpen(false);
                   router.push(`/recherche?q=${encodeURIComponent(q)}`);

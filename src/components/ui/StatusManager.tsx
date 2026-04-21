@@ -244,6 +244,7 @@ export default function StatusManager({
 
         {open && (
           <>
+            {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
             <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
             <div className="absolute right-0 top-full mt-1 z-40 bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden min-w-[200px]">
               {actions.map(action => {

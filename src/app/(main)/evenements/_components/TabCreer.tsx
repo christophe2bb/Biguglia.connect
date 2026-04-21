@@ -53,7 +53,7 @@ export default function TabCreer({
           <form onSubmit={onSubmit} className="space-y-4">
             {/* Titre */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1.5">Titre *</label>
+              <p className="block text-sm font-bold text-gray-700 mb-1.5">Titre *</p>
               <input type="text" placeholder="Ex: Tournoi de pétanque inter-quartiers" required
                 value={newEvent.title} onChange={e => setNewEvent(f => ({ ...f, title: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
@@ -62,13 +62,13 @@ export default function TabCreer({
             {/* Date + heure */}
             <div className="grid sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5">Date *</label>
+                <p className="block text-sm font-bold text-gray-700 mb-1.5">Date *</p>
                 <input type="date" required min={new Date().toISOString().split('T')[0]}
                   value={newEvent.event_date} onChange={e => setNewEvent(f => ({ ...f, event_date: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
               </div>
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5">Heure de début</label>
+                <p className="block text-sm font-bold text-gray-700 mb-1.5">Heure de début</p>
                 <input type="time" value={newEvent.event_time} onChange={e => setNewEvent(f => ({ ...f, event_time: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
               </div>
@@ -77,13 +77,13 @@ export default function TabCreer({
             {/* Lieu + catégorie */}
             <div className="grid sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5">Lieu</label>
+                <p className="block text-sm font-bold text-gray-700 mb-1.5">Lieu</p>
                 <input type="text" placeholder="Ex: Place du village, Salle des fêtes…"
                   value={newEvent.location} onChange={e => setNewEvent(f => ({ ...f, location: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
               </div>
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5">Catégorie *</label>
+                <p className="block text-sm font-bold text-gray-700 mb-1.5">Catégorie *</p>
                 <select value={newEvent.category} onChange={e => setNewEvent(f => ({ ...f, category: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-300">
                   {EVENT_CATEGORIES.slice(0, 7).map(c => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
@@ -93,7 +93,7 @@ export default function TabCreer({
 
             {/* Secteur */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1.5">Secteur géographique</label>
+              <p className="block text-sm font-bold text-gray-700 mb-1.5">Secteur géographique</p>
               <SectorFilter
                 value={newEvent.sector_id || null}
                 onChange={v => setNewEvent(f => ({ ...f, sector_id: v || '' }))}
@@ -104,13 +104,13 @@ export default function TabCreer({
             {/* Organisateur + participants */}
             <div className="grid sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5">Organisateur</label>
+                <p className="block text-sm font-bold text-gray-700 mb-1.5">Organisateur</p>
                 <input type="text" placeholder="Association ou nom de l'organisateur"
                   value={newEvent.organizer_name} onChange={e => setNewEvent(f => ({ ...f, organizer_name: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
               </div>
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5">Max participants</label>
+                <p className="block text-sm font-bold text-gray-700 mb-1.5">Max participants</p>
                 <input type="number" placeholder="Illimité si vide" min="1"
                   value={newEvent.max_participants} onChange={e => setNewEvent(f => ({ ...f, max_participants: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
@@ -120,7 +120,7 @@ export default function TabCreer({
             {/* Public cible + inscription */}
             <div className="grid sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5">Public cible</label>
+                <p className="block text-sm font-bold text-gray-700 mb-1.5">Public cible</p>
                 <select value={newEvent.audience} onChange={e => setNewEvent(f => ({ ...f, audience: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-300">
                   {['Tout public', 'Famille', 'Enfants', 'Ados', 'Adultes', 'Seniors'].map(a => <option key={a} value={a}>{a}</option>)}
@@ -138,7 +138,7 @@ export default function TabCreer({
 
             {/* Tarif */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1.5">Tarif</label>
+              <p className="block text-sm font-bold text-gray-700 mb-1.5">Tarif</p>
               <div className="flex gap-3 items-center">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="radio" checked={newEvent.is_free} onChange={() => setNewEvent(f => ({ ...f, is_free: true }))} className="accent-purple-600" />
@@ -158,9 +158,9 @@ export default function TabCreer({
 
             {/* Tags */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1.5">
+              <p className="block text-sm font-bold text-gray-700 mb-1.5">
                 <Tag className="w-3.5 h-3.5 inline mr-1" />Tags <span className="font-normal text-gray-400">(séparés par virgules)</span>
-              </label>
+              </p>
               <input type="text" placeholder="Ex: famille, plein air, gratuit, musique, vide-grenier…"
                 value={newEvent.tags} onChange={e => setNewEvent(f => ({ ...f, tags: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
@@ -168,7 +168,7 @@ export default function TabCreer({
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1.5">Description</label>
+              <p className="block text-sm font-bold text-gray-700 mb-1.5">Description</p>
               <textarea placeholder="Décrivez l'événement : programme, conditions d'accès, infos pratiques, contacts…" rows={4}
                 value={newEvent.description} onChange={e => setNewEvent(f => ({ ...f, description: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-300" />
@@ -176,9 +176,9 @@ export default function TabCreer({
 
             {/* Photos */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1.5">
+              <p className="block text-sm font-bold text-gray-700 mb-1.5">
                 Photos <span className="text-gray-400 font-normal">(optionnel · max 5)</span>
-              </label>
+              </p>
               <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={onPhotoSelect} />
               {eventPhotoPreviews.length > 0 && (
                 <div className="flex gap-2 flex-wrap mb-2">

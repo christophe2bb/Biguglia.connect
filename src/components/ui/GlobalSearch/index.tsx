@@ -66,7 +66,7 @@ export default function GlobalSearch({
         loading={loading}
         size={size}
         placeholder={placeholder}
-        autoFocus={autoFocus}
+        autoFocus={autoFocus} // eslint-disable-line jsx-a11y/no-autofocus
         onChange={(v) => { setQuery(v); setSelectedIdx(-1); }}
         onFocus={handleFocus}
         onBlur={handleBlur}

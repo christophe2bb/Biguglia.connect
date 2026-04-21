@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */
 'use client';
 
 import { useEffect, useRef } from 'react';
@@ -84,10 +85,11 @@ export default function OutingStatusModal({
 
         {pendingRequiresReason && (
           <div className="mb-4">
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+            <label htmlFor="outing-transition-reason" className="block text-sm font-semibold text-gray-700 mb-1.5">
               Raison <span className="text-red-500">*</span>
             </label>
             <textarea
+              id="outing-transition-reason"
               value={transitionReason}
               onChange={e => setTransitionReason(e.target.value)}
               placeholder="Ex : Météo défavorable, lieu indisponible…"

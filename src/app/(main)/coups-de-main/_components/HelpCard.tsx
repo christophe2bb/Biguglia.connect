@@ -172,7 +172,7 @@ export default function HelpCard({
       {/* ── Zone photo / header ── */}
       <div className="relative h-44 overflow-hidden">
         {coverPhoto ? (
-          <div className="w-full h-full cursor-pointer" onClick={() => { setLightboxIdx(0); setLightboxOpen(true); }}>
+          <div className="w-full h-full cursor-pointer" role="button" tabIndex={0} onClick={() => { setLightboxIdx(0); setLightboxOpen(true); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightboxIdx(0); setLightboxOpen(true); } }}>
             <Image src={coverPhoto} alt={item.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
             {allPhotos.length > 1 && (
               <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs font-bold px-2 py-0.5 rounded-full backdrop-blur-sm">

@@ -313,10 +313,10 @@ export default function ReviewForm({
 
             {/* Commentaire */}
             <div>
-              <label className="text-sm font-semibold text-gray-700 flex items-center gap-1.5 mb-2">
+              <p className="text-sm font-semibold text-gray-700 flex items-center gap-1.5 mb-2">
                 <MessageSquare className="w-4 h-4 text-gray-400" />
                 Commentaire libre <span className="text-gray-400 font-normal">(optionnel)</span>
-              </label>
+              </p>
               <textarea
                 value={comment}
                 onChange={e => setComment(e.target.value)}

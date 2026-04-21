@@ -324,11 +324,13 @@ export default function DashboardEvenementsPage() {
 
       {/* Transition modal */}
       {showModal && pendingAction && (
+        // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4"
           aria-hidden="true"
           onClick={() => { setShowModal(false); setPendingAction(null); }}
         >
+          {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
           <div
             ref={modalRef}
             role="dialog"
@@ -354,8 +356,8 @@ export default function DashboardEvenementsPage() {
             </div>
             {pendingAction.to === 'reporte' && (
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nouvelle date</label>
-                <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)}
+                <label htmlFor="dashboard-new-date" className="block text-sm font-semibold text-gray-700 mb-1.5">Nouvelle date</label>
+                <input id="dashboard-new-date" type="date" value={newDate} onChange={e => setNewDate(e.target.value)}
                   min={new Date().toISOString().split('T')[0]}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
               </div>

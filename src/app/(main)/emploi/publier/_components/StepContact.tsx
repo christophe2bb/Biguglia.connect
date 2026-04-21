@@ -51,9 +51,9 @@ export default function StepContact({ form, set }: Props) {
 
       {/* Application mode */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <p className="block text-sm font-semibold text-gray-700 mb-2">
           Mode de candidature <span className="text-red-500">*</span>
-        </label>
+        </p>
         <div className="grid grid-cols-3 gap-3">
           {[
             { value: 'email', label: '📧 Email'     },
@@ -78,9 +78,9 @@ export default function StepContact({ form, set }: Props) {
       {/* Email */}
       {(form.application_mode === 'email' || form.application_mode === 'mixed') && (
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <p className="block text-sm font-semibold text-gray-700 mb-1.5">
             Email de contact <span className="text-red-500">*</span>
-          </label>
+          </p>
           <input type="email" placeholder="recrutement@example.fr"
             value={form.contact_email} onChange={e => set('contact_email', e.target.value)}
             className={INPUT} />
@@ -90,9 +90,9 @@ export default function StepContact({ form, set }: Props) {
       {/* Phone */}
       {(form.application_mode === 'phone' || form.application_mode === 'mixed') && (
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <p className="block text-sm font-semibold text-gray-700 mb-1.5">
             Téléphone <span className="text-red-500">*</span>
-          </label>
+          </p>
           <input type="tel" placeholder="06 XX XX XX XX"
             value={form.contact_phone} onChange={e => set('contact_phone', e.target.value)}
             className={INPUT} />

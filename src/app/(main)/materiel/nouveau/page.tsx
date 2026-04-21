@@ -220,7 +220,7 @@ export default function NouveauMaterielPage() {
 
               {/* État avec visuels */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">État du matériel</label>
+                <p className="block text-sm font-semibold text-gray-700 mb-2">État du matériel</p>
                 <div className="grid grid-cols-2 gap-2">
                   {(Object.entries(CONDITION_CONFIG) as [ConditionLabel, typeof CONDITION_CONFIG[ConditionLabel]][]).map(([key, cfg]) => (
                     <button key={key} type="button"
@@ -327,7 +327,7 @@ export default function NouveauMaterielPage() {
               <h3 className="font-semibold text-gray-800">Disponibilité</h3>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Mode de disponibilité</label>
+                <p className="block text-sm font-semibold text-gray-700 mb-2">Mode de disponibilité</p>
                 <div className="space-y-2">
                   {(Object.entries(AVAILABILITY_MODE_CONFIG) as [AvailabilityMode, typeof AVAILABILITY_MODE_CONFIG[AvailabilityMode]][]).map(([key, cfg]) => (
                     <button key={key} type="button"
@@ -354,7 +354,7 @@ export default function NouveauMaterielPage() {
 
               {form.min_notice_hours !== undefined && (
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Délai de préavis minimum</label>
+                  <p className="block text-sm font-semibold text-gray-700 mb-2">Délai de préavis minimum</p>
                   <div className="flex gap-2">
                     {[0, 2, 24, 48, 72].map(h => (
                       <button key={h} type="button"
@@ -373,7 +373,7 @@ export default function NouveauMaterielPage() {
               <h3 className="font-semibold text-gray-800">Mode d&apos;échange</h3>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Comment récupérer le matériel ?</label>
+                <p className="block text-sm font-semibold text-gray-700 mb-2">Comment récupérer le matériel ?</p>
                 <div className="space-y-2">
                   {(Object.entries(PICKUP_MODE_CONFIG) as [PickupMode, typeof PICKUP_MODE_CONFIG[PickupMode]][]).map(([key, cfg]) => (
                     <button key={key} type="button"
@@ -396,7 +396,7 @@ export default function NouveauMaterielPage() {
               <h3 className="font-semibold text-gray-800">Usage recommandé</h3>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Durée de prêt conseillée</label>
+                <p className="block text-sm font-semibold text-gray-700 mb-2">Durée de prêt conseillée</p>
                 <div className="flex flex-wrap gap-2">
                   {(Object.entries(LEND_DURATION_HINTS) as [LendDurationHint, typeof LEND_DURATION_HINTS[LendDurationHint]][]).map(([key, cfg]) => (
                     <button key={key} type="button"
@@ -420,7 +420,7 @@ export default function NouveauMaterielPage() {
                 onChange={(e) => setForm(f => ({ ...f, included_accessories: e.target.value }))} />
 
               {/* Signal "nécessite explication" (CDC §3.3) */}
-              <label className="flex items-start gap-3 cursor-pointer p-3 rounded-xl border-2 border-gray-200 hover:border-amber-300 hover:bg-amber-50 transition-all">
+              <label aria-label="Disponible maintenant" className="flex items-start gap-3 cursor-pointer p-3 rounded-xl border-2 border-gray-200 hover:border-amber-300 hover:bg-amber-50 transition-all">
                 <input type="checkbox" checked={form.requires_explanation}
                   onChange={e => setForm(f => ({ ...f, requires_explanation: e.target.checked }))}
                   className="w-4 h-4 mt-0.5 rounded text-amber-600 accent-amber-600" />

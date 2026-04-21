@@ -82,6 +82,7 @@ export function TransitionModal({
     pending.to === 'reporte' ? 'bg-violet-500 hover:bg-violet-600' :
     'bg-purple-600 hover:bg-purple-700';
 
+  /* eslint-disable jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */
   return (
     /* Backdrop — aria-hidden so AT ignores the overlay itself */
     <div
@@ -128,14 +129,14 @@ export function TransitionModal({
         {pending.to === 'reporte' && (
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nouvelle date</label>
-              <input type="date" value={newDate} onChange={e => onDateChange(e.target.value)}
+              <label htmlFor="modal-new-date" className="block text-sm font-semibold text-gray-700 mb-1.5">Nouvelle date</label>
+              <input id="modal-new-date" type="date" value={newDate} onChange={e => onDateChange(e.target.value)}
                 min={new Date().toISOString().split('T')[0]}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nouvelle heure</label>
-              <input type="time" value={newTime} onChange={e => onTimeChange(e.target.value)}
+              <label htmlFor="modal-new-time" className="block text-sm font-semibold text-gray-700 mb-1.5">Nouvelle heure</label>
+              <input id="modal-new-time" type="time" value={newTime} onChange={e => onTimeChange(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
             </div>
           </div>

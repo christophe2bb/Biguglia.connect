@@ -109,7 +109,7 @@ export default function AssociationFilters({
           <SectorFilter value={filterSector} onChange={setFilterSector} compact label="Secteur" allowCitywide showAll />
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 mb-2">Type de fiche</label>
+            <p className="block text-xs font-bold text-gray-500 mb-2">Type de fiche</p>
             <div className="flex flex-wrap gap-2">
               <button onClick={() => setFilterType('all')}
                 className={cn('px-3 py-1.5 rounded-full text-xs font-bold border transition-all',
@@ -127,7 +127,7 @@ export default function AssociationFilters({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 mb-2">Besoin actif</label>
+            <p className="block text-xs font-bold text-gray-500 mb-2">Besoin actif</p>
             <div className="flex flex-wrap gap-2">
               {[
                 { id: 'benevoles', label: '🙋 Bénévoles' },
@@ -146,7 +146,7 @@ export default function AssociationFilters({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 mb-2">Public cible</label>
+            <p className="block text-xs font-bold text-gray-500 mb-2">Public cible</p>
             <div className="flex flex-wrap gap-2">
               {PUBLIC_OPTIONS.map(p => (
                 <button key={p} onClick={() => setFilterPublic(filterPublic === p ? '' : p)}

@@ -328,7 +328,7 @@ export default function ModifierAnnoncePage() {
           )}
 
           {/* Urgent */}
-          <label className="flex items-center gap-3 p-3 rounded-xl bg-red-50 border border-red-100 cursor-pointer hover:bg-red-100 transition-colors">
+          <label aria-label="Annonce urgente" className="flex items-center gap-3 p-3 rounded-xl bg-red-50 border border-red-100 cursor-pointer hover:bg-red-100 transition-colors">
             <input
               type="checkbox"
               checked={form.is_urgent}
@@ -349,7 +349,7 @@ export default function ModifierAnnoncePage() {
           <h2 className="font-bold text-gray-900">Localisation</h2>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Secteur</label>
+            <p className="block text-sm font-semibold text-gray-700 mb-2">Secteur</p>
             <SectorFilter
               value={form.sector_id || null}
               onChange={sid => setForm(f => ({ ...f, sector_id: sid || '' }))}

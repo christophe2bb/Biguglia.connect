@@ -20,9 +20,9 @@ export function StepDetails({ form, setField }: Props) {
       {/* Dates */}
       <div className="grid sm:grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <p className="block text-sm font-semibold text-gray-700 mb-1.5">
             <Calendar className="inline w-3.5 h-3.5 mr-1" />Date de début *
-          </label>
+          </p>
           <input
             type="date" required min={today}
             value={form.event_date} onChange={e => setField('event_date', e.target.value)}
@@ -45,9 +45,9 @@ export function StepDetails({ form, setField }: Props) {
       {/* Times */}
       <div className="grid sm:grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <p className="block text-sm font-semibold text-gray-700 mb-1.5">
             <Clock className="inline w-3.5 h-3.5 mr-1" />Heure de début
-          </label>
+          </p>
           <input
             type="time" value={form.start_time} onChange={e => setField('start_time', e.target.value)}
             className={INPUT}
@@ -67,9 +67,9 @@ export function StepDetails({ form, setField }: Props) {
 
       {/* Capacity */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <p className="block text-sm font-semibold text-gray-700 mb-2">
           <Users className="inline w-3.5 h-3.5 mr-1" />Capacité
-        </label>
+        </p>
         <div className="flex items-center gap-3 mb-3">
           {([true, false] as const).map(unlimited => (
             <label key={String(unlimited)} className="flex items-center gap-2 cursor-pointer">
@@ -93,9 +93,9 @@ export function StepDetails({ form, setField }: Props) {
 
       {/* Price */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <p className="block text-sm font-semibold text-gray-700 mb-2">
           <Euro className="inline w-3.5 h-3.5 mr-1" />Tarif
-        </label>
+        </p>
         <div className="flex gap-3 flex-wrap mb-2">
           {(['gratuit', 'libre', 'payant'] as const).map(pt => (
             <label key={pt} className="flex items-center gap-2 cursor-pointer">

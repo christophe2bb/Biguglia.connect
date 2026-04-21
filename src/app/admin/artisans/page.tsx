@@ -215,7 +215,7 @@ export default function AdminArtisansPage() {
           <>
             <div className="space-y-4">
               {paginated.map(artisan => (
-                <div key={artisan.id} onClick={() => setSelectedArtisan(artisan)} className="cursor-pointer">
+                <div key={artisan.id} onClick={() => setSelectedArtisan(artisan)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedArtisan(artisan); } }} role="button" tabIndex={0} className="cursor-pointer">
                   <ArtisanCard
                     artisan={artisan}
                     onApprove={approveArtisan}

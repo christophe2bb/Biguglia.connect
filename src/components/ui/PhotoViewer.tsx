@@ -103,6 +103,7 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
   if (!photo) return null;
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
       role="dialog"
       aria-modal="true"
@@ -183,6 +184,7 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
         )}
 
         {/* Image — transforms are applied to the wrapper div so next/image can be used */}
+        {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
         <div
           ref={imgRef}
           onMouseDown={onMouseDown}
@@ -285,7 +287,9 @@ export function PhotoGallery({
     return (
       <>
         <div className={cn('relative overflow-hidden rounded-xl cursor-pointer group', className)}
-          onClick={() => openAt(0)}>
+          role="button" tabIndex={0}
+          onClick={() => openAt(0)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAt(0); } }}>
           <Image src={primary.url} alt={title || 'Photo'} fill sizes="(max-width:640px) 100vw, 50vw" unoptimized={primary.url.startsWith('blob:')} className="object-cover group-hover:scale-105 transition-transform duration-300" />
           {extra > 0 && (
             <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs font-bold px-2 py-1 rounded-full backdrop-blur-sm">
@@ -311,7 +315,9 @@ export function PhotoGallery({
       <div className={cn('space-y-2', className)}>
         {/* Photo principale */}
         <div className={cn('relative rounded-2xl overflow-hidden bg-gray-100 cursor-pointer group', mainHeight)}
-          onClick={() => openAt(0)}>
+          role="button" tabIndex={0}
+          onClick={() => openAt(0)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAt(0); } }}>
           <Image src={primary.url} alt={title || 'Photo principale'} fill sizes="(max-width:640px) 100vw, (max-width:1024px) 75vw, 60vw" unoptimized={primary.url.startsWith('blob:')} className="object-cover group-hover:scale-[1.02] transition-transform duration-300" />
 
           {/* Overlay hover */}
@@ -342,7 +348,9 @@ export function PhotoGallery({
               const remaining = others.length - 7;
               return (
                 <div key={i} className="relative h-20 sm:h-24 rounded-xl overflow-hidden bg-gray-100 cursor-pointer group"
-                  onClick={() => openAt(i + 1)}>
+                  role="button" tabIndex={0}
+                  onClick={() => openAt(i + 1)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAt(i + 1); } }}>
                   <Image src={p.url} alt="" fill sizes="(max-width:640px) 96px, 128px" unoptimized={p.url.startsWith('blob:')} className="object-cover group-hover:scale-105 transition-transform duration-200" />
                   {isLast && (
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -460,7 +468,9 @@ export function PhotoUploaderField({
       {/* Zone d'upload */}
       {canAdd && (
         <div
+          role="button" tabIndex={0}
           onClick={() => inputRef.current?.click()}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click(); } }}
           className="border-2 border-dashed border-gray-300 rounded-2xl p-5 text-center cursor-pointer hover:border-brand-400 hover:bg-brand-50/30 transition-colors group"
         >
           <ImagePlus className="w-8 h-8 text-gray-400 group-hover:text-brand-500 mx-auto mb-2 transition-colors" />
@@ -543,7 +553,9 @@ export function PhotoUploaderField({
 
           {/* Slot ajout supplémentaire */}
           {canAdd && photos.length > 0 && (
-            <div onClick={() => inputRef.current?.click()}
+            <div role="button" tabIndex={0}
+              onClick={() => inputRef.current?.click()}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click(); } }}
               className="aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:border-brand-300 hover:bg-brand-50/20 transition-colors">
               <ImagePlus className="w-6 h-6 text-gray-300" />
               <span className="text-xs text-gray-400 mt-1">Ajouter</span>
