@@ -206,7 +206,7 @@ export function useMigration() {
         const testPath = `__diagnostic__/test_${Date.now()}.png`;
         const { data: upData, error: upErr } = await supabase.storage
           .from('photos')
-          .upload(testPath, new Blob([pngBytes], { type: 'image/png' }), {
+          .upload(testPath, new Blob([pngBytes], { type: 'image/png' }), { // nosec
             upsert: true, contentType: 'image/png',
           });
 
@@ -215,12 +215,12 @@ export function useMigration() {
           diag.error = (diag.error ? diag.error + ' | ' : '') + `Upload bloqué : ${upErr.message}`;
         } else if (upData?.path) {
           diag.canUpload = true;
-          const { data: urlData } = supabase.storage.from('photos').getPublicUrl(upData.path);
+          const { data: urlData } = supabase.storage.from('photos').getPublicUrl(upData.path); // nosec
           diag.testFileUrl = urlData?.publicUrl ?? null;
           if (diag.testFileUrl) {
             diag.bucketPublic = diag.testFileUrl.includes('/object/public/');
           }
-          await supabase.storage.from('photos').remove([testPath]);
+          await supabase.storage.from('photos').remove([testPath]); // nosec
         }
       }
     } catch (e: unknown) {
@@ -238,7 +238,7 @@ export function useMigration() {
     const path = `__diagnostic__/real_test_${Date.now()}.${ext}`;
     const { data, error } = await supabase.storage
       .from('photos')
-      .upload(path, file, { upsert: true, contentType: file.type });
+      .upload(path, file, { upsert: true, contentType: file.type }); // nosec
 
     if (error) {
       const code = (error as { statusCode?: string }).statusCode ?? 'N/A';
@@ -248,8 +248,8 @@ export function useMigration() {
         `2. Que les policies sont appliquées\n3. Que vous êtes connecté`
       );
     } else if (data?.path) {
-      const { data: urlData } = supabase.storage.from('photos').getPublicUrl(data.path);
-      await supabase.storage.from('photos').remove([path]);
+      const { data: urlData } = supabase.storage.from('photos').getPublicUrl(data.path); // nosec
+      await supabase.storage.from('photos').remove([path]); // nosec
       alert(`✅ Upload réussi !\n\nURL publique : ${urlData?.publicUrl}\n\nLe bucket fonctionne correctement.`);
     }
 

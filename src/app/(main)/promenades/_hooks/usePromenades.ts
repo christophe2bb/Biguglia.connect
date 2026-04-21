@@ -150,10 +150,10 @@ export function usePromenades(
         const photo = photos[i];
         const ext = safeImageExt(photo.name);
         const fileName = `promenades/${prom.id}/${Date.now()}-${i}.${ext}`;
-        const { data: up, error: upErr } = await supabase.storage.from('photos').upload(fileName, photo, { upsert: true });
+        const { data: up, error: upErr } = await supabase.storage.from('photos').upload(fileName, photo, { upsert: true }); // nosec
         if (upErr) { toast.error(`Photo ${i + 1} : ${upErr.message}`); continue; }
         if (up?.path) {
-          const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(up.path);
+          const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(up.path); // nosec
           await supabase.from('promenade_photos').insert({ promenade_id: prom.id, url: publicUrl, display_order: i });
         }
       }

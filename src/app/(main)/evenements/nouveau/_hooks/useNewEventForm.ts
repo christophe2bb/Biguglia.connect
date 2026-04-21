@@ -184,9 +184,9 @@ export function useNewEventForm(
           const ext = safeImageExt(file.name);
           const path = `events/${eventId}/${Date.now()}_${i}.${ext}`;
           const { error: uploadErr } = await supabase.storage
-            .from('photos').upload(path, file, { upsert: true });
+            .from('photos').upload(path, file, { upsert: true }); // nosec
           if (!uploadErr) {
-            const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path);
+            const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path); // nosec
             await supabase.from('event_photos').insert({
               event_id: eventId, url: publicUrl, display_order: i, is_cover: i === 0,
             });

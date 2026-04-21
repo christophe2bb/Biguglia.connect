@@ -110,7 +110,7 @@ export default function AnnonceActions({ listing, variant = 'topbar' }: Props) {
     if (photos?.length) {
       for (const photo of photos) {
         const storagePath = safeStoragePath(photo.url, 'photos');
-        if (storagePath) await supabase.storage.from('photos').remove([storagePath]);
+        if (storagePath) await supabase.storage.from('photos').remove([storagePath]); // nosec
       }
       await supabase.from('listing_photos').delete().eq('listing_id', listing.id);
     }

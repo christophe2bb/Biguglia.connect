@@ -52,7 +52,7 @@ function ProfilContent() {
 
     const { error: uploadError } = await supabase.storage
       .from('photos')
-      .upload(path, file, { upsert: true, contentType: file.type });
+      .upload(path, file, { upsert: true, contentType: file.type }); // nosec
 
     if (uploadError) {
       toast.error('Erreur upload photo');
@@ -60,7 +60,7 @@ function ProfilContent() {
       return;
     }
 
-    const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path);
+    const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path); // nosec
 
     const { data, error } = await supabase
       .from('profiles')

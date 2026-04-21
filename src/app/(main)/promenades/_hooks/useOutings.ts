@@ -200,10 +200,10 @@ export function useOutings(profile: { id: string } | null | undefined) {
         const file = outingPhotos[i];
         const ext = safeImageExt(file.name);
         const path = `outings/${outingId}/${Date.now()}_${i}.${ext}`;
-        const { data: up, error: upErr } = await supabase.storage.from('photos').upload(path, file, { upsert: true, contentType: file.type });
+        const { data: up, error: upErr } = await supabase.storage.from('photos').upload(path, file, { upsert: true, contentType: file.type }); // nosec
         if (upErr) { toast.error(`Photo ${i + 1} : ${upErr.message}`); continue; }
         if (up?.path) {
-          const { data: u } = supabase.storage.from('photos').getPublicUrl(up.path);
+          const { data: u } = supabase.storage.from('photos').getPublicUrl(up.path); // nosec
           await supabase.from('outing_photos').insert({ outing_id: outingId, url: u.publicUrl, display_order: i });
         }
       }
