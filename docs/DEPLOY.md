@@ -37,6 +37,20 @@ Exécuter les migrations dans l'ordre dans **Supabase → SQL Editor** :
 | 29 | `supabase/migrations/20260421_cleanup_duplicate_policies.sql` | Nettoyage policies RLS dupliquées |
 | 30 | `supabase/migrations/20260421_unindexed_fk.sql` | Index sur clés étrangères non couvertes |
 
+> **Ordre d'exécution obligatoire** : respecter impérativement le numéro `#` du tableau.
+> Les noms de fichiers commencent par une date (`YYYYMMDD`) : trier par nom = trier par ordre correct.
+> Ne pas exécuter plusieurs fichiers d'une même date dans un ordre arbitraire.
+>
+> **Dépendances critiques** :
+> - `#11` (`20260413_listings_all_missing_columns`) et `#12` (`20260413_listings_optional_columns`)
+>   **doivent être exécutées avant** `#14` (`20260414_admin_full_fix`) — ce dernier référence
+>   des colonnes (`listing_type` enum étendu, `is_negotiable`, etc.) créées par les deux précédentes.
+>   Exécuter `#14` seul sur une base vierge produira une erreur `column does not exist`.
+> - Plus généralement, chaque migration suppose que toutes les précédentes ont réussi.
+>
+> **Idempotence** : tous les fichiers utilisent `IF NOT EXISTS` / `IF EXISTS` — ils peuvent être
+> relancés sans risque si une exécution précédente a échoué à mi-chemin.
+>
 > Pour chaque fichier : copier le contenu → coller dans SQL Editor → cliquer **Run** → vérifier "Success. No rows returned."
 
 ### Schéma de référence
