@@ -16,7 +16,7 @@ type Props = { params: { id: string } };
 // ─── Server fetch helper ────────────────────────────────────────────────────
 async function fetchAssociation(id: string): Promise<Association | null> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from('associations')
       .select('*, author:profiles(full_name, avatar_url), photos:asso_photos(url, display_order)')
@@ -44,7 +44,7 @@ async function fetchAssociation(id: string): Promise<Association | null> {
 // ─── generateMetadata ───────────────────────────────────────────────────────
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data } = await supabase
       .from('associations')
       .select('name, description_short')

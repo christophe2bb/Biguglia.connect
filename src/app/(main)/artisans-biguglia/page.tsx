@@ -45,7 +45,7 @@ export const metadata: Metadata = {
 
 async function fetchStats(): Promise<{ totalArtisans: number; totalReviews: number }> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const [{ count: totalArtisans }, { count: totalReviews }] = await Promise.all([
       supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'artisan_verified'),
       supabase.from('artisan_reviews').select('*', { count: 'exact', head: true }),

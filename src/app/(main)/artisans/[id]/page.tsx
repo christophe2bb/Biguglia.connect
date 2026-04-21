@@ -31,7 +31,7 @@ type Props = { params: { id: string } };
 
 // ─── Fetch data ───────────────────────────────────────────────────────────────
 async function fetchArtisan(id: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from('artisan_profiles')

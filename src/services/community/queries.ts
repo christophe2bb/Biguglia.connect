@@ -85,7 +85,7 @@ function daysFromNow(days: number): string {
 // 6 requêtes COUNT(*) sur des tables entières : résultat identique pour tous
 // les visiteurs. Cache 120s sur Vercel (régénération en arrière-plan).
 async function _fetchCommunityStats(): Promise<CommunityStats> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const since1Week = daysAgo(7);
 
   const [
@@ -132,7 +132,7 @@ export const fetchCommunityStats = unstable_cache(
 // ─── fetchTopArtisans — cachée 300s ─────────────────────────────────────────
 // La liste des artisans vedettes change rarement. Cache 5min.
 async function _fetchTopArtisans(limit = 4): Promise<SpotlightArtisan[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Artisans vérifiés avec leur score de confiance
   const { data: artisans } = await supabase
@@ -224,7 +224,7 @@ export const fetchTopArtisans = unstable_cache(
 
 // cachée 60s — les coups de main récents changent parfois
 async function _fetchRecentHelpers(limit = 5): Promise<SpotlightHelper[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const since30 = daysAgo(30);
 
   const { data } = await supabase
@@ -260,7 +260,7 @@ export const fetchRecentHelpers = unstable_cache(
 
 // cachée 120s
 async function _fetchActiveMembersSpotlight(limit = 6): Promise<SpotlightMember[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Membres récents actifs avec trust_profile_stats
   const { data } = await supabase
@@ -308,7 +308,7 @@ export const fetchActiveMembersSpotlight = unstable_cache(
 // ─── fetchRecentEvents ────────────────────────────────────────────────────────
 
 async function _fetchRecentEvents(limit = 3): Promise<SpotlightEvent[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
   const in3Weeks = daysFromNow(21).slice(0, 10);
 

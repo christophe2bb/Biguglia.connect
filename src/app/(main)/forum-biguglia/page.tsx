@@ -54,7 +54,7 @@ interface PostRow {
 
 async function fetchRecentPosts(): Promise<{ posts: PostRow[]; total: number }> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data, count } = await supabase
       .from('forum_posts')
       .select('id, title, category, created_at, reply_count', { count: 'exact' })

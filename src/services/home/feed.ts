@@ -67,7 +67,7 @@ function daysFromNow(days: number): string {
 //   (le fil est fait pour voir ce que les VOISINS publient)
 
 async function fetchHelpRequests(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   currentUserId: string | null,
 ): Promise<RawHelpRequest[]> {
   const since = new Date(Date.now() - 90 * 86400000).toISOString(); // 90 jours
@@ -86,7 +86,7 @@ async function fetchHelpRequests(
 }
 
 async function fetchEvents(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   currentUserId: string | null,
 ): Promise<RawEvent[]> {
   const today = todayStr();
@@ -107,7 +107,7 @@ async function fetchEvents(
 }
 
 async function fetchForumTopics(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   currentUserId: string | null,
 ): Promise<RawForumTopic[]> {
   const since = new Date(Date.now() - 90 * 86400000).toISOString(); // 90 jours
@@ -126,7 +126,7 @@ async function fetchForumTopics(
 }
 
 async function fetchLostFound(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   currentUserId: string | null,
 ): Promise<RawLostFound[]> {
   const since = new Date(Date.now() - 60 * 86400000).toISOString();
@@ -194,7 +194,7 @@ async function fetchLostFound(
 }
 
 async function fetchListings(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   currentUserId: string | null,
 ): Promise<RawListing[]> {
   const since = new Date(Date.now() - 21 * 86400000).toISOString();
@@ -213,7 +213,7 @@ async function fetchListings(
 }
 
 async function fetchJobOffers(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   currentUserId: string | null,
 ): Promise<RawJobOffer[]> {
   const since = new Date(Date.now() - 30 * 86400000).toISOString(); // 30 jours
@@ -241,7 +241,7 @@ async function fetchJobOffers(
 }
 
 async function fetchJobDemands(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   currentUserId: string | null,
 ): Promise<RawJobDemand[]> {
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
@@ -268,7 +268,7 @@ async function fetchJobDemands(
 }
 
 async function fetchOutings(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   currentUserId: string | null,
 ): Promise<RawOuting[]> {
   const today = todayStr();
@@ -460,7 +460,7 @@ async function _getHomeFeed(
   userContext: UserFeedContext = {},
 ): Promise<HomeFeedResult> {
   const { feedWeights = {}, primaryInterest } = userContext;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Fetch en parallèle — tolérant aux pannes
   const [helpRaw, eventsRaw, forumRaw, lostFoundRaw, listingsRaw, outingsRaw, offersRaw, demandsRaw] =

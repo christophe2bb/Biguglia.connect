@@ -78,7 +78,7 @@ interface ArtisanRow {
 
 async function fetchArtisansByTrade(tradeSlug: string): Promise<ArtisanRow[]> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data } = await supabase
       .from('artisan_profiles')
       .select(`

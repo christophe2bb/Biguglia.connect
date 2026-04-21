@@ -46,7 +46,7 @@ interface JobDemand { id: string; title: string; contract_type: string | null; p
 
 async function fetchRecentJobs(): Promise<{ offers: JobOffer[]; demands: JobDemand[]; totalOffers: number; totalDemands: number }> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const [{ data: offers, count: totalOffers }, { data: demands, count: totalDemands }] = await Promise.all([
       supabase.from('job_offers')
         .select('id, title, contract_type, published_at', { count: 'exact' })

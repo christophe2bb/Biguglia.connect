@@ -38,7 +38,7 @@ type Props = { params: { id: string } };
 
 // ─── Fetch data ───────────────────────────────────────────────────────────────
 async function fetchEvent(id: string): Promise<EventDetail | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from('events')

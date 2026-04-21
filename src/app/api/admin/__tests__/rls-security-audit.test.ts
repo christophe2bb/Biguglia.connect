@@ -659,7 +659,7 @@ describe('E. Tables publiques — audit des USING(true)', () => {
      *   • La RLS profiles a USING(true) pour SELECT
      *   • Cependant, email + phone ne sont retournés que par /api/admin/users
      *     (qui exige auth admin + service role)
-     *   • Un client normal avec createClient() peut lire id, full_name, avatar_url
+     *   • Un client normal avec await createClient() peut lire id, full_name, avatar_url
      *     mais PAS email, phone (ces champs ne sont pas exposés dans les tables publiques)
      *
      * NOTE : Ce test est documentaire — il valide l'architecture, pas Supabase directement.

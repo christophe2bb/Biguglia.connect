@@ -20,7 +20,7 @@ type Props = { params: { id: string } };
 // ─── Server fetch helper ────────────────────────────────────────────────────
 async function fetchTopicData(id: string): Promise<InitialTopicData | null> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Try v2 forum_topics first
     const { data: topicV2 } = await supabase
@@ -125,7 +125,7 @@ async function fetchTopicData(id: string): Promise<InitialTopicData | null> {
 // ─── generateMetadata ───────────────────────────────────────────────────────
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data: topicV2 } = await supabase
       .from('forum_topics')

@@ -53,7 +53,7 @@ interface AnnonceRow {
 
 async function fetchRecentAnnonces(): Promise<{ annonces: AnnonceRow[]; total: number; donCount: number }> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const [{ data, count }, { count: donCount }] = await Promise.all([
       supabase
         .from('listings')

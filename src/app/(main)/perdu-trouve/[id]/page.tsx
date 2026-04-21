@@ -28,7 +28,7 @@ type Props = { params: { id: string } };
 
 // ─── Fetch data ───────────────────────────────────────────────────────────────
 async function fetchLFItem(id: string): Promise<LFItem | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Attempt 1 – with explicit FK
   let { data, error } = await supabase

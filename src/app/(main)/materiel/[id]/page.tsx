@@ -29,7 +29,7 @@ type Props = { params: { id: string } };
 
 // ─── Fetch data ───────────────────────────────────────────────────────────────
 async function fetchMateriel(id: string): Promise<EquipmentItemFull | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('equipment_items')
     .select('*, category:equipment_categories(*), photos:equipment_photos(id, url, display_order, is_cover)')

@@ -49,7 +49,7 @@ type Props = { params: { id: string } };
 // ─── Fetch data (réutilisé par generateMetadata + page) ──────────────────────
 async function fetchListing(id: string) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from('listings')
       .select('*, category:listing_categories(*), photos:listing_photos(id, url, display_order)')
