@@ -35,8 +35,13 @@ const supabaseHost = SUPABASE_URL.replace(/^https?:\/\//, '');
 //    les erreurs front-end ne remontent jamais à Sentry.
 //
 // blob: est nécessaire pour Sentry Replay qui crée des workers via blob: URLs
-const scriptSrcProd = "'self' 'unsafe-inline' blob: https://vercel.live https://*.vercel-scripts.com";
-const scriptSrcDev  = "'self' 'unsafe-inline' 'unsafe-eval' blob: https://vercel.live https://*.vercel-scripts.com";
+//
+// https://browser.sentry-cdn.com : Sentry Replay est chargé LAZY depuis ce CDN
+//   via lazyLoadIntegration('replayIntegration'). Sans cette entrée, le navigateur
+//   bloque le chargement et lève une violation CSP dans la console.
+//   Voir sentry.client.config.ts — Sentry.lazyLoadIntegration('replayIntegration').
+const scriptSrcProd = "'self' 'unsafe-inline' blob: https://vercel.live https://*.vercel-scripts.com https://browser.sentry-cdn.com";
+const scriptSrcDev  = "'self' 'unsafe-inline' 'unsafe-eval' blob: https://vercel.live https://*.vercel-scripts.com https://browser.sentry-cdn.com";
 
 const ContentSecurityPolicy = `
   default-src 'self';

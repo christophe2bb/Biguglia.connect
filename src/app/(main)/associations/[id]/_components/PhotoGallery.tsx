@@ -1,3 +1,5 @@
+'use client';
+
 import Image from 'next/image';
 import { Camera } from 'lucide-react';
 import { PhotoViewer } from '@/components/ui/PhotoViewer';
