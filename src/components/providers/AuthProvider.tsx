@@ -46,7 +46,7 @@
  *     (toutes les ~55 min) ne déclenche un refetch de profil que si l'userId
  *     a changé (ne se produit pas en pratique — garde uniquement défensive).
  *
- *  4. Timeout 8s : si onAuthStateChange ne répond pas (Supabase indisponible,
+ *  4. Timeout 5s : si onAuthStateChange ne répond pas (Supabase indisponible,
  *     réseau hors ligne), l'UI est débloquée en passant à 'unauthenticated'.
  *     L'utilisateur peut naviguer sur les pages publiques.
  *
@@ -60,7 +60,9 @@ import { useAuthStore } from '@/lib/auth-store';
 import type { Profile } from '@/types';
 
 /** Durée avant déblocage forcé de l'UI si Supabase ne répond pas */
-const AUTH_TIMEOUT_MS = 3_000; // 3s max — Supabase INITIAL_SESSION arrive normalement en < 1s
+const AUTH_TIMEOUT_MS = 5_000; // 5s max — Supabase INITIAL_SESSION arrive normalement en < 1s
+// 5s (au lieu de 3s) : marge pour les connexions mobiles ou réseaux lents sans
+// pénaliser les utilisateurs rapides (le timeout est annulé dès réception de INITIAL_SESSION).
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
   const { _setAuth } = useAuthStore();
