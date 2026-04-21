@@ -58,15 +58,23 @@ Dans **Database > Replication**, activer :
 
 ### Variables d'environnement requises
 
-| Variable | Description |
-|----------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | URL du projet Supabase (ex : `https://xxxx.supabase.co`) |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clé publique Supabase (`sb_publishable_...`) |
-| `NEXT_PUBLIC_SITE_URL` | URL du site déployé |
-| `NEXT_PUBLIC_ADMIN_EMAIL` | Email de l'administrateur |
-| `SUPABASE_SERVICE_ROLE_KEY` | Clé service role (côté serveur uniquement, ne jamais exposer côté client) |
+| Variable | Requis | Description |
+|----------|--------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | ✅ Requis | URL du projet Supabase (ex : `https://xxxx.supabase.co`) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ Requis | Clé publique Supabase (`sb_publishable_...`) |
+| `NEXT_PUBLIC_SITE_URL` | ✅ Requis | URL du site déployé (ex : `https://biguglia-connect.vercel.app`) |
+| `NEXT_PUBLIC_ADMIN_EMAIL` | ✅ Requis | Email de l'administrateur |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ Requis | Clé service role (côté serveur uniquement, ne jamais exposer côté client) |
+| `UPSTASH_REDIS_REST_URL` | ⚠️ Fortement recommandé | URL REST Upstash (ex : `https://xxx.upstash.io`) — voir §5b ci-dessous |
+| `UPSTASH_REDIS_REST_TOKEN` | ⚠️ Fortement recommandé | Token Bearer Upstash — voir §5b ci-dessous |
 
 > ⚠️ Ne jamais committer `.env.local`. Toutes ces valeurs sont confidentielles.
+
+> 🚨 **Sans `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`**, le rate-limiting
+> fonctionne en **mode mémoire locale** : chaque instance Vercel Edge possède ses propres
+> compteurs. Sur plusieurs instances simultanées, une IP peut multiplier ses tentatives
+> (brute-force, spam) par le nombre d'instances actives.
+> **En production multi-instance, ces deux variables sont indispensables.**
 
 ### Via interface Vercel
 
@@ -85,8 +93,61 @@ vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
 vercel env add NEXT_PUBLIC_SITE_URL
 vercel env add NEXT_PUBLIC_ADMIN_EMAIL
 vercel env add SUPABASE_SERVICE_ROLE_KEY
+vercel env add UPSTASH_REDIS_REST_URL
+vercel env add UPSTASH_REDIS_REST_TOKEN
 vercel --prod
 ```
+
+---
+
+## 🔴 Étape 5b : Configurer Upstash Redis (rate-limiting distribué)
+
+> **Pourquoi c'est important :** Vercel déploie l'application sur plusieurs instances
+> Edge simultanément. Sans Redis partagé, chaque instance maintient ses propres
+> compteurs de rate-limiting en mémoire → une IP malveillante peut contourner la
+> protection en atteignant des instances différentes.
+>
+> Upstash Redis centralise tous les compteurs → **protection réelle multi-instances**.
+> Le tier gratuit suffit pour démarrer (10 000 req/jour gratuites).
+
+### Créer une base Upstash Redis
+
+1. Aller sur **https://console.upstash.com**
+2. Créer un compte (gratuit)
+3. Cliquer **Create Database**
+4. Choisir :
+   - **Name** : `biguglia-ratelimit`
+   - **Region** : `EU-West-1 (Ireland)` — la plus proche de Vercel Frankfurt
+   - **Type** : `Regional` (tier gratuit)
+5. Cliquer **Create**
+6. Dans l'onglet **REST API** de la base créée, copier :
+   - `UPSTASH_REDIS_REST_URL` → ex : `https://free-xxx.upstash.io`
+   - `UPSTASH_REDIS_REST_TOKEN` → token Bearer
+
+### Ajouter les variables dans Vercel
+
+Via l'interface Vercel :
+1. **Settings → Environment Variables**
+2. Ajouter `UPSTASH_REDIS_REST_URL` (Production + Preview)
+3. Ajouter `UPSTASH_REDIS_REST_TOKEN` (Production + Preview)
+4. Redéployer : **Deployments → ⋯ → Redeploy**
+
+Ou via CLI :
+```bash
+vercel env add UPSTASH_REDIS_REST_URL
+vercel env add UPSTASH_REDIS_REST_TOKEN
+vercel --prod
+```
+
+### Vérifier que Redis est actif
+
+Après déploiement, les logs Vercel (fonctions) ne doivent **plus** contenir :
+```
+[rate-limit] Redis non configuré — fallback mémoire actif
+```
+
+Si ce message apparaît, les variables ne sont pas lues par le runtime → vérifier
+qu'elles sont bien définies en **Production** (pas seulement Preview) et redéployer.
 
 ---
 
@@ -112,3 +173,4 @@ UPDATE profiles SET role = 'admin' WHERE email = 'votre@email.fr';
 - [ ] `/admin` — accessible avec le compte admin
 - [ ] Storage `photos` — upload depuis `/annonces/nouvelle` fonctionne
 - [ ] Messagerie — `/messages` charge et envoie un message
+- [ ] Logs Vercel — absence du message `[rate-limit] Redis non configuré — fallback mémoire actif`

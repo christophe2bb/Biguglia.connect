@@ -60,7 +60,22 @@ import {
   shouldBypassRateLimit,
   resolveRouteGroupRedis,
   checkRateLimitRedis,
+  isRedisConfigured,
 } from '@/lib/rate-limit-redis';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AVERTISSEMENT DÉMARRAGE — Redis non configuré
+// Émis une seule fois au premier cold-start de l'instance Edge.
+// Visible dans Vercel → Functions → Logs.
+// ─────────────────────────────────────────────────────────────────────────────
+if (!isRedisConfigured()) {
+  console.warn(
+    '[rate-limit] Redis non configuré — fallback mémoire actif. ' +
+    'En production multi-instance Vercel, chaque instance dispose de ses propres ' +
+    'compteurs : la protection anti brute-force/spam est inefficace. ' +
+    'Ajouter UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN (voir docs/DEPLOY.md §5b).',
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ANTI-BOT — User-Agent blacklist
