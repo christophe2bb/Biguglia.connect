@@ -44,6 +44,11 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { ALL_TRADE_SLUGS } from '@/lib/seo/local-data';
 import { getSiteUrl } from '@/lib/seo/site-url';
 
+// Regénéré toutes les 24h côté Vercel — jamais pré-rendu statiquement au build.
+// Évite les timeouts Supabase en sandbox/CI où la DB peut être lente.
+export const dynamic  = 'force-dynamic';
+export const revalidate = 86400; // 24h
+
 const SITE_URL = getSiteUrl();
 
 /** Client public anon — pas de session, pas de cookies. Idéal pour un sitemap. */
