@@ -2,7 +2,8 @@
 
 import { MapPin, Calendar } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
-import { PhotoGallery, toPhotoItems } from '@/components/ui/PhotoViewer';
+import { PhotoGallery } from '@/components/ui/PhotoViewer';
+import { toPhotoItems } from '@/components/ui/photo-utils';
 import { CONDITION_LABELS, formatDate } from '@/lib/utils';
 import { EQUIPMENT_STATUS_CONFIG } from '@/lib/equipment';
 import type { EquipmentItemFull, EquipmentStatus } from '@/lib/equipment';

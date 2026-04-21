@@ -1,5 +1,5 @@
 import dynamic from 'next/dynamic';
-import { toPhotoItems } from '@/components/ui/PhotoViewer';
+import { toPhotoItems } from '@/components/ui/photo-utils';
 
 // PhotoGallery (inclut lightbox) : lazy-load pour réduire le bundle initial
 // La galerie est above-the-fold mais le code JS peut être différé (HTML = SSR)

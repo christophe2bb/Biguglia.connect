@@ -7,6 +7,11 @@
  *  - <PhotoViewer>        : Lightbox plein écran (flèches, compteur, zoom, swipe)
  *  - <PhotoGallery>       : Grille principale + miniatures + badge "+N photos" + clic → Lightbox
  *  - <PhotoUploaderField> : Zone d'upload avec photo principale + photos secondaires réordonnables
+ *
+ * NB : PhotoItem + toPhotoItems sont définis dans photo-utils.ts (sans 'use client')
+ *      pour pouvoir être importés depuis les Server Components sans déclencher
+ *      une erreur de module boundary Next.js App Router.
+ *      Ce fichier les ré-exporte pour la rétrocompatibilité.
  */
 
 import { useState, useEffect, useCallback, useRef, useId } from 'react';
@@ -17,13 +22,10 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-export interface PhotoItem {
-  id?: string;
-  url: string;
-  display_order?: number;
-  isPrimary?: boolean;    // ← photo principale (index 0 ou marquée)
-}
+// ─── Types + helper (définis dans photo-utils.ts, ré-exportés ici) ────────────
+export type { PhotoItem } from './photo-utils';
+export { toPhotoItems } from './photo-utils';
+import type { PhotoItem } from './photo-utils';
 
 // ─── 1. LIGHTBOX PLEIN ÉCRAN ─────────────────────────────────────────────────
 interface PhotoViewerProps {
@@ -574,12 +576,4 @@ export function PhotoUploaderField({
   );
 }
 
-// ─── Helper : convertir photos DB → PhotoItem ─────────────────────────────────
-export function toPhotoItems(
-  photos: Array<{ url: string; display_order?: number; id?: string }> | null | undefined
-): PhotoItem[] {
-  if (!photos?.length) return [];
-  return [...photos]
-    .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
-    .map((p, i) => ({ ...p, isPrimary: i === 0 }));
-}
+// toPhotoItems est maintenant dans photo-utils.ts et ré-exporté en haut de ce fichier.
