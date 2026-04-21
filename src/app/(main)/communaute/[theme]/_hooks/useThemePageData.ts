@@ -43,7 +43,8 @@ export function useThemePageData(themeSlug: string) {
   const [discError, setDiscError] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [sendingMsg, setSendingMsg] = useState(false);
-  const discussEndRef = useRef<HTMLDivElement>(null);
+  const discussEndRef    = useRef<HTMLDivElement>(null);
+  const rafDiscussRef    = useRef<number | null>(null);
 
   // ── Filtered members (derived) ────────────────────────────────────────────
   const filteredMembers = useMemo(
@@ -247,7 +248,11 @@ export function useThemePageData(themeSlug: string) {
         },
       ]);
       setNewMessage('');
-      setTimeout(() => discussEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      if (rafDiscussRef.current !== null) cancelAnimationFrame(rafDiscussRef.current);
+      rafDiscussRef.current = requestAnimationFrame(() => {
+        rafDiscussRef.current = null;
+        discussEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      });
     } catch {
       // ignore silently
     } finally {
