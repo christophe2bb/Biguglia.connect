@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { safeImageExt, safeDocExt, safeStoragePath } from '../upload-utils';
+import { safeImageExt, safeDocExt, safeStoragePath, safeRelativePath } from '../upload-utils';
 
 // ─── safeImageExt ──────────────────────────────────────────────────────────────
 describe('safeImageExt', () => {
@@ -115,5 +115,47 @@ describe('safeStoragePath', () => {
   it('returns null for a completely unrelated URL', () => {
     expect(safeStoragePath('https://evil.com/malicious', 'photos')).toBeNull();
     expect(safeStoragePath('', 'photos')).toBeNull();
+  });
+});
+
+// ─── safeRelativePath ─────────────────────────────────────────────────────────
+describe('safeRelativePath', () => {
+  it('returns a valid relative path unchanged', () => {
+    expect(safeRelativePath('userId/doc.pdf')).toBe('userId/doc.pdf');
+    expect(safeRelativePath('abc123/2024/cv.pdf')).toBe('abc123/2024/cv.pdf');
+  });
+
+  it('strips an optional bucket prefix', () => {
+    expect(safeRelativePath('documents/userId/cv.pdf', 'documents')).toBe('userId/cv.pdf');
+    expect(safeRelativePath('photos/listings/img.jpg', 'photos')).toBe('listings/img.jpg');
+  });
+
+  it('returns the path as-is when prefix does not match', () => {
+    // "photos/" prefix not present → no stripping, validate as-is
+    expect(safeRelativePath('userId/cv.pdf', 'documents')).toBe('userId/cv.pdf');
+  });
+
+  it('returns null for path traversal attempts', () => {
+    expect(safeRelativePath('../etc/passwd')).toBeNull();
+    expect(safeRelativePath('valid/../../../etc/passwd')).toBeNull();
+    expect(safeRelativePath('documents/../private/secret')).toBeNull();
+  });
+
+  it('returns null for absolute paths', () => {
+    expect(safeRelativePath('/etc/passwd')).toBeNull();
+    expect(safeRelativePath('/absolute/path.pdf')).toBeNull();
+  });
+
+  it('returns null for empty or blank input', () => {
+    expect(safeRelativePath('')).toBeNull();
+  });
+
+  it('returns null when path becomes empty after stripping prefix', () => {
+    // "documents/" stripped → empty string → null
+    expect(safeRelativePath('documents/', 'documents')).toBeNull();
+  });
+
+  it('handles nested-valid paths correctly', () => {
+    expect(safeRelativePath('user-id-123/subfolder/file.pdf')).toBe('user-id-123/subfolder/file.pdf');
   });
 });

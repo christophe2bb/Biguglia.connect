@@ -14,10 +14,13 @@
  *   4. Fallback vers une extension sûre par défaut si non reconnue
  *
  * Usage :
- *   import { safeImageExt, safeDocExt } from '@/lib/upload-utils';
- *   const ext = safeImageExt(file.name);           // "jpg" | "jpeg" | "png" | "webp" | "gif"
- *   const ext = safeDocExt(file.name);             // "pdf" | "jpg" | "jpeg" | "png" | "webp"
+ *   import { safeImageExt, safeDocExt, safeRelativePath } from '@/lib/upload-utils';
+ *   const ext  = safeImageExt(file.name);           // "jpg" | "jpeg" | "png" | "webp" | "gif"
+ *   const ext  = safeDocExt(file.name);             // "pdf" | "jpg" | "jpeg" | "png" | "webp"
  *   const path = `folder/${id}/${Date.now()}.${ext}`;
+ *
+ *   // Pour valider un chemin relatif issu de la base de données avant createSignedUrl :
+ *   const safe = safeRelativePath(storagePath); // null si traversée détectée
  */
 
 /** Extensions autorisées pour les photos. */
@@ -70,4 +73,38 @@ export function safeStoragePath(publicUrl: string, bucket: string): string | nul
   // Reject path traversal attempts
   if (storagePath.includes('..') || storagePath.startsWith('/')) return null;
   return storagePath;
+}
+
+/**
+ * Valide un chemin relatif Supabase Storage issu de la base de données.
+ *
+ * Usage : chemins stockés directement en BDD (ex. "userId/doc.pdf"),
+ * avant de les passer à createSignedUrl() ou remove().
+ * Contrairement à safeStoragePath() (qui attend une URL publique complète),
+ * cette fonction accepte directement le chemin relatif.
+ *
+ * Protège contre CWE-22 : rejette tout chemin contenant ".." (traversée),
+ * commençant par "/" (chemin absolu), ou vide.
+ *
+ * @param   relativePath - Chemin relatif (ex. "userId/doc.pdf", "documents/id/cv.pdf")
+ * @returns Le chemin nettoyé du préfixe de bucket optionnel, ou null si invalide.
+ *
+ * @example
+ *   safeRelativePath('userId/cv.pdf')            // → 'userId/cv.pdf'
+ *   safeRelativePath('documents/userId/cv.pdf')  // → 'userId/cv.pdf'  (strip bucket prefix)
+ *   safeRelativePath('../secret')                // → null
+ *   safeRelativePath('/etc/passwd')              // → null
+ */
+export function safeRelativePath(
+  relativePath: string,
+  stripBucketPrefix?: string,
+): string | null {
+  if (!relativePath) return null;
+  // Strip optional bucket prefix (ex. "documents/" → "")
+  const path = stripBucketPrefix
+    ? relativePath.replace(new RegExp(`^${stripBucketPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\/`), '')
+    : relativePath;
+  // Reject path traversal and absolute paths
+  if (path.includes('..') || path.startsWith('/') || !path) return null;
+  return path;
 }
