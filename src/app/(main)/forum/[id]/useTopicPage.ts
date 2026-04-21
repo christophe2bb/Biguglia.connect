@@ -13,7 +13,7 @@ export function useTopicPage(initialData?: InitialTopicData): UseTopicPageReturn
   const { id } = useParams();
   const topicId = id as string;
   const router = useRouter();
-  const { profile, _isModerator } = useAuthStore();
+  const { profile, isModerator: _isModerator } = useAuthStore();
 
   // Seed state from server data when available
   const [topic,         setTopic]         = useState<TopicExtended | null>(initialData?.topic ?? null);

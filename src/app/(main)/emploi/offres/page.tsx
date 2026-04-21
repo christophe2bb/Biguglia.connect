@@ -32,7 +32,7 @@ import { JobOfferCard } from '@/components/jobs/JobOfferCard';
 import { JobFiltersClient } from './JobFiltersClient';
 import { SortSelectClient } from './SortSelectClient';
 import type { JobOfferFilters } from '@/types/jobs';
-import { JsonLd, breadcrumbSchema, faqSchema, _collectionPageSchema, itemListSchema, jobPostingSchema } from '@/components/seo/JsonLd';
+import { JsonLd, breadcrumbSchema, faqSchema, itemListSchema, jobPostingSchema } from '@/components/seo/JsonLd';
 
 interface PageProps {
   searchParams: {

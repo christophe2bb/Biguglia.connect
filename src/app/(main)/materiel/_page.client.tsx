@@ -13,7 +13,7 @@ import Button from '@/components/ui/Button';
 import EmptyState from '@/components/ui/EmptyState';
 import Avatar from '@/components/ui/Avatar';
 import { CONDITION_LABELS } from '@/lib/utils';
-import { EQUIPMENT_STATUS_CONFIG, EquipmentStatus, _isPubliclyVisible } from '@/lib/equipment';
+import { EQUIPMENT_STATUS_CONFIG, EquipmentStatus } from '@/lib/equipment';
 import type { EquipmentItemFull } from '@/lib/equipment';
 import SectionTracker from '@/components/ui/SectionTracker';
 import SectorFilter, { SectorBadge } from '@/components/ui/SectorFilter';

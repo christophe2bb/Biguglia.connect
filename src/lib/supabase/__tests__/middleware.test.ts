@@ -114,7 +114,7 @@ vi.mock('next/server', () => {
       this.url = url;
     }
 
-    static next({ _request }: { request: { headers: Headers } } = { request: { headers: new Headers() } }) {
+    static next({ request: _request }: { request: { headers: Headers } } = { request: { headers: new Headers() } }) {
       nextCalled = true;
       const r = new MockNextResponse(200);
       r.headers = new Map<string, string>();

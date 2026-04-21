@@ -23,7 +23,7 @@ import {
 import toast from 'react-hot-toast';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 import {
-  _MODE_CONFIG, STATUS_CONFIG,
+  STATUS_CONFIG,
   type CollectionMode, type CollectionStatus, type CollectionItem,
 } from '@/lib/collectionneurs-config';
 

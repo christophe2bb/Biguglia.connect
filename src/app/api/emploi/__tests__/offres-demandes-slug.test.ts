@@ -40,7 +40,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
-import { _NextRequest } from 'next/server';
+import { } from 'next/server';
 import { GET as getOffer, PATCH as patchOffer, DELETE as deleteOffer }
   from '@/app/api/emploi/offres/[slug]/route';
 import { GET as _getDemand, PATCH as patchDemand, DELETE as deleteDemand }

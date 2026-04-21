@@ -36,8 +36,10 @@ import {
   makeAdminGuardOk,
   makeAdminGuardFail,
   makeDb,
-  _makeReq,
-  _mockCsrfPass,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  makeReq,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  mockCsrfPass,
   ADMIN_ID,
   MODERATOR_ID,
 } from './_mock-admin-guard';
