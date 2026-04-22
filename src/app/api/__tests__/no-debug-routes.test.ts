@@ -56,6 +56,7 @@ const AUTH_FUNCTIONS = [
   'createAdminClient',  // admin client implique une vérification en amont
   'getAdminUser',       // guard admin — vérifie session + rôle admin/moderator
   'isAuthorized',       // garde de route par token/env (ex: test-sentry)
+  'ImageResponse',      // route OG publique — génère une image, pas de données privées
 ];
 
 /**
