@@ -18,6 +18,7 @@ import {
   AVAILABILITY_MODE_CONFIG, PICKUP_MODE_CONFIG, LEND_DURATION_HINTS, CONDITION_CONFIG,
   AvailabilityMode, PickupMode, LendDurationHint, ConditionLabel,
 } from '@/lib/equipment';
+import { safeImageExt } from '@/lib/upload-utils';
 
 // Durée suggérée par catégorie (CDC §3.3)
 const CATEGORY_DURATION_HINTS: Record<string, LendDurationHint> = {
@@ -145,7 +146,8 @@ export default function NouveauMaterielPage() {
 
     for (let i = 0; i < photos.length; i++) {
       const photo = photos[i];
-      const fileName = `equipment/${item.id}/${Date.now()}-${photo.name}`;
+      const ext = safeImageExt(photo.name);
+      const fileName = `equipment/${item.id}/${Date.now()}-${i}.${ext}`;
       const { data: uploaded } = await supabase.storage.from('photos').upload(fileName, photo, { upsert: true });
       if (uploaded) {
         const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(uploaded.path);
