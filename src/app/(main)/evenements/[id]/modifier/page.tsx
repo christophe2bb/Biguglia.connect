@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { EVENT_CATEGORIES_LIST } from '@/lib/events';
+import { safeImageExt, uploadFile } from '@/lib/upload-utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface EventForm {
@@ -189,20 +190,22 @@ export default function ModifierEvenementPage() {
         if (e2) { toast.error('Erreur lors de la mise à jour'); return; }
       }
 
-      // Upload new photos
+      // Upload new photos — via /api/upload (magic-bytes validation côté serveur)
       if (newPhotos.length > 0) {
         const nextOrder = existingPhotos.length;
         toast.loading(`Upload ${newPhotos.length} photo(s)...`, { id: 'photo-upload' });
         for (let i = 0; i < newPhotos.length; i++) {
           const file = newPhotos[i];
-          const ext = file.name.split('.').pop() ?? 'jpg';
+          const ext = safeImageExt(file.name);
           const path = `events/${id}/${Date.now()}_${i}.${ext}`;
-          const { error: uploadErr } = await supabase.storage.from('photos').upload(path, file, { upsert: true });
-          if (!uploadErr) {
-            const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path);
+          try {
+            const publicUrl = await uploadFile(file, 'photos', path);
             await supabase.from('event_photos').insert({
               event_id: id, url: publicUrl, display_order: nextOrder + i, is_cover: nextOrder + i === 0,
             });
+          } catch (err) {
+            console.error('Photo upload error:', err);
+            toast.error(`Photo ${i + 1} refusée : ${err instanceof Error ? err.message : 'type invalide'}`);
           }
         }
         toast.dismiss('photo-upload');

@@ -7,6 +7,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { useModeration } from '@/hooks/useModeration';
 import { type ModerationStatus } from '@/lib/moderation';
 import { ListingCategory } from '@/types';
+import { safeImageExt, uploadFile } from '@/lib/upload-utils';
 import toast from 'react-hot-toast';
 import { TOTAL_STEPS } from '../_config';
 
@@ -239,19 +240,18 @@ export function useNewListingForm(): UseNewListingFormReturn {
     const photoUrls: string[] = [];
     for (let i = 0; i < photos.length; i++) {
       const photo = photos[i];
-      const ext = photo.name.split('.').pop() || 'jpg';
+      const ext = safeImageExt(photo.name);
       const fileName = `listings/${listing.id}/${Date.now()}_${i}.${ext}`;
-      const { data: up, error: upError } = await supabase.storage
-        .from('photos')
-        .upload(fileName, photo, { upsert: true });
-      if (up && !upError) {
-        const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(up.path);
+      try {
+        const publicUrl = await uploadFile(photo, 'photos', fileName);
         photoUrls.push(publicUrl);
         await supabase.from('listing_photos').insert({
           listing_id: listing.id,
           url: publicUrl,
           display_order: i,
         });
+      } catch (err) {
+        toast.error(`Photo ${i + 1} : ${err instanceof Error ? err.message : 'Erreur upload'}`);
       }
     }
 

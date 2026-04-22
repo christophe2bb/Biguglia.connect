@@ -3,25 +3,99 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * Utilitaires sécurisés pour les uploads de fichiers côté client.
  *
- * Corrige CWE-22 (Path Traversal) : sans validation, file.name.split('.').pop()
- * peut retourner une extension arbitraire (ex. "php", "sh", "../evil") si le
- * fichier est renommé par un attaquant avant l'envoi.
+ * ## Architecture de sécurité upload (double couche)
  *
- * Principe de défense :
- *   1. Extraction de l'extension brute via split('.').pop()
- *   2. Normalisation en minuscule
- *   3. Vérification contre une allowlist stricte
- *   4. Fallback vers une extension sûre par défaut si non reconnue
+ * COUCHE 1 — Client (ce fichier) :
+ *   • safeImageExt / safeDocExt : valide l'extension pour construire le path
+ *   • uploadFile()              : envoie via /api/upload (jamais direct Supabase)
  *
- * Usage :
- *   import { safeImageExt, safeDocExt, safeRelativePath } from '@/lib/upload-utils';
- *   const ext  = safeImageExt(file.name);           // "jpg" | "jpeg" | "png" | "webp" | "gif"
- *   const ext  = safeDocExt(file.name);             // "pdf" | "jpg" | "jpeg" | "png" | "webp"
- *   const path = `folder/${id}/${Date.now()}.${ext}`;
+ * COUCHE 2 — Serveur (src/app/api/upload/route.ts) :
+ *   • Authentification obligatoire (session Supabase)
+ *   • Validation magic bytes via `file-type` (FF D8 FF = JPEG réel, etc.)
+ *   • Rejet de tout fichier dont le contenu réel ≠ son extension déclarée
+ *   • Content-Type imposé = valeur détectée, pas celle du client
+ *
+ * Corrige CWE-22 (Path Traversal) et CWE-434 (Unrestricted Upload) :
+ *   • L'extension client-side (safeImageExt) protège le nom de fichier
+ *   • La validation magic-bytes serveur protège le contenu réel
+ *
+ * Usage recommandé :
+ *   import { safeImageExt, uploadFile } from '@/lib/upload-utils';
+ *   const ext = safeImageExt(file.name);
+ *   const path = `photos/${userId}/${Date.now()}.${ext}`;
+ *   const url = await uploadFile(file, 'photos', path); // valide les magic bytes côté serveur
  *
  *   // Pour valider un chemin relatif issu de la base de données avant createSignedUrl :
  *   const safe = safeRelativePath(storagePath); // null si traversée détectée
  */
+
+/**
+ * Envoie un fichier vers /api/upload (validation magic-bytes côté serveur).
+ *
+ * Ne jamais appeler supabase.storage.upload() directement depuis un composant
+ * client — utiliser cette fonction à la place.
+ *
+ * @param file    - Fichier à uploader (File ou Blob)
+ * @param bucket  - Bucket cible : "photos" | "job-documents"
+ * @param path    - Chemin relatif dans le bucket (ex. "userId/1234567890.jpg")
+ * @returns URL publique du fichier uploadé (ou chemin relatif pour les buckets privés)
+ * @throws Error si le serveur rejette le fichier (type invalide, trop gros, non authentifié…)
+ *
+ * @example
+ *   const ext = safeImageExt(photo.name);
+ *   const url = await uploadFile(photo, 'photos', `annonces/${id}/${Date.now()}.${ext}`);
+ */
+export async function uploadFile(
+  file: File | Blob,
+  bucket: 'photos' | 'job-documents' | 'documents',
+  path: string,
+): Promise<string> {
+  const form = new FormData();
+  form.append('file',   file);
+  form.append('bucket', bucket);
+  form.append('path',   path);
+
+  const res = await fetch('/api/upload', { method: 'POST', body: form });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({})) as { error?: string; detected?: string };
+    const detail = body.error ?? `HTTP ${res.status}`;
+    throw new Error(`Upload refusé : ${detail}`);
+  }
+
+  const { url } = await res.json() as { url: string; path: string };
+  return url;
+}
+
+/**
+ * Comme uploadFile(), mais retourne le chemin Storage relatif au lieu de l'URL publique.
+ * Utile pour les buckets privés (ex. "documents") où l'URL publique est vide.
+ *
+ * @example
+ *   const path = await uploadFileGetPath(file, 'documents', `userId/cv.pdf`);
+ *   // stocker `documents/${path}` en BDD, puis createSignedUrl pour lecture admin
+ */
+export async function uploadFileGetPath(
+  file: File | Blob,
+  bucket: 'documents' | 'job-documents',
+  path: string,
+): Promise<string> {
+  const form = new FormData();
+  form.append('file',   file);
+  form.append('bucket', bucket);
+  form.append('path',   path);
+
+  const res = await fetch('/api/upload', { method: 'POST', body: form });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({})) as { error?: string; detected?: string };
+    const detail = body.error ?? `HTTP ${res.status}`;
+    throw new Error(`Upload refusé : ${detail}`);
+  }
+
+  const { path: storagePath } = await res.json() as { url: string; path: string };
+  return storagePath;
+}
 
 /** Extensions autorisées pour les photos. */
 const ALLOWED_IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif']);

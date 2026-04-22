@@ -16,6 +16,7 @@ import {
   AVAILABILITY_MODE_CONFIG, PICKUP_MODE_CONFIG, LEND_DURATION_HINTS, CONDITION_CONFIG,
   type AvailabilityMode, type PickupMode, type LendDurationHint, type ConditionLabel,
 } from '@/lib/equipment';
+import { safeImageExt, uploadFile } from '@/lib/upload-utils';
 
 // ─── Types locaux ──────────────────────────────────────────────────────────────
 
@@ -161,20 +162,20 @@ export default function ModifierMaterielPage() {
     for (const photoId of deletedPhotoIds) {
       await supabase.from('equipment_photos').delete().eq('id', photoId);
     }
-    // Ajout des nouvelles photos
+    // Ajout des nouvelles photos — via /api/upload (magic-bytes validation côté serveur)
     for (const photo of newPhotos) {
-      const ext = photo.name.split('.').pop() || 'jpg';
+      const ext = safeImageExt(photo.name);
       const fileName = `equipment/${id}/${Date.now()}.${ext}`;
-      const { data: up } = await supabase.storage
-        .from('photos')
-        .upload(fileName, photo, { upsert: true });
-      if (up) {
-        const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(up.path);
+      try {
+        const publicUrl = await uploadFile(photo, 'photos', fileName);
         await supabase.from('equipment_photos').insert({
           item_id: id,
           url: publicUrl,
           display_order: existingPhotos.length,
         });
+      } catch (err) {
+        console.error('[equipment-upload]', err);
+        toast.error(`Photo refusée : ${err instanceof Error ? err.message : 'type invalide'}`);
       }
     }
 

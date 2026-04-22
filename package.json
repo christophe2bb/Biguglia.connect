@@ -30,6 +30,7 @@
     "@upstash/redis": "^1.37.0",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
+    "file-type": "^21.3.4",
     "lucide-react": "^0.400.0",
     "next": "^15.5.15",
     "react": "^18",

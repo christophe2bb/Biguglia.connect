@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import type { Promenade, AdvFilters, PromenadeFormState } from '../_types';
 import { DEFAULT_PROMENADE_FORM } from '../_constants';
-import { safeImageExt } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile } from '@/lib/upload-utils';
 
 export function usePromenades(
   profile: { id: string } | null | undefined,
@@ -150,11 +150,11 @@ export function usePromenades(
         const photo = photos[i];
         const ext = safeImageExt(photo.name);
         const fileName = `promenades/${prom.id}/${Date.now()}-${i}.${ext}`;
-        const { data: up, error: upErr } = await supabase.storage.from('photos').upload(fileName, photo, { upsert: true }); // nosec
-        if (upErr) { toast.error(`Photo ${i + 1} : ${upErr.message}`); continue; }
-        if (up?.path) {
-          const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(up.path); // nosec
+        try {
+          const publicUrl = await uploadFile(photo, 'photos', fileName);
           await supabase.from('promenade_photos').insert({ promenade_id: prom.id, url: publicUrl, display_order: i });
+        } catch (err) {
+          toast.error(`Photo ${i + 1} : ${err instanceof Error ? err.message : 'Erreur upload'}`);
         }
       }
     }

@@ -18,7 +18,7 @@ import {
   AVAILABILITY_MODE_CONFIG, PICKUP_MODE_CONFIG, LEND_DURATION_HINTS, CONDITION_CONFIG,
   AvailabilityMode, PickupMode, LendDurationHint, ConditionLabel,
 } from '@/lib/equipment';
-import { safeImageExt } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile } from '@/lib/upload-utils';
 
 // Durée suggérée par catégorie (CDC §3.3)
 const CATEGORY_DURATION_HINTS: Record<string, LendDurationHint> = {
@@ -148,12 +148,15 @@ export default function NouveauMaterielPage() {
       const photo = photos[i];
       const ext = safeImageExt(photo.name);
       const fileName = `equipment/${item.id}/${Date.now()}-${i}.${ext}`;
-      const { data: uploaded } = await supabase.storage.from('photos').upload(fileName, photo, { upsert: true });
-      if (uploaded) {
-        const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(uploaded.path);
+      try {
+        // uploadFile valide les magic bytes côté serveur avant d'envoyer à Supabase
+        const publicUrl = await uploadFile(photo, 'photos', fileName);
         await supabase.from('equipment_photos').insert({
           item_id: item.id, url: publicUrl, display_order: i, is_cover: i === 0,
         });
+      } catch (err) {
+        console.error('Photo upload error:', err);
+        toast.error(`Photo ${i + 1} refusée : ${err instanceof Error ? err.message : 'type invalide'}`);
       }
     }
 

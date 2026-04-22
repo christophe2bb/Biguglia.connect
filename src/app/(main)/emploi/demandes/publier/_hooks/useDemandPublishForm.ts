@@ -7,7 +7,6 @@
  */
 
 import { useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { publishJobDemand } from '@/services/jobs/publish-demand';
 import {
   CONTRACT_TYPES,
@@ -19,7 +18,7 @@ import {
 } from '@/types/jobs/constants';
 import { INITIAL } from '../_config';
 import type { FormData, Step } from '../_types';
-import { safeDocExt } from '@/lib/upload-utils';
+import { safeDocExt, uploadFile } from '@/lib/upload-utils';
 
 /* ── Types du hook ────────────────────────────────────────────────────────── */
 export interface UseDemandPublishFormReturn {
@@ -107,18 +106,11 @@ export function useDemandPublishForm(): UseDemandPublishFormReturn {
   const uploadCv = async (demandId: string): Promise<string | null> => {
     if (!form.cv_file) return null;
     try {
-      const supabase = createClient();
       const ext = safeDocExt(form.cv_file.name);
       const path = `cv/${demandId}.${ext}`;
-      const { error } = await supabase.storage
-        .from('job-documents')
-        .upload(path, form.cv_file, { upsert: true, contentType: form.cv_file.type }); // nosec
-      if (error) {
-        console.warn('[cv-upload] Storage error:', error.message);
-        return null;
-      }
-      const { data } = supabase.storage.from('job-documents').getPublicUrl(path); // nosec
-      return data?.publicUrl ?? null;
+      // uploadFile valide les magic bytes côté serveur (rejet PDF/image falsifié)
+      const publicUrl = await uploadFile(form.cv_file, 'job-documents', path);
+      return publicUrl;
     } catch {
       return null;
     }

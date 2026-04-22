@@ -7,6 +7,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import toast from 'react-hot-toast';
 import { SECTORS_DEFAULT, CATEGORIES_DEFAULT } from '../_config';
 import type { Step, FormState, ForumSector, ForumCategory, SimilarTopic } from '../_types';
+import { safeImageExt, uploadFile } from '@/lib/upload-utils';
 
 // ─── Hook principal ───────────────────────────────────────────────────────────
 
@@ -226,26 +227,23 @@ export function useForumComposer() {
       }
     }
 
-    // Upload photos
+    // Upload photos — via /api/upload (magic-bytes validation côté serveur)
     if (photos.length > 0 && topicId) {
       setUploadingPhotos(true);
       for (let i = 0; i < photos.length; i++) {
         const file = photos[i];
-        const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
+        const ext = safeImageExt(file.name);
         const path = `forum/${topicId}/${Date.now()}_${i}.${ext}`;
-        const { data: up, error: upErr } = await supabase.storage
-          .from('photos')
-          .upload(path, file, { upsert: true, contentType: file.type });
-        if (upErr) { toast.error(`Photo ${i + 1} non sauvegardée`); continue; }
-        if (up?.path) {
-          const { data: u } = supabase.storage.from('photos').getPublicUrl(up.path);
-          try {
-            await supabase.from('forum_topic_photos').insert({
-              topic_id:      topicId,
-              url:           u.publicUrl,
-              display_order: i,
-            });
-          } catch { /* ignore */ }
+        try {
+          const publicUrl = await uploadFile(file, 'photos', path);
+          await supabase.from('forum_topic_photos').insert({
+            topic_id:      topicId,
+            url:           publicUrl,
+            display_order: i,
+          });
+        } catch (err) {
+          console.error('[forum-upload]', err);
+          toast.error(`Photo ${i + 1} refusée : ${err instanceof Error ? err.message : 'type invalide'}`);
         }
       }
       setUploadingPhotos(false);

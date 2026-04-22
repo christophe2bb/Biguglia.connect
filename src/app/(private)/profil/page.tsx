@@ -15,7 +15,7 @@ import { ROLE_LABELS } from '@/lib/utils';
 import Link from 'next/link';
 import { UserRatingBadge } from '@/components/ui/RatingWidget';
 import SectorFilter from '@/components/ui/SectorFilter';
-import { safeImageExt } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile } from '@/lib/upload-utils';
 
 function ProfilContent() {
   const { profile, setProfile } = useAuthStore();
@@ -50,17 +50,15 @@ function ProfilContent() {
     const ext = safeImageExt(file.name);
     const path = `${profile.id}/avatar.${ext}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from('photos')
-      .upload(path, file, { upsert: true, contentType: file.type }); // nosec
-
-    if (uploadError) {
-      toast.error('Erreur upload photo');
+    let publicUrl: string;
+    try {
+      // uploadFile valide les magic bytes côté serveur (rejet de tout fichier non-image réel)
+      publicUrl = await uploadFile(file, 'photos', path);
+    } catch (err) {
+      toast.error(`Photo refusée : ${err instanceof Error ? err.message : 'type invalide'}`);
       setUploadingPhoto(false);
       return;
     }
-
-    const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path); // nosec
 
     const { data, error } = await supabase
       .from('profiles')

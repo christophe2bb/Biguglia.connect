@@ -21,7 +21,7 @@ import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Select from '@/components/ui/Select';
 import SectorFilter from '@/components/ui/SectorFilter';
-import { safeImageExt } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile } from '@/lib/upload-utils';
 
 // ─── Type minimal pour le chargement initial ────────────────────────────────
 type ServiceRequestRow = {
@@ -175,13 +175,12 @@ export default function ModifierDemandeClient({ id }: Props) {
       const photo = newPhotos[i];
       const ext   = safeImageExt(photo.name);
       const fileName = `requests/${id}/${Date.now()}_${i}.${ext}`;
-      const { data, error } = await supabase.storage
-        .from('photos')
-        .upload(fileName, photo, { upsert: true });
-
-      if (!error && data) {
-        const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(data.path);
+      try {
+        const publicUrl = await uploadFile(photo, 'photos', fileName);
         urls.push(publicUrl);
+      } catch (err) {
+        console.error('Photo upload error:', err);
+        // On continue sur les autres photos
       }
     }
     return urls;

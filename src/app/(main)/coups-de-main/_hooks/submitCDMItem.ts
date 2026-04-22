@@ -4,7 +4,7 @@
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import type { HelpRequest, HelpFormValues } from '../_types';
-import { safeImageExt } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile } from '@/lib/upload-utils';
 
 export async function submitCDMItem(
   form: HelpFormValues,
@@ -64,14 +64,13 @@ export async function submitCDMItem(
       const file = photos[i];
       const ext = safeImageExt(file.name);
       const path = `coups-de-main/${itemId}/${Date.now()}_${i}.${ext}`;
-      const { data: up, error: upErr } = await supabase.storage
-        .from('photos').upload(path, file, { upsert: true, contentType: file.type }); // nosec
-      if (upErr) { toast.error(`Photo ${i + 1} non sauvegardée`); continue; }
-      if (up?.path) {
-        const { data: u } = supabase.storage.from('photos').getPublicUrl(up.path); // nosec
+      try {
+        const publicUrl = await uploadFile(file, 'photos', path);
         await supabase.from('help_photos').insert({
-          help_id: itemId, url: u.publicUrl, display_order: i,
+          help_id: itemId, url: publicUrl, display_order: i,
         });
+      } catch (err) {
+        toast.error(`Photo ${i + 1} non sauvegardée : ${err instanceof Error ? err.message : ''}`);
       }
     }
   }
