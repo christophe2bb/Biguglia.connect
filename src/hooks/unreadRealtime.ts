@@ -10,9 +10,13 @@
 //   REALTIME_POLL_MS   : 15 s — polling de secours quand le canal est DOWN
 //   (le polling de sécurité global dans useUnreadCounts est à 60 s)
 //
-// Fix BIGUGLIA-CONNECT-NEXTJS-6 :
-//   connectingRef : verrou anti-double-invoke (React Strict Mode) pour éviter
-//   le bug Supabase « cannot add postgres_changes listener after subscribe() ».
+// Fix BIGUGLIA-CONNECT-NEXTJS-6 (v2) :
+//   - AbortController signal : chaque invocation de connectRealtime reçoit un
+//     signal. Si le signal est déclenché (cleanup React Strict Mode, changement
+//     d'utilisateur) avant que le canal ne soit souscrit, le callback subscribe
+//     s'arrête et le canal orphelin est immédiatement supprimé.
+//   - connectingRef supprimé : le verrou n'est plus nécessaire — le signal
+//     garantit que seule la dernière invocation prend effet.
 
 import { createClient } from '@/lib/supabase/client';
 import { isSystem, totalUnreadMsgs } from './unreadHelpers';
@@ -63,15 +67,21 @@ export type RealtimeRefs = UnreadRefs & {
   reconnectIdx:    React.MutableRefObject<number>;
   realtimePollRef: React.MutableRefObject<ReturnType<typeof setInterval> | null>;
   hookStartRef:    React.MutableRefObject<number>;
-  /** Verrou anti-double-invoke : true quand un canal est en cours de souscription. */
-  connectingRef:   React.MutableRefObject<boolean>;
 };
 
 /**
  * Crée (ou recrée) le canal Supabase Realtime.
+ *
+ * Le paramètre `signal` (AbortSignal) permet au hook appelant d'annuler la
+ * souscription si le composant se démonte avant que le canal ne soit établi.
+ * C'est le mécanisme principal contre le bug React Strict Mode
+ * « cannot add postgres_changes callbacks after subscribe() » : si le signal
+ * est déclenché pendant le callback subscribe(), on retire immédiatement le
+ * canal orphelin sans rien faire d'autre.
+ *
  * - INSERT messages  → incrément local immédiat (sans DB round-trip)
  * - INSERT notifications → incrément notifications
- * - UPDATE notifications → refetch complet
+ * - UPDATE notifications → refetch complet (debounced)
  * - CHANNEL_ERROR / TIMED_OUT / CLOSED → reconnexion exponentielle + polling fallback
  */
 export function connectRealtime(
@@ -79,18 +89,18 @@ export function connectRealtime(
   userId: string,
   refs: RealtimeRefs,
   setCounts: SetCounts,
+  signal?: AbortSignal,
 ): void {
-  // Guard : si une souscription est déjà en cours, ignorer l'appel concurrent.
-  // Évite le bug Supabase « cannot add postgres_changes listener after subscribe() »
-  // déclenché par React Strict Mode (double-invoke des useEffect en dev) ou par
-  // des reconnexions rapides avant que le statut SUBSCRIBED soit reçu.
-  if (refs.connectingRef.current) return;
-  refs.connectingRef.current = true;
+  // Si le signal est déjà déclenché (ex. double appel synchrone), ne rien faire.
+  if (signal?.aborted) return;
 
-  // Nettoyage du canal précédent
+  // Nettoyage du canal précédent (fire-and-forget : removeChannel est async
+  // mais on null immédiatement la ref pour qu'aucun autre chemin ne tente
+  // de supprimer le même canal deux fois).
   if (refs.channelRef.current) {
-    supabase.removeChannel(refs.channelRef.current);
+    const old = refs.channelRef.current;
     refs.channelRef.current = null;
+    supabase.removeChannel(old).catch(() => null);
   }
 
   const channel = supabase
@@ -144,8 +154,16 @@ export function connectRealtime(
 
     // ── Statut du canal ──────────────────────────────────────────────────────
     .subscribe(status => {
-      // Libérer le verrou dès que le canal est dans un état terminal
-      refs.connectingRef.current = false;
+      // Si le signal a été déclenché (composant démonté entre la création du
+      // canal et la réponse du serveur Realtime), retirer immédiatement le
+      // canal orphelin et ne rien faire d'autre. Cela évite le bug React Strict
+      // Mode : le canal créé lors du premier mount (déjà SUBSCRIBED) est retiré
+      // proprement avant que le second mount ne tente d'en créer un nouveau.
+      if (signal?.aborted) {
+        supabase.removeChannel(channel).catch(() => null);
+        return;
+      }
+
       if (!refs.mountedRef.current) return;
 
       if (status === 'SUBSCRIBED') {
