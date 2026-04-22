@@ -35,29 +35,46 @@ export const websiteSchema = {
 };
 
 /**
- * LocalBusiness — pour le village de Biguglia
- * Aide Google à afficher Biguglia Connect dans les résultats locaux
+ * LocalBusiness + Organization combinés — schéma principal de Biguglia Connect
  *
- * Champs optionnels renseignés pour maximiser la présence dans le Knowledge Panel :
- *   - priceRange  : "Gratuit" (plateforme communautaire sans frais)
- *   - telephone   : absent (plateforme numérique uniquement)
- *   - streetAddress : "Village de Biguglia" (adresse symbolique — pas d'adresse physique)
- *   - openingHoursSpecification : 24h/24, 7j/7 (service numérique)
+ * Utilise @type: ["LocalBusiness", "Organization"] — pattern canonique Schema.org
+ * recommandé quand une entité est à la fois un commerce local ET une organisation.
+ *
+ * Avantages :
+ *   • 1 seul bloc JSON-LD → Google le lit comme LocalBusiness (rich result card)
+ *     ET comme Organization (Knowledge Graph) simultanément
+ *   • Élimine la duplication : avant, deux blocs séparés LocalBusiness + Organization
+ *     contenaient les mêmes champs (name, url, address, areaServed, sameAs)
+ *   • Le validateur Rich Results affiche 1 élément valide (LocalBusiness) au lieu
+ *     de 2 — ce qui est correct : Organization n'est pas un "rich result" visuel,
+ *     c'est un signal Knowledge Graph
+ *
+ * Champs notables :
+ *   - priceRange: "Gratuit" (plateforme communautaire sans frais)
+ *   - streetAddress: "Village de Biguglia" (adresse symbolique — pas d'adresse physique)
+ *   - openingHoursSpecification: 24h/24, 7j/7 (service numérique)
+ *   - telephone: intentionnellement absent (plateforme 100% numérique)
+ *   - logo: ImageObject avec dimensions (Knowledge Graph)
+ *
+ * Ref: https://schema.org/LocalBusiness
+ *      https://developers.google.com/search/docs/appearance/structured-data/local-business
  */
 export const localBusinessSchema = {
   '@context':  'https://schema.org',
-  '@type':     'LocalBusiness',
+  '@type':     ['LocalBusiness', 'Organization'],
+  '@id':       `${SITE_URL}/#organization`,
   name:        'Biguglia Connect',
   url:         SITE_URL,
   priceRange:  'Gratuit',
   description:
     'La plateforme locale de Biguglia (Haute-Corse) pour trouver des artisans vérifiés, déposer des annonces et rejoindre la communauté du village.',
-  areaServed: {
-    '@type':        'City',
-    name:           'Biguglia',
-    addressCountry: 'FR',
-    addressRegion:  'Haute-Corse',
+  logo: {
+    '@type':  'ImageObject',
+    url:      `${SITE_URL}/images/biguglia-hero.jpg`,
+    width:    1200,
+    height:   630,
   },
+  image:  `${SITE_URL}/images/biguglia-hero.jpg`,
   address: {
     '@type':           'PostalAddress',
     streetAddress:     'Village de Biguglia',
@@ -71,43 +88,11 @@ export const localBusinessSchema = {
     latitude:   42.5747,
     longitude:   9.4436,
   },
-  openingHoursSpecification: {
-    '@type':      'OpeningHoursSpecification',
-    dayOfWeek:    ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],
-    opens:        '00:00',
-    closes:       '23:59',
-  },
-  image:     `${SITE_URL}/images/biguglia-hero.jpg`,
-  sameAs:    [SITE_URL],
-};
-
-/**
- * Organization — schéma d'organisation pour Biguglia Connect
- * Améliore la présence dans le Knowledge Graph Google
- *
- * Note : Google peut interpréter Organization + address comme LocalBusiness.
- * On ajoute address.streetAddress pour éliminer l'avertissement "champ manquant".
- */
-export const organizationSchema = {
-  '@context': 'https://schema.org',
-  '@type':    'Organization',
-  name:       'Biguglia Connect',
-  url:        SITE_URL,
-  logo: {
-    '@type':         'ImageObject',
-    url:             `${SITE_URL}/images/biguglia-hero.jpg`,
-    width:           1200,
-    height:          630,
-  },
-  description:
-    'Plateforme communautaire locale de Biguglia (Haute-Corse) : artisans vérifiés, petites annonces, emploi local, événements, forum et entraide entre habitants.',
-  address: {
-    '@type':           'PostalAddress',
-    streetAddress:     'Village de Biguglia',
-    addressLocality:   'Biguglia',
-    addressRegion:     'Haute-Corse',
-    postalCode:        '20620',
-    addressCountry:    'FR',
+  areaServed: {
+    '@type':        'City',
+    name:           'Biguglia',
+    addressCountry: 'FR',
+    addressRegion:  'Haute-Corse',
   },
   foundingLocation: {
     '@type':        'Place',
@@ -115,20 +100,27 @@ export const organizationSchema = {
     addressCountry: 'FR',
     addressRegion:  'Haute-Corse',
   },
-  areaServed: [
-    { '@type': 'City',    name: 'Biguglia' },
-    { '@type': 'State',   name: 'Haute-Corse' },
-    { '@type': 'Country', name: 'France' },
-  ],
-  sameAs: [SITE_URL],
-  contactPoint: {
-    '@type':               'ContactPoint',
-    contactType:           'customer service',
-    availableLanguage:     { '@type': 'Language', name: 'French' },
-    contactOption:         'TollFree',
-    areaServed:            'FR',
+  openingHoursSpecification: {
+    '@type':    'OpeningHoursSpecification',
+    dayOfWeek:  ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],
+    opens:      '00:00',
+    closes:     '23:59',
   },
+  contactPoint: {
+    '@type':           'ContactPoint',
+    contactType:       'customer service',
+    availableLanguage: { '@type': 'Language', name: 'French' },
+    areaServed:        'FR',
+  },
+  sameAs: [SITE_URL],
 };
+
+/**
+ * @deprecated Utiliser localBusinessSchema qui intègre désormais Organization.
+ * Conservé pour que les imports existants `{ organizationSchema }` ne cassent pas.
+ * Pointe vers le même objet fusionné.
+ */
+export const organizationSchema = localBusinessSchema;
 
 // ─── Helpers de schémas dynamiques ───────────────────────────────────────────
 

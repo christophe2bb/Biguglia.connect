@@ -14,7 +14,7 @@ import {
   Wrench, Hammer, Zap, Paintbrush, Layers, Wind, Leaf, Drill,
   Star, Lock, Eye, Bell, MessageSquare,
 } from 'lucide-react';
-import { JsonLd, websiteSchema, localBusinessSchema, organizationSchema } from '@/components/seo/JsonLd';
+import { JsonLd, websiteSchema, localBusinessSchema } from '@/components/seo/JsonLd';
 import GlobalSearchWrapper from '@/components/home/GlobalSearchWrapper';
 
 // Composants async isolés — chargent en streaming
@@ -123,10 +123,13 @@ function JobsSkeleton() {
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* JSON-LD Structured Data */}
+      {/* JSON-LD Structured Data
+           websiteSchema       → WebSite (Sitelinks Search Box)
+           localBusinessSchema → LocalBusiness + Organization (fusionnés @type array)
+           2 blocs au lieu de 3 : Organization est maintenant intégré à LocalBusiness
+           via @type: ["LocalBusiness","Organization"] — pattern canonique Schema.org */}
       <JsonLd data={websiteSchema} />
       <JsonLd data={localBusinessSchema} />
-      <JsonLd data={organizationSchema} />
 
       {/* ══════════════════════════════════════════════════════════
           HERO PHOTO + SEARCH — affiché IMMÉDIATEMENT
