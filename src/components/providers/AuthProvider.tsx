@@ -66,46 +66,29 @@ const AUTH_TIMEOUT_MS = 5_000; // 5s max — Supabase INITIAL_SESSION arrive nor
 
 // ─── Purge client-side des cookies Supabase obsolètes ────────────────────────
 //
-// @supabase/ssr 0.6 utilise un nouveau format de cookie (base64-<base64url> ou
-// base64l-<length>-<base64url>) pour stocker la session. Les anciens cookies
-// laissés par les versions 0.3/0.4 (format JSON brut ou chunks JSON) déclenchent
-// le warning :
-//   "@supabase/ssr: Detected stale cookie data that does not decode to a UTF-8 string"
+// @supabase/ssr 0.9 utilise le format "base64-<base64url>" pour stocker la session.
+// Les anciens cookies des versions 0.3/0.4/0.6 (formats JSON brut, base64l-, ou
+// binaire) peuvent déclencher des erreurs ou warnings si @supabase/ssr 0.9 tente
+// de les lire.
 //
 // Le middleware serveur (middleware.ts) purge déjà les cookies corrompus côté
 // serveur (Set-Cookie: maxAge=0), mais le NAVIGATEUR continue d'envoyer les
 // anciens cookies lors des premières requêtes AVANT que le middleware ne réponde.
 // Le client Supabase (createBrowserClient) lit document.cookie directement et
-// génère le warning AVANT toute communication avec le serveur.
+// peut générer des erreurs AVANT toute communication avec le serveur.
 //
-// Solution : purger les cookies corrompus dans document.cookie directement,
+// Solution : purger les cookies corrompus/invalides dans document.cookie directement,
 // AVANT que createClient() soit appelé, à l'initialisation d'AuthProvider.
 //
-// Critères de cookie "obsolète" :
-//   1. Nom commence par "sb-" et se termine par "-auth-token" (cookie principal)
-//   2. La valeur n'est pas dans un format reconnu par @supabase/ssr 0.6 :
-//      - base64l-<len_base36>-<base64url>  (format par défaut createBrowserClient 0.6)
-//      - base64-<base64url>                (format alternatif 0.6)
-//      - {"access_token":"eyJ..."}         (JSON brut héritage 0.3/0.4)
-//   3. Chunks : sb-*-auth-token.N — supprimés si le cookie principal est purgé
+// Formats VALIDES reconnus par @supabase/ssr 0.9 :
+//   - base64-<base64url>                (format par défaut 0.9+)
+//   - base64l-<len_base36>-<data>       (héritage 0.6 — accepté pour compatibilité)
+//   - {"access_token":"eyJ..."}         (JSON brut héritage 0.3/0.4)
 //
-// Cette purge est IDEMPOTENTE (sûre à répéter) et ne touche JAMAIS les cookies
-// valides dans l'un des trois formats ci-dessus.
-
-// ─── Vérification du format base64l- ─────────────────────────────────────────
-// Valide que le cookie est dans le format base64l-<len_base36>-<b64url>.
-// La longueur déclarée doit correspondre à la longueur de la valeur base64url.
-// Un cookie corrompu/incomplet a une longueur déclarée > longueur réelle.
-function isValidBase64lCookie(value: string): boolean {
-  const BASE64L_PATTERN = /^base64l-([0-9a-z]+)-(.+)$/;
-  const match = value.match(BASE64L_PATTERN);
-  if (!match) return false;
-  const expectedLen = parseInt(match[1], 36);
-  const data = match[2];
-  // Le cookie est valide si la longueur des données correspond à la longueur déclarée.
-  // Un écart indique un cookie tronqué/corrompu.
-  return data.length >= expectedLen;
-}
+// Formats INVALIDES → purge immédiate :
+//   - Tout autre format (binaire, URL-encodé non-JSON, etc.)
+//
+// Cette purge est IDEMPOTENTE et ne touche JAMAIS les cookies valides.
 
 function purgeStaleSupabaseCookiesClientSide(): void {
   if (typeof document === 'undefined') return; // SSR safety
@@ -128,16 +111,16 @@ function purgeStaleSupabaseCookiesClientSide(): void {
     try {
       const decoded = decodeURIComponent(cookie.value);
 
-      // Format @supabase/ssr 0.6 par défaut : "base64l-<len_base36>-<base64url>"
-      if (decoded.startsWith('base64l-')) {
-        // Valider la structure base64l- (longueur déclarée vs réelle)
-        isValid = isValidBase64lCookie(decoded);
-      } else if (decoded.startsWith('base64-')) {
-        // Format base64- alternatif : toujours valide si le préfixe est correct
-        // (on ne valide pas le contenu base64url ici — trop coûteux sans TextDecoder)
+      if (decoded.startsWith('base64-')) {
+        // Format 0.9+ : base64-<base64url>
+        // Valide si le payload est non vide (le SDK valide le contenu lui-même)
         isValid = decoded.length > 'base64-'.length;
+      } else if (decoded.startsWith('base64l-')) {
+        // Format héritage 0.6 : base64l-<len>-<data>
+        // Accepter — sera remplacé par base64- lors du prochain login avec 0.9
+        isValid = true;
       } else {
-        // Format JSON brut (ancien @supabase/ssr 0.3/0.4) :
+        // Format JSON brut (héritage 0.3/0.4) :
         // {"access_token":"eyJ...","refresh_token":"..."}
         const parsed = JSON.parse(decoded) as Record<string, unknown>;
         const hasValidJwt =
