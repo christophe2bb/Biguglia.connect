@@ -74,12 +74,16 @@ export default function DemandeDetailClient() {
 
   // ── Charger la demande ──────────────────────────────────────────────────
   const fetchRequest = useCallback(async () => {
+    // On sélectionne resident_id en premier niveau (toujours disponible),
+    // et on tente la jointure profiles via la FK nommée par Postgres.
+    // Si la FK a un nom différent en prod, resident_id reste quand même
+    // accessible au niveau racine → isOwner fonctionne dans tous les cas.
     const { data, error } = await supabase
       .from('service_requests')
       .select(`
         id, title, description, urgency, address, status, created_at,
         preferred_date, preferred_time, resident_id, sector_id,
-        resident:profiles!service_requests_resident_id_fkey(id, full_name, avatar_url),
+        resident:profiles(id, full_name, avatar_url),
         category:trade_categories(id, name, icon),
         photos:service_request_photos(url)
       `)
