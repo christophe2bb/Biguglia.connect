@@ -170,18 +170,34 @@ export function useDashboardStats(): UseDashboardStatsResult {
       ]);
 
       // ── Prêts/emprunts (table optionnelle) ───────────────────────────────
+      // Note : .filter('item_id', 'in', '(SELECT ...)') n'est pas supporté par
+      // PostgREST (retourne 400). On utilise une requête en deux étapes :
+      //   1. Récupérer les IDs des équipements appartenant au user
+      //   2. Filtrer borrow_requests sur ces IDs avec .in()
       let activeBorrowsCount = 0;
       let activeLendsCount   = 0;
       try {
-        const [{ count: borrows }, { count: lends }] = await Promise.all([
-          supabase.from('borrow_requests')
-            .select('id', { count: 'exact', head: true })
-            .eq('borrower_id', profileId).in('status', ['approved', 'borrowed']),
-          supabase.from('borrow_requests')
-            .select('id', { count: 'exact', head: true })
-            .in('status', ['approved', 'borrowed'])
-            .filter('item_id', 'in', `(SELECT id FROM equipment_items WHERE owner_id = '${profileId}')`),
-        ]);
+        // Étape 1 : IDs des équipements du user
+        const { data: ownedItems } = await supabase
+          .from('equipment_items')
+          .select('id')
+          .eq('owner_id', profileId);
+        const ownedItemIds = (ownedItems ?? []).map((r: Record<string, unknown>) => r.id as string);
+
+        // Étape 2 : compter les emprunts/prêts
+        const borrowQuery = supabase.from('borrow_requests')
+          .select('id', { count: 'exact', head: true })
+          .eq('borrower_id', profileId).in('status', ['approved', 'borrowed']);
+
+        // Si aucun équipement → activeLendsCount reste 0 (pas de requête inutile)
+        const lendsQuery = ownedItemIds.length > 0
+          ? supabase.from('borrow_requests')
+              .select('id', { count: 'exact', head: true })
+              .in('status', ['approved', 'borrowed'])
+              .in('item_id', ownedItemIds)
+          : Promise.resolve({ count: 0, data: null, error: null });
+
+        const [{ count: borrows }, { count: lends }] = await Promise.all([borrowQuery, lendsQuery]);
         activeBorrowsCount = borrows || 0;
         activeLendsCount   = lends   || 0;
       } catch { /* table may not exist */ }

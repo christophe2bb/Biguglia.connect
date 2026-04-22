@@ -21,6 +21,12 @@
  *      sans empiler les requêtes HTTP.
  *   3. invalidateBearerCache() appelé à l'unmount pour forcer un refresh du token
  *      à la prochaine connexion (changement d'utilisateur).
+ *
+ * ── Fix BIGUGLIA-CONNECT-NEXTJS-6 v2 (AbortController) ───────────────────────
+ *   Remplacement du verrou connectingRef par un AbortController créé à chaque
+ *   invocation de l'effet. En React Strict Mode le cleanup avorte le signal
+ *   avant que le second mount ne lance connectRealtime — garantissant qu'un seul
+ *   canal actif existe à la fois sans aucune condition de course.
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -59,8 +65,6 @@ export function useUnreadCounts(): UnreadCounts {
   const reconnectRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectIdx     = useRef(0);
   const realtimePollRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Verrou anti-double-invoke (React Strict Mode) — évite « cannot add postgres_changes listener after subscribe() »
-  const connectingRef    = useRef(false);
   const safePollRef      = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /** Debounce : évite d'empiler les appels déclenchés par rafales d'événements. */
@@ -85,15 +89,21 @@ export function useUnreadCounts(): UnreadCounts {
 
     const supabase = createClient();
     const userId   = profileId;
-    connectingRef.current = false; // réinitialise le verrou à chaque montâge
-    const refs     = {
+
+    // ── AbortController : annule la souscription si le composant se démonte
+    // avant que le canal ne soit établi (React Strict Mode double-invoke).
+    // Contrairement à connectingRef, ce mécanisme ne peut pas être court-circuité
+    // par un reset explicite : le signal reste aborted une fois déclenché.
+    const abortController = new AbortController();
+
+    const refs = {
       fetchingRef, mountedRef, readMapRef, unreadMapRef,
-      channelRef, reconnectRef, reconnectIdx, realtimePollRef, hookStartRef, connectingRef,
+      channelRef, reconnectRef, reconnectIdx, realtimePollRef, hookStartRef,
     };
 
     // Chargement initial + realtime
     fetchCounts(supabase, userId, refs, setCounts);
-    connectRealtime(supabase, userId, refs, setCounts);
+    connectRealtime(supabase, userId, refs, setCounts, abortController.signal);
 
     // Polling de sécurité toutes les 60 s (filet de sécurité uniquement)
     safePollRef.current = setInterval(() => {
@@ -147,9 +157,21 @@ export function useUnreadCounts(): UnreadCounts {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     return () => {
+      // Avorter le signal en premier : si connectRealtime n'a pas encore reçu
+      // le statut SUBSCRIBED, son callback subscribe() verra signal.aborted===true
+      // et retirera le canal orphelin lui-même, sans que le cleanup ait besoin
+      // de connaître la ref du canal.
+      abortController.abort();
+
       mountedRef.current = false;
+
+      // Nettoyage du canal actif (si la souscription était déjà établie)
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      if (channelRef.current)      supabase.removeChannel(channelRef.current);
+      if (channelRef.current) {
+        const ch = channelRef.current;
+        channelRef.current = null;
+        supabase.removeChannel(ch).catch(() => null);
+      }
       // eslint-disable-next-line react-hooks/exhaustive-deps
       if (reconnectRef.current)    clearTimeout(reconnectRef.current);
       // eslint-disable-next-line react-hooks/exhaustive-deps

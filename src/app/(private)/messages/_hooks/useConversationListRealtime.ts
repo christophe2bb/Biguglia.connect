@@ -11,10 +11,12 @@
  *  - Rejet des événements rejoués (antérieurs au montage)
  *  - Reconnexion exponentielle via RECONNECT_DELAYS
  *
- * Fix BIGUGLIA-CONNECT-NEXTJS-6 :
- *  - Verrou connectingRef pour éviter le bug Supabase
- *    « cannot add postgres_changes listener after subscribe() »
- *    déclenché par React Strict Mode (double-invoke) ou reconnexion concurrente.
+ * Fix BIGUGLIA-CONNECT-NEXTJS-6 v2 (AbortController) :
+ *  - Chaque appel à connect() crée un AbortController local.
+ *  - cleanup() avorte le signal → si le canal n'est pas encore souscrit,
+ *    le callback subscribe() retire le canal orphelin sans lever d'erreur.
+ *  - Élimine la race React Strict Mode qui causait
+ *    « cannot add postgres_changes listener after subscribe() ».
  */
 
 import { useRef, useCallback, MutableRefObject } from 'react';
@@ -54,9 +56,9 @@ export function useConversationListRealtime(
   const reconnectIdx    = useRef(0);
   // Timestamp de montage — rejette les événements realtime rejoués (antérieurs)
   const pageStartRef    = useRef<number>(Date.now());
-  // Verrou anti-double-invoke (React Strict Mode) — évite le bug Supabase
-  // « cannot add postgres_changes listener after subscribe() »
-  const connectingRef   = useRef(false);
+  // AbortController courant — annule la souscription en cours si cleanup() est
+  // appelé avant que le statut SUBSCRIBED ne soit reçu (React Strict Mode).
+  const abortRef        = useRef<AbortController | null>(null);
 
   // ── Handler message INSERT ─────────────────────────────────────────────────
   const handleInsert = useCallback((msg: RealtimeMsg) => {
@@ -89,14 +91,26 @@ export function useConversationListRealtime(
   // ── Connexion Realtime ─────────────────────────────────────────────────────
   const connect = useCallback(() => {
     if (!profileId) return;
-    // Guard : si une souscription est déjà en cours, on ignore l'appel concurrent
-    // (ex. React Strict Mode double-invoke, ou reconnexion rapide).
-    // Sans ce verrou, Supabase lève « cannot add postgres_changes listener
-    // after subscribe() » car le channel précédent est encore en état SUBSCRIBING.
-    if (connectingRef.current) return;
-    connectingRef.current = true;
 
-    if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; }
+    // Créer un nouveau AbortController pour cette invocation.
+    // Si un AbortController précédent existe encore (connect() rappelé rapidement),
+    // on l'avorte d'abord pour que son canal orphelin se retire lui-même.
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+    const abortController = new AbortController();
+    abortRef.current = abortController;
+    const { signal } = abortController;
+
+    // Si le signal est déjà déclenché (double abort synchrone improbable), sortir.
+    if (signal.aborted) return;
+
+    // Nettoyage du canal précédent (null immédiatement pour éviter double-remove)
+    if (channelRef.current) {
+      const old = channelRef.current;
+      channelRef.current = null;
+      supabase.removeChannel(old).catch(() => null);
+    }
 
     // Réinitialiser pageStart à chaque (re)connexion
     pageStartRef.current = Date.now();
@@ -109,8 +123,12 @@ export function useConversationListRealtime(
         (payload) => handleInsert(payload.new as RealtimeMsg),
       )
       .subscribe((status) => {
-        // Libérer le verrou dès que le canal a un statut terminal
-        connectingRef.current = false;
+        // Si le signal a été déclenché (cleanup avant SUBSCRIBED), retirer le
+        // canal orphelin et ne rien faire d'autre.
+        if (signal.aborted) {
+          supabase.removeChannel(channel).catch(() => null);
+          return;
+        }
         if (!mountedRef.current) return;
         if (status === 'SUBSCRIBED') {
           reconnectIdx.current = 0;
@@ -127,8 +145,18 @@ export function useConversationListRealtime(
 
   // ── Nettoyage ─────────────────────────────────────────────────────────────
   const cleanup = useCallback(() => {
-    connectingRef.current = false;
-    if (channelRef.current) supabase.removeChannel(channelRef.current);
+    // Avorter le signal courant → si le canal est encore en souscription,
+    // son callback subscribe() retirera le canal lui-même.
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    // Retirer le canal actif si la souscription était déjà établie
+    if (channelRef.current) {
+      const ch = channelRef.current;
+      channelRef.current = null;
+      supabase.removeChannel(ch).catch(() => null);
+    }
     if (reconnectRef.current) clearTimeout(reconnectRef.current);
   }, [supabase]);
 
