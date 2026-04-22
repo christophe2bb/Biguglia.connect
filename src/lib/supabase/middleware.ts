@@ -20,23 +20,59 @@ function purgeStaleSupabaseCookies(
 ): boolean {
   let purged = false;
   const allCookies = request.cookies.getAll();
+
   for (const cookie of allCookies) {
     if (!cookie.name.startsWith(cookiePrefix)) continue;
+
+    // Les cookies chunked (format .0, .1 …) contiennent un fragment du JSON.
+    // Ne les vérifier qu'en format complet via le cookie racine.
+    // On supprime quand même le chunk si le cookie racine est purgé.
+    const isChunk = /\.\d+$/.test(cookie.name);
+    if (isChunk) continue; // traité ci-dessous via le cookie racine
+
+    let shouldPurge = false;
+
     try {
-      // Teste si la valeur décode en UTF-8 JSON valide
+      // 1. Décode en UTF-8 (échec → cookie au format binaire 0.3)
       const decoded = decodeURIComponent(cookie.value);
-      JSON.parse(decoded);
-      // Si le JSON ne contient pas access_token ni les clés attendues,
-      // c'est peut-être un vieux format — on laisse passer (pas forcément corrompu)
+
+      // 2. Parse JSON
+      const parsed = JSON.parse(decoded) as Record<string, unknown>;
+
+      // 3. Vérification de structure : un cookie de session valide doit avoir
+      //    access_token (JWT) et token_type. Sans eux, le cookie est corrompu
+      //    ou dans un vieux format intermédiaire.
+      const hasAccessToken =
+        typeof parsed.access_token === 'string' &&
+        parsed.access_token.startsWith('eyJ');
+
+      if (!hasAccessToken) {
+        shouldPurge = true;
+      }
     } catch {
-      // Échec de décodage URI ou de parse JSON → cookie corrompu (ancien format 0.3)
-      response.cookies.set(cookie.name, '', {
+      // Décodage URI ou parse JSON a échoué → cookie binaire/corrompu
+      shouldPurge = true;
+    }
+
+    if (shouldPurge) {
+      const expireOptions = {
         maxAge: 0,
         path: '/',
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: 'lax' as const,
         secure: process.env.NODE_ENV === 'production',
-      });
+      };
+
+      // Purger le cookie racine
+      response.cookies.set(cookie.name, '', expireOptions);
+
+      // Purger aussi les chunks associés (sb-<ref>-auth-token.0, .1, .2 …)
+      for (const c of allCookies) {
+        if (c.name.startsWith(`${cookie.name}.`)) {
+          response.cookies.set(c.name, '', expireOptions);
+        }
+      }
+
       purged = true;
     }
   }

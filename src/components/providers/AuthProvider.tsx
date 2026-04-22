@@ -100,11 +100,14 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         // Colonnes explicites — jamais de select('*') sur profiles.
         // La policy RLS "profiles_select_own_or_admin" garantit que seul
         // l'utilisateur connecté peut lire son propre profil complet ici.
+        // .maybeSingle() renvoie null (pas 406) quand aucune ligne ne correspond.
+        // .single() levait PGRST116 / HTTP 406 si le profil n'existe pas encore
+        // (ex : utilisateur créé dans Auth mais trigger DB pas encore exécuté).
         const { data, error } = await supabase
           .from('profiles')
           .select('id, email, full_name, avatar_url, phone, role, status, legal_consent, legal_consent_at, created_at, updated_at, home_sector_id')
           .eq('id', userId)
-          .single();
+          .maybeSingle();
 
         if (!mounted) return;
 
