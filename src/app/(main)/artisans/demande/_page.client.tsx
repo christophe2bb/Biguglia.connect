@@ -143,7 +143,14 @@ function DemandeServiceForm() {
       .single();
 
     if (error) {
-      toast.error('Erreur lors de l\'envoi. Réessayez.');
+      console.error('[DemandeService] insert error:', error.code, error.message);
+      toast.error(
+        error.code === '23502'
+          ? 'Un champ obligatoire est manquant. Vérifiez le formulaire.'
+          : error.code === '42703'
+          ? 'Erreur de configuration (colonne manquante). Contactez le support.'
+          : 'Erreur lors de l\'envoi. Réessayez.',
+      );
       setLoading(false);
       return;
     }
