@@ -495,7 +495,7 @@ export default async function EmploiBigugliaPage() {
             <p className="text-2xl mb-2">💼</p>
             <h3 className="font-black text-lg mb-1">Vous recrutez à {GEO.city} ?</h3>
             <p className="text-white/75 text-sm mb-4 leading-relaxed">Publiez votre offre d&apos;emploi gratuitement. Visible par tous les habitants de Biguglia et des communes voisines.</p>
-            <Link href="/emploi/offres/publier"
+            <Link href="/emploi/publier"
               className="inline-flex items-center gap-2 bg-white text-cyan-700 font-black px-4 py-2 rounded-xl text-sm hover:bg-cyan-50 transition-all">
               Publier une offre <ArrowRight className="w-4 h-4" />
             </Link>
@@ -532,7 +532,7 @@ export default async function EmploiBigugliaPage() {
                   { href: '/emploi/offres?type=alternance', label: '🎓 Alternance' },
                   { href: '/emploi/offres?type=extra',      label: '⚡ Extras & extras' },
                   { href: '/emploi/demandes',               label: '🙋 Candidats disponibles' },
-                  { href: '/emploi/offres/publier',         label: '+ Publier une offre' },
+                  { href: '/emploi/publier',         label: '+ Publier une offre' },
                 ].map(l => (
                   <Link key={l.href} href={l.href}
                     className="inline-flex items-center gap-1 bg-cyan-50 border border-cyan-200 text-cyan-700 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-cyan-100 transition-all">
