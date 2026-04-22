@@ -43,9 +43,11 @@ const supabaseHost = SUPABASE_URL.replace(/^https?:\/\//, '');
 // 'unsafe-eval' RETIRÉ en prod — Next.js SWC compile sans eval.
 // Conservé en dev uniquement pour le HMR.
 //
-// style-src — 'unsafe-inline' requis :
+// style-src — 'unsafe-inline' ASSUMÉ ET DOCUMENTÉ (voir SECURITY.md §3.1) :
 //    154 occurrences de style={{...}} dans 67 composants + Tailwind JIT.
-//    Suppression = refonte UI complète (chantier distinct).
+//    Suppression = refonte UI complète (chantier distinct, post-prod).
+//    Même contrainte Next.js 15 App Router que pour script-src.
+//    Migration nonces couvre aussi style-src — voir SECURITY.md §4.
 //
 // connect-src — Sentry :
 //    Sentry envoie les événements à *.ingest.sentry.io et *.ingest.us.sentry.io
