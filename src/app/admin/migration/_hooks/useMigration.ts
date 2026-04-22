@@ -29,7 +29,7 @@ import {
 import { EQUIPMENT_LIFECYCLE_SQL } from '@/lib/equipment';
 import { OUTINGS_LIFECYCLE_SQL }   from '@/lib/outings';
 import { EVENT_LIFECYCLE_SQL, EVENT_FIX_SQL } from '@/lib/events';
-import { safeImageExt } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile } from '@/lib/upload-utils';
 
 // ─── SQL map ─────────────────────────────────────────────────────────────────
 
@@ -204,23 +204,26 @@ export function useMigration() {
           0x44,0xAE,0x42,0x60,0x82,
         ]);
         const testPath = `__diagnostic__/test_${Date.now()}.png`;
-        const { data: upData, error: upErr } = await supabase.storage
-          .from('photos')
-          .upload(testPath, new Blob([pngBytes], { type: 'image/png' }), { // nosec
-            upsert: true, contentType: 'image/png',
-          });
-
-        if (upErr) {
-          diag.canUpload = false;
-          diag.error = (diag.error ? diag.error + ' | ' : '') + `Upload bloqué : ${upErr.message}`;
-        } else if (upData?.path) {
+        // Passe par uploadFile() → /api/upload → validation magic-bytes (CWE-434)
+        // Le blob est une constante hardcodée (PNG 1×1 pixel), non issu d'un input utilisateur,
+        // mais on passe systématiquement par la route sécurisée pour cohérence.
+        try {
+          const publicUrl = await uploadFile(
+            new Blob([pngBytes], { type: 'image/png' }),
+            'photos',
+            testPath,
+          );
           diag.canUpload = true;
-          const { data: urlData } = supabase.storage.from('photos').getPublicUrl(upData.path); // nosec
-          diag.testFileUrl = urlData?.publicUrl ?? null;
+          diag.testFileUrl = publicUrl ?? null;
           if (diag.testFileUrl) {
             diag.bucketPublic = diag.testFileUrl.includes('/object/public/');
           }
-          await supabase.storage.from('photos').remove([testPath]); // nosec
+          // Nettoyage : suppression du fichier de test
+          await supabase.storage.from('photos').remove([testPath]); // nosec: .remove() is a delete op, not upload
+        } catch (upEx: unknown) {
+          diag.canUpload = false;
+          const upMsg = upEx instanceof Error ? upEx.message : String(upEx);
+          diag.error = (diag.error ? diag.error + ' | ' : '') + `Upload bloqué : ${upMsg}`;
         }
       }
     } catch (e: unknown) {
@@ -236,24 +239,25 @@ export function useMigration() {
     setTestingUpload(true);
     const ext  = safeImageExt(file.name);
     const path = `__diagnostic__/real_test_${Date.now()}.${ext}`;
-    const { data, error } = await supabase.storage
-      .from('photos')
-      .upload(path, file, { upsert: true, contentType: file.type }); // nosec
 
-    if (error) {
-      const code = (error as { statusCode?: string }).statusCode ?? 'N/A';
+    // Passe par uploadFile() → /api/upload → validation magic-bytes côté serveur (CWE-434)
+    // Le fichier vient d'un <input type="file"> admin → doit impérativement passer par la
+    // route sécurisée qui vérifie les magic bytes et rejette les extensions forgées.
+    try {
+      const publicUrl = await uploadFile(file, 'photos', path);
+      // Nettoyage immédiat : supprimer le fichier de test après vérification réussie
+      await supabase.storage.from('photos').remove([path]); // nosec: .remove() is a delete op
+      alert(`✅ Upload réussi !\n\nURL publique : ${publicUrl}\n\nLe bucket fonctionne correctement.`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
       alert(
-        `❌ Upload échoué :\n\nErreur : ${error.message}\nCode : ${code}\n\n` +
+        `❌ Upload échoué :\n\nErreur : ${msg}\n\n` +
         `Vérifiez :\n1. Que le bucket "photos" existe (SQL ci-dessous)\n` +
         `2. Que les policies sont appliquées\n3. Que vous êtes connecté`
       );
-    } else if (data?.path) {
-      const { data: urlData } = supabase.storage.from('photos').getPublicUrl(data.path); // nosec
-      await supabase.storage.from('photos').remove([path]); // nosec
-      alert(`✅ Upload réussi !\n\nURL publique : ${urlData?.publicUrl}\n\nLe bucket fonctionne correctement.`);
     }
 
-    setTestingUpload(false);
+    setTestingUpload(false); // always reset, even on error
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, [supabase]);
 
