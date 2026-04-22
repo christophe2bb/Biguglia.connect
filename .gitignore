@@ -39,3 +39,8 @@ fix-rls.sql
 # Playwright E2E
 playwright-report/
 test-results/
+
+# Backups DB locaux (dumps SQL — ne jamais commiter)
+backups/
+*.sql.gz
+*.dump

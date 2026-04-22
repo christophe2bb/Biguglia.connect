@@ -92,50 +92,90 @@ curl -I https://biguglia-connect.vercel.app/api/health
 
 ## 5. Accès aux backups Supabase
 
-### Plan Pro — backups automatiques inclus
+> ⚠️ **Projet actuellement en plan FREE** — les backups automatiques ne sont PAS inclus.
+> Les exports manuels ci-dessous sont la **seule protection** contre la perte de données.
+> → Passer en **Pro (25 $/mois)** avant la mise en production réelle.
 
-Le projet Supabase **qmrkacrpncdkhofiqlrg** doit être en **plan Pro** pour bénéficier
-des backups automatiques. Vérifier :
+### Comparatif des plans
 
-1. Aller sur **https://supabase.com/dashboard/project/qmrkacrpncdkhofiqlrg**
-2. Settings → Billing → vérifier que le plan est **Pro** (ou supérieur)
+| Fonctionnalité | Plan Free | Plan Pro |
+|----------------|-----------|----------|
+| Backups automatiques quotidiens | ❌ | ✅ 7 jours |
+| Restauration 1 clic (Dashboard) | ❌ | ✅ |
+| Point-in-Time Recovery (PITR) | ❌ | ✅ option payante |
+| Export manuel `pg_dump` | ✅ | ✅ |
+| Pause auto après 7 j inactivité | ⚠️ Oui | ❌ Non |
 
-> Si le projet est en plan **Free** : les backups automatiques ne sont pas inclus.
-> → Passer en Pro avant la mise en production réelle.
-> → En attendant, effectuer des exports manuels réguliers (voir ci-dessous).
+### 5a. Export manuel (plan Free — procédure actuelle)
 
-### Accéder aux backups automatiques (plan Pro)
+Utiliser le script automatisé inclus dans le projet :
 
-1. Supabase Dashboard → projet **qmrkacrpncdkhofiqlrg**
-2. **Database** (menu gauche) → **Backups**
-3. Tu vois la liste des backups disponibles (1 par jour, conservés 7 jours)
-4. Cliquer sur le backup voulu → **Restore**
+```bash
+# Prérequis : postgresql-client installé
+# sudo apt install postgresql-client  (Linux)
+# brew install libpq && brew link --force libpq  (macOS)
+
+# Exporter le mot de passe DB depuis :
+# Supabase Dashboard → Settings → Database → Database password
+export SUPABASE_DB_PASSWORD='votre_mot_de_passe_db'
+
+# Lancer le backup (crée backups/db/biguglia_backup_YYYYMMDD_HHMMSS.sql.gz)
+./scripts/backup-db.sh
+
+# Backup vers un dossier spécifique
+./scripts/backup-db.sh --dir ~/sauvegardes/biguglia
+```
+
+> Le script effectue 2 tentatives (connexion directe puis pooler), compresse
+> automatiquement le fichier, vérifie l'intégrité, et supprime les fichiers
+> de plus de 30 jours. Voir `scripts/backup-db.sh` pour les détails.
+
+**Fréquence obligatoire en plan Free :**
+- ✅ **Avant chaque déploiement** en production
+- ✅ **Avant chaque migration SQL**
+- ✅ **Au minimum 1×/semaine** (configurer un cron ou rappel calendrier)
+
+```bash
+# Exemple cron (chaque dimanche à 02h00)
+0 2 * * 0 cd /chemin/vers/biguglia && ./scripts/backup-db.sh >> /var/log/biguglia-backup.log 2>&1
+```
+
+### 5b. Restaurer depuis un backup manuel
+
+```bash
+# 1. Trouver le fichier de backup
+ls -lh backups/db/
+
+# 2. Décompresser
+gunzip -k backups/db/biguglia_backup_YYYYMMDD_HHMMSS.sql.gz
+
+# 3. Restaurer (⚠️ ÉCRASE toute la base cible)
+export PGPASSWORD='votre_mot_de_passe_db'
+psql \
+  --host=db.qmrkacrpncdkhofiqlrg.supabase.co \
+  --port=5432 \
+  --username=postgres \
+  --dbname=postgres \
+  -f backups/db/biguglia_backup_YYYYMMDD_HHMMSS.sql
+
+# 4. Vérifier
+curl https://biguglia-connect.vercel.app/api/health
+```
 
 > ⚠️ **La restauration remplace TOUTE la base de données** par l'état du backup.
 > Toutes les données créées APRÈS le backup seront perdues.
-> Durée estimée : 5-15 minutes selon la taille de la DB.
 
-### Export manuel de la DB (avant une migration risquée)
+### 5c. Accéder aux backups automatiques (plan Pro — futur)
 
-Exécuter **avant** chaque migration importante :
+Une fois passé en Pro :
+1. Supabase Dashboard → projet **qmrkacrpncdkhofiqlrg**
+2. **Database** (menu gauche) → **Backups**
+3. Liste des backups (1/jour, 7 jours de rétention) → cliquer **Restore**
+4. Durée estimée : 5-15 minutes selon la taille de la DB
 
-```bash
-# Via Supabase CLI (nécessite supabase login)
-supabase db dump --project-ref qmrkacrpncdkhofiqlrg -f backup_$(date +%Y%m%d_%H%M%S).sql
+### 5d. Point-in-Time Recovery (PITR) — plan Pro Enterprise uniquement
 
-# Ou via pg_dump (remplacer [DB_PASSWORD] par le mot de passe DB)
-pg_dump \
-  "postgresql://postgres.[REF]:[DB_PASSWORD]@aws-0-eu-west-3.pooler.supabase.com:6543/postgres" \
-  --no-acl --no-owner \
-  -f backup_$(date +%Y%m%d_%H%M%S).sql
-```
-
-> Les paramètres de connexion sont dans Supabase Dashboard →
-> Settings → Database → Connection string → URI.
-
-### Point-in-Time Recovery (PITR) — plan Pro Enterprise
-
-Si le plan inclut le PITR, il est possible de restaurer à la seconde près :
+Si le plan inclut le PITR :
 Dashboard → Database → Backups → **Point in Time Recovery** → choisir le timestamp exact.
 
 ---
@@ -300,7 +340,7 @@ Créer un fichier `docs/archive/postmortem_YYYY-MM-DD.md` avec :
 
 À vérifier **avant** chaque mise en production d'une fonctionnalité majeure :
 
-- [ ] Plan Supabase **Pro** activé (backups automatiques inclus)
+- [ ] Plan Supabase **Pro** activé — OU backup manuel effectué (`./scripts/backup-db.sh`)
 - [ ] Export manuel DB effectué (`supabase db dump`)
 - [ ] Migration testée en staging avant prod
 - [ ] Script de rollback SQL préparé et testé
@@ -328,4 +368,4 @@ Créer un fichier `docs/archive/postmortem_YYYY-MM-DD.md` avec :
 
 ---
 
-*Dernière mise à jour : 2026-04-22 — Créé suite à l'audit de résilience opérationnelle.*
+*Dernière mise à jour : 2026-04-22 — Mis à jour : plan Free confirmé, procédure de backup manuel ajoutée (`scripts/backup-db.sh`).*
