@@ -64,6 +64,94 @@ const AUTH_TIMEOUT_MS = 5_000; // 5s max — Supabase INITIAL_SESSION arrive nor
 // 5s (au lieu de 3s) : marge pour les connexions mobiles ou réseaux lents sans
 // pénaliser les utilisateurs rapides (le timeout est annulé dès réception de INITIAL_SESSION).
 
+// ─── Purge client-side des cookies Supabase obsolètes ────────────────────────
+//
+// @supabase/ssr 0.6 utilise un nouveau format de cookie (base64-<base64url> ou
+// base64l-<length>-<base64url>) pour stocker la session. Les anciens cookies
+// laissés par les versions 0.3/0.4 (format JSON brut ou chunks JSON) déclenchent
+// le warning :
+//   "@supabase/ssr: Detected stale cookie data that does not decode to a UTF-8 string"
+//
+// Le middleware serveur (middleware.ts) purge déjà les cookies corrompus côté
+// serveur (Set-Cookie: maxAge=0), mais le NAVIGATEUR continue d'envoyer les
+// anciens cookies lors des premières requêtes AVANT que le middleware ne réponde.
+// Le client Supabase (createBrowserClient) lit document.cookie directement et
+// génère le warning AVANT toute communication avec le serveur.
+//
+// Solution : purger les cookies corrompus dans document.cookie directement,
+// AVANT que createClient() soit appelé, à l'initialisation d'AuthProvider.
+//
+// Critères de cookie "obsolète" :
+//   1. Nom commence par "sb-" et se termine par "-auth-token" (cookie principal)
+//   2. La valeur N'EST PAS un JSON avec access_token valide (eyJ...)
+//      NI une string base64url valide (format 0.6)
+//   3. Chunks : sb-*-auth-token.N — supprimés si le cookie principal est purgé
+//
+// Cette purge est IDEMPOTENTE (sûre à répéter) et ne touche JAMAIS les cookies
+// valides (ceux dont l'access_token est un JWT valide ou en format base64url 0.6).
+function purgeStaleSupabaseCookiesClientSide(): void {
+  if (typeof document === 'undefined') return; // SSR safety
+
+  const allCookies = document.cookie.split(';').map(c => {
+    const idx = c.indexOf('=');
+    return idx === -1
+      ? { name: c.trim(), value: '' }
+      : { name: c.slice(0, idx).trim(), value: c.slice(idx + 1).trim() };
+  });
+
+  // Trouver les cookies principaux Supabase (sb-*-auth-token, sans chunk .N)
+  const authTokenCookies = allCookies.filter(
+    c => /^sb-.+-auth-token$/.test(c.name)
+  );
+
+  for (const cookie of authTokenCookies) {
+    let isValid = false;
+
+    try {
+      const decoded = decodeURIComponent(cookie.value);
+
+      // Format @supabase/ssr 0.6 : "base64-<base64url>" ou "base64l-<len>-<base64url>"
+      if (decoded.startsWith('base64-') || decoded.startsWith('base64l-')) {
+        // Le format 0.6 — laisser @supabase/ssr le décoder lui-même.
+        // S'il est corrompu, le warning sera émis une seule fois lors de
+        // l'initialisation, puis le cookie sera purgé automatiquement par
+        // le SDK lors de SIGNED_OUT ou d'un refresh réussi.
+        // On ne purge PAS ces cookies ici pour ne pas casser les sessions valides.
+        isValid = true;
+      } else {
+        // Format JSON brut (ancien @supabase/ssr 0.3/0.4) :
+        // {"access_token":"eyJ...","refresh_token":"..."}
+        const parsed = JSON.parse(decoded) as Record<string, unknown>;
+        const hasValidJwt =
+          typeof parsed.access_token === 'string' &&
+          parsed.access_token.startsWith('eyJ');
+        isValid = hasValidJwt;
+      }
+    } catch {
+      // Décodage ou parse échoué → cookie binaire/corrompu
+      isValid = false;
+    }
+
+    if (!isValid) {
+      // Expirer le cookie principal
+      const expireStr = `${cookie.name}=; path=/; max-age=0; SameSite=Lax`;
+      document.cookie = expireStr;
+
+      // Expirer aussi les chunks associés (.0, .1, .2 …)
+      for (const c of allCookies) {
+        if (c.name.startsWith(`${cookie.name}.`)) {
+          document.cookie = `${c.name}=; path=/; max-age=0; SameSite=Lax`;
+        }
+      }
+
+      console.info(
+        `[AuthProvider] Cookie obsolète supprimé : ${cookie.name}. ` +
+        'Reconnectez-vous pour créer un nouveau cookie de session valide.'
+      );
+    }
+  }
+}
+
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
   const { _setAuth } = useAuthStore();
   // Stable ref so the effect never needs to re-run when _setAuth identity changes
@@ -71,6 +159,11 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   useEffect(() => { setAuthRef.current = _setAuth; }, [_setAuth]);
 
   useEffect(() => {
+    // Purger les cookies Supabase obsolètes AVANT d'initialiser le client.
+    // Évite le warning "@supabase/ssr: Detected stale cookie data" causé par
+    // les anciens cookies laissés par @supabase/ssr 0.3/0.4.
+    purgeStaleSupabaseCookiesClientSide();
+
     const supabase = createClient();
     let mounted = true;
 
