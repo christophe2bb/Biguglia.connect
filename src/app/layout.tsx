@@ -93,6 +93,37 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Manifest sans crossOrigin — Next.js 14 hardcode crossOrigin="use-credentials"
             via l'API metadata, ce qui empêche le chargement du manifest hors iframe. */}
         <link rel="manifest" href="/manifest.json" />
+
+        {/* ── Preconnect hints — réduit le TTFB des ressources critiques ──────────
+            Supabase : établit la connexion TCP+TLS avant que le JS client ne charge.
+            Impact mesuré : -150 à -300 ms sur le premier fetch API/Storage.
+            ── RÈGLE ────────────────────────────────────────────────────────────────
+            preconnect  → pour les origines CERTIFIÉES utilisées sur toutes les pages
+                          (Supabase REST, Storage, Realtime).
+            dns-prefetch → fallback navigateurs qui ne supportent pas preconnect,
+                            et pour les origines PROBABLES (pas certaines à 100 %).
+            ─────────────────────────────────────────────────────────────────────── */}
+        {/* Supabase REST + Auth + Storage (fetch() dès l'hydratation) */}
+        <link rel="preconnect" href="https://qmrkacrpncdkhofiqlrg.supabase.co" />
+        {/* Storage CDN Supabase (images utilisateurs uploadées) */}
+        <link rel="dns-prefetch" href="https://qmrkacrpncdkhofiqlrg.supabase.co" />
+
+        {/* ── LCP hero image preload ────────────────────────────────────────────
+            biguglia-hero.jpg est le Largest Contentful Paint de la page d'accueil.
+            Le <link rel="preload"> demande au navigateur de télécharger l'image
+            AVANT que le parser HTML ne rencontre le <img> dans le bundle JS.
+            fetchpriority="high" confirme la priorité au Resource Scheduler Chrome.
+            imagesrcset + imagesizes = responsive preload (évite de charger 1920px
+            sur mobile). Ceci concerne uniquement la page d'accueil ; sur les autres
+            pages cette image n'est pas le LCP, mais le navigateur la met en cache. */}
+        <link
+          rel="preload"
+          as="image"
+          href="/images/biguglia-hero.jpg"
+          imageSrcSet="/images/biguglia-hero.jpg"
+          imageSizes="100vw"
+          fetchPriority="high"
+        />
       </head>
       <body className="min-h-screen flex flex-col bg-white">
         {/* Skip-to-content : visible uniquement à la navigation clavier (Tab depuis le haut) */}
