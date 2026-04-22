@@ -204,7 +204,7 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
         >
           <Image
             src={photo.url}
-            alt={`Photo ${idx + 1}`}
+            alt={title ? `${title} — photo ${idx + 1}${total > 1 ? ` sur ${total}` : ''}` : `Photo ${idx + 1}${total > 1 ? ` sur ${total}` : ''}`}
             fill
             draggable={false}
             priority

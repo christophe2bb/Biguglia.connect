@@ -221,9 +221,11 @@ interface LightboxProps {
   photos: NonNullable<EventDetail['photos']>;
   idx: number | null;
   onClose: () => void;
+  /** Titre de l'événement — utilisé pour l'alt des images (accessibilité + SEO) */
+  eventTitle?: string;
 }
 
-export function Lightbox({ photos, idx, onClose }: LightboxProps) {
+export function Lightbox({ photos, idx, onClose, eventTitle }: LightboxProps) {
   const labelId        = useId();
   const initialFocusRef = useFocusTrap(onClose);
 
@@ -264,7 +266,7 @@ export function Lightbox({ photos, idx, onClose }: LightboxProps) {
         <div className="relative w-full max-w-4xl" style={{ aspectRatio: '16/9' }}>
           <Image
             src={photos[idx].url}
-            alt={`Photo ${idx + 1} sur ${photos.length}`}
+            alt={eventTitle ? `${eventTitle} — photo ${idx + 1} sur ${photos.length}` : `Photo ${idx + 1} sur ${photos.length}`}
             fill
             priority
             className="object-contain rounded-xl"
