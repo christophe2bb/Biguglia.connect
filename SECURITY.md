@@ -70,13 +70,25 @@ because it cannot trace the URL's origin statically.
 
 ### 3.3 `dangerouslySetInnerHTML` in `JsonLd.tsx` — False Positive
 
-**Status**: Confirmed false positive  
-**File**: `src/components/seo/JsonLd.tsx`
+**Status**: Confirmed false positive — downgraded by Aikido AI triage  
+**File**: `src/components/seo/JsonLd.tsx` line 53  
+**Suppression**: `// nosec react/no-danger` + `// eslint-disable-next-line react/no-danger`
 
-`dangerouslySetInnerHTML` is used only for `<script type="application/ld+json">` —  
-a requirement for Google Rich Results (Schema.org). The output is passed through  
-`safeJsonLd()` which escapes `</script>`, `<!--`, and `-->` sequences.  
+`dangerouslySetInnerHTML` is used **only** for `<script type="application/ld+json">` —  
+a requirement for Google Rich Results (Schema.org). It cannot be replaced with textContent  
+because React does not support that pattern for `<script>` tags.
+
+The output is passed through `safeJsonLd()` which escapes:
+- `</script>` → `<\/script>` (prevents premature tag closure)
+- `<!--` → `<\!--` (blocks HTML comment injection)
+- `-->` → `--\>` (defense in depth)
+
 No user-controlled data reaches this tag unescaped.
+
+**Aikido AI triage quote**: *"La chaîne JSON-LD est convertie en JSON.stringify et échappe  
+explicitement `</script>`, `<!--` et `-->`, donc cette utilisation de `dangerouslySetInnerHTML`  
+est sûre dans cet extrait de code."* AutoFix was impossible: *"le code implémente déjà une  
+désinfection HTML appropriée"*.
 
 ---
 
