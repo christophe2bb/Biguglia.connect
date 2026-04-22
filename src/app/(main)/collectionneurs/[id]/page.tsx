@@ -8,6 +8,8 @@ import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import CollectionItemDetailClient from './CollectionItemDetailClient';
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
+
 type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -34,7 +36,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
       title,
       description,
-      openGraph: { title, description },
+      alternates: { canonical: `${SITE_URL}/collectionneurs/${id}` },
+      openGraph: {
+        title,
+        description,
+        url: `${SITE_URL}/collectionneurs/${id}`,
+      },
     };
   } catch {
     return { title: 'Collectionneurs — Biguglia Connect' };
