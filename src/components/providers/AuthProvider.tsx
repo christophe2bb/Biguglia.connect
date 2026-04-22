@@ -83,12 +83,30 @@ const AUTH_TIMEOUT_MS = 5_000; // 5s max — Supabase INITIAL_SESSION arrive nor
 //
 // Critères de cookie "obsolète" :
 //   1. Nom commence par "sb-" et se termine par "-auth-token" (cookie principal)
-//   2. La valeur N'EST PAS un JSON avec access_token valide (eyJ...)
-//      NI une string base64url valide (format 0.6)
+//   2. La valeur n'est pas dans un format reconnu par @supabase/ssr 0.6 :
+//      - base64l-<len_base36>-<base64url>  (format par défaut createBrowserClient 0.6)
+//      - base64-<base64url>                (format alternatif 0.6)
+//      - {"access_token":"eyJ..."}         (JSON brut héritage 0.3/0.4)
 //   3. Chunks : sb-*-auth-token.N — supprimés si le cookie principal est purgé
 //
 // Cette purge est IDEMPOTENTE (sûre à répéter) et ne touche JAMAIS les cookies
-// valides (ceux dont l'access_token est un JWT valide ou en format base64url 0.6).
+// valides dans l'un des trois formats ci-dessus.
+
+// ─── Vérification du format base64l- ─────────────────────────────────────────
+// Valide que le cookie est dans le format base64l-<len_base36>-<b64url>.
+// La longueur déclarée doit correspondre à la longueur de la valeur base64url.
+// Un cookie corrompu/incomplet a une longueur déclarée > longueur réelle.
+function isValidBase64lCookie(value: string): boolean {
+  const BASE64L_PATTERN = /^base64l-([0-9a-z]+)-(.+)$/;
+  const match = value.match(BASE64L_PATTERN);
+  if (!match) return false;
+  const expectedLen = parseInt(match[1], 36);
+  const data = match[2];
+  // Le cookie est valide si la longueur des données correspond à la longueur déclarée.
+  // Un écart indique un cookie tronqué/corrompu.
+  return data.length >= expectedLen;
+}
+
 function purgeStaleSupabaseCookiesClientSide(): void {
   if (typeof document === 'undefined') return; // SSR safety
 
@@ -110,14 +128,14 @@ function purgeStaleSupabaseCookiesClientSide(): void {
     try {
       const decoded = decodeURIComponent(cookie.value);
 
-      // Format @supabase/ssr 0.6 : "base64-<base64url>" ou "base64l-<len>-<base64url>"
-      if (decoded.startsWith('base64-') || decoded.startsWith('base64l-')) {
-        // Le format 0.6 — laisser @supabase/ssr le décoder lui-même.
-        // S'il est corrompu, le warning sera émis une seule fois lors de
-        // l'initialisation, puis le cookie sera purgé automatiquement par
-        // le SDK lors de SIGNED_OUT ou d'un refresh réussi.
-        // On ne purge PAS ces cookies ici pour ne pas casser les sessions valides.
-        isValid = true;
+      // Format @supabase/ssr 0.6 par défaut : "base64l-<len_base36>-<base64url>"
+      if (decoded.startsWith('base64l-')) {
+        // Valider la structure base64l- (longueur déclarée vs réelle)
+        isValid = isValidBase64lCookie(decoded);
+      } else if (decoded.startsWith('base64-')) {
+        // Format base64- alternatif : toujours valide si le préfixe est correct
+        // (on ne valide pas le contenu base64url ici — trop coûteux sans TextDecoder)
+        isValid = decoded.length > 'base64-'.length;
       } else {
         // Format JSON brut (ancien @supabase/ssr 0.3/0.4) :
         // {"access_token":"eyJ...","refresh_token":"..."}
