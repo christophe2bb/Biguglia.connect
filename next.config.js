@@ -206,21 +206,7 @@ const nextConfig = {
         source: '/((?!_next/static|_next/image|favicon.ico).*)',
         headers: securityHeaders,
       },
-      {
-        // ── Page d'accueil : HTTP Link preload pour le hero LCP ─────────────────
-        // Le header HTTP Link est envoyé AVANT que le navigateur parse le HTML.
-        // Avec HTTP/2 Server Push (Vercel Edge) ou H2 Early Hints, l'image commence
-        // à se télécharger pendant le rendu serveur — réduit le LCP de ~200-400 ms.
-        // fetchpriority=high = indication priorité au Resource Scheduler du navigateur.
-        // Complément du <link rel="preload"> dans layout.tsx (double signal = robuste).
-        source: '/',
-        headers: [
-          {
-            key:   'Link',
-            value: '</images/biguglia-hero.jpg>; rel=preload; as=image; fetchpriority=high',
-          },
-        ],
-      },
+
       {
         // Assets statiques : cache long + CORP
         source: '/_next/static/(.*)',

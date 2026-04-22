@@ -26,7 +26,11 @@
         "./src/*"
       ]
     },
-    "target": "ES2017"
+    // ES2022 aligns with browserslist (Chrome 100+, Safari 15.6+, Firefox 100+).
+    // ES2017 forçait TypeScript à émettre des helpers async/await polyfillés.
+    // ES2022 permet d'utiliser nativement : class fields, at(), Object.hasOwn(),
+    // Error.cause, Array.at(), structuredClone(), etc. sans helper ni polyfill.
+    "target": "ES2022"
   },
   "include": [
     "next-env.d.ts",
