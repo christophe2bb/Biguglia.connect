@@ -28,7 +28,7 @@ const supabaseHost = SUPABASE_URL.replace(/^https?:\/\//, '');
 // │                                                                            │
 // │  ATTÉNUATIONS EN PLACE :                                                  │
 // │  • 'unsafe-eval' SUPPRIMÉ en production (seul dev le conserve pour HMR)   │
-// │  • Toutes les entrées utilisateur sont échappées (safeJsonLd, DOMPurify)  │
+// │  • Toutes les entrées utilisateur sont échappées (safeJsonLd, safeImageExt, safeDocExt) │
 // │  • CSP restreint à 'self' + domaines explicites (pas de wildcard script)  │
 // │  • X-Frame-Options: DENY, X-Content-Type-Options: nosniff actifs         │
 // │  • HSTS, COEP, COOP déployés                                              │
