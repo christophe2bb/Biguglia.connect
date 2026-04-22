@@ -139,7 +139,7 @@ Migration nonces = chantier séparé, planifié post-production (voir §4).
 | Atténuation | Détail |
 |-------------|--------|
 | `'unsafe-eval'` retiré en prod | Conservé uniquement en dev pour le HMR Next.js |
-| Entrées utilisateur échappées | `safeJsonLd()`, `safeImageExt()`, `safeDocExt()`, DOMPurify |
+| Entrées utilisateur échappées | `safeJsonLd()`, `safeImageExt()`, `safeDocExt()` |
 | Pas de wildcard script | CSP restreint à `'self'` + domaines explicites |
 | `X-Frame-Options: DENY` | Actif |
 | `X-Content-Type-Options: nosniff` | Actif |
