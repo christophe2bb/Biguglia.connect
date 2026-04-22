@@ -7,10 +7,11 @@ import { useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { formatRelative } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Loader2, Clock, AlertCircle, Flame, MapPin,
   Calendar, MessageSquare, Send, Wrench, CheckCircle,
-  Trash2, User,
+  Trash2, User, Pencil,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import toast from 'react-hot-toast';
@@ -61,13 +62,15 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 export default function DemandeDetailClient() {
   const { id } = useParams<{ id: string }>();
   const { profile } = useAuthStore();
+  const router = useRouter();
   const supabase = createClient();
 
-  const [request, setRequest]     = useState<ServiceRequest | null>(null);
-  const [comments, setComments]   = useState<RequestComment[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [newComment, setNewComment] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [request, setRequest]         = useState<ServiceRequest | null>(null);
+  const [comments, setComments]       = useState<RequestComment[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [newComment, setNewComment]   = useState('');
+  const [submitting, setSubmitting]   = useState(false);
+  const [deleting, setDeleting]       = useState(false);
 
   // ── Charger la demande ──────────────────────────────────────────────────
   const fetchRequest = useCallback(async () => {
@@ -157,6 +160,27 @@ export default function DemandeDetailClient() {
     } else {
       toast.success('Commentaire supprimé', { duration: 2000 });
       fetchComments();
+    }
+  };
+
+  // ── Supprimer la demande ─────────────────────────────────────────────────
+  const handleDeleteRequest = async () => {
+    if (!request || !profile || profile.id !== request.resident_id) return;
+    if (!confirm('Supprimer définitivement cette demande ? Cette action est irréversible.')) return;
+
+    setDeleting(true);
+    const { error } = await supabase
+      .from('service_requests')
+      .delete()
+      .eq('id', id)
+      .eq('resident_id', profile.id);
+
+    if (error) {
+      toast.error(`Erreur lors de la suppression : ${error.message}`);
+      setDeleting(false);
+    } else {
+      toast.success('Demande supprimée.', { duration: 3000 });
+      router.push('/demandes');
     }
   };
 
@@ -278,12 +302,51 @@ export default function DemandeDetailClient() {
 
               {/* Actions auteur */}
               <div className="flex gap-2 flex-wrap">
+                {/* ── Actions réservées au propriétaire ── */}
                 {isOwner && !isResolved && (
-                  <button onClick={handleMarkResolved}
-                    className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl hover:bg-emerald-100 transition-colors">
-                    <CheckCircle className="w-4 h-4" /> Marquer résolue
+                  <>
+                    {/* Modifier */}
+                    <Link
+                      href={`/demandes/${id}/modifier`}
+                      className="inline-flex items-center gap-1.5 text-sm font-bold text-blue-700 bg-blue-50 border border-blue-200 px-4 py-2 rounded-xl hover:bg-blue-100 transition-colors"
+                    >
+                      <Pencil className="w-4 h-4" /> Modifier
+                    </Link>
+
+                    {/* Marquer résolue */}
+                    <button onClick={handleMarkResolved}
+                      className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl hover:bg-emerald-100 transition-colors">
+                      <CheckCircle className="w-4 h-4" /> Marquer résolue
+                    </button>
+
+                    {/* Supprimer */}
+                    <button
+                      onClick={handleDeleteRequest}
+                      disabled={deleting}
+                      className="inline-flex items-center gap-1.5 text-sm font-bold text-red-600 bg-red-50 border border-red-200 px-4 py-2 rounded-xl hover:bg-red-100 transition-colors disabled:opacity-50"
+                    >
+                      {deleting
+                        ? <><Loader2 className="w-4 h-4 animate-spin" /> Suppression…</>
+                        : <><Trash2 className="w-4 h-4" /> Supprimer</>
+                      }
+                    </button>
+                  </>
+                )}
+
+                {/* Supprimer même si résolue (pour nettoyer) */}
+                {isOwner && isResolved && (
+                  <button
+                    onClick={handleDeleteRequest}
+                    disabled={deleting}
+                    className="inline-flex items-center gap-1.5 text-sm font-bold text-red-600 bg-red-50 border border-red-200 px-4 py-2 rounded-xl hover:bg-red-100 transition-colors disabled:opacity-50"
+                  >
+                    {deleting
+                      ? <><Loader2 className="w-4 h-4 animate-spin" /> Suppression…</>
+                      : <><Trash2 className="w-4 h-4" /> Supprimer</>
+                    }
                   </button>
                 )}
+
                 {/* Message privé — visible pour les non-auteurs connectés */}
                 {!isOwner && profile && request.resident_id && (
                   <ContactButton
