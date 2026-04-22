@@ -13,7 +13,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Textarea from '@/components/ui/Textarea';
 import toast from 'react-hot-toast';
-import { safeDocExt } from '@/lib/upload-utils';
+import { safeDocExt, safeImageExt } from '@/lib/upload-utils';
 
 interface DocUpload {
   file: File | null;
@@ -214,7 +214,8 @@ export default function ArtisanProfilPage() {
     // Upload gallery photos
     for (let i = 0; i < photos.length; i++) {
       const photo = photos[i];
-      const fileName = `artisans/${artisanId}/gallery-${Date.now()}-${photo.name}`;
+      const ext = safeImageExt(photo.name);
+      const fileName = `artisans/${artisanId}/gallery-${Date.now()}-${i}.${ext}`;
       const { data: uploaded } = await supabase.storage.from('photos').upload(fileName, photo, { upsert: true }); // nosec
       if (uploaded) {
         const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(uploaded.path); // nosec
