@@ -67,8 +67,8 @@ export function ListingCard({ listing, currentUserId, isSaved, onToggleSave }: L
     <Link href={`/annonces/${listing.id}`} className="block group">
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-gray-200 transition-colors duration-200">
 
-        {/* ── Photo zone ── */}
-        <div className="relative h-44 overflow-hidden">
+        {/* ── Photo zone — aspect-[4/3] évite le CLS (hauteur calculée sans JS) ── */}
+        <div className="relative aspect-[4/3] overflow-hidden">
           {photos && photos.length > 0 ? (
             <Image
               src={photos[0].url}

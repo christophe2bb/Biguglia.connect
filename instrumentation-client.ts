@@ -177,6 +177,7 @@ if (REPLAY_SESSION_RATE > 0 || REPLAY_ERROR_RATE > 0) {
     .then((replayIntegration) => {
       Sentry.addIntegration(
         replayIntegration({
+          maskAllInputs: true,  // RGPD obligatoire — masque les champs de formulaire
           maskAllText:   true,  // Masque tous les textes (RGPD)
           blockAllMedia: true,  // Bloque les médias (RGPD)
         }),
@@ -187,3 +188,14 @@ if (REPLAY_SESSION_RATE > 0 || REPLAY_ERROR_RATE > 0) {
       // le reste de Sentry continue normalement.
     });
 }
+
+// ── Navigation tracing — OBLIGATOIRE pour Sentry v10 ──────────────────────────
+//
+// Sans cet export, les navigations Next.js App Router ne sont PAS tracées
+// dans Sentry (aucune transaction de type "navigation" n'apparaît).
+// Requis depuis @sentry/nextjs v10 — voir :
+//   https://docs.sentry.io/platforms/javascript/guides/nextjs/instrumentation/
+//
+// Note : cette ligne est intentionnellement à la fin du fichier pour ne pas
+// perturber l'initialisation Sentry.init() ci-dessus.
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

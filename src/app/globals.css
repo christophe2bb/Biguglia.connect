@@ -66,6 +66,17 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* ── Verrou de scroll pour modales / drawers ─────────────────────────────────
+ * Stratégie CSS-only : toggler une classe sur <html> au lieu de muter
+ * document.body.style.overflow directement (qui force un layout reflow).
+ * - Pas de forced layout reflow → TBT et INP améliorés sur mobile.
+ * - Compatible iOS Safari (contrairement à overflow:hidden sur body seul).
+ * Usage : document.documentElement.classList.add/remove('modal-open')
+ * ─────────────────────────────────────────────────────────────────────────── */
+html.modal-open {
+  overflow: hidden;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

@@ -27,14 +27,16 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
     if (isOpen) {
       // Remember who triggered the modal
       triggerRef.current = document.activeElement;
-      document.body.style.overflow = 'hidden';
+      // CSS-only scroll lock — aucun forced layout reflow (contrairement à
+      // document.body.style.overflow). Compatible iOS Safari.
+      document.documentElement.classList.add('modal-open');
       // Move focus into the dialog on next tick (after render)
       const frame = requestAnimationFrame(() => {
         dialogRef.current?.focus();
       });
       return () => cancelAnimationFrame(frame);
     } else {
-      document.body.style.overflow = '';
+      document.documentElement.classList.remove('modal-open');
       // Restore focus to the triggering element
       if (triggerRef.current instanceof HTMLElement) {
         triggerRef.current.focus();
@@ -56,8 +58,8 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isOpen, onClose]);
 
-  // Body-scroll cleanup on unmount
-  useEffect(() => () => { document.body.style.overflow = ''; }, []);
+  // CSS scroll-lock cleanup on unmount (sécurité : évite un html.modal-open orphelin)
+  useEffect(() => () => { document.documentElement.classList.remove('modal-open'); }, []);
 
   if (!isOpen) return null;
 

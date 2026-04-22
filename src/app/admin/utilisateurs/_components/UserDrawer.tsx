@@ -56,15 +56,15 @@ export default function UserDrawer({
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  // Focus management + scroll lock
+  // Focus management + scroll lock (CSS-only — pas de forced layout reflow)
   useEffect(() => {
     triggerRef.current = document.activeElement;
-    document.body.style.overflow = 'hidden';
+    document.documentElement.classList.add('modal-open');
     // Move focus into drawer on next tick
     const frame = requestAnimationFrame(() => { drawerRef.current?.focus(); });
     return () => {
       cancelAnimationFrame(frame);
-      document.body.style.overflow = '';
+      document.documentElement.classList.remove('modal-open');
       if (triggerRef.current instanceof HTMLElement) triggerRef.current.focus();
     };
   }, []);
