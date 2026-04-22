@@ -53,6 +53,19 @@
  *  35.  breadcrumbSchema — structure BreadcrumbList correcte
  *  36.  breadcrumbSchema — URL relative préfixée par SITE_URL
  *  37.  breadcrumbSchema — URL absolue inchangée
+ *
+ *  localBusinessSchema (fusionné LocalBusiness + Organization)
+ *  38.  @type est un tableau contenant LocalBusiness et Organization
+ *  39.  @id défini pour déduplication (/#organization)
+ *  40.  priceRange = Gratuit
+ *  41.  address.streetAddress présent
+ *  42.  logo est un ImageObject avec width et height
+ *  43.  openingHoursSpecification couvre les 7 jours
+ *  44.  organizationSchema est un alias de localBusinessSchema
+ *
+ *  websiteSchema
+ *  45.  @type = WebSite
+ *  46.  potentialAction de type SearchAction présent
  */
 
 import { describe, it, expect } from 'vitest';
@@ -60,6 +73,9 @@ import {
   mapConditionToSchema,
   productOfferSchema,
   breadcrumbSchema,
+  localBusinessSchema,
+  organizationSchema,
+  websiteSchema,
 } from './jsonld-schemas';
 
 // SITE_URL constant used by the module (mirrors the module default)
@@ -314,5 +330,58 @@ describe('breadcrumbSchema()', () => {
   it('37. URL absolue → inchangée', () => {
     const result = breadcrumbSchema([{ name: 'Ext', url: 'https://example.com/foo' }]);
     expect(result.itemListElement[0].item).toBe('https://example.com/foo');
+  });
+});
+
+// ─── localBusinessSchema (merged LocalBusiness + Organization) ───────────────
+
+describe('localBusinessSchema — schéma fusionné LocalBusiness + Organization', () => {
+  it('38. @type est un tableau contenant LocalBusiness et Organization', () => {
+    const types = localBusinessSchema['@type'] as string[];
+    expect(Array.isArray(types)).toBe(true);
+    expect(types).toContain('LocalBusiness');
+    expect(types).toContain('Organization');
+  });
+
+  it('39. @id défini pour déduplication (/#organization)', () => {
+    expect(localBusinessSchema['@id']).toBe(`${SITE_URL}/#organization`);
+  });
+
+  it('40. priceRange = Gratuit', () => {
+    expect(localBusinessSchema.priceRange).toBe('Gratuit');
+  });
+
+  it('41. address.streetAddress présent', () => {
+    expect(localBusinessSchema.address.streetAddress).toBe('Village de Biguglia');
+  });
+
+  it('42. logo est un ImageObject avec width et height', () => {
+    const logo = localBusinessSchema.logo as Record<string, unknown>;
+    expect(logo['@type']).toBe('ImageObject');
+    expect(typeof logo.width).toBe('number');
+    expect(typeof logo.height).toBe('number');
+  });
+
+  it('43. openingHoursSpecification couvre les 7 jours', () => {
+    const ohs = localBusinessSchema.openingHoursSpecification as Record<string, unknown>;
+    expect(Array.isArray(ohs.dayOfWeek)).toBe(true);
+    expect((ohs.dayOfWeek as string[]).length).toBe(7);
+  });
+
+  it('44. organizationSchema est un alias de localBusinessSchema (même référence)', () => {
+    expect(organizationSchema).toBe(localBusinessSchema);
+  });
+});
+
+// ─── websiteSchema ───────────────────────────────────────────────────────────
+
+describe('websiteSchema', () => {
+  it('45. @type = WebSite', () => {
+    expect(websiteSchema['@type']).toBe('WebSite');
+  });
+
+  it('46. potentialAction de type SearchAction présent', () => {
+    const action = websiteSchema.potentialAction as Record<string, unknown>;
+    expect(action['@type']).toBe('SearchAction');
   });
 });
