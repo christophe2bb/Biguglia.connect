@@ -27,7 +27,7 @@ describe('GET /api/health', () => {
     vi.resetModules();
     process.env.NEXT_PUBLIC_SUPABASE_URL     = 'https://test.supabase.co';
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
-    process.env.NODE_ENV = 'test';
+    // NODE_ENV est read-only en TypeScript strict — on l'ignore dans les tests
   });
 
   it('retourne un objet avec les champs obligatoires', async () => {

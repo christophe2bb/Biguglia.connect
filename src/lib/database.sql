@@ -133,6 +133,7 @@ CREATE TABLE IF NOT EXISTS service_requests (
   preferred_date DATE,
   preferred_time TEXT,
   address TEXT NOT NULL,
+  sector_id TEXT REFERENCES sectors(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'submitted' CHECK (status IN ('submitted', 'viewed', 'replied', 'scheduled', 'completed', 'cancelled')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
