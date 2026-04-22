@@ -54,6 +54,16 @@
 
 html {
   scroll-behavior: smooth;
+  /* ── Anti-CLS : réserve l'espace de la scrollbar en permanence ────────────
+   * Sans scrollbar-gutter, l'apparition/disparition de la scrollbar (p. ex.
+   * quand une modale s'ouvre avec overflow:hidden sur body) cause un Layout
+   * Shift visible et pénalise le CLS Lighthouse.
+   * scrollbar-gutter: stable réserve la gouttière même quand la scrollbar
+   * est cachée → le layout ne bouge pas → CLS = 0.
+   * Supporté : Chrome 94+, Firefox 97+, Safari 15.4+. Ignoré silencieusement
+   * sur les navigateurs plus anciens (dégradation gracieuse).
+   * ────────────────────────────────────────────────────────────────────────── */
+  scrollbar-gutter: stable;
 }
 
 body {
