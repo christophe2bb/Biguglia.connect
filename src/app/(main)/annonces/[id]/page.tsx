@@ -40,7 +40,7 @@ import Avatar               from '@/components/ui/Avatar';
 import ContactButton        from '@/components/ui/ContactButton';
 import type { ExtListing, AuthorProfile } from './_types';
 import type { Listing } from '@/types';
-import { JsonLd, breadcrumbSchema, productOfferSchema } from '@/components/seo/JsonLd';
+import { JsonLd, breadcrumbSchema, productOfferSchema, mapConditionToSchema } from '@/components/seo/JsonLd';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 
@@ -165,16 +165,41 @@ export default async function AnnonceDetailPage({ params }: Props) {
     { name: listing.title,         url: `/annonces/${id}` },
   ]);
 
+  // ── Product JSON-LD (Rich Results) ──────────────────────────────────────
+  // Maps raw DB data → Schema.org Product + Offer for Google Shopping eligibility.
   const rawPhotosForLd = listing.photos as Array<{ url: string }> | undefined;
+  const listingImages  = rawPhotosForLd?.map(p => p.url).filter(Boolean) ?? [];
+
+  // Determine listing_type-driven price semantics:
+  //   'free'                   → isFree=true, price=0 (schema.org Offer.price=0)
+  //   'sale'/'rental'/'service'→ numeric price if present, else no Offer block
+  //   'wanted'/'exchange'      → no Offer block (buyer post, no seller price)
+  const listingType   = (listing as { listing_type?: string }).listing_type;
+  const isFree        = listingType === 'free';
+  const hasSellerPrice = listingType !== 'wanted' && listingType !== 'exchange';
+  const numericPrice   = typeof listing.price === 'number' ? listing.price : null;
+
+  // Map raw condition → Schema.org OfferItemCondition
+  const rawCondition  = (listing as { condition?: string }).condition ?? undefined;
+  const schemaCondition = mapConditionToSchema(rawCondition);
+
+  // priceValidUntil: use listing expires_at when present; else 6 months from now
+  const validThrough = listing.expires_at
+    ? listing.expires_at
+    : (() => { const d = new Date(); d.setMonth(d.getMonth() + 6); return d.toISOString(); })();
+
   const productLd = productOfferSchema({
-    name:        listing.title,
-    description: (listing.description ?? listing.title).slice(0, 300),
-    url:         `/annonces/${id}`,
-    price:       typeof listing.price === 'number' ? listing.price : null,
-    image:       rawPhotosForLd?.[0]?.url,
-    seller:      (listing.user as { full_name?: string } | undefined)?.full_name ?? undefined,
+    name:         listing.title,
+    description:  (listing.description ?? listing.title).slice(0, 300),
+    url:          `/annonces/${id}`,
+    isFree,
+    price:        hasSellerPrice ? numericPrice : null,
+    images:       listingImages.length > 0 ? listingImages : undefined,
+    seller:       (listing.user as { full_name?: string } | undefined)?.full_name ?? undefined,
     availability: isExpired || currentStatus !== 'active' ? 'OutOfStock' : 'InStock',
-    condition:   'UsedCondition',
+    condition:    schemaCondition,
+    datePosted:   listing.created_at,
+    validThrough,
   });
 
   return (
