@@ -70,7 +70,7 @@ function StatPill({ icon: Icon, value, label, color }: {
 function ArtisanCard({ artisan }: { artisan: SpotlightArtisan }) {
   return (
     <Link href={`/artisans/${artisan.id}`}>
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-all hover:-translate-y-0.5 group">
+      <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-[color,border-color,box-shadow,transform] hover:-translate-y-0.5 group">
         <div className="flex items-center gap-3 mb-3">
           <Avatar src={artisan.avatar_url} name={artisan.full_name} size="md" />
           <div className="flex-1 min-w-0">

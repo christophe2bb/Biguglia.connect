@@ -63,13 +63,13 @@ export function ActionBar({ asso, userId }: Props) {
         <div className="flex gap-2">
           <Link
             href={`/evenements?q=${encodeURIComponent(asso.name)}`}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border bg-gray-50 text-gray-600 border-gray-200 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 transition-all"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border bg-gray-50 text-gray-600 border-gray-200 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 transition-colors"
           >
             <Calendar className="w-3.5 h-3.5" /> Événements
           </Link>
           <Link
             href={`/forum?q=${encodeURIComponent(asso.name)}`}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border bg-gray-50 text-gray-600 border-gray-200 hover:bg-violet-50 hover:text-violet-600 hover:border-violet-200 transition-all"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border bg-gray-50 text-gray-600 border-gray-200 hover:bg-violet-50 hover:text-violet-600 hover:border-violet-200 transition-colors"
           >
             <MessageSquare className="w-3.5 h-3.5" /> Forum
           </Link>

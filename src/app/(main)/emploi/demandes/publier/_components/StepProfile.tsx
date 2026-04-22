@@ -71,7 +71,7 @@ export function StepProfile({ form, set, toggleContractType }: Props) {
             return (
               <label
                 key={type}
-                className={`flex items-center gap-2 p-3 border-2 rounded-xl cursor-pointer text-sm transition-all ${
+                className={`flex items-center gap-2 p-3 border-2 rounded-xl cursor-pointer text-sm transition-colors ${
                   checked
                     ? 'border-purple-500 bg-purple-50 text-purple-800 font-semibold'
                     : 'border-gray-200 text-gray-600 hover:border-gray-300'

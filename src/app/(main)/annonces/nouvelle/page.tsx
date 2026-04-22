@@ -114,7 +114,7 @@ export default function NouvelleAnnoncePage() {
                   key={t.value}
                   type="button"
                   onClick={() => setField('listing_type', t.value)}
-                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 text-center transition-all ${
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 text-center transition-colors ${
                     form.listing_type === t.value
                       ? 'border-blue-500 bg-blue-50 shadow-sm'
                       : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
@@ -280,7 +280,7 @@ export default function NouvelleAnnoncePage() {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="w-full border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-blue-300 hover:bg-blue-50 transition-all"
+              className="w-full border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-blue-300 hover:bg-blue-50 transition-colors"
             >
               <Camera className="w-6 h-6 text-gray-400 mx-auto mb-2" />
               <p className="text-sm text-gray-500">Cliquez pour ajouter des photos</p>

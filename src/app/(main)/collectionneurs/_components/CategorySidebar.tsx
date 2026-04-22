@@ -22,7 +22,7 @@ export function CategorySidebar({ categories, selectedCat, total, onSelect }: Pr
           <button
             onClick={() => onSelect('all')}
             className={cn(
-              'flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm font-semibold transition-all text-left',
+              'flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm font-semibold transition-colors text-left',
               selectedCat === 'all' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'
             )}
           >
@@ -38,7 +38,7 @@ export function CategorySidebar({ categories, selectedCat, total, onSelect }: Pr
                 key={cat.id}
                 onClick={() => onSelect(selectedCat === cat.id ? 'all' : cat.id)}
                 className={cn(
-                  'flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm font-semibold transition-all text-left',
+                  'flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm font-semibold transition-colors text-left',
                   selectedCat === cat.id ? cn(cls.bg, cls.text) : 'text-gray-600 hover:bg-gray-50'
                 )}
               >

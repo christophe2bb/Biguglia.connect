@@ -109,7 +109,7 @@ function InscriptionForm() {
             type="button"
             onClick={() => setRole('resident')}
             className={cn(
-              'p-4 rounded-2xl border-2 text-center transition-all duration-200',
+              'p-4 rounded-2xl border-2 text-center transition-colors duration-200',
               role === 'resident'
                 ? 'border-brand-500 bg-brand-50 text-brand-700'
                 : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
@@ -124,7 +124,7 @@ function InscriptionForm() {
             type="button"
             onClick={() => setRole('artisan_pending')}
             className={cn(
-              'p-4 rounded-2xl border-2 text-center transition-all duration-200',
+              'p-4 rounded-2xl border-2 text-center transition-colors duration-200',
               role === 'artisan_pending'
                 ? 'border-brand-500 bg-brand-50 text-brand-700'
                 : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'

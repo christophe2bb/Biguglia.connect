@@ -183,7 +183,7 @@ export default function DashboardPerduTrouvePage() {
         <div className="text-center">
           <p className="text-gray-500 mb-4">Connectez-vous pour accéder à votre tableau de bord</p>
           <Link href="/connexion"
-            className="inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-orange-600 transition-all">
+            className="inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-orange-600 transition-colors">
             Se connecter
           </Link>
         </div>
@@ -242,15 +242,15 @@ export default function DashboardPerduTrouvePage() {
         {/* Quick actions */}
         <div className="flex flex-wrap gap-3 mb-6">
           <Link href="/perdu-trouve"
-            className="inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-orange-600 transition-all shadow-sm">
+            className="inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-orange-600 transition-colors shadow-sm">
             <Plus className="w-4 h-4" /> Nouvelle annonce
           </Link>
           <Link href="/perdu-trouve"
-            className="inline-flex items-center gap-2 bg-white text-gray-700 font-semibold px-5 py-2.5 rounded-xl text-sm border border-gray-200 hover:bg-gray-50 transition-all">
+            className="inline-flex items-center gap-2 bg-white text-gray-700 font-semibold px-5 py-2.5 rounded-xl text-sm border border-gray-200 hover:bg-gray-50 transition-colors">
             <Search className="w-4 h-4" /> Voir toutes les annonces
           </Link>
           <button onClick={fetchData}
-            className="inline-flex items-center gap-2 bg-white text-gray-500 font-semibold px-4 py-2.5 rounded-xl text-sm border border-gray-200 hover:bg-gray-50 transition-all">
+            className="inline-flex items-center gap-2 bg-white text-gray-500 font-semibold px-4 py-2.5 rounded-xl text-sm border border-gray-200 hover:bg-gray-50 transition-colors">
             <RefreshCw className="w-4 h-4" /> Actualiser
           </button>
         </div>
@@ -263,7 +263,7 @@ export default function DashboardPerduTrouvePage() {
             return (
               <button key={s.key}
                 onClick={() => setActiveSection(s.key)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-all flex-shrink-0 ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-colors flex-shrink-0 ${
                   activeSection === s.key ? 'bg-gray-900 text-white shadow' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                 }`}>
                 <Icon className="w-3.5 h-3.5" />
@@ -305,7 +305,7 @@ export default function DashboardPerduTrouvePage() {
             </p>
             {activeSection === 'actifs' && !search && (
               <Link href="/perdu-trouve"
-                className="mt-4 inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-orange-600 transition-all">
+                className="mt-4 inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-orange-600 transition-colors">
                 <Plus className="w-4 h-4" /> Publier une annonce
               </Link>
             )}

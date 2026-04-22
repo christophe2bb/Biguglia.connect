@@ -21,7 +21,7 @@ export function WizardStepper({ step }: Props) {
             <div key={s.id} className="flex items-center flex-1">
               <div className="flex flex-col items-center">
                 <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all ${
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition-colors ${
                     completed
                       ? 'bg-green-500 text-white'
                       : active

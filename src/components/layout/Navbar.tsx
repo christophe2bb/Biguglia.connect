@@ -69,7 +69,7 @@ export default function Navbar() {
 
   return (
     <nav className={cn(
-      'sticky top-0 z-40 transition-all duration-300',
+      'sticky top-0 z-40 transition-colors duration-300',
       scrolled
         ? 'bg-white/97 backdrop-blur-xl shadow-sm border-b border-gray-200/60'
         : 'bg-white/90 backdrop-blur-xl border-b border-gray-100/80'
@@ -114,7 +114,7 @@ export default function Navbar() {
                 type="button"
                 onClick={() => setSearchOpen(true)}
                 aria-label="Ouvrir la recherche"
-                className="flex items-center gap-2 w-full px-3 h-9 rounded-2xl border border-gray-200 bg-gray-50 text-gray-400 text-sm hover:bg-white hover:border-gray-300 hover:text-gray-600 transition-all shadow-sm"
+                className="flex items-center gap-2 w-full px-3 h-9 rounded-2xl border border-gray-200 bg-gray-50 text-gray-400 text-sm hover:bg-white hover:border-gray-300 hover:text-gray-600 transition-colors shadow-sm"
               >
                 <Search className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
                 <span className="truncate" aria-hidden="true">Rechercher…</span>
@@ -171,14 +171,14 @@ export default function Navbar() {
               <div className="flex items-center gap-2">
                 <Link
                   href="/artisans/demande"
-                  className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-brand-500 to-brand-600 text-white text-sm font-bold rounded-xl hover:from-brand-600 hover:to-brand-700 transition-all shadow-sm hover:shadow-md hover:-translate-y-px"
+                  className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-brand-500 to-brand-600 text-white text-sm font-bold rounded-xl hover:from-brand-600 hover:to-brand-700 transition-[color,border-color,box-shadow,transform] shadow-sm hover:shadow-md hover:-translate-y-px"
                 >
                   <PenLine className="w-4 h-4" /> Déposer une demande
                 </Link>
                 <Link href="/connexion" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
                   Connexion
                 </Link>
-                <Link href="/inscription" className="px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 transition-all shadow-sm hover:shadow-md hover:-translate-y-px">
+                <Link href="/inscription" className="px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 transition-[color,border-color,box-shadow,transform] shadow-sm hover:shadow-md hover:-translate-y-px">
                   S&apos;inscrire
                 </Link>
               </div>

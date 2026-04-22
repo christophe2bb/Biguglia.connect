@@ -74,7 +74,7 @@ function ContentCard({ item }: { item: ContentItem }) {
 
   return (
     <div className={cn(
-      'bg-white border rounded-2xl overflow-hidden hover:shadow-md transition-all group',
+      'bg-white border rounded-2xl overflow-hidden hover:shadow-md transition-colors group',
       item.isClosed ? 'border-gray-100 opacity-70' : 'border-gray-100 hover:border-gray-200',
     )}>
       {item.image ? (
@@ -241,7 +241,7 @@ function MesContenusContent() {
             <input
               type="text" value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Rechercher dans mes contenus…"
-              className="w-full pl-9 pr-4 h-9 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-400 focus:bg-white transition-all"
+              className="w-full pl-9 pr-4 h-9 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-400 focus:bg-white transition-colors"
             />
           </div>
           {/* Theme filters */}

@@ -39,7 +39,7 @@ export default function StepMode({ value, onChange }: Props) {
               key={mode}
               onClick={() => onChange(mode)}
               className={cn(
-                'relative p-5 rounded-2xl border-2 text-left transition-all duration-200',
+                'relative p-5 rounded-2xl border-2 text-left transition-colors duration-200',
                 isSelected
                   ? `border-blue-500 ${cfg.bg} shadow-md`
                   : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm',

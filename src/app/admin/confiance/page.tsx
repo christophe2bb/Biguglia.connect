@@ -143,7 +143,7 @@ export default function AdminConfiancePage() {
                   key={t.id}
                   onClick={() => setTab(t.id)}
                   className={cn(
-                    'flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border',
+                    'flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors border',
                     tab === t.id
                       ? t.urgent ? 'bg-red-50 text-red-700 border-red-300' : 'bg-brand-50 text-brand-700 border-brand-200'
                       : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50',

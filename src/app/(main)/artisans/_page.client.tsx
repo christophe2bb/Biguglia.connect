@@ -184,7 +184,7 @@ export default function ArtisansPage() {
 function ArtisanCard({ artisan }: { artisan: ArtisanProfile & { avg_rating?: number; review_count?: number } }) {
   return (
     <Link href={`/artisans/${artisan.id}`}>
-      <div className="bg-white rounded-2xl border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 overflow-hidden group">
+      <div className="bg-white rounded-2xl border border-gray-100 hover:shadow-md hover:border-gray-200 transition-colors duration-200 overflow-hidden group">
         {/* Photo de galerie si disponible */}
         {artisan.gallery && artisan.gallery.length > 0 ? (
           <div className="h-40 bg-gray-100 overflow-hidden">

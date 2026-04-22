@@ -41,7 +41,7 @@ export default function NouveauSujetPage() {
             <span className="text-xs text-gray-400 font-medium">Étape {step}/4</span>
             <div className="flex gap-0.5">
               {[1, 2, 3, 4].map(s => (
-                <div key={s} className={cn('w-5 h-1.5 rounded-full transition-all', s <= step ? 'bg-violet-500' : 'bg-gray-200')} />
+                <div key={s} className={cn('w-5 h-1.5 rounded-full transition-colors', s <= step ? 'bg-violet-500' : 'bg-gray-200')} />
               ))}
             </div>
           </div>

@@ -420,7 +420,7 @@ export default function ModifierAnnoncePage() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-24 h-24 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center hover:border-blue-300 hover:bg-blue-50 transition-all"
+                className="w-24 h-24 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center hover:border-blue-300 hover:bg-blue-50 transition-colors"
               >
                 <Camera className="w-5 h-5 text-gray-400 mb-1" />
                 <span className="text-xs text-gray-400">Ajouter</span>

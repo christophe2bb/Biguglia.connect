@@ -52,7 +52,7 @@ export default function UserCard({
   };
 
   return (
-    <div className={`bg-white rounded-2xl border-2 overflow-hidden transition-all ${
+    <div className={`bg-white rounded-2xl border-2 overflow-hidden transition-colors ${
       isSuspended                         ? 'border-red-200 opacity-80'  :
       user.role === 'artisan_pending'     ? 'border-amber-200'           :
       user.role === 'artisan_verified'    ? 'border-green-200'           :

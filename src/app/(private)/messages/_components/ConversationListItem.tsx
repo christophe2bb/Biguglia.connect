@@ -69,7 +69,7 @@ const ConversationListItem = memo(function ConversationListItem({
   return (
     <div
       className={cn(
-        'transition-all duration-300',
+        'transition-colors duration-300',
         isDeleting && 'opacity-0 scale-y-0 max-h-0 overflow-hidden pointer-events-none'
       )}
     >
@@ -184,7 +184,7 @@ const ConversationListItem = memo(function ConversationListItem({
           data-conv-menu
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
           className={cn(
-            'flex-shrink-0 w-9 h-9 rounded-xl mr-3 flex items-center justify-center transition-all',
+            'flex-shrink-0 w-9 h-9 rounded-xl mr-3 flex items-center justify-center transition-colors',
             isConfirm
               ? 'bg-red-500 text-white'
               : 'text-gray-300 hover:text-red-500 hover:bg-red-50 active:text-red-600 active:bg-red-50'

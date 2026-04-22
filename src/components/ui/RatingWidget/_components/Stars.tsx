@@ -24,7 +24,7 @@ export default function Stars({ rating, interactive = false, size = 'sm', onRate
           key={i}
           className={cn(
             sz,
-            'transition-all duration-100',
+            'transition-colors duration-100',
             i <= Math.round(display) ? 'fill-amber-400 text-amber-400' : 'fill-gray-200 text-gray-200',
             interactive && 'cursor-pointer hover:scale-110',
           )}

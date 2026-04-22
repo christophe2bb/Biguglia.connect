@@ -42,7 +42,7 @@ export default function ActiviteTab({ allLoans, activityData, maxActivity, loanH
               {activityData.map(m => (
                 <div key={m.key} className="flex-1 flex flex-col items-center gap-1">
                   <span className="text-xs font-bold text-teal-700">{m.count > 0 ? m.count : ''}</span>
-                  <div className="w-full rounded-t-lg transition-all" style={{
+                  <div className="w-full rounded-t-lg transition-colors" style={{
                     height: `${Math.round((m.count / maxActivity) * 120)}px`,
                     minHeight: m.count > 0 ? '4px' : '2px',
                     backgroundColor: m.count > 0 ? '#14b8a6' : '#e5e7eb',

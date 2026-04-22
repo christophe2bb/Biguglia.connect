@@ -11,7 +11,7 @@ export function StatusTimeline({ steps }: Props) {
         {steps.map((step, i) => (
           <div key={step.status} className="flex items-center flex-1">
             <div className="flex flex-col items-center flex-1">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-sm border-2 transition-all ${
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-sm border-2 transition-colors ${
                 step.current
                   ? 'bg-blue-600 border-blue-600 text-white scale-110'
                   : step.done

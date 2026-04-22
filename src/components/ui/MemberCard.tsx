@@ -49,7 +49,7 @@ export default function MemberCard({
   return (
     <div className={cn(
       'bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3',
-      'hover:shadow-md hover:border-brand-200 transition-all',
+      'hover:shadow-md hover:border-brand-200 transition-colors',
       isMe && 'ring-2 ring-brand-300'
     )}>
       {/* Header : avatar + nom */}

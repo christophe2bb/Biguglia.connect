@@ -50,7 +50,7 @@ const TabBar = memo(function TabBar({ tabs, activeTab, onTabChange }: TabBarProp
             onClick={() => onTabChange(tab.id)}
             aria-pressed={isActive}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 relative',
+              'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors whitespace-nowrap flex-shrink-0 relative',
               isActive ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-white/50',
             )}
           >

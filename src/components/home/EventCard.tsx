@@ -70,7 +70,7 @@ export default function EventCard({ item, className }: EventCardProps) {
     <Link
       href={item.actionUrl}
       className={cn(
-        'group block bg-white border border-gray-100 rounded-2xl overflow-hidden transition-all hover:shadow-lg hover:-translate-y-0.5',
+        'group block bg-white border border-gray-100 rounded-2xl overflow-hidden transition-[color,border-color,box-shadow,transform] hover:shadow-lg hover:-translate-y-0.5',
         dateInfo?.isToday ? 'hover:border-orange-200' :
         isOuting ? 'hover:border-teal-200' : 'hover:border-violet-200',
         className
@@ -143,7 +143,7 @@ export default function EventCard({ item, className }: EventCardProps) {
               <span className="truncate max-w-[150px]">{item.locationLabel}</span>
             </span>
           )}
-          <span className="inline-flex items-center gap-1 text-xs font-black text-brand-600 group-hover:gap-2 transition-all ml-auto flex-shrink-0">
+          <span className="inline-flex items-center gap-1 text-xs font-black text-brand-600 group-hover:gap-2 transition-colors ml-auto flex-shrink-0">
             {item.actionLabel}
             <ArrowRight className="w-3 h-3" />
           </span>

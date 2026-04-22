@@ -29,7 +29,7 @@ function StatCard({ icon: Icon, label, value, color, href }: {
   href?: string;
 }) {
   const inner = (
-    <div className={cn('bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-sm transition-all', href && 'hover:border-gray-200 cursor-pointer')}>
+    <div className={cn('bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-sm transition-colors', href && 'hover:border-gray-200 cursor-pointer')}>
       <div className={cn('p-2.5 rounded-xl w-fit mb-3', color)}>
         <Icon className="w-4 h-4" />
       </div>
@@ -271,7 +271,7 @@ function ArtisanDashboardContent() {
             { icon: TrendingUp, label: 'Mettre à jour profil', href: '/inscription/artisan-profil', color: 'bg-purple-50 text-purple-600' },
           ].map(({ icon: Icon, label, href, color }) => (
             <Link key={href} href={href}>
-              <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-sm hover:border-gray-200 transition-all text-center">
+              <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-sm hover:border-gray-200 transition-colors text-center">
                 <div className={`inline-flex p-2.5 rounded-xl ${color} mb-2`}><Icon className="w-5 h-5" /></div>
                 <p className="text-sm font-medium text-gray-700 leading-tight">{label}</p>
               </div>

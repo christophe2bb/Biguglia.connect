@@ -138,7 +138,7 @@ export default function ContactButton({
       <Link
         href="/connexion"
         className={cn(
-          'inline-flex items-center font-bold rounded-xl transition-all',
+          'inline-flex items-center font-bold rounded-xl transition-colors',
           sizeClasses, variantClasses, className
         )}
       >
@@ -236,7 +236,7 @@ export default function ContactButton({
       onClick={handleContact}
       disabled={loading}
       className={cn(
-        'inline-flex items-center font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed',
+        'inline-flex items-center font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
         sizeClasses, variantClasses, className
       )}
     >

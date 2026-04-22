@@ -101,7 +101,7 @@ export default function PublierOffrePage() {
               return (
                 <div key={s.id} className="flex items-center flex-1">
                   <div className="flex flex-col items-center">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all ${
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition-colors ${
                       completed ? 'bg-green-500 text-white'
                       : active  ? 'bg-brand-500 text-white shadow-lg shadow-brand-200'
                                 : 'bg-gray-100 text-gray-400'

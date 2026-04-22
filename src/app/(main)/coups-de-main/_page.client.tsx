@@ -98,12 +98,12 @@ export default function CoupsDeMainPage() {
             {/* CTA hero */}
             {profile ? (
               <button type="button" onClick={() => { resetForm(); setShowForm(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                className="inline-flex items-center gap-2 bg-white text-orange-600 font-black px-6 py-3 rounded-2xl hover:bg-orange-50 transition-all shadow-lg text-sm flex-shrink-0">
+                className="inline-flex items-center gap-2 bg-white text-orange-600 font-black px-6 py-3 rounded-2xl hover:bg-orange-50 transition-colors shadow-lg text-sm flex-shrink-0">
                 <Plus className="w-5 h-5" /> Publier une annonce
               </button>
             ) : (
               <Link href="/connexion"
-                className="inline-flex items-center gap-2 bg-white text-orange-600 font-black px-6 py-3 rounded-2xl hover:bg-orange-50 transition-all shadow-lg text-sm flex-shrink-0">
+                className="inline-flex items-center gap-2 bg-white text-orange-600 font-black px-6 py-3 rounded-2xl hover:bg-orange-50 transition-colors shadow-lg text-sm flex-shrink-0">
                 <ArrowRight className="w-5 h-5" /> Se connecter
               </Link>
             )}
@@ -182,17 +182,17 @@ export default function CoupsDeMainPage() {
                 </p>
                 {activeFiltersCount > 0 ? (
                   <button type="button" onClick={resetFilters}
-                    className="inline-flex items-center gap-2 bg-gray-100 text-gray-600 font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-gray-200 transition-all">
+                    className="inline-flex items-center gap-2 bg-gray-100 text-gray-600 font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-gray-200 transition-colors">
                     <X className="w-4 h-4" /> Effacer les filtres
                   </button>
                 ) : profile ? (
                   <button type="button" onClick={() => { resetForm(); setShowForm(true); }}
-                    className="inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-orange-600 transition-all">
+                    className="inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-orange-600 transition-colors">
                     <Plus className="w-4 h-4" /> Publier une annonce
                   </button>
                 ) : (
                   <Link href="/connexion"
-                    className="inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-orange-600 transition-all">
+                    className="inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-orange-600 transition-colors">
                     Se connecter pour publier <ArrowRight className="w-4 h-4" />
                   </Link>
                 )}
@@ -230,7 +230,7 @@ export default function CoupsDeMainPage() {
                     <button type="button"
                       onClick={() => { setPage(Math.max(1, page - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                       disabled={page === 1}
-                      className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-40 transition-all">
+                      className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-40 transition-colors">
                       ← Précédent
                     </button>
                     <div className="flex gap-1">
@@ -244,7 +244,7 @@ export default function CoupsDeMainPage() {
                         return (
                           <button key={p} type="button"
                             onClick={() => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                            className={`w-9 h-9 rounded-xl text-sm font-bold transition-all ${p === page ? 'bg-orange-500 text-white' : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}>
+                            className={`w-9 h-9 rounded-xl text-sm font-bold transition-colors ${p === page ? 'bg-orange-500 text-white' : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}>
                             {p}
                           </button>
                         );
@@ -253,7 +253,7 @@ export default function CoupsDeMainPage() {
                     <button type="button"
                       onClick={() => { setPage(Math.min(totalPages, page + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                       disabled={page === totalPages}
-                      className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-40 transition-all">
+                      className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-40 transition-colors">
                       Suivant →
                     </button>
                   </div>

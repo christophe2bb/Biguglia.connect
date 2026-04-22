@@ -103,7 +103,7 @@ export default function OutingStatusModal({
           <button
             onClick={onConfirm}
             disabled={applyingTransition || (pendingRequiresReason && !transitionReason.trim())}
-            className={`flex-1 font-bold py-2.5 rounded-xl text-sm transition-all disabled:opacity-50 ${toCfg.bg} ${toCfg.color} border ${toCfg.border} hover:opacity-80`}
+            className={`flex-1 font-bold py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50 ${toCfg.bg} ${toCfg.color} border ${toCfg.border} hover:opacity-80`}
           >
             {applyingTransition
               ? <Loader2 className="w-4 h-4 animate-spin mx-auto" />

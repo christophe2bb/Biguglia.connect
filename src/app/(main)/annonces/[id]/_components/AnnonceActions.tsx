@@ -156,7 +156,7 @@ export default function AnnonceActions({ listing, variant = 'topbar' }: Props) {
         {/* Favourite */}
         <button
           onClick={toggleSave}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold transition-colors ${
             isSaved
               ? 'bg-pink-100 text-pink-600 border border-pink-200'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -273,7 +273,7 @@ export default function AnnonceActions({ listing, variant = 'topbar' }: Props) {
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 px-4 py-3 flex gap-3 shadow-lg">
         <button
           onClick={toggleSave}
-          className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+          className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
             isSaved
               ? 'bg-pink-100 text-pink-600 border-pink-200'
               : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'

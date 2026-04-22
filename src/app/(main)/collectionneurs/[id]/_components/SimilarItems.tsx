@@ -37,7 +37,7 @@ export function SimilarItems({ similar }: Props) {
             <Link
               key={sim.id}
               href={`/collectionneurs/${sim.id}`}
-              className="group bg-gray-50 rounded-xl overflow-hidden hover:shadow-sm transition-all"
+              className="group bg-gray-50 rounded-xl overflow-hidden hover:shadow-sm transition-colors"
             >
               <div className="relative aspect-square bg-gray-100 overflow-hidden">
                 {simPhoto ? (

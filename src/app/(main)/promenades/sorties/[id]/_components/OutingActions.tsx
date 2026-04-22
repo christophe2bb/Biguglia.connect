@@ -42,7 +42,7 @@ export default function OutingActions({
             <button
               onClick={onRegister}
               disabled={registering || (!userParticipation && frenchStatus !== 'ouverte')}
-              className={`inline-flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm transition-all disabled:opacity-50 ${
+              className={`inline-flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50 ${
                 userParticipation
                   ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   : frenchStatus === 'ouverte'
@@ -60,7 +60,7 @@ export default function OutingActions({
           ) : (
             <Link
               href="/connexion"
-              className="inline-flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm bg-emerald-500 text-white hover:bg-emerald-600 transition-all"
+              className="inline-flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm bg-emerald-500 text-white hover:bg-emerald-600 transition-colors"
             >
               <Users className="w-4 h-4" /> Se connecter pour participer
             </Link>
@@ -89,7 +89,7 @@ export default function OutingActions({
                 <button
                   key={`${t.from}-${t.to}`}
                   onClick={() => onOpenTransition(t.to, t.label, t.requiresReason)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all hover:opacity-80 ${toCfg.bg} ${toCfg.color} ${toCfg.border}`}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors hover:opacity-80 ${toCfg.bg} ${toCfg.color} ${toCfg.border}`}
                 >
                   {toCfg.icon} {t.label}
                 </button>

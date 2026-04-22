@@ -63,7 +63,7 @@ export default function LFForm({
       <div className="flex gap-1.5 mb-6 overflow-x-auto pb-1">
         {STEPS.map((s, i) => (
           <button key={i} onClick={() => setStep(i + 1)}
-            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
               step === i + 1
                 ? (isPerdu ? 'bg-orange-500 text-white' : 'bg-emerald-500 text-white')
                 : step > i + 1 ? 'bg-gray-200 text-gray-600' : 'bg-gray-100 text-gray-400'
@@ -84,7 +84,7 @@ export default function LFForm({
           <div className="grid grid-cols-2 gap-4">
             {(['perdu', 'trouve'] as const).map(t => (
               <button key={t} type="button" onClick={() => setForm(f => ({ ...f, type: t as LFType }))}
-                className={`flex flex-col items-center gap-3 p-6 rounded-2xl border-2 font-black text-lg transition-all ${
+                className={`flex flex-col items-center gap-3 p-6 rounded-2xl border-2 font-black text-lg transition-colors ${
                   form.type === t
                     ? t === 'perdu' ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-emerald-400 bg-emerald-50 text-emerald-700'
                     : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300'
@@ -148,7 +148,7 @@ export default function LFForm({
                 return (
                   <button key={cat.value} type="button"
                     onClick={() => setForm(f => ({ ...f, category: cat.value, is_sensitive: cat.sensitive }))}
-                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-xs font-semibold transition-all ${
+                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-xs font-semibold transition-colors ${
                       form.category === cat.value
                         ? isPerdu ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-emerald-400 bg-emerald-50 text-emerald-700'
                         : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
@@ -277,7 +277,7 @@ export default function LFForm({
             ))}
             {photos.length < 5 && (
               <button onClick={() => photoRef.current?.click()}
-                className="w-24 h-24 rounded-xl border-2 border-dashed border-blue-300 flex flex-col items-center justify-center text-blue-400 hover:bg-blue-50 transition-all">
+                className="w-24 h-24 rounded-xl border-2 border-dashed border-blue-300 flex flex-col items-center justify-center text-blue-400 hover:bg-blue-50 transition-colors">
                 <Camera className="w-6 h-6" />
                 <span className="text-xs mt-1">Ajouter</span>
               </button>
@@ -322,7 +322,7 @@ export default function LFForm({
               <div className="flex gap-2 flex-wrap">
                 {[{ v: 'messagerie', l: '💬 Messagerie' }, { v: 'telephone', l: '📞 Téléphone' }, { v: 'email', l: '📧 Email' }].map(m => (
                   <button key={m.v} type="button" onClick={() => setForm(f => ({ ...f, contact_mode: m.v }))}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
                       form.contact_mode === m.v ? accentBorder : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
                     }`}>
                     {m.l}
@@ -377,7 +377,7 @@ export default function LFForm({
                       <div className="flex gap-2 flex-wrap">
                         {DEPOSIT_LOCATIONS.map(d => (
                           <button key={d} type="button" onClick={() => setForm(f => ({ ...f, deposited_at: d }))}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
                               form.deposited_at === d ? accentBorder : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
                             }`}>
                             {d}

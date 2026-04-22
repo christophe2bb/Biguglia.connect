@@ -67,7 +67,7 @@ export function SectionMessaging({ copied, copy }: Props) {
             <p className="text-xs text-red-100 mt-1 ml-9">⚠️ À coller <strong>SEUL</strong> dans un <strong>nouvel onglet</strong> SQL Editor → Run</p>
           </div>
           <button onClick={() => copy('convFix1')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow flex-shrink-0 ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-colors shadow flex-shrink-0 ${
               copied('convFix1') ? 'bg-emerald-400 text-white' : 'bg-white text-red-700 hover:bg-red-50'
             }`}>
             {copied('convFix1')
@@ -91,7 +91,7 @@ export function SectionMessaging({ copied, copy }: Props) {
             <p className="text-xs text-orange-100 mt-1 ml-9">À coller dans un <strong>autre onglet</strong> SQL Editor → Run — <strong>après le BLOC 1</strong></p>
           </div>
           <button onClick={() => copy('convFix2')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow flex-shrink-0 ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-colors shadow flex-shrink-0 ${
               copied('convFix2') ? 'bg-emerald-400 text-white' : 'bg-white text-orange-700 hover:bg-orange-50'
             }`}>
             {copied('convFix2')
@@ -128,7 +128,7 @@ export function SectionMessaging({ copied, copy }: Props) {
         </div>
         <button
           onClick={() => copy('messaging')}
-          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-all ${
+          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-colors ${
             copied('messaging') ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'
           }`}
         >
@@ -169,7 +169,7 @@ export function SectionMessaging({ copied, copy }: Props) {
           </div>
           <button
             onClick={() => copy('status')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all mb-3 ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-colors mb-3 ${
               copied('status') ? 'bg-emerald-500 text-white' : 'bg-violet-600 text-white hover:bg-violet-700'
             }`}
           >
@@ -213,7 +213,7 @@ export function SectionMessaging({ copied, copy }: Props) {
         </div>
         <button
           onClick={() => copy('search')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow ${
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-colors shadow ${
             copied('search') ? 'bg-emerald-500 text-white' : 'bg-violet-600 text-white hover:bg-violet-700'
           }`}
         >

@@ -37,7 +37,7 @@ export default function SignalementFilters({
           <button
             key={key}
             onClick={() => onStatus(key)}
-            className={`px-4 py-2.5 text-xs font-semibold transition-all ${
+            className={`px-4 py-2.5 text-xs font-semibold transition-colors ${
               filterStatus === key ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-50'
             }`}
           >

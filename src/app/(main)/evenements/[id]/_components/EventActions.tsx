@@ -115,7 +115,7 @@ export default function EventActions({
               {event.participants_count !== undefined && event.capacity && (
                 <div className="mt-1.5 w-48 bg-purple-100 rounded-full h-1.5">
                   <div
-                    className="bg-purple-500 h-1.5 rounded-full transition-all"
+                    className="bg-purple-500 h-1.5 rounded-full transition-colors"
                     style={{ width: `${Math.min(100, (event.participants_count / event.capacity) * 100)}%` }}
                   />
                 </div>
@@ -129,19 +129,19 @@ export default function EventActions({
           <div className="flex-shrink-0">
             {event.user_joined ? (
               <button onClick={onJoin} disabled={joiningEvent}
-                className="flex items-center gap-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 font-bold px-4 py-2 rounded-xl text-sm transition-all disabled:opacity-50">
+                className="flex items-center gap-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 font-bold px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50">
                 {joiningEvent ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                 Se désinscrire
               </button>
             ) : resolvedStatus === 'complet' ? (
               <button onClick={onJoin} disabled={joiningEvent}
-                className="flex items-center gap-2 bg-amber-500 text-white hover:bg-amber-600 font-bold px-4 py-2 rounded-xl text-sm transition-all disabled:opacity-50">
+                className="flex items-center gap-2 bg-amber-500 text-white hover:bg-amber-600 font-bold px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50">
                 {joiningEvent ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
                 Liste d&apos;attente
               </button>
             ) : registerCheck.allowed ? (
               <button onClick={onJoin} disabled={joiningEvent}
-                className="flex items-center gap-2 bg-purple-600 text-white hover:bg-purple-700 font-bold px-4 py-2 rounded-xl text-sm transition-all disabled:opacity-50">
+                className="flex items-center gap-2 bg-purple-600 text-white hover:bg-purple-700 font-bold px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50">
                 {joiningEvent ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                 S&apos;inscrire
               </button>
@@ -166,13 +166,13 @@ export default function EventActions({
           </p>
           <div className="flex flex-wrap gap-2">
             <Link href={`/evenements/${event.id}/modifier`}
-              className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-3 py-2 rounded-xl text-sm transition-all">
+              className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-3 py-2 rounded-xl text-sm transition-colors">
               <Edit2 className="w-3.5 h-3.5" /> Modifier
             </Link>
             {allowedTrans.map(t => (
               <button key={t.to}
                 onClick={() => onOpenTransition(t)}
-                className={`flex items-center gap-1.5 font-semibold px-3 py-2 rounded-xl text-sm transition-all ${
+                className={`flex items-center gap-1.5 font-semibold px-3 py-2 rounded-xl text-sm transition-colors ${
                   TRANSITION_CLS[t.to as EventStatus] ?? 'bg-purple-50 hover:bg-purple-100 text-purple-700'
                 }`}
               >
@@ -182,7 +182,7 @@ export default function EventActions({
             ))}
             {(event.participants_count ?? 0) === 0 && (
               <button onClick={onOpenDelete}
-                className="flex items-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-700 font-semibold px-3 py-2 rounded-xl text-sm transition-all">
+                className="flex items-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-700 font-semibold px-3 py-2 rounded-xl text-sm transition-colors">
                 <Trash2 className="w-3.5 h-3.5" /> Supprimer
               </button>
             )}

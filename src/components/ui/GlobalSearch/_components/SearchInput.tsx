@@ -66,7 +66,7 @@ export default function SearchInput({
           'w-full rounded-2xl border-2 border-white/60 bg-white shadow-xl',
           'placeholder:text-gray-400 text-gray-900 font-medium',
           'focus:outline-none focus:ring-4 focus:ring-brand-300/50 focus:border-brand-400',
-          'transition-all duration-200',
+          'transition-colors duration-200',
           tokens.input,
         )}
       />
@@ -96,7 +96,7 @@ export default function SearchInput({
             'absolute right-2 top-1/2 -translate-y-1/2',
             'flex items-center gap-2 px-5 py-3 rounded-xl',
             'bg-brand-600 hover:bg-brand-700 active:scale-95',
-            'text-white font-black text-sm shadow-md transition-all duration-150',
+            'text-white font-black text-sm shadow-md transition-colors duration-150',
           )}
         >
           <Search className="w-4 h-4" />

@@ -40,7 +40,7 @@ export default function OutingHero({
       {/* Back link */}
       <Link
         href="/promenades?tab=agenda"
-        className="absolute top-4 left-4 flex items-center gap-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-3 py-1.5 rounded-xl text-sm font-semibold transition-all"
+        className="absolute top-4 left-4 flex items-center gap-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-3 py-1.5 rounded-xl text-sm font-semibold transition-colors"
       >
         <ChevronLeft className="w-4 h-4" /> Sorties
       </Link>
@@ -50,13 +50,13 @@ export default function OutingHero({
         <div className="absolute top-4 right-4 flex gap-2">
           <Link
             href={`/promenades?editOuting=${outing.id}`}
-            className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-3 py-1.5 rounded-xl text-sm font-semibold transition-all"
+            className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-3 py-1.5 rounded-xl text-sm font-semibold transition-colors"
           >
             ✏️ Modifier
           </Link>
           <button
             onClick={onDelete}
-            className="bg-red-500/70 hover:bg-red-600/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-xl text-sm font-semibold transition-all"
+            className="bg-red-500/70 hover:bg-red-600/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-xl text-sm font-semibold transition-colors"
           >
             Supprimer
           </button>

@@ -28,7 +28,7 @@ export default function ItemCard({ item, onStatusChange, onDelete }: ItemCardPro
   return (
     <div
       className={cn(
-        'bg-white border rounded-2xl overflow-hidden hover:shadow-md transition-all group',
+        'bg-white border rounded-2xl overflow-hidden hover:shadow-md transition-colors group',
         statusCfg.closed ? 'border-gray-100 opacity-75' : 'border-gray-100 hover:border-blue-200',
       )}
     >

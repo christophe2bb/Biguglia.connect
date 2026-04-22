@@ -179,7 +179,7 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
           <button
             onClick={prev}
             aria-label="Photo précédente"
-            className="absolute left-3 z-10 p-3 rounded-full bg-black/50 text-white hover:bg-black/80 transition-all hover:scale-110 active:scale-95"
+            className="absolute left-3 z-10 p-3 rounded-full bg-black/50 text-white hover:bg-black/80 transition-[colors,transform] hover:scale-110 active:scale-95"
           >
             <ChevronLeft className="w-6 h-6" aria-hidden="true" />
           </button>
@@ -219,7 +219,7 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
           <button
             onClick={next}
             aria-label="Photo suivante"
-            className="absolute right-3 z-10 p-3 rounded-full bg-black/50 text-white hover:bg-black/80 transition-all hover:scale-110 active:scale-95"
+            className="absolute right-3 z-10 p-3 rounded-full bg-black/50 text-white hover:bg-black/80 transition-[colors,transform] hover:scale-110 active:scale-95"
           >
             <ChevronRight className="w-6 h-6" aria-hidden="true" />
           </button>
@@ -237,7 +237,7 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
                 aria-label={`Voir la photo ${i + 1}${p.isPrimary || i === 0 ? ' (photo principale)' : ''}`}
                 aria-pressed={i === idx}
                 className={cn(
-                  'relative flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all',
+                  'relative flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-colors',
                   i === idx
                     ? 'border-white scale-110 shadow-lg'
                     : 'border-white/20 opacity-60 hover:opacity-100 hover:border-white/50'
@@ -501,7 +501,7 @@ export function PhotoUploaderField({
               onDragEnd={onDragEnd}
               onDragOver={e => e.preventDefault()}
               className={cn(
-                'relative rounded-xl overflow-hidden border-2 transition-all group',
+                'relative rounded-xl overflow-hidden border-2 transition-colors group',
                 photo.isPrimary
                   ? 'border-amber-400 shadow-lg shadow-amber-100'
                   : 'border-gray-200 hover:border-gray-300',

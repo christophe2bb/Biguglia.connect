@@ -90,7 +90,7 @@ export default function TrustBadge({ profile, variant = 'badge', showDetails = f
       <button
         type="button"
         onClick={() => showDetails && setOpen(v => !v)}
-        className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border transition-all ${trust.bg} ${trust.color} border-current/20 ${showDetails ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
+        className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border transition-colors ${trust.bg} ${trust.color} border-current/20 ${showDetails ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
       >
         <span>{trust.emoji}</span>
         <span>{trust.label}</span>
@@ -106,7 +106,7 @@ export default function TrustBadge({ profile, variant = 'badge', showDetails = f
           <div className="flex items-center gap-2 mb-3">
             <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all ${barColor}`}
+                className={`h-full rounded-full transition-colors ${barColor}`}
                 style={{ width: `${trust.score}%` }}
               />
             </div>

@@ -77,7 +77,7 @@ export default function TabItineraires({
         {profileId && (
           <button onClick={() => setShowForm(!showForm)}
             className={cn(
-              'inline-flex items-center gap-2 font-bold px-4 py-2.5 rounded-xl transition-all text-sm shadow-sm',
+              'inline-flex items-center gap-2 font-bold px-4 py-2.5 rounded-xl transition-colors text-sm shadow-sm',
               showForm
                 ? 'bg-gray-100 text-gray-600 border border-gray-200'
                 : 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 shadow-emerald-200'
@@ -117,7 +117,7 @@ export default function TabItineraires({
                 <div className="flex gap-1.5">
                   {(['facile', 'moyen', 'difficile'] as const).map(d => (
                     <button key={d} type="button" onClick={() => setForm(f => ({ ...f, difficulty: d }))}
-                      className={cn('flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all',
+                      className={cn('flex-1 py-2.5 rounded-xl text-xs font-bold border transition-colors',
                         form.difficulty === d
                           ? d === 'facile' ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
                             : d === 'moyen' ? 'bg-amber-400 text-white border-amber-400 shadow-sm'
@@ -170,7 +170,7 @@ export default function TabItineraires({
                 ].map(({ key, label, cls }) => (
                   <button key={key} type="button"
                     onClick={() => setForm(f => ({ ...f, [key]: !(f as Record<string, unknown>)[key] }))}
-                    className={cn('flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all',
+                    className={cn('flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors',
                       (form as Record<string, unknown>)[key]
                         ? `bg-${cls}-100 text-${cls}-700 border-${cls}-300 shadow-sm`
                         : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
@@ -189,7 +189,7 @@ export default function TabItineraires({
                   { val: 'full',    label: '🌳 Ombragé' },
                 ] as const).map(s => (
                   <button key={s.val} type="button" onClick={() => setForm(f => ({ ...f, shade_level: s.val }))}
-                    className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-all', form.shade_level === s.val ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
+                    className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-colors', form.shade_level === s.val ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
                     {s.label}
                   </button>
                 ))}
@@ -205,7 +205,7 @@ export default function TabItineraires({
                   { val: 'sunset',  label: '🌅 Coucher soleil' },
                 ] as const).map(t => (
                   <button key={t.val} type="button" onClick={() => setForm(f => ({ ...f, best_time_of_day: t.val }))}
-                    className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-all', form.best_time_of_day === t.val ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
+                    className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-colors', form.best_time_of_day === t.val ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
                     {t.label}
                   </button>
                 ))}
@@ -242,7 +242,7 @@ export default function TabItineraires({
                 ))}
                 {photos.length < 5 && (
                   <button type="button" onClick={() => fileInputRef.current?.click()}
-                    className="w-20 h-20 rounded-xl border-2 border-dashed border-emerald-300 flex flex-col items-center justify-center text-emerald-400 hover:bg-emerald-50 hover:border-emerald-400 transition-all">
+                    className="w-20 h-20 rounded-xl border-2 border-dashed border-emerald-300 flex flex-col items-center justify-center text-emerald-400 hover:bg-emerald-50 hover:border-emerald-400 transition-colors">
                     <Camera className="w-5 h-5" /><span className="text-xs mt-1">Photo</span>
                   </button>
                 )}
@@ -259,7 +259,7 @@ export default function TabItineraires({
 
           <div className="flex gap-2 mt-5 pt-5 border-t border-gray-100">
             <button type="submit" disabled={submitting}
-              className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 transition-all shadow-sm shadow-emerald-200">
+              className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 transition-colors shadow-sm shadow-emerald-200">
               {submitting ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Publication…</> : "🌿 Publier l'itinéraire"}
             </button>
             <button type="button" onClick={() => setShowForm(false)} className="px-5 py-2.5 rounded-xl text-sm text-gray-500 hover:bg-gray-100 border border-gray-200">Annuler</button>
@@ -298,12 +298,12 @@ export default function TabItineraires({
             </button>
           ) : profileId ? (
             <button onClick={() => setShowForm(true)}
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:from-emerald-600 hover:to-teal-700 transition-all shadow-sm">
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:from-emerald-600 hover:to-teal-700 transition-colors shadow-sm">
               <Plus className="w-4 h-4" /> Partager un itinéraire
             </button>
           ) : (
             <Link href="/connexion"
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:from-emerald-600 hover:to-teal-700 transition-all shadow-sm">
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:from-emerald-600 hover:to-teal-700 transition-colors shadow-sm">
               Se connecter pour contribuer
             </Link>
           )}
@@ -323,7 +323,7 @@ export default function TabItineraires({
             const diff = DIFF_CONFIG[p.difficulty];
             const firstPhoto = p.photos?.[0]?.url;
             return (
-              <div key={p.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden flex gap-0">
+              <div key={p.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-colors overflow-hidden flex gap-0">
                 <div className={`relative w-24 h-24 flex-shrink-0 ${firstPhoto ? '' : `bg-gradient-to-br ${type.gradient}`} flex items-center justify-center`}>
                   {firstPhoto ? (
                     <Image src={firstPhoto} alt="" fill className="object-cover" />
@@ -343,7 +343,7 @@ export default function TabItineraires({
                     {p.distance_km != null && <span className="text-xs font-semibold text-emerald-600 flex items-center gap-0.5"><MapPin className="w-3 h-3" />{p.distance_km} km</span>}
                     {p.duration_min != null && <span className="text-xs font-semibold text-sky-600 flex items-center gap-0.5"><Clock className="w-3 h-3" />{formatDuration(p.duration_min)}</span>}
                     <button onClick={() => userId && handleLike(p.id, !!p.user_liked)}
-                      className={cn('ml-auto flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg border transition-all', p.user_liked ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-gray-50 text-gray-400 border-gray-100')}>
+                      className={cn('ml-auto flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg border transition-colors', p.user_liked ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-gray-50 text-gray-400 border-gray-100')}>
                       <Heart className={cn('w-3 h-3', p.user_liked ? 'fill-current' : '')} />{p.likes_count || 0}
                     </button>
                   </div>

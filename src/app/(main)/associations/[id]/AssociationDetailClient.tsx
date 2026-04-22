@@ -49,7 +49,7 @@ export default function AssociationDetailClient({ initialItem }: Props) {
         <p className="text-gray-600 text-lg font-medium">{error ?? 'Association introuvable'}</p>
         <Link
           href="/associations"
-          className="inline-flex items-center gap-2 bg-violet-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-violet-600 transition-all"
+          className="inline-flex items-center gap-2 bg-violet-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-violet-600 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Retour aux associations
         </Link>

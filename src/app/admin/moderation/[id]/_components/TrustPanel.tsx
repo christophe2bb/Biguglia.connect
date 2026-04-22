@@ -28,7 +28,7 @@ export function TrustPanel({ item, onTrustChange }: Props) {
             <button
               key={level}
               onClick={() => onTrustChange(level)}
-              className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all ${
+              className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-colors ${
                 isCurrent
                   ? `${cfg.bg} ${cfg.border} ring-2 ring-offset-1 ring-brand-300`
                   : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'

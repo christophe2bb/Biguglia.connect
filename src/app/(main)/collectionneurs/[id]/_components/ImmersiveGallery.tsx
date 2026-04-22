@@ -59,7 +59,7 @@ export function ImmersiveGallery({ photos, title }: Props) {
                 e.stopPropagation();
                 setActiveIdx(i => (i - 1 + photos.length) % photos.length);
               }}
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white transition-all opacity-0 group-hover:opacity-100"
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white transition-[colors,opacity] opacity-0 group-hover:opacity-100"
             >
               <ChevronLeft className="w-5 h-5 text-gray-700" />
             </button>
@@ -68,7 +68,7 @@ export function ImmersiveGallery({ photos, title }: Props) {
                 e.stopPropagation();
                 setActiveIdx(i => (i + 1) % photos.length);
               }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white transition-all opacity-0 group-hover:opacity-100"
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white transition-[colors,opacity] opacity-0 group-hover:opacity-100"
             >
               <ChevronRight className="w-5 h-5 text-gray-700" />
             </button>
@@ -96,7 +96,7 @@ export function ImmersiveGallery({ photos, title }: Props) {
               key={i}
               onClick={() => setActiveIdx(i)}
               className={cn(
-                'relative flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-all',
+                'relative flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-colors',
                 i === activeIdx
                   ? 'border-orange-400 shadow-md'
                   : 'border-transparent hover:border-gray-300',

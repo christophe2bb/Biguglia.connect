@@ -255,7 +255,7 @@ export default async function HelpRequestDetailPage({ params }: Props) {
               </p>
               <Link
                 href={`/coups-de-main?cat=${item.category}`}
-                className="inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-orange-600 transition-all"
+                className="inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-orange-600 transition-colors"
               >
                 {catConf.emoji} Toutes les annonces &quot;{catConf.label}&quot;
               </Link>

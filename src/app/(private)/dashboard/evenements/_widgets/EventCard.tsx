@@ -51,7 +51,7 @@ export default function EventCard({ event, onStatusChange, onDelete }: Props) {
   );
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-colors">
       <div className="p-4">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex-1 min-w-0">
@@ -91,7 +91,7 @@ export default function EventCard({ event, onStatusChange, onDelete }: Props) {
           {fillPct !== null && (
             <div className="flex-1 bg-gray-100 rounded-full h-1.5">
               <div
-                className={`h-1.5 rounded-full transition-all ${fillPct >= 90 ? 'bg-red-400' : fillPct >= 70 ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                className={`h-1.5 rounded-full transition-colors ${fillPct >= 90 ? 'bg-red-400' : fillPct >= 70 ? 'bg-amber-400' : 'bg-emerald-400'}`}
                 style={{ width: `${Math.min(100, fillPct)}%` }}
               />
             </div>
@@ -102,12 +102,12 @@ export default function EventCard({ event, onStatusChange, onDelete }: Props) {
         {/* Quick actions */}
         <div className="flex flex-wrap gap-1.5">
           <Link href={`/evenements/${event.id}/modifier`}
-            className="flex items-center gap-1 bg-gray-50 hover:bg-gray-100 text-gray-600 font-semibold px-2.5 py-1.5 rounded-lg text-xs transition-all">
+            className="flex items-center gap-1 bg-gray-50 hover:bg-gray-100 text-gray-600 font-semibold px-2.5 py-1.5 rounded-lg text-xs transition-colors">
             <Edit2 className="w-3 h-3" /> Modifier
           </Link>
           {transitions.slice(0, 3).map(t => (
             <button key={t.to} onClick={() => onStatusChange(event.id, t.to, t.requiresReason)}
-              className={`flex items-center gap-1 font-semibold px-2.5 py-1.5 rounded-lg text-xs transition-all ${
+              className={`flex items-center gap-1 font-semibold px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
                 t.to === 'annule' ? 'bg-red-50 hover:bg-red-100 text-red-600' :
                 t.to === 'reporte' ? 'bg-violet-50 hover:bg-violet-100 text-violet-600' :
                 t.to === 'archive' ? 'bg-gray-50 hover:bg-gray-100 text-gray-500' :
@@ -124,7 +124,7 @@ export default function EventCard({ event, onStatusChange, onDelete }: Props) {
           ))}
           {(event.participants_count ?? 0) === 0 && (
             <button onClick={() => onDelete(event.id)}
-              className="flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-500 font-semibold px-2.5 py-1.5 rounded-lg text-xs transition-all">
+              className="flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-500 font-semibold px-2.5 py-1.5 rounded-lg text-xs transition-colors">
               <Trash2 className="w-3 h-3" /> Supprimer
             </button>
           )}

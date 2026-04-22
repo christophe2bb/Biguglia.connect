@@ -51,7 +51,7 @@ export function CopyBlock({
     <div className={className}>
       <button
         onClick={onCopy}
-        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow ${
+        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-colors shadow ${
           copied ? 'bg-emerald-500 text-white' : btn
         }`}
       >

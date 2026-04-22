@@ -48,7 +48,7 @@ export default function TabAgenda({
         </div>
         {profileId && (
           <button onClick={() => { resetOutingForm(); setShowOutingForm(!showOutingForm); }}
-            className={cn('inline-flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm transition-all',
+            className={cn('inline-flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm transition-colors',
               showOutingForm
                 ? 'bg-gray-100 text-gray-600 border border-gray-200'
                 : 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 shadow-sm shadow-emerald-200'
@@ -94,7 +94,7 @@ export default function TabAgenda({
               <div className="flex gap-2">
                 {(['facile', 'moyen', 'difficile'] as const).map(d => (
                   <button key={d} type="button" onClick={() => setOutingForm(f => ({ ...f, difficulty: d }))}
-                    className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-all',
+                    className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-colors',
                       outingForm.difficulty === d
                         ? d === 'facile' ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
                           : d === 'moyen' ? 'bg-amber-400 text-white border-amber-400 shadow-sm'
@@ -128,7 +128,7 @@ export default function TabAgenda({
                 ].map(({ key, label, cls }) => (
                   <button key={key} type="button"
                     onClick={() => setOutingForm(f => ({ ...f, [key]: !(f as Record<string, unknown>)[key] }))}
-                    className={cn('flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold border transition-all',
+                    className={cn('flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold border transition-colors',
                       (outingForm as Record<string, unknown>)[key]
                         ? `bg-${cls}-100 text-${cls}-700 border-${cls}-300 shadow-sm`
                         : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
@@ -167,7 +167,7 @@ export default function TabAgenda({
                 ))}
                 {outingPhotos.length < 3 && (
                   <button type="button" onClick={() => outingPhotoRef.current?.click()}
-                    className="w-20 h-20 rounded-xl border-2 border-dashed border-emerald-300 flex flex-col items-center justify-center text-emerald-400 hover:bg-emerald-50 hover:border-emerald-400 transition-all">
+                    className="w-20 h-20 rounded-xl border-2 border-dashed border-emerald-300 flex flex-col items-center justify-center text-emerald-400 hover:bg-emerald-50 hover:border-emerald-400 transition-colors">
                     <Camera className="w-5 h-5" /><span className="text-xs mt-1">Photo</span>
                   </button>
                 )}
@@ -178,7 +178,7 @@ export default function TabAgenda({
 
           <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
             <button type="submit" disabled={submittingOuting}
-              className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 transition-all shadow-sm">
+              className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 transition-colors shadow-sm">
               {submittingOuting
                 ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {editingOuting ? 'Modification…' : 'Création…'}</>
                 : editingOuting ? '✓ Enregistrer' : '🥾 Créer la sortie'}
@@ -199,11 +199,11 @@ export default function TabAgenda({
           <p className="text-gray-400 text-sm mb-6">Organisez la première sortie et invitez les habitants à vous rejoindre !</p>
           {profileId ? (
             <button onClick={() => setShowOutingForm(true)}
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:from-emerald-600 hover:to-teal-700 transition-all shadow-sm">
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:from-emerald-600 hover:to-teal-700 transition-colors shadow-sm">
               <Plus className="w-4 h-4" /> Organiser une sortie
             </button>
           ) : (
-            <Link href="/connexion" className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:from-emerald-600 hover:to-teal-700 transition-all shadow-sm">
+            <Link href="/connexion" className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:from-emerald-600 hover:to-teal-700 transition-colors shadow-sm">
               Se connecter pour créer une sortie
             </Link>
           )}
@@ -229,7 +229,7 @@ export default function TabAgenda({
         <div className="mt-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-center">
           <p className="text-emerald-800 font-bold mb-1">Rejoignez la communauté rando</p>
           <p className="text-emerald-700 text-sm mb-4">Connectez-vous pour rejoindre ou créer une sortie groupée.</p>
-          <Link href="/connexion" className="inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 transition-all">
+          <Link href="/connexion" className="inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 transition-colors">
             Se connecter
           </Link>
         </div>

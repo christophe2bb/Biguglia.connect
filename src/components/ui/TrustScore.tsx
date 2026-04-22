@@ -172,7 +172,7 @@ export function TrustScoreCard({ profile, stats, badges, showDetails = false }: 
                 <span className="text-xs text-gray-500 w-28 flex-shrink-0">{d.label}</span>
                 <div className="flex-1 bg-black/5 rounded-full h-1.5 overflow-hidden">
                   <div
-                    className="h-full bg-current rounded-full transition-all"
+                    className="h-full bg-current rounded-full transition-colors"
                     style={{ width: `${(d.value / d.max) * 100}%`, color: strokeColor[trust.level] || '#9ca3af' }}
                   />
                 </div>

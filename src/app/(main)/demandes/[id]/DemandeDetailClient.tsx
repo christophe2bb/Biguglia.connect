@@ -280,7 +280,7 @@ export default function DemandeDetailClient() {
               <div className="flex gap-2 flex-wrap">
                 {isOwner && !isResolved && (
                   <button onClick={handleMarkResolved}
-                    className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl hover:bg-emerald-100 transition-all">
+                    className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl hover:bg-emerald-100 transition-colors">
                     <CheckCircle className="w-4 h-4" /> Marquer résolue
                   </button>
                 )}
@@ -345,7 +345,7 @@ export default function DemandeDetailClient() {
                         {canDelete && (
                           <button
                             onClick={() => handleDeleteComment(comment)}
-                            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-50 transition-all"
+                            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-50 transition-[colors,opacity]"
                             title="Supprimer"
                           >
                             <Trash2 className="w-3.5 h-3.5 text-red-400" />
@@ -379,7 +379,7 @@ export default function DemandeDetailClient() {
                         <button
                           type="submit"
                           disabled={submitting || !newComment.trim()}
-                          className="inline-flex items-center gap-2 bg-blue-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-blue-700 transition-all disabled:opacity-50"
+                          className="inline-flex items-center gap-2 bg-blue-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
                         >
                           {submitting
                             ? <><Loader2 className="w-4 h-4 animate-spin" /> Envoi…</>
@@ -393,7 +393,7 @@ export default function DemandeDetailClient() {
                 <div className="text-center py-4">
                   <p className="text-gray-500 text-sm mb-3">Connectez-vous pour répondre à cette demande</p>
                   <Link href="/connexion"
-                    className="inline-flex items-center gap-2 bg-blue-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-blue-700 transition-all">
+                    className="inline-flex items-center gap-2 bg-blue-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-blue-700 transition-colors">
                     Se connecter
                   </Link>
                 </div>

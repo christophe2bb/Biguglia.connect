@@ -55,7 +55,7 @@ export default function OutingTabs({
           <button
             key={id}
             onClick={() => setActiveTab(id)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
               activeTab === id
                 ? 'bg-emerald-500 text-white shadow'
                 : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
@@ -292,7 +292,7 @@ export default function OutingTabs({
               <button
                 onClick={onSendComment}
                 disabled={!commentText.trim() || sendingComment}
-                className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-40 transition-all flex-shrink-0"
+                className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-40 transition-colors flex-shrink-0"
               >
                 {sendingComment
                   ? <Loader2 className="w-4 h-4 animate-spin" />

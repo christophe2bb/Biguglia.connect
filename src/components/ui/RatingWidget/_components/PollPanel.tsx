@@ -41,7 +41,7 @@ export default function PollPanel({
               onClick={() => !hasVoted && onVote(idx)}
               disabled={(hasVoted && !isMyVote) || votingPoll}
               className={cn(
-                'relative overflow-hidden flex items-center gap-2 p-3 rounded-xl border text-sm transition-all text-left',
+                'relative overflow-hidden flex items-center gap-2 p-3 rounded-xl border text-sm transition-colors text-left',
                 isMyVote
                   ? 'border-blue-400 bg-blue-50 text-blue-700 font-bold'
                   : hasVoted
@@ -51,7 +51,7 @@ export default function PollPanel({
             >
               {hasVoted && (
                 <div
-                  className={cn('absolute inset-y-0 left-0 rounded-xl transition-all', isMyVote ? 'bg-blue-100' : 'bg-gray-100')}
+                  className={cn('absolute inset-y-0 left-0 rounded-xl transition-colors', isMyVote ? 'bg-blue-100' : 'bg-gray-100')}
                   style={{ width: `${pct}%` }}
                 />
               )}

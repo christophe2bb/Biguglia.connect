@@ -242,7 +242,7 @@ export default function DashboardPromenadePage() {
               <p className="text-emerald-100 text-sm mt-1">Gérez vos sorties groupées et participants</p>
             </div>
             <Link href="/promenades?tab=agenda&showForm=1"
-              className="inline-flex items-center gap-2 bg-white text-emerald-700 font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-50 transition-all shadow">
+              className="inline-flex items-center gap-2 bg-white text-emerald-700 font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-50 transition-colors shadow">
               <Plus className="w-4 h-4" /> Organiser une sortie
             </Link>
           </div>
@@ -276,7 +276,7 @@ export default function DashboardPromenadePage() {
             { id: 'historique', label: 'Historique', icon: Clock },
           ].map(({ id, label, icon: Icon }) => (
             <button key={id} onClick={() => setActiveTab(id as typeof activeTab)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
                 activeTab === id ? 'bg-emerald-500 text-white shadow' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
               }`}>
               <Icon className="w-4 h-4" /> {label}
@@ -296,7 +296,7 @@ export default function DashboardPromenadePage() {
                 { value: 'all', label: 'Toutes', count: stats.total },
               ].map(f => (
                 <button key={f.value} onClick={() => setStatusFilter(f.value)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors ${
                     statusFilter === f.value
                       ? 'bg-emerald-500 text-white border-emerald-500'
                       : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-300'
@@ -308,7 +308,7 @@ export default function DashboardPromenadePage() {
                 </button>
               ))}
               <button onClick={fetchMyOutings}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-gray-200 bg-white text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-all ml-auto">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-gray-200 bg-white text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors ml-auto">
                 <RefreshCw className="w-3 h-3" /> Actualiser
               </button>
             </div>
@@ -323,7 +323,7 @@ export default function DashboardPromenadePage() {
                 <p className="font-bold text-gray-700 mb-1">Aucune sortie {statusFilter !== 'all' ? `(${statusFilter})` : ''}</p>
                 {statusFilter === 'actives' && (
                   <Link href="/promenades?tab=agenda"
-                    className="mt-4 inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 transition-all">
+                    className="mt-4 inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 transition-colors">
                     <Plus className="w-4 h-4" /> Organiser une sortie
                   </Link>
                 )}
@@ -359,7 +359,7 @@ export default function DashboardPromenadePage() {
         {/* CTAs */}
         <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Link href="/promenades?tab=agenda"
-            className="flex items-center gap-3 bg-white rounded-2xl border border-gray-100 p-4 hover:border-emerald-200 hover:shadow-sm transition-all">
+            className="flex items-center gap-3 bg-white rounded-2xl border border-gray-100 p-4 hover:border-emerald-200 hover:shadow-sm transition-colors">
             <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
               <Footprints className="w-5 h-5 text-emerald-500" />
             </div>
@@ -370,7 +370,7 @@ export default function DashboardPromenadePage() {
             <ChevronRight className="w-4 h-4 text-gray-300 ml-auto" />
           </Link>
           <Link href="/dashboard"
-            className="flex items-center gap-3 bg-white rounded-2xl border border-gray-100 p-4 hover:border-gray-200 hover:shadow-sm transition-all">
+            className="flex items-center gap-3 bg-white rounded-2xl border border-gray-100 p-4 hover:border-gray-200 hover:shadow-sm transition-colors">
             <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center flex-shrink-0">
               <BarChart3 className="w-5 h-5 text-gray-500" />
             </div>

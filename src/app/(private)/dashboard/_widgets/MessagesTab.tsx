@@ -79,7 +79,7 @@ function InboxLink({ href, icon, iconBg, title, subtitle, badge, badgeColor, pul
 }) {
   return (
     <Link href={href}
-      className="flex items-center gap-4 bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-sm hover:border-gray-200 transition-all group">
+      className="flex items-center gap-4 bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-sm hover:border-gray-200 transition-colors group">
       <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform', iconBg)}>
         {icon}
       </div>

@@ -75,7 +75,7 @@ export default function CommunitiesSection({ userId }: Props) {
             return (
               <Link key={m.theme_slug} href={`/communaute/${m.theme_slug}`}>
                 <div className={cn(
-                  'flex flex-col items-center gap-1.5 p-3 rounded-2xl border transition-all hover:shadow-md hover:-translate-y-0.5 text-center',
+                  'flex flex-col items-center gap-1.5 p-3 rounded-2xl border transition-[color,border-color,box-shadow,transform] hover:shadow-md hover:-translate-y-0.5 text-center',
                   conf.bg, conf.border
                 )}>
                   <span className="text-2xl">{conf.emoji}</span>

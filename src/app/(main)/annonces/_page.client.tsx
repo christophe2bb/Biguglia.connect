@@ -123,7 +123,7 @@ export default function AnnoncesPage() {
                   <button
                     key={chip.key}
                     onClick={() => setSelectedType(filters.selectedType === chip.key ? '' : chip.key)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
                       filters.selectedType === chip.key
                         ? 'bg-blue-600 text-white shadow-sm'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -134,25 +134,25 @@ export default function AnnoncesPage() {
                 ))}
                 <button
                   onClick={() => setShowUrgentOnly(p => !p)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
                     filters.showUrgentOnly ? 'bg-red-500 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >⚡ Urgent</button>
                 <button
                   onClick={() => setShowFreeOnly(p => !p)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
                     filters.showFreeOnly ? 'bg-green-500 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >🎁 Gratuit uniquement</button>
                 <button
                   onClick={() => setShowFavoritesOnly(p => !p)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
                     filters.showFavoritesOnly ? 'bg-pink-500 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >❤️ Mes favoris {savedIds.size > 0 && `(${savedIds.size})`}</button>
                 <button
                   onClick={() => setShowAdvancedFilters(p => !p)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1 ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors flex items-center gap-1 ${
                     filters.showAdvancedFilters || activeFiltersCount > 0
                       ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -162,7 +162,7 @@ export default function AnnoncesPage() {
                   Filtres {activeFiltersCount > 0 && `(${activeFiltersCount})`}
                 </button>
                 {activeFiltersCount > 0 && (
-                  <button onClick={resetFilters} className="px-3 py-1.5 rounded-full text-xs font-semibold bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-all">
+                  <button onClick={resetFilters} className="px-3 py-1.5 rounded-full text-xs font-semibold bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-colors">
                     ✕ Réinitialiser
                   </button>
                 )}

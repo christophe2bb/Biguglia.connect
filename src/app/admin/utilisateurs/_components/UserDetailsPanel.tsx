@@ -53,7 +53,7 @@ export default function UserDetailsPanel({
             <button
               key={opt.value}
               onClick={() => onChangeRole(user.id, opt.value)}
-              className={`px-3 py-2 rounded-xl text-xs font-medium border-2 transition-all text-left ${
+              className={`px-3 py-2 rounded-xl text-xs font-medium border-2 transition-colors text-left ${
                 user.role === opt.value
                   ? `${opt.bg} ${opt.color} border-current`
                   : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'

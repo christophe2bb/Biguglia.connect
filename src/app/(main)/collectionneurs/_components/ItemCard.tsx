@@ -95,7 +95,7 @@ export default function ItemCard({ item, currentUserId, onFavoriteToggle, viewMo
     return (
       <div className={cn(
         'bg-white rounded-2xl border border-gray-100 overflow-hidden',
-        'hover:shadow-md hover:border-gray-200 transition-all duration-200',
+        'hover:shadow-md hover:border-gray-200 transition-colors duration-200',
         isClosed && 'opacity-70'
       )}>
         <div className="flex gap-4 p-3">
@@ -162,7 +162,7 @@ export default function ItemCard({ item, currentUserId, onFavoriteToggle, viewMo
   return (
     <div className={cn(
       'bg-white rounded-2xl border border-gray-100 overflow-hidden group',
-      'hover:shadow-lg hover:shadow-gray-100/80 hover:border-gray-200 transition-all duration-200',
+      'hover:shadow-lg hover:shadow-gray-100/80 hover:border-gray-200 transition-colors duration-200',
       isClosed && 'opacity-75',
       item.is_featured && 'ring-2 ring-amber-300/50 shadow-amber-50'
     )}>
@@ -213,7 +213,7 @@ export default function ItemCard({ item, currentUserId, onFavoriteToggle, viewMo
             disabled={favLoading}
             className={cn(
               'absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center',
-              'transition-all duration-200 shadow-sm',
+              'transition-colors duration-200 shadow-sm',
               item.isFavorited
                 ? 'bg-red-500 text-white scale-110'
                 : 'bg-white/90 text-gray-400 hover:bg-white hover:text-red-500 hover:scale-110'
@@ -279,7 +279,7 @@ export default function ItemCard({ item, currentUserId, onFavoriteToggle, viewMo
         {!isClosed && !isOwner && (
           <div className="mt-3 pt-3 border-t border-gray-50 flex gap-2">
             <Link href={`/collectionneurs/${item.id}`}
-              className={cn('flex items-center justify-center gap-1.5 flex-1 px-3 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-80', modeCfg.bg, modeCfg.color)}>
+              className={cn('flex items-center justify-center gap-1.5 flex-1 px-3 py-2 rounded-xl text-xs font-bold transition-colors hover:opacity-80', modeCfg.bg, modeCfg.color)}>
               <MessageSquare className="w-3.5 h-3.5" />{modeCfg.cta}
             </Link>
             <ContactButton

@@ -25,7 +25,7 @@ export function RiskPanel({ item }: Props) {
       {/* Barre de risque */}
       <div className="w-full h-2 bg-white/60 rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all ${
+          className={`h-full rounded-full transition-colors ${
             item.risk_score >= 60 ? 'bg-red-500'    :
             item.risk_score >= 40 ? 'bg-orange-500' :
             item.risk_score >= 20 ? 'bg-amber-400'  : 'bg-emerald-400'

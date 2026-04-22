@@ -64,7 +64,7 @@ export default function HelpForm({
       <div className="flex gap-1.5 mb-6 overflow-x-auto pb-1">
         {["L'essentiel", 'Organisation', 'Conditions', 'Confiance'].map((s, i) => (
           <button key={i} type="button" onClick={() => setStep(i + 1)}
-            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
               isActive(i + 1) ? `${stepColor} text-white` :
               isDone(i + 1) ? 'bg-gray-200 text-gray-600' :
               'bg-gray-100 text-gray-400'
@@ -90,7 +90,7 @@ export default function HelpForm({
             <div className="grid grid-cols-3 gap-3">
               {(Object.entries(TYPE_CONFIG) as [HelpType, typeof TYPE_CONFIG[HelpType]][]).map(([key, conf]) => (
                 <button key={key} type="button" onClick={() => setForm(f => ({ ...f, help_type: key }))}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 font-bold text-sm transition-all ${
+                  className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 font-bold text-sm transition-colors ${
                     form.help_type === key
                       ? `${conf.border} ${conf.bg} ${conf.color}`
                       : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300'
@@ -134,7 +134,7 @@ export default function HelpForm({
                 const Icon = cat.icon;
                 return (
                   <button key={cat.value} type="button" onClick={() => setForm(f => ({ ...f, category: cat.value }))}
-                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-xs font-semibold transition-all ${
+                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-xs font-semibold transition-colors ${
                       form.category === cat.value
                         ? `${typeConf.border} ${typeConf.bg} ${typeConf.color}`
                         : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
@@ -190,7 +190,7 @@ export default function HelpForm({
             <div className="grid grid-cols-2 gap-2">
               {(Object.entries(URGENCY_CONFIG) as [UrgencyLevel, typeof URGENCY_CONFIG[UrgencyLevel]][]).map(([key, conf]) => (
                 <button key={key} type="button" onClick={() => setForm(f => ({ ...f, urgency: key }))}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all text-left flex items-center gap-2 ${
+                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors text-left flex items-center gap-2 ${
                     form.urgency === key
                       ? `${conf.bg} ${conf.color} border-current`
                       : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
@@ -256,7 +256,7 @@ export default function HelpForm({
             <div className="flex flex-wrap gap-2">
               {DURATION_OPTIONS.map(d => (
                 <button key={d.value} type="button" onClick={() => setForm(f => ({ ...f, duration: d.value }))}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
                     form.duration === d.value
                       ? `${typeConf.bg} ${typeConf.color} ${typeConf.border}`
                       : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
@@ -298,7 +298,7 @@ export default function HelpForm({
             <div className="grid grid-cols-2 gap-2">
               {(Object.entries(COMPENSATION_CONFIG) as [Compensation, typeof COMPENSATION_CONFIG[Compensation]][]).map(([key, conf]) => (
                 <button key={key} type="button" onClick={() => setForm(f => ({ ...f, compensation: key }))}
-                  className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all text-left ${
+                  className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-colors text-left ${
                     form.compensation === key
                       ? `${typeConf.bg} ${typeConf.color} ${typeConf.border}`
                       : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
@@ -316,7 +316,7 @@ export default function HelpForm({
             <div className="flex flex-wrap gap-2">
               {EQUIPMENT_OPTIONS.map(e => (
                 <button key={e} type="button" onClick={() => onToggleArr('equipment', e)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
                     form.equipment.includes(e)
                       ? 'bg-amber-100 text-amber-700 border-amber-300'
                       : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
@@ -331,7 +331,7 @@ export default function HelpForm({
             <div className="flex flex-wrap gap-2">
               {FOR_WHO_OPTIONS.map(fw => (
                 <button key={fw} type="button" onClick={() => setForm(f => ({ ...f, for_who: fw }))}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
                     form.for_who === fw
                       ? `${typeConf.bg} ${typeConf.color} ${typeConf.border}`
                       : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
@@ -356,7 +356,7 @@ export default function HelpForm({
               ))}
               {photosCount < 5 && (
                 <button type="button" onClick={() => photoInputRef.current?.click()}
-                  className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 hover:border-orange-400 flex flex-col items-center justify-center gap-1 transition-all">
+                  className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 hover:border-orange-400 flex flex-col items-center justify-center gap-1 transition-colors">
                   <Camera className="w-5 h-5 text-gray-400" />
                   <span className="text-xs text-gray-400">Ajouter</span>
                 </button>
@@ -409,7 +409,7 @@ export default function HelpForm({
                 { v: 'membres'  as Visibility, l: '🔒 Membres connectés uniquement',    icon: EyeOff },
               ] as const).map(opt => (
                 <button key={opt.v} type="button" onClick={() => setForm(f => ({ ...f, visibility: opt.v }))}
-                  className={`px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all text-left ${
+                  className={`px-3 py-2.5 rounded-xl text-xs font-semibold border transition-colors text-left ${
                     form.visibility === opt.v
                       ? `${typeConf.bg} ${typeConf.color} ${typeConf.border}`
                       : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
@@ -427,7 +427,7 @@ export default function HelpForm({
                 { v: 'telephone_apres'  as ContactMode, l: "📞 Téléphone possible après 1er échange" },
               ] as const).map(opt => (
                 <button key={opt.v} type="button" onClick={() => setForm(f => ({ ...f, contact_mode: opt.v }))}
-                  className={`px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all text-left ${
+                  className={`px-3 py-2.5 rounded-xl text-xs font-semibold border transition-colors text-left ${
                     form.contact_mode === opt.v
                       ? `${typeConf.bg} ${typeConf.color} ${typeConf.border}`
                       : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
@@ -446,7 +446,7 @@ export default function HelpForm({
                 { v: 'complet'          as DisplayName, l: 'Nom complet' },
               ] as const).map(opt => (
                 <button key={opt.v} type="button" onClick={() => setForm(f => ({ ...f, display_name: opt.v }))}
-                  className={`flex-1 px-2 py-2 rounded-xl text-xs font-semibold border transition-all text-center ${
+                  className={`flex-1 px-2 py-2 rounded-xl text-xs font-semibold border transition-colors text-center ${
                     form.display_name === opt.v
                       ? `${typeConf.bg} ${typeConf.color} ${typeConf.border}`
                       : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'

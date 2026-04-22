@@ -37,7 +37,7 @@ export default function ItemCard({ item, onStatusChange, onDelete }: Props) {
   const isActive = ACTIVE_STATUSES.includes(item.status);
 
   return (
-    <div className={`bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all overflow-hidden ${
+    <div className={`bg-white rounded-2xl border shadow-sm hover:shadow-md transition-colors overflow-hidden ${
       isActive
         ? item.type === 'perdu' ? 'border-orange-200' : 'border-emerald-200'
         : 'border-gray-100 opacity-80'

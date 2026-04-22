@@ -241,11 +241,11 @@ export default async function ServicesBigugliaPage() {
 
           <div className="flex flex-wrap gap-3">
             <Link href="/artisans"
-              className="inline-flex items-center gap-2 bg-white text-brand-700 font-black px-6 py-3 rounded-xl text-sm hover:bg-brand-50 transition-all shadow-md">
+              className="inline-flex items-center gap-2 bg-white text-brand-700 font-black px-6 py-3 rounded-xl text-sm hover:bg-brand-50 transition-colors shadow-md">
               Trouver un artisan <ArrowRight className="w-4 h-4" />
             </Link>
             <Link href="/artisans/demande"
-              className="inline-flex items-center gap-2 border border-white/30 text-white font-bold px-5 py-3 rounded-xl text-sm hover:bg-white/10 transition-all">
+              className="inline-flex items-center gap-2 border border-white/30 text-white font-bold px-5 py-3 rounded-xl text-sm hover:bg-white/10 transition-colors">
               Déposer une demande de devis
             </Link>
           </div>
@@ -304,7 +304,7 @@ export default async function ServicesBigugliaPage() {
               { href: '/materiel',               label: '🛠️ Matériel partagé entre voisins' },
             ].map(l => (
               <Link key={l.href} href={l.href}
-                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-50 hover:border-brand-200 hover:text-brand-700 transition-all">
+                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-50 hover:border-brand-200 hover:text-brand-700 transition-colors">
                 {l.label}
               </Link>
             ))}
@@ -341,7 +341,7 @@ export default async function ServicesBigugliaPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {SERVICE_CATEGORIES.map(cat => (
               <Link key={cat.slug} href={cat.href}>
-                <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md hover:border-brand-200 hover:-translate-y-0.5 transition-all h-full flex flex-col gap-3">
+                <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md hover:border-brand-200 hover:-translate-y-0.5 transition-[color,border-color,box-shadow,transform] h-full flex flex-col gap-3">
                   <h3 className="font-black text-gray-900 text-sm">{cat.title}</h3>
                   <p className="text-xs text-gray-600 leading-relaxed flex-1">{cat.desc}</p>
                   <div className="flex items-center gap-1 text-xs font-bold text-brand-600 mt-auto">
@@ -366,7 +366,7 @@ export default async function ServicesBigugliaPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {TRADE_META.map(trade => (
               <Link key={trade.slug} href={`/artisans/metier/${trade.slug}`}>
-                <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 transition-all h-full flex flex-col gap-3">
+                <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 transition-[color,border-color,box-shadow,transform] h-full flex flex-col gap-3">
                   <div className="flex items-center gap-3">
                     <span className="text-3xl">{trade.emoji}</span>
                     <div>
@@ -400,7 +400,7 @@ export default async function ServicesBigugliaPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {EMERGENCY_SERVICES.map(srv => (
               <Link key={srv.title} href={srv.href}>
-                <div className="bg-white rounded-2xl border border-red-100 p-4 hover:shadow-md hover:border-red-200 transition-all flex items-start gap-3">
+                <div className="bg-white rounded-2xl border border-red-100 p-4 hover:shadow-md hover:border-red-200 transition-colors flex items-start gap-3">
                   <span className="text-2xl flex-shrink-0">{srv.emoji}</span>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-gray-900 text-sm">{srv.title}</p>
@@ -532,7 +532,7 @@ export default async function ServicesBigugliaPage() {
                   { href: '/artisans/metier/jardinage',     emoji: '🌿', label: 'Jardiniers à Biguglia',    sub: 'Entretien, taille, élagage' },
                 ].map(m => (
                   <Link key={m.href} href={m.href}>
-                    <div className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 px-3 py-2 hover:shadow-sm hover:border-brand-200 transition-all">
+                    <div className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 px-3 py-2 hover:shadow-sm hover:border-brand-200 transition-colors">
                       <span className="text-lg flex-shrink-0">{m.emoji}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-gray-900 line-clamp-1">{m.label}</p>
@@ -556,7 +556,7 @@ export default async function ServicesBigugliaPage() {
                   { href: '/materiel',                         emoji: '🛠️', label: 'Matériel à emprunter',         sub: 'Perceuse, échelle, karcher…' },
                 ].map(m => (
                   <Link key={m.href} href={m.href}>
-                    <div className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 px-3 py-2 hover:shadow-sm hover:border-sky-200 transition-all">
+                    <div className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 px-3 py-2 hover:shadow-sm hover:border-sky-200 transition-colors">
                       <span className="text-lg flex-shrink-0">{m.emoji}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-gray-900 line-clamp-1">{m.label}</p>
@@ -591,7 +591,7 @@ export default async function ServicesBigugliaPage() {
               { href: '/coups-de-main',          emoji: '🤝', title: 'Coups de main',             desc: 'Entraide et services entre voisins' },
             ].map(l => (
               <Link key={l.href} href={l.href}>
-                <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-all flex items-center gap-3">
+                <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-colors flex items-center gap-3">
                   <span className="text-2xl">{l.emoji}</span>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-gray-900 text-sm">{l.title}</p>
@@ -621,11 +621,11 @@ export default async function ServicesBigugliaPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link href="/inscription/artisan-profil"
-                className="inline-flex items-center justify-center gap-2 bg-white text-brand-700 font-black px-6 py-3 rounded-xl text-sm hover:bg-brand-50 transition-all shadow-lg">
+                className="inline-flex items-center justify-center gap-2 bg-white text-brand-700 font-black px-6 py-3 rounded-xl text-sm hover:bg-brand-50 transition-colors shadow-lg">
                 Créer mon profil artisan <ArrowRight className="w-4 h-4" />
               </Link>
               <Link href="/artisans"
-                className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-white/10 transition-all">
+                className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-white/10 transition-colors">
                 Voir l&apos;annuaire artisans
               </Link>
             </div>

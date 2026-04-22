@@ -201,11 +201,11 @@ export default async function ArtisansBigugliaPage() {
 
           <div className="flex flex-wrap gap-3">
             <Link href="/artisans"
-              className="inline-flex items-center gap-2 bg-white text-brand-700 font-black px-5 py-2.5 rounded-xl text-sm hover:bg-brand-50 transition-all shadow-md">
+              className="inline-flex items-center gap-2 bg-white text-brand-700 font-black px-5 py-2.5 rounded-xl text-sm hover:bg-brand-50 transition-colors shadow-md">
               Voir tous les artisans <ArrowRight className="w-4 h-4" />
             </Link>
             <Link href="/artisans/demande"
-              className="inline-flex items-center gap-2 border border-white/30 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-white/10 transition-all">
+              className="inline-flex items-center gap-2 border border-white/30 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-white/10 transition-colors">
               Déposer une demande
             </Link>
           </div>
@@ -257,7 +257,7 @@ export default async function ArtisansBigugliaPage() {
               { href: '/annonces-biguglia', label: '📦 Petites annonces locales' },
             ].map(l => (
               <Link key={l.href} href={l.href}
-                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-50 hover:border-brand-200 hover:text-brand-700 transition-all">
+                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-50 hover:border-brand-200 hover:text-brand-700 transition-colors">
                 {l.label}
               </Link>
             ))}
@@ -296,7 +296,7 @@ export default async function ArtisansBigugliaPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {TRADE_META.map(trade => (
               <Link key={trade.slug} href={`/artisans/metier/${trade.slug}`}>
-                <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 transition-all h-full flex items-start gap-4">
+                <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 transition-[color,border-color,box-shadow,transform] h-full flex items-start gap-4">
                   <span className="text-3xl flex-shrink-0">{trade.emoji}</span>
                   <div className="flex-1 min-w-0">
                     <p className="font-black text-gray-900 text-sm">{trade.h1}</p>
@@ -360,7 +360,7 @@ export default async function ArtisansBigugliaPage() {
               { slug: 'carrelage',   emoji: '🪟', label: 'Carreleurs Biguglia',     color: 'bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100' },
             ].map(m => (
               <Link key={m.slug} href={`/artisans/metier/${m.slug}`}>
-                <div className={`flex items-center gap-2 border rounded-xl px-3 py-2.5 text-xs font-bold transition-all ${m.color}`}>
+                <div className={`flex items-center gap-2 border rounded-xl px-3 py-2.5 text-xs font-bold transition-colors ${m.color}`}>
                   <span>{m.emoji}</span>
                   <span className="line-clamp-1">{m.label}</span>
                 </div>
@@ -382,7 +382,7 @@ export default async function ArtisansBigugliaPage() {
                 { href: '/annonces-biguglia',              label: '📦 Matériaux & annonces' },
               ].map(l => (
                 <Link key={l.href} href={l.href}
-                  className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 text-gray-600 font-semibold px-2.5 py-1 rounded-lg hover:bg-brand-50 hover:border-brand-200 hover:text-brand-700 transition-all">
+                  className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 text-gray-600 font-semibold px-2.5 py-1 rounded-lg hover:bg-brand-50 hover:border-brand-200 hover:text-brand-700 transition-colors">
                   {l.label}
                 </Link>
               ))}
@@ -454,15 +454,15 @@ export default async function ArtisansBigugliaPage() {
           </div>
           <div className="mt-5 flex flex-wrap gap-3 text-xs">
             <Link href="/artisans/demande"
-              className="inline-flex items-center gap-1.5 bg-amber-500 text-white font-bold px-3 py-1.5 rounded-lg hover:bg-amber-600 transition-all">
+              className="inline-flex items-center gap-1.5 bg-amber-500 text-white font-bold px-3 py-1.5 rounded-lg hover:bg-amber-600 transition-colors">
               📝 Demander 3 devis en 2 min
             </Link>
             <Link href="/forum-biguglia"
-              className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700 transition-all">
+              className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700 transition-colors">
               💬 Conseils travaux sur le forum
             </Link>
             <Link href="/services-biguglia"
-              className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700 transition-all">
+              className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700 transition-colors">
               🔧 Services d\&apos;urgence Biguglia
             </Link>
           </div>
@@ -485,7 +485,7 @@ export default async function ArtisansBigugliaPage() {
               { href: '/forum-biguglia',          emoji: '💬', title: 'Forum des habitants',         desc: 'Questions, conseils & entraide locale' },
             ].map(link => (
               <Link key={link.href} href={link.href}>
-                <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-all flex items-center gap-4">
+                <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-colors flex items-center gap-4">
                   <span className="text-2xl">{link.emoji}</span>
                   <div>
                     <p className="font-bold text-gray-900 text-sm">{link.title}</p>
@@ -515,11 +515,11 @@ export default async function ArtisansBigugliaPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link href="/inscription/artisan-profil"
-                className="inline-flex items-center justify-center gap-2 bg-white text-brand-700 font-black px-6 py-3 rounded-xl text-sm hover:bg-brand-50 transition-all shadow-lg">
+                className="inline-flex items-center justify-center gap-2 bg-white text-brand-700 font-black px-6 py-3 rounded-xl text-sm hover:bg-brand-50 transition-colors shadow-lg">
                 Créer mon profil artisan <ArrowRight className="w-4 h-4" />
               </Link>
               <Link href="/artisans"
-                className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-white/10 transition-all">
+                className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-white/10 transition-colors">
                 Voir l&apos;annuaire artisans
               </Link>
             </div>

@@ -65,7 +65,7 @@ export function ListingCard({ listing, currentUserId, isSaved, onToggleSave }: L
 
   return (
     <Link href={`/annonces/${listing.id}`} className="block group">
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-gray-200 transition-all duration-200">
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-gray-200 transition-colors duration-200">
 
         {/* ── Photo zone ── */}
         <div className="relative h-44 overflow-hidden">
@@ -111,7 +111,7 @@ export function ListingCard({ listing, currentUserId, isSaved, onToggleSave }: L
           {/* Favourite button */}
           <button
             onClick={e => onToggleSave(listing.id, e)}
-            className={`absolute bottom-3 right-3 w-7 h-7 rounded-full flex items-center justify-center shadow transition-all ${
+            className={`absolute bottom-3 right-3 w-7 h-7 rounded-full flex items-center justify-center shadow transition-colors ${
               isSaved ? 'bg-pink-500 text-white scale-110' : 'bg-white/80 text-gray-400 hover:text-pink-500 hover:bg-white'
             }`}
             title={isSaved ? 'Retirer des favoris' : 'Ajouter aux favoris'}

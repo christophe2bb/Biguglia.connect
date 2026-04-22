@@ -70,7 +70,7 @@ export function JobOfferCard({
     <Link
       href={`/emploi/offres/${offer.slug}`}
       className={`
-        relative block bg-white rounded-xl border-2 transition-all duration-200
+        relative block bg-white rounded-xl border-2 transition-colors duration-200
         hover:shadow-lg hover:border-brand-400 hover:-translate-y-0.5
         ${isFeatured ? 'border-amber-300 shadow-md' : 'border-gray-200'}
         ${isCompact ? 'p-3' : 'p-5'}

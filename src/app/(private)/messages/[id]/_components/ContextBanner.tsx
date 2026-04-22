@@ -222,7 +222,7 @@ export function ContextBanner({ relatedType, relatedId, subject }: ContextBanner
               <Link
                 href={href}
                 className={cn(
-                  'flex-shrink-0 self-center flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-xl bg-white/80 border transition-all hover:bg-white',
+                  'flex-shrink-0 self-center flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-xl bg-white/80 border transition-colors hover:bg-white',
                   conf.color, conf.border,
                 )}
                 target="_blank"

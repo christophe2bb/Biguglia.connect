@@ -151,7 +151,7 @@ export function TransitionModal({
           </button>
           <button
             onClick={onConfirm}
-            className={`flex-1 font-bold py-2.5 rounded-xl text-sm text-white transition-all ${confirmCls}`}
+            className={`flex-1 font-bold py-2.5 rounded-xl text-sm text-white transition-colors ${confirmCls}`}
           >
             Confirmer
           </button>

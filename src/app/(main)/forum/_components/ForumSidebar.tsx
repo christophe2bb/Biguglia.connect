@@ -61,7 +61,7 @@ export function ForumSidebar({
             <p className="text-violet-100 text-xs mb-4 leading-relaxed">Posez votre question, signalez un problème, partagez une info utile à vos voisins.</p>
             <button
               onClick={() => router.push('/forum/nouveau')}
-              className="inline-flex items-center gap-2 bg-white text-violet-700 font-black px-5 py-2.5 rounded-xl text-sm hover:bg-violet-50 transition-all shadow-sm w-full justify-center"
+              className="inline-flex items-center gap-2 bg-white text-violet-700 font-black px-5 py-2.5 rounded-xl text-sm hover:bg-violet-50 transition-colors shadow-sm w-full justify-center"
             >
               <Plus className="w-4 h-4" /> Nouveau sujet
             </button>
@@ -71,7 +71,7 @@ export function ForumSidebar({
         <div className="bg-gradient-to-br from-violet-600 to-indigo-700 rounded-2xl p-5 text-white shadow-lg">
           <h3 className="font-black text-base mb-1">Rejoignez la conversation</h3>
           <p className="text-violet-100 text-xs mb-4 leading-relaxed">Connectez-vous pour participer aux échanges locaux.</p>
-          <Link href="/connexion" className="inline-flex items-center gap-2 bg-white text-violet-700 font-black px-5 py-2.5 rounded-xl text-sm hover:bg-violet-50 transition-all shadow-sm w-full justify-center">
+          <Link href="/connexion" className="inline-flex items-center gap-2 bg-white text-violet-700 font-black px-5 py-2.5 rounded-xl text-sm hover:bg-violet-50 transition-colors shadow-sm w-full justify-center">
             Se connecter
           </Link>
         </div>
@@ -116,7 +116,7 @@ export function ForumSidebar({
             return (
               <button key={key}
                 onClick={() => setSelectedType(isActive ? null : key)}
-                className={cn('inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border font-semibold transition-all',
+                className={cn('inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border font-semibold transition-colors',
                   isActive ? cn(cfg.bg, cfg.color, cfg.border) : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-white')}>
                 <I className="w-3 h-3" /> {cfg.label}
               </button>
@@ -133,13 +133,13 @@ export function ForumSidebar({
             <ChevronDown className={cn('w-4 h-4 transition-transform', showCategoryGrid && 'rotate-180')} />
           </button>
         </h3>
-        <div className={cn('grid grid-cols-2 gap-2 transition-all', !showCategoryGrid && 'max-h-48 overflow-hidden')}>
+        <div className={cn('grid grid-cols-2 gap-2 transition-colors', !showCategoryGrid && 'max-h-48 overflow-hidden')}>
           {categories.map(cat => {
             const cfg = getCatConfig(cat.slug);
             const isActive = selectedCategory === cat.id;
             return (
               <button key={cat.id} onClick={() => setSelectedCategory(isActive ? null : cat.id)}
-                className={cn('flex flex-col items-center gap-1.5 p-3 rounded-xl border text-center transition-all hover:shadow-sm',
+                className={cn('flex flex-col items-center gap-1.5 p-3 rounded-xl border text-center transition-colors hover:shadow-sm',
                   isActive ? cn(cfg.bg, cfg.border, cfg.color) : 'bg-gray-50 border-gray-100 text-gray-500 hover:bg-white hover:border-gray-200')}>
                 <span className="text-xl leading-none">{cat.icon}</span>
                 <span className="text-[11px] font-bold leading-tight">{cat.name}</span>
@@ -174,7 +174,7 @@ export function ForumSidebar({
         <div className="space-y-2">
           {MODULE_LINKS.map(({ href, icon: I, label, color, bg, border }) => (
             <Link key={href} href={href}
-              className={cn('flex items-center gap-3 p-3 rounded-xl border transition-all hover:shadow-sm group', bg, border)}>
+              className={cn('flex items-center gap-3 p-3 rounded-xl border transition-colors hover:shadow-sm group', bg, border)}>
               <I className={cn('w-4 h-4 flex-shrink-0', color)} />
               <span className={cn('text-sm font-semibold flex-1', color)}>{label}</span>
               <ArrowRight className={cn('w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity', color)} />
@@ -195,7 +195,7 @@ export function ForumSidebar({
             return (
               <button key={s.id}
                 onClick={() => setSelectedSector(isActive ? null : (s.id || s.slug))}
-                className={cn('flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-sm transition-all text-left',
+                className={cn('flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-sm transition-colors text-left',
                   isActive ? cn(c.bg, c.text, c.border, 'border font-bold') : 'text-gray-600 hover:bg-gray-50 font-medium')}>
                 <span className="text-base leading-none">{s.icon}</span>
                 <span className="flex-1">{s.name}</span>
@@ -222,7 +222,7 @@ export function ForumSidebar({
             { icon: BookOpen,      label: 'Mes sujets',     action: () => router.push('/dashboard/forum') },
           ].map(item => (
             <button key={item.label} onClick={item.action}
-              className="w-full text-left px-3 py-2 rounded-xl text-sm text-gray-600 hover:bg-violet-50 hover:text-violet-700 transition-all flex items-center gap-2.5 font-medium">
+              className="w-full text-left px-3 py-2 rounded-xl text-sm text-gray-600 hover:bg-violet-50 hover:text-violet-700 transition-colors flex items-center gap-2.5 font-medium">
               <item.icon className="w-3.5 h-3.5 text-gray-400" />
               {item.label}
             </button>

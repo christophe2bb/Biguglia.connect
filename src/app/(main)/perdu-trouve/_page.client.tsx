@@ -126,7 +126,7 @@ export default function PerduTrouvePage() {
 
             {profile && (
               <button onClick={() => { resetForm(); setShowForm(true); }}
-                className="inline-flex items-center gap-2 bg-white text-orange-600 font-black px-6 py-3 rounded-2xl hover:bg-orange-50 transition-all shadow-lg text-sm flex-shrink-0">
+                className="inline-flex items-center gap-2 bg-white text-orange-600 font-black px-6 py-3 rounded-2xl hover:bg-orange-50 transition-colors shadow-lg text-sm flex-shrink-0">
                 <Plus className="w-5 h-5" /> Publier une annonce
               </button>
             )}
@@ -183,12 +183,12 @@ export default function PerduTrouvePage() {
             {flux === 'actif' && (
               profile ? (
                 <button onClick={() => { resetForm(); setShowForm(true); }}
-                  className="mt-5 inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-orange-600 transition-all">
+                  className="mt-5 inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-orange-600 transition-colors">
                   <Plus className="w-4 h-4" /> Publier une annonce
                 </button>
               ) : (
                 <Link href="/connexion"
-                  className="mt-5 inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-orange-600 transition-all">
+                  className="mt-5 inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-orange-600 transition-colors">
                   Se connecter pour publier
                 </Link>
               )
@@ -229,7 +229,7 @@ export default function PerduTrouvePage() {
           <div className="mt-8 bg-orange-50 border border-orange-200 rounded-2xl p-6 text-center">
             <p className="text-orange-700 font-medium mb-3">Connectez-vous pour publier ou répondre aux annonces</p>
             <Link href="/connexion"
-              className="inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-orange-600 transition-all">
+              className="inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-orange-600 transition-colors">
               Se connecter
             </Link>
           </div>

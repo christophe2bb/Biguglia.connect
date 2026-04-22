@@ -53,7 +53,7 @@ export function DecisionPanel({
             <button
               key={key}
               onClick={() => { onSelectDecision(key); onSelectReason(''); }}
-              className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 font-semibold text-sm transition-all ${color} ${
+              className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 font-semibold text-sm transition-colors ${color} ${
                 selectedDecision === key ? 'ring-2 ring-offset-1' : ''
               }`}
             >
@@ -145,7 +145,7 @@ export function DecisionPanel({
           <button
             onClick={onSubmit}
             disabled={processing || (selectedDecision !== 'accepter' && !selectedReason)}
-            className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all ${
+            className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-colors ${
               SUBMIT_COLOR[selectedDecision]
             } disabled:opacity-50 disabled:cursor-not-allowed`}
           >

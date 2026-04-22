@@ -106,7 +106,7 @@ export function StepExperience({ form, set, setCvFile }: Props) {
             </button>
           </div>
         ) : (
-          <label className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-purple-300 rounded-xl cursor-pointer hover:border-purple-400 hover:bg-purple-50 transition-all">
+          <label className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-purple-300 rounded-xl cursor-pointer hover:border-purple-400 hover:bg-purple-50 transition-colors">
             <Upload className="w-8 h-8 text-purple-400" />
             <span className="text-sm font-semibold text-purple-700">
               Cliquer pour sélectionner votre CV

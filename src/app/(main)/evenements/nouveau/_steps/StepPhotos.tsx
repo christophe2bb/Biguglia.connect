@@ -49,7 +49,7 @@ export function StepPhotos({ form, photos, photoPreviews, photoInputRef, handleP
       {photos.length < 8 && (
         <button
           type="button" onClick={() => photoInputRef.current?.click()}
-          className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-purple-200 text-purple-500 hover:border-purple-400 hover:bg-purple-50 rounded-xl py-6 text-sm font-semibold transition-all"
+          className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-purple-200 text-purple-500 hover:border-purple-400 hover:bg-purple-50 rounded-xl py-6 text-sm font-semibold transition-colors"
         >
           <ImageIcon className="w-5 h-5" />
           {photos.length === 0 ? 'Ajouter des photos' : `Ajouter (${photos.length}/8)`}

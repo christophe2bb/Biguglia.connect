@@ -45,7 +45,7 @@ export function TopBar({
           {/* Favourite */}
           <button
             onClick={onToggleSave}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold transition-colors ${
               isSaved
                 ? 'bg-pink-100 text-pink-600 border border-pink-200'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'

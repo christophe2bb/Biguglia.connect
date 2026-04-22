@@ -99,7 +99,7 @@ export function AssocHero({ asso, coverPhoto, saved, onToggleSave, onShare }: Pr
           <div className="flex gap-2 flex-shrink-0">
             <button
               onClick={onToggleSave}
-              className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 transition-all"
+              className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 transition-colors"
               title={saved ? 'Retirer des favoris' : 'Ajouter aux favoris'}
             >
               {saved
@@ -108,14 +108,14 @@ export function AssocHero({ asso, coverPhoto, saved, onToggleSave, onShare }: Pr
             </button>
             <button
               onClick={onShare}
-              className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 transition-all"
+              className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 transition-colors"
               title="Partager"
             >
               <Share2 className="w-5 h-5" />
             </button>
             <button
               onClick={() => router.back()}
-              className="hidden sm:flex p-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 transition-all"
+              className="hidden sm:flex p-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 transition-colors"
               title="Retour"
             >
               <ArrowLeft className="w-5 h-5" />

@@ -20,7 +20,7 @@ export function SimilarListings({ similar, categoryName }: Props) {
           const simPhotos = sim.photos as Array<{ url: string }> | undefined;
           return (
             <Link key={sim.id} href={`/annonces/${sim.id}`} className="group block">
-              <div className="rounded-xl border border-gray-100 overflow-hidden hover:shadow-sm hover:border-gray-200 transition-all">
+              <div className="rounded-xl border border-gray-100 overflow-hidden hover:shadow-sm hover:border-gray-200 transition-colors">
                 <div className="relative h-28 overflow-hidden bg-gray-100">
                   {simPhotos && simPhotos.length > 0 ? (
                     <Image

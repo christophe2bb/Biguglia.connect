@@ -47,7 +47,7 @@ export default function OutingCard({ outing, onStatusChange, onDelete }: Props) 
   const isPast = new Date(outing.outing_date + 'T23:59:59') < new Date();
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-colors">
       <div className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
@@ -78,12 +78,12 @@ export default function OutingCard({ outing, onStatusChange, onDelete }: Props) 
 
           <div className="flex gap-1.5 flex-shrink-0">
             <Link href={`/promenades/sorties/${outing.id}`}
-              className="p-2 rounded-xl bg-gray-50 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all border border-gray-200"
+              className="p-2 rounded-xl bg-gray-50 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors border border-gray-200"
               title="Voir">
               <Eye className="w-3.5 h-3.5" />
             </Link>
             <button onClick={() => onDelete(outing)}
-              className="p-2 rounded-xl bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all border border-gray-200"
+              className="p-2 rounded-xl bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors border border-gray-200"
               title="Supprimer">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -95,7 +95,7 @@ export default function OutingCard({ outing, onStatusChange, onDelete }: Props) 
           <div className="mt-3">
             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all ${fillPct >= 100 ? 'bg-red-400' : fillPct >= 80 ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                className={`h-full rounded-full transition-colors ${fillPct >= 100 ? 'bg-red-400' : fillPct >= 80 ? 'bg-amber-400' : 'bg-emerald-400'}`}
                 style={{ width: `${Math.min(fillPct, 100)}%` }}
               />
             </div>
@@ -118,7 +118,7 @@ export default function OutingCard({ outing, onStatusChange, onDelete }: Props) 
               };
               return (
                 <button key={`${t.from}-${t.to}`} onClick={handleClick}
-                  className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border transition-all ${toCfg.bg} ${toCfg.color} ${toCfg.border} hover:opacity-80`}>
+                  className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors ${toCfg.bg} ${toCfg.color} ${toCfg.border} hover:opacity-80`}>
                   {t.to === 'ouverte' ? <Play className="w-3 h-3" /> :
                    t.to === 'complete' ? <Users className="w-3 h-3" /> :
                    t.to === 'terminee' ? <CheckCircle2 className="w-3 h-3" /> :
@@ -135,7 +135,7 @@ export default function OutingCard({ outing, onStatusChange, onDelete }: Props) 
                     onStatusChange(outing, 'terminee');
                   }
                 }}
-                className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 transition-all">
+                className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 transition-colors">
                 <StopCircle className="w-3 h-3" /> Clore la sortie
               </button>
             )}

@@ -69,7 +69,7 @@ export default function HelpSidebar({
             return (
               <button key={sector.id} type="button"
                 onClick={() => onSetFilterSector(filterSector === sector.id ? null : sector.id)}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all text-left ${
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors text-left ${
                   isActive
                     ? `${colors.bg} ${colors.text} font-bold border ${colors.border}`
                     : 'text-gray-600 hover:bg-gray-50'
@@ -104,7 +104,7 @@ export default function HelpSidebar({
             return (
               <button key={cat.value} type="button"
                 onClick={() => onSetFilterCat(filterCat === cat.value ? 'all' : cat.value)}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all text-left ${
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors text-left ${
                   filterCat === cat.value
                     ? 'bg-orange-100 text-orange-700 font-bold'
                     : 'text-gray-600 hover:bg-gray-50'
@@ -131,7 +131,7 @@ export default function HelpSidebar({
               const catConf = CATEGORIES.find(c => c.value === item.category);
               return (
                 <Link key={item.id} href={`/coups-de-main/${item.id}`}
-                  className="flex items-start gap-2 p-2 rounded-lg hover:bg-red-100 transition-all group">
+                  className="flex items-start gap-2 p-2 rounded-lg hover:bg-red-100 transition-colors group">
                   <span className="text-base flex-shrink-0">{catConf?.emoji ?? '🤗'}</span>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold text-red-900 line-clamp-2 group-hover:text-red-700">{item.title}</p>
@@ -147,7 +147,7 @@ export default function HelpSidebar({
           <button
             type="button"
             onClick={() => onSetFilterUrgency(filterUrgency === 'urgent' ? 'all' : 'urgent')}
-            className={`mt-2 w-full text-xs font-bold py-1.5 rounded-xl transition-all ${
+            className={`mt-2 w-full text-xs font-bold py-1.5 rounded-xl transition-colors ${
               filterUrgency === 'urgent'
                 ? 'bg-red-200 text-red-800'
                 : 'bg-red-100 text-red-700 hover:bg-red-200'
@@ -167,7 +167,7 @@ export default function HelpSidebar({
             {/* Items are passed via items filtered by savedIds */}
             {items.filter(i => savedIds.has(i.id)).slice(0, 4).map(item => (
               <Link key={item.id} href={`/coups-de-main/${item.id}`}
-                className="flex items-start gap-2 p-2 rounded-lg hover:bg-amber-100 transition-all">
+                className="flex items-start gap-2 p-2 rounded-lg hover:bg-amber-100 transition-colors">
                 <span className="text-base flex-shrink-0">{TYPE_CONFIG[item.help_type].emoji}</span>
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-amber-900 truncate">{item.title}</p>
@@ -207,7 +207,7 @@ export default function HelpSidebar({
           <p className="font-black text-sm mb-1">Rejoignez la communauté</p>
           <p className="text-orange-100 text-xs mb-4">Publiez ou répondez à des annonces d&apos;entraide</p>
           <Link href="/connexion"
-            className="block bg-white text-orange-600 font-bold py-2.5 rounded-xl text-sm hover:bg-orange-50 transition-all">
+            className="block bg-white text-orange-600 font-bold py-2.5 rounded-xl text-sm hover:bg-orange-50 transition-colors">
             Se connecter <ArrowRight className="w-3.5 h-3.5 inline" />
           </Link>
         </div>

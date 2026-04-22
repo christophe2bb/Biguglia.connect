@@ -106,7 +106,7 @@ export default function AssociationsPage() {
 
             {profile && (
               <button type="button" onClick={() => { resetForm(); setShowForm(true); }}
-                className="inline-flex items-center gap-2 bg-white text-violet-700 font-black px-6 py-3 rounded-2xl hover:bg-violet-50 transition-all shadow-lg text-sm flex-shrink-0">
+                className="inline-flex items-center gap-2 bg-white text-violet-700 font-black px-6 py-3 rounded-2xl hover:bg-violet-50 transition-colors shadow-lg text-sm flex-shrink-0">
                 <Plus className="w-5 h-5" /> Référencer une association
               </button>
             )}
@@ -144,7 +144,7 @@ export default function AssociationsPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
                 {urgentCount > 0 && (
                   <button onClick={() => setFilterNeed('urgent')}
-                    className="bg-red-50 border border-red-200 rounded-2xl p-4 text-left hover:shadow-sm transition-all">
+                    className="bg-red-50 border border-red-200 rounded-2xl p-4 text-left hover:shadow-sm transition-colors">
                     <p className="text-2xl font-black text-red-600 mb-1">{urgentCount}</p>
                     <p className="text-xs font-bold text-red-700">Besoins urgents</p>
                     <p className="text-xs text-red-400 mt-0.5">Action immédiate</p>
@@ -152,7 +152,7 @@ export default function AssociationsPage() {
                 )}
                 {volunteerCount > 0 && (
                   <button onClick={() => setFilterNeed('benevoles')}
-                    className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-left hover:shadow-sm transition-all">
+                    className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-left hover:shadow-sm transition-colors">
                     <p className="text-2xl font-black text-rose-600 mb-1">{volunteerCount}</p>
                     <p className="text-xs font-bold text-rose-700">Cherchent bénévoles</p>
                     <p className="text-xs text-rose-400 mt-0.5">Engagez-vous !</p>
@@ -160,7 +160,7 @@ export default function AssociationsPage() {
                 )}
                 {eventsAssosCount > 0 && (
                   <button onClick={() => setFilterType('evenement')}
-                    className="bg-pink-50 border border-pink-200 rounded-2xl p-4 text-left hover:shadow-sm transition-all">
+                    className="bg-pink-50 border border-pink-200 rounded-2xl p-4 text-left hover:shadow-sm transition-colors">
                     <p className="text-2xl font-black text-pink-600 mb-1">{eventsAssosCount}</p>
                     <p className="text-xs font-bold text-pink-700">Événements</p>
                     <p className="text-xs text-pink-400 mt-0.5">À venir</p>
@@ -168,7 +168,7 @@ export default function AssociationsPage() {
                 )}
                 {donationsCount > 0 && (
                   <button onClick={() => setFilterNeed('dons')}
-                    className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-left hover:shadow-sm transition-all">
+                    className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-left hover:shadow-sm transition-colors">
                     <p className="text-2xl font-black text-amber-600 mb-1">{donationsCount}</p>
                     <p className="text-xs font-bold text-amber-700">Acceptent les dons</p>
                     <p className="text-xs text-amber-400 mt-0.5">Soutenez-les</p>
@@ -206,17 +206,17 @@ export default function AssociationsPage() {
                 </p>
                 {activeFiltersCount > 0 && (
                   <button onClick={resetFilters}
-                    className="mr-2 inline-flex items-center gap-2 bg-gray-100 text-gray-600 font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-gray-200 transition-all">
+                    className="mr-2 inline-flex items-center gap-2 bg-gray-100 text-gray-600 font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-gray-200 transition-colors">
                     <X className="w-4 h-4" /> Réinitialiser
                   </button>
                 )}
                 {profile ? (
                   <button type="button" onClick={() => { resetForm(); setShowForm(true); }}
-                    className="inline-flex items-center gap-2 bg-violet-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-violet-600 transition-all">
+                    className="inline-flex items-center gap-2 bg-violet-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-violet-600 transition-colors">
                     <Plus className="w-4 h-4" /> Référencer une association
                   </button>
                 ) : (
-                  <Link href="/connexion" className="inline-flex items-center gap-2 bg-violet-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-violet-600 transition-all">
+                  <Link href="/connexion" className="inline-flex items-center gap-2 bg-violet-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-violet-600 transition-colors">
                     Se connecter pour publier
                   </Link>
                 )}
@@ -242,7 +242,7 @@ export default function AssociationsPage() {
             {!profile && assos.length > 0 && (
               <div className="mt-8 bg-violet-50 border border-violet-200 rounded-2xl p-6 text-center">
                 <p className="text-violet-700 font-medium mb-3">Connectez-vous pour contacter, rejoindre ou soutenir une association</p>
-                <Link href="/connexion" className="inline-flex items-center gap-2 bg-violet-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-violet-600 transition-all">
+                <Link href="/connexion" className="inline-flex items-center gap-2 bg-violet-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-violet-600 transition-colors">
                   Se connecter
                 </Link>
               </div>

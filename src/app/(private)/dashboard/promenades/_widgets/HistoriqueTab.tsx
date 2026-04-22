@@ -53,7 +53,7 @@ export default function HistoriqueTab({ outings }: Props) {
                 {cfg.label}
               </span>
               <Link href={`/promenades/sorties/${outing.id}`}
-                className="p-1.5 rounded-xl bg-gray-50 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all border border-gray-100">
+                className="p-1.5 rounded-xl bg-gray-50 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors border border-gray-100">
                 <ChevronRight className="w-4 h-4" />
               </Link>
             </div>

@@ -44,7 +44,7 @@ export function SectionRealtime({ copied, copy }: Props) {
         </div>
         <button
           onClick={() => copy('realtime')}
-          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-all ${
+          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-colors ${
             copied('realtime') ? 'bg-emerald-500 text-white' : 'bg-red-600 text-white hover:bg-red-700'
           }`}
         >

@@ -16,7 +16,7 @@ export default function AdminArtisansBanner({ stats }: AdminArtisansBannerProps)
 
   return (
     <Link href="/admin/artisans">
-      <div className={`rounded-2xl border-2 p-5 flex items-center gap-4 hover:shadow-md transition-all cursor-pointer group ${
+      <div className={`rounded-2xl border-2 p-5 flex items-center gap-4 hover:shadow-md transition-colors cursor-pointer group ${
         pending > 0
           ? 'bg-gradient-to-r from-orange-50 to-amber-50 border-orange-300'
           : 'bg-green-50 border-green-200'

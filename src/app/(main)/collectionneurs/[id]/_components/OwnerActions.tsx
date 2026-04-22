@@ -39,7 +39,7 @@ export function OwnerActions({
               onClick={() => onStatusChange(st)}
               disabled={changingStatus}
               className={cn(
-                'w-full px-3 py-2 rounded-xl text-sm font-semibold transition-all border text-left',
+                'w-full px-3 py-2 rounded-xl text-sm font-semibold transition-colors border text-left',
                 STATUS_CONFIG[st]?.bg,
                 STATUS_CONFIG[st]?.color,
                 'hover:opacity-80 border-current/20',

@@ -105,7 +105,7 @@ export function ContactSidebar({ asso, isAuthor, userId, isLoggedIn }: Props) {
       {!isLoggedIn && (
         <Link
           href="/connexion"
-          className="mt-4 w-full inline-flex items-center justify-center gap-2 bg-violet-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs hover:bg-violet-600 transition-all"
+          className="mt-4 w-full inline-flex items-center justify-center gap-2 bg-violet-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs hover:bg-violet-600 transition-colors"
         >
           Se connecter pour contacter
         </Link>

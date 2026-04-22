@@ -62,7 +62,7 @@ export default function ForumComposerSidebar({
               type="button"
               onClick={() => setForm(f => ({ ...f, visibility: opt.value as VisibilityValue }))}
               className={cn(
-                'w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-all text-left',
+                'w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-colors text-left',
                 form.visibility === opt.value
                   ? 'bg-violet-50 border-violet-400 shadow-sm'
                   : 'bg-white border-gray-200 hover:bg-gray-50',

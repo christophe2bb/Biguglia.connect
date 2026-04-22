@@ -98,7 +98,7 @@ export default function AssociationsSidebar({
             return (
               <button key={key}
                 onClick={() => setFilterCat(filterCat === key ? 'all' : key)}
-                className={cn('flex flex-col items-center gap-1 p-3 rounded-xl border text-center transition-all hover:shadow-sm text-xs font-bold',
+                className={cn('flex flex-col items-center gap-1 p-3 rounded-xl border text-center transition-colors hover:shadow-sm text-xs font-bold',
                   isActive ? `${conf.bg} ${conf.color}` : 'bg-gray-50 border-gray-100 text-gray-500 hover:bg-white hover:border-gray-200')}>
                 <span className="text-xl leading-none">{conf.emoji}</span>
                 <Icon className="w-3.5 h-3.5" />
@@ -121,7 +121,7 @@ export default function AssociationsSidebar({
           ) : (
             sectorCounts.map(s => (
               <button key={s.id} onClick={() => setFilterSector(filterSector === s.slug ? null : s.slug)}
-                className={cn('w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold border transition-all',
+                className={cn('w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold border transition-colors',
                   filterSector === s.slug ? 'bg-violet-100 text-violet-700 border-violet-200' : 'bg-gray-50 text-gray-600 border-gray-100 hover:bg-white hover:border-gray-200')}>
                 <span>{s.name}</span>
                 <span className={cn('font-black', filterSector === s.slug ? 'text-violet-600' : 'text-gray-400')}>{s.count}</span>
@@ -213,7 +213,7 @@ export default function AssociationsSidebar({
           <h3 className="text-sm font-black mb-1">Rejoignez la communauté</h3>
           <p className="text-xs text-purple-200 mb-4 leading-relaxed">Inscrivez-vous pour contacter des associations, proposer votre aide et suivre les besoins locaux.</p>
           <Link href="/connexion"
-            className="inline-flex items-center gap-2 bg-white text-violet-700 font-bold px-4 py-2.5 rounded-xl text-xs hover:bg-purple-50 transition-all w-full justify-center shadow-sm">
+            className="inline-flex items-center gap-2 bg-white text-violet-700 font-bold px-4 py-2.5 rounded-xl text-xs hover:bg-purple-50 transition-colors w-full justify-center shadow-sm">
             <Plus className="w-3.5 h-3.5" /> Se connecter &amp; participer
           </Link>
         </div>

@@ -59,7 +59,7 @@ export function ModeToolbar({
           <button
             onClick={() => setSelectedMode('all')}
             className={cn(
-              'flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all flex-shrink-0',
+              'flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors flex-shrink-0',
               selectedMode === 'all' ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
             )}
           >
@@ -73,7 +73,7 @@ export function ModeToolbar({
                 key={mode}
                 onClick={() => setSelectedMode(selectedMode === mode ? 'all' : mode)}
                 className={cn(
-                  'flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all flex-shrink-0 border',
+                  'flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors flex-shrink-0 border',
                   selectedMode === mode
                     ? cn(cfg.bg, cfg.color, cfg.border, 'shadow-sm')
                     : 'text-gray-600 hover:bg-gray-50 border-transparent'
@@ -105,7 +105,7 @@ export function ModeToolbar({
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={cn(
-                'flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all border',
+                'flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-colors border',
                 showFilters || activeFiltersCount > 0
                   ? 'bg-blue-50 text-blue-700 border-blue-200'
                   : 'text-gray-600 border-gray-200 hover:bg-gray-50'

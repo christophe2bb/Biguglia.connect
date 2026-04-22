@@ -84,7 +84,7 @@ export default function NotFound() {
         {/* CTA principal */}
         <Link
           href="/"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 active:scale-95 transition-all shadow-sm mb-10"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 active:scale-95 transition-colors shadow-sm mb-10"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

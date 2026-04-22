@@ -57,7 +57,7 @@ export default function QueueRow({ item, onQuickDecision }: QueueRowProps) {
     : false;
 
   return (
-    <div className={`bg-white rounded-2xl border transition-all hover:shadow-sm ${
+    <div className={`bg-white rounded-2xl border transition-colors hover:shadow-sm ${
       isUrgent ? 'border-orange-200 bg-orange-50/30' : 'border-gray-100'
     }`}>
       <div className="p-4 flex flex-col sm:flex-row gap-4">
@@ -141,7 +141,7 @@ export default function QueueRow({ item, onQuickDecision }: QueueRowProps) {
             <div className="text-[10px] text-gray-400">complétude</div>
             <div className="w-16 h-1.5 bg-gray-100 rounded-full mt-1 overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all ${
+                className={`h-full rounded-full transition-colors ${
                   item.completeness >= 80 ? 'bg-emerald-400' :
                   item.completeness >= 50 ? 'bg-amber-400' : 'bg-red-400'
                 }`}

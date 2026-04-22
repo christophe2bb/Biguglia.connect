@@ -62,7 +62,7 @@ export default function NouvelEvenementPage() {
           {STEPS.map((s, i) => (
             <button
               key={s.id} onClick={() => goToStep(s.id)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-colors ${
                 s.id === step
                   ? 'bg-purple-600 text-white shadow-sm'
                   : i < stepIndex
@@ -110,7 +110,7 @@ export default function NouvelEvenementPage() {
           <div className="flex items-center justify-between mt-4 gap-3">
             <button
               type="button" onClick={goBack} disabled={stepIndex === 0}
-              className="flex items-center gap-2 border border-gray-200 text-gray-600 font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-gray-50 disabled:opacity-30 transition-all"
+              className="flex items-center gap-2 border border-gray-200 text-gray-600 font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-gray-50 disabled:opacity-30 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" /> Précédent
             </button>
@@ -118,7 +118,7 @@ export default function NouvelEvenementPage() {
             {step !== 'photos' ? (
               <button
                 type="button" onClick={goNext}
-                className="flex items-center gap-2 bg-purple-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-purple-700 transition-all"
+                className="flex items-center gap-2 bg-purple-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-purple-700 transition-colors"
               >
                 Suivant <Plus className="w-4 h-4" />
               </button>
@@ -126,7 +126,7 @@ export default function NouvelEvenementPage() {
               <button
                 type="submit"
                 disabled={submitting || !form.title || !form.event_date}
-                className="flex items-center gap-2 bg-purple-600 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-purple-700 disabled:opacity-50 transition-all"
+                className="flex items-center gap-2 bg-purple-600 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-purple-700 disabled:opacity-50 transition-colors"
               >
                 {submitting
                   ? <><Loader2 className="w-4 h-4 animate-spin" /> Création...</>

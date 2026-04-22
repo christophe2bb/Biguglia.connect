@@ -50,7 +50,7 @@ export function StepEssentiel({ form, setField, organizerPlaceholder }: Props) {
           {EVENT_CATEGORIES_LIST.map(c => (
             <button
               type="button" key={c.id} onClick={() => setField('category', c.id)}
-              className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 text-xs font-semibold transition-all ${
+              className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 text-xs font-semibold transition-colors ${
                 form.category === c.id
                   ? `${c.bg} ${c.color} ${c.border}`
                   : 'border-gray-100 text-gray-500 hover:border-gray-200'

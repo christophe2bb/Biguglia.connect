@@ -88,7 +88,7 @@ export default function HomeHero({ totalItems, generatedAt }: HomeHeroProps) {
             <div className="flex flex-col sm:flex-row gap-3 pt-1">
               <Link
                 href="/inscription"
-                className="group inline-flex items-center justify-center gap-2 bg-white text-brand-700 font-black px-6 py-3 rounded-2xl hover:bg-brand-50 transition-all shadow-lg hover:-translate-y-0.5 text-sm"
+                className="group inline-flex items-center justify-center gap-2 bg-white text-brand-700 font-black px-6 py-3 rounded-2xl hover:bg-brand-50 transition-transform shadow-lg hover:-translate-y-0.5 text-sm"
               >
                 <Sparkles className="w-4 h-4" />
                 Rejoindre la communauté
@@ -96,7 +96,7 @@ export default function HomeHero({ totalItems, generatedAt }: HomeHeroProps) {
               </Link>
               <Link
                 href="/connexion"
-                className="inline-flex items-center justify-center gap-2 border border-white/30 text-white/90 font-bold px-6 py-3 rounded-2xl hover:bg-white/10 transition-all text-sm"
+                className="inline-flex items-center justify-center gap-2 border border-white/30 text-white/90 font-bold px-6 py-3 rounded-2xl hover:bg-white/10 transition-colors text-sm"
               >
                 J&apos;ai déjà un compte
               </Link>

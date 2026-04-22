@@ -44,7 +44,7 @@ function ActionPill({ action }: { action: QuickAction }) {
     <Link
       href={action.href}
       className={cn(
-        'inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all duration-200',
+        'inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition-colors duration-200',
         'border whitespace-nowrap',
         action.highlight
           ? 'bg-white text-gray-900 border-white/80 shadow-md hover:shadow-lg hover:scale-[1.03] active:scale-[0.98]'

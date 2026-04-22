@@ -56,7 +56,7 @@ export default function CommunityJoinButton({
       <button
         onClick={() => router.push('/connexion')}
         className={cn(
-          'inline-flex items-center font-semibold rounded-xl border transition-all',
+          'inline-flex items-center font-semibold rounded-xl border transition-colors',
           'bg-brand-600 text-white border-brand-600 hover:bg-brand-700 shadow-sm',
           sizeClasses[size],
           className
@@ -122,7 +122,7 @@ export default function CommunityJoinButton({
         onClick={handleLeave}
         disabled={submitting}
         className={cn(
-          'inline-flex items-center font-semibold rounded-xl border transition-all group',
+          'inline-flex items-center font-semibold rounded-xl border transition-colors group',
           'bg-green-50 text-green-700 border-green-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200',
           sizeClasses[size],
           className
@@ -147,7 +147,7 @@ export default function CommunityJoinButton({
       onClick={handleJoin}
       disabled={submitting}
       className={cn(
-        'inline-flex items-center font-semibold rounded-xl border transition-all shadow-sm',
+        'inline-flex items-center font-semibold rounded-xl border transition-colors shadow-sm',
         'bg-brand-600 text-white border-brand-600 hover:bg-brand-700 active:scale-95',
         sizeClasses[size],
         className
