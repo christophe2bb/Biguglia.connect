@@ -100,6 +100,7 @@ export default function EvenementDetailClient({ initialEvent }: Props) {
         photos={allPhotos}
         idx={ctx.lightboxIdx}
         onClose={() => ctx.setLightboxIdx(null)}
+        eventTitle={event.title}
       />
     </>
   );

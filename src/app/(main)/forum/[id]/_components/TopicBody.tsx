@@ -13,15 +13,18 @@ import { TopicExtended, TopicPhoto } from '../_types';
 function PhotoGrid({
   photos,
   onOpen,
+  topicTitle,
 }: {
   photos: TopicPhoto[];
   onOpen: (i: number) => void;
+  /** Titre du sujet — utilisé pour l'alt des images */
+  topicTitle?: string;
 }) {
   if (photos.length === 0) return null;
   if (photos.length === 1) {
     return (
       <button onClick={() => onOpen(0)} className="block w-full rounded-xl overflow-hidden border border-gray-100 mb-5">
-        <Image src={photos[0].url} alt="Photo" fill className="w-full max- object-cover hover:opacity-95 transition-opacity" />
+        <Image src={photos[0].url} alt={topicTitle ?? 'Photo'} fill className="w-full max- object-cover hover:opacity-95 transition-opacity" />
       </button>
     );
   }
@@ -49,11 +52,14 @@ function Lightbox({
   index,
   onClose,
   onNavigate,
+  topicTitle,
 }: {
   photos: TopicPhoto[];
   index: number;
   onClose: () => void;
   onNavigate: (i: number | ((prev: number | null) => number | null)) => void;
+  /** Titre du sujet — utilisé pour l'alt et aria-label */
+  topicTitle?: string;
 }) {
   const dialogRef  = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<Element | null>(null);
@@ -91,7 +97,7 @@ function Lightbox({
         className="relative max-w-4xl w-full outline-none"
         onClick={e => e.stopPropagation()}
       >
-        <Image src={photos[index].url} alt={`Photo ${index + 1}`} fill className="max-h-[80vh] w-full object-contain rounded-xl" />
+        <Image src={photos[index].url} alt={topicTitle ? `${topicTitle} — photo ${index + 1}${photos.length > 1 ? ` sur ${photos.length}` : ''}` : `Photo ${index + 1}${photos.length > 1 ? ` sur ${photos.length}` : ''}`} fill className="max-h-[80vh] w-full object-contain rounded-xl" />
         <div className="absolute top-3 right-3 flex gap-2">
           {photos.length > 1 && (
             <span className="bg-black/60 text-white text-xs px-2 py-1 rounded-full" aria-live="polite">{index + 1} / {photos.length}</span>
@@ -145,11 +151,11 @@ export function TopicBody({
       <div className="text-gray-700 leading-relaxed whitespace-pre-wrap mb-5">{topic.content}</div>
 
       {/* Photos */}
-      <PhotoGrid photos={photos} onOpen={i => onLightbox(i)} />
+      <PhotoGrid photos={photos} onOpen={i => onLightbox(i)} topicTitle={topic.title} />
 
       {/* Lightbox */}
       {lightboxIndex !== null && photos[lightboxIndex] && (
-        <Lightbox photos={photos} index={lightboxIndex} onClose={() => onLightbox(null)} onNavigate={onLightbox} />
+        <Lightbox photos={photos} index={lightboxIndex} onClose={() => onLightbox(null)} onNavigate={onLightbox} topicTitle={topic.title} />
       )}
 
       {/* Réactions + actions */}
