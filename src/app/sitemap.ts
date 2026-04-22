@@ -54,8 +54,8 @@ const SITE_URL = getSiteUrl();
 /** Client public anon — pas de session, pas de cookies. Idéal pour un sitemap. */
 function getPublicClient() {
   return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_URL    ?? '',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
 }

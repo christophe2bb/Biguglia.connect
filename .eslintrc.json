@@ -9,8 +9,8 @@
     "react/no-unescaped-entities": "warn",
     // <img> vs <Image> next/image : migration progressive
     "@next/next/no-img-element": "warn",
-    // Dépendances de hooks manquantes : à corriger progressivement
-    "react-hooks/exhaustive-deps": "warn",
+    // Dépendances de hooks manquantes : erreur — toutes les deps doivent être déclarées
+    "react-hooks/exhaustive-deps": "error",
     // Accessibilité : toutes les règles jsx-a11y actives
     "jsx-a11y/alt-text": "warn",
     "jsx-a11y/anchor-has-content": "warn",
@@ -40,8 +40,8 @@
     "jsx-a11y/role-supports-aria-props": "warn",
     "jsx-a11y/scope": "warn",
     "jsx-a11y/tabindex-no-positive": "warn",
-    // `any` explicite : dette technique préexistante, à résorber progressivement
-    "@typescript-eslint/no-explicit-any": "warn",
+    // `any` explicite : interdit — utiliser des types précis ou `unknown`
+    "@typescript-eslint/no-explicit-any": "error",
     // Variables non utilisées : à nettoyer progressivement
     // Les identifiants préfixés par _ sont intentionnellement ignorés
     "@typescript-eslint/no-unused-vars": ["warn", {

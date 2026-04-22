@@ -1,12 +1,19 @@
 import type { Metadata } from 'next';
 
-export const metadata: Metadata = { title: 'Conditions Générales d\'Utilisation' };
+export const metadata: Metadata = {
+  title: 'Conditions Générales d\'Utilisation — Biguglia Connect',
+  description: 'Conditions générales d\'utilisation de la plateforme Biguglia Connect.',
+  robots: { index: true, follow: true },
+};
+
+/** Date statique — ne pas utiliser new Date() (problème d'hydratation SSG). */
+const LAST_UPDATE = '22 avril 2025';
 
 export default function CGUPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
       <h1 className="text-3xl font-bold text-gray-900 mb-2">Conditions Générales d&apos;Utilisation</h1>
-      <p className="text-gray-500 mb-10">Dernière mise à jour : {new Date().toLocaleDateString('fr-FR')}</p>
+      <p className="text-gray-500 mb-10">Dernière mise à jour : {LAST_UPDATE}</p>
 
       <div className="prose prose-gray max-w-none space-y-8">
         <section>

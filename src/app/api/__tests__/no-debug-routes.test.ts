@@ -57,6 +57,7 @@ const AUTH_FUNCTIONS = [
   'getAdminUser',       // guard admin — vérifie session + rôle admin/moderator
   'isAuthorized',       // garde de route par token/env (ex: test-sentry)
   'ImageResponse',      // route OG publique — génère une image, pas de données privées
+  'PUBLIC_HEALTH_ENDPOINT', // sentinel — endpoint de santé public, sans auth intentionnelle
 ];
 
 /**
@@ -67,6 +68,10 @@ const SECRET_LEAK_WHITELIST = [
   // Route de monitoring Sentry : vérifie !!process.env.VAR (booléen, pas la valeur)
   // et retourne 403 en production sans SENTRY_TEST_ENABLED=true
   join(process.cwd(), 'src', 'app', 'api', 'test-sentry', 'route.ts'),
+  // Route de santé applicative : endpoint public de type health-check standard.
+  // Expose uniquement des métadonnées non-sensibles (version, env, latence DB).
+  // L'URL et anon key Supabase sont des variables PUBLIQUES (NEXT_PUBLIC_) — pas des secrets.
+  join(process.cwd(), 'src', 'app', 'api', 'health', 'route.ts'),
 ];
 
 /** Patterns qui indiquent une fuite potentielle de secrets. */
