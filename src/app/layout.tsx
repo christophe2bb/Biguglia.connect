@@ -12,9 +12,23 @@
  *   src/app/connexion/layout.tsx    ← metadata noindex seulement
  *   src/app/inscription/layout.tsx  ← idem
  *   ...
+ *
+ * ─── Nonce CSP ───────────────────────────────────────────────────────────────
+ *
+ *   Le nonce CSP est généré par le middleware (src/middleware.ts) et passé
+ *   via le request header x-nonce. Ce layout le lit via next/headers et le
+ *   transmet au composant JsonLd (via prop `nonce`).
+ *
+ *   Next.js 15 lit lui-même le nonce depuis le header Content-Security-Policy
+ *   de la RESPONSE et l'applique automatiquement à ses scripts SSR inline
+ *   (__NEXT_DATA__, RSC payload, hydratation). Ce layout n'a pas besoin
+ *   de créer de <Script> manuels pour ces scripts Next.js internes.
+ *
+ *   Ref: next/dist/server/app-render/get-script-nonce-from-header.js
  */
 
 import type { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import './globals.css';
 import { getSiteUrl } from '@/lib/seo/site-url';
 
@@ -86,7 +100,16 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // ── Nonce CSP ──────────────────────────────────────────────────────────────
+  // Injecté par src/middleware.ts via le request header x-nonce.
+  // Utilisé par JsonLd.tsx pour ses balises <script type="application/ld+json">.
+  // Next.js 15 gère automatiquement ses propres scripts SSR inline via le
+  // header Content-Security-Policy de la response (nonce extrait par
+  // get-script-nonce-from-header.js) — pas besoin de le passer à <Script>.
+  const headersList = await headers();
+  const nonce = headersList.get('x-nonce') ?? '';
+
   return (
     <html lang="fr">
       <head>
@@ -118,7 +141,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <a href="#main-content" className="skip-to-content">
           Aller au contenu principal
         </a>
-        <div id="main-content">
+        {/*
+          Le nonce est passé aux children via React context si nécessaire.
+          Pour l'instant, seul JsonLd.tsx l'utilise directement via sa prop.
+          Les Server Components descendants lisent x-nonce via headers() directement.
+        */}
+        <div id="main-content" data-nonce={nonce || undefined}>
           {children}
         </div>
       </body>

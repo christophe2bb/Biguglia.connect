@@ -8,92 +8,45 @@ const supabaseHost = SUPABASE_URL.replace(/^https?:\/\//, '');
 
 // ─── Content-Security-Policy ──────────────────────────────────────────────────
 //
-// ┌─ DÉCISION DOCUMENTÉE : 'unsafe-inline' dans script-src ──────────────────┐
+// ┌─ NONCES CSP — IMPLÉMENTATION ACTIVE ─────────────────────────────────────┐
 // │                                                                            │
-// │  STATUT : Accepté — risque résiduel documenté, migration planifiée        │
-// │  TICKET : Voir SECURITY.md §3 — «Roadmap nonces CSP»                      │
+// │  STATUT : Implémenté — Phase 1+2+3 complétées (CWE-79 / OWASP A05)       │
 // │                                                                            │
-// │  POURQUOI 'unsafe-inline' est OBLIGATOIRE avec Next.js App Router :       │
+// │  ARCHITECTURE : La CSP est générée DYNAMIQUEMENT par le middleware,       │
+// │  pas ici (next.config.js). Voir src/middleware.ts → buildCsp().           │
 // │                                                                            │
-// │  1. Next.js injecte des <script> inline non-noncés pour l'hydratation SSR │
-// │     (__NEXT_DATA__, React Server Components payload, prefetch links).      │
-// │     Sans 'unsafe-inline', l'app entière cesse de fonctionner.             │
-// │     Ref: https://github.com/vercel/next.js/issues/15840                   │
+// │  FLUX PAR REQUÊTE :                                                        │
+// │   1. middleware.ts génère un nonce via generateNonce() (128 bits)          │
+// │   2. Le nonce est injecté dans le header CSP response :                   │
+// │      script-src 'nonce-{nonce}' 'strict-dynamic'                          │
+// │   3. Le nonce est passé via request header x-nonce aux Server Components  │
+// │   4. layout.tsx + JsonLd.tsx lisent x-nonce via next/headers              │
+// │   5. Next.js 15 lit automatiquement le nonce depuis la CSP response       │
+// │      header et l'applique à tous ses scripts SSR inline                   │
+// │      (hydratation, RSC payload, __NEXT_DATA__)                            │
+// │      Ref: next/dist/server/app-render/get-script-nonce-from-header.js     │
 // │                                                                            │
-// │  2. JsonLd.tsx utilise dangerouslySetInnerHTML pour les balises            │
-// │     <script type="application/ld+json"> (JSON-LD Schema.org).             │
-// │     Obligatoire pour les Rich Results Google — protégé par safeJsonLd().  │
+// │  'unsafe-inline' RETIRÉ de script-src en production.                      │
+// │  'strict-dynamic' propagate la confiance aux scripts chargés              │
+// │  dynamiquement par les scripts noncés.                                    │
 // │                                                                            │
-// │  3. Vercel Live injecte des scripts inline de monitoring/preview.         │
+// │  style-src — 'unsafe-inline' CONSERVÉ (chantier distinct) :              │
+// │    154 occurrences de style={{...}} + Tailwind JIT. Migration nonces      │
+// │    style-src = refonte UI complète — post-prod.                           │
 // │                                                                            │
-// │  ATTÉNUATIONS EN PLACE :                                                  │
-// │  • 'unsafe-eval' SUPPRIMÉ en production (seul dev le conserve pour HMR)   │
-// │  • Toutes les entrées utilisateur sont échappées (safeJsonLd, safeImageExt, safeDocExt) │
-// │  • CSP restreint à 'self' + domaines explicites (pas de wildcard script)  │
-// │  • X-Frame-Options: DENY, X-Content-Type-Options: nosniff actifs         │
-// │  • HSTS, COEP, COOP déployés                                              │
-// │                                                                            │
-// │  PLAN DE MIGRATION (nonces CSP — voir SECURITY.md) :                      │
-// │  Phase 1 : Générer un nonce par requête dans src/middleware.ts            │
-// │  Phase 2 : Passer le nonce via request.headers à _document / layout.tsx  │
-// │  Phase 3 : Remplacer 'unsafe-inline' par 'nonce-{nonce}' + strict-dynamic│
-// │  Phase 4 : Refactorer JsonLd.tsx vers une API Route JSON+headers noncés   │
+// │  connect-src — Sentry :                                                   │
+// │    Sentry envoie les événements à *.ingest.sentry.io et                  │
+// │    *.ingest.us.sentry.io. browser.sentry-cdn.com : nécessaire pour        │
+// │    le chargement lazy de Sentry Replay (lazyLoadIntegration).             │
+// │    blob: nécessaire pour Sentry Replay workers via blob: URLs.            │
 // └────────────────────────────────────────────────────────────────────────────┘
 //
-// 'unsafe-eval' RETIRÉ en prod — Next.js SWC compile sans eval.
-// Conservé en dev uniquement pour le HMR.
+// La CSP est désormais définie dans src/middleware.ts (buildCsp function).
+// Les autres headers de sécurité (HSTS, X-Frame-Options, etc.) restent ici.
 //
-// style-src — 'unsafe-inline' ASSUMÉ ET DOCUMENTÉ (voir SECURITY.md §3.1) :
-//    154 occurrences de style={{...}} dans 67 composants + Tailwind JIT.
-//    Suppression = refonte UI complète (chantier distinct, post-prod).
-//    Même contrainte Next.js 15 App Router que pour script-src.
-//    Migration nonces couvre aussi style-src — voir SECURITY.md §4.
-//
-// connect-src — Sentry :
-//    Sentry envoie les événements à *.ingest.sentry.io et *.ingest.us.sentry.io
-//    via fetch() depuis le navigateur. Ces domaines DOIVENT être autorisés sinon
-//    les erreurs front-end ne remontent jamais à Sentry.
-//    browser.sentry-cdn.com : nécessaire pour le chargement lazy de Sentry Replay
-//    (source map fetch + module download). Sans cette entrée → violation CSP bloquante.
-//
-// blob: est nécessaire pour Sentry Replay qui crée des workers via blob: URLs
-//
-// https://browser.sentry-cdn.com : Sentry Replay est chargé LAZY depuis ce CDN
-//   via lazyLoadIntegration('replayIntegration'). Sans cette entrée, le navigateur
-//   bloque le chargement et lève une violation CSP dans la console.
-//   Voir instrumentation-client.ts — Sentry.lazyLoadIntegration('replayIntegration').
-const scriptSrcProd = "'self' 'unsafe-inline' blob: https://vercel.live https://*.vercel-scripts.com https://browser.sentry-cdn.com";
-const scriptSrcDev  = "'self' 'unsafe-inline' 'unsafe-eval' blob: https://vercel.live https://*.vercel-scripts.com https://browser.sentry-cdn.com";
-
-const ContentSecurityPolicy = `
-  default-src 'self';
-  script-src  ${isDev ? scriptSrcDev : scriptSrcProd};
-  style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
-  font-src    'self' https://fonts.gstatic.com data:;
-  img-src     'self' data: blob:
-              https://*.supabase.co https://*.supabase.in
-              https://images.unsplash.com https://*.genspark.ai
-              https://lh3.googleusercontent.com https://avatars.githubusercontent.com;
-  connect-src 'self'
-              https://${supabaseHost}
-              wss://${supabaseHost}
-              https://*.supabase.co wss://*.supabase.co
-              https://*.supabase.in  wss://*.supabase.in
-              https://vercel.live https://*.vercel-scripts.com
-              https://vitals.vercel-insights.com
-              https://*.ingest.sentry.io
-              https://*.ingest.us.sentry.io
-              https://browser.sentry-cdn.com;
-  worker-src  'self' blob:;
-  frame-src   https://vercel.live;
-  object-src  'none';
-  base-uri    'self';
-  form-action 'self';
-  upgrade-insecure-requests;
-`
-  .replace(/\n/g, ' ')
-  .replace(/\s{2,}/g, ' ')
-  .trim();
+// ⚠️  NE PAS remettre Content-Security-Policy dans securityHeaders ci-dessous :
+//     Le middleware applique la CSP dynamique avec nonce sur chaque requête.
+//     Un header statique ici remplacerait le nonce dynamique et casserait la CSP.
 
 // ─── Permissions-Policy ───────────────────────────────────────────────────────
 // Source unique : next.config.js.
@@ -117,8 +70,11 @@ const PermissionsPolicy = [
 ].join(', ');
 
 // ─── En-têtes de sécurité ──────────────────────────────────────────────────────
+// NOTE : Content-Security-Policy est absent ici car il est généré DYNAMIQUEMENT
+// par src/middleware.ts avec un nonce unique par requête (voir buildCsp()).
+// Tous les autres en-têtes de sécurité restent statiques.
 const securityHeaders = [
-  { key: 'Content-Security-Policy',       value: ContentSecurityPolicy },
+  // Content-Security-Policy → src/middleware.ts (dynamique, avec nonce)
   { key: 'Strict-Transport-Security',     value: 'max-age=63072000; includeSubDomains; preload' },
   { key: 'X-Frame-Options',               value: 'DENY' },
   { key: 'X-Content-Type-Options',        value: 'nosniff' },
