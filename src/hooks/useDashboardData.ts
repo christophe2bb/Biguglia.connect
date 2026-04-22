@@ -184,44 +184,66 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
   // Ref vers listingsRaw stable pour les closures des fetchs différés
   const listingsRawRef = useRef<Record<string, unknown>[]>([]);
 
+  // ── Ref stable vers statsHook.fetch ──────────────────────────────────────────
+  // statsHook est recréé à chaque render (objet retourné par un hook interne) :
+  // l'inclure dans le useCallback de fetchStats ou dans le useEffect provoquerait
+  // une boucle infinie de re-renders. On stabilise la référence via useRef pour
+  // accéder toujours à la version courante sans déclencher de nouvel effet.
+  const statsHookRef = useRef(statsHook);
+  useEffect(() => { statsHookRef.current = statsHook; });
+
   // ── Fetch initial : stats seules ─────────────────────────────────────────────
   const fetchStats = useCallback(async () => {
     if (!profileId) return;
     setLoading(true);
     setError(null);
-    await statsHook.fetch(profileId);
-    // Stocker listingsRaw pour les fetchs différés
-    listingsRawRef.current = statsHook.listingsRaw;
-    setLoading(statsHook.loading);
-    setError(statsHook.error);
-  }, [profileId, statsHook]);
+    // Utilise statsHookRef.current pour toujours avoir la version fraîche
+    // sans que statsHook figure dans les dépendances (évite la boucle infinie).
+    await statsHookRef.current.fetch(profileId);
+    listingsRawRef.current = statsHookRef.current.listingsRaw;
+    setLoading(statsHookRef.current.loading);
+    setError(statsHookRef.current.error);
+  }, [profileId]); // statsHook intentionnellement exclu — voir commentaire ci-dessus
 
   useEffect(() => {
     fetchedRef.current = new Set();
     listingsRawRef.current = [];
     fetchStats();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileId]);
+  }, [profileId, fetchStats]); // fetchStats est stable (useCallback [profileId])
 
   // ── Fetch différé déclenché par l'onglet actif ────────────────────────────────
   const fetchDeferred = useCallback(async (key: DeferredKey) => {
     if (!profileId || fetchedRef.current.has(key)) return;
     fetchedRef.current.add(key);
 
+    // Accès via refs stables pour éviter les dépendances instables
     if (key === 'content') {
-      await contentHook.fetch(profileId, listingsRawRef.current);
+      await contentHookRef.current.fetch(profileId, listingsRawRef.current);
     } else if (key === 'interactions') {
-      await interactionsHook.fetch(profileId);
+      await interactionsHookRef.current.fetch(profileId);
     } else if (key === 'reviews') {
-      await reviewsHook.fetch(profileId);
+      await reviewsHookRef.current.fetch(profileId);
     }
-  }, [profileId, contentHook, interactionsHook, reviewsHook]);
+  }, [profileId]); // sous-hooks accédés via refs stables
 
   // ── API publique appelée par page.tsx à chaque changement d'onglet ────────────
   const fetchForTab = useCallback((tab: string) => {
     const key = TAB_TO_DEFERRED[tab];
     if (key) void fetchDeferred(key);
   }, [fetchDeferred]);
+
+  // ── Refs stables vers les sous-hooks ─────────────────────────────────────────
+  // contentHook, interactionsHook, reviewsHook sont également recréés à chaque
+  // render. On les stabilise via useRef pour éviter que refresh() et fetchDeferred()
+  // aient à les lister en dépendances (ce qui déclencherait des cycles infinis).
+  const contentHookRef      = useRef(contentHook);
+  const interactionsHookRef = useRef(interactionsHook);
+  const reviewsHookRef      = useRef(reviewsHook);
+  useEffect(() => {
+    contentHookRef.current      = contentHook;
+    interactionsHookRef.current = interactionsHook;
+    reviewsHookRef.current      = reviewsHook;
+  });
 
   // ── Refresh complet (bouton actualiser) ──────────────────────────────────────
   const refresh = useCallback(async () => {
@@ -230,25 +252,25 @@ export function useDashboardData(profileId: string | undefined): DashboardData {
     setError(null);
     fetchedRef.current = new Set();
 
-    await statsHook.fetch(profileId);
-    listingsRawRef.current = statsHook.listingsRaw;
+    await statsHookRef.current.fetch(profileId);
+    listingsRawRef.current = statsHookRef.current.listingsRaw;
 
     await Promise.all([
-      contentHook.fetch(profileId, listingsRawRef.current),
-      interactionsHook.fetch(profileId),
-      reviewsHook.fetch(profileId),
+      contentHookRef.current.fetch(profileId, listingsRawRef.current),
+      interactionsHookRef.current.fetch(profileId),
+      reviewsHookRef.current.fetch(profileId),
     ]);
 
     fetchedRef.current = new Set(['content', 'interactions', 'reviews'] as DeferredKey[]);
 
     const subError =
-      statsHook.error        ??
-      contentHook.error      ??
-      interactionsHook.error ??
-      reviewsHook.error      ?? null;
+      statsHookRef.current.error        ??
+      contentHookRef.current.error      ??
+      interactionsHookRef.current.error ??
+      reviewsHookRef.current.error      ?? null;
     setError(subError);
     setLoading(false);
-  }, [profileId, statsHook, contentHook, interactionsHook, reviewsHook]);
+  }, [profileId]); // sous-hooks accédés via refs stables — pas de dépendances instables
 
   // ── Todos assemblés depuis les compteurs de stats ────────────────────────────
   const { stats } = statsHook;
