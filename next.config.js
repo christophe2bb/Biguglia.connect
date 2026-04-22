@@ -61,7 +61,7 @@ const supabaseHost = SUPABASE_URL.replace(/^https?:\/\//, '');
 // https://browser.sentry-cdn.com : Sentry Replay est chargé LAZY depuis ce CDN
 //   via lazyLoadIntegration('replayIntegration'). Sans cette entrée, le navigateur
 //   bloque le chargement et lève une violation CSP dans la console.
-//   Voir sentry.client.config.ts — Sentry.lazyLoadIntegration('replayIntegration').
+//   Voir instrumentation-client.ts — Sentry.lazyLoadIntegration('replayIntegration').
 const scriptSrcProd = "'self' 'unsafe-inline' blob: https://vercel.live https://*.vercel-scripts.com https://browser.sentry-cdn.com";
 const scriptSrcDev  = "'self' 'unsafe-inline' 'unsafe-eval' blob: https://vercel.live https://*.vercel-scripts.com https://browser.sentry-cdn.com";
 
