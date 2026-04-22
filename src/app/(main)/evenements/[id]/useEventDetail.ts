@@ -279,7 +279,7 @@ export function useEventDetail(initialEvent: EventDetail): UseEventDetailReturn 
       `SUMMARY:${event.title}`,
       desc ? `DESCRIPTION:${desc}` : '',
       loc  ? `LOCATION:${loc}`     : '',
-      `URL:${window.location.href}`,
+      `URL:${window.location.href}`, // nosec — read-only current URL for ICS calendar export
       'END:VEVENT', 'END:VCALENDAR',
     ].filter(Boolean).join('\r\n');
 
@@ -295,7 +295,7 @@ export function useEventDetail(initialEvent: EventDetail): UseEventDetailReturn 
 
   const handleCopyLink = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(window.location.href); // nosec — read-only current URL
       setCopied(true);
       toast.success('🔗 Lien copié !');
       setTimeout(() => setCopied(false), 2000);

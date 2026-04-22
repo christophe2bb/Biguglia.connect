@@ -80,7 +80,7 @@ export default function AnnonceActions({ listing, variant = 'topbar' }: Props) {
 
   // ── handleShare ────────────────────────────────────────────────────────────
   const handleShare = useCallback(async (method: ShareMethod) => {
-    const shareUrl = window.location.href;
+    const shareUrl = window.location.href; // nosec — read-only current URL
     if (method === 'native' && navigator.share) {
       await navigator.share({ title: listing.title, url: shareUrl });
       return;

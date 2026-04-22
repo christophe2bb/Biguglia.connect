@@ -149,7 +149,7 @@ export function useHelpRequestDetail(initialItem: HelpRequest): UseHelpDetailRet
     } catch { /* noop */ }
   };
 
-  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : ''; // nosec — read-only current URL
   const shareText = item
     ? encodeURIComponent(`${TYPE_CONFIG[item.help_type]?.emoji ?? ''} ${item.title}\n${shareUrl}`)
     : '';

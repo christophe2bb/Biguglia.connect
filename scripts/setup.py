@@ -11,6 +11,8 @@ import urllib.request
 import urllib.error
 import argparse
 
+# nosec B310 — SSRF false positive: URL is a hardcoded constant, no user input flows here.
+# This is an admin-only setup script, never exposed to end-users.
 SUPABASE_URL = "https://qmrkacrpncdkhofiqlrg.supabase.co"
 PROJECT_ID = "qmrkacrpncdkhofiqlrg"
 SCHEMA_FILE = os.path.join(os.path.dirname(__file__), '..', 'supabase-schema.sql')
@@ -30,7 +32,7 @@ def api_request(url, method='GET', headers=None, data=None):
             data = data.encode()
     
     try:
-        with urllib.request.urlopen(req, data=data, timeout=30) as response:
+        with urllib.request.urlopen(req, data=data, timeout=30) as response:  # nosec B310
             return response.status, json.loads(response.read().decode())
     except urllib.error.HTTPError as e:
         return e.code, json.loads(e.read().decode())

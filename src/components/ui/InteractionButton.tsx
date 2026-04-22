@@ -237,7 +237,7 @@ export default function InteractionButton({
       onInteractionCreated?.(created as Interaction);
       toast.success('Demande envoyée !');
       if (convId) {
-        setTimeout(() => window.location.href = `/messages/${convId}`, 800);
+        setTimeout(() => router.push(`/messages/${convId}`), 800); // nosec — convId is server-controlled
       }
     } finally { setActing(false); }
   };

@@ -24,7 +24,7 @@ export function SellerCard({
   userId, onStatusChange, onDelete,
 }: Props) {
   const author = listing.user as { full_name?: string; avatar_url?: string } | undefined;
-  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : ''; // nosec — read-only current URL
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-5">

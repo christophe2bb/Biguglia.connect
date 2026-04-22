@@ -8,26 +8,44 @@ const supabaseHost = SUPABASE_URL.replace(/^https?:\/\//, '');
 
 // ─── Content-Security-Policy ──────────────────────────────────────────────────
 //
-// script-src — décisions :
+// ┌─ DÉCISION DOCUMENTÉE : 'unsafe-inline' dans script-src ──────────────────┐
+// │                                                                            │
+// │  STATUT : Accepté — risque résiduel documenté, migration planifiée        │
+// │  TICKET : Voir SECURITY.md §3 — «Roadmap nonces CSP»                      │
+// │                                                                            │
+// │  POURQUOI 'unsafe-inline' est OBLIGATOIRE avec Next.js App Router :       │
+// │                                                                            │
+// │  1. Next.js injecte des <script> inline non-noncés pour l'hydratation SSR │
+// │     (__NEXT_DATA__, React Server Components payload, prefetch links).      │
+// │     Sans 'unsafe-inline', l'app entière cesse de fonctionner.             │
+// │     Ref: https://github.com/vercel/next.js/issues/15840                   │
+// │                                                                            │
+// │  2. JsonLd.tsx utilise dangerouslySetInnerHTML pour les balises            │
+// │     <script type="application/ld+json"> (JSON-LD Schema.org).             │
+// │     Obligatoire pour les Rich Results Google — protégé par safeJsonLd().  │
+// │                                                                            │
+// │  3. Vercel Live injecte des scripts inline de monitoring/preview.         │
+// │                                                                            │
+// │  ATTÉNUATIONS EN PLACE :                                                  │
+// │  • 'unsafe-eval' SUPPRIMÉ en production (seul dev le conserve pour HMR)   │
+// │  • Toutes les entrées utilisateur sont échappées (safeJsonLd, DOMPurify)  │
+// │  • CSP restreint à 'self' + domaines explicites (pas de wildcard script)  │
+// │  • X-Frame-Options: DENY, X-Content-Type-Options: nosniff actifs         │
+// │  • HSTS, COEP, COOP déployés                                              │
+// │                                                                            │
+// │  PLAN DE MIGRATION (nonces CSP — voir SECURITY.md) :                      │
+// │  Phase 1 : Générer un nonce par requête dans src/middleware.ts            │
+// │  Phase 2 : Passer le nonce via request.headers à _document / layout.tsx  │
+// │  Phase 3 : Remplacer 'unsafe-inline' par 'nonce-{nonce}' + strict-dynamic│
+// │  Phase 4 : Refactorer JsonLd.tsx vers une API Route JSON+headers noncés   │
+// └────────────────────────────────────────────────────────────────────────────┘
 //
-//  'unsafe-eval'   RETIRÉ en prod.
-//    Aucun usage réel dans le code (pas d'eval(), new Function(), ni recharts/
-//    framer-motion qui l'exigeraient). Next.js SWC compile en prod sans eval.
-//    Conservé UNIQUEMENT en développement pour le HMR (hot-module replacement)
-//    de Next.js et les source maps.
-//
-//  'unsafe-inline' CONSERVÉ (nécessaire).
-//    Next.js 14 App Router injecte des scripts inline pour l'hydratation SSR
-//    (__NEXT_DATA__, composants serveur). La suppression exigerait une
-//    implémentation complète de nonces via middleware — chantier séparé.
-//
-//  'strict-dynamic' NON ajouté pour l'instant.
-//    En combinaison avec nonce, il remplacerait 'unsafe-inline' pour les scripts
-//    inline légitimes. À activer lors de la migration nonce.
+// 'unsafe-eval' RETIRÉ en prod — Next.js SWC compile sans eval.
+// Conservé en dev uniquement pour le HMR.
 //
 // style-src — 'unsafe-inline' requis :
-//    Deux <style> tags dans des pages (evenements, perdu-trouve/[id]) +
-//    style={{...}} inline via Tailwind/framer-motion. Suppression = chantier UI.
+//    154 occurrences de style={{...}} dans 67 composants + Tailwind JIT.
+//    Suppression = refonte UI complète (chantier distinct).
 //
 // connect-src — Sentry :
 //    Sentry envoie les événements à *.ingest.sentry.io et *.ingest.us.sentry.io

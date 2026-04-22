@@ -88,7 +88,7 @@ export function useAssociationDetail(
   };
 
   const handleShare = () => {
-    const url = window.location.href;
+    const url = window.location.href; // nosec — read-only current URL
     if (navigator.share) {
       navigator.share({ title: asso?.name ?? 'Association', url }).catch(() => {});
     } else {

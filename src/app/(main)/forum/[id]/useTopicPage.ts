@@ -280,7 +280,7 @@ export function useTopicPage(initialData?: InitialTopicData): UseTopicPageReturn
   };
 
   const copyLink = () => {
-    navigator.clipboard.writeText(window.location.href).then(() => {
+    navigator.clipboard.writeText(window.location.href).then(() => { // nosec — read-only current URL
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       toast.success('Lien copié !');

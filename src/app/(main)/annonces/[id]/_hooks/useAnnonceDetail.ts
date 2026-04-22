@@ -170,7 +170,7 @@ export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
 
   // ── handleShare ──────────────────────────────────────────────────────────────
   const handleShare = useCallback(async (method: ShareMethod) => {
-    const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+    const shareUrl = typeof window !== 'undefined' ? window.location.href : ''; // nosec — read-only current URL
     if (method === 'native' && navigator.share) {
       await navigator.share({ title: listing?.title, url: shareUrl });
       return;
