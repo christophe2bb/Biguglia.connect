@@ -297,11 +297,11 @@ export default async function EvenementsBigugliaPage() {
 
           <div className="flex flex-wrap gap-3">
             <Link href="/evenements"
-              className="inline-flex items-center gap-2 bg-white text-violet-700 font-black px-6 py-3 rounded-xl text-sm hover:bg-violet-50 transition-all shadow-md">
+              className="inline-flex items-center gap-2 bg-white text-violet-700 font-black px-6 py-3 rounded-xl text-sm hover:bg-violet-50 transition-colors shadow-md">
               🎉 Voir tous les événements <ArrowRight className="w-4 h-4" />
             </Link>
             <Link href="/evenements/nouveau"
-              className="inline-flex items-center gap-2 border border-white/30 text-white font-bold px-5 py-3 rounded-xl text-sm hover:bg-white/10 transition-all">
+              className="inline-flex items-center gap-2 border border-white/30 text-white font-bold px-5 py-3 rounded-xl text-sm hover:bg-white/10 transition-colors">
               + Publier un événement
             </Link>
           </div>
@@ -355,7 +355,7 @@ export default async function EvenementsBigugliaPage() {
               { href: '/promenades',              label: '🥾 Balades & randonnées' },
             ].map(l => (
               <Link key={l.href} href={l.href}
-                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-all">
+                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-colors">
                 {l.label}
               </Link>
             ))}
@@ -375,7 +375,7 @@ export default async function EvenementsBigugliaPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {RECURRING_EVENTS.map(ev => (
               <Link key={ev.title} href={ev.href}>
-                <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md hover:border-violet-200 hover:-translate-y-0.5 transition-all h-full flex flex-col gap-3">
+                <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md hover:border-violet-200 hover:-translate-y-0.5 transition-[color,border-color,box-shadow,transform] h-full flex flex-col gap-3">
                   <div className="flex items-center gap-3">
                     <span className="text-3xl">{ev.emoji}</span>
                     <h3 className="font-black text-gray-900 text-sm">{ev.title}</h3>
@@ -409,7 +409,7 @@ export default async function EvenementsBigugliaPage() {
                 const cat = ev.category ? EVENT_CATEGORIES[ev.category] : null;
                 return (
                   <Link key={ev.id} href={`/evenements/${ev.id}`}>
-                    <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 transition-all h-full flex flex-col gap-3">
+                    <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 transition-[color,border-color,box-shadow,transform] h-full flex flex-col gap-3">
                       <div className="flex items-start justify-between gap-2">
                         <p className="font-bold text-gray-900 text-sm line-clamp-2 flex-1">{ev.title}</p>
                         {cat && (
@@ -441,7 +441,7 @@ export default async function EvenementsBigugliaPage() {
             <h2 className="font-black text-gray-900 mb-2">Aucun événement programmé</h2>
             <p className="text-gray-500 text-sm mb-4">Vous organisez quelque chose à Biguglia ? Publiez-le gratuitement.</p>
             <Link href="/evenements/nouveau"
-              className="inline-flex items-center gap-2 bg-violet-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-violet-700 transition-all">
+              className="inline-flex items-center gap-2 bg-violet-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-violet-700 transition-colors">
               Publier un événement
             </Link>
           </section>
@@ -526,7 +526,7 @@ export default async function EvenementsBigugliaPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {Object.entries(EVENT_CATEGORIES).map(([key, cat]) => (
               <Link key={key} href={`/evenements?categorie=${key}`}>
-                <div className="bg-white rounded-2xl border border-gray-100 p-3 text-center hover:shadow-md hover:border-gray-200 transition-all">
+                <div className="bg-white rounded-2xl border border-gray-100 p-3 text-center hover:shadow-md hover:border-gray-200 transition-colors">
                   <p className="text-2xl mb-1">{cat.emoji}</p>
                   <p className="text-xs font-bold text-gray-700">{cat.label}</p>
                 </div>
@@ -559,7 +559,7 @@ export default async function EvenementsBigugliaPage() {
                   { href: '/evenements?categorie=association', label: '🏛️ Événements associatifs' },
                 ].map(l => (
                   <Link key={l.href} href={l.href}
-                    className="inline-flex items-center gap-1 bg-violet-50 border border-violet-200 text-violet-700 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-violet-100 transition-all">
+                    className="inline-flex items-center gap-1 bg-violet-50 border border-violet-200 text-violet-700 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-violet-100 transition-colors">
                     {l.label}
                   </Link>
                 ))}
@@ -578,7 +578,7 @@ export default async function EvenementsBigugliaPage() {
                   { href: '/evenements/nouveau',               label: '+ Publier un événement' },
                 ].map(l => (
                   <Link key={l.href} href={l.href}
-                    className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 text-gray-600 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-all">
+                    className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 text-gray-600 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-colors">
                     {l.label}
                   </Link>
                 ))}
@@ -626,7 +626,7 @@ export default async function EvenementsBigugliaPage() {
               { href: '/perdu-trouve',          emoji: '🔍', title: 'Objets perdus',         desc: 'Retrouvez vos affaires' },
             ].map(l => (
               <Link key={l.href} href={l.href}>
-                <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md transition-all flex items-center gap-3">
+                <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md transition-colors flex items-center gap-3">
                   <span className="text-xl">{l.emoji}</span>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-gray-900 text-sm">{l.title}</p>

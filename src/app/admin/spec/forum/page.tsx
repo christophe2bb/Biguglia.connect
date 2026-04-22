@@ -288,7 +288,7 @@ function ModuleCard({ module }: { module: typeof MODULES[0] }) {
           <div className="flex items-center gap-2 mt-1">
             <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden max-w-32">
               <div
-                className={`h-full ${colors.bg} rounded-full transition-all`}
+                className={`h-full ${colors.bg} rounded-full transition-colors`}
                 style={{ width: `${pct}%` }}
               />
             </div>
@@ -357,7 +357,7 @@ export default function ForumSpecPage() {
           </div>
           <div className="h-3 bg-white/20 rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all ${
+              className={`h-full rounded-full transition-colors ${
                 pct >= 80 ? 'bg-green-400' : pct >= 50 ? 'bg-yellow-400' : 'bg-red-400'
               }`}
               style={{ width: `${pct}%` }}

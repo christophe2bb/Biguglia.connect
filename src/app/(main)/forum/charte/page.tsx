@@ -199,7 +199,7 @@ export default function CharteForumPage() {
               <a
                 key={href}
                 href={href}
-                className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/15 hover:border-white/30 text-white text-sm font-medium px-4 py-2 rounded-full transition-all"
+                className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/15 hover:border-white/30 text-white text-sm font-medium px-4 py-2 rounded-full transition-colors"
               >
                 {label}
               </a>
@@ -470,13 +470,13 @@ export default function CharteForumPage() {
             <div className="flex flex-wrap gap-3 justify-center">
               <Link
                 href="/forum"
-                className="inline-flex items-center gap-2 bg-white text-violet-700 font-black px-6 py-2.5 rounded-xl text-sm hover:bg-violet-50 transition-all shadow-sm"
+                className="inline-flex items-center gap-2 bg-white text-violet-700 font-black px-6 py-2.5 rounded-xl text-sm hover:bg-violet-50 transition-colors shadow-sm"
               >
                 <ArrowLeft className="w-4 h-4" /> Voir le forum
               </Link>
               <Link
                 href="/forum/nouveau"
-                className="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 border border-white/25 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition-all"
+                className="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 border border-white/25 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition-colors"
               >
                 Créer un sujet <ArrowRight className="w-4 h-4" />
               </Link>

@@ -113,7 +113,7 @@ export default function ReportButton({
       <Link
         href="/connexion"
         aria-label="Signaler ce contenu (connexion requise)"
-        className={`p-1.5 rounded-lg text-gray-300 hover:text-red-400 transition-all ${className}`}
+        className={`p-1.5 rounded-lg text-gray-300 hover:text-red-400 transition-colors ${className}`}
       >
         <Flag className="w-3.5 h-3.5" aria-hidden="true" />
       </Link>
@@ -132,7 +132,7 @@ export default function ReportButton({
         aria-controls={panelId}
         aria-label="Signaler ce contenu"
         className={`
-          transition-all
+          transition-colors
           ${variant === 'icon'
             ? 'p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50'
             : variant === 'mini'
@@ -221,7 +221,7 @@ export default function ReportButton({
                 type="button"
                 onClick={handleSubmit}
                 disabled={!reason || sending}
-                className="w-full flex items-center justify-center gap-2 bg-red-500 text-white font-bold py-2.5 rounded-xl text-sm hover:bg-red-600 disabled:opacity-50 transition-all"
+                className="w-full flex items-center justify-center gap-2 bg-red-500 text-white font-bold py-2.5 rounded-xl text-sm hover:bg-red-600 disabled:opacity-50 transition-colors"
               >
                 {sending
                   ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />

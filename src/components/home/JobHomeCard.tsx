@@ -34,7 +34,7 @@ export function JobOfferHomeCard({ offer }: JobOfferHomeCardProps) {
   return (
     <Link
       href={`/emploi/offres/${offer.slug}`}
-      className="group flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 hover:border-cyan-200 hover:shadow-md transition-all hover:-translate-y-0.5"
+      className="group flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 hover:border-cyan-200 hover:shadow-md transition-[color,border-color,box-shadow,transform] hover:-translate-y-0.5"
     >
       {/* Icône catégorie */}
       <div className="w-12 h-12 rounded-xl bg-cyan-50 border border-cyan-100 flex items-center justify-center flex-shrink-0 text-2xl shadow-sm">
@@ -90,7 +90,7 @@ export function JobOfferHomeCard({ offer }: JobOfferHomeCardProps) {
       </div>
 
       {/* CTA */}
-      <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-cyan-500 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+      <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-cyan-500 group-hover:translate-x-0.5 transition-colors flex-shrink-0" />
     </Link>
   );
 }
@@ -112,7 +112,7 @@ export function JobDemandHomeCard({ demand }: JobDemandHomeCardProps) {
   return (
     <Link
       href={`/emploi/demandes/${demand.slug}`}
-      className="group flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 hover:border-purple-200 hover:shadow-md transition-all hover:-translate-y-0.5"
+      className="group flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 hover:border-purple-200 hover:shadow-md transition-[color,border-color,box-shadow,transform] hover:-translate-y-0.5"
     >
       {/* Icône catégorie */}
       <div className="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center flex-shrink-0 text-2xl shadow-sm">
@@ -163,7 +163,7 @@ export function JobDemandHomeCard({ demand }: JobDemandHomeCardProps) {
       </div>
 
       {/* CTA */}
-      <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-purple-500 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+      <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-purple-500 group-hover:translate-x-0.5 transition-colors flex-shrink-0" />
     </Link>
   );
 }
@@ -184,7 +184,7 @@ export function JobFeedCard({ item }: JobFeedCardProps) {
     <Link
       href={item.actionUrl}
       className={cn(
-        'group flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 transition-all hover:shadow-md hover:-translate-y-0.5',
+        'group flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 transition-[color,border-color,box-shadow,transform] hover:shadow-md hover:-translate-y-0.5',
         isOffer ? 'hover:border-cyan-200' : 'hover:border-purple-200'
       )}
     >
@@ -251,7 +251,7 @@ export function JobFeedCard({ item }: JobFeedCardProps) {
 
       {/* CTA */}
       <ArrowRight className={cn(
-        'w-4 h-4 text-gray-300 group-hover:translate-x-0.5 transition-all flex-shrink-0',
+        'w-4 h-4 text-gray-300 group-hover:translate-x-0.5 transition-colors flex-shrink-0',
         isOffer ? 'group-hover:text-cyan-500' : 'group-hover:text-purple-500'
       )} />
     </Link>

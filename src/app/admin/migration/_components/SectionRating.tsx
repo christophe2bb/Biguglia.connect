@@ -28,7 +28,7 @@ function SqlPanel({
     <>
       <button
         onClick={() => copy(sqlKey)}
-        className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-all ${
+        className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-colors ${
           copied(sqlKey) ? 'bg-emerald-500 text-white' : `${color} text-white`
         }`}
       >
@@ -104,7 +104,7 @@ export function SectionRating({ copied, copy }: Props) {
         </div>
         <button
           onClick={() => copy('exchange')}
-          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-all ${
+          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-colors ${
             copied('exchange') ? 'bg-emerald-500 text-white' : 'bg-emerald-600 text-white hover:bg-emerald-700'
           }`}
         >
@@ -144,7 +144,7 @@ export function SectionRating({ copied, copy }: Props) {
         </div>
         <button
           onClick={() => copy('interaction')}
-          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-all ${
+          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-colors ${
             copied('interaction') ? 'bg-emerald-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'
           }`}
         >

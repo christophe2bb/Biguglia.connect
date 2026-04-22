@@ -211,7 +211,7 @@ function TabBar({
               key={id}
               onClick={() => setActiveTab(id)}
               className={cn(
-                'flex items-center gap-2 px-5 py-3.5 text-sm font-semibold border-b-2 transition-all',
+                'flex items-center gap-2 px-5 py-3.5 text-sm font-semibold border-b-2 transition-colors',
                 activeTab === id
                   ? 'border-amber-500 text-amber-700'
                   : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
@@ -227,7 +227,7 @@ function TabBar({
           ))}
           <Link
             href="/communaute/collectionneurs"
-            className="flex items-center gap-2 px-5 py-3.5 text-sm font-semibold border-b-2 border-transparent text-amber-600 hover:text-amber-800 hover:border-amber-300 transition-all ml-auto"
+            className="flex items-center gap-2 px-5 py-3.5 text-sm font-semibold border-b-2 border-transparent text-amber-600 hover:text-amber-800 hover:border-amber-300 transition-colors ml-auto"
           >
             <Users className="w-4 h-4" /> Membres
           </Link>

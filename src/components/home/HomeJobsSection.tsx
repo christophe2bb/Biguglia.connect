@@ -80,11 +80,11 @@ export default async function HomeJobsSection() {
       {hasContent && (
         <div className="flex flex-wrap gap-3 mb-8">
           <Link href="/emploi/publier"
-            className="inline-flex items-center gap-2 bg-cyan-600 text-white px-5 py-3 rounded-2xl font-black hover:bg-cyan-700 transition-all shadow-md text-sm">
+            className="inline-flex items-center gap-2 bg-cyan-600 text-white px-5 py-3 rounded-2xl font-black hover:bg-cyan-700 transition-colors shadow-md text-sm">
             + Publier une offre <ArrowRight className="w-4 h-4" />
           </Link>
           <Link href="/emploi/demandes/publier"
-            className="inline-flex items-center gap-2 border-2 border-purple-200 text-purple-700 px-5 py-3 rounded-2xl font-bold hover:bg-purple-50 transition-all text-sm">
+            className="inline-flex items-center gap-2 border-2 border-purple-200 text-purple-700 px-5 py-3 rounded-2xl font-bold hover:bg-purple-50 transition-colors text-sm">
             + Déposer ma candidature
           </Link>
         </div>
@@ -101,7 +101,7 @@ export default async function HomeJobsSection() {
                 Publiez votre offre en 4 étapes. Gratuit, visible immédiatement.
               </p>
               <Link href="/emploi/publier"
-                className="inline-flex items-center gap-2 bg-white text-cyan-700 font-black px-5 py-3 rounded-2xl hover:bg-cyan-50 transition-all shadow-md text-sm">
+                className="inline-flex items-center gap-2 bg-white text-cyan-700 font-black px-5 py-3 rounded-2xl hover:bg-cyan-50 transition-colors shadow-md text-sm">
                 Publier une offre <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -114,7 +114,7 @@ export default async function HomeJobsSection() {
                 Déposez votre profil. Visibilité immédiate auprès des employeurs locaux.
               </p>
               <Link href="/emploi/demandes/publier"
-                className="inline-flex items-center gap-2 bg-white text-purple-700 font-black px-5 py-3 rounded-2xl hover:bg-purple-50 transition-all shadow-md text-sm">
+                className="inline-flex items-center gap-2 bg-white text-purple-700 font-black px-5 py-3 rounded-2xl hover:bg-purple-50 transition-colors shadow-md text-sm">
                 Déposer ma candidature <ArrowRight className="w-4 h-4" />
               </Link>
             </div>

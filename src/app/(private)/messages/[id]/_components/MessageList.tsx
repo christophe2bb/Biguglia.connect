@@ -110,7 +110,7 @@ function MessageBubble({
 
   return (
     <div
-      className={cn('transition-all duration-300', isDeleting && 'opacity-0 scale-95 pointer-events-none')}
+      className={cn('transition-colors duration-300', isDeleting && 'opacity-0 scale-95 pointer-events-none')}
       data-msg-menu={menuOpen ? 'open' : undefined}
     >
       {/* Ligne principale */}

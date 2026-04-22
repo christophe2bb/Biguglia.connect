@@ -26,7 +26,7 @@ export function StepAvailability({ form, set }: Props) {
           {Object.entries(AVAILABILITY_LABELS).map(([value, label]) => (
             <label
               key={value}
-              className={`flex items-center gap-2 p-3 border-2 rounded-xl cursor-pointer text-sm transition-all ${
+              className={`flex items-center gap-2 p-3 border-2 rounded-xl cursor-pointer text-sm transition-colors ${
                 form.availability_type === value
                   ? 'border-purple-500 bg-purple-50 text-purple-800 font-semibold'
                   : 'border-gray-200 text-gray-600 hover:border-gray-300'
@@ -167,7 +167,7 @@ export function StepAvailability({ form, set }: Props) {
             ].map(opt => (
               <label
                 key={opt.v}
-                className={`flex-1 flex flex-col items-center p-3 border-2 rounded-xl cursor-pointer transition-all text-center ${
+                className={`flex-1 flex flex-col items-center p-3 border-2 rounded-xl cursor-pointer transition-colors text-center ${
                   form.salary_type === opt.v
                     ? 'border-purple-500 bg-purple-50'
                     : 'border-gray-200 hover:border-gray-300'
@@ -184,7 +184,7 @@ export function StepAvailability({ form, set }: Props) {
               </label>
             ))}
             <label
-              className={`flex-1 flex flex-col items-center p-3 border-2 rounded-xl cursor-pointer transition-all text-center ${
+              className={`flex-1 flex flex-col items-center p-3 border-2 rounded-xl cursor-pointer transition-colors text-center ${
                 form.salary_type === ''
                   ? 'border-gray-400 bg-gray-50'
                   : 'border-gray-200 hover:border-gray-300'

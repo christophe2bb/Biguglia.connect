@@ -40,7 +40,7 @@ export default function LFFilters({
       <div className="flex items-center gap-1 mb-5 bg-white border border-gray-200 rounded-xl p-1 shadow-sm w-fit">
         <button
           onClick={() => setFlux('actif')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
             flux === 'actif' ? 'bg-orange-500 text-white shadow' : 'text-gray-500 hover:text-gray-700'
           }`}>
           <Bell className="w-4 h-4" /> Flux actif
@@ -54,7 +54,7 @@ export default function LFFilters({
         </button>
         <button
           onClick={() => setFlux('historique')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
             flux === 'historique' ? 'bg-gray-700 text-white shadow' : 'text-gray-500 hover:text-gray-700'
           }`}>
           <Archive className="w-4 h-4" /> Historique
@@ -96,7 +96,7 @@ export default function LFFilters({
         <div className="flex bg-white border border-gray-200 rounded-xl overflow-hidden text-sm font-semibold shadow-sm">
           <button
             onClick={() => { setFilterStatus('all'); setFilterType('all'); }}
-            className={`px-3 py-2.5 text-xs transition-all ${
+            className={`px-3 py-2.5 text-xs transition-colors ${
               filterStatus === 'all' && filterType === 'all' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'
             }`}>
             Tous
@@ -116,7 +116,7 @@ export default function LFFilters({
                     setFilterType('all');
                   }
                 }}
-                className={`px-3 py-2.5 text-xs transition-all ${
+                className={`px-3 py-2.5 text-xs transition-colors ${
                   isActiveBtn ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'
                 }`}>
                 {cfg.icon} {cfg.label}

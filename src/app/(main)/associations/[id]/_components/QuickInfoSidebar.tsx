@@ -110,7 +110,7 @@ export function QuickInfoSidebar({ asso, isAuthor, isLoggedIn }: Props) {
           {isAuthor && (
             <Link
               href="/associations"
-              className="mt-3 w-full inline-flex items-center justify-center gap-2 bg-gray-100 text-gray-600 font-bold px-4 py-2 rounded-xl text-xs hover:bg-gray-200 transition-all"
+              className="mt-3 w-full inline-flex items-center justify-center gap-2 bg-gray-100 text-gray-600 font-bold px-4 py-2 rounded-xl text-xs hover:bg-gray-200 transition-colors"
             >
               ✏️ Modifier ma fiche
             </Link>

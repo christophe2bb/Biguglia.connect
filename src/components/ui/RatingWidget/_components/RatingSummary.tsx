@@ -67,7 +67,7 @@ export default function RatingSummary({
                 <Star className="w-3 h-3 fill-amber-300 text-amber-300 flex-shrink-0" />
                 <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                   <div
-                    className={cn('h-full rounded-full transition-all', star >= 4 ? 'bg-emerald-400' : star === 3 ? 'bg-amber-400' : 'bg-red-300')}
+                    className={cn('h-full rounded-full transition-colors', star >= 4 ? 'bg-emerald-400' : star === 3 ? 'bg-amber-400' : 'bg-red-300')}
                     style={{ width: `${pct}%` }}
                   />
                 </div>

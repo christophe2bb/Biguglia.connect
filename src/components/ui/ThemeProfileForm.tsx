@@ -226,7 +226,7 @@ export default function ThemeProfileForm({
                 key={opt}
                 type="button"
                 onClick={() => setLevel(opt === level ? '' : opt)}
-                className={`px-3 py-1.5 rounded-xl text-sm font-medium border transition-all ${
+                className={`px-3 py-1.5 rounded-xl text-sm font-medium border transition-colors ${
                   level === opt
                     ? 'bg-brand-600 text-white border-brand-600'
                     : 'bg-white text-gray-600 border-gray-200 hover:border-brand-300'

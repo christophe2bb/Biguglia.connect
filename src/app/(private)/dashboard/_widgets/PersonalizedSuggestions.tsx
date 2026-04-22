@@ -113,7 +113,7 @@ function SuggestionCard({ item, size = 'normal' }: { item: SuggestionItem; size?
     <Link
       href={item.href}
       className={cn(
-        'group flex items-center gap-3 p-3 rounded-2xl border transition-all hover:-translate-y-0.5',
+        'group flex items-center gap-3 p-3 rounded-2xl border transition-transform hover:-translate-y-0.5',
         item.highlight
           ? 'bg-brand-50 border-brand-200 hover:bg-brand-100 hover:border-brand-300 hover:shadow-sm'
           : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200 hover:shadow-sm',

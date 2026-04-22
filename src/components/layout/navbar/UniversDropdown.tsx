@@ -52,7 +52,7 @@ export default function UniversDropdown({ univers, isOpen, onToggle, onClose, is
         aria-haspopup="true"
         aria-controls={panelId}
         className={cn(
-          'flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200',
+          'flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors duration-200',
           isActive ? univers.activeBg : `text-gray-600 ${univers.hoverBg}`
         )}
       >
@@ -102,7 +102,7 @@ export default function UniversDropdown({ univers, isOpen, onToggle, onClose, is
                     key={`${item.href}-${item.label}`}
                     href={item.href}
                     onClick={onClose}
-                    className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition-all duration-150 group"
+                    className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition-colors duration-150 group"
                   >
                     <div className={cn(
                       'w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110',
@@ -114,7 +114,7 @@ export default function UniversDropdown({ univers, isOpen, onToggle, onClose, is
                       <p className="text-sm font-semibold text-gray-900 group-hover:text-gray-700">{item.label}</p>
                       <p className="text-xs text-gray-500 truncate">{item.desc}</p>
                     </div>
-                    <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-400 group-hover:translate-x-0.5 transition-all flex-shrink-0" aria-hidden="true" />
+                    <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-400 group-hover:translate-x-0.5 transition-colors flex-shrink-0" aria-hidden="true" />
                   </Link>
                 );
               })}

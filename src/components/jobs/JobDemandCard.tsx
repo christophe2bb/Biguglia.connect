@@ -33,7 +33,7 @@ export function JobDemandCard({
     <Link
       href={`/emploi/demandes/${demand.slug}`}
       className={`
-        block bg-white rounded-lg border-2 border-gray-200 transition-all duration-200
+        block bg-white rounded-lg border-2 border-gray-200 transition-colors duration-200
         hover:shadow-lg hover:border-brand-400 hover:-translate-y-0.5
         ${isCompact ? 'p-3' : 'p-4 md:p-5'}
       `}

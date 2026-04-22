@@ -116,7 +116,7 @@ export default function DemandesPageClient() {
             </div>
             <Link
               href="/artisans/demande"
-              className="flex-shrink-0 inline-flex items-center gap-2 bg-white text-blue-700 font-black px-6 py-3 rounded-2xl hover:bg-blue-50 transition-all shadow-lg text-sm"
+              className="flex-shrink-0 inline-flex items-center gap-2 bg-white text-blue-700 font-black px-6 py-3 rounded-2xl hover:bg-blue-50 transition-colors shadow-lg text-sm"
             >
               <Plus className="w-4 h-4" /> Poster une demande
             </Link>
@@ -186,7 +186,7 @@ export default function DemandesPageClient() {
               {search ? 'Aucune demande pour cette recherche' : 'Aucune demande pour l\'instant'}
             </p>
             <Link href="/artisans/demande"
-              className="inline-flex items-center gap-2 mt-4 bg-blue-600 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-blue-700 transition-all">
+              className="inline-flex items-center gap-2 mt-4 bg-blue-600 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-blue-700 transition-colors">
               <Plus className="w-4 h-4" /> Poster la première demande
             </Link>
           </div>
@@ -198,7 +198,7 @@ export default function DemandesPageClient() {
               const firstPhoto = req.photos?.[0]?.url;
               return (
                 <Link key={req.id} href={`/demandes/${req.id}`}
-                  className="block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-200 transition-all p-5 group">
+                  className="block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-200 transition-colors p-5 group">
                   <div className="flex gap-4">
                     {/* Photo ou icône catégorie */}
                     <div className="flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-blue-50 flex items-center justify-center">
@@ -262,7 +262,7 @@ export default function DemandesPageClient() {
               <p className="text-blue-600 text-sm">Connectez-vous pour poster une demande ou répondre aux habitants.</p>
             </div>
             <Link href="/connexion"
-              className="flex-shrink-0 inline-flex items-center gap-2 bg-blue-600 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-blue-700 transition-all">
+              className="flex-shrink-0 inline-flex items-center gap-2 bg-blue-600 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-blue-700 transition-colors">
               Se connecter
             </Link>
           </div>

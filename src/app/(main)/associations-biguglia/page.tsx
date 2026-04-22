@@ -280,11 +280,11 @@ export default async function AssociationsBigugliaPage() {
 
           <div className="flex flex-wrap gap-3">
             <Link href="/associations"
-              className="inline-flex items-center gap-2 bg-white text-violet-700 font-black px-6 py-3 rounded-xl text-sm hover:bg-violet-50 transition-all shadow-md">
+              className="inline-flex items-center gap-2 bg-white text-violet-700 font-black px-6 py-3 rounded-xl text-sm hover:bg-violet-50 transition-colors shadow-md">
               🏛️ Voir toutes les associations <ArrowRight className="w-4 h-4" />
             </Link>
             <Link href="/associations/nouvelle"
-              className="inline-flex items-center gap-2 border border-white/30 text-white font-bold px-5 py-3 rounded-xl text-sm hover:bg-white/10 transition-all">
+              className="inline-flex items-center gap-2 border border-white/30 text-white font-bold px-5 py-3 rounded-xl text-sm hover:bg-white/10 transition-colors">
               + Référencer mon association
             </Link>
           </div>
@@ -338,7 +338,7 @@ export default async function AssociationsBigugliaPage() {
               { href: '/communaute',             label: '🏘️ Communauté Biguglia' },
             ].map(l => (
               <Link key={l.href} href={l.href}
-                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-all">
+                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-colors">
                 {l.label}
               </Link>
             ))}
@@ -358,7 +358,7 @@ export default async function AssociationsBigugliaPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {FEATURED_ASSOCS.map(assoc => (
               <Link key={assoc.name} href={assoc.href}>
-                <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md hover:border-violet-200 hover:-translate-y-0.5 transition-all h-full flex flex-col gap-3">
+                <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md hover:border-violet-200 hover:-translate-y-0.5 transition-[color,border-color,box-shadow,transform] h-full flex flex-col gap-3">
                   <div className="flex items-center gap-3">
                     <span className="text-3xl">{assoc.emoji}</span>
                     <h3 className="font-black text-gray-900 text-sm">{assoc.name}</h3>
@@ -393,7 +393,7 @@ export default async function AssociationsBigugliaPage() {
                 const cat = a.category ? ASSOC_CATEGORIES[a.category] : null;
                 return (
                   <Link key={a.id} href={`/associations/${a.id}`}>
-                    <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 transition-all h-full flex flex-col gap-2">
+                    <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 transition-[color,border-color,box-shadow,transform] h-full flex flex-col gap-2">
                       <div className="flex items-start justify-between gap-2">
                         <p className="font-bold text-gray-900 text-sm line-clamp-2 flex-1">{a.name}</p>
                         {cat && (
@@ -420,7 +420,7 @@ export default async function AssociationsBigugliaPage() {
             <h2 className="font-black text-gray-900 mb-2">Aucune association référencée</h2>
             <p className="text-gray-500 text-sm mb-4">Vous gérez une association à Biguglia ? Référencez-la gratuitement.</p>
             <Link href="/associations/nouvelle"
-              className="inline-flex items-center gap-2 bg-violet-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-violet-700 transition-all">
+              className="inline-flex items-center gap-2 bg-violet-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-violet-700 transition-colors">
               Publier mon association
             </Link>
           </section>
@@ -436,7 +436,7 @@ export default async function AssociationsBigugliaPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {Object.entries(ASSOC_CATEGORIES).map(([key, cat]) => (
               <Link key={key} href={`/associations?categorie=${key}`}>
-                <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-all flex items-center gap-3">
+                <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-colors flex items-center gap-3">
                   <span className="text-2xl">{cat.emoji}</span>
                   <div>
                     <p className="font-bold text-gray-900 text-sm">{cat.label}</p>
@@ -487,11 +487,11 @@ export default async function AssociationsBigugliaPage() {
           </div>
           <div className="mt-5 flex flex-wrap gap-3 text-xs">
             <Link href="/associations/nouvelle"
-              className="inline-flex items-center gap-1.5 bg-violet-600 text-white font-bold px-3 py-1.5 rounded-lg hover:bg-violet-700 transition-all">
+              className="inline-flex items-center gap-1.5 bg-violet-600 text-white font-bold px-3 py-1.5 rounded-lg hover:bg-violet-700 transition-colors">
               + Référencer mon association
             </Link>
             <Link href="/evenements-biguglia"
-              className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-all">
+              className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-colors">
               🎉 Publier un événement associatif
             </Link>
           </div>
@@ -512,11 +512,11 @@ export default async function AssociationsBigugliaPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link href="/associations"
-                className="inline-flex items-center justify-center gap-2 bg-white text-violet-700 font-black px-6 py-3 rounded-xl text-sm hover:bg-violet-50 transition-all shadow-lg">
+                className="inline-flex items-center justify-center gap-2 bg-white text-violet-700 font-black px-6 py-3 rounded-xl text-sm hover:bg-violet-50 transition-colors shadow-lg">
                 <Heart className="w-4 h-4" /> Trouver une association
               </Link>
               <Link href="/evenements-biguglia"
-                className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-white/10 transition-all">
+                className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-white/10 transition-colors">
                 🎉 Événements associatifs
               </Link>
             </div>
@@ -547,7 +547,7 @@ export default async function AssociationsBigugliaPage() {
                   { href: '/associations/nouvelle',           label: '+ Référencer mon association' },
                 ].map(l => (
                   <Link key={l.href} href={l.href}
-                    className="inline-flex items-center gap-1 bg-violet-50 border border-violet-200 text-violet-700 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-violet-100 transition-all">
+                    className="inline-flex items-center gap-1 bg-violet-50 border border-violet-200 text-violet-700 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-violet-100 transition-colors">
                     {l.label}
                   </Link>
                 ))}
@@ -566,7 +566,7 @@ export default async function AssociationsBigugliaPage() {
                   { href: '/communaute',                     label: '👥 Communauté Biguglia' },
                 ].map(l => (
                   <Link key={l.href} href={l.href}
-                    className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 text-gray-600 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-all">
+                    className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 text-gray-600 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-colors">
                     {l.label}
                   </Link>
                 ))}
@@ -614,7 +614,7 @@ export default async function AssociationsBigugliaPage() {
               { href: '/coups-de-main',        emoji: '🤝', title: 'Coups de main',         desc: 'Entraide de voisinage' },
             ].map(l => (
               <Link key={l.href} href={l.href}>
-                <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md transition-all flex items-center gap-3">
+                <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md transition-colors flex items-center gap-3">
                   <span className="text-xl">{l.emoji}</span>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-gray-900 text-sm">{l.title}</p>

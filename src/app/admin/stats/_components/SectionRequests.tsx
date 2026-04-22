@@ -45,7 +45,7 @@ export function SectionRequests({ stats }: { stats: AllStats }) {
                     <span className="text-sm font-medium text-gray-700 w-8">{star}★</span>
                     <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
                       <div
-                        className="h-full bg-amber-400 rounded-full transition-all"
+                        className="h-full bg-amber-400 rounded-full transition-colors"
                         style={{ width: `${Math.min(100, (stats.avgRating / 5) * 100)}%` }}
                       />
                     </div>

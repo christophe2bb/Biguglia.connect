@@ -56,7 +56,7 @@ export default function AssociationFilters({
           )}
         </div>
         <button onClick={() => setShowAdvFilters(v => !v)}
-          className={cn('flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all',
+          className={cn('flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-colors',
             showAdvFilters || activeFiltersCount > 0 ? 'bg-violet-100 text-violet-700 border-violet-200' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
           <Filter className="w-4 h-4" />
           {activeFiltersCount > 0 && <span className="w-5 h-5 bg-violet-500 text-white text-[10px] font-black rounded-full flex items-center justify-center">{activeFiltersCount}</span>}
@@ -112,13 +112,13 @@ export default function AssociationFilters({
             <p className="block text-xs font-bold text-gray-500 mb-2">Type de fiche</p>
             <div className="flex flex-wrap gap-2">
               <button onClick={() => setFilterType('all')}
-                className={cn('px-3 py-1.5 rounded-full text-xs font-bold border transition-all',
+                className={cn('px-3 py-1.5 rounded-full text-xs font-bold border transition-colors',
                   filterType === 'all' ? 'bg-violet-500 text-white border-violet-500' : 'bg-white text-gray-500 border-gray-200 hover:border-violet-300')}>
                 Tous
               </button>
               {(Object.entries(PUB_TYPE_CONFIG) as [PubType, typeof PUB_TYPE_CONFIG[PubType]][]).map(([key, conf]) => (
                 <button key={key} onClick={() => setFilterType(filterType === key ? 'all' : key)}
-                  className={cn('px-3 py-1.5 rounded-full text-xs font-bold border transition-all',
+                  className={cn('px-3 py-1.5 rounded-full text-xs font-bold border transition-colors',
                     filterType === key ? 'bg-violet-500 text-white border-violet-500' : 'bg-white text-gray-500 border-gray-200 hover:border-violet-300')}>
                   {conf.emoji} {conf.label}
                 </button>
@@ -137,7 +137,7 @@ export default function AssociationFilters({
                 { id: 'Matériel',  label: '📦 Matériel' },
               ].map(({ id, label }) => (
                 <button key={id} onClick={() => setFilterNeed(filterNeed === id ? '' : id)}
-                  className={cn('px-3 py-1.5 rounded-full text-xs font-bold border transition-all',
+                  className={cn('px-3 py-1.5 rounded-full text-xs font-bold border transition-colors',
                     filterNeed === id ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-gray-500 border-gray-200 hover:border-rose-300')}>
                   {label}
                 </button>
@@ -150,7 +150,7 @@ export default function AssociationFilters({
             <div className="flex flex-wrap gap-2">
               {PUBLIC_OPTIONS.map(p => (
                 <button key={p} onClick={() => setFilterPublic(filterPublic === p ? '' : p)}
-                  className={cn('px-3 py-1.5 rounded-full text-xs font-bold border transition-all',
+                  className={cn('px-3 py-1.5 rounded-full text-xs font-bold border transition-colors',
                     filterPublic === p ? 'bg-sky-500 text-white border-sky-500' : 'bg-white text-gray-500 border-gray-200 hover:border-sky-300')}>
                   {p}
                 </button>
@@ -160,7 +160,7 @@ export default function AssociationFilters({
 
           {savedAssos.size > 0 && (
             <button onClick={() => setShowSavedOnly(v => !v)}
-              className={cn('inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border transition-all',
+              className={cn('inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border transition-colors',
                 showSavedOnly ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : 'bg-white text-gray-500 border-gray-200 hover:bg-yellow-50')}>
               <BookmarkCheck className="w-4 h-4" /> Mes favoris ({savedAssos.size})
             </button>
@@ -171,7 +171,7 @@ export default function AssociationFilters({
       {/* Catégories pills horizontales */}
       <div className="flex gap-2 flex-wrap">
         <button type="button" onClick={() => setFilterCat('all')}
-          className={cn('px-4 py-1.5 rounded-full text-xs font-bold border transition-all',
+          className={cn('px-4 py-1.5 rounded-full text-xs font-bold border transition-colors',
             filterCat === 'all' ? 'bg-violet-500 text-white border-violet-500' : 'bg-white text-gray-600 border-gray-200 hover:border-violet-300')}>
           Toutes
         </button>
@@ -180,7 +180,7 @@ export default function AssociationFilters({
           const count = assos.filter(a => a.category === key).length;
           return (
             <button key={key} type="button" onClick={() => setFilterCat(filterCat === key ? 'all' : key)}
-              className={cn('inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold border transition-all',
+              className={cn('inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold border transition-colors',
                 filterCat === key ? 'bg-violet-500 text-white border-violet-500' : `bg-white ${conf.color} border-gray-200 hover:border-violet-300`)}>
               <span>{conf.emoji}</span>
               <Icon className="w-3 h-3" />{conf.label}

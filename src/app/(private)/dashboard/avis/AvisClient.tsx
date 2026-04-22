@@ -70,7 +70,7 @@ function ReviewCard({ review }: { review: ReviewItem }) {
   const cfg = THEME_CONFIG[review.source_type as InteractionSourceType];
 
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-sm transition-all">
+    <div className="bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-sm transition-colors">
       <div className="flex items-start gap-3">
         <Avatar src={otherUser?.avatar_url} name={otherUser?.full_name || '?'} size="sm" />
         <div className="flex-1 min-w-0">
@@ -339,7 +339,7 @@ function MesAvisContent() {
                   key={t.id}
                   onClick={() => setTab(t.id as typeof tab)}
                   className={cn(
-                    'flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border',
+                    'flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors border',
                     tab === t.id
                       ? t.urgent
                         ? 'bg-red-50 text-red-700 border-red-300'

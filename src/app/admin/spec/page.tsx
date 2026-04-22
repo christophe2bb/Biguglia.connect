@@ -376,7 +376,7 @@ export default function SpecPage() {
                 <div className="px-5 pt-3 pb-1">
                   <div className="bg-gray-100 rounded-full h-1.5 overflow-hidden">
                     <div
-                      className={`h-1.5 rounded-full transition-all ${
+                      className={`h-1.5 rounded-full transition-colors ${
                         pct === 100 ? 'bg-emerald-500' : pct >= 60 ? 'bg-amber-400' : 'bg-red-400'
                       }`}
                       style={{ width: `${pct}%` }}
@@ -426,7 +426,7 @@ export default function SpecPage() {
               const Icon = p.icon;
               return (
                 <Link key={p.href} href={p.href}
-                      className="flex items-center gap-2 p-3 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-all group">
+                      className="flex items-center gap-2 p-3 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-colors group">
                   <Icon className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
                   <span className="text-sm font-medium text-gray-700 group-hover:text-blue-700">{p.label}</span>
                 </Link>

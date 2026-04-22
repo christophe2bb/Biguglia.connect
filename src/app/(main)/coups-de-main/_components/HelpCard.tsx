@@ -154,7 +154,7 @@ export default function HelpCard({
   return (
     <div
       id={item.id}
-      className={`bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all overflow-hidden group ${
+      className={`bg-white rounded-2xl border shadow-sm hover:shadow-md transition-colors overflow-hidden group ${
         isResolved ? 'opacity-60 border-gray-200' : isPaused ? 'border-gray-300' :
         item.help_type === 'demande' ? 'border-orange-200' :
         item.help_type === 'offre'   ? 'border-emerald-200' :
@@ -211,7 +211,7 @@ export default function HelpCard({
           {userId && (
             <button type="button" onClick={() => onToggleSave(item.id)}
               title={isSaved ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-              className="p-1.5 bg-white/80 rounded-lg transition-all shadow backdrop-blur-sm hover:scale-110">
+              className="p-1.5 bg-white/80 rounded-lg transition-transform shadow backdrop-blur-sm hover:scale-110">
               {isSaved
                 ? <BookmarkCheck className="w-3.5 h-3.5 text-amber-500" />
                 : <Bookmark className="w-3.5 h-3.5 text-gray-500 hover:text-amber-500" />}
@@ -221,20 +221,20 @@ export default function HelpCard({
             <>
               {!isResolved && (
                 <button type="button" onClick={handleLocalResolve} title="Marquer résolu"
-                  className="p-1.5 bg-white/80 text-gray-600 hover:text-emerald-600 rounded-lg transition-all shadow backdrop-blur-sm opacity-0 group-hover:opacity-100">
+                  className="p-1.5 bg-white/80 text-gray-600 hover:text-emerald-600 rounded-lg transition-[colors,opacity] shadow backdrop-blur-sm opacity-0 group-hover:opacity-100">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                 </button>
               )}
               <button type="button" onClick={handleLocalPause} title={isPaused ? 'Réactiver' : 'Mettre en pause'}
-                className="p-1.5 bg-white/80 text-gray-600 hover:text-amber-600 rounded-lg transition-all shadow backdrop-blur-sm opacity-0 group-hover:opacity-100">
+                className="p-1.5 bg-white/80 text-gray-600 hover:text-amber-600 rounded-lg transition-[colors,opacity] shadow backdrop-blur-sm opacity-0 group-hover:opacity-100">
                 {isPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
               </button>
               <button type="button" onClick={() => onEdit(item)}
-                className="p-1.5 bg-white/80 text-gray-600 hover:text-blue-600 rounded-lg transition-all shadow backdrop-blur-sm opacity-0 group-hover:opacity-100">
+                className="p-1.5 bg-white/80 text-gray-600 hover:text-blue-600 rounded-lg transition-[colors,opacity] shadow backdrop-blur-sm opacity-0 group-hover:opacity-100">
                 <Pencil className="w-3.5 h-3.5" />
               </button>
               <button type="button" onClick={() => onDelete(item.id)}
-                className="p-1.5 bg-white/80 text-gray-600 hover:text-red-600 rounded-lg transition-all shadow backdrop-blur-sm opacity-0 group-hover:opacity-100">
+                className="p-1.5 bg-white/80 text-gray-600 hover:text-red-600 rounded-lg transition-[colors,opacity] shadow backdrop-blur-sm opacity-0 group-hover:opacity-100">
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             </>
@@ -397,7 +397,7 @@ export default function HelpCard({
                 />
                 {userId && localStatus === 'active' && (
                   <button type="button" onClick={() => onCanHelp(item.id, item.title)}
-                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-all">
+                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors">
                     <Check className="w-3 h-3" />
                     Je peux aider
                   </button>
@@ -408,7 +408,7 @@ export default function HelpCard({
 
           {/* Discussion */}
           <button type="button" onClick={handleOpenChat}
-            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-all flex-shrink-0 ${
+            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-colors flex-shrink-0 ${
               openChat ? 'bg-violet-100 text-violet-700 border border-violet-300' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}>
             <MessageSquare className="w-3.5 h-3.5" />
@@ -421,7 +421,7 @@ export default function HelpCard({
               <ReportButton targetType="help_request" targetId={item.id} targetTitle={item.title} variant="mini" />
             )}
             <button type="button" onClick={() => setOpenShare(!openShare)}
-              className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
+              className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
               <Share2 className="w-4 h-4" />
             </button>
             {openShare && (
@@ -473,7 +473,7 @@ export default function HelpCard({
                   className="flex-1 text-xs rounded-lg border border-orange-200 px-2 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white text-gray-700 placeholder-gray-400"
                 />
                 <button type="button" onClick={handleSend} disabled={!chatText.trim() || sending}
-                  className="p-2 rounded-lg bg-orange-50 text-orange-600 border border-orange-200 hover:bg-orange-100 disabled:opacity-40 transition-all flex-shrink-0">
+                  className="p-2 rounded-lg bg-orange-50 text-orange-600 border border-orange-200 hover:bg-orange-100 disabled:opacity-40 transition-colors flex-shrink-0">
                   {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                 </button>
               </div>

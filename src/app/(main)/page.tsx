@@ -220,7 +220,7 @@ export default function HomePage() {
                     <Link
                       key={theme.href}
                       href={theme.href}
-                      className={`group flex flex-col gap-2 p-4 rounded-2xl border-2 transition-all hover:-translate-y-0.5 hover:shadow-md ${theme.color}`}
+                      className={`group flex flex-col gap-2 p-4 rounded-2xl border-2 transition-[color,border-color,box-shadow,transform] hover:-translate-y-0.5 hover:shadow-md ${theme.color}`}
                     >
                       <div className="flex items-center gap-2">
                         <span className={`w-2 h-2 rounded-full flex-shrink-0 ${theme.dot}`} />
@@ -261,11 +261,11 @@ export default function HomePage() {
             </div>
             <div className="flex flex-col sm:flex-row gap-3 flex-shrink-0">
               <Link href="/emploi/offres"
-                className="inline-flex items-center justify-center gap-2 bg-cyan-600 text-white px-5 py-3 rounded-2xl font-black hover:bg-cyan-700 transition-all shadow-md hover:-translate-y-0.5 text-sm">
+                className="inline-flex items-center justify-center gap-2 bg-cyan-600 text-white px-5 py-3 rounded-2xl font-black hover:bg-cyan-700 transition-transform shadow-md hover:-translate-y-0.5 text-sm">
                 💼 Voir les offres <ArrowRight className="w-4 h-4" />
               </Link>
               <Link href="/emploi/demandes"
-                className="inline-flex items-center justify-center gap-2 border-2 border-purple-200 text-purple-700 px-5 py-3 rounded-2xl font-bold hover:bg-purple-50 transition-all text-sm">
+                className="inline-flex items-center justify-center gap-2 border-2 border-purple-200 text-purple-700 px-5 py-3 rounded-2xl font-bold hover:bg-purple-50 transition-colors text-sm">
                 🙋 Voir les candidats
               </Link>
             </div>
@@ -298,7 +298,7 @@ export default function HomePage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
                 {trades.map(({ icon: I, label, href, color }) => (
                   <Link key={label} href={href}
-                    className={`flex flex-col items-center gap-2 p-3 rounded-2xl border text-sm font-bold transition-all hover:-translate-y-0.5 hover:shadow-sm ${color}`}>
+                    className={`flex flex-col items-center gap-2 p-3 rounded-2xl border text-sm font-bold transition-[color,border-color,box-shadow,transform] hover:-translate-y-0.5 hover:shadow-sm ${color}`}>
                     <I className="w-5 h-5" />
                     {label}
                   </Link>
@@ -306,11 +306,11 @@ export default function HomePage() {
               </div>
               <div className="flex gap-3 flex-wrap">
                 <Link href="/artisans/demande"
-                  className="inline-flex items-center gap-2 bg-brand-600 text-white px-6 py-3.5 rounded-2xl font-black hover:bg-brand-700 transition-all shadow-lg hover:-translate-y-0.5 text-sm">
+                  className="inline-flex items-center gap-2 bg-brand-600 text-white px-6 py-3.5 rounded-2xl font-black hover:bg-brand-700 transition-transform shadow-lg hover:-translate-y-0.5 text-sm">
                   Déposer ma demande <ArrowRight className="w-4 h-4" />
                 </Link>
                 <Link href="/artisans"
-                  className="inline-flex items-center gap-2 border-2 border-brand-200 text-brand-700 px-6 py-3.5 rounded-2xl font-bold hover:bg-brand-50 transition-all text-sm">
+                  className="inline-flex items-center gap-2 border-2 border-brand-200 text-brand-700 px-6 py-3.5 rounded-2xl font-bold hover:bg-brand-50 transition-colors text-sm">
                   Voir les artisans
                 </Link>
               </div>
@@ -373,7 +373,7 @@ export default function HomePage() {
                   ))}
                 </div>
                 <Link href={card.href}
-                  className={`w-full flex items-center justify-center gap-2 border-2 font-bold py-3 rounded-2xl transition-all text-sm ${card.ctaStyle}`}>
+                  className={`w-full flex items-center justify-center gap-2 border-2 font-bold py-3 rounded-2xl transition-colors text-sm ${card.ctaStyle}`}>
                   {card.cta} <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -407,7 +407,7 @@ export default function HomePage() {
               { href: '/artisans/metier/peinture',       emoji: '🎨', title: 'Peintres à Biguglia',        desc: 'Peinture intérieure, extérieure, ravalement',           color: 'from-pink-50 to-pink-100 border-pink-200 text-pink-700' },
             ].map(card => (
               <Link key={card.href} href={card.href}>
-                <div className={`bg-gradient-to-br ${card.color} border rounded-2xl p-4 hover:shadow-md hover:-translate-y-0.5 transition-all h-full flex items-start gap-3`}>
+                <div className={`bg-gradient-to-br ${card.color} border rounded-2xl p-4 hover:shadow-md hover:-translate-y-0.5 transition-[color,border-color,box-shadow,transform] h-full flex items-start gap-3`}>
                   <span className="text-2xl flex-shrink-0">{card.emoji}</span>
                   <div>
                     <p className="font-black text-sm">{card.title}</p>
@@ -441,12 +441,12 @@ export default function HomePage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/inscription"
-              className="group inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white px-10 py-5 rounded-2xl font-black text-lg shadow-2xl hover:-translate-y-1 transition-all">
+              className="group inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white px-10 py-5 rounded-2xl font-black text-lg shadow-2xl hover:-translate-y-1 transition-transform">
               Créer mon compte gratuit
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link href="/connexion"
-              className="inline-flex items-center justify-center gap-2 border-2 border-white/20 text-white px-10 py-5 rounded-2xl font-bold text-lg hover:bg-white/10 transition-all">
+              className="inline-flex items-center justify-center gap-2 border-2 border-white/20 text-white px-10 py-5 rounded-2xl font-bold text-lg hover:bg-white/10 transition-colors">
               J&apos;ai déjà un compte
             </Link>
           </div>

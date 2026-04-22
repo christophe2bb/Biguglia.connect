@@ -45,7 +45,7 @@ export default function AssociationForm({
       <div className="flex gap-1.5 mb-6 overflow-x-auto pb-1">
         {FORM_STEPS.map((s, i) => (
           <button key={i} type="button" onClick={() => setStep(i + 1)}
-            className={cn('flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all',
+            className={cn('flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-colors',
               step === i + 1 ? 'bg-violet-500 text-white' :
               step > i + 1 ? 'bg-violet-100 text-violet-600' : 'bg-gray-100 text-gray-400')}>
             {step > i + 1 ? '✓ ' : `${i + 1}. `}{s}
@@ -62,7 +62,7 @@ export default function AssociationForm({
               const PubIcon = conf.icon;
               return (
                 <button key={key} type="button" onClick={() => setForm(f => ({ ...f, pub_type: key }))}
-                  className={cn('flex flex-col items-center gap-2 p-3 rounded-xl border-2 text-xs font-bold transition-all text-center',
+                  className={cn('flex flex-col items-center gap-2 p-3 rounded-xl border-2 text-xs font-bold transition-colors text-center',
                     form.pub_type === key ? 'border-violet-400 bg-violet-50 text-violet-700' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300')}>
                   <span className="text-2xl">{conf.emoji}</span>
                   <PubIcon className="w-4 h-4 opacity-60" />
@@ -98,7 +98,7 @@ export default function AssociationForm({
                 const Icon = conf.icon;
                 return (
                   <button key={key} type="button" onClick={() => setForm(f => ({ ...f, category: key }))}
-                    className={cn('flex flex-col items-center gap-1 p-2 rounded-xl border text-xs font-semibold transition-all',
+                    className={cn('flex flex-col items-center gap-1 p-2 rounded-xl border text-xs font-semibold transition-colors',
                       form.category === key ? 'border-violet-400 bg-violet-50 text-violet-700' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300')}>
                     <span className="text-lg">{conf.emoji}</span>
                     <Icon className={cn('w-4 h-4', form.category === key ? 'text-violet-600' : conf.color)} />
@@ -152,7 +152,7 @@ export default function AssociationForm({
             <div className="flex flex-wrap gap-2">
               {PUBLIC_OPTIONS.map(p => (
                 <button key={p} type="button" onClick={() => onToggle('public_target', p)}
-                  className={cn('px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all',
+                  className={cn('px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors',
                     form.public_target.includes(p) ? 'bg-violet-100 text-violet-700 border-violet-300' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
                   {p}
                 </button>
@@ -180,7 +180,7 @@ export default function AssociationForm({
             <div className="flex flex-wrap gap-2">
               {ACTIVITY_OPTIONS.map(a => (
                 <button key={a} type="button" onClick={() => onToggle('activities', a)}
-                  className={cn('px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all',
+                  className={cn('px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors',
                     form.activities.includes(a) ? 'bg-violet-100 text-violet-700 border-violet-300' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
                   {a}
                 </button>
@@ -207,7 +207,7 @@ export default function AssociationForm({
             <div className="flex gap-2 flex-wrap mb-2">
               {[['gratuit','Gratuit'],['cotisation','Cotisation annuelle'],['libre','Participation libre'],['autre','Autre']].map(([v,l]) => (
                 <button key={v} type="button" onClick={() => setForm(f => ({ ...f, price_type: v }))}
-                  className={cn('px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all',
+                  className={cn('px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors',
                     form.price_type === v ? 'bg-violet-100 text-violet-700 border-violet-300' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
                   {l}
                 </button>
@@ -225,7 +225,7 @@ export default function AssociationForm({
             <div className="flex flex-wrap gap-2">
               {TAG_OPTIONS.map(t => (
                 <button key={t} type="button" onClick={() => onToggle('tags', t)}
-                  className={cn('px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all',
+                  className={cn('px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors',
                     form.tags.includes(t) ? 'bg-violet-100 text-violet-700 border-violet-300' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
                   # {t}
                 </button>
@@ -248,7 +248,7 @@ export default function AssociationForm({
             <div className="flex flex-wrap gap-2">
               {NEEDS_OPTIONS.map(n => (
                 <button key={n} type="button" onClick={() => onToggle('needs', n)}
-                  className={cn('px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all',
+                  className={cn('px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors',
                     form.needs.includes(n) ? 'bg-rose-100 text-rose-700 border-rose-300' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
                   {n}
                 </button>
@@ -304,7 +304,7 @@ export default function AssociationForm({
             ))}
             {photos.length < 6 && (
               <button type="button" onClick={() => photoRef.current?.click()}
-                className="w-24 h-24 rounded-xl border-2 border-dashed border-violet-300 flex flex-col items-center justify-center text-violet-400 hover:bg-violet-50 transition-all">
+                className="w-24 h-24 rounded-xl border-2 border-dashed border-violet-300 flex flex-col items-center justify-center text-violet-400 hover:bg-violet-50 transition-colors">
                 <Camera className="w-6 h-6" /><span className="text-xs mt-1">Photo</span>
               </button>
             )}
@@ -411,7 +411,7 @@ export default function AssociationForm({
 
           <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
             <button type="button" onClick={() => onSubmit(false)} disabled={submitting}
-              className="flex items-center gap-2 font-bold px-6 py-2.5 rounded-xl text-white text-sm bg-violet-500 hover:bg-violet-600 disabled:opacity-50 transition-all">
+              className="flex items-center gap-2 font-bold px-6 py-2.5 rounded-xl text-white text-sm bg-violet-500 hover:bg-violet-600 disabled:opacity-50 transition-colors">
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               🏛️ {editingAsso ? 'Enregistrer' : 'Publier la fiche'}
             </button>

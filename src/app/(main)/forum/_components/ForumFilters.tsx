@@ -108,7 +108,7 @@ export function ForumFilters({
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
               placeholder="Voirie, éclairage, fête, voisinage, idée…"
-              className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-300 focus:bg-white transition-all"
+              className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-300 focus:bg-white transition-colors"
             />
             {searchInput && (
               <button type="button" onClick={() => { setSearchInput(''); }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -122,7 +122,7 @@ export function ForumFilters({
           <button
             type="button"
             onClick={() => setShowFilters(v => !v)}
-            className={cn('px-3 py-2.5 rounded-xl text-sm font-bold border transition-all flex items-center gap-1.5 flex-shrink-0',
+            className={cn('px-3 py-2.5 rounded-xl text-sm font-bold border transition-colors flex items-center gap-1.5 flex-shrink-0',
               showFilters || activeFiltersCount > 0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}
           >
             <Filter className="w-4 h-4" />
@@ -144,7 +144,7 @@ export function ForumFilters({
                   return (
                     <button key={key}
                       onClick={() => setSelectedType(selectedType === key ? null : key)}
-                      className={cn('inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border font-semibold transition-all',
+                      className={cn('inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border font-semibold transition-colors',
                         selectedType === key ? cn(cfg.bg, cfg.color, cfg.border) : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
                       <I className="w-3 h-3" /> {cfg.label}
                     </button>
@@ -160,7 +160,7 @@ export function ForumFilters({
                 <div className="flex gap-1.5">
                   {([{ val: 'all', label: 'Tous' }, { val: 'ouvert', label: '🟢 Ouverts' }, { val: 'resolu', label: '✅ Résolus' }] as const).map(s => (
                     <button key={s.val} onClick={() => setStatusFilter(s.val)}
-                      className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-all', statusFilter === s.val ? 'bg-violet-600 text-white border-violet-600 shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
+                      className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-colors', statusFilter === s.val ? 'bg-violet-600 text-white border-violet-600 shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
                       {s.label}
                     </button>
                   ))}
@@ -172,11 +172,11 @@ export function ForumFilters({
                 <p className="text-xs font-black text-gray-500 mb-1.5 block uppercase tracking-wide">Urgence</p>
                 <div className="flex gap-1.5">
                   <button onClick={() => setUrgencyFilter('all')}
-                    className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-all', urgencyFilter === 'all' ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
+                    className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-colors', urgencyFilter === 'all' ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
                     Tous
                   </button>
                   <button onClick={() => setUrgencyFilter('haute')}
-                    className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-all', urgencyFilter === 'haute' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-500 border-gray-200 hover:bg-red-50')}>
+                    className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-colors', urgencyFilter === 'haute' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-500 border-gray-200 hover:bg-red-50')}>
                     🚨 Urgents
                   </button>
                 </div>
@@ -186,10 +186,10 @@ export function ForumFilters({
               <div>
                 <p className="text-xs font-black text-gray-500 mb-1.5 block uppercase tracking-wide">Vue</p>
                 <div className="flex gap-1.5">
-                  <button onClick={() => setViewMode('list')} className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1', viewMode === 'list' ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
+                  <button onClick={() => setViewMode('list')} className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-colors flex items-center justify-center gap-1', viewMode === 'list' ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
                     <List className="w-3.5 h-3.5" /> Liste
                   </button>
-                  <button onClick={() => setViewMode('grid')} className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1', viewMode === 'grid' ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
+                  <button onClick={() => setViewMode('grid')} className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-colors flex items-center justify-center gap-1', viewMode === 'grid' ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
                     <LayoutGrid className="w-3.5 h-3.5" /> Grille
                   </button>
                 </div>
@@ -197,7 +197,7 @@ export function ForumFilters({
             </div>
 
             {activeFiltersCount > 0 && (
-              <button onClick={clearFilters} className="w-full text-xs text-red-500 hover:text-red-700 py-2 border border-red-200 rounded-xl bg-red-50 hover:bg-red-100 transition-all font-semibold">
+              <button onClick={clearFilters} className="w-full text-xs text-red-500 hover:text-red-700 py-2 border border-red-200 rounded-xl bg-red-50 hover:bg-red-100 transition-colors font-semibold">
                 ✕ Effacer tous les filtres ({activeFiltersCount})
               </button>
             )}
@@ -215,7 +215,7 @@ export function ForumFilters({
             { key: 'views',   icon: Eye,           label: 'Vus'       },
           ] as { key: SortMode; icon: React.ComponentType<{ className?: string }>; label: string }[]).map(s => (
             <button key={s.key} onClick={() => setSortMode(s.key)}
-              className={cn('flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all',
+              className={cn('flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors',
                 sortMode === s.key ? 'bg-violet-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50')}>
               <s.icon className="w-3.5 h-3.5 flex-shrink-0" />
               <span className="hidden sm:inline">{s.label}</span>
@@ -234,7 +234,7 @@ export function ForumFilters({
               onClick={() => setViewMode('list')}
               aria-label="Affichage liste"
               aria-pressed={viewMode === 'list'}
-              className={cn('p-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400', viewMode === 'list' ? 'bg-violet-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600')}
+              className={cn('p-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400', viewMode === 'list' ? 'bg-violet-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600')}
             >
               <List className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
@@ -242,7 +242,7 @@ export function ForumFilters({
               onClick={() => setViewMode('grid')}
               aria-label="Affichage grille"
               aria-pressed={viewMode === 'grid'}
-              className={cn('p-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400', viewMode === 'grid' ? 'bg-violet-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600')}
+              className={cn('p-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400', viewMode === 'grid' ? 'bg-violet-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600')}
             >
               <LayoutGrid className="w-3.5 h-3.5" aria-hidden="true" />
             </button>

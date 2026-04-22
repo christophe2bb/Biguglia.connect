@@ -54,9 +54,9 @@ export function HelpersList({ participants, loadingPart, isAuthor, onAccept, onD
               {isAuthor && p.state === 'pending' && (
                 <div className="flex gap-1">
                   <button type="button" onClick={() => onAccept(p.id)}
-                    className="text-xs bg-emerald-500 text-white px-2 py-1 rounded-lg hover:bg-emerald-600 transition-all">✓</button>
+                    className="text-xs bg-emerald-500 text-white px-2 py-1 rounded-lg hover:bg-emerald-600 transition-colors">✓</button>
                   <button type="button" onClick={() => onDecline(p.id)}
-                    className="text-xs bg-gray-300 text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-400 transition-all">✗</button>
+                    className="text-xs bg-gray-300 text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-400 transition-colors">✗</button>
                 </div>
               )}
             </div>
@@ -130,7 +130,7 @@ export function Discussion({
               className="w-full text-sm rounded-xl border border-gray-200 px-4 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white text-gray-700 placeholder-gray-400" />
           </div>
           <button type="button" onClick={onSend} disabled={!commentText.trim() || sendingComment}
-            className="p-3 rounded-xl bg-orange-50 text-orange-600 border border-orange-200 hover:bg-orange-100 disabled:opacity-40 transition-all flex-shrink-0">
+            className="p-3 rounded-xl bg-orange-50 text-orange-600 border border-orange-200 hover:bg-orange-100 disabled:opacity-40 transition-colors flex-shrink-0">
             {sendingComment ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>
         </div>

@@ -109,14 +109,14 @@ export default async function DemandesEmploiPage({ searchParams }: PageProps) {
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/emploi/demandes/publier"
-                className="inline-flex items-center gap-2 px-5 py-3 bg-white text-purple-600 font-bold rounded-xl shadow-lg hover:bg-purple-50 transition-all hover:scale-105 active:scale-100"
+                className="inline-flex items-center gap-2 px-5 py-3 bg-white text-purple-600 font-bold rounded-xl shadow-lg hover:bg-purple-50 transition-[colors,transform] hover:scale-105 active:scale-100"
               >
                 <Plus className="w-5 h-5" />
                 Déposer ma demande
               </Link>
               <Link
                 href="/emploi/offres"
-                className="inline-flex items-center gap-2 px-5 py-3 bg-white/20 text-white font-semibold rounded-xl border border-white/30 hover:bg-white/30 transition-all backdrop-blur-sm"
+                className="inline-flex items-center gap-2 px-5 py-3 bg-white/20 text-white font-semibold rounded-xl border border-white/30 hover:bg-white/30 transition-colors backdrop-blur-sm"
               >
                 <Briefcase className="w-4 h-4" />
                 Voir les offres

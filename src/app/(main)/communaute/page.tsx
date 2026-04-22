@@ -149,13 +149,13 @@ export default async function CommunautePage() {
 
           <div className="flex flex-col sm:flex-row justify-center gap-3">
             <Link href="/inscription"
-              className="inline-flex items-center justify-center gap-2 bg-white text-brand-700 font-black px-6 py-3 rounded-2xl hover:bg-brand-50 transition-all shadow-lg text-sm">
+              className="inline-flex items-center justify-center gap-2 bg-white text-brand-700 font-black px-6 py-3 rounded-2xl hover:bg-brand-50 transition-colors shadow-lg text-sm">
               <Sparkles className="w-4 h-4" />
               Rejoindre gratuitement
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link href="/artisans"
-              className="inline-flex items-center justify-center gap-2 border border-white/30 text-white/90 font-bold px-6 py-3 rounded-2xl hover:bg-white/10 transition-all text-sm">
+              className="inline-flex items-center justify-center gap-2 border border-white/30 text-white/90 font-bold px-6 py-3 rounded-2xl hover:bg-white/10 transition-colors text-sm">
               Voir les artisans
             </Link>
           </div>
@@ -200,7 +200,7 @@ export default async function CommunautePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {ar.map(artisan => (
                 <Link key={artisan.id} href={`/artisans/${artisan.id}`}>
-                  <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-all hover:-translate-y-0.5 group h-full">
+                  <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-[color,border-color,box-shadow,transform] hover:-translate-y-0.5 group h-full">
                     <div className="flex items-center gap-3 mb-3">
                       <Avatar src={artisan.avatar_url} name={artisan.full_name} size="md" />
                       <div className="flex-1 min-w-0">
@@ -405,12 +405,12 @@ export default async function CommunautePage() {
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-3">
               <Link href="/inscription"
-                className="inline-flex items-center justify-center gap-2 bg-white text-brand-700 font-black px-8 py-3 rounded-2xl hover:bg-brand-50 transition-all shadow-lg text-sm">
+                className="inline-flex items-center justify-center gap-2 bg-white text-brand-700 font-black px-8 py-3 rounded-2xl hover:bg-brand-50 transition-colors shadow-lg text-sm">
                 <Sparkles className="w-4 h-4" />
                 Rejoindre gratuitement
               </Link>
               <Link href="/coups-de-main"
-                className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-bold px-6 py-3 rounded-2xl hover:bg-white/10 transition-all text-sm">
+                className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-bold px-6 py-3 rounded-2xl hover:bg-white/10 transition-colors text-sm">
                 <Heart className="w-4 h-4" />
                 Offrir un coup de main
               </Link>

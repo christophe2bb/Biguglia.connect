@@ -155,7 +155,7 @@ export default function HomeSection({ section }: HomeSectionProps) {
           {section.ctaUrl && section.ctaLabel && !section.isEmpty && (
             <Link
               href={section.ctaUrl}
-              className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs font-black text-white bg-white/20 hover:bg-white/30 backdrop-blur-sm px-3.5 py-2 rounded-xl transition-all border border-white/20 hover:border-white/40 shadow-sm"
+              className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs font-black text-white bg-white/20 hover:bg-white/30 backdrop-blur-sm px-3.5 py-2 rounded-xl transition-colors border border-white/20 hover:border-white/40 shadow-sm"
             >
               {section.ctaLabel}
               <ArrowRight className="w-3.5 h-3.5" />

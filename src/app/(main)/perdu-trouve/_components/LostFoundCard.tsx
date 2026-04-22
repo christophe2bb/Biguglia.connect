@@ -125,7 +125,7 @@ export default function LostFoundCard({
   );
 
   return (
-    <div id={item.id} className={`bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all overflow-hidden ${
+    <div id={item.id} className={`bg-white rounded-2xl border shadow-sm hover:shadow-md transition-colors overflow-hidden ${
       !isActive
         ? 'opacity-70 border-gray-200'
         : item.status === 'identifie'
@@ -383,7 +383,7 @@ export default function LostFoundCard({
               setOpenChat(w);
               if (w) { fetchComments(); setTimeout(() => inputRef.current?.focus(), 200); }
             }}
-            className={`inline-flex items-center gap-1.5 font-bold px-3 py-2 rounded-xl text-xs border transition-all ${
+            className={`inline-flex items-center gap-1.5 font-bold px-3 py-2 rounded-xl text-xs border transition-colors ${
               openChat ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
             }`}>
             <MessageSquare className="w-3.5 h-3.5" />
@@ -394,7 +394,7 @@ export default function LostFoundCard({
           {/* Partager */}
           <div ref={shareRef} className="relative">
             <button onClick={e => { e.stopPropagation(); setOpenShare(v => !v); }}
-              className="inline-flex items-center gap-1.5 font-bold px-3 py-2 rounded-xl text-xs border border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 transition-all">
+              className="inline-flex items-center gap-1.5 font-bold px-3 py-2 rounded-xl text-xs border border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 transition-colors">
               <Share2 className="w-3.5 h-3.5" /> Partager
             </button>
             {openShare && (
@@ -463,7 +463,7 @@ export default function LostFoundCard({
                   className="flex-1 text-xs rounded-lg border border-blue-200 px-2.5 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white"
                 />
                 <button onClick={handleSend} disabled={!chatText.trim() || sending}
-                  className="p-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 disabled:opacity-40 transition-all flex-shrink-0">
+                  className="p-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 disabled:opacity-40 transition-colors flex-shrink-0">
                   {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                 </button>
               </div>

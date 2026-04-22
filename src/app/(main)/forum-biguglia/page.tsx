@@ -280,11 +280,11 @@ export default async function ForumBigugliaPage() {
 
           <div className="flex flex-wrap gap-3">
             <Link href="/forum"
-              className="inline-flex items-center gap-2 bg-white text-violet-700 font-black px-6 py-3 rounded-xl text-sm hover:bg-violet-50 transition-all shadow-md">
+              className="inline-flex items-center gap-2 bg-white text-violet-700 font-black px-6 py-3 rounded-xl text-sm hover:bg-violet-50 transition-colors shadow-md">
               Accéder au forum <ArrowRight className="w-4 h-4" />
             </Link>
             <Link href="/forum?action=new"
-              className="inline-flex items-center gap-2 border border-white/30 text-white font-bold px-5 py-3 rounded-xl text-sm hover:bg-white/10 transition-all">
+              className="inline-flex items-center gap-2 border border-white/30 text-white font-bold px-5 py-3 rounded-xl text-sm hover:bg-white/10 transition-colors">
               Créer un sujet
             </Link>
           </div>
@@ -306,7 +306,7 @@ export default async function ForumBigugliaPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {Object.entries(FORUM_CATEGORIES).map(([key, cat]) => (
               <Link key={key} href={`/forum?categorie=${key}`}>
-                <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-violet-200 transition-all flex flex-col items-center gap-2 text-center">
+                <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-violet-200 transition-colors flex flex-col items-center gap-2 text-center">
                   <span className="text-2xl">{cat.emoji}</span>
                   <p className="font-bold text-gray-900 text-xs">{cat.label}</p>
                 </div>
@@ -328,7 +328,7 @@ export default async function ForumBigugliaPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {TOPIC_SPOTLIGHTS.map(topic => (
               <Link key={topic.category} href={topic.href}>
-                <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md hover:border-violet-200 hover:-translate-y-0.5 transition-all h-full flex flex-col gap-3">
+                <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md hover:border-violet-200 hover:-translate-y-0.5 transition-[color,border-color,box-shadow,transform] h-full flex flex-col gap-3">
                   <div className="flex items-center gap-3">
                     <span className="text-3xl">{topic.emoji}</span>
                     <h3 className="font-black text-gray-900 text-sm">{topic.title}</h3>
@@ -394,7 +394,7 @@ export default async function ForumBigugliaPage() {
               { href: '/coups-de-main',             label: '🙏 Coups de main' },
             ].map(l => (
               <Link key={l.href} href={l.href}
-                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-all">
+                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-colors">
                 {l.label}
               </Link>
             ))}
@@ -421,7 +421,7 @@ export default async function ForumBigugliaPage() {
                 const cat = FORUM_CATEGORIES[post.category ?? 'autre'] ?? FORUM_CATEGORIES.autre;
                 return (
                   <Link key={post.id} href={`/forum/${post.id}`}>
-                    <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-all flex items-center gap-4">
+                    <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-colors flex items-center gap-4">
                       <span className="text-xl flex-shrink-0">{cat.emoji}</span>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-gray-900 text-sm truncate">{post.title}</p>
@@ -452,7 +452,7 @@ export default async function ForumBigugliaPage() {
                 Soyez le premier à poser une question ou partager une info utile pour les habitants de {GEO.city}.
               </p>
               <Link href="/forum"
-                className="inline-flex items-center gap-2 bg-violet-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-violet-700 transition-all">
+                className="inline-flex items-center gap-2 bg-violet-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-violet-700 transition-colors">
                 Accéder au forum <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -503,7 +503,7 @@ export default async function ForumBigugliaPage() {
                   { href: '/forum?action=new',           label: '+ Nouveau sujet' },
                 ].map(l => (
                   <Link key={l.href} href={l.href}
-                    className="inline-flex items-center gap-1 bg-violet-50 border border-violet-200 text-violet-700 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-violet-100 transition-all">
+                    className="inline-flex items-center gap-1 bg-violet-50 border border-violet-200 text-violet-700 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-violet-100 transition-colors">
                     {l.label}
                   </Link>
                 ))}
@@ -522,7 +522,7 @@ export default async function ForumBigugliaPage() {
                   { href: '/evenements-biguglia',       label: '🎉 Événements locaux' },
                 ].map(l => (
                   <Link key={l.href} href={l.href}
-                    className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 text-gray-600 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-all">
+                    className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 text-gray-600 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-colors">
                     {l.label}
                   </Link>
                 ))}
@@ -575,7 +575,7 @@ export default async function ForumBigugliaPage() {
               { href: '/emploi-biguglia',       emoji: '💼', title: 'Emploi local',               desc: 'Offres et candidatures à Biguglia' },
             ].map(link => (
               <Link key={link.href} href={link.href}>
-                <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-all flex items-center gap-4">
+                <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-colors flex items-center gap-4">
                   <span className="text-xl">{link.emoji}</span>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-gray-900 text-sm">{link.title}</p>
@@ -606,11 +606,11 @@ export default async function ForumBigugliaPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link href="/forum"
-                className="inline-flex items-center justify-center gap-2 bg-white text-violet-700 font-black px-6 py-3 rounded-xl text-sm hover:bg-violet-50 transition-all shadow-lg">
+                className="inline-flex items-center justify-center gap-2 bg-white text-violet-700 font-black px-6 py-3 rounded-xl text-sm hover:bg-violet-50 transition-colors shadow-lg">
                 Accéder au forum <ArrowRight className="w-4 h-4" />
               </Link>
               <Link href="/forum?action=new"
-                className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-white/10 transition-all">
+                className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-white/10 transition-colors">
                 Créer mon premier sujet
               </Link>
             </div>

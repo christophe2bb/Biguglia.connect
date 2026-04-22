@@ -45,7 +45,7 @@ export default function PromenadeCard({ p, userId, onLike, onSave }: Props) {
   ].filter(Boolean) as { label: string; emoji: string; cls: string }[];
 
   return (
-    <div className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden flex flex-col">
+    <div className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl transition-[color,border-color,box-shadow,transform] duration-300 hover:-translate-y-1 overflow-hidden flex flex-col">
 
       {/* ── Zone photo ── */}
       <div className="relative h-52 overflow-hidden flex-shrink-0">
@@ -88,7 +88,7 @@ export default function PromenadeCard({ p, userId, onLike, onSave }: Props) {
               onClick={(e) => { e.stopPropagation(); userId && onSave(p.id, !!p.user_saved); }}
               title={p.user_saved ? 'Retirer des favoris' : 'Sauvegarder'}
               className={cn(
-                'p-1.5 rounded-full shadow-md transition-all',
+                'p-1.5 rounded-full shadow-md transition-colors',
                 p.user_saved ? 'bg-amber-400 text-white' : 'bg-white/90 text-gray-400 hover:text-amber-500 hover:bg-white',
                 !userId && 'opacity-50 cursor-default'
               )}
@@ -133,7 +133,7 @@ export default function PromenadeCard({ p, userId, onLike, onSave }: Props) {
           )}
           <div className="flex items-center gap-0.5 ml-auto">
             {[1, 2, 3].map(l => (
-              <div key={l} className={cn('w-3 h-2 rounded-sm transition-all', l <= diffLevel ? diff.barColor : 'bg-gray-200')} />
+              <div key={l} className={cn('w-3 h-2 rounded-sm transition-colors', l <= diffLevel ? diff.barColor : 'bg-gray-200')} />
             ))}
           </div>
           {p.avg_rating && p.avg_rating > 0 && (
@@ -202,7 +202,7 @@ export default function PromenadeCard({ p, userId, onLike, onSave }: Props) {
               onClick={() => userId && onLike(p.id, !!p.user_liked)}
               title={p.user_liked ? 'Retirer le like' : "J'aime"}
               className={cn(
-                'flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-xl transition-all border',
+                'flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors border',
                 p.user_liked
                   ? 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100 shadow-sm'
                   : 'bg-gray-50 text-gray-400 border-gray-100 hover:text-rose-500 hover:bg-rose-50',
@@ -224,7 +224,7 @@ export default function PromenadeCard({ p, userId, onLike, onSave }: Props) {
                   toast.success('Lien copié !');
                 }
               }}
-              className="flex items-center text-xs text-gray-400 border border-gray-100 bg-gray-50 hover:bg-gray-100 px-2 py-1.5 rounded-xl transition-all"
+              className="flex items-center text-xs text-gray-400 border border-gray-100 bg-gray-50 hover:bg-gray-100 px-2 py-1.5 rounded-xl transition-colors"
               title="Partager"
             >
               <Share2 className="w-3.5 h-3.5" />

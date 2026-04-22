@@ -208,7 +208,7 @@ export default function ModerationDrawer({
               }`}>{item.completeness}%</div>
               <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                 <div
-                  className={`h-full rounded-full transition-all ${
+                  className={`h-full rounded-full transition-colors ${
                     item.completeness >= 80 ? 'bg-emerald-400' :
                     item.completeness >= 50 ? 'bg-amber-400' : 'bg-red-400'
                   }`}

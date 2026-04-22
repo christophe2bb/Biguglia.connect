@@ -308,11 +308,11 @@ export default async function AnnoncesBigugliaPage() {
 
           <div className="flex flex-wrap gap-3">
             <Link href="/annonces"
-              className="inline-flex items-center gap-2 bg-white text-emerald-700 font-black px-6 py-3 rounded-xl text-sm hover:bg-emerald-50 transition-all shadow-md">
+              className="inline-flex items-center gap-2 bg-white text-emerald-700 font-black px-6 py-3 rounded-xl text-sm hover:bg-emerald-50 transition-colors shadow-md">
               Voir toutes les annonces <ArrowRight className="w-4 h-4" />
             </Link>
             <Link href="/annonces/nouvelle"
-              className="inline-flex items-center gap-2 border border-white/30 text-white font-bold px-5 py-3 rounded-xl text-sm hover:bg-white/10 transition-all">
+              className="inline-flex items-center gap-2 border border-white/30 text-white font-bold px-5 py-3 rounded-xl text-sm hover:bg-white/10 transition-colors">
               Déposer une annonce gratuite
             </Link>
           </div>
@@ -395,7 +395,7 @@ export default async function AnnoncesBigugliaPage() {
               { href: '/collectionneurs',    label: '🏆 Collectionneurs' },
             ].map(l => (
               <Link key={l.href} href={l.href}
-                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 transition-all">
+                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 transition-colors">
                 {l.label}
               </Link>
             ))}
@@ -415,7 +415,7 @@ export default async function AnnoncesBigugliaPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {CATEGORY_EDITORIAL.map(cat => (
               <Link key={cat.href} href={cat.href}>
-                <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md hover:border-emerald-200 hover:-translate-y-0.5 transition-all h-full flex flex-col gap-3">
+                <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md hover:border-emerald-200 hover:-translate-y-0.5 transition-[color,border-color,box-shadow,transform] h-full flex flex-col gap-3">
                   <div className="flex items-center gap-3">
                     <span className="text-3xl">{cat.emoji}</span>
                     <h3 className="font-black text-gray-900 text-sm">{cat.title}</h3>
@@ -450,7 +450,7 @@ export default async function AnnoncesBigugliaPage() {
                 const cat = LISTING_CATEGORIES[a.category ?? 'autre'] ?? LISTING_CATEGORIES.autre;
                 return (
                   <Link key={a.id} href={`/annonces/${a.id}`}>
-                    <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 transition-all h-full flex flex-col gap-3">
+                    <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 transition-[color,border-color,box-shadow,transform] h-full flex flex-col gap-3">
                       <div className="flex items-center gap-2">
                         <span className="text-xl">{cat.emoji}</span>
                         <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${cat.color}`}>
@@ -479,7 +479,7 @@ export default async function AnnoncesBigugliaPage() {
                 Déposez votre première annonce gratuitement et touchez tous les habitants de {GEO.city}.
               </p>
               <Link href="/annonces/nouvelle"
-                className="inline-flex items-center gap-2 bg-emerald-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-700 transition-all">
+                className="inline-flex items-center gap-2 bg-emerald-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-700 transition-colors">
                 Déposer une annonce <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -541,11 +541,11 @@ export default async function AnnoncesBigugliaPage() {
           </p>
           <div className="flex flex-wrap gap-3">
             <Link href="/annonces?type=don"
-              className="inline-flex items-center gap-2 bg-amber-500 text-white font-black px-5 py-2.5 rounded-xl text-sm hover:bg-amber-600 transition-all shadow-sm">
+              className="inline-flex items-center gap-2 bg-amber-500 text-white font-black px-5 py-2.5 rounded-xl text-sm hover:bg-amber-600 transition-colors shadow-sm">
               🎁 Voir les dons gratuits <ArrowRight className="w-4 h-4" />
             </Link>
             <Link href="/materiel"
-              className="inline-flex items-center gap-2 border border-gray-300 text-gray-700 font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-white transition-all">
+              className="inline-flex items-center gap-2 border border-gray-300 text-gray-700 font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-white transition-colors">
               🛠️ Matériel partagé entre voisins
             </Link>
           </div>
@@ -576,7 +576,7 @@ export default async function AnnoncesBigugliaPage() {
                   { href: '/annonces?type=don',                 label: '🎁 Dons gratuits' },
                 ].map(l => (
                   <Link key={l.href} href={l.href}
-                    className="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-emerald-100 transition-all">
+                    className="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-emerald-100 transition-colors">
                     {l.label}
                   </Link>
                 ))}
@@ -595,7 +595,7 @@ export default async function AnnoncesBigugliaPage() {
                   { href: '/coups-de-main',               label: '🤝 Coups de main' },
                 ].map(l => (
                   <Link key={l.href} href={l.href}
-                    className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 text-gray-600 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 transition-all">
+                    className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 text-gray-600 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 transition-colors">
                     {l.label}
                   </Link>
                 ))}
@@ -645,7 +645,7 @@ export default async function AnnoncesBigugliaPage() {
               { href: '/coups-de-main',        emoji: '🤝', title: 'Coups de main',             desc: 'Entraide et services de voisinage' },
             ].map(l => (
               <Link key={l.href} href={l.href}>
-                <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-all flex items-center gap-3">
+                <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-colors flex items-center gap-3">
                   <span className="text-xl">{l.emoji}</span>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-gray-900 text-sm">{l.title}</p>

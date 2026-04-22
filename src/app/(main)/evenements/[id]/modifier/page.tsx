@@ -284,7 +284,7 @@ export default function ModifierEvenementPage() {
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                 {EVENT_CATEGORIES_LIST.map(c => (
                   <button type="button" key={c.id} onClick={() => setField('category', c.id)}
-                    className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 text-xs font-semibold transition-all ${
+                    className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 text-xs font-semibold transition-colors ${
                       form.category === c.id
                         ? `${c.bg} ${c.color} ${c.border}`
                         : 'border-gray-100 text-gray-500 hover:border-gray-200'
@@ -533,7 +533,7 @@ export default function ModifierEvenementPage() {
 
             {(existingPhotos.length + newPhotos.length) < 8 && (
               <button type="button" onClick={() => photoInputRef.current?.click()}
-                className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-purple-200 text-purple-500 hover:border-purple-400 hover:bg-purple-50 rounded-xl py-4 text-sm font-semibold transition-all">
+                className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-purple-200 text-purple-500 hover:border-purple-400 hover:bg-purple-50 rounded-xl py-4 text-sm font-semibold transition-colors">
                 <ImageIcon className="w-4 h-4" />
                 {existingPhotos.length + newPhotos.length === 0 ? 'Ajouter des photos' : `Ajouter (${existingPhotos.length + newPhotos.length}/8)`}
               </button>
@@ -543,11 +543,11 @@ export default function ModifierEvenementPage() {
           {/* Submit */}
           <div className="flex items-center gap-3">
             <Link href={`/evenements/${id}`}
-              className="flex-1 flex items-center justify-center gap-2 border border-gray-200 text-gray-600 font-semibold py-3 rounded-xl text-sm hover:bg-gray-50 transition-all">
+              className="flex-1 flex items-center justify-center gap-2 border border-gray-200 text-gray-600 font-semibold py-3 rounded-xl text-sm hover:bg-gray-50 transition-colors">
               <X className="w-4 h-4" /> Annuler
             </Link>
             <button type="submit" disabled={submitting || !form.title || !form.event_date}
-              className="flex-1 flex items-center justify-center gap-2 bg-purple-600 text-white font-bold py-3 rounded-xl text-sm hover:bg-purple-700 disabled:opacity-50 transition-all">
+              className="flex-1 flex items-center justify-center gap-2 bg-purple-600 text-white font-bold py-3 rounded-xl text-sm hover:bg-purple-700 disabled:opacity-50 transition-colors">
               {submitting
                 ? <><Loader2 className="w-4 h-4 animate-spin" /> Enregistrement...</>
                 : <><Save className="w-4 h-4" /> Enregistrer les modifications</>}

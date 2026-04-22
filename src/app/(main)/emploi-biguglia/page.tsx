@@ -261,11 +261,11 @@ export default async function EmploiBigugliaPage() {
 
           <div className="flex flex-wrap gap-3">
             <Link href="/emploi/offres"
-              className="inline-flex items-center gap-2 bg-white text-cyan-800 font-black px-6 py-3 rounded-xl text-sm hover:bg-cyan-50 transition-all shadow-md">
+              className="inline-flex items-center gap-2 bg-white text-cyan-800 font-black px-6 py-3 rounded-xl text-sm hover:bg-cyan-50 transition-colors shadow-md">
               💼 Voir les offres d&apos;emploi <ArrowRight className="w-4 h-4" />
             </Link>
             <Link href="/emploi/demandes"
-              className="inline-flex items-center gap-2 border border-white/30 text-white font-bold px-5 py-3 rounded-xl text-sm hover:bg-white/10 transition-all">
+              className="inline-flex items-center gap-2 border border-white/30 text-white font-bold px-5 py-3 rounded-xl text-sm hover:bg-white/10 transition-colors">
               🙋 Candidats disponibles
             </Link>
           </div>
@@ -336,7 +336,7 @@ export default async function EmploiBigugliaPage() {
               { href: '/forum-biguglia',          label: '💬 Forum : conseils carrière' },
             ].map(l => (
               <Link key={l.href} href={l.href}
-                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-cyan-50 hover:border-cyan-200 hover:text-cyan-700 transition-all">
+                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-cyan-50 hover:border-cyan-200 hover:text-cyan-700 transition-colors">
                 {l.label}
               </Link>
             ))}
@@ -356,7 +356,7 @@ export default async function EmploiBigugliaPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {JOB_SECTORS.map(sector => (
               <Link key={sector.slug} href={sector.href}>
-                <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md hover:border-cyan-200 hover:-translate-y-0.5 transition-all h-full flex flex-col gap-3">
+                <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md hover:border-cyan-200 hover:-translate-y-0.5 transition-[color,border-color,box-shadow,transform] h-full flex flex-col gap-3">
                   <div className="flex items-center gap-3">
                     <span className="text-3xl">{sector.emoji}</span>
                     <h3 className="font-black text-gray-900 text-sm">{sector.title}</h3>
@@ -388,7 +388,7 @@ export default async function EmploiBigugliaPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {offers.map(o => (
                 <Link key={o.id} href={`/emploi/offres/${o.id}`}>
-                  <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-all h-full">
+                  <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-colors h-full">
                     <p className="font-bold text-gray-900 text-sm mb-2 line-clamp-2">{o.title}</p>
                     <div className="flex items-center gap-2 flex-wrap">
                       {o.contract_type && (
@@ -424,7 +424,7 @@ export default async function EmploiBigugliaPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {demands.map(d => (
                 <Link key={d.id} href={`/emploi/demandes/${d.id}`}>
-                  <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-all h-full">
+                  <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-colors h-full">
                     <p className="font-bold text-gray-900 text-sm mb-2 line-clamp-2">{d.title}</p>
                     <div className="flex items-center gap-2 flex-wrap">
                       {d.contract_type && (
@@ -496,7 +496,7 @@ export default async function EmploiBigugliaPage() {
             <h3 className="font-black text-lg mb-1">Vous recrutez à {GEO.city} ?</h3>
             <p className="text-white/75 text-sm mb-4 leading-relaxed">Publiez votre offre d&apos;emploi gratuitement. Visible par tous les habitants de Biguglia et des communes voisines.</p>
             <Link href="/emploi/publier"
-              className="inline-flex items-center gap-2 bg-white text-cyan-700 font-black px-4 py-2 rounded-xl text-sm hover:bg-cyan-50 transition-all">
+              className="inline-flex items-center gap-2 bg-white text-cyan-700 font-black px-4 py-2 rounded-xl text-sm hover:bg-cyan-50 transition-colors">
               Publier une offre <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -505,7 +505,7 @@ export default async function EmploiBigugliaPage() {
             <h3 className="font-black text-lg mb-1">Vous cherchez un emploi ?</h3>
             <p className="text-white/75 text-sm mb-4 leading-relaxed">Déposez votre profil et soyez contacté par les employeurs locaux de Biguglia — sans CV papier ni intermédiaire.</p>
             <Link href="/emploi/demandes/publier"
-              className="inline-flex items-center gap-2 bg-white text-purple-700 font-black px-4 py-2 rounded-xl text-sm hover:bg-purple-50 transition-all">
+              className="inline-flex items-center gap-2 bg-white text-purple-700 font-black px-4 py-2 rounded-xl text-sm hover:bg-purple-50 transition-colors">
               Déposer mon profil <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -535,7 +535,7 @@ export default async function EmploiBigugliaPage() {
                   { href: '/emploi/publier',         label: '+ Publier une offre' },
                 ].map(l => (
                   <Link key={l.href} href={l.href}
-                    className="inline-flex items-center gap-1 bg-cyan-50 border border-cyan-200 text-cyan-700 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-cyan-100 transition-all">
+                    className="inline-flex items-center gap-1 bg-cyan-50 border border-cyan-200 text-cyan-700 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-cyan-100 transition-colors">
                     {l.label}
                   </Link>
                 ))}
@@ -554,7 +554,7 @@ export default async function EmploiBigugliaPage() {
                   { href: '/annonces-biguglia',              label: '📦 Petites annonces' },
                 ].map(l => (
                   <Link key={l.href} href={l.href}
-                    className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 text-gray-600 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-purple-50 hover:border-purple-200 hover:text-purple-700 transition-all">
+                    className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 text-gray-600 font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-purple-50 hover:border-purple-200 hover:text-purple-700 transition-colors">
                     {l.label}
                   </Link>
                 ))}
@@ -604,7 +604,7 @@ export default async function EmploiBigugliaPage() {
               { href: '/communaute',            emoji: '🏘️', title: 'Communauté',             desc: 'Membres actifs de Biguglia' },
             ].map(l => (
               <Link key={l.href} href={l.href}>
-                <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-all flex items-center gap-3">
+                <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-colors flex items-center gap-3">
                   <span className="text-xl">{l.emoji}</span>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-gray-900 text-sm">{l.title}</p>

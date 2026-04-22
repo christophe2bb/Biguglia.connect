@@ -18,7 +18,7 @@ function EventCard({ event }: { event: EventItem }) {
   return (
     <Link
       href={`/evenements/${event.id}`}
-      className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:border-purple-200 hover:shadow-md transition-all group"
+      className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:border-purple-200 hover:shadow-md transition-colors group"
     >
       {/* Cover or placeholder */}
       <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">

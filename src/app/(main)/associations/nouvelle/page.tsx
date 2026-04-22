@@ -116,13 +116,13 @@ export default function NouvelleAssociationPage() {
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
               href={`/connexion?redirect_to=/associations/nouvelle`}
-              className="inline-flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-black px-6 py-3 rounded-xl text-sm transition-all shadow-md"
+              className="inline-flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-black px-6 py-3 rounded-xl text-sm transition-colors shadow-md"
             >
               <LogIn className="w-4 h-4" /> Se connecter
             </Link>
             <Link
               href={`/inscription?redirect_to=/associations/nouvelle`}
-              className="inline-flex items-center justify-center gap-2 border border-violet-300 text-violet-700 hover:bg-violet-50 font-bold px-6 py-3 rounded-xl text-sm transition-all"
+              className="inline-flex items-center justify-center gap-2 border border-violet-300 text-violet-700 hover:bg-violet-50 font-bold px-6 py-3 rounded-xl text-sm transition-colors"
             >
               Créer un compte <ArrowRight className="w-4 h-4" />
             </Link>

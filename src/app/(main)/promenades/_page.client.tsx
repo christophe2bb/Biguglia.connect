@@ -165,23 +165,23 @@ export default function PromenadePage() {
               {profile ? (
                 <button
                   onClick={() => { setActiveTab('itineraires'); promenadHook.setShowForm(true); setTimeout(() => window.scrollTo({ top: 500, behavior: 'smooth' }), 100); }}
-                  className="inline-flex items-center justify-center gap-2 bg-white text-emerald-700 font-black px-7 py-3.5 rounded-2xl hover:bg-emerald-50 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-0.5 text-sm w-full lg:w-auto">
+                  className="inline-flex items-center justify-center gap-2 bg-white text-emerald-700 font-black px-7 py-3.5 rounded-2xl hover:bg-emerald-50 transition-[color,border-color,box-shadow,transform] shadow-xl hover:shadow-2xl hover:-translate-y-0.5 text-sm w-full lg:w-auto">
                   <Plus className="w-5 h-5" /> Partager un itinéraire
                 </button>
               ) : (
                 <Link href="/connexion"
-                  className="inline-flex items-center justify-center gap-2 bg-white text-emerald-700 font-black px-7 py-3.5 rounded-2xl hover:bg-emerald-50 transition-all shadow-xl text-sm w-full lg:w-auto">
+                  className="inline-flex items-center justify-center gap-2 bg-white text-emerald-700 font-black px-7 py-3.5 rounded-2xl hover:bg-emerald-50 transition-colors shadow-xl text-sm w-full lg:w-auto">
                   <Plus className="w-5 h-5" /> Partager un itinéraire
                 </Link>
               )}
               <button
                 onClick={() => { setActiveTab('agenda'); setTimeout(() => window.scrollTo({ top: 500, behavior: 'smooth' }), 100); }}
-                className="inline-flex items-center justify-center gap-2 bg-white/15 border border-white/30 text-white font-bold px-7 py-3 rounded-2xl hover:bg-white/25 transition-all text-sm w-full lg:w-auto">
+                className="inline-flex items-center justify-center gap-2 bg-white/15 border border-white/30 text-white font-bold px-7 py-3 rounded-2xl hover:bg-white/25 transition-colors text-sm w-full lg:w-auto">
                 <Users className="w-4 h-4" /> Voir les sorties groupées
               </button>
               <button
                 onClick={() => { setActiveTab('forum'); setTimeout(() => window.scrollTo({ top: 500, behavior: 'smooth' }), 100); }}
-                className="inline-flex items-center justify-center gap-2 bg-white/10 border border-white/20 text-white/80 font-semibold px-7 py-3 rounded-2xl hover:bg-white/20 transition-all text-sm w-full lg:w-auto">
+                className="inline-flex items-center justify-center gap-2 bg-white/10 border border-white/20 text-white/80 font-semibold px-7 py-3 rounded-2xl hover:bg-white/20 transition-colors text-sm w-full lg:w-auto">
                 <MessageSquare className="w-4 h-4" /> Échanges &amp; conseils
               </button>
             </div>
@@ -202,7 +202,7 @@ export default function PromenadePage() {
                 <button key={f.id}
                   onClick={() => { setQuickFilter(quickFilter === f.id ? null : f.id); setActiveTab('itineraires'); }}
                   className={cn(
-                    'inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-full transition-all border backdrop-blur-sm',
+                    'inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-full transition-colors border backdrop-blur-sm',
                     quickFilter === f.id
                       ? 'bg-white text-emerald-700 border-white shadow-lg shadow-black/20'
                       : 'bg-white/12 border-white/25 text-white hover:bg-white/22 hover:border-white/40'
@@ -230,7 +230,7 @@ export default function PromenadePage() {
               { id: 'agenda',      label: 'Sorties groupées', icon: Users,         count: outings.length > 0 ? outings.length : undefined },
             ].map(({ id, label, icon: Icon, count }) => (
               <button key={id} onClick={() => setActiveTab(id as typeof activeTab)}
-                className={cn('flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all relative',
+                className={cn('flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-colors relative',
                   activeTab === id
                     ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-200'
                     : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50')}>
@@ -250,7 +250,7 @@ export default function PromenadePage() {
               <SectorFilter value={filterSector} onChange={setFilterSector} showAll compact label="Secteur" />
 
               <button onClick={() => setShowAdvanced(!showAdvanced)}
-                className={cn('inline-flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl border transition-all',
+                className={cn('inline-flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl border transition-colors',
                   showAdvanced || activeFiltersCount > 0
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm'
                     : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
@@ -267,7 +267,7 @@ export default function PromenadePage() {
                   onClick={() => setViewMode('grid')}
                   aria-label="Affichage grille"
                   aria-pressed={viewMode === 'grid'}
-                  className={cn('p-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400', viewMode === 'grid' ? 'bg-emerald-500 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600')}
+                  className={cn('p-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400', viewMode === 'grid' ? 'bg-emerald-500 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600')}
                 >
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
                 </button>
@@ -275,7 +275,7 @@ export default function PromenadePage() {
                   onClick={() => setViewMode('list')}
                   aria-label="Affichage liste"
                   aria-pressed={viewMode === 'list'}
-                  className={cn('p-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400', viewMode === 'list' ? 'bg-emerald-500 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600')}
+                  className={cn('p-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400', viewMode === 'list' ? 'bg-emerald-500 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600')}
                 >
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" /></svg>
                 </button>
@@ -312,7 +312,7 @@ export default function PromenadePage() {
               ].map(({ key, label, cls }) => (
                 <button key={key}
                   onClick={() => setAdvFilters(f => ({ ...f, [key]: !f[key as keyof typeof f] }))}
-                  className={cn('flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold border transition-all',
+                  className={cn('flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold border transition-colors',
                     advFilters[key as keyof typeof advFilters]
                       ? `bg-${cls}-100 text-${cls}-700 border-${cls}-300 shadow-sm`
                       : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
@@ -329,7 +329,7 @@ export default function PromenadePage() {
                   ].map(d => (
                     <button key={d.val}
                       onClick={() => setAdvFilters(f => ({ ...f, duration_max: f.duration_max === d.val ? '' : d.val }))}
-                      className={cn('flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all', advFilters.duration_max === d.val ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
+                      className={cn('flex-1 py-2.5 rounded-xl text-xs font-bold border transition-colors', advFilters.duration_max === d.val ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
                       {d.label}
                     </button>
                   ))}

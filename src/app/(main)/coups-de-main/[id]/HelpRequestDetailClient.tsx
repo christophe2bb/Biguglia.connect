@@ -58,7 +58,7 @@ export default function HelpRequestDetailClient({ item, variant }: Props) {
         <button
           type="button"
           onClick={d.toggleSave}
-          className="p-2 rounded-xl border border-gray-200 bg-white hover:bg-amber-50 transition-all"
+          className="p-2 rounded-xl border border-gray-200 bg-white hover:bg-amber-50 transition-colors"
         >
           {d.isSaved
             ? <BookmarkCheck className="w-4 h-4 text-amber-500" />
@@ -69,7 +69,7 @@ export default function HelpRequestDetailClient({ item, variant }: Props) {
           <button
             type="button"
             onClick={() => d.setOpenShare(!d.openShare)}
-            className="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-all"
+            className="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
           >
             <Share2 className="w-4 h-4 text-gray-500" />
           </button>
@@ -99,7 +99,7 @@ export default function HelpRequestDetailClient({ item, variant }: Props) {
         {d.isAuthor && (
           <Link
             href={`/coups-de-main/${item.id}/modifier`}
-            className="p-2 rounded-xl border border-gray-200 bg-white hover:bg-blue-50 transition-all"
+            className="p-2 rounded-xl border border-gray-200 bg-white hover:bg-blue-50 transition-colors"
           >
             <Pencil className="w-4 h-4 text-blue-500" />
           </Link>
@@ -199,7 +199,7 @@ export default function HelpRequestDetailClient({ item, variant }: Props) {
             type="button"
             onClick={d.handleCanHelp}
             disabled={d.helping || d.alreadyHelping}
-            className={`flex-1 flex items-center justify-center gap-2 font-bold px-4 py-2.5 rounded-xl text-sm transition-all ${
+            className={`flex-1 flex items-center justify-center gap-2 font-bold px-4 py-2.5 rounded-xl text-sm transition-colors ${
               item.help_type !== 'offre'
                 ? d.alreadyHelping
                   ? 'bg-emerald-100 text-emerald-700 border border-emerald-200 cursor-default'

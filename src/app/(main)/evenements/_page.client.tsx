@@ -138,7 +138,7 @@ export default function EvenementsPage() {
                     <button key={id}
                       onClick={() => { setQuickFilter(quickFilter === id ? null : id); setActiveTab('liste'); }}
                       className={cn(
-                        'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold border transition-all',
+                        'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold border transition-colors',
                         quickFilter === id ? 'bg-white text-purple-700 border-white shadow-md' : 'bg-white/15 text-white border-white/30 hover:bg-white/25',
                       )}>
                       <span>{emoji}</span>{label}
@@ -154,17 +154,17 @@ export default function EvenementsPage() {
               {profile ? (
                 <div className="flex-shrink-0 flex flex-col gap-2">
                   <Link href="/evenements/nouveau"
-                    className="inline-flex items-center gap-2 bg-white text-purple-700 font-black px-6 py-3 rounded-2xl hover:bg-purple-50 transition-all shadow-lg hover:-translate-y-0.5 text-sm">
+                    className="inline-flex items-center gap-2 bg-white text-purple-700 font-black px-6 py-3 rounded-2xl hover:bg-purple-50 transition-transform shadow-lg hover:-translate-y-0.5 text-sm">
                     <Plus className="w-4 h-4" /> Proposer un événement
                   </Link>
                   <button onClick={() => setActiveTab('creer')}
-                    className="inline-flex items-center justify-center gap-2 bg-white/15 border border-white/30 text-white font-semibold px-5 py-2 rounded-xl hover:bg-white/25 transition-all text-sm">
+                    className="inline-flex items-center justify-center gap-2 bg-white/15 border border-white/30 text-white font-semibold px-5 py-2 rounded-xl hover:bg-white/25 transition-colors text-sm">
                     <Plus className="w-3.5 h-3.5" /> Formulaire rapide
                   </button>
                 </div>
               ) : (
                 <Link href="/connexion"
-                  className="flex-shrink-0 inline-flex items-center gap-2 bg-white text-purple-700 font-black px-6 py-3 rounded-2xl hover:bg-purple-50 transition-all shadow-lg hover:-translate-y-0.5 text-sm">
+                  className="flex-shrink-0 inline-flex items-center gap-2 bg-white text-purple-700 font-black px-6 py-3 rounded-2xl hover:bg-purple-50 transition-transform shadow-lg hover:-translate-y-0.5 text-sm">
                   <Plus className="w-4 h-4" /> Je propose un événement
                 </Link>
               )}
@@ -186,7 +186,7 @@ export default function EvenementsPage() {
             ] as { id: ActiveTab; label: string; icon: React.ElementType; count: number }[]).map(({ id, label, icon: Icon, count }) => (
               <button key={id} onClick={() => setActiveTab(id)}
                 className={cn(
-                  'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all',
+                  'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors',
                   activeTab === id ? 'bg-purple-600 text-white shadow-md' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50',
                 )}>
                 <Icon className="w-4 h-4" /> {label}
@@ -199,7 +199,7 @@ export default function EvenementsPage() {
               </button>
             ))}
             <Link href="/communaute/evenements"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all text-purple-600 hover:bg-purple-50 border border-purple-100">
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors text-purple-600 hover:bg-purple-50 border border-purple-100">
               <Users className="w-4 h-4" /> Communauté
             </Link>
           </div>

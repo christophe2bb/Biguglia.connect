@@ -60,7 +60,7 @@ export default function StepConditions({ form, set, toggleBenefit }: Props) {
               { v: 'net',  label: '💵 Net',  desc: 'Ce que le salarié reçoit' },
               { v: 'brut', label: '📄 Brut', desc: 'Avant déductions sociales' },
             ].map(opt => (
-              <label key={opt.v} className={`flex-1 flex flex-col items-center p-3 border-2 rounded-xl cursor-pointer transition-all text-center ${
+              <label key={opt.v} className={`flex-1 flex flex-col items-center p-3 border-2 rounded-xl cursor-pointer transition-colors text-center ${
                 form.salary_type === opt.v ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'
               }`}>
                 <input type="radio" name="salary_type" value={opt.v}
@@ -71,7 +71,7 @@ export default function StepConditions({ form, set, toggleBenefit }: Props) {
                 <span className="text-xs text-gray-500 mt-0.5">{opt.desc}</span>
               </label>
             ))}
-            <label className={`flex-1 flex flex-col items-center p-3 border-2 rounded-xl cursor-pointer transition-all text-center ${
+            <label className={`flex-1 flex flex-col items-center p-3 border-2 rounded-xl cursor-pointer transition-colors text-center ${
               form.salary_type === '' ? 'border-gray-400 bg-gray-50' : 'border-gray-200 hover:border-gray-300'
             }`}>
               <input type="radio" name="salary_type" value=""
@@ -177,7 +177,7 @@ export default function StepConditions({ form, set, toggleBenefit }: Props) {
             const active = form.other_benefits.includes(b.id);
             const cls    = COLOR_CLASSES[b.color] ?? COLOR_CLASSES.blue;
             return (
-              <label key={b.id} className={`flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all ${
+              <label key={b.id} className={`flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer transition-colors ${
                 active ? cls : 'border-gray-200 bg-white hover:border-gray-300'
               }`}>
                 <input type="checkbox" checked={active} onChange={() => toggleBenefit(b.id)} className="sr-only" />

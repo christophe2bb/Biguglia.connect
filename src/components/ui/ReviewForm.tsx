@@ -192,7 +192,7 @@ export default function ReviewForm({
         <div className="flex gap-1 mt-3">
           {(['rating', 'details', 'comment'] as const).map((s, i) => (
             <div key={s} className={cn(
-              'flex-1 h-1 rounded-full transition-all',
+              'flex-1 h-1 rounded-full transition-colors',
               step === s || (['details', 'comment'].includes(step) && i === 0) || (step === 'comment' && i === 1)
                 ? 'bg-amber-500'
                 : i < ['rating', 'details', 'comment'].indexOf(step)
@@ -258,7 +258,7 @@ export default function ReviewForm({
                     type="button"
                     onClick={() => toggleTag(tag)}
                     className={cn(
-                      'text-xs font-semibold px-3 py-1.5 rounded-full border transition-all',
+                      'text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors',
                       selectedTags.has(tag)
                         ? 'bg-amber-500 text-white border-amber-500'
                         : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-amber-300',
@@ -294,7 +294,7 @@ export default function ReviewForm({
                   type="button"
                   onClick={() => setWouldRecommend(true)}
                   className={cn(
-                    'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-bold text-sm transition-all',
+                    'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-bold text-sm transition-colors',
                     wouldRecommend === true
                       ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
                       : 'border-gray-200 text-gray-500 hover:border-emerald-200',
@@ -306,7 +306,7 @@ export default function ReviewForm({
                   type="button"
                   onClick={() => setWouldRecommend(false)}
                   className={cn(
-                    'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-bold text-sm transition-all',
+                    'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-bold text-sm transition-colors',
                     wouldRecommend === false
                       ? 'bg-rose-50 border-rose-500 text-rose-700'
                       : 'border-gray-200 text-gray-500 hover:border-rose-200',

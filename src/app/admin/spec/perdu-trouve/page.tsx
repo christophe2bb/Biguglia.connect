@@ -330,7 +330,7 @@ export default function SpecPerduTrouvePage() {
             </div>
             <div className="w-full bg-white/20 rounded-full h-3 overflow-hidden">
               <div
-                className="h-3 rounded-full bg-white transition-all"
+                className="h-3 rounded-full bg-white transition-colors"
                 style={{ width: `${compliance}%` }}
               />
             </div>
@@ -351,7 +351,7 @@ export default function SpecPerduTrouvePage() {
                 setOpenModules(prev => { const n = new Set(prev); n.add(m.id); return n; });
                 document.getElementById(`module-${m.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
               }}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
+                className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
                   pct === 100 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                   pct >= 60  ? 'bg-amber-50 text-amber-700 border-amber-200' :
                                'bg-gray-50 text-gray-600 border-gray-200'
@@ -446,15 +446,15 @@ export default function SpecPerduTrouvePage() {
           </p>
           <div className="flex flex-wrap gap-3 justify-center">
             <Link href="/perdu-trouve"
-              className="inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-orange-600 transition-all">
+              className="inline-flex items-center gap-2 bg-orange-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-orange-600 transition-colors">
               <Search className="w-4 h-4" /> Voir le module
             </Link>
             <Link href="/dashboard/perdu-trouve"
-              className="inline-flex items-center gap-2 bg-white text-gray-700 font-semibold px-5 py-2.5 rounded-xl text-sm border border-gray-200 hover:bg-gray-50 transition-all">
+              className="inline-flex items-center gap-2 bg-white text-gray-700 font-semibold px-5 py-2.5 rounded-xl text-sm border border-gray-200 hover:bg-gray-50 transition-colors">
               <Users className="w-4 h-4" /> Dashboard utilisateur
             </Link>
             <Link href="/admin/migration"
-              className="inline-flex items-center gap-2 bg-white text-gray-700 font-semibold px-5 py-2.5 rounded-xl text-sm border border-gray-200 hover:bg-gray-50 transition-all">
+              className="inline-flex items-center gap-2 bg-white text-gray-700 font-semibold px-5 py-2.5 rounded-xl text-sm border border-gray-200 hover:bg-gray-50 transition-colors">
               <Database className="w-4 h-4" /> Migration SQL
             </Link>
           </div>

@@ -234,7 +234,7 @@ export default function DashboardEvenementsPage() {
               <p className="text-white/70 text-sm mt-0.5">{stats.total} événement{stats.total > 1 ? 's' : ''} créé{stats.total > 1 ? 's' : ''}</p>
             </div>
             <Link href="/evenements/nouveau"
-              className="flex items-center gap-2 bg-white text-purple-700 font-bold px-4 py-2.5 rounded-xl text-sm hover:bg-purple-50 transition-all shadow-sm">
+              className="flex items-center gap-2 bg-white text-purple-700 font-bold px-4 py-2.5 rounded-xl text-sm hover:bg-purple-50 transition-colors shadow-sm">
               <Plus className="w-4 h-4" /> Créer
             </Link>
           </div>
@@ -262,7 +262,7 @@ export default function DashboardEvenementsPage() {
           <div className="flex border-b border-gray-100">
             {TABS.map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-4 py-3 text-sm font-semibold transition-all border-b-2 ${
+                className={`flex items-center gap-1.5 px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${
                   activeTab === tab.id
                     ? 'border-purple-500 text-purple-700 bg-purple-50/50'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'

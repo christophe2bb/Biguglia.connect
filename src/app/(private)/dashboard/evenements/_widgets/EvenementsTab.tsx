@@ -37,7 +37,7 @@ export default function EvenementsTab({
         ].map(f => (
           <button key={f.id}
             onClick={() => onFilterChange(f.id as EventStatus | 'all')}
-            className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+            className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
               statusFilter === f.id ? `${f.color} ring-2 ring-offset-1 ring-purple-300` : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
             }`}>
             {f.label}

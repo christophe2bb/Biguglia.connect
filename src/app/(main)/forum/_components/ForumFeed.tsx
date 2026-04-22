@@ -64,11 +64,11 @@ function EmptyState({ activeFiltersCount, isAuthenticated, clearFilters }: {
         </button>
       ) : isAuthenticated ? (
         <button onClick={() => router.push('/forum/nouveau')}
-          className="inline-flex items-center gap-2 bg-violet-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-violet-700 transition-all shadow-sm">
+          className="inline-flex items-center gap-2 bg-violet-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-violet-700 transition-colors shadow-sm">
           <Plus className="w-4 h-4" /> Créer le premier sujet
         </button>
       ) : (
-        <Link href="/connexion" className="inline-flex items-center gap-2 bg-violet-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-violet-700 transition-all shadow-sm">
+        <Link href="/connexion" className="inline-flex items-center gap-2 bg-violet-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-violet-700 transition-colors shadow-sm">
           Se connecter pour contribuer
         </Link>
       )}
@@ -101,7 +101,7 @@ export function ForumFeed({ topics, sectors, loading, viewMode, activeFiltersCou
           <p className="text-violet-800 font-bold text-base mb-1">Rejoignez la conversation</p>
           <p className="text-violet-600 text-sm mb-4">Connectez-vous pour créer un sujet, répondre, réagir et suivre les discussions.</p>
           <Link href="/connexion">
-            <button className="inline-flex items-center gap-2 bg-violet-600 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-violet-700 transition-all shadow-sm">
+            <button className="inline-flex items-center gap-2 bg-violet-600 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-violet-700 transition-colors shadow-sm">
               Se connecter
             </button>
           </Link>

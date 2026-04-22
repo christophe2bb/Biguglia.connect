@@ -201,7 +201,7 @@ export default function ReglesPage() {
               <a
                 key={href}
                 href={href}
-                className="inline-flex items-center gap-1.5 bg-white/8 hover:bg-white/15 border border-white/12 hover:border-white/25 text-white text-sm font-medium px-4 py-2 rounded-full transition-all"
+                className="inline-flex items-center gap-1.5 bg-white/8 hover:bg-white/15 border border-white/12 hover:border-white/25 text-white text-sm font-medium px-4 py-2 rounded-full transition-colors"
               >
                 {label}
               </a>

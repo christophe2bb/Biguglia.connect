@@ -87,7 +87,7 @@ function DocumentUploader({
           type="button"
           onClick={() => ref.current?.click()}
           disabled={value.uploading}
-          className="w-full flex items-center gap-3 p-4 border-2 border-dashed border-gray-200 rounded-xl hover:border-brand-300 hover:bg-brand-50/50 transition-all disabled:opacity-60"
+          className="w-full flex items-center gap-3 p-4 border-2 border-dashed border-gray-200 rounded-xl hover:border-brand-300 hover:bg-brand-50/50 transition-colors disabled:opacity-60"
         >
           {value.uploading ? (
             <div className="w-5 h-5 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
@@ -250,7 +250,7 @@ export default function ArtisanProfilPage() {
           <button
             type="button"
             onClick={() => setForm(f => ({ ...f, artisan_type: 'professionnel' }))}
-            className={`p-4 rounded-2xl border-2 text-left transition-all ${
+            className={`p-4 rounded-2xl border-2 text-left transition-colors ${
               form.artisan_type === 'professionnel'
                 ? 'border-blue-500 bg-blue-50'
                 : 'border-gray-200 bg-white hover:border-gray-300'
@@ -280,7 +280,7 @@ export default function ArtisanProfilPage() {
           <button
             type="button"
             onClick={() => setForm(f => ({ ...f, artisan_type: 'particulier' }))}
-            className={`p-4 rounded-2xl border-2 text-left transition-all ${
+            className={`p-4 rounded-2xl border-2 text-left transition-colors ${
               form.artisan_type === 'particulier'
                 ? 'border-green-500 bg-green-50'
                 : 'border-gray-200 bg-white hover:border-gray-300'
@@ -452,7 +452,7 @@ export default function ArtisanProfilPage() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="w-full border-2 border-dashed border-gray-200 rounded-2xl p-8 text-center hover:border-brand-300 hover:bg-brand-50 transition-all duration-200"
+            className="w-full border-2 border-dashed border-gray-200 rounded-2xl p-8 text-center hover:border-brand-300 hover:bg-brand-50 transition-colors duration-200"
           >
             <Camera className="w-8 h-8 text-gray-400 mx-auto mb-2" />
             <p className="text-sm font-medium text-gray-600">Ajouter des photos de réalisations</p>

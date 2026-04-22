@@ -50,7 +50,7 @@ export default function OutingStats({ outing, activeCount, fillPct, dateLabel }:
         </div>
         <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
           <div
-            className={`h-full rounded-full transition-all ${
+            className={`h-full rounded-full transition-colors ${
               fillPct >= 100 ? 'bg-red-400' : fillPct >= 80 ? 'bg-amber-400' : 'bg-emerald-400'
             }`}
             style={{ width: `${Math.min(fillPct, 100)}%` }}

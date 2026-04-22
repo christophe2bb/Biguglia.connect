@@ -310,11 +310,11 @@ export default function SpecMaterielPage() {
           <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
             <div className="h-full flex">
               <div
-                className="bg-emerald-400 h-full transition-all"
+                className="bg-emerald-400 h-full transition-colors"
                 style={{ width: `${pctDone}%` }}
               />
               <div
-                className="bg-amber-400 h-full transition-all"
+                className="bg-amber-400 h-full transition-colors"
                 style={{ width: `${pctPartial}%` }}
               />
             </div>

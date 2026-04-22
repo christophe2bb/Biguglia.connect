@@ -100,7 +100,7 @@ export default function AssociationCard({
   const shareText = encodeURIComponent(`${asso.name} — ${asso.description_short}\n${shareUrl}`);
 
   return (
-    <div id={asso.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden group">
+    <div id={asso.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-colors overflow-hidden group">
 
       {/* Cover photo ou header coloré */}
       <div className="relative h-44 overflow-hidden">
@@ -130,14 +130,14 @@ export default function AssociationCard({
         {/* Bouton favori + auteur haut droite */}
         <div className="absolute top-3 right-3 flex gap-1">
           <button type="button" onClick={() => onToggleSave(asso.id)}
-            className={cn('p-1.5 rounded-lg backdrop-blur-sm shadow transition-all',
+            className={cn('p-1.5 rounded-lg backdrop-blur-sm shadow transition-colors',
               saved ? 'bg-yellow-400/90 text-white' : 'bg-white/80 text-gray-500 hover:text-yellow-500')}>
             {saved ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
           </button>
           {isAuthor && (
             <>
-              <button type="button" onClick={() => onEdit(asso)} className="p-1.5 bg-white/80 text-gray-600 hover:text-blue-600 rounded-lg transition-all backdrop-blur-sm shadow"><Pencil className="w-3.5 h-3.5" /></button>
-              <button type="button" onClick={() => onDelete(asso.id)} className="p-1.5 bg-white/80 text-gray-600 hover:text-red-600 rounded-lg transition-all backdrop-blur-sm shadow"><Trash2 className="w-3.5 h-3.5" /></button>
+              <button type="button" onClick={() => onEdit(asso)} className="p-1.5 bg-white/80 text-gray-600 hover:text-blue-600 rounded-lg transition-colors backdrop-blur-sm shadow"><Pencil className="w-3.5 h-3.5" /></button>
+              <button type="button" onClick={() => onDelete(asso.id)} className="p-1.5 bg-white/80 text-gray-600 hover:text-red-600 rounded-lg transition-colors backdrop-blur-sm shadow"><Trash2 className="w-3.5 h-3.5" /></button>
             </>
           )}
         </div>
@@ -337,20 +337,20 @@ export default function AssociationCard({
           {/* Ligne 2 : Discussion + Partager + Signaler */}
           <div className="flex gap-2 flex-wrap">
             <button type="button" onClick={handleOpenChat}
-              className={cn('inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm transition-all border',
+              className={cn('inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm transition-colors border',
                 openChat ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100')}>
               <MessageSquare className="w-4 h-4" />Forum
               {chatCount > 0 && <span className="bg-violet-100 text-violet-700 text-xs font-black px-1.5 py-0.5 rounded-full">{chatCount}</span>}
             </button>
 
             <Link href={`/evenements?q=${encodeURIComponent(asso.name)}`}
-              className="inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm transition-all border bg-gray-50 text-gray-500 border-gray-200 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200">
+              className="inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm transition-colors border bg-gray-50 text-gray-500 border-gray-200 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200">
               <Calendar className="w-4 h-4" />Événements
             </Link>
 
             <div ref={shareRef} className="relative">
               <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenShare(v => !v); }}
-                className={cn('inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm border transition-all',
+                className={cn('inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm border transition-colors',
                   openShare ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100')}>
                 <Share2 className="w-4 h-4" />
               </button>
@@ -407,7 +407,7 @@ export default function AssociationCard({
                   className="flex-1 text-xs rounded-lg border border-violet-200 px-2 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-violet-300 bg-white text-gray-700 placeholder-gray-400"
                 />
                 <button type="button" onClick={handleSend} disabled={!chatText.trim() || sending}
-                  className="p-2 rounded-lg bg-violet-50 text-violet-600 border border-violet-200 hover:bg-violet-100 disabled:opacity-40 transition-all flex-shrink-0">
+                  className="p-2 rounded-lg bg-violet-50 text-violet-600 border border-violet-200 hover:bg-violet-100 disabled:opacity-40 transition-colors flex-shrink-0">
                   {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                 </button>
               </div>

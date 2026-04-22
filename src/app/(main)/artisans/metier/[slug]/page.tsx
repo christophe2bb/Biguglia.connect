@@ -143,7 +143,7 @@ function ArtisanCard({ artisan }: { artisan: ArtisanRow }) {
   const displayName = artisan.business_name ?? artisan.full_name;
   return (
     <Link href={`/artisans/${artisan.id}`}>
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 transition-all h-full flex flex-col gap-3">
+      <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 transition-[color,border-color,box-shadow,transform] h-full flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <Avatar src={artisan.avatar_url} name={displayName} size="md" />
           <div className="flex-1 min-w-0">
@@ -285,11 +285,11 @@ export default async function ArtisanTradePage(
 
           <div className="flex flex-wrap gap-3">
             <Link href="/artisans"
-              className="inline-flex items-center gap-2 bg-white text-brand-700 font-black px-5 py-2.5 rounded-xl text-sm hover:bg-brand-50 transition-all shadow-md">
+              className="inline-flex items-center gap-2 bg-white text-brand-700 font-black px-5 py-2.5 rounded-xl text-sm hover:bg-brand-50 transition-colors shadow-md">
               Voir tous les artisans <ArrowRight className="w-4 h-4" />
             </Link>
             <Link href="/artisans/demande"
-              className="inline-flex items-center gap-2 border border-white/30 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-white/10 transition-all">
+              className="inline-flex items-center gap-2 border border-white/30 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-white/10 transition-colors">
               Déposer une demande
             </Link>
           </div>
@@ -357,7 +357,7 @@ export default async function ArtisanTradePage(
               { href: '/forum-biguglia',     label: '💬 Recommandations du forum local' },
             ].map(l => (
               <Link key={l.href} href={l.href}
-                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-50 hover:border-brand-200 hover:text-brand-700 transition-all">
+                className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-brand-50 hover:border-brand-200 hover:text-brand-700 transition-colors">
                 {l.label}
               </Link>
             ))}
@@ -394,7 +394,7 @@ export default async function ArtisanTradePage(
                 Vous êtes {trade.name.toLowerCase()} à {GEO.city} ? Rejoignez Biguglia Connect et soyez visible localement.
               </p>
               <Link href="/inscription/artisan-profil"
-                className="inline-flex items-center gap-2 bg-brand-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-brand-700 transition-all">
+                className="inline-flex items-center gap-2 bg-brand-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-brand-700 transition-colors">
                 Créer mon profil artisan
               </Link>
             </div>
@@ -437,7 +437,7 @@ export default async function ArtisanTradePage(
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {relatedTrades.map(rt => (
                 <Link key={rt.slug} href={`/artisans/metier/${rt.slug}`}>
-                  <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-all flex items-center gap-3">
+                  <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-colors flex items-center gap-3">
                     <span className="text-2xl">{rt.emoji}</span>
                     <div>
                       <p className="font-bold text-gray-900 text-sm">{rt.h1}</p>
@@ -449,7 +449,7 @@ export default async function ArtisanTradePage(
               ))}
               {/* Lien retour vers le hub artisans */}
               <Link href="/artisans-biguglia">
-                <div className="bg-brand-50 rounded-2xl border border-brand-200 p-4 hover:shadow-md hover:border-brand-300 transition-all flex items-center gap-3">
+                <div className="bg-brand-50 rounded-2xl border border-brand-200 p-4 hover:shadow-md hover:border-brand-300 transition-colors flex items-center gap-3">
                   <span className="text-2xl">🔧</span>
                   <div>
                     <p className="font-bold text-brand-800 text-sm">Tous les métiers</p>
@@ -477,7 +477,7 @@ export default async function ArtisanTradePage(
               Créez votre profil gratuit sur Biguglia Connect et soyez trouvé par les habitants qui cherchent un {trade.name.toLowerCase()} de confiance.
             </p>
             <Link href="/inscription/artisan-profil"
-              className="inline-flex items-center gap-2 bg-white text-brand-700 font-black px-6 py-3 rounded-xl text-sm hover:bg-brand-50 transition-all shadow-lg">
+              className="inline-flex items-center gap-2 bg-white text-brand-700 font-black px-6 py-3 rounded-xl text-sm hover:bg-brand-50 transition-colors shadow-lg">
               Créer mon profil artisan gratuitement <ArrowRight className="w-4 h-4" />
             </Link>
           </div>

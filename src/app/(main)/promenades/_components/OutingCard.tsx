@@ -90,7 +90,7 @@ export default function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit
   void dateLabel;
 
   return (
-    <div className="bg-white rounded-2xl border border-emerald-100 shadow-sm hover:shadow-md transition-all overflow-hidden group">
+    <div className="bg-white rounded-2xl border border-emerald-100 shadow-sm hover:shadow-md transition-colors overflow-hidden group">
       {/* ── Zone photo ── */}
       <div className="relative h-48 overflow-hidden">
         {outing.cover_photo ? (
@@ -132,8 +132,8 @@ export default function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit
 
         {isOrganizer && (
           <div className="absolute top-3 right-3 flex gap-1">
-            <button type="button" onClick={() => onEdit(outing)} className="p-1.5 bg-white/90 text-gray-600 hover:text-emerald-600 rounded-xl transition-all shadow-sm"><Pencil className="w-3.5 h-3.5" /></button>
-            <button type="button" onClick={() => onDelete(outing.id)} className="p-1.5 bg-white/90 text-gray-600 hover:text-red-600 rounded-xl transition-all shadow-sm"><Trash2 className="w-3.5 h-3.5" /></button>
+            <button type="button" onClick={() => onEdit(outing)} className="p-1.5 bg-white/90 text-gray-600 hover:text-emerald-600 rounded-xl transition-colors shadow-sm"><Pencil className="w-3.5 h-3.5" /></button>
+            <button type="button" onClick={() => onDelete(outing.id)} className="p-1.5 bg-white/90 text-gray-600 hover:text-red-600 rounded-xl transition-colors shadow-sm"><Trash2 className="w-3.5 h-3.5" /></button>
           </div>
         )}
 
@@ -194,13 +194,13 @@ export default function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit
           {userId ? (
             <button onClick={() => onJoin(outing.id, !!outing.user_joined)}
               disabled={isFull && !outing.user_joined}
-              className={cn('inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm transition-all disabled:opacity-50 shadow-sm',
+              className={cn('inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50 shadow-sm',
                 outing.user_joined ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200' : 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 shadow-emerald-200')}>
               <Users className="w-4 h-4" />
               {outing.user_joined ? '✓ Inscrit — Annuler' : isFull ? 'Complet' : 'Je participe'}
             </button>
           ) : (
-            <Link href="/connexion" className="inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 transition-all shadow-sm">
+            <Link href="/connexion" className="inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 transition-colors shadow-sm">
               <Users className="w-4 h-4" /> Je participe
             </Link>
           )}
@@ -244,7 +244,7 @@ export default function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit
 
           {tableOk !== false && (
             <button onClick={handleOpenChat}
-              className={cn('inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm transition-all border',
+              className={cn('inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm transition-colors border',
                 openChat ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100')}>
               <MessageSquare className="w-4 h-4" />
               Discussion
@@ -255,7 +255,7 @@ export default function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit
           )}
 
           <Link href={`/promenades/sorties/${outing.id}`}
-            className="inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm transition-all border bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100">
+            className="inline-flex items-center gap-2 font-bold px-4 py-2 rounded-xl text-sm transition-colors border bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100">
             <Eye className="w-4 h-4" /> Voir
           </Link>
 
@@ -298,7 +298,7 @@ export default function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit
                   className="flex-1 text-xs rounded-lg border border-emerald-200 px-2 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-300 bg-white text-gray-700 placeholder-gray-400"
                 />
                 <button onClick={handleSend} disabled={!chatText.trim() || sending}
-                  className="p-2 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-40 transition-all flex-shrink-0">
+                  className="p-2 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-40 transition-colors flex-shrink-0">
                   {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                 </button>
               </div>

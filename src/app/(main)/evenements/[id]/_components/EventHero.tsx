@@ -55,7 +55,7 @@ export default function EventHero({
       {/* Back */}
       <Link
         href="/evenements"
-        className="absolute top-4 left-4 flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white px-3 py-2 rounded-xl text-sm font-semibold hover:bg-white/30 transition-all"
+        className="absolute top-4 left-4 flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white px-3 py-2 rounded-xl text-sm font-semibold hover:bg-white/30 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Retour
       </Link>
@@ -66,7 +66,7 @@ export default function EventHero({
         <button
           onClick={onDownloadIcal}
           title="Ajouter au calendrier (.ics)"
-          className="p-2 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-all"
+          className="p-2 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-colors"
         >
           <Download className="w-4 h-4" />
         </button>
@@ -76,7 +76,7 @@ export default function EventHero({
           <button
             onClick={e => { e.stopPropagation(); onToggleShare(); }}
             title="Partager"
-            className="p-2 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-all"
+            className="p-2 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-colors"
           >
             <Share2 className="w-4 h-4" />
           </button>

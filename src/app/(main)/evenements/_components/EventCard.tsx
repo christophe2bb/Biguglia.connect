@@ -53,7 +53,7 @@ export default function EventCard({
     const participantCount = event.participants_count ?? 0;
     return (
       <div className={cn(
-        'bg-white rounded-xl border shadow-sm overflow-hidden transition-all',
+        'bg-white rounded-xl border shadow-sm overflow-hidden transition-colors',
         isPastEvent ? 'opacity-50 grayscale border-gray-100' : isUrgent ? 'border-purple-200' : 'border-gray-100',
         isAnnule && 'opacity-60',
       )}>
@@ -101,7 +101,7 @@ export default function EventCard({
                   onClick={() => onJoin(event.id, !!event.user_joined)}
                   disabled={isFull && !event.user_joined}
                   className={cn(
-                    'text-xs font-bold px-2.5 py-1 rounded-lg transition-all disabled:opacity-50',
+                    'text-xs font-bold px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50',
                     event.user_joined ? 'bg-gray-100 text-gray-600' : `${cat.bg} ${cat.color} border ${cat.border}`,
                   )}
                 >
@@ -131,7 +131,7 @@ export default function EventCard({
   // ── Full card ─────────────────────────────────────────────────────────────
   return (
     <div className={cn(
-      'bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 overflow-hidden group',
+      'bg-white rounded-2xl border shadow-sm hover:shadow-md transition-[color,border-color,box-shadow,transform] duration-300 hover:-translate-y-0.5 overflow-hidden group',
       isUrgent && !isAnnule ? 'border-purple-200' : isAnnule ? 'border-red-100 opacity-75' : isReporte ? 'border-amber-200' : 'border-gray-100',
     )}>
       {/* Zone photo */}
@@ -246,7 +246,7 @@ export default function EventCard({
             {event.max_participants && (
               <div className="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                 <div
-                  className={cn('h-full rounded-full transition-all', fillPct! > 80 ? 'bg-red-400' : fillPct! > 50 ? 'bg-amber-400' : 'bg-emerald-400')}
+                  className={cn('h-full rounded-full transition-colors', fillPct! > 80 ? 'bg-red-400' : fillPct! > 50 ? 'bg-amber-400' : 'bg-emerald-400')}
                   style={{ width: `${Math.min(fillPct ?? 0, 100)}%` }}
                 />
               </div>
@@ -283,12 +283,12 @@ export default function EventCard({
           <div className="flex items-center gap-2 flex-wrap">
             {onToggleSave && (
               <button onClick={() => onToggleSave(event.id)} title={isSaved ? 'Retirer des favoris' : 'Sauvegarder'}
-                className={cn('p-1.5 rounded-xl transition-all border', isSaved ? 'bg-yellow-50 text-yellow-500 border-yellow-200' : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-yellow-50 hover:text-yellow-500')}>
+                className={cn('p-1.5 rounded-xl transition-colors border', isSaved ? 'bg-yellow-50 text-yellow-500 border-yellow-200' : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-yellow-50 hover:text-yellow-500')}>
                 {isSaved ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
               </button>
             )}
             <Link href={`/evenements/${event.id}`}
-              className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-600 transition-all">
+              className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-600 transition-colors">
               <ArrowRight className="w-3 h-3" /> Voir
             </Link>
             {!isAnnule && (userId ? (
@@ -296,7 +296,7 @@ export default function EventCard({
                 onClick={() => onJoin(event.id, !!event.user_joined)}
                 disabled={isFull && !event.user_joined}
                 className={cn(
-                  'inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-all disabled:opacity-50',
+                  'inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50',
                   event.user_joined ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : `${cat.bg} ${cat.color} border ${cat.border} hover:shadow-sm`,
                 )}
               >

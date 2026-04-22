@@ -58,12 +58,12 @@ export default function ParticipantsTab({ participants, onConfirm, onCancel, onR
               </div>
               <div className="flex gap-2 flex-shrink-0">
                 <button onClick={() => onConfirm(p)}
-                  className="p-2 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200 transition-all"
+                  className="p-2 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200 transition-colors"
                   title="Confirmer">
                   <CheckCircle2 className="w-4 h-4" />
                 </button>
                 <button onClick={() => onCancel(p)}
-                  className="p-2 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 border border-red-200 transition-all"
+                  className="p-2 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 border border-red-200 transition-colors"
                   title="Retirer">
                   <XCircle className="w-4 h-4" />
                 </button>

@@ -33,7 +33,7 @@ export default function CollectionForum({
           {isLoggedIn && (
             <button
               onClick={() => setShowPostForm(!showPostForm)}
-              className="inline-flex items-center gap-2 bg-amber-500 text-white font-bold px-5 py-2.5 rounded-xl hover:bg-amber-600 transition-all text-sm"
+              className="inline-flex items-center gap-2 bg-amber-500 text-white font-bold px-5 py-2.5 rounded-xl hover:bg-amber-600 transition-colors text-sm"
             >
               <Plus className="w-4 h-4" /> Nouveau sujet
             </button>
@@ -64,7 +64,7 @@ export default function CollectionForum({
             <div className="flex gap-2">
               <button
                 type="submit" disabled={submittingPost}
-                className="flex items-center gap-2 bg-amber-500 text-white font-bold px-5 py-2 rounded-xl text-sm hover:bg-amber-600 disabled:opacity-50 transition-all"
+                className="flex items-center gap-2 bg-amber-500 text-white font-bold px-5 py-2 rounded-xl text-sm hover:bg-amber-600 disabled:opacity-50 transition-colors"
               >
                 {submittingPost ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Publication...</> : 'Publier'}
               </button>
@@ -99,7 +99,7 @@ export default function CollectionForum({
             <div className="flex gap-2">
               <button
                 type="submit" disabled={savingPost}
-                className="flex items-center gap-2 bg-blue-600 text-white font-bold px-5 py-2 rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50 transition-all"
+                className="flex items-center gap-2 bg-blue-600 text-white font-bold px-5 py-2 rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
               >
                 {savingPost ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sauvegarde...</> : 'Sauvegarder'}
               </button>
@@ -126,7 +126,7 @@ export default function CollectionForum({
             {isLoggedIn && (
               <Link
                 href="/forum/nouveau"
-                className="inline-flex items-center gap-2 bg-amber-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-amber-600 transition-all"
+                className="inline-flex items-center gap-2 bg-amber-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-amber-600 transition-colors"
               >
                 <Plus className="w-4 h-4" /> Poster dans le forum général
               </Link>
@@ -158,7 +158,7 @@ export default function CollectionForum({
             <p className="text-amber-700 font-medium mb-3">Connectez-vous pour participer aux discussions</p>
             <Link
               href="/connexion"
-              className="inline-flex items-center gap-2 bg-amber-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-amber-600 transition-all"
+              className="inline-flex items-center gap-2 bg-amber-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-amber-600 transition-colors"
             >
               Se connecter
             </Link>
@@ -204,7 +204,7 @@ function PostRow({
 }) {
   // Note: we pass `isLoggedIn` here as a proxy; actual ownership checked in the hook
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:border-amber-200 hover:shadow-sm transition-all group">
+    <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:border-amber-200 hover:shadow-sm transition-colors group">
       <div className="flex items-start justify-between gap-3 mb-2">
         <Link href={`/forum/${post.id}`} className="flex-1 min-w-0">
           <h3 className="font-bold text-gray-900 text-sm hover:text-amber-700 transition-colors leading-snug">
@@ -215,13 +215,13 @@ function PostRow({
           <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               onClick={() => onEdit(post)} title="Modifier"
-              className="p-1.5 bg-gray-50 rounded-lg border border-gray-200 hover:bg-amber-50 hover:border-amber-300 transition-all"
+              className="p-1.5 bg-gray-50 rounded-lg border border-gray-200 hover:bg-amber-50 hover:border-amber-300 transition-colors"
             >
               <Pencil className="w-3.5 h-3.5 text-amber-600" />
             </button>
             <button
               onClick={() => onDelete(post)} title="Supprimer"
-              className="p-1.5 bg-gray-50 rounded-lg border border-gray-200 hover:bg-red-50 hover:border-red-300 transition-all"
+              className="p-1.5 bg-gray-50 rounded-lg border border-gray-200 hover:bg-red-50 hover:border-red-300 transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5 text-red-500" />
             </button>

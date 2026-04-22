@@ -154,7 +154,7 @@ export default function ContenusTab({ dashData }: Props) {
       {/* ── Coups de main + Perdu/Trouvé ─── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Link href="/coups-de-main">
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-sm hover:border-gray-200 transition-all">
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-sm hover:border-gray-200 transition-colors">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-rose-50">
                 <Heart className="w-4 h-4 text-rose-600" />
@@ -168,7 +168,7 @@ export default function ContenusTab({ dashData }: Props) {
           </div>
         </Link>
         <Link href="/perdu-trouve">
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-sm hover:border-gray-200 transition-all">
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-sm hover:border-gray-200 transition-colors">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-red-50">
                 <HelpCircle className="w-4 h-4 text-red-600" />
@@ -194,7 +194,7 @@ export default function ContenusTab({ dashData }: Props) {
           { icon: MapPin,    label: 'Toutes mes publications',                  href: '/dashboard/contenus',       color: 'text-brand-600',   bg: 'bg-brand-50'   },
         ] as const).map(item => (
           <Link key={item.href} href={item.href}>
-            <div className="flex items-center gap-3 bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-sm hover:border-gray-200 transition-all">
+            <div className="flex items-center gap-3 bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-sm hover:border-gray-200 transition-colors">
               <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center', item.bg)}>
                 <item.icon className={cn('w-4 h-4', item.color)} />
               </div>

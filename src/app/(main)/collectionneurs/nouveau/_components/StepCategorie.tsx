@@ -38,7 +38,7 @@ export default function StepCategorie({
             key={cat.id}
             onClick={() => onCategoryChange(cat.id)}
             className={cn(
-              'p-4 rounded-2xl border-2 text-left transition-all',
+              'p-4 rounded-2xl border-2 text-left transition-colors',
               categoryId === cat.id
                 ? 'border-blue-500 bg-blue-50 shadow-md'
                 : 'border-gray-200 bg-white hover:border-gray-300',

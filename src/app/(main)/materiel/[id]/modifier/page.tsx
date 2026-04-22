@@ -239,7 +239,7 @@ export default function ModifierMaterielPage() {
                   key={key}
                   type="button"
                   onClick={() => setForm(f => ({ ...f, condition: key }))}
-                  className={`flex items-center gap-2 p-3 rounded-xl border-2 text-left transition-all ${form.condition === key ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-gray-300'}`}
+                  className={`flex items-center gap-2 p-3 rounded-xl border-2 text-left transition-colors ${form.condition === key ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-gray-300'}`}
                 >
                   <span>{cfg.icon}</span>
                   <span className={`text-sm font-medium ${form.condition === key ? 'text-teal-700' : 'text-gray-700'}`}>{cfg.label}</span>
@@ -311,7 +311,7 @@ export default function ModifierMaterielPage() {
                   key={key}
                   type="button"
                   onClick={() => setForm(f => ({ ...f, availability_mode: key }))}
-                  className={`w-full flex items-start gap-3 p-3 rounded-xl border-2 text-left transition-all ${form.availability_mode === key ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-gray-300'}`}
+                  className={`w-full flex items-start gap-3 p-3 rounded-xl border-2 text-left transition-colors ${form.availability_mode === key ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-gray-300'}`}
                 >
                   <span className="text-xl mt-0.5">{cfg.icon}</span>
                   <div>
@@ -333,7 +333,7 @@ export default function ModifierMaterielPage() {
                     key={h}
                     type="button"
                     onClick={() => setForm(f => ({ ...f, min_notice_hours: h }))}
-                    className={`flex-1 py-2 rounded-xl border-2 text-xs font-semibold transition-all ${form.min_notice_hours === h ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
+                    className={`flex-1 py-2 rounded-xl border-2 text-xs font-semibold transition-colors ${form.min_notice_hours === h ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
                   >
                     {h === 0 ? 'Aucun' : `${h}h`}
                   </button>
@@ -351,7 +351,7 @@ export default function ModifierMaterielPage() {
                   key={key}
                   type="button"
                   onClick={() => setForm(f => ({ ...f, pickup_mode: key }))}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${form.pickup_mode === key ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-gray-300'}`}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-colors ${form.pickup_mode === key ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-gray-300'}`}
                 >
                   <span className="text-lg">{cfg.icon}</span>
                   <span className={`text-sm font-medium ${form.pickup_mode === key ? 'text-teal-700' : 'text-gray-700'}`}>{cfg.label}</span>
@@ -369,7 +369,7 @@ export default function ModifierMaterielPage() {
                   key={key}
                   type="button"
                   onClick={() => setForm(f => ({ ...f, lend_duration_hint: key }))}
-                  className={`px-3 py-1.5 rounded-xl border-2 text-sm font-medium transition-all ${form.lend_duration_hint === key ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
+                  className={`px-3 py-1.5 rounded-xl border-2 text-sm font-medium transition-colors ${form.lend_duration_hint === key ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
                 >
                   {cfg.label}
                 </button>
@@ -449,7 +449,7 @@ export default function ModifierMaterielPage() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-24 h-24 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center hover:border-brand-300 hover:bg-brand-50 transition-all"
+                className="w-24 h-24 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center hover:border-brand-300 hover:bg-brand-50 transition-colors"
               >
                 <Camera className="w-5 h-5 text-gray-400 mb-1" />
                 <span className="text-xs text-gray-400">Ajouter</span>

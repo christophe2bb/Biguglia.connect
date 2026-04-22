@@ -28,7 +28,7 @@ export function ReplyCard({
 
   return (
     <div id={`reply-${reply.id}`}
-      className={`bg-white rounded-2xl border p-5 transition-all ${
+      className={`bg-white rounded-2xl border p-5 transition-colors ${
         reply.is_solution ? 'border-green-300 bg-green-50' : 'border-gray-100'
       }`}>
 

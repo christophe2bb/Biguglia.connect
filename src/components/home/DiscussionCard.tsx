@@ -40,7 +40,7 @@ export default function DiscussionCard({ item, className }: DiscussionCardProps)
     <Link
       href={item.actionUrl}
       className={cn(
-        'group block bg-white border border-gray-100 rounded-2xl overflow-hidden transition-all hover:shadow-lg hover:-translate-y-0.5',
+        'group block bg-white border border-gray-100 rounded-2xl overflow-hidden transition-[color,border-color,box-shadow,transform] hover:shadow-lg hover:-translate-y-0.5',
         hoverBorder,
         className
       )}
@@ -127,7 +127,7 @@ export default function DiscussionCard({ item, className }: DiscussionCardProps)
             )}
           </div>
           <span className={cn(
-            'inline-flex items-center gap-1 text-xs font-black group-hover:gap-2 transition-all flex-shrink-0',
+            'inline-flex items-center gap-1 text-xs font-black group-hover:gap-2 transition-colors flex-shrink-0',
             isHot ? 'text-orange-600' : 'text-sky-600'
           )}>
             Lire

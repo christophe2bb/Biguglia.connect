@@ -28,7 +28,7 @@ export function MobileActionBar({
       {/* Favourite */}
       <button
         onClick={onToggleSave}
-        className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+        className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
           isSaved
             ? 'bg-pink-100 text-pink-600 border-pink-200'
             : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'

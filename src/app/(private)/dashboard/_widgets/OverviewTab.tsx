@@ -154,7 +154,7 @@ export default function OverviewTab({
                 </span>
               )}
             </h3>
-            <Link href="/mes-echanges" className="text-xs text-indigo-600 font-semibold flex items-center gap-1 hover:gap-2 transition-all">
+            <Link href="/mes-echanges" className="text-xs text-indigo-600 font-semibold flex items-center gap-1 hover:gap-2 transition-colors">
               Voir tout <ChevronRight className="w-3 h-3" />
             </Link>
           </div>
@@ -243,7 +243,7 @@ export default function OverviewTab({
         <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
           {QUICK_ACTIONS.map(a => (
             <Link key={a.href} href={a.href}>
-              <div className="flex flex-col items-center gap-1.5 p-2.5 bg-white border border-gray-100 rounded-2xl hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 transition-all text-center group">
+              <div className="flex flex-col items-center gap-1.5 p-2.5 bg-white border border-gray-100 rounded-2xl hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 transition-[color,border-color,box-shadow,transform] text-center group">
                 <div className={cn('w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform', a.grad)}>
                   <a.icon className="w-4 h-4 text-white" />
                 </div>

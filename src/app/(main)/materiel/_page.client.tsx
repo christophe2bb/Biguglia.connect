@@ -284,7 +284,7 @@ function EquipmentCard({ item, currentUserId }: { item: EquipmentItemFull; curre
 
   return (
     <Link href={`/materiel/${item.id}`}>
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-gray-200 transition-all duration-200 group cursor-pointer">
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-gray-200 transition-colors duration-200 group cursor-pointer">
         {/* Photo */}
         <div className="relative h-44 overflow-hidden">
           {photos && photos.length > 0 ? (

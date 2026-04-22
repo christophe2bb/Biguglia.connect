@@ -376,7 +376,7 @@ export function StatusFilterBar({ items, selected, onChange, className }: Status
             key={item.key}
             onClick={() => onChange(item.key)}
             className={cn(
-              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
+              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors',
               isSelected
                 ? conf ? `${conf.bg} ${conf.text} ${conf.border}` : 'bg-brand-100 text-brand-700 border-brand-300'
                 : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300',

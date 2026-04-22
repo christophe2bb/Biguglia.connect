@@ -42,7 +42,7 @@ export default function ThemeBlockSection({ block, view }: Props) {
         </div>
         <Link
           href={getThemeLink(block.key)}
-          className={cn('text-xs font-semibold flex items-center gap-1 hover:gap-2 transition-all', cfg.color)}
+          className={cn('text-xs font-semibold flex items-center gap-1 hover:gap-2 transition-colors', cfg.color)}
         >
           Voir tout <ChevronRight className="w-3.5 h-3.5" />
         </Link>

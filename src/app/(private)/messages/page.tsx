@@ -105,7 +105,7 @@ export default function MessagesPage() {
               aria-expanded={showTypeMenu}
               aria-haspopup="listbox"
               className={cn(
-                'flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-all',
+                'flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-colors',
                 typeFilter
                   ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
                   : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-700'
@@ -154,7 +154,7 @@ export default function MessagesPage() {
           <button
             onClick={fetchConversations}
             aria-label="Actualiser les conversations"
-            className="p-2 rounded-xl border border-gray-200 bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all"
+            className="p-2 rounded-xl border border-gray-200 bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors"
           >
             <RefreshCw className="w-4 h-4" aria-hidden="true" />
           </button>
@@ -169,7 +169,7 @@ export default function MessagesPage() {
           placeholder="Rechercher un contact, une annonce, un message…"
           value={search}
           onChange={e => handleSetSearch(e.target.value)}
-          className="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-brand-400 focus:bg-white transition-all"
+          className="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-brand-400 focus:bg-white transition-colors"
         />
         {search && (
           <button
@@ -193,7 +193,7 @@ export default function MessagesPage() {
               key={tab.id}
               onClick={() => handleSetActiveTab(tab.id)}
               className={cn(
-                'flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0',
+                'flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors whitespace-nowrap flex-shrink-0',
                 isActive ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
               )}
             >
@@ -229,7 +229,7 @@ export default function MessagesPage() {
               aria-label={`Filtrer par type\u00a0: ${cfg.label}`}
               aria-pressed={isActive}
               className={cn(
-                'flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0',
+                'flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-colors whitespace-nowrap flex-shrink-0',
                 isActive ? `bg-white shadow-sm ${cfg.color}` : 'text-gray-500 hover:text-gray-700'
               )}
             >
@@ -276,7 +276,7 @@ export default function MessagesPage() {
           {hasMoreConvs && (
             <button
               onClick={() => setVisibleCount(c => c + CONV_PAGE_SIZE)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors shadow-sm"
             >
               <ChevronDown className="w-4 h-4" aria-hidden="true" />
               Voir {Math.min(CONV_PAGE_SIZE, filtered.length - visibleCount)} de plus

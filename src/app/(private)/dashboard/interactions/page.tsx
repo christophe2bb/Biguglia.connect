@@ -82,7 +82,7 @@ function InteractionCard({ row, userId }: { row: InteractionRow; userId: string 
 
   return (
     <div className={cn(
-      'bg-white border rounded-2xl p-4 hover:shadow-sm transition-all',
+      'bg-white border rounded-2xl p-4 hover:shadow-sm transition-colors',
       needsAction ? 'border-amber-200 bg-amber-50/30' : 'border-gray-100',
     )}>
       <div className="flex items-start gap-3">

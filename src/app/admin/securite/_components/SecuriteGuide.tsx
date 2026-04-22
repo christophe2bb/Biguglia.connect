@@ -229,7 +229,7 @@ function StepCard({
   const c = COLOR_MAP[step.color];
 
   return (
-    <div className={`rounded-2xl border-2 overflow-hidden transition-all ${done ? 'border-emerald-300 bg-emerald-50/30' : `${c.border} bg-white`}`}>
+    <div className={`rounded-2xl border-2 overflow-hidden transition-colors ${done ? 'border-emerald-300 bg-emerald-50/30' : `${c.border} bg-white`}`}>
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
@@ -349,7 +349,7 @@ function StepCard({
           <button
             type="button"
             onClick={onToggleDone}
-            className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all ${
+            className={`w-full py-2.5 rounded-xl text-sm font-bold transition-colors ${
               done
                 ? 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                 : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm'

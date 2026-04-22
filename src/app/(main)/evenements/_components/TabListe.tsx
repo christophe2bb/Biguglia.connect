@@ -113,7 +113,7 @@ export default function TabListe({
             { id: 'passe',   label: '⚪ Passé' },
           ].map(s => (
             <button key={s.id} onClick={() => setFilterStatus(s.id)}
-              className={cn('px-3 py-1.5 rounded-full text-xs font-bold transition-all',
+              className={cn('px-3 py-1.5 rounded-full text-xs font-bold transition-colors',
                 filterStatus === s.id ? 'bg-purple-600 text-white shadow-sm' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50')}>
               {s.label}
             </button>
@@ -123,18 +123,18 @@ export default function TabListe({
         {/* Filtres rapides supplémentaires */}
         <div className="flex flex-wrap gap-2">
           <button onClick={() => setFilterInscription(f => !f)}
-            className={cn('inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all',
+            className={cn('inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors',
               filterInscription ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
             <CheckCircle2 className="w-3 h-3" /> Inscription requise
           </button>
           <button onClick={() => setFilterFree(f => !f)}
-            className={cn('inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all',
+            className={cn('inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors',
               filterFree ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
             🎟️ Gratuit
           </button>
           {savedEvents.size > 0 && (
             <button onClick={() => setShowSavedOnly(f => !f)}
-              className={cn('inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all',
+              className={cn('inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors',
                 showSavedOnly ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50')}>
               <BookmarkCheck className="w-3 h-3" /> Favoris ({savedEvents.size})
             </button>
@@ -151,13 +151,13 @@ export default function TabListe({
           {showAdvFilters && (
             <div className="flex flex-wrap gap-2">
               <button onClick={() => setFilterCat('all')}
-                className={cn('px-3 py-1 rounded-full text-xs font-semibold transition-all',
+                className={cn('px-3 py-1 rounded-full text-xs font-semibold transition-colors',
                   filterCat === 'all' ? 'bg-purple-600 text-white' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50')}>
                 Toutes
               </button>
               {EVENT_CATEGORIES.slice(0, 7).map(c => (
                 <button key={c.id} onClick={() => setFilterCat(filterCat === c.id ? 'all' : c.id)}
-                  className={cn('px-3 py-1 rounded-full text-xs font-semibold transition-all',
+                  className={cn('px-3 py-1 rounded-full text-xs font-semibold transition-colors',
                     filterCat === c.id ? `${c.bg} ${c.color} border ${c.border}` : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50')}>
                   {c.emoji} {c.label}
                 </button>

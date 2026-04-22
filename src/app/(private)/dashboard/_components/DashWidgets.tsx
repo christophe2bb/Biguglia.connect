@@ -21,7 +21,7 @@ export function StatCard({ icon: Icon, label, value, href, color, bg, badge, acc
   return (
     <Link href={href}>
       <div className={cn(
-        'bg-white rounded-2xl border p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group cursor-pointer',
+        'bg-white rounded-2xl border p-4 hover:shadow-md hover:-translate-y-0.5 transition-[color,border-color,box-shadow,transform] duration-200 group cursor-pointer',
         accent ? 'border-brand-200 ring-1 ring-brand-100' : 'border-gray-100 hover:border-gray-200',
       )}>
         <div className="flex items-center justify-between mb-3">
@@ -105,7 +105,7 @@ export function SectionHeader({ icon: Icon, title, subtitle, href, linkLabel, co
         </div>
       </div>
       {href && linkLabel && (
-        <Link href={href} className={cn('flex items-center gap-1 text-xs font-semibold hover:gap-2 transition-all', color)}>
+        <Link href={href} className={cn('flex items-center gap-1 text-xs font-semibold hover:gap-2 transition-colors', color)}>
           {linkLabel} <ChevronRight className="w-3.5 h-3.5" />
         </Link>
       )}

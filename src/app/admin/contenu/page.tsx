@@ -74,7 +74,7 @@ export default function AdminContenuPage() {
             <button
               key={id}
               onClick={() => setActiveTab(id)}
-              className={`flex-1 min-w-max flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+              className={`flex-1 min-w-max flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                 activeTab === id
                   ? 'bg-white text-gray-900 shadow-sm'
                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'

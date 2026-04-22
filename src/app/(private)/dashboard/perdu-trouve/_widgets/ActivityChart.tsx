@@ -27,12 +27,12 @@ export default function ActivityChart({ items }: Props) {
           <div key={m.key} className="flex-1 flex flex-col items-center gap-0.5">
             <div className="w-full flex flex-col-reverse gap-0.5">
               <div
-                className="w-full bg-orange-400 rounded-t transition-all"
+                className="w-full bg-orange-400 rounded-t transition-colors"
                 style={{ height: `${Math.max((perdus[i] / maxVal) * 80, perdus[i] > 0 ? 4 : 0)}px` }}
                 title={`${perdus[i]} perdu(s)`}
               />
               <div
-                className="w-full bg-emerald-400 rounded-t transition-all"
+                className="w-full bg-emerald-400 rounded-t transition-colors"
                 style={{ height: `${Math.max((trouves[i] / maxVal) * 80, trouves[i] > 0 ? 4 : 0)}px` }}
                 title={`${trouves[i]} trouvé(s)`}
               />

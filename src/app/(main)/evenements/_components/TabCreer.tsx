@@ -45,7 +45,7 @@ export default function TabCreer({
             <PartyPopper className="w-10 h-10 text-purple-400 mx-auto mb-3" />
             <p className="text-purple-800 font-bold mb-2">Connectez-vous pour proposer un événement</p>
             <Link href="/connexion"
-              className="inline-flex items-center gap-2 bg-purple-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-purple-700 transition-all">
+              className="inline-flex items-center gap-2 bg-purple-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-purple-700 transition-colors">
               Se connecter <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -195,7 +195,7 @@ export default function TabCreer({
               )}
               {eventPhotos.length < 5 && (
                 <button type="button" onClick={() => photoInputRef.current?.click()}
-                  className="flex items-center gap-2 border-2 border-dashed border-purple-200 text-purple-500 hover:border-purple-400 hover:bg-purple-50 rounded-xl px-4 py-3 text-sm font-medium transition-all w-full justify-center">
+                  className="flex items-center gap-2 border-2 border-dashed border-purple-200 text-purple-500 hover:border-purple-400 hover:bg-purple-50 rounded-xl px-4 py-3 text-sm font-medium transition-colors w-full justify-center">
                   <ImageIcon className="w-4 h-4" />
                   {eventPhotos.length === 0 ? 'Ajouter des photos' : `Ajouter (${eventPhotos.length}/5)`}
                 </button>
@@ -204,7 +204,7 @@ export default function TabCreer({
 
             <div className="pt-2 border-t border-gray-100 flex gap-2">
               <button type="submit" disabled={submittingEvent}
-                className="flex-1 bg-gradient-to-r from-purple-600 to-violet-600 text-white font-bold py-3 rounded-xl hover:from-purple-700 hover:to-violet-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-sm shadow-purple-200">
+                className="flex-1 bg-gradient-to-r from-purple-600 to-violet-600 text-white font-bold py-3 rounded-xl hover:from-purple-700 hover:to-violet-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 shadow-sm shadow-purple-200">
                 {submittingEvent
                   ? <><Loader2 className="w-4 h-4 animate-spin" /> Publication…</>
                   : <><PartyPopper className="w-4 h-4" /> Publier l&apos;événement</>}

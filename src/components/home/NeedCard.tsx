@@ -55,7 +55,7 @@ export default function NeedCard({ item, className }: NeedCardProps) {
     <Link
       href={item.actionUrl}
       className={cn(
-        'group flex items-start gap-3.5 p-4 rounded-2xl border border-gray-100 bg-white transition-all hover:shadow-lg hover:-translate-y-0.5',
+        'group flex items-start gap-3.5 p-4 rounded-2xl border border-gray-100 bg-white transition-[color,border-color,box-shadow,transform] hover:shadow-lg hover:-translate-y-0.5',
         cfg.borderLeft,
         className
       )}

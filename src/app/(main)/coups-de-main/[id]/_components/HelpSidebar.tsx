@@ -30,7 +30,7 @@ export default function HelpSidebar({
         {/* Je peux aider (demande / échange) */}
         {!isAuthor && isActive && item.help_type !== 'offre' && (
           <button type="button" onClick={onCanHelp} disabled={helping || alreadyHelping}
-            className={`w-full flex items-center justify-center gap-2 font-bold px-4 py-3 rounded-xl text-sm transition-all ${
+            className={`w-full flex items-center justify-center gap-2 font-bold px-4 py-3 rounded-xl text-sm transition-colors ${
               alreadyHelping
                 ? 'bg-emerald-100 text-emerald-700 border border-emerald-200 cursor-default'
                 : 'bg-emerald-500 text-white hover:bg-emerald-600'
@@ -43,7 +43,7 @@ export default function HelpSidebar({
         {/* Je suis intéressé (offre) */}
         {!isAuthor && isActive && item.help_type === 'offre' && (
           <button type="button" onClick={onCanHelp} disabled={helping || alreadyHelping}
-            className={`w-full flex items-center justify-center gap-2 font-bold px-4 py-3 rounded-xl text-sm transition-all ${
+            className={`w-full flex items-center justify-center gap-2 font-bold px-4 py-3 rounded-xl text-sm transition-colors ${
               alreadyHelping
                 ? 'bg-blue-100 text-blue-700 border border-blue-200 cursor-default'
                 : 'bg-blue-500 text-white hover:bg-blue-600'
@@ -60,32 +60,32 @@ export default function HelpSidebar({
             {isActive && (
               <>
                 <button type="button" onClick={() => onStatusChange('in_progress')}
-                  className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition-all font-semibold">
+                  className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition-colors font-semibold">
                   ⚡ Passer en cours
                 </button>
                 <button type="button" onClick={() => onStatusChange('paused')}
-                  className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-all font-semibold">
+                  className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors font-semibold">
                   ⏸ Mettre en pause
                 </button>
                 <button type="button" onClick={() => onStatusChange('resolved')}
-                  className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-all font-semibold">
+                  className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-colors font-semibold">
                   ✅ Marquer résolu
                 </button>
                 <button type="button" onClick={() => onStatusChange('closed')}
-                  className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-all font-semibold">
+                  className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors font-semibold">
                   ✖ Fermer l&apos;annonce
                 </button>
               </>
             )}
             {(item.status === 'paused' || item.status === 'closed') && (
               <button type="button" onClick={() => onStatusChange('active')}
-                className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-orange-700 bg-orange-50 border border-orange-200 hover:bg-orange-100 transition-all font-semibold">
+                className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-orange-700 bg-orange-50 border border-orange-200 hover:bg-orange-100 transition-colors font-semibold">
                 ▶️ Réactiver l&apos;annonce
               </button>
             )}
             {item.status === 'resolved' && (
               <button type="button" onClick={() => onStatusChange('archived')}
-                className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-all font-semibold">
+                className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors font-semibold">
                 📦 Archiver
               </button>
             )}

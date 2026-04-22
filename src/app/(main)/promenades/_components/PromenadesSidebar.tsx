@@ -74,7 +74,7 @@ export default function PromenadesSidebar({
           ].map(({ onClick, icon: I, label, color, bg, border }) => (
             <button key={label}
               onClick={() => { if (!profileId) { window.location.href = '/connexion'; return; } onClick?.(); }} // nosec — hardcoded path '/connexion', no open redirect
-              className={cn('flex items-center gap-3 p-3 rounded-xl transition-all group border w-full text-left', bg, border, 'hover:shadow-sm')}>
+              className={cn('flex items-center gap-3 p-3 rounded-xl transition-colors group border w-full text-left', bg, border, 'hover:shadow-sm')}>
               <I className={cn('w-4 h-4 flex-shrink-0', color)} />
               <span className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 flex-1">{label}</span>
               <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500 transition-colors" />
@@ -99,7 +99,7 @@ export default function PromenadesSidebar({
                   setQuickFilter(quickFilter === key && activeTab === 'itineraires' ? null : key);
                 }}
                 className={cn(
-                  'flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-center hover:shadow-sm',
+                  'flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-colors text-center hover:shadow-sm',
                   isActive ? cn(cfg.bg, cfg.border, cfg.color, 'shadow-sm') : 'bg-gray-50 border-gray-100 text-gray-500 hover:bg-white hover:border-gray-200'
                 )}>
                 <span className="text-xl leading-none">{cfg.emoji}</span>
@@ -118,7 +118,7 @@ export default function PromenadesSidebar({
         <div className="space-y-1.5">
           <button
             onClick={() => { setFilterSector(null); setActiveTab('itineraires'); }}
-            className={cn('flex items-center gap-2 w-full px-3 py-2 rounded-xl text-xs font-bold border transition-all',
+            className={cn('flex items-center gap-2 w-full px-3 py-2 rounded-xl text-xs font-bold border transition-colors',
               !filterSector ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50')}>
             <span className="text-base">🗺️</span>
             <span>Tous les secteurs</span>
@@ -131,7 +131,7 @@ export default function PromenadesSidebar({
             return (
               <button key={sector.id}
                 onClick={() => { setFilterSector(isActive ? null : sector.id); setActiveTab('itineraires'); }}
-                className={cn('flex items-center gap-2 w-full px-3 py-2 rounded-xl text-xs font-bold border transition-all',
+                className={cn('flex items-center gap-2 w-full px-3 py-2 rounded-xl text-xs font-bold border transition-colors',
                   isActive ? `${colors.bg} ${colors.text} ${colors.border}` : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50')}>
                 <span className="text-base">{sector.icon}</span>
                 <span className="flex-1 text-left truncate">{sector.name}</span>
@@ -191,7 +191,7 @@ export default function PromenadesSidebar({
           <h3 className="text-sm font-black mb-1">Contribuez à la carte</h3>
           <p className="text-xs text-emerald-100 mb-4 leading-relaxed">Partagez vos balades préférées et aidez les habitants à découvrir Biguglia.</p>
           <Link href="/connexion"
-            className="inline-flex items-center gap-2 bg-white text-emerald-700 font-bold px-4 py-2.5 rounded-xl text-xs hover:bg-emerald-50 transition-all w-full justify-center shadow-sm">
+            className="inline-flex items-center gap-2 bg-white text-emerald-700 font-bold px-4 py-2.5 rounded-xl text-xs hover:bg-emerald-50 transition-colors w-full justify-center shadow-sm">
             <Plus className="w-3.5 h-3.5" /> Se connecter &amp; contribuer
           </Link>
         </div>

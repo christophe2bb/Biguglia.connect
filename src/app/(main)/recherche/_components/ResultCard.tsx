@@ -19,7 +19,7 @@ function ListCard({ result }: { result: SearchResult }) {
   return (
     <Link
       href={result.href}
-      className="flex items-start gap-3 p-4 bg-white rounded-xl border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all group"
+      className="flex items-start gap-3 p-4 bg-white rounded-xl border border-gray-100 hover:border-gray-200 hover:shadow-md transition-colors group"
     >
       {result.image ? (
         <Image src={result.image} alt={result.title} fill className="rounded-lg object-cover flex-shrink-0" />
@@ -72,7 +72,7 @@ function GridCard({ result }: { result: SearchResult }) {
   return (
     <Link
       href={result.href}
-      className="flex flex-col bg-white rounded-xl border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all group overflow-hidden"
+      className="flex flex-col bg-white rounded-xl border border-gray-100 hover:border-gray-200 hover:shadow-md transition-colors group overflow-hidden"
     >
       {result.image ? (
         <div className="h-32 overflow-hidden">

@@ -42,7 +42,7 @@ export default function AdminNavGrid({ stats }: AdminNavGridProps) {
 
         return (
           <Link key={href} href={href}>
-            <div className={`relative bg-white rounded-2xl border p-5 hover:shadow-sm transition-all cursor-pointer ${
+            <div className={`relative bg-white rounded-2xl border p-5 hover:shadow-sm transition-colors cursor-pointer ${
               isAlert ? 'border-brand-300 bg-brand-50/30' : 'border-gray-100 hover:border-gray-200'
             }`}>
               {badge !== undefined && badge > 0 && (

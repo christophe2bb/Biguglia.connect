@@ -71,7 +71,7 @@ export function TopicCard({ topic, sectors, compact = false }: { topic: ForumTop
   // ── Compact (sidebar) ──────────────────────────────────────────────────────
   if (compact) {
     return (
-      <Link href={`/forum/${topic.id}`} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-xl transition-all group">
+      <Link href={`/forum/${topic.id}`} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-xl transition-colors group">
         <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm', catCfg.bg)}>
           {catCfg.icon}
         </div>
@@ -95,7 +95,7 @@ export function TopicCard({ topic, sectors, compact = false }: { topic: ForumTop
   return (
     <Link href={`/forum/${topic.id}`}>
       <article className={cn(
-        'bg-white rounded-2xl border transition-all duration-200 overflow-hidden group hover:-translate-y-0.5',
+        'bg-white rounded-2xl border transition-transform duration-200 overflow-hidden group hover:-translate-y-0.5',
         urgency === 'haute' ? 'border-red-100 hover:shadow-lg hover:border-red-200' :
         isHot ? 'border-orange-100 hover:shadow-lg hover:border-orange-200' :
         'border-gray-100 hover:shadow-md hover:border-violet-100'

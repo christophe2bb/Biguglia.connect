@@ -37,7 +37,7 @@ export function SqlBlock({
       <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200">
         <button
           onClick={onCopy}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
             copied
               ? 'bg-emerald-500 text-white'
               : 'bg-gray-800 text-white hover:bg-gray-700'

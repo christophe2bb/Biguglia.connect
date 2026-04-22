@@ -34,7 +34,7 @@ export default function TabForum({
         </div>
         {profileId && (
           <button onClick={() => setShowPostForm(!showPostForm)}
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold px-5 py-2.5 rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all text-sm shadow-sm">
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold px-5 py-2.5 rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-colors text-sm shadow-sm">
             <Plus className="w-4 h-4" /> Nouveau sujet
           </button>
         )}
@@ -58,7 +58,7 @@ export default function TabForum({
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-300" required />
           <div className="flex gap-2 mt-3">
             <button type="submit" disabled={submittingPost}
-              className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold px-5 py-2 rounded-xl text-sm hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 transition-all shadow-sm">
+              className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold px-5 py-2 rounded-xl text-sm hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 transition-colors shadow-sm">
               {submittingPost ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Publication…</> : 'Publier'}
             </button>
             <button type="button" onClick={() => setShowPostForm(false)} className="px-5 py-2 rounded-xl text-sm text-gray-500 hover:bg-gray-100 border border-gray-200">Annuler</button>
@@ -78,7 +78,7 @@ export default function TabForum({
             Exécutez <code className="bg-emerald-100 px-1 rounded font-mono text-xs">migration_themes.sql</code> dans Supabase pour activer ce forum.
           </p>
           {profileId && (
-            <Link href="/forum/nouveau" className="inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 transition-all">
+            <Link href="/forum/nouveau" className="inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 transition-colors">
               <Plus className="w-4 h-4" /> Poster dans le forum général
             </Link>
           )}
@@ -89,7 +89,7 @@ export default function TabForum({
           <p className="text-gray-600 font-bold mb-1">Aucun échange pour l&apos;instant</p>
           <p className="text-gray-400 text-sm mb-5">Posez une question ou partagez votre expérience de randonneur !</p>
           {profileId && (
-            <button onClick={() => setShowPostForm(true)} className="inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 transition-all">
+            <button onClick={() => setShowPostForm(true)} className="inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 transition-colors">
               <Plus className="w-4 h-4" /> Premier message
             </button>
           )}
@@ -101,7 +101,7 @@ export default function TabForum({
             const isHot = comments >= 5;
             return (
               <Link key={post.id} href={`/forum/${post.id}`}
-                className="flex items-start gap-4 bg-white rounded-2xl border border-gray-100 p-5 hover:border-emerald-200 hover:shadow-sm transition-all group">
+                className="flex items-start gap-4 bg-white rounded-2xl border border-gray-100 p-5 hover:border-emerald-200 hover:shadow-sm transition-colors group">
                 <div className={cn('w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm', isHot ? 'bg-amber-100' : 'bg-emerald-50')}>
                   <MessageSquare className={cn('w-5 h-5', isHot ? 'text-amber-500' : 'text-emerald-400')} />
                 </div>
@@ -133,7 +133,7 @@ export default function TabForum({
         <div className="mt-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-center">
           <p className="text-emerald-800 font-bold mb-1">Rejoignez la communauté</p>
           <p className="text-emerald-700 text-sm mb-4">Connectez-vous pour participer aux échanges et partager votre expérience.</p>
-          <Link href="/connexion" className="inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 transition-all">
+          <Link href="/connexion" className="inline-flex items-center gap-2 bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-600 transition-colors">
             Se connecter
           </Link>
         </div>

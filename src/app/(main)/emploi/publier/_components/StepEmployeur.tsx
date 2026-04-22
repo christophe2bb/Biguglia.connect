@@ -68,7 +68,7 @@ export default function StepEmployeur({ form, set }: Props) {
           {SECTORS.filter(s => s.id !== '').map(s => (
             <label
               key={s.id}
-              className={`flex items-center gap-2 p-3 border-2 rounded-xl cursor-pointer text-sm transition-all ${
+              className={`flex items-center gap-2 p-3 border-2 rounded-xl cursor-pointer text-sm transition-colors ${
                 form.sector_id === s.id
                   ? 'border-brand-500 bg-brand-50 text-brand-800 font-semibold'
                   : 'border-gray-200 text-gray-600 hover:border-gray-300'
@@ -87,7 +87,7 @@ export default function StepEmployeur({ form, set }: Props) {
             </label>
           ))}
           {/* «Non précisé» option */}
-          <label className={`flex items-center gap-2 p-3 border-2 rounded-xl cursor-pointer text-sm transition-all ${
+          <label className={`flex items-center gap-2 p-3 border-2 rounded-xl cursor-pointer text-sm transition-colors ${
             form.sector_id === ''
               ? 'border-gray-400 bg-gray-50 text-gray-700 font-semibold'
               : 'border-gray-200 text-gray-400 hover:border-gray-300'

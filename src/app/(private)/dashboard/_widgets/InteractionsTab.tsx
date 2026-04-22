@@ -57,7 +57,7 @@ export default function InteractionsTab({ dashData }: Props) {
             <h3 className="font-bold text-gray-900 flex items-center gap-2">
               <Users className="w-4 h-4 text-emerald-500" /> Mes participations
             </h3>
-            <Link href="/mes-echanges" className="text-xs text-emerald-600 font-semibold flex items-center gap-1 hover:gap-2 transition-all">
+            <Link href="/mes-echanges" className="text-xs text-emerald-600 font-semibold flex items-center gap-1 hover:gap-2 transition-colors">
               Voir tout <ChevronRight className="w-3 h-3" />
             </Link>
           </div>

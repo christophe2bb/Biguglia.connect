@@ -73,7 +73,7 @@ function StepSector({
               key={sector.id}
               onClick={() => setForm(f => ({ ...f, sector_id: sector.id || sector.slug }))}
               className={cn(
-                'flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all text-center',
+                'flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-colors text-center',
                 isSelected
                   ? cn(colors, 'ring-2 ring-offset-1 ring-violet-400 shadow-md scale-[1.02]')
                   : 'bg-white border-gray-200 hover:bg-gray-50 hover:shadow-sm',
@@ -128,7 +128,7 @@ function StepTheme({
                 key={cat.id}
                 onClick={() => setForm(f => ({ ...f, category_id: cat.id || cat.slug }))}
                 className={cn(
-                  'flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all text-left',
+                  'flex items-center gap-3 p-3.5 rounded-xl border-2 transition-colors text-left',
                   isSelected
                     ? 'bg-violet-50 border-violet-400 text-violet-800 shadow-sm'
                     : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-700',
@@ -165,7 +165,7 @@ function StepTheme({
                 key={pt.value}
                 onClick={() => setForm(f => ({ ...f, post_type: isSelected ? '' : pt.value }))}
                 className={cn(
-                  'flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-center text-xs',
+                  'flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-colors text-center text-xs',
                   isSelected
                     ? cn(pt.bg, pt.border, pt.color, 'shadow-sm')
                     : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-white',
@@ -257,7 +257,7 @@ function StepWrite({
                 key={u.value}
                 onClick={() => setForm(f => ({ ...f, urgency: u.value as UrgencyValue }))}
                 className={cn(
-                  'flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-xl border-2 text-center transition-all',
+                  'flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-xl border-2 text-center transition-colors',
                   form.urgency === u.value
                     ? 'bg-gray-800 border-gray-700 text-white shadow-md scale-[1.02]'
                     : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300',

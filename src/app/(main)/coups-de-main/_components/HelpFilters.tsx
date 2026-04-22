@@ -55,7 +55,7 @@ export default function HelpFilters({
         <button
           type="button"
           onClick={onToggleShowFilters}
-          className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all ${
+          className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-colors ${
             showFilters ? 'bg-orange-500 text-white border-orange-500' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
           }`}>
           <Filter className="w-4 h-4" />
@@ -70,7 +70,7 @@ export default function HelpFilters({
           type="button"
           onClick={onRefresh}
           disabled={loading}
-          className="p-2.5 rounded-xl border border-gray-200 bg-white text-gray-500 hover:text-orange-600 transition-all">
+          className="p-2.5 rounded-xl border border-gray-200 bg-white text-gray-500 hover:text-orange-600 transition-colors">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
@@ -92,7 +92,7 @@ export default function HelpFilters({
               key={v}
               type="button"
               onClick={() => onSetFilterType(v as 'all' | HelpType)}
-              className={`px-3 py-2 transition-all ${filterType === v ? 'bg-gray-900 text-white rounded-xl' : 'text-gray-600 hover:bg-gray-200'}`}>
+              className={`px-3 py-2 transition-colors ${filterType === v ? 'bg-gray-900 text-white rounded-xl' : 'text-gray-600 hover:bg-gray-200'}`}>
               {l}
             </button>
           ))}
@@ -102,7 +102,7 @@ export default function HelpFilters({
         <button
           type="button"
           onClick={() => onSetFilterUrgency(filterUrgency === 'urgent' ? 'all' : 'urgent')}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
             filterUrgency === 'urgent'
               ? 'bg-red-100 text-red-700 border-red-300'
               : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
@@ -114,7 +114,7 @@ export default function HelpFilters({
         <button
           type="button"
           onClick={() => onSetFilterFree(!filterFree)}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
             filterFree
               ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
               : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
@@ -127,7 +127,7 @@ export default function HelpFilters({
           <button
             type="button"
             onClick={() => onSetFilterMyHelp(!filterMyHelp)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
               filterMyHelp
                 ? 'bg-amber-100 text-amber-700 border-amber-300'
                 : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
@@ -160,7 +160,7 @@ export default function HelpFilters({
             <button
               type="button"
               onClick={onResetFilters}
-              className="px-4 py-2 rounded-xl text-sm font-semibold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-all">
+              className="px-4 py-2 rounded-xl text-sm font-semibold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors">
               <X className="w-3.5 h-3.5 inline mr-1" /> Effacer les filtres
             </button>
           )}

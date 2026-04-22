@@ -79,7 +79,7 @@ export default function EventSidebar({
                 {featuredEvent.is_free ? '🎟️ Gratuit' : `${featuredEvent.price} €`}
               </span>
               <Link href={`/evenements/${featuredEvent.id}`}
-                className="text-xs font-bold bg-white/90 text-purple-700 px-3 py-1.5 rounded-xl hover:bg-white transition-all">
+                className="text-xs font-bold bg-white/90 text-purple-700 px-3 py-1.5 rounded-xl hover:bg-white transition-colors">
                 Voir <ArrowRight className="w-3 h-3 inline ml-0.5" />
               </Link>
             </div>
@@ -193,7 +193,7 @@ export default function EventSidebar({
               <button key={c.id}
                 onClick={() => { onSetFilterCat(filterCat === c.id && activeTab === 'liste' ? 'all' : c.id); onSetActiveTab('liste'); }}
                 className={cn(
-                  'flex flex-col items-center gap-1 p-3 rounded-xl border text-center transition-all hover:shadow-sm text-xs font-bold',
+                  'flex flex-col items-center gap-1 p-3 rounded-xl border text-center transition-colors hover:shadow-sm text-xs font-bold',
                   isActive ? `${c.bg} ${c.color} ${c.border}` : 'bg-gray-50 border-gray-100 text-gray-500 hover:bg-white hover:border-gray-200',
                 )}>
                 <span className="text-xl leading-none">{c.emoji}</span>
@@ -277,7 +277,7 @@ export default function EventSidebar({
             Inscrivez-vous pour participer aux événements et proposer vos propres animations.
           </p>
           <Link href="/connexion"
-            className="inline-flex items-center gap-2 bg-white text-purple-700 font-bold px-4 py-2.5 rounded-xl text-xs hover:bg-purple-50 transition-all w-full justify-center shadow-sm">
+            className="inline-flex items-center gap-2 bg-white text-purple-700 font-bold px-4 py-2.5 rounded-xl text-xs hover:bg-purple-50 transition-colors w-full justify-center shadow-sm">
             <Plus className="w-3.5 h-3.5" /> Se connecter & participer
           </Link>
         </div>

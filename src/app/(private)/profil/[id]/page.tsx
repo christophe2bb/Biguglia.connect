@@ -87,7 +87,7 @@ export default function PublicProfilePage() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-all ${
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-colors ${
                 activeTab === tab.key
                   ? 'bg-purple-600 text-white shadow'
                   : 'text-gray-500 hover:text-gray-700'

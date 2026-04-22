@@ -76,7 +76,7 @@ export default function EventMiniForum({ eventId, userId, catColor, catBg, catBo
           if (w) { fetchComments(); setTimeout(() => inputRef.current?.focus(), 200); }
         }}
         className={cn(
-          'flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg w-full transition-all',
+          'flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg w-full transition-colors',
           open ? `${catBg} ${catColor} border ${catBorder}` : 'bg-gray-50 text-gray-500 hover:bg-gray-100',
         )}
       >
@@ -134,7 +134,7 @@ export default function EventMiniForum({ eventId, userId, catColor, catBg, catBo
                 placeholder="Votre message… (Entrée pour envoyer)"
                 rows={2}
                 className={cn(
-                  'flex-1 text-xs rounded-lg border px-2 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-purple-300 transition-all bg-white text-gray-700 placeholder-gray-400',
+                  'flex-1 text-xs rounded-lg border px-2 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-purple-300 transition-colors bg-white text-gray-700 placeholder-gray-400',
                   catBorder,
                 )}
               />
@@ -142,7 +142,7 @@ export default function EventMiniForum({ eventId, userId, catColor, catBg, catBo
                 onClick={handleSend}
                 disabled={!text.trim() || sending}
                 className={cn(
-                  'p-2 rounded-lg transition-all flex-shrink-0 disabled:opacity-40',
+                  'p-2 rounded-lg transition-colors flex-shrink-0 disabled:opacity-40',
                   catBg, catColor, `border ${catBorder}`, 'hover:opacity-80',
                 )}
               >

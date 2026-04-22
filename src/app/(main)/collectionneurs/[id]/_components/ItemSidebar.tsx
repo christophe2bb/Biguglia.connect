@@ -93,7 +93,7 @@ export function ItemSidebar({
           onClick={onFav}
           disabled={favLoading}
           className={cn(
-            'flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold border transition-all',
+            'flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold border transition-colors',
             isFav
               ? 'bg-red-50 border-red-200 text-red-600'
               : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50',
@@ -107,7 +107,7 @@ export function ItemSidebar({
         </button>
         <button
           onClick={onShare}
-          className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-all"
+          className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors"
         >
           <Share2 className="w-4 h-4" /> Partager
         </button>

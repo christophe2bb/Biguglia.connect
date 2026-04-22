@@ -98,7 +98,7 @@ export default function ArtisanCard({ artisan, onApprove, onReject }: ArtisanCar
   };
 
   return (
-    <div className={`bg-white rounded-2xl border-2 overflow-hidden transition-all ${
+    <div className={`bg-white rounded-2xl border-2 overflow-hidden transition-colors ${
       isPending ? 'border-orange-200' : isVerified ? 'border-green-200' : 'border-gray-200'
     }`}>
 

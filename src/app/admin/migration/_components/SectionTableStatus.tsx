@@ -125,7 +125,7 @@ export function SectionTableStatus({
           </p>
           <button
             onClick={() => copy('main')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-colors shadow ${
               copied('main') ? 'bg-emerald-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'
             }`}
           >
@@ -159,7 +159,7 @@ export function SectionTableStatus({
           <code>NOTIFY pgrst, &apos;reload schema&apos;;</code>
           <button
             onClick={() => copy('notify')}
-            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
               copied('notify') ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white hover:bg-orange-600'
             }`}
           >

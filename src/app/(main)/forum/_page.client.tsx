@@ -93,7 +93,7 @@ function ForumPageInner() {
               <div className="flex flex-wrap gap-2 mb-2">
                 {HERO_SHORTCUTS.map(s => (
                   <button key={s.slug} onClick={() => setSelectedCategory(s.slug)}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-white/10 border border-white/20 hover:bg-white/25 transition-all backdrop-blur-sm">
+                    className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-white/10 border border-white/20 hover:bg-white/25 transition-colors backdrop-blur-sm">
                     <span>{s.icon}</span> {s.label}
                   </button>
                 ))}
@@ -104,17 +104,17 @@ function ForumPageInner() {
             <div className="flex flex-col gap-3 flex-shrink-0 w-full lg:w-auto">
               {profile ? (
                 <button onClick={() => router.push('/forum/nouveau')}
-                  className="inline-flex items-center justify-center gap-2 bg-white text-violet-700 font-black px-7 py-3.5 rounded-2xl hover:bg-violet-50 transition-all shadow-xl hover:-translate-y-0.5 text-sm w-full lg:w-auto">
+                  className="inline-flex items-center justify-center gap-2 bg-white text-violet-700 font-black px-7 py-3.5 rounded-2xl hover:bg-violet-50 transition-transform shadow-xl hover:-translate-y-0.5 text-sm w-full lg:w-auto">
                   <Plus className="w-5 h-5" /> Nouveau sujet
                 </button>
               ) : (
                 <Link href="/connexion"
-                  className="inline-flex items-center justify-center gap-2 bg-white text-violet-700 font-black px-7 py-3.5 rounded-2xl hover:bg-violet-50 transition-all shadow-xl text-sm w-full lg:w-auto">
+                  className="inline-flex items-center justify-center gap-2 bg-white text-violet-700 font-black px-7 py-3.5 rounded-2xl hover:bg-violet-50 transition-colors shadow-xl text-sm w-full lg:w-auto">
                   <Plus className="w-5 h-5" /> Rejoindre la discussion
                 </Link>
               )}
               <Link href="/recherche?q=forum"
-                className="inline-flex items-center justify-center gap-2 bg-white/15 border border-white/30 text-white font-bold px-7 py-3 rounded-2xl hover:bg-white/25 transition-all text-sm w-full lg:w-auto">
+                className="inline-flex items-center justify-center gap-2 bg-white/15 border border-white/30 text-white font-bold px-7 py-3 rounded-2xl hover:bg-white/25 transition-colors text-sm w-full lg:w-auto">
                 <Search className="w-4 h-4" /> Recherche avancée
               </Link>
             </div>
@@ -134,7 +134,7 @@ function ForumPageInner() {
             </div>
             <div className="flex flex-wrap gap-2 pb-6">
               <button onClick={() => setSelectedSector(null)}
-                className={cn('inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-full transition-all border backdrop-blur-sm',
+                className={cn('inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-full transition-colors border backdrop-blur-sm',
                   !selectedSector ? 'bg-white text-violet-700 border-white shadow-lg' : 'bg-white/12 border-white/25 text-white hover:bg-white/22')}>
                 🗺️ Tous les secteurs
               </button>
@@ -143,7 +143,7 @@ function ForumPageInner() {
                 return (
                   <button key={s.id}
                     onClick={() => setSelectedSector(isActive ? null : (s.id || s.slug))}
-                    className={cn('inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-full transition-all border backdrop-blur-sm',
+                    className={cn('inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-full transition-colors border backdrop-blur-sm',
                       isActive ? 'bg-white text-violet-700 border-white shadow-lg' : 'bg-white/12 border-white/25 text-white hover:bg-white/22')}>
                     <span>{s.icon}</span> {s.name}
                     {s.topic_count ? <span className="text-xs opacity-70">({s.topic_count})</span> : null}
@@ -162,7 +162,7 @@ function ForumPageInner() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-hide">
             <button onClick={() => setSelectedCategory(null)}
-              className={cn('inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl border transition-all whitespace-nowrap flex-shrink-0',
+              className={cn('inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors whitespace-nowrap flex-shrink-0',
                 !selectedCategory ? 'bg-violet-600 text-white border-violet-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}>
               Toutes les catégories
             </button>
@@ -170,7 +170,7 @@ function ForumPageInner() {
               const isActive = selectedCategory === cat.id || selectedCategory === cat.slug;
               return (
                 <button key={cat.id} onClick={() => setSelectedCategory(isActive ? null : cat.id)}
-                  className={cn('inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl border transition-all whitespace-nowrap flex-shrink-0',
+                  className={cn('inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors whitespace-nowrap flex-shrink-0',
                     isActive ? 'bg-violet-600 text-white border-violet-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}>
                   <span>{cat.icon}</span> {cat.name}
                 </button>

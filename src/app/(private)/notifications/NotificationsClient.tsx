@@ -495,7 +495,7 @@ export default function NotificationsClient() {
           placeholder="Rechercher une notification…"
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-brand-400 focus:bg-white transition-all"
+          className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-brand-400 focus:bg-white transition-colors"
         />
         {searchQuery && (
           <button
@@ -522,7 +522,7 @@ export default function NotificationsClient() {
               aria-label={`${tab.label}${count > 0 ? ` (${count})` : ''}`}
               aria-pressed={isActive}
               className={cn(
-                'relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap flex-shrink-0',
+                'relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap flex-shrink-0',
                 isActive ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
               )}
             >
@@ -600,7 +600,7 @@ export default function NotificationsClient() {
                     <div
                       key={notif.id}
                       className={cn(
-                        'transition-all duration-300',
+                        'transition-colors duration-300',
                         isDeleting && 'opacity-0 scale-y-0 max-h-0 overflow-hidden pointer-events-none'
                       )}
                     >
@@ -608,7 +608,7 @@ export default function NotificationsClient() {
                         href={notif.link || '#'}
                         onClick={() => markOneRead(notif)}
                         className={cn(
-                          'group flex items-start gap-3 rounded-2xl border p-4 transition-all duration-200',
+                          'group flex items-start gap-3 rounded-2xl border p-4 transition-colors duration-200',
                           'hover:shadow-md hover:-translate-y-px relative overflow-hidden',
                           isUnread
                             ? `bg-white border-l-4 ${cfg.border} shadow-sm`
@@ -681,7 +681,7 @@ export default function NotificationsClient() {
                         <button
                           onClick={(e) => deleteNotif(e, notif.id)}
                           aria-label={`Supprimer la notification : ${notif.title}`}
-                          className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-400 transition-all"
+                          className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-400 transition-[colors,opacity]"
                         >
                           <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                         </button>
@@ -702,7 +702,7 @@ export default function NotificationsClient() {
               <button
                 onClick={loadMore}
                 disabled={loadingMore}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {loadingMore
                   ? <span className="w-4 h-4 border-2 border-gray-300 border-t-brand-500 rounded-full animate-spin" />

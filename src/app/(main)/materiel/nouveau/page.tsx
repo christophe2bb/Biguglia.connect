@@ -176,7 +176,7 @@ export default function NouveauMaterielPage() {
       <div className="flex items-center gap-3 mb-8">
         {([1, 2] as const).map(s => (
           <button key={s} onClick={() => s < step || validateStep1() ? setStep(s) : null}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${step === s ? 'bg-teal-600 text-white shadow-sm' : step > s ? 'bg-teal-50 text-teal-700 border border-teal-200' : 'bg-gray-100 text-gray-400'}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${step === s ? 'bg-teal-600 text-white shadow-sm' : step > s ? 'bg-teal-50 text-teal-700 border border-teal-200' : 'bg-gray-100 text-gray-400'}`}>
             <span className={`w-5 h-5 rounded-full text-xs flex items-center justify-center font-bold ${step === s ? 'bg-white text-teal-700' : step > s ? 'bg-teal-600 text-white' : 'bg-gray-300 text-gray-500'}`}>{s}</span>
             {s === 1 ? 'Essentiel' : 'Détails'}
           </button>
@@ -227,7 +227,7 @@ export default function NouveauMaterielPage() {
                   {(Object.entries(CONDITION_CONFIG) as [ConditionLabel, typeof CONDITION_CONFIG[ConditionLabel]][]).map(([key, cfg]) => (
                     <button key={key} type="button"
                       onClick={() => setForm(f => ({ ...f, condition: key }))}
-                      className={`flex items-center gap-2 p-3 rounded-xl border-2 text-sm font-medium transition-all text-left ${form.condition === key ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                      className={`flex items-center gap-2 p-3 rounded-xl border-2 text-sm font-medium transition-colors text-left ${form.condition === key ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-gray-300'}`}>
                       <span>{cfg.icon}</span>
                       <span className={form.condition === key ? 'text-teal-700' : 'text-gray-600'}>{cfg.label}</span>
                     </button>
@@ -242,11 +242,11 @@ export default function NouveauMaterielPage() {
 
               <div className="flex gap-3">
                 <button type="button" onClick={() => setForm(f => ({ ...f, is_free: true }))}
-                  className={`flex-1 p-3 rounded-xl border-2 text-sm font-semibold transition-all ${form.is_free ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                  className={`flex-1 p-3 rounded-xl border-2 text-sm font-semibold transition-colors ${form.is_free ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
                   🎁 Gratuit
                 </button>
                 <button type="button" onClick={() => setForm(f => ({ ...f, is_free: false }))}
-                  className={`flex-1 p-3 rounded-xl border-2 text-sm font-semibold transition-all ${!form.is_free ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                  className={`flex-1 p-3 rounded-xl border-2 text-sm font-semibold transition-colors ${!form.is_free ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
                   💶 Participation
                 </button>
               </div>
@@ -283,7 +283,7 @@ export default function NouveauMaterielPage() {
               <h3 className="font-semibold text-gray-800 mb-1">Photos</h3>
               <p className="text-xs text-gray-500 mb-4">Une bonne photo augmente considérablement les demandes — jusqu&apos;à 5 photos</p>
               <button type="button" onClick={() => fileInputRef.current?.click()}
-                className="w-full border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center hover:border-teal-300 hover:bg-teal-50 transition-all">
+                className="w-full border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center hover:border-teal-300 hover:bg-teal-50 transition-colors">
                 <Camera className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                 <p className="text-sm font-medium text-gray-600">Ajouter des photos</p>
                 <p className="text-xs text-gray-400 mt-1">PNG, JPG — max 5 photos</p>
@@ -334,7 +334,7 @@ export default function NouveauMaterielPage() {
                   {(Object.entries(AVAILABILITY_MODE_CONFIG) as [AvailabilityMode, typeof AVAILABILITY_MODE_CONFIG[AvailabilityMode]][]).map(([key, cfg]) => (
                     <button key={key} type="button"
                       onClick={() => setForm(f => ({ ...f, availability_mode: key }))}
-                      className={`w-full flex items-start gap-3 p-3 rounded-xl border-2 text-left transition-all ${form.availability_mode === key ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                      className={`w-full flex items-start gap-3 p-3 rounded-xl border-2 text-left transition-colors ${form.availability_mode === key ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-gray-300'}`}>
                       <span className="text-xl mt-0.5">{cfg.icon}</span>
                       <div>
                         <div className={`text-sm font-semibold ${form.availability_mode === key ? 'text-teal-700' : 'text-gray-800'}`}>{cfg.label}</div>
@@ -361,7 +361,7 @@ export default function NouveauMaterielPage() {
                     {[0, 2, 24, 48, 72].map(h => (
                       <button key={h} type="button"
                         onClick={() => setForm(f => ({ ...f, min_notice_hours: h }))}
-                        className={`flex-1 py-2 rounded-xl border-2 text-xs font-semibold transition-all ${form.min_notice_hours === h ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                        className={`flex-1 py-2 rounded-xl border-2 text-xs font-semibold transition-colors ${form.min_notice_hours === h ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
                         {h === 0 ? 'Aucun' : h < 24 ? `${h}h` : `${h / 24}j`}
                       </button>
                     ))}
@@ -380,7 +380,7 @@ export default function NouveauMaterielPage() {
                   {(Object.entries(PICKUP_MODE_CONFIG) as [PickupMode, typeof PICKUP_MODE_CONFIG[PickupMode]][]).map(([key, cfg]) => (
                     <button key={key} type="button"
                       onClick={() => setForm(f => ({ ...f, pickup_mode: key }))}
-                      className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${form.pickup_mode === key ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                      className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-colors ${form.pickup_mode === key ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-gray-300'}`}>
                       <span className="text-lg">{cfg.icon}</span>
                       <span className={`text-sm font-medium ${form.pickup_mode === key ? 'text-teal-700' : 'text-gray-700'}`}>{cfg.label}</span>
                     </button>
@@ -403,7 +403,7 @@ export default function NouveauMaterielPage() {
                   {(Object.entries(LEND_DURATION_HINTS) as [LendDurationHint, typeof LEND_DURATION_HINTS[LendDurationHint]][]).map(([key, cfg]) => (
                     <button key={key} type="button"
                       onClick={() => setForm(f => ({ ...f, lend_duration_hint: key }))}
-                      className={`px-3 py-1.5 rounded-xl border-2 text-sm font-medium transition-all ${form.lend_duration_hint === key ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                      className={`px-3 py-1.5 rounded-xl border-2 text-sm font-medium transition-colors ${form.lend_duration_hint === key ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
                       {cfg.label}
                     </button>
                   ))}
@@ -422,7 +422,7 @@ export default function NouveauMaterielPage() {
                 onChange={(e) => setForm(f => ({ ...f, included_accessories: e.target.value }))} />
 
               {/* Signal "nécessite explication" (CDC §3.3) */}
-              <label aria-label="Disponible maintenant" className="flex items-start gap-3 cursor-pointer p-3 rounded-xl border-2 border-gray-200 hover:border-amber-300 hover:bg-amber-50 transition-all">
+              <label aria-label="Disponible maintenant" className="flex items-start gap-3 cursor-pointer p-3 rounded-xl border-2 border-gray-200 hover:border-amber-300 hover:bg-amber-50 transition-colors">
                 <input type="checkbox" checked={form.requires_explanation}
                   onChange={e => setForm(f => ({ ...f, requires_explanation: e.target.checked }))}
                   className="w-4 h-4 mt-0.5 rounded text-amber-600 accent-amber-600" />

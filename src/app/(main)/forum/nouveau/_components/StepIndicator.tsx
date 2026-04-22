@@ -24,7 +24,7 @@ export default function StepIndicator({ current, total = 4 }: StepIndicatorProps
             <div className="flex flex-col items-center gap-0.5">
               <div
                 className={cn(
-                  'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all shadow-sm',
+                  'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors shadow-sm',
                   isDone   ? 'bg-emerald-500 text-white scale-95'                  :
                   isActive ? 'bg-violet-600 text-white ring-4 ring-violet-200'    :
                              'bg-gray-100 text-gray-400',

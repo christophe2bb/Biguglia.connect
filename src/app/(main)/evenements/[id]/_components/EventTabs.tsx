@@ -92,7 +92,7 @@ export default function EventTabs({
         {TABS_CONFIG.map(tab => (
           <button key={tab.id}
             onClick={() => onTabChange(tab.id)}
-            className={`flex items-center gap-1.5 px-4 py-3 text-sm font-semibold whitespace-nowrap transition-all border-b-2 ${
+            className={`flex items-center gap-1.5 px-4 py-3 text-sm font-semibold whitespace-nowrap transition-colors border-b-2 ${
               activeTab === tab.id
                 ? 'border-purple-500 text-purple-700 bg-purple-50/50'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
@@ -276,7 +276,7 @@ export default function EventTabs({
                     className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
                   />
                   <button type="submit" disabled={commenting || !commentText.trim()}
-                    className="bg-purple-600 text-white px-3 py-2 rounded-xl hover:bg-purple-700 disabled:opacity-50 transition-all">
+                    className="bg-purple-600 text-white px-3 py-2 rounded-xl hover:bg-purple-700 disabled:opacity-50 transition-colors">
                     {commenting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   </button>
                 </div>

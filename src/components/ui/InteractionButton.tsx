@@ -342,7 +342,7 @@ export default function InteractionButton({
       return (
         <Link href="/connexion"
           className={cn(
-            'inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all',
+            'inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-colors',
             conf.bg, conf.color, `border ${conf.border}`, className
           )}>
           <conf.ctaIcon className="w-4 h-4" />
@@ -356,7 +356,7 @@ export default function InteractionButton({
         onClick={handleFallbackContact}
         disabled={fallbackActing}
         className={cn(
-          'inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all',
+          'inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-colors',
           conf.bg, conf.color, `border ${conf.border}`,
           'hover:brightness-95 disabled:opacity-50',
           className
@@ -384,7 +384,7 @@ export default function InteractionButton({
         <Link
           href="/connexion"
           className={cn(
-            'inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all',
+            'inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-colors',
             conf.bg, conf.color, `border ${conf.border}`, 'hover:brightness-95',
             className
           )}
@@ -400,7 +400,7 @@ export default function InteractionButton({
           onClick={handleCreate}
           disabled={acting}
           className={cn(
-            'flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all',
+            'flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-colors',
             conf.bg, conf.color, `border ${conf.border}`,
             'hover:brightness-95 disabled:opacity-50',
             className
@@ -447,7 +447,7 @@ export default function InteractionButton({
             disabled={acting}
             className={cn(
               'w-full flex items-center justify-center gap-2 py-2.5 rounded-xl',
-              'bg-white border font-bold text-sm transition-all',
+              'bg-white border font-bold text-sm transition-colors',
               conf.color, conf.border,
               'hover:brightness-95 disabled:opacity-50'
             )}
