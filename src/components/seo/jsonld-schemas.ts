@@ -37,12 +37,19 @@ export const websiteSchema = {
 /**
  * LocalBusiness — pour le village de Biguglia
  * Aide Google à afficher Biguglia Connect dans les résultats locaux
+ *
+ * Champs optionnels renseignés pour maximiser la présence dans le Knowledge Panel :
+ *   - priceRange  : "Gratuit" (plateforme communautaire sans frais)
+ *   - telephone   : absent (plateforme numérique uniquement)
+ *   - streetAddress : "Village de Biguglia" (adresse symbolique — pas d'adresse physique)
+ *   - openingHoursSpecification : 24h/24, 7j/7 (service numérique)
  */
 export const localBusinessSchema = {
-  '@context': 'https://schema.org',
-  '@type':    'LocalBusiness',
-  name:       'Biguglia Connect',
-  url:        SITE_URL,
+  '@context':  'https://schema.org',
+  '@type':     'LocalBusiness',
+  name:        'Biguglia Connect',
+  url:         SITE_URL,
+  priceRange:  'Gratuit',
   description:
     'La plateforme locale de Biguglia (Haute-Corse) pour trouver des artisans vérifiés, déposer des annonces et rejoindre la communauté du village.',
   areaServed: {
@@ -53,6 +60,7 @@ export const localBusinessSchema = {
   },
   address: {
     '@type':           'PostalAddress',
+    streetAddress:     'Village de Biguglia',
     addressLocality:   'Biguglia',
     addressRegion:     'Haute-Corse',
     postalCode:        '20620',
@@ -63,6 +71,12 @@ export const localBusinessSchema = {
     latitude:   42.5747,
     longitude:   9.4436,
   },
+  openingHoursSpecification: {
+    '@type':      'OpeningHoursSpecification',
+    dayOfWeek:    ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],
+    opens:        '00:00',
+    closes:       '23:59',
+  },
   image:     `${SITE_URL}/images/biguglia-hero.jpg`,
   sameAs:    [SITE_URL],
 };
@@ -70,15 +84,31 @@ export const localBusinessSchema = {
 /**
  * Organization — schéma d'organisation pour Biguglia Connect
  * Améliore la présence dans le Knowledge Graph Google
+ *
+ * Note : Google peut interpréter Organization + address comme LocalBusiness.
+ * On ajoute address.streetAddress pour éliminer l'avertissement "champ manquant".
  */
 export const organizationSchema = {
   '@context': 'https://schema.org',
   '@type':    'Organization',
   name:       'Biguglia Connect',
   url:        SITE_URL,
-  logo:       `${SITE_URL}/images/biguglia-hero.jpg`,
+  logo: {
+    '@type':         'ImageObject',
+    url:             `${SITE_URL}/images/biguglia-hero.jpg`,
+    width:           1200,
+    height:          630,
+  },
   description:
     'Plateforme communautaire locale de Biguglia (Haute-Corse) : artisans vérifiés, petites annonces, emploi local, événements, forum et entraide entre habitants.',
+  address: {
+    '@type':           'PostalAddress',
+    streetAddress:     'Village de Biguglia',
+    addressLocality:   'Biguglia',
+    addressRegion:     'Haute-Corse',
+    postalCode:        '20620',
+    addressCountry:    'FR',
+  },
   foundingLocation: {
     '@type':        'Place',
     name:           'Biguglia',
@@ -86,15 +116,17 @@ export const organizationSchema = {
     addressRegion:  'Haute-Corse',
   },
   areaServed: [
-    { '@type': 'City',   name: 'Biguglia' },
-    { '@type': 'State',  name: 'Haute-Corse' },
+    { '@type': 'City',    name: 'Biguglia' },
+    { '@type': 'State',   name: 'Haute-Corse' },
     { '@type': 'Country', name: 'France' },
   ],
   sameAs: [SITE_URL],
   contactPoint: {
-    '@type':       'ContactPoint',
-    contactType:   'customer service',
-    availableLanguage: { '@type': 'Language', name: 'French' },
+    '@type':               'ContactPoint',
+    contactType:           'customer service',
+    availableLanguage:     { '@type': 'Language', name: 'French' },
+    contactOption:         'TollFree',
+    areaServed:            'FR',
   },
 };
 
