@@ -1,11 +1,15 @@
 /**
- * sentry.client.config.ts
+ * instrumentation-client.ts
  * ──────────────────────────────────────────────────────────────────────────────
  * Configuration Sentry pour le runtime navigateur (Client Components, hydration,
  * interactions utilisateur, erreurs JS non capturées).
  *
  * Chargé automatiquement par @sentry/nextjs dans chaque bundle client.
  * Ne pas importer directement — Next.js le fait via le plugin webpack Sentry.
+ *
+ * ⚠️  Renommé depuis sentry.client.config.ts (déprécié dans @sentry/nextjs v10).
+ *     Avec Turbopack, seul instrumentation-client.ts est supporté.
+ *     Ref : https://nextjs.org/docs/app/api-reference/file-conventions/instrumentation-client
  *
  * Ce qui est capturé :
  *   • Erreurs JS non gérées (uncaught exceptions, unhandledrejection)

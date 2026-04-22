@@ -230,7 +230,7 @@ export default function TestSentryPageClient() {
               </h2>
               <p className="text-sm text-gray-500 mt-1">
                 Déclenche une erreur JavaScript capturée par le SDK Sentry client.
-                Vérifie la configuration <code className="bg-gray-100 px-1 rounded">sentry.client.config.ts</code>.
+                Vérifie la configuration <code className="bg-gray-100 px-1 rounded">instrumentation-client.ts</code>.
               </p>
             </div>
             <button
