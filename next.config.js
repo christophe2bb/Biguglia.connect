@@ -33,6 +33,8 @@ const supabaseHost = SUPABASE_URL.replace(/^https?:\/\//, '');
 //    Sentry envoie les événements à *.ingest.sentry.io et *.ingest.us.sentry.io
 //    via fetch() depuis le navigateur. Ces domaines DOIVENT être autorisés sinon
 //    les erreurs front-end ne remontent jamais à Sentry.
+//    browser.sentry-cdn.com : nécessaire pour le chargement lazy de Sentry Replay
+//    (source map fetch + module download). Sans cette entrée → violation CSP bloquante.
 //
 // blob: est nécessaire pour Sentry Replay qui crée des workers via blob: URLs
 //
@@ -60,7 +62,8 @@ const ContentSecurityPolicy = `
               https://vercel.live https://*.vercel-scripts.com
               https://vitals.vercel-insights.com
               https://*.ingest.sentry.io
-              https://*.ingest.us.sentry.io;
+              https://*.ingest.us.sentry.io
+              https://browser.sentry-cdn.com;
   worker-src  'self' blob:;
   frame-src   https://vercel.live;
   object-src  'none';
