@@ -13,7 +13,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Textarea from '@/components/ui/Textarea';
 import toast from 'react-hot-toast';
-import { safeDocExt, safeImageExt } from '@/lib/upload-utils';
+import { safeDocExt, safeImageExt, uploadFile, uploadFileGetPath } from '@/lib/upload-utils';
 
 interface DocUpload {
   file: File | null;
@@ -40,25 +40,24 @@ function DocumentUploader({
     const updated: DocUpload = { ...value, file, uploading: true, url: null };
     onChange(updated);
 
-    const supabase = createClient();
     const ext = safeDocExt(file.name);
     // Chemin : userId/nom-doc-timestamp.ext  → bucket privé "documents"
     const path = `${userId}/${label.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.${ext}`;
 
-    const { data, error } = await supabase.storage
-      .from('documents')
-      .upload(path, file, { upsert: true, contentType: file.type }); // nosec
-
-    if (error || !data) {
-      console.error('Upload error:', error);
-      toast.error(`Erreur upload : ${error?.message || 'inconnue'}`);
+    let storagePath: string;
+    try {
+      // uploadFileGetPath valide les magic bytes côté serveur et retourne le chemin relatif
+      const returnedPath = await uploadFileGetPath(file, 'documents', path);
+      storagePath = `documents/${returnedPath}`;
+    } catch (err) {
+      console.error('Upload error:', err);
+      toast.error(`Erreur upload : ${err instanceof Error ? err.message : 'inconnue'}`);
       onChange({ ...updated, uploading: false, file: null });
       return;
     }
 
     // On stocke le chemin Storage (pas l'URL publique — le bucket est privé)
     // L'admin utilisera une URL signée pour consulter le document
-    const storagePath = `documents/${data.path}`;
     onChange({ file, uploading: false, url: storagePath, name: file.name });
     toast.success(`${label} ajouté ✓`);
   };
@@ -216,10 +215,13 @@ export default function ArtisanProfilPage() {
       const photo = photos[i];
       const ext = safeImageExt(photo.name);
       const fileName = `artisans/${artisanId}/gallery-${Date.now()}-${i}.${ext}`;
-      const { data: uploaded } = await supabase.storage.from('photos').upload(fileName, photo, { upsert: true }); // nosec
-      if (uploaded) {
-        const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(uploaded.path); // nosec
+      try {
+        // uploadFile valide les magic bytes côté serveur
+        const publicUrl = await uploadFile(photo, 'photos', fileName);
         await supabase.from('artisan_photos').insert({ artisan_id: artisanId, url: publicUrl, display_order: i });
+      } catch (err) {
+        console.error('Photo upload error:', err);
+        // On continue même si une photo échoue
       }
     }
 

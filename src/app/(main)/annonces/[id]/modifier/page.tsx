@@ -7,6 +7,7 @@ import { Camera, X, ChevronLeft, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { ListingCategory } from '@/types';
+import { safeImageExt, uploadFile } from '@/lib/upload-utils';
 import toast from 'react-hot-toast';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -187,19 +188,17 @@ export default function ModifierAnnoncePage() {
     // Upload new photos
     for (let i = 0; i < newPhotos.length; i++) {
       const photo = newPhotos[i];
-      const ext = photo.name.split('.').pop() || 'jpg';
+      const ext = safeImageExt(photo.name);
       const fileName = `listings/${id}/${Date.now()}_${i}.${ext}`;
-      const { data: up, error: upErr } = await supabase.storage
-        .from('photos')
-        .upload(fileName, photo, { upsert: true });
-
-      if (up && !upErr) {
-        const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(up.path);
+      try {
+        const publicUrl = await uploadFile(photo, 'photos', fileName);
         await supabase.from('listing_photos').insert({
           listing_id: id,
           url: publicUrl,
           display_order: existingPhotos.length + i,
         });
+      } catch (err) {
+        toast.error(`Photo ${i + 1} : ${err instanceof Error ? err.message : 'Erreur upload'}`);
       }
     }
 

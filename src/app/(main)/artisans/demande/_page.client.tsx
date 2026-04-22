@@ -12,7 +12,7 @@ import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Select from '@/components/ui/Select';
 import SectorFilter from '@/components/ui/SectorFilter';
-import { safeImageExt } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile } from '@/lib/upload-utils';
 
 function DemandeServiceForm() {
   const searchParams = useSearchParams();
@@ -94,20 +94,17 @@ function DemandeServiceForm() {
 
   const uploadPhotos = async (requestId: string): Promise<string[]> => {
     if (photos.length === 0) return [];
-    const supabase = createClient();
     const urls: string[] = [];
 
     for (let i = 0; i < photos.length; i++) {
       const photo = photos[i];
       const ext = safeImageExt(photo.name);
       const fileName = `requests/${requestId}/${Date.now()}_${i}.${ext}`;
-      const { data, error } = await supabase.storage
-        .from('photos')
-        .upload(fileName, photo, { upsert: true }); // nosec
-
-      if (!error && data) {
-        const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(data.path); // nosec
+      try {
+        const publicUrl = await uploadFile(photo, 'photos', fileName);
         urls.push(publicUrl);
+      } catch {
+        // skip failed photo — continue with others
       }
     }
     return urls;

@@ -21,7 +21,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import toast from 'react-hot-toast';
 
 import { EMPTY_FORM, MAX_PHOTOS, MAX_FILE_MB, FALLBACK_CATEGORIES } from './_config';
-import { safeImageExt } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile } from '@/lib/upload-utils';
 import type {
   CollectionneurFormData,
   CollectionCategory,
@@ -153,11 +153,12 @@ export function useCollectionneurForm(): UseCollectionneurFormReturn {
     if (!profile?.id) return null;
     const ext = safeImageExt(file.name);
     const path = `collection/${profile.id}/${Date.now()}_${idx}.${ext}`;
-    const { error } = await supabase.storage.from('photos').upload(path, file, { upsert: true }); // nosec
-    if (error) return null;
-    const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path); // nosec
-    return publicUrl;
-  }, [profile?.id, supabase]);
+    try {
+      return await uploadFile(file, 'photos', path);
+    } catch {
+      return null;
+    }
+  }, [profile?.id]);
 
   // ─── Gestion des fichiers sélectionnés ──────────────────────────────────
   const handleFiles = useCallback(async (files: FileList | null) => {

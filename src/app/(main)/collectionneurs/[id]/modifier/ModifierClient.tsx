@@ -19,7 +19,7 @@ import {
   ChevronDown, ChevronUp,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { safeImageExt } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile } from '@/lib/upload-utils';
 import {
   MODE_CONFIG, STATUS_CONFIG, RARITY_CONFIG, CONDITION_CONFIG,
   type CollectionMode, type CollectionStatus, type RarityLevel, type ConditionLevel,
@@ -178,11 +178,12 @@ export default function ModifierClient() {
     if (!profile?.id) return null;
     const ext = safeImageExt(file.name);
     const path = `collection/${profile.id}/${Date.now()}_${idx}.${ext}`;
-    const { error } = await supabase.storage.from('photos').upload(path, file, { upsert: true }); // nosec
-    if (error) return null;
-    const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path); // nosec
-    return publicUrl;
-  }, [profile?.id, supabase]);
+    try {
+      return await uploadFile(file, 'photos', path);
+    } catch {
+      return null;
+    }
+  }, [profile?.id]);
 
   const handleFiles = useCallback(async (files: FileList | null) => {
     if (!files) return;

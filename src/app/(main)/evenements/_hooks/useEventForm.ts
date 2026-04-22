@@ -4,7 +4,7 @@ import { useState, useRef, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import type { NewEventForm } from '../_types';
-import { safeImageExt } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile } from '@/lib/upload-utils';
 
 const EMPTY_FORM: NewEventForm = {
   title: '',
@@ -55,17 +55,15 @@ export function useEventForm(profileId: string | undefined, onSuccess: () => voi
       const file = eventPhotos[i];
       const ext = safeImageExt(file.name);
       const path = `events/${eventId}/${Date.now()}_${i}.${ext}`;
-      const { data: up, error: upErr } = await supabase.storage
-        .from('photos')
-        .upload(path, file, { upsert: true, contentType: file.type }); // nosec
-      if (upErr) { toast.error(`Photo ${i + 1} : ${upErr.message}`); continue; }
-      if (up?.path) {
-        const { data: urlData } = supabase.storage.from('photos').getPublicUrl(up.path); // nosec
+      try {
+        const publicUrl = await uploadFile(file, 'photos', path);
         await supabase.from('event_photos').insert({
           event_id: eventId,
-          url: urlData.publicUrl,
+          url: publicUrl,
           display_order: i,
         });
+      } catch (err) {
+        toast.error(`Photo ${i + 1} : ${err instanceof Error ? err.message : 'Erreur upload'}`);
       }
     }
   };
