@@ -96,7 +96,11 @@ if (!isRedisConfigured()) {
 // ─────────────────────────────────────────────────────────────────────────────
 // CSP dynamique avec nonce ────────────────────────────────────────────────────
 
+// Nettoyer la variable : supprimer espaces, sauts de ligne, retours chariot
+// (le secret GitHub peut contenir des whitespace invisibles → header HTTP invalide → 500)
 const SUPABASE_ORIGIN = (process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://*.supabase.co')
+  .trim()
+  .replace(/[\r\n\s]+/g, '')
   .replace(/^https?:\/\//, '');
 
 const isDev = process.env.NODE_ENV === 'development';
