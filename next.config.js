@@ -130,6 +130,28 @@ const securityHeaders = [
   { key: 'Cross-Origin-Resource-Policy',  value: 'cross-origin' },
 ];
 
+// ─── NOTE LIGHTHOUSE : Polyfills "Ancient JavaScript" (chunk 9446-*) ──────────
+//
+// Lighthouse signale systématiquement 13.1 KB de polyfills "Ancient JavaScript" :
+//   Array.prototype.at, .flat, .flatMap, Object.fromEntries, Object.hasOwn,
+//   String.prototype.trimEnd, String.prototype.trimStart.
+//
+// SOURCE CONFIRMÉE : node_modules/next/dist/build/polyfills/polyfill-module.js
+// Ce fichier est un module interne de Next.js, injecté dans TOUS les builds
+// indépendamment du browserslist et de la cible tsconfig.
+//
+// STATUT : UNFIXABLE côté application.
+// Suivi : https://github.com/vercel/next.js/issues/21521
+// Next.js bundle ses propres polyfills pour garantir la compatibilité avec
+// les navigateurs cibles du framework (ES5+). Même avec browserslist
+// chrome>=100, Next.js injecte toujours ce module.
+//
+// ⚠️  NE PAS essayer de "corriger" ceci via des deps npm ou tsconfig :
+//     - Supprimer/modifier des packages npm n'a aucun effet sur ce chunk.
+//     - Changer tsconfig.target n'affecte pas le bundler webpack de Next.js.
+//     - Seule une PR dans le repo next.js lui-même pourrait le corriger.
+// ─────────────────────────────────────────────────────────────────────────────
+
 const nextConfig = {
   // ─── Options globales ────────────────────────────────────────────────────────
   // Supprime le header X-Powered-By: Next.js (fingerprinting inutile en prod).

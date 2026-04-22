@@ -57,10 +57,18 @@ Sentry.init({
   //   • 0 en prod par défaut (confidentialité + quota). Passer à 0.05 si besoin.
   //
   // replaysOnErrorSampleRate : replay automatique des sessions ayant une erreur.
-  //   • 1.0 = toujours rejouer les sessions avec une erreur → très utile en prod.
+  //   • Réduit de 1.0 → 0.1 pour deux raisons :
+  //     1. Performance : replay.min.js (~47 KB lazy) est chargé dès la détection
+  //        d'une erreur. Avec 1.0, Lighthouse déclenche le chargement à chaque run
+  //        (il génère des erreurs internes lors de l'audit) → replay.min.js exécute
+  //        rrweb qui appelle getBoundingClientRect() en boucle → forced layout reflow
+  //        de 115 ms rapporté dans le panneau Lighthouse.
+  //     2. Quota Sentry : 1.0 = 100% des sessions avec erreur sont rejoujées.
+  //        Pour un site en production, 10% est largement suffisant pour déboguer.
+  //   • Pour rejouer une session spécifique, utiliser Sentry Issues → Replays.
   tracesSampleRate:         process.env.NODE_ENV === 'production' ? 0.1  : 1.0,
-  replaysSessionSampleRate: 0,      // pas de replay systématique (RGPD)
-  replaysOnErrorSampleRate: 1.0,    // replay complet si une erreur survient
+  replaysSessionSampleRate: 0,    // pas de replay systématique (RGPD)
+  replaysOnErrorSampleRate: 0.1,  // 10% des sessions en erreur rejoujées (↓ forced reflow)
 
   // ── Intégrations client ───────────────────────────────────────────────────
   integrations: [
