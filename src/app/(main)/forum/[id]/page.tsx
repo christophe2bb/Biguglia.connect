@@ -139,7 +139,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       const description = topicV2.content
         ? topicV2.content.slice(0, 155)
         : 'Participez à la discussion sur le forum de Biguglia Connect.';
-      return { title, description, openGraph: { title, description } };
+      return {
+        title,
+        description,
+        alternates: { canonical: `${_SITE_URL}/forum/${id}` },
+        openGraph: { title, description },
+      };
     }
 
     const { data: postV1 } = await supabase
@@ -153,10 +158,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       const description = postV1.content
         ? postV1.content.slice(0, 155)
         : 'Participez à la discussion sur le forum de Biguglia Connect.';
-      return { title, description, openGraph: { title, description } };
+      return {
+        title,
+        description,
+        alternates: { canonical: `${_SITE_URL}/forum/${id}` },
+        openGraph: { title, description },
+      };
     }
 
-    return { title: 'Sujet introuvable — Forum | Biguglia Connect' };
+    return {
+      title: 'Sujet introuvable — Forum | Biguglia Connect',
+      alternates: { canonical: `${_SITE_URL}/forum/${id}` },
+    };
   } catch {
     return { title: 'Forum — Biguglia Connect' };
   }
