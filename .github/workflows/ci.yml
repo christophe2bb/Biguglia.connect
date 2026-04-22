@@ -1,0 +1,136 @@
+# ─── CI Pipeline — Biguglia Connect ───────────────────────────────────────────
+#
+# Exécuté sur :
+#   • Chaque push sur main / genspark_ai_developer
+#   • Chaque pull request vers main
+#
+# Jobs :
+#   1. unit-tests     → TypeScript check + ESLint + Vitest (1 284 tests)
+#   2. e2e-smoke      → Playwright 5 smoke tests (build Next.js + run)
+#
+# Les deux jobs sont indépendants et s'exécutent en parallèle.
+# Le merge vers main nécessite que TOUS les jobs passent (branch protection).
+#
+# ─── Variables d'environnement requises ───────────────────────────────────────
+#
+# Secrets GitHub (Settings → Secrets → Actions) :
+#
+#   Requis pour le build Next.js (unit-tests + e2e) :
+#     NEXT_PUBLIC_SUPABASE_URL        URL du projet Supabase
+#     NEXT_PUBLIC_SUPABASE_ANON_KEY   Clé publique Supabase
+#
+#   Requis pour les smoke tests E2E avec authentification :
+#     E2E_TEST_EMAIL        Email d'un compte de test Supabase
+#     E2E_TEST_PASSWORD     Mot de passe du compte de test
+#
+#   Sans E2E_TEST_EMAIL / E2E_TEST_PASSWORD :
+#     → Les smoke tests 2 (login) et 3 (création annonce) sont automatiquement
+#       skippés. Les tests 1, 4, 5 s'exécutent toujours.
+#
+# ─── Intégration Vercel ───────────────────────────────────────────────────────
+#
+#   Vercel est configuré pour déployer uniquement si les checks GitHub passent.
+#   Ajouter dans Vercel → Settings → Git → "Require successful checks".
+#   Checks à activer : "unit-tests" et "e2e-smoke".
+#
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: CI — Tests unitaires + Smoke tests E2E
+
+on:
+  push:
+    branches:
+      - main
+      - genspark_ai_developer
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    name: Tests unitaires (tsc + lint + vitest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npm run typecheck
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Vitest (1 284 tests unitaires)
+        run: npm run test
+        env:
+          NEXT_PUBLIC_SUPABASE_URL:      ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+  e2e-smoke:
+    name: Smoke tests E2E (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Build Next.js
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL:      ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SITE_URL:          ${{ secrets.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000' }}
+          NEXT_PUBLIC_SENTRY_DSN:        ''
+
+      - name: Run Playwright smoke tests
+        run: npx playwright test --reporter=list,html
+        env:
+          NEXT_PUBLIC_SUPABASE_URL:      ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SITE_URL:          ${{ secrets.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000' }}
+          E2E_TEST_EMAIL:    ${{ secrets.E2E_TEST_EMAIL }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Upload Playwright traces (failure only)
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
