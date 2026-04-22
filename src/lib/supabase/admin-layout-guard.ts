@@ -3,28 +3,18 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * Guard serveur pour le layout /admin — Server Component uniquement.
  *
- * ─── Problème identifié (2026-04-17) ───────────────────────────────────────
+ * ─── Formats de cookies supportés ──────────────────────────────────────────
  *
- *  Le cookie `sb-<ref>-auth-token` est stocké par createBrowserClient au
- *  format JSON brut :
- *    {"access_token":"eyJ...","refresh_token":"...","expires_at":...}
+ *  @supabase/ssr 0.9+ (FORMAT ACTUEL) :
+ *    sb-<ref>-auth-token = base64-<base64url(JSON.stringify(session))>
  *
- *  createServerClient (@supabase/ssr) s'attend à un format chunké :
- *    sb-<ref>-auth-token.0 = {"access_token":"eyJ..."}
- *    sb-<ref>-auth-token.1 = {"refresh_token":"..."}
+ *  Héritage createBrowserClient (JSON brut) :
+ *    sb-<ref>-auth-token = {"access_token":"eyJ...","refresh_token":"..."}
  *
- *  Résultat : getSession() renvoie null malgré un cookie valide présent.
+ *  Héritage chunké :
+ *    sb-<ref>-auth-token.0 = {"access_token":"eyJ...",...}
  *
- * ─── Solution ──────────────────────────────────────────────────────────────
- *
- *  1. Lire le cookie brut depuis next/headers
- *  2. Parser le JSON pour extraire access_token + user.id
- *  3. Décoder le JWT manuellement (payload Base64) pour obtenir sub (= userId)
- *  4. Charger le profil via service-role (bypass RLS) avec ce userId
- *
- *  Pas besoin de valider la signature du JWT ici — createAdminClient()
- *  (service-role key) est une source de vérité côté DB. Si le userId
- *  n'existe pas en base, le profil sera null et l'accès refusé.
+ *  Les 3 formats sont supportés par extractUserIdFromCookie().
  *
  * ─── Protection double couche ──────────────────────────────────────────────
  *
@@ -45,50 +35,69 @@ export interface AdminLayoutOk { actor: AdminLayoutActor; }
 const ADMIN_ROLES: readonly string[] = ['admin', 'moderator'] as const;
 
 /**
- * Extrait le userId depuis le cookie Supabase brut (format JSON ou chunké).
- * Décode le payload Base64 du JWT access_token sans vérifier la signature
- * (la vérification de rôle via service-role key est la vraie garantie de sécurité).
+ * Extrait un access_token depuis une valeur de cookie Supabase.
+ * Supporte les 3 formats de @supabase/ssr :
+ *   1. base64-<base64url(JSON)>  ← FORMAT 0.9+ (actuel)
+ *   2. {"access_token":"eyJ..."}  ← JSON brut (héritage createBrowserClient)
+ *   3. (appelé sur chunk .0)     ← format chunké (héritage createServerClient)
+ */
+function extractTokenFromCookieValue(value: string): string | null {
+  if (!value) return null;
+
+  // ── Format 0.9+ : base64-<base64url(JSON)> ───────────────────────────────
+  if (value.startsWith('base64-')) {
+    try {
+      const b64url  = value.slice('base64-'.length);
+      // base64url → base64 standard
+      const b64     = b64url.replace(/-/g, '+').replace(/_/g, '/');
+      const padded  = b64 + '=='.slice(0, (4 - b64.length % 4) % 4);
+      const json    = Buffer.from(padded, 'base64').toString('utf8');
+      const parsed  = JSON.parse(json) as Record<string, unknown>;
+      const token   = parsed.access_token;
+      return typeof token === 'string' && token.startsWith('eyJ') ? token : null;
+    } catch {
+      return null;
+    }
+  }
+
+  // ── Format héritage : JSON brut ou URL-encodé ─────────────────────────────
+  try {
+    const decoded = decodeURIComponent(value);
+    const parsed  = JSON.parse(decoded) as Record<string, unknown>;
+    const token   = parsed.access_token;
+    return typeof token === 'string' && token.startsWith('eyJ') ? token : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extrait le userId depuis le cookie Supabase brut.
+ * Supporte les formats @supabase/ssr 0.9+ (base64-), JSON brut, et chunké.
  */
 async function extractUserIdFromCookie(): Promise<string | null> {
   const cookieStore = await cookies();
   const projectRef  = getSupabaseProjectRef();
   const cookieName  = `sb-${projectRef}-auth-token`;
 
-  // ── Format JSON brut (createBrowserClient) ────────────────────────────────
-  // Valeur : {"access_token":"eyJ...","refresh_token":"...","expires_at":...}
+  // ── Cookie principal (format 0.9+ base64- ou JSON brut) ──────────────────
   const rawCookie = cookieStore.get(cookieName)?.value;
   if (rawCookie) {
-    try {
-      const decoded = decodeURIComponent(rawCookie);
-      const parsed  = JSON.parse(decoded) as Record<string, unknown>;
-      const token   = parsed.access_token as string | undefined;
-      if (token) {
-        const userId = decodeJwtSub(token);
-        if (userId) {
-          return userId;
-        }
-      }
-    } catch {
-      // Pas du JSON valide, essayer le format chunké
+    const token = extractTokenFromCookieValue(rawCookie);
+    if (token) {
+      const userId = decodeJwtSub(token);
+      if (userId) return userId;
     }
   }
 
-  // ── Format chunké (createServerClient) ───────────────────────────────────
-  // Valeur .0 : {"access_token":"eyJ...","token_type":"bearer",...}
+  // ── Format chunké : cookie .0 ────────────────────────────────────────────
+  // Utilisé quand la session est trop grande pour un seul cookie.
   const chunk0 = cookieStore.get(`${cookieName}.0`)?.value;
   if (chunk0) {
-    try {
-      const decoded = decodeURIComponent(chunk0);
-      const parsed  = JSON.parse(decoded) as Record<string, unknown>;
-      const token   = parsed.access_token as string | undefined;
-      if (token) {
-        const userId = decodeJwtSub(token);
-        if (userId) {
-          return userId;
-        }
-      }
-    } catch {
-      // Cookie chunké invalide
+    const token = extractTokenFromCookieValue(chunk0);
+    if (token) {
+      const userId = decodeJwtSub(token);
+      if (userId) return userId;
     }
   }
 
