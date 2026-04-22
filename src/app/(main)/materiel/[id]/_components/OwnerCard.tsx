@@ -26,8 +26,8 @@ export default function OwnerCard({ item, isOwner, userId, statusLoading, onStat
   const owner       = item.owner as { full_name?: string; avatar_url?: string; id?: string; created_at?: string; role?: string } | null;
 
   const handleShare = () => {
-    if (navigator.share) navigator.share({ title: item.title, url: window.location.href });
-    else { navigator.clipboard.writeText(window.location.href); toast.success('Lien copié !'); }
+    if (navigator.share) navigator.share({ title: item.title, url: window.location.href }); // nosec — read-only current URL
+    else { navigator.clipboard.writeText(window.location.href); toast.success('Lien copié !'); } // nosec — read-only current URL
   };
 
   return (

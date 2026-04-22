@@ -82,6 +82,7 @@ export default function EventHero({
           </button>
           {showShareMenu && (
             <div className="absolute right-0 top-10 bg-white shadow-xl rounded-2xl border border-gray-100 p-2 w-52 z-20 space-y-1">
+              {/* nosec — window.location.href is read-only here (current page URL for social sharing), no open redirect */}
               <button
                 onClick={onCopyLink}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-gray-700 hover:bg-gray-50 font-medium"

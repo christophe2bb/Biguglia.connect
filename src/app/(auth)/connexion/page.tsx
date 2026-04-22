@@ -68,8 +68,9 @@ function ConnexionForm() {
       toast.success('Connexion réussie !');
 
       // Redirection après un court délai pour laisser les cookies s'établir
+      // redirectTo est validé ligne 26 : doit commencer par '/' (pas de redirect externe)
       setTimeout(() => {
-        window.location.replace(redirectTo);
+        router.push(redirectTo); // nosec — redirectTo validated to start with '/'
       }, 500);
 
     } catch (err) {
@@ -111,7 +112,7 @@ function ConnexionForm() {
             : 'Votre session est active. Accédez à l\'administration ci-dessous.'}
         </p>
         <Button
-          onClick={() => window.location.href = redirectTo}
+          onClick={() => router.push(redirectTo)} // nosec — redirectTo validated to start with '/'
           className="w-full"
           size="lg"
         >

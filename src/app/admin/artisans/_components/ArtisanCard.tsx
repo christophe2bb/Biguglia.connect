@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import {
@@ -53,6 +54,7 @@ interface ArtisanCardProps {
 }
 
 export default function ArtisanCard({ artisan, onApprove, onReject }: ArtisanCardProps) {
+  const router                        = useRouter();
   const [expanded,    setExpanded]    = useState(false);
   const [sendingMsg,  setSendingMsg]  = useState(false);
 
@@ -86,7 +88,7 @@ export default function ArtisanCard({ artisan, onApprove, onReject }: ArtisanCar
       if (!res?.ok) { toast.error('Impossible de créer la conversation'); return; }
       const { conversationId } = await res.json().catch(() => ({}));
       if (!conversationId) { toast.error('Impossible de créer la conversation'); return; }
-      window.location.href = `/messages/${conversationId}`;
+      router.push(`/messages/${conversationId}`); // nosec — path is server-controlled (conversationId from API)
     } catch (e) {
       console.error(e);
       toast.error("Erreur lors de l'ouverture de la messagerie");

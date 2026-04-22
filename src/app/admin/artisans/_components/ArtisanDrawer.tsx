@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect, useRef, useId } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   X, Shield, FileText,
@@ -51,6 +52,7 @@ interface ArtisanDrawerProps {
 }
 
 export default function ArtisanDrawer({ artisan, onClose, onApprove, onReject }: ArtisanDrawerProps) {
+  const router                       = useRouter();
   const [sendingMsg, setSendingMsg] = useState(false);
 
   const drawerRef  = useRef<HTMLElement>(null);
@@ -106,7 +108,7 @@ export default function ArtisanDrawer({ artisan, onClose, onApprove, onReject }:
       if (!res?.ok) { toast.error('Impossible de créer la conversation'); return; }
       const { conversationId } = await res.json().catch(() => ({}));
       if (!conversationId) { toast.error('Impossible de créer la conversation'); return; }
-      window.location.href = `/messages/${conversationId}`;
+      router.push(`/messages/${conversationId}`); // nosec — path is server-controlled (conversationId from API)
     } catch (e) {
       console.error(e);
       toast.error("Erreur lors de l'ouverture de la messagerie");

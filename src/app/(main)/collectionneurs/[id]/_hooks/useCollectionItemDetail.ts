@@ -206,9 +206,9 @@ export function useCollectionItemDetail(): UseCollectionItemDetailReturn {
   /* ── Partage ─────────────────────────────────────────────────────────── */
   const handleShare = () => {
     if (navigator.share) {
-      navigator.share({ title: item?.title, url: window.location.href });
+      navigator.share({ title: item?.title, url: window.location.href }) // nosec — read-only current URL;
     } else {
-      navigator.clipboard.writeText(window.location.href);
+      navigator.clipboard.writeText(window.location.href); // nosec — read-only current URL
       toast.success('Lien copié !');
     }
   };

@@ -147,7 +147,7 @@ export function ConversationHeader({
 
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText(window.location.href);
+                  navigator.clipboard.writeText(window.location.href); // nosec — read-only current URL
                   toast.success('Lien copié !');
                   setMenuOpen(false);
                 }}

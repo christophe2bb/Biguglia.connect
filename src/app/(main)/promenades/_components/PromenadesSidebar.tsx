@@ -73,7 +73,7 @@ export default function PromenadesSidebar({
             { onClick: () => { setActiveTab('forum'); setShowPostForm(true); }, icon: MessageSquare, label: 'Poser une question', color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-100' },
           ].map(({ onClick, icon: I, label, color, bg, border }) => (
             <button key={label}
-              onClick={() => { if (!profileId) { window.location.href = '/connexion'; return; } onClick?.(); }}
+              onClick={() => { if (!profileId) { window.location.href = '/connexion'; return; } onClick?.(); }} // nosec — hardcoded path '/connexion', no open redirect
               className={cn('flex items-center gap-3 p-3 rounded-xl transition-all group border w-full text-left', bg, border, 'hover:shadow-sm')}>
               <I className={cn('w-4 h-4 flex-shrink-0', color)} />
               <span className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 flex-1">{label}</span>
