@@ -11,7 +11,7 @@ export const metadata: Metadata = {
  * car cela génère un contenu dynamique incompatible avec le cache SSG et
  * produit un avertissement d'hydratation React.
  */
-const LAST_UPDATE = '22 avril 2025';
+const LAST_UPDATE = '22 avril 2026';
 
 export default function ConfidentialitePage() {
   return (

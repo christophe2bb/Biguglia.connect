@@ -36,6 +36,7 @@ Exécuter les migrations dans l'ordre dans **Supabase → SQL Editor** :
 | 28 | `supabase/migrations/20260418_perf_indexes.sql` | Index de performance |
 | 29 | `supabase/migrations/20260421_cleanup_duplicate_policies.sql` | Nettoyage policies RLS dupliquées |
 | 30 | `supabase/migrations/20260421_unindexed_fk.sql` | Index sur clés étrangères non couvertes |
+| 31 | `supabase/migrations/20260422_service_requests_sector_id.sql` | Ajout colonne `sector_id` sur `service_requests` |
 
 > **Ordre d'exécution obligatoire** : respecter impérativement le numéro `#` du tableau.
 > Les noms de fichiers commencent par une date (`YYYYMMDD`) : trier par nom = trier par ordre correct.
@@ -268,3 +269,135 @@ UPDATE profiles SET role = 'admin' WHERE email = 'votre@email.fr';
 - [ ] Logs Vercel — absence du message `[Sentry] DSN absent — monitoring client désactivé`
 - [ ] Sentry dashboard — les erreurs remontent bien (tester via `/test-sentry`)
 - [ ] CSP — aucune violation CSP dans la console navigateur
+
+---
+
+## 🔄 Runbook de Rollback
+
+> Utiliser en cas d'incident critique en production (build cassé, régression bloquante).
+
+### Rollback Vercel (< 2 minutes)
+
+1. Aller sur **https://vercel.com/dashboard** → projet **biguglia-connect**
+2. Cliquer sur **Deployments**
+3. Trouver le dernier déploiement stable (statut `Ready` avant l'incident)
+4. Cliquer sur **⋯ (trois points)** → **Promote to Production**
+5. Confirmer — le déploiement précédent reprend immédiatement le trafic
+
+> Le rollback Vercel NE rollback PAS la base de données. Si une migration SQL a été
+> exécutée, les données peuvent être dans un état incompatible avec l'ancienne version
+> du code. Voir la section "Rollback DB" ci-dessous si nécessaire.
+
+### Rollback DB Supabase (si migration appliquée)
+
+Chaque migration est idempotente et documentée. Pour annuler manuellement :
+
+```sql
+-- Exemple : annuler 20260422_service_requests_sector_id.sql
+ALTER TABLE service_requests DROP COLUMN IF EXISTS sector_id;
+DROP INDEX IF EXISTS idx_service_requests_sector_id;
+```
+
+> **Règle d'or** : ne rollback jamais une migration sans avoir rollbacké Vercel d'abord.
+> L'ordre est toujours : **1. Rollback Vercel → 2. Rollback DB (si nécessaire)**.
+
+### Rollback Git
+
+```bash
+# Identifier le dernier commit stable
+git log --oneline -10
+
+# Créer une branche de hotfix depuis le commit stable
+git checkout -b hotfix/rollback <commit-sha>
+git push origin hotfix/rollback
+
+# Ouvrir une PR vers main depuis Vercel pour déclencher le build
+```
+
+---
+
+## 🔒 Checklist variables d'environnement — Vérification CI
+
+Avant chaque mise en production, vérifier que toutes les variables sont définies :
+
+```bash
+# Vérifier via Vercel CLI
+vercel env ls --environment production
+
+# Les variables suivantes DOIVENT être présentes :
+# ✅ NEXT_PUBLIC_SUPABASE_URL
+# ✅ NEXT_PUBLIC_SUPABASE_ANON_KEY
+# ✅ NEXT_PUBLIC_SITE_URL          ← robots.txt, canonical, OG images
+# ✅ SUPABASE_SERVICE_ROLE_KEY     ← admin routes, modération
+# ✅ UPSTASH_REDIS_REST_URL        ← rate-limiting distribué
+# ✅ UPSTASH_REDIS_REST_TOKEN      ← rate-limiting distribué
+# ✅ NEXT_PUBLIC_SENTRY_DSN        ← monitoring client
+# ✅ SENTRY_DSN                    ← monitoring serveur
+# ✅ SENTRY_AUTH_TOKEN             ← upload source maps
+# ✅ SENTRY_ORG                    ← upload source maps
+# ✅ SENTRY_PROJECT                ← upload source maps
+```
+
+> **Variables optionnelles mais recommandées :**
+> - `SENTRY_TEST_ENABLED` : ne PAS définir en production (ou `false`)
+> - `VERCEL_GIT_COMMIT_SHA` : injectée automatiquement par Vercel
+
+---
+
+## 🚨 Run-Book Incidents
+
+### Incident : page blanche / erreur 500
+
+1. Vérifier **Vercel → Deployments → Functions → Logs** pour les erreurs serveur
+2. Vérifier **Sentry Dashboard** pour les exceptions non capturées
+3. Tester `/api/health` — si `status: "degraded"`, la DB est inaccessible
+4. Si DB inaccessible : vérifier Supabase → **Settings → Database → Connection** (pause automatique sur tier gratuit)
+5. Si build cassé : rollback Vercel (voir §Rollback ci-dessus)
+
+### Incident : authentification cassée
+
+1. Vérifier Supabase → **Auth → Logs** pour les erreurs JWT
+2. Vérifier que `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_ANON_KEY` sont corrects
+3. Vérifier Supabase → **Auth → Settings** → Site URL correspond bien à l'URL de production
+4. Si token expiré : les utilisateurs doivent se reconnecter (token Supabase valide 1h par défaut)
+
+### Incident : rate-limiting trop agressif (utilisateurs légitimes bloqués)
+
+1. Vérifier **Vercel → Functions → Logs** pour les messages `rate-limit exceeded`
+2. Upstash Console → **Data Browser** → chercher les clés `rate-limit:*` pour identifier les IPs bloquées
+3. Si faux positif : supprimer la clé via Upstash Console → **CLI** → `DEL rate-limit:<ip>:<route>`
+4. Ajuster les limites dans `src/middleware.ts` si nécessaire
+
+### Incident : upload photos impossible
+
+1. Vérifier Supabase → **Storage → Policies** — le bucket `photos` doit être Public
+2. Vérifier que les RLS policies du bucket permettent l'INSERT aux utilisateurs authentifiés
+3. Vérifier les logs Vercel pour les erreurs `storage-api`
+
+---
+
+## 📊 Monitoring post-déploiement
+
+### Vérifications immédiates (J+0, < 30 min après déploiement)
+
+- [ ] `/api/health` répond `{"status":"ok"}` avec latence DB < 500ms
+- [ ] Sentry — aucune nouvelle erreur critique dans les 10 premières minutes
+- [ ] Core Web Vitals — LCP < 2.5s, CLS < 0.1 (vérifier Vercel Analytics ou PageSpeed)
+- [ ] Rate-limit Redis actif (logs Vercel sans `[rate-limit] Redis non configuré`)
+
+### Vérifications J+1
+
+- [ ] Taux d'erreur Sentry < 0.1% des sessions
+- [ ] Logs Vercel — aucune erreur `42703` (colonne inconnue) ni `PGRST200` (relation introuvable)
+- [ ] Supabase → **Reports** — pas de spike anormal sur les requêtes DB
+
+### Alertes Sentry recommandées
+
+Configurer dans Sentry → **Alerts → Create Alert** :
+
+| Alerte | Condition | Canal |
+|---|---|---|
+| Erreur critique | Error rate > 1% sur 5 min | Email admin |
+| Apdex dégradé | Apdex < 0.7 sur 10 min | Email admin |
+| N+1 détecté | Transaction > 5s | Email admin |
+| Quota dépassé | 80% du quota Sentry | Email admin |
