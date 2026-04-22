@@ -19,12 +19,48 @@ Do **not** open public GitHub issues for security bugs.
 | `npm install` in `vercel.json` | Low | Replaced with `npm ci` for reproducible builds | #358 |
 | `window.location.href` open redirect (ArtisanCard, ArtisanDrawer) | Medium | Replaced with `router.push()` — path is server-controlled | #362 |
 | CSP `connect-src` missing `browser.sentry-cdn.com` | Low | Added domain to `connect-src` | #360 |
+| CSP `unsafe-inline` on `supabase.com/dashboard` URL | High | **Out-of-scope** — Supabase's own CSP, not this repo | §3.0 |
+| `dangerouslySetInnerHTML` in `JsonLd.tsx` (Aikido re-scan) | Medium | `// nosec` added — Aikido AI confirmed false positive | #363 |
 
 ---
 
 ## 3. Accepted Risks & Documented Decisions
 
-### 3.1 CSP `script-src` — `'unsafe-inline'` Retained
+### 3.0 CSP `script-src unsafe-inline` — Alert on Supabase Dashboard URL
+
+**Status**: Out-of-scope — third-party infrastructure, no action possible  
+**Flagged URL**: `https://supabase.com/dashboard/org/gbztkviooqrvlrykujlv`  
+**Severity reported**: High
+
+#### Root Cause
+
+The scanner scanned the **Supabase dashboard** URL (supabase.com), **not the Biguglia Connect app**.  
+Supabase's own dashboard CSP (verified by `curl -I` on 2026-04-22) includes:
+
+```
+script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdnjs.cloudflare.com ...
+```
+
+This is **Supabase's infrastructure**, outside the scope of this project.  
+No code change in this repository can affect it.
+
+#### Evidence
+
+```bash
+curl -sI "https://supabase.com/dashboard/org/gbztkviooqrvlrykujlv" | grep content-security-policy
+# → script-src 'self' 'unsafe-eval' 'unsafe-inline' ... (Supabase's own CSP)
+```
+
+#### Action Required
+
+- **None** on the code side — this is Supabase's CSP, not ours.
+- If your security scanner allows URL exclusions, exclude `https://supabase.com/*` from scans,  
+  as it is a third-party dependency with its own security policies.
+- Report the issue to Supabase at https://supabase.com/security if desired.
+
+---
+
+### 3.1 CSP `script-src` — `'unsafe-inline'` Retained (Biguglia Connect app)
 
 **Status**: Accepted — residual risk documented, migration planned  
 **Risk level**: Medium  
