@@ -26,16 +26,10 @@
 import { ImageResponse } from 'next/og';
 import type { NextRequest } from 'next/server';
 
-// Re-export helpers purs pour backward-compat et import dans les tests
-export {
-  TYPE_META,
-  CONDITION_LABELS_SHORT,
-  truncateTitle,
-  formatPriceBadge,
-  parseOgParams,
-  buildOgUrl,
-} from './og-helpers';
-
+// Helpers purs — importés depuis og-helpers.ts (séparé de ce fichier pour
+// permettre les tests Vitest sans Edge runtime ni JSX).
+// NB : ne jamais re-exporter depuis un fichier route.tsx — Next.js interdit
+// tout export qui ne fait pas partie du contrat Route (GET, POST, runtime…).
 import {
   TYPE_META,
   CONDITION_LABELS_SHORT,

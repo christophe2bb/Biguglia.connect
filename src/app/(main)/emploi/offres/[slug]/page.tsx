@@ -23,6 +23,8 @@ import {
 import ProtectedContact from '@/components/jobs/ProtectedContact';
 import OwnerActions from '@/components/jobs/OwnerActions';
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
+
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
@@ -31,9 +33,17 @@ export async function generateMetadata({ params }: PageProps) {
   const { slug } = await params;
   const offer = await getJobOfferBySlug(slug);
   if (!offer) return { title: 'Offre non trouvée - Biguglia Connect' };
+  const title = `${offer.title}${offer.employer_name ? ` – ${offer.employer_name}` : ''} | Biguglia Connect`;
+  const description = offer.short_description ?? '';
   return {
-    title: `${offer.title}${offer.employer_name ? ` – ${offer.employer_name}` : ''} | Biguglia Connect`,
-    description: offer.short_description,
+    title,
+    description,
+    alternates: { canonical: `${SITE_URL}/emploi/offres/${slug}` },
+    openGraph: {
+      title,
+      description,
+      url: `${SITE_URL}/emploi/offres/${slug}`,
+    },
   };
 }
 

@@ -11,6 +11,8 @@ import { notFound } from 'next/navigation';
 import AssociationDetailClient from './AssociationDetailClient';
 import type { Association } from './_types';
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
+
 type Props = { params: Promise<{ id: string }> };
 
 // ─── Server fetch helper ────────────────────────────────────────────────────
@@ -62,7 +64,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
       title,
       description,
-      openGraph: { title, description },
+      alternates: { canonical: `${SITE_URL}/associations/${id}` },
+      openGraph: {
+        title,
+        description,
+        url: `${SITE_URL}/associations/${id}`,
+      },
     };
   } catch {
     return { title: 'Association — Biguglia Connect' };

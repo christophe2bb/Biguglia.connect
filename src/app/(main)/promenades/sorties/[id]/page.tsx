@@ -10,6 +10,8 @@ import type { Metadata } from 'next';
 import { fetchOutingSEO } from './queries';
 import OutingDetailClient from './OutingDetailClient';
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
+
 interface PageProps {
   params: Promise<{ id: string }>;
 }
@@ -36,10 +38,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     openGraph: {
       title,
       description,
-      url: `https://biguglia-connect.vercel.app/promenades/sorties/${id}`,
+      url: `${SITE_URL}/promenades/sorties/${id}`,
     },
     alternates: {
-      canonical: `https://biguglia-connect.vercel.app/promenades/sorties/${id}`,
+      canonical: `${SITE_URL}/promenades/sorties/${id}`,
     },
   };
 }
