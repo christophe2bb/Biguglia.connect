@@ -20,43 +20,73 @@ Do **not** open public GitHub issues for security bugs.
 | `window.location.href` open redirect (ArtisanCard, ArtisanDrawer) | Medium | Replaced with `router.push()` — path is server-controlled | #362 |
 | CSP `connect-src` missing `browser.sentry-cdn.com` | Low | Added domain to `connect-src` | #360 |
 | CSP `unsafe-inline` on `supabase.com/dashboard` URL | High | **Out-of-scope** — Supabase's own CSP, not this repo | §3.0 |
+| CSP missing / weak CSP on `supabase.com/dashboard` URL | Critical | **Out-of-scope** — same third-party URL, different rule | §3.0 |
 | `dangerouslySetInnerHTML` in `JsonLd.tsx` (Aikido re-scan) | Medium | `// nosec` added — Aikido AI confirmed false positive | #363 |
 
 ---
 
 ## 3. Accepted Risks & Documented Decisions
 
-### 3.0 CSP `script-src unsafe-inline` — Alert on Supabase Dashboard URL
+### 3.0 All CSP Alerts on `supabase.com/dashboard` — Out-of-Scope (Third-Party Infrastructure)
 
-**Status**: Out-of-scope — third-party infrastructure, no action possible  
+**Status**: Out-of-scope — third-party infrastructure, zero action possible in this repo  
 **Flagged URL**: `https://supabase.com/dashboard/org/gbztkviooqrvlrykujlv`  
-**Severity reported**: High
+**Severities reported**: Critical (missing CSP / weak CSP) + High (`unsafe-inline`)  
+**First seen**: PR #364 (2026-04-22) — recurring alerts documented here
 
 #### Root Cause
 
-The scanner scanned the **Supabase dashboard** URL (supabase.com), **not the Biguglia Connect app**.  
-Supabase's own dashboard CSP (verified by `curl -I` on 2026-04-22) includes:
+Aikido scanner crawls **`https://supabase.com/dashboard/org/…`** — the **Supabase SaaS dashboard** — and attributes its CSP weaknesses to this project. This is wrong: `supabase.com` is a **third-party service** this project depends on; its HTTP headers are 100% outside our control.
 
-```
-script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdnjs.cloudflare.com ...
-```
+Two distinct alerts have been raised, both about the same external URL:
 
-This is **Supabase's infrastructure**, outside the scope of this project.  
-No code change in this repository can affect it.
+| Alert variant | Severity Aikido assigned | What it actually is |
+|---|---|---|
+| `script-src` includes `unsafe-inline` | High | Supabase dashboard's own CSP (`unsafe-eval` + `unsafe-inline`) |
+| CSP header missing / weak CSP | Critical | Aikido re-scan of same URL with a different rule trigger |
 
-#### Evidence
+#### Evidence — Supabase's actual CSP header (verified 2026-04-22)
 
 ```bash
-curl -sI "https://supabase.com/dashboard/org/gbztkviooqrvlrykujlv" | grep content-security-policy
-# → script-src 'self' 'unsafe-eval' 'unsafe-inline' ... (Supabase's own CSP)
+curl -sI "https://supabase.com/dashboard/org/gbztkviooqrvlrykujlv" \
+  | grep -i content-security-policy
+
+# Output (Supabase's own header — not ours):
+# content-security-policy:
+#   default-src 'self' https://api.supabase.com ...;
+#   script-src  'self' 'unsafe-eval' 'unsafe-inline'
+#               https://cdnjs.cloudflare.com https://js.hcaptcha.com
+#               https://js.stripe.com https://frontend-assets.supabase.com ...;
+#   style-src   'self' 'unsafe-inline' ...;
+#   ...
 ```
 
-#### Action Required
+Supabase intentionally uses `'unsafe-inline'` and `'unsafe-eval'` on their own dashboard  
+(Next.js-based SaaS app with Stripe, hCaptcha, real-time features, etc.).
 
-- **None** on the code side — this is Supabase's CSP, not ours.
-- If your security scanner allows URL exclusions, exclude `https://supabase.com/*` from scans,  
-  as it is a third-party dependency with its own security policies.
-- Report the issue to Supabase at https://supabase.com/security if desired.
+#### Biguglia Connect app — Our CSP is correctly configured
+
+```bash
+# Our app sets a strict CSP via next.config.js (served by Vercel):
+# script-src 'self' 'unsafe-inline' blob:
+#             https://vercel.live https://*.vercel-scripts.com
+#             https://browser.sentry-cdn.com
+# (unsafe-eval removed in production — see §3.1 for full rationale)
+```
+
+No code change in this repository can affect headers served by `supabase.com`.
+
+#### Permanent fix — Exclude `supabase.com` from scanner scope
+
+In Aikido: **Settings → Scope → Excluded URLs** → add `https://supabase.com/*`
+
+This domain is a third-party SaaS tool. Its security posture is Supabase's responsibility,  
+documented at https://supabase.com/security.
+
+#### Why this will keep recurring without scope exclusion
+
+Every time Aikido re-scans, it will find `unsafe-inline` on `supabase.com/dashboard` and raise  
+a new alert. The only permanent fix is the scope exclusion above — not a code change.
 
 ---
 
