@@ -256,7 +256,11 @@ try {
     // Uploader les source maps en silence (sans log verbose) au build.
     // Les source maps sont supprimées du déploiement public après upload.
     silent:              !isDev,
-    widenClientFileUpload: true,  // capture plus de fichiers client pour de meilleures stack traces
+    // widenClientFileUpload désactivé : rallonge le build de ~60–90 s supplémentaires
+    // en uploadant tous les chunks client (y compris node_modules). Le bénéfice
+    // (meilleures stack traces pour les libs tierces) ne justifie pas le coût
+    // Build Minutes sur Vercel Pro. Réactiver ponctuellement si debug lib tierce.
+    widenClientFileUpload: false,
 
     // ── Auto-instrumentation ──────────────────────────────────────────────
     // Sentry v10 : les options autoInstrument* ont été déplacées sous `webpack`.
