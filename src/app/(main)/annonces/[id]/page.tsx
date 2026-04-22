@@ -41,6 +41,7 @@ import ContactButton        from '@/components/ui/ContactButton';
 import type { ExtListing, AuthorProfile } from './_types';
 import type { Listing } from '@/types';
 import { JsonLd, breadcrumbSchema, productOfferSchema, mapConditionToSchema } from '@/components/seo/JsonLd';
+import { buildOgUrl } from '@/app/api/og/og-helpers';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 
@@ -122,9 +123,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       ? listing.description.slice(0, 155)
       : `Annonce : ${listing.title} sur Biguglia Connect.`;
 
-    // First photo for OG
+    // First photo for OG — fallback to dynamically generated /api/og image
     const photos = listing.photos as Array<{ url: string }> | undefined;
-    const ogImage = photos?.[0]?.url ?? `${SITE_URL}/images/biguglia-village.jpg`;
+    const firstPhoto = photos?.[0]?.url;
+    const ogImage = firstPhoto
+      ? firstPhoto
+      : buildOgUrl(SITE_URL, {
+          title:  listing.title,
+          type:   listing.listing_type,
+          price:  listing.price,
+          cat:    listing.category?.name,
+          cond:   listing.condition,
+        });
 
     return {
       title,
