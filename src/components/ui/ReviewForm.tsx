@@ -59,9 +59,11 @@ function StarPicker({
             onClick={() => onChange(s)}
             onMouseEnter={() => setHover(s)}
             onMouseLeave={() => setHover(0)}
-            className="transition-transform hover:scale-110 focus:outline-none"
+            aria-label={labels[s]}
+            aria-pressed={s === value}
+            className="transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded"
           >
-            <Star className={cn(
+            <Star aria-hidden="true" className={cn(
               sz, 'transition-colors',
               s <= (hover || value)
                 ? 'fill-amber-400 text-amber-400'
@@ -177,8 +179,12 @@ export default function ReviewForm({
             </div>
           </div>
           {onCancel && (
-            <button onClick={onCancel} className="p-1.5 rounded-lg hover:bg-amber-100 text-gray-400 hover:text-gray-600 transition-colors">
-              <X className="w-4 h-4" />
+            <button
+              onClick={onCancel}
+              aria-label="Annuler l'évaluation"
+              className="p-1.5 rounded-lg hover:bg-amber-100 text-gray-400 hover:text-gray-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+            >
+              <X aria-hidden="true" className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -435,8 +441,12 @@ export function ReviewPromptBanner({
             <Star className="w-3.5 h-3.5" /> Évaluer
           </button>
           {onDismiss && (
-            <button onClick={onDismiss} className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors">
-              <XCircle className="w-4 h-4" />
+            <button
+              onClick={onDismiss}
+              aria-label="Ignorer cette demande d'évaluation"
+              className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded-lg"
+            >
+              <XCircle aria-hidden="true" className="w-4 h-4" />
             </button>
           )}
         </div>
