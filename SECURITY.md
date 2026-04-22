@@ -22,6 +22,8 @@ Do **not** open public GitHub issues for security bugs.
 | CSP `unsafe-inline` on `supabase.com/dashboard` URL | High | **Out-of-scope** — Supabase's own CSP, not this repo | §3.0 |
 | CSP missing / weak CSP on `supabase.com/dashboard` URL | Critical | **Out-of-scope** — same third-party URL, different rule | §3.0 |
 | `dangerouslySetInnerHTML` in `JsonLd.tsx` (Aikido re-scan) | Medium | `// nosec` added — Aikido AI confirmed false positive | #363 |
+| CWE-22 path traversal in uploads — 2 missed files | High | `safeImageExt()` applied to `artisan-profil` + `materiel/nouveau` | #371 |
+| CSP `script-src` + `style-src` `'unsafe-inline'` (app) | Medium | **Accepted** — Next.js 15 SSR constraint; nonce migration post-prod | §3.1 |
 
 ---
 
@@ -90,37 +92,60 @@ a new alert. The only permanent fix is the scope exclusion above — not a code 
 
 ---
 
-### 3.1 CSP `script-src` — `'unsafe-inline'` Retained (Biguglia Connect app)
+### 3.1 CSP `script-src` + `style-src` — `'unsafe-inline'` Retained (Biguglia Connect app)
 
-**Status**: Accepted — residual risk documented, migration planned  
+**Status**: Assumed / accepted — contrainte technique Next.js 15 App Router.  
+Migration nonces = chantier séparé, planifié post-production (voir §4).  
 **Risk level**: Medium  
-**Scanner**: Flags CSP as weak due to `'unsafe-inline'`
+**Directives concernées**: `script-src 'unsafe-inline'` · `style-src 'unsafe-inline'`  
+**Scanner**: signale CSP faible sur ces deux directives
 
-#### Why `'unsafe-inline'` is REQUIRED
+#### `script-src 'unsafe-inline'` — pourquoi obligatoire
 
-1. **Next.js App Router** injects inline `<script>` tags for SSR hydration:
-   - `__NEXT_DATA__` (initial props)
+1. **Next.js App Router** injecte des balises `<script>` inline non-noncées pour l'hydratation SSR :
+   - `__NEXT_DATA__` (props initiales)
    - React Server Components payload
    - Route prefetch manifests
-   
-   Without `'unsafe-inline'`, the entire application breaks (white screen).  
-   Reference: https://github.com/vercel/next.js/issues/15840
 
-2. **`JsonLd.tsx`** uses `dangerouslySetInnerHTML` for `<script type="application/ld+json">` tags  
-   required by Google Rich Results. The output is sanitized via `safeJsonLd()`.
+   Sans `'unsafe-inline'`, l'application entière s'arrête (écran blanc).  
+   Référence : https://github.com/vercel/next.js/issues/15840
 
-3. **Vercel Live** injects inline monitoring/preview scripts.
+2. **`JsonLd.tsx`** utilise `dangerouslySetInnerHTML` pour les balises  
+   `<script type="application/ld+json">` requises par les Rich Results Google.  
+   La sortie est sanitisée via `safeJsonLd()` (voir §3.3).
 
-#### Mitigations Already in Place
+3. **Vercel Live** injecte des scripts inline de monitoring/preview.
 
-- `'unsafe-eval'` **removed** in production (only kept for dev HMR)
-- All user inputs are escaped (`safeJsonLd()`, `DOMPurify`)
-- CSP restricted to `'self'` + explicit domains (no script wildcard)
-- `X-Frame-Options: DENY` active
-- `X-Content-Type-Options: nosniff` active
-- `Strict-Transport-Security` (HSTS) deployed
-- `Cross-Origin-Opener-Policy: same-origin` deployed
-- `Cross-Origin-Resource-Policy: cross-origin` deployed
+#### `style-src 'unsafe-inline'` — pourquoi obligatoire
+
+1. **154 occurrences de `style={{...}}`** réparties dans 67 composants React :  
+   les styles inline JSX sont émis par React comme attributs `style=""` sur les éléments DOM,  
+   mais les animations CSS-in-JS et les transitions dynamiques (ex. `{ width: progress + '%' }`)  
+   passent aussi par des balises `<style>` injectées au runtime.  
+   Supprimer `'unsafe-inline'` de `style-src` casse ces composants.
+
+2. **Tailwind CSS JIT** génère des classes à la demande et peut injecter une balise  
+   `<style>` dans le `<head>` en développement. En production le CSS est statique,  
+   mais la valeur reste requise pour la compatibilité build.
+
+3. **Refactoring requis** : migrer 154 `style={{}}` vers des classes Tailwind statiques  
+   ou des variables CSS représente un chantier UI complet, distinct du nonce CSP.
+
+> **Décision** : les deux directives conservent `'unsafe-inline'` jusqu'à la migration  
+> nonces (§4). Ce choix est assumé, documenté ici et dans `next.config.js`.
+
+#### Atténuations déjà en place
+
+| Atténuation | Détail |
+|-------------|--------|
+| `'unsafe-eval'` retiré en prod | Conservé uniquement en dev pour le HMR Next.js |
+| Entrées utilisateur échappées | `safeJsonLd()`, `safeImageExt()`, `safeDocExt()`, DOMPurify |
+| Pas de wildcard script | CSP restreint à `'self'` + domaines explicites |
+| `X-Frame-Options: DENY` | Actif |
+| `X-Content-Type-Options: nosniff` | Actif |
+| HSTS (`max-age=63072000`) | Déployé |
+| `Cross-Origin-Opener-Policy: same-origin` | Déployé |
+| `Cross-Origin-Resource-Policy: cross-origin` | Déployé |
 
 ### 3.2 setup.py — SSRF False Positive
 
@@ -250,4 +275,4 @@ Replace `dangerouslySetInnerHTML` with a nonce-aware approach:
 
 ---
 
-*Last updated: 2026-04-22*
+*Last updated: 2026-04-22 — §3.1 étendu : style-src unsafe-inline documenté et assumé (contrainte Next.js 15 + 154 style={{}} JSX) ; migration nonces post-prod §4.*
