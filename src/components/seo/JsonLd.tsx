@@ -47,10 +47,17 @@ export function JsonLd({ data }: JsonLdProps) {
   return (
     <script
       type="application/ld+json"
-      // dangerouslySetInnerHTML est intentionnel ici : c'est le seul moyen
-      // d'injecter du JSON-LD dans une balise <script>. La sortie est
-      // assainie par safeJsonLd() — voir ci-dessus.
-      dangerouslySetInnerHTML={{ __html: safeJsonLd(data) }}
+      // nosec react/no-danger — dangerouslySetInnerHTML est intentionnel ici.
+      // • Seul moyen d'injecter du JSON-LD dans une balise <script type="application/ld+json">
+      //   (requis pour les Rich Results Google / Schema.org).
+      // • La sortie est assainie par safeJsonLd() :
+      //     </script> → <\/script>   (bloque la fermeture prématurée)
+      //     <!--       → <\!--       (bloque les commentaires HTML)
+      //     -->        → --\>        (défense en profondeur)
+      // • Confirmé faux positif par Aikido AI triage (score abaissé, AutoFix impossible).
+      // • Ref OWASP : https://cheatsheetseries.owasp.org/cheatsheets/XSS_Prevention_Cheat_Sheet.html
+      // eslint-disable-next-line react/no-danger
+      dangerouslySetInnerHTML={{ __html: safeJsonLd(data) }} // nosec
     />
   );
 }
