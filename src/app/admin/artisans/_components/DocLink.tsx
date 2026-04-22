@@ -26,10 +26,17 @@ export default function DocLink({ storagePath, label, icon }: DocLinkProps) {
       // rejette "..", chemins absolus ("/…") et valeurs vides.
       // Le préfixe de bucket "documents/" est supprimé si présent.
       const path = safeRelativePath(storagePath, 'documents');
-      if (!path) { toast.error('Chemin de document invalide'); return; }
+      // Double guard CWE-22 (path traversal) :
+      //   1. safeRelativePath() rejette "..", chemins absolus et valeurs vides → null
+      //   2. Vérification inline explicite exigée par les scanners SAST
+      // Les deux checks ensemble garantissent qu'aucune traversée n'atteint le SDK.
+      if (!path || path.includes('..') || path.startsWith('/')) {
+        toast.error('Chemin de document invalide');
+        return;
+      }
       const { data } = await supabase.storage
         .from('documents')
-        .createSignedUrl(path, 3600); // nosec: path validé par safeRelativePath (CWE-22 mitigé)
+        .createSignedUrl(path, 3600); // nosec: double guard CWE-22 (safeRelativePath + inline)
       if (data?.signedUrl) {
         window.open(data.signedUrl, '_blank');
       } else {
