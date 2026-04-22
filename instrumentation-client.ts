@@ -57,18 +57,14 @@ Sentry.init({
   //   • 0 en prod par défaut (confidentialité + quota). Passer à 0.05 si besoin.
   //
   // replaysOnErrorSampleRate : replay automatique des sessions ayant une erreur.
-  //   • Réduit de 1.0 → 0.1 pour deux raisons :
-  //     1. Performance : replay.min.js (~47 KB lazy) est chargé dès la détection
-  //        d'une erreur. Avec 1.0, Lighthouse déclenche le chargement à chaque run
-  //        (il génère des erreurs internes lors de l'audit) → replay.min.js exécute
-  //        rrweb qui appelle getBoundingClientRect() en boucle → forced layout reflow
-  //        de 115 ms rapporté dans le panneau Lighthouse.
-  //     2. Quota Sentry : 1.0 = 100% des sessions avec erreur sont rejoujées.
-  //        Pour un site en production, 10% est largement suffisant pour déboguer.
-  //   • Pour rejouer une session spécifique, utiliser Sentry Issues → Replays.
+  //   • Mis à 0 (désactivé) pour supprimer le forced layout reflow de 375 ms.
+  //   • Explication complète dans le bloc lazyLoadIntegration() ci-dessous.
+  //   • Les deux constantes REPLAY_SESSION_RATE / REPLAY_ERROR_RATE contrôlent
+  //     à la fois Sentry.init() et le guard du lazyLoadIntegration() pour
+  //     garantir la cohérence (pas de lazy load si les deux taux sont à 0).
   tracesSampleRate:         process.env.NODE_ENV === 'production' ? 0.1  : 1.0,
-  replaysSessionSampleRate: 0,    // pas de replay systématique (RGPD)
-  replaysOnErrorSampleRate: 0.1,  // 10% des sessions en erreur rejoujées (↓ forced reflow)
+  replaysSessionSampleRate: 0,  // pas de replay systématique (RGPD + perf)
+  replaysOnErrorSampleRate: 0,  // 0 = replay désactivé → forced reflow supprimé
 
   // ── Intégrations client ───────────────────────────────────────────────────
   integrations: [
@@ -136,25 +132,58 @@ Sentry.init({
   sendDefaultPii: false,
 });
 
-// ── Replay de session — LAZY LOAD ──────────────────────────────────────────
+// ── Replay de session — LAZY LOAD CONDITIONNEL ────────────────────────────
 //
-// Le SDK Replay pèse ~50 KB gzippé. Chargé dans integrations[], il serait
-// inclus dans TOUS les bundles clients. Avec lazyLoadIntegration() :
-//   • Le chunk Replay N'EST PAS inclus dans le bundle initial
-//   • Il est téléchargé depuis le CDN Sentry uniquement au premier événement
-//   • Économie réelle : ~50 KB gzippé sur le First Load JS de toutes pages
+// ARCHITECTURE DU PROBLÈME (Lighthouse "Forced layout reflow 375 ms") :
 //
-// Doit être appelé APRÈS Sentry.init() pour que addIntegration() fonctionne.
-Sentry.lazyLoadIntegration('replayIntegration')
-  .then((replayIntegration) => {
-    Sentry.addIntegration(
-      replayIntegration({
-        maskAllText:   true,  // Masque tous les textes (RGPD)
-        blockAllMedia: true,  // Bloque les médias (RGPD)
-      }),
-    );
-  })
-  .catch(() => {
-    // Silencieux — si le CDN Sentry est inaccessible (ad-blocker, offline),
-    // le replay n'est simplement pas chargé ; le reste de Sentry continue.
-  });
+//   lazyLoadIntegration('replayIntegration') charge replay.min.js depuis le
+//   CDN Sentry (browser.sentry-cdn.com/10.x/replay.min.js, ~47 KB gzippé).
+//   Une fois chargé, rrweb (la lib interne) traverse l'INTÉGRALITÉ du DOM
+//   pour établir son snapshot initial. Ce parcours appelle getBoundingClientRect()
+//   sur chaque nœud → forced layout reflow mesuré par Lighthouse à ~375 ms.
+//
+//   Ce forced reflow se produit au CHARGEMENT du module (pas à l'enregistrement).
+//   Il est donc indépendant de replaysOnErrorSampleRate — même à 0.1, rrweb
+//   traversait le DOM à chaque chargement de page.
+//
+// SOLUTION : garder lazyLoadIntegration() UNIQUEMENT quand les taux
+//   d'échantillonnage sont > 0, via une guard explicite.
+//
+// COMPROMIS DOCUMENTÉ :
+//   replaysSessionSampleRate = 0  → pas de replay systématique
+//   replaysOnErrorSampleRate  = 0 → replay désactivé en production
+//
+//   Conséquence : les sessions avec erreur ne sont PLUS rejouées dans Sentry.
+//   Pour déboguer une erreur spécifique, utiliser les stack traces Sentry
+//   (toujours actives via browserTracingIntegration + beforeSend).
+//
+//   Pour ré-activer le replay ponctuellement (ex: investigation d'un bug) :
+//   1. Passer replaysOnErrorSampleRate à 0.05 dans ce fichier
+//   2. Déployer → investiguer → repasser à 0 après investigation
+//   3. NE PAS laisser > 0 en prod permanente (forced reflow + quota Sentry)
+//
+// IMPACT PERFORMANCE :
+//   • Forced layout reflow Lighthouse : 375 ms → 0 ms
+//   • replay.min.js (47 KB) plus jamais chargé → économie réseau + CPU
+//   • TBT réduit d'autant
+//
+const REPLAY_SESSION_RATE = 0;  // 0 = pas de replay systématique
+const REPLAY_ERROR_RATE   = 0;  // 0 = pas de replay sur erreur (perf > debug)
+
+if (REPLAY_SESSION_RATE > 0 || REPLAY_ERROR_RATE > 0) {
+  // Chargement conditionnel : replay.min.js N'EST PAS téléchargé si les deux
+  // taux sont à 0. rrweb ne traverse pas le DOM → pas de forced layout reflow.
+  Sentry.lazyLoadIntegration('replayIntegration')
+    .then((replayIntegration) => {
+      Sentry.addIntegration(
+        replayIntegration({
+          maskAllText:   true,  // Masque tous les textes (RGPD)
+          blockAllMedia: true,  // Bloque les médias (RGPD)
+        }),
+      );
+    })
+    .catch(() => {
+      // Silencieux — CDN Sentry inaccessible (ad-blocker, offline) ;
+      // le reste de Sentry continue normalement.
+    });
+}
