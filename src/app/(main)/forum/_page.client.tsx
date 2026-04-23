@@ -49,7 +49,7 @@ function ForumPageInner() {
           HERO
       ══════════════════════════════════════════════════════════ */}
       <div className="relative bg-gradient-to-br from-violet-700 via-purple-700 to-indigo-800 text-white overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle, white 1.5px, transparent 1.5px)', backgroundSize: '22px 22px' }} />
+        <div className="absolute inset-0 opacity-[0.07] bg-dot-grid-22-thick" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-violet-400/20 rounded-full blur-3xl -translate-y-1/3 translate-x-1/4" />
         <div className="absolute bottom-0 left-0 w-72 h-72 bg-indigo-300/15 rounded-full blur-2xl translate-y-1/3" />
         <div className="absolute top-1/2 left-1/3 w-48 h-48 bg-purple-300/10 rounded-full blur-2xl -translate-y-1/2" />

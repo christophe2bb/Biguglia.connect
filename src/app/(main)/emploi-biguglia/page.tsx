@@ -219,8 +219,7 @@ export default async function EmploiBigugliaPage() {
           HERO
       ══════════════════════════════════════════ */}
       <section className="bg-gradient-to-br from-cyan-700 via-cyan-800 to-indigo-900 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.05]"
-          style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+        <div className="absolute inset-0 opacity-[0.05] bg-dot-grid-md" />
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
           <nav className="flex items-center gap-1.5 text-white/60 text-xs font-medium mb-6" aria-label="Fil d'Ariane">
             <Link href="/" className="hover:text-white transition-colors">Accueil</Link>

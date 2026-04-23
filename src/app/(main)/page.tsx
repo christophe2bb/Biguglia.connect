@@ -424,7 +424,7 @@ export default function HomePage() {
           CTA INSCRIPTION — Statique
       ══════════════════════════════════════════════════════════ */}
       <section className="py-16 sm:py-20 bg-gradient-to-br from-gray-950 via-gray-900 to-brand-950 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
+        <div className="absolute inset-0 opacity-[0.04] bg-dot-grid-xl" />
         <div className="absolute top-0 left-1/3 w-72 h-72 bg-brand-600/20 rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-purple-600/15 rounded-full blur-3xl" />
         <div className="relative z-10 max-w-4xl mx-auto px-4 text-center">

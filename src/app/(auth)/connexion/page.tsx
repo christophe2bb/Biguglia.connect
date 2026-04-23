@@ -134,7 +134,7 @@ function ConnexionForm() {
         <h2 className="text-lg font-semibold text-gray-900 mb-2">Connexion réussie !</h2>
         <p className="text-gray-500 text-sm">Redirection en cours...</p>
         <div className="mt-4 h-1 bg-gray-100 rounded-full overflow-hidden">
-          <div className="h-full bg-brand-500 rounded-full animate-pulse" style={{ width: '60%' }} />
+          <div className="h-full bg-brand-500 rounded-full animate-pulse w-[60%]" />
         </div>
       </div>
     );

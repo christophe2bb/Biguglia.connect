@@ -74,12 +74,12 @@ export default function EvenementsPage() {
     <div className="min-h-screen relative">
       <SectionTracker section="evenements" />
       {/* Background — wrapper div gère le positionnement fixed ; Image fill ne peut pas avoir style.position */}
-      <div aria-hidden="true" style={{ position: 'fixed', inset: 0, zIndex: 0, opacity: 0.2, pointerEvents: 'none' }}>
+      <div aria-hidden="true" className="fixed inset-0 z-0 opacity-20 pointer-events-none">
         <Image src="/images/biguglia-etang.webp" alt="" fill sizes="100vw"
-          style={{ objectFit: 'cover', objectPosition: 'center top' }} />
+          className="object-cover object-top" />
       </div>
 
-      <div className="relative" style={{ zIndex: 1 }}>
+      <div className="relative z-[1]">
         {!dbReady && (
           <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
             <div className="max-w-7xl mx-auto flex items-start gap-3">
@@ -96,7 +96,7 @@ export default function EvenementsPage() {
 
         {/* ── HERO ── */}
         <div className="relative overflow-hidden bg-gradient-to-br from-violet-700 via-purple-600 to-pink-600 text-white">
-          <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
+          <div className="absolute inset-0 opacity-[0.08] bg-dot-grid-22" />
           <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
           <div className="absolute bottom-0 left-0 w-64 h-64 bg-pink-400/10 rounded-full blur-2xl" />
 

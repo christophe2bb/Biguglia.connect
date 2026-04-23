@@ -75,8 +75,7 @@ export default function PerduTrouvePage() {
       {/* ── Hero ── */}
       <div className="relative overflow-hidden bg-gradient-to-br from-orange-400 via-amber-400 to-emerald-500 text-white">
         <div
-          className="absolute inset-0 opacity-10"
-          style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }}
+          className="absolute inset-0 opacity-10 bg-dot-grid-lg"
         />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">

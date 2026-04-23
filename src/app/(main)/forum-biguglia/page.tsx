@@ -237,8 +237,7 @@ export default async function ForumBigugliaPage() {
           HERO
       ══════════════════════════════════════════ */}
       <section className="bg-gradient-to-br from-violet-600 via-violet-700 to-purple-800 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.05]"
-          style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+        <div className="absolute inset-0 opacity-[0.05] bg-dot-grid-md" />
 
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
           <nav className="flex items-center gap-1.5 text-white/60 text-xs font-medium mb-6" aria-label="Fil d'Ariane">
@@ -592,8 +591,7 @@ export default async function ForumBigugliaPage() {
             CTA — REJOINDRE LA CONVERSATION
         ══════════════════════════════════════════ */}
         <section className="bg-gradient-to-br from-violet-600 to-purple-700 rounded-3xl p-8 text-center text-white relative overflow-hidden">
-          <div className="absolute inset-0 opacity-[0.05]"
-            style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
+          <div className="absolute inset-0 opacity-[0.05] bg-dot-grid-18" />
           <div className="relative">
             <p className="text-3xl mb-3">💬</p>
             <h2 className="text-xl font-black mb-2">

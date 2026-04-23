@@ -275,8 +275,7 @@ export default function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit
               <div className="flex flex-col gap-2 max-h-52 overflow-y-auto">
                 {comments.map(c => (
                   <div key={c.id} className="flex items-start gap-2">
-                    <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-black text-white"
-                      style={{ background: 'linear-gradient(135deg,#10b981,#0ea5e9)' }}>
+                    <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-black text-white btn-gradient-emerald-sky">
                       {c.author?.full_name?.[0]?.toUpperCase() ?? '?'}
                     </div>
                     <div className="flex-1 bg-gray-50 rounded-lg px-2 py-1.5">

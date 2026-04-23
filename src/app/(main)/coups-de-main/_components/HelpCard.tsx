@@ -256,14 +256,11 @@ export default function HelpCard({
         {/* Auteur + trust badge */}
         <div className="flex items-center gap-2 mb-3">
           <div
-            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black text-white flex-shrink-0"
-            style={{
-              background: item.help_type === 'demande'
-                ? 'linear-gradient(135deg,#f97316,#fb923c)'
-                : item.help_type === 'offre'
-                  ? 'linear-gradient(135deg,#10b981,#34d399)'
-                  : 'linear-gradient(135deg,#3b82f6,#60a5fa)',
-            }}
+            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black text-white flex-shrink-0 ${
+              item.help_type === 'demande' ? 'btn-gradient-orange'
+              : item.help_type === 'offre' ? 'btn-gradient-emerald'
+              : 'btn-gradient-blue'
+            }`}
           >
             {getDisplayName(item.author, item.display_name)[0]?.toUpperCase() ?? '?'}
           </div>
@@ -446,8 +443,7 @@ export default function HelpCard({
               <div className="flex flex-col gap-2 max-h-52 overflow-y-auto">
                 {comments.map(c => (
                   <div key={c.id} className="flex items-start gap-2">
-                    <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-black text-white"
-                      style={{ background: 'linear-gradient(135deg,#f97316,#fb923c)' }}>
+                    <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-black text-white btn-gradient-orange">
                       {c.author?.full_name?.[0]?.toUpperCase() ?? '?'}
                     </div>
                     <div className="flex-1 bg-gray-50 rounded-lg px-2 py-1.5">

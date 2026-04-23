@@ -69,8 +69,7 @@ export default function HelpHeader({ item, displayName, onOpenPhoto }: Props) {
         <h1 className="text-2xl sm:text-3xl font-black text-gray-900 mb-3 leading-tight">{item.title}</h1>
 
         <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-100">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center text-base font-black text-white flex-shrink-0"
-            style={{ background: item.help_type === 'demande' ? 'linear-gradient(135deg,#f97316,#fb923c)' : item.help_type === 'offre' ? 'linear-gradient(135deg,#10b981,#34d399)' : 'linear-gradient(135deg,#3b82f6,#60a5fa)' }}>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-black text-white flex-shrink-0 ${item.help_type === 'demande' ? 'btn-gradient-orange' : item.help_type === 'offre' ? 'btn-gradient-emerald' : 'btn-gradient-blue'}`}>
             {displayName[0]?.toUpperCase() ?? '?'}
           </div>
           <div>

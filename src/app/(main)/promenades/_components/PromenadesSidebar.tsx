@@ -38,7 +38,7 @@ export default function PromenadesSidebar({
 
       {/* 🌿 Réserve naturelle spotlight */}
       <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-emerald-600 via-teal-600 to-sky-600 p-5 text-white shadow-lg">
-        <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '16px 16px' }} />
+        <div className="absolute inset-0 opacity-[0.08] bg-dot-grid-sm" />
         <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
         <div className="relative">
           <div className="flex items-center gap-2 mb-2">

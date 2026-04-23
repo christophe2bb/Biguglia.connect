@@ -51,7 +51,7 @@ export default function EventSidebar({
       {/* Prochain événement à la une */}
       {featuredEvent && (
         <div className="bg-gradient-to-br from-violet-600 via-purple-600 to-pink-500 rounded-2xl p-5 text-white shadow-lg overflow-hidden relative">
-          <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '16px 16px' }} />
+          <div className="absolute inset-0 opacity-[0.07] bg-dot-grid-sm" />
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
               <span className="w-7 h-7 bg-white/20 rounded-xl flex items-center justify-center text-sm">
