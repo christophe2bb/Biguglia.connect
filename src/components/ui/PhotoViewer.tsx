@@ -292,13 +292,8 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
             transform: `scale(${zoom}) translate(${pos.x / zoom}px, ${pos.y / zoom}px)`,
             transition: drag ? 'none' : 'transform 0.2s ease',
             cursor: zoom > 1 ? (drag ? 'grabbing' : 'grab') : 'default',
-            userSelect: 'none',
-            /* constrain the image to the available viewport */
-            position: 'relative',
-            width: '100%',
-            height: '100%',
-          } as React.CSSProperties}
-          className="flex items-center justify-center"
+          }}
+          className="relative flex w-full h-full items-center justify-center select-none"
         >
           <Image
             src={photo.url}

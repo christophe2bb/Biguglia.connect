@@ -12,7 +12,9 @@ export function useHelpRequestDetail(initialItem: HelpRequest): UseHelpDetailRet
   const { id } = useParams<{ id: string }>();
   const { profile } = useAuthStore();
   const router = useRouter();
-  const supabase = createClient();
+  // Stable Supabase client — createClient() appelé une seule fois au montage
+  const supabaseRef = useRef(createClient());
+  const supabase = supabaseRef.current;
 
   // Initialisé avec les données serveur (évite le double-fetch)
   const [item, setItem] = useState<HelpRequest | null>(initialItem);
@@ -89,17 +91,69 @@ export function useHelpRequestDetail(initialItem: HelpRequest): UseHelpDetailRet
     fetchParticipants();
   }, [fetchComments, fetchParticipants]);
 
+  // ── Publier un commentaire ────────────────────────────────────────────────
   const handleSendComment = async () => {
-    if (!commentText.trim() || !profile || sendingComment) return;
+    if (!commentText.trim()) {
+      toast.error('Le message ne peut pas être vide.');
+      return;
+    }
+    if (!profile?.id) {
+      toast.error('Connectez-vous pour participer à la discussion.');
+      router.push('/connexion');
+      return;
+    }
+    if (sendingComment) return;
+
     setSendingComment(true);
     const { error } = await supabase.from('help_comments').insert({
-      help_id: id, author_id: profile.id, content: commentText.trim(),
+      help_id: id,
+      author_id: profile.id,
+      content: commentText.trim(),
     });
-    if (error) toast.error('Erreur : ' + error.message);
-    else { setCommentText(''); fetchComments(); }
+
+    if (error) {
+      toast.error('Erreur lors de l\'envoi : ' + error.message);
+    } else {
+      setCommentText('');
+      await fetchComments();
+      toast.success('Message publié !');
+    }
     setSendingComment(false);
   };
 
+  // ── Supprimer l'annonce (auteur uniquement) ────────────────────────────────
+  const handleDelete = async () => {
+    if (!confirm('Supprimer définitivement cette annonce ? Cette action est irréversible.')) return;
+
+    const loadingToast = toast.loading('Suppression en cours…');
+
+    const { error, count } = await supabase
+      .from('help_requests')
+      .delete({ count: 'exact' })
+      .eq('id', id);
+
+    toast.dismiss(loadingToast);
+
+    if (error) {
+      toast.error('Erreur lors de la suppression : ' + error.message);
+      return;
+    }
+
+    if (count === 0) {
+      // RLS a bloqué silencieusement (Supabase renvoie count=0 sans error
+      // quand la politique RLS empêche la suppression)
+      toast.error(
+        "Impossible de supprimer cette annonce. Vérifiez que vous en êtes bien l'auteur et que vous êtes connecté.",
+        { duration: 5000 },
+      );
+      return;
+    }
+
+    toast.success('Annonce supprimée');
+    router.push('/coups-de-main');
+  };
+
+  // ── Proposer son aide ─────────────────────────────────────────────────────
   const handleCanHelp = async () => {
     if (!profile) { toast.error('Connectez-vous'); router.push('/connexion'); return; }
     if (alreadyHelping) { toast('Vous avez déjà proposé votre aide !', { icon: '✅' }); return; }
@@ -117,16 +171,23 @@ export function useHelpRequestDetail(initialItem: HelpRequest): UseHelpDetailRet
     setHelping(false);
   };
 
+  // ── Changer le statut ─────────────────────────────────────────────────────
   const handleStatusChange = async (newStatus: string) => {
     if (!item) return;
-    const { error } = await supabase.from('help_requests').update({
+    const { error, count } = await supabase.from('help_requests').update({
       status: newStatus,
       ...(newStatus === 'resolved' ? { resolved_at: new Date().toISOString() } : {}),
-    }).eq('id', id);
-    if (error) toast.error('Erreur statut : ' + error.message);
-    else { toast.success('Statut mis à jour'); fetchItem(); }
+    }, { count: 'exact' }).eq('id', id);
+
+    if (error || count === 0) {
+      toast.error(error?.message ?? 'Impossible de modifier le statut.');
+      return;
+    }
+    toast.success('Statut mis à jour');
+    await fetchItem();
   };
 
+  // ── Accepter / refuser un participant ─────────────────────────────────────
   const handleAcceptParticipant = async (participantId: string) => {
     await supabase.from('help_request_participants').update({ state: 'accepted' }).eq('id', participantId);
     fetchParticipants();
@@ -138,6 +199,7 @@ export function useHelpRequestDetail(initialItem: HelpRequest): UseHelpDetailRet
     fetchParticipants();
   };
 
+  // ── Sauvegarder / retirer des favoris ────────────────────────────────────
   const toggleSave = () => {
     try {
       const raw = localStorage.getItem('biguglia_saved_help');
@@ -165,7 +227,7 @@ export function useHelpRequestDetail(initialItem: HelpRequest): UseHelpDetailRet
     isSaved, helping, alreadyHelping,
     openShare, setOpenShare, shareRef,
     lightboxOpen, setLightboxOpen, lightboxIdx, setLightboxIdx,
-    handleSendComment, handleCanHelp, handleStatusChange,
+    handleSendComment, handleDelete, handleCanHelp, handleStatusChange,
     handleAcceptParticipant, handleDeclineParticipant, toggleSave,
     shareUrl, shareText,
     isAuthor, isActive, isResolved,

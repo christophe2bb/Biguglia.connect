@@ -56,7 +56,7 @@ export default function CalendarView({ events, userId, onJoin, onStatusChange }:
       {/* ── En-tête navigation ── */}
       <div className="cal-header">
         <button onClick={prevMonth} aria-label="Mois précédent" className="cal-nav-btn">
-          <ChevronLeft style={{ width: 16, height: 16 }} aria-hidden="true" />
+          <ChevronLeft className="w-4 h-4" aria-hidden="true" />
         </button>
 
         <div className="text-center">
@@ -71,7 +71,7 @@ export default function CalendarView({ events, userId, onJoin, onStatusChange }:
         </div>
 
         <button onClick={nextMonth} aria-label="Mois suivant" className="cal-nav-btn">
-          <ChevronRight style={{ width: 16, height: 16 }} aria-hidden="true" />
+          <ChevronRight className="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
 
@@ -126,12 +126,12 @@ export default function CalendarView({ events, userId, onJoin, onStatusChange }:
                   aria-label="Fermer le panneau du jour"
                   className="cal-panel-close"
                 >
-                  <X style={{ width: 16, height: 16 }} aria-hidden="true" />
+                  <X className="w-4 h-4" aria-hidden="true" />
                 </button>
               </div>
               {selectedEvents.length === 0 ? (
                 <div className="cal-empty-day">
-                  <Calendar style={{ width: 32, height: 32 }} className="text-slate-200 mx-auto mb-2" aria-hidden="true" />
+                  <Calendar className="w-8 h-8 text-slate-200 mx-auto mb-2" aria-hidden="true" />
                   <p className="text-slate-400 text-[13px] font-semibold m-0">Aucun événement ce jour</p>
                   <p className="text-slate-300 text-[12px] mt-1">Vous pouvez en proposer un !</p>
                 </div>
@@ -148,7 +148,7 @@ export default function CalendarView({ events, userId, onJoin, onStatusChange }:
               <h3 className="cal-panel-title mb-3">Prochains événements</h3>
               {events.length === 0 ? (
                 <div className="rounded-2xl border border-slate-100 bg-white p-6 text-center">
-                  <Calendar style={{ width: 32, height: 32 }} className="text-slate-200 mx-auto mb-2" aria-hidden="true" />
+                  <Calendar className="w-8 h-8 text-slate-200 mx-auto mb-2" aria-hidden="true" />
                   <p className="text-slate-400 text-[13px] m-0">Aucun événement à venir</p>
                 </div>
               ) : (
