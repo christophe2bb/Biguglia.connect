@@ -18,15 +18,16 @@
  * Le rendu HTML principal (titre, description, photos…) est fait côté serveur.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Heart, Share2, Copy, MessageCircle, Pencil, Trash2,
-  AlertTriangle, Phone,
+  AlertTriangle, Phone, Loader2,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
+import Modal from '@/components/ui/Modal';
 import StatusManager from '@/components/ui/StatusManager';
 import ContactButton from '@/components/ui/ContactButton';
 import toast from 'react-hot-toast';
@@ -42,15 +43,69 @@ interface Props {
   variant?: Variant;
 }
 
+// ── Dialog confirmation suppression ──────────────────────────────────────────
+function DeleteConfirmDialog({
+  isOpen, title, deleting, onConfirm, onCancel,
+}: {
+  isOpen: boolean;
+  title: string;
+  deleting: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Modal isOpen={isOpen} onClose={onCancel} size="sm">
+      <div className="text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+          <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
+        </div>
+        <h3 className="text-base font-bold text-gray-900 mb-2">
+          Supprimer cette annonce ?
+        </h3>
+        <p className="text-sm text-gray-500 mb-1 font-medium truncate px-2">« {title} »</p>
+        <p className="text-sm text-gray-400 mb-6">
+          Cette action est irréversible. L'annonce et toutes ses photos seront définitivement supprimées.
+        </p>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={deleting}
+            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={deleting}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50"
+          >
+            {deleting
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Suppression…</>
+              : <><Trash2 className="w-4 h-4" /> Supprimer</>}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function AnnonceActions({ listing, variant = 'topbar' }: Props) {
   const router = useRouter();
-  const { profile } = useAuthStore();
-  const supabase = createClient();
+  const { profile, userId } = useAuthStore();
+  // Stable Supabase client — une seule instance au montage (pas de re-création par render)
+  const supabaseRef = useRef(createClient());
+  const supabase = supabaseRef.current;
 
-  const [isSaved,        setIsSaved]        = useState(false);
-  const [showSharePanel, setShowSharePanel] = useState(false);
-  const [deleting,       setDeleting]       = useState(false);
-  const [currentStatus,  setCurrentStatus]  = useState((listing.status as string) || 'active');
+  const [isSaved,           setIsSaved]           = useState(false);
+  const [showSharePanel,    setShowSharePanel]    = useState(false);
+  const [deleting,          setDeleting]          = useState(false);
+  const [currentStatus,     setCurrentStatus]     = useState((listing.status as string) || 'active');
+  // Dialog suppression (remplace window.confirm() bloquant)
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const isOwner = !!profile && profile.id === listing.user_id;
 
@@ -103,22 +158,57 @@ export default function AnnonceActions({ listing, variant = 'topbar' }: Props) {
   }, [listing.title]);
 
   // ── handleDelete ───────────────────────────────────────────────────────────
+  // ⚠️ Appelé après confirmation dans le dialog React.
+  // Pas de confirm() ni getSession() — userId vient de Zustand (0ms, synchrone).
   const handleDelete = useCallback(async () => {
-    if (!window.confirm('Supprimer définitivement cette annonce ? Cette action est irréversible.')) return;
+    if (!userId) {
+      toast.error('Connectez-vous pour supprimer cette annonce.');
+      router.push('/connexion');
+      return;
+    }
+
     setDeleting(true);
+    setConfirmDeleteOpen(false);
+
+    // 1. Supprimer les photos du storage
     const photos = listing.photos as Array<{ id: string; url: string }> | undefined;
     if (photos?.length) {
-      for (const photo of photos) {
-        const storagePath = safeStoragePath(photo.url, 'photos');
-        if (storagePath) await supabase.storage.from('photos').remove([storagePath]); // nosec
+      const paths = photos
+        .map(p => safeStoragePath(p.url, 'photos'))
+        .filter(Boolean) as string[];
+      if (paths.length) {
+        await supabase.storage.from('photos').remove(paths); // nosec — chemins validés par safeStoragePath
       }
       await supabase.from('listing_photos').delete().eq('listing_id', listing.id);
     }
-    const { error } = await supabase.from('listings').delete().eq('id', listing.id);
-    if (error) { toast.error('Erreur lors de la suppression'); setDeleting(false); return; }
-    toast.success('Annonce supprimée');
-    router.push('/annonces');
-  }, [listing, router, supabase]);
+
+    // 2. Supprimer l'annonce — .select('id') pour détecter le blocage RLS silencieux
+    const { data: deleted, error } = await supabase
+      .from('listings')
+      .delete()
+      .eq('id', listing.id)
+      .eq('user_id', userId)   // double filtre : seul le propriétaire peut supprimer
+      .select('id');
+
+    console.log('[AnnonceActions] listings delete result:', { deleted, error, listingId: listing.id });
+
+    if (error) {
+      toast.error(`Erreur lors de la suppression : ${error.message}`);
+      setDeleting(false);
+      return;
+    }
+
+    // Supabase + RLS peut retourner error=null mais 0 lignes supprimées
+    if (!deleted || deleted.length === 0) {
+      toast.error('Suppression refusée — vérifiez que vous êtes bien le propriétaire.');
+      setDeleting(false);
+      return;
+    }
+
+    toast.success('Annonce supprimée ✅');
+    router.replace('/annonces');
+    router.refresh();
+  }, [listing, userId, router, supabase]);
 
   // ── handleStatusChange ─────────────────────────────────────────────────────
   const handleStatusChange = useCallback(async (newStatus: string) => {
@@ -214,41 +304,41 @@ export default function AnnonceActions({ listing, variant = 'topbar' }: Props) {
   if (variant === 'owner-panel') {
     if (!isOwner) return null;
     return (
-      <div className="space-y-2 mt-2">
-        <div className="text-xs text-center text-blue-600 font-medium py-1.5 bg-blue-50 rounded-xl">
-          ✅ C&apos;est votre annonce
-        </div>
-        <div className="bg-gray-50 rounded-xl border border-gray-200 p-3">
-          <StatusManager
-            contentType="listing"
-            currentStatus={currentStatus}
-            onStatusChange={handleStatusChange}
-            onDelete={handleDelete}
-          />
-        </div>
-        <Link
-          href={`/annonces/${listing.id}/modifier`}
-          className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-700 transition-colors"
-        >
-          <Pencil className="w-4 h-4" />
-          Modifier l&apos;annonce
-        </Link>
-        <button
-          onClick={() => handleShare('copy')}
-          className="flex items-center justify-center gap-2 w-full px-4 py-2 text-xs text-gray-500 hover:text-gray-700 transition-colors"
-        >
-          <Share2 className="w-3.5 h-3.5" /> Partager
-        </button>
-        {deleting && (
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="flex items-center justify-center gap-2 w-full px-4 py-2 text-xs text-red-500 hover:text-red-700 transition-colors"
+      <>
+        <DeleteConfirmDialog
+          isOpen={confirmDeleteOpen}
+          title={listing.title}
+          deleting={deleting}
+          onConfirm={handleDelete}
+          onCancel={() => setConfirmDeleteOpen(false)}
+        />
+        <div className="space-y-2 mt-2">
+          <div className="text-xs text-center text-blue-600 font-medium py-1.5 bg-blue-50 rounded-xl">
+            ✅ C&apos;est votre annonce
+          </div>
+          <div className="bg-gray-50 rounded-xl border border-gray-200 p-3">
+            <StatusManager
+              contentType="listing"
+              currentStatus={currentStatus}
+              onStatusChange={handleStatusChange}
+              onDelete={() => setConfirmDeleteOpen(true)}
+            />
+          </div>
+          <Link
+            href={`/annonces/${listing.id}/modifier`}
+            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-700 transition-colors"
           >
-            <Trash2 className="w-3.5 h-3.5" /> Supprimer
+            <Pencil className="w-4 h-4" />
+            Modifier l&apos;annonce
+          </Link>
+          <button
+            onClick={() => handleShare('copy')}
+            className="flex items-center justify-center gap-2 w-full px-4 py-2 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            <Share2 className="w-3.5 h-3.5" /> Partager
           </button>
-        )}
-      </div>
+        </div>
+      </>
     );
   }
 

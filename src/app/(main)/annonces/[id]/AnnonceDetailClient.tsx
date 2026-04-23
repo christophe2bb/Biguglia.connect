@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ChevronLeft, Zap } from 'lucide-react';
+import { ChevronLeft, Zap, AlertTriangle, Trash2, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
+import Modal from '@/components/ui/Modal';
 import { useAnnonceDetail }   from './_hooks/useAnnonceDetail';
 import { buildTimeline }      from './_config';
 import { TopBar }             from './_components/TopBar';
@@ -24,6 +25,7 @@ export default function AnnonceDetailClient() {
     loading, notFound,
     deleting, currentStatus,
     isSaved, showSharePanel,
+    confirmDeleteOpen, openDeleteConfirm, closeDeleteConfirm,
     toggleSave, setShowSharePanel,
     handleShare, handleDelete, handleStatusChange,
   } = useAnnonceDetail(id as string);
@@ -59,11 +61,45 @@ export default function AnnonceDetailClient() {
     );
   }
 
-  const isOwner      = profile?.id === listing.user_id;
+  const isOwner       = profile?.id === listing.user_id;
   const timelineSteps = buildTimeline(currentStatus);
 
   return (
     <div className="min-h-screen bg-gray-50">
+
+      {/* ── Dialog suppression (remplace window.confirm() bloquant) ─────────── */}
+      <Modal isOpen={confirmDeleteOpen} onClose={closeDeleteConfirm} size="sm">
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+            <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
+          </div>
+          <h3 className="text-base font-bold text-gray-900 mb-2">Supprimer cette annonce ?</h3>
+          <p className="text-sm text-gray-500 mb-1 font-medium truncate px-2">« {listing.title} »</p>
+          <p className="text-sm text-gray-400 mb-6">
+            Cette action est irréversible. L&apos;annonce et toutes ses photos seront définitivement supprimées.
+          </p>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={closeDeleteConfirm}
+              disabled={deleting}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50"
+            >
+              {deleting
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Suppression…</>
+                : <><Trash2 className="w-4 h-4" /> Supprimer</>}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Sticky top navigation bar */}
       <TopBar
@@ -120,7 +156,7 @@ export default function AnnonceDetailClient() {
             userId={profile?.id}
             profileId={profile?.id}
             onStatusChange={handleStatusChange}
-            onDelete={handleDelete}
+            onDelete={openDeleteConfirm}
           />
         </div>
 

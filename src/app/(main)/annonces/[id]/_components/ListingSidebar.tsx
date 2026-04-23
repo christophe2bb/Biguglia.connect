@@ -16,7 +16,7 @@ type Props = {
   userId: string | undefined;
   profileId: string | undefined;
   onStatusChange: (s: string) => Promise<void>;
-  onDelete: () => Promise<void>;
+  onDelete: () => void | Promise<void>;
 };
 
 export function ListingSidebar({
