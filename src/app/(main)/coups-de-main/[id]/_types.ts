@@ -73,6 +73,7 @@ export type UseHelpDetailReturn = {
   lightboxIdx: number;
   setLightboxIdx: (v: number) => void;
   handleSendComment: () => Promise<void>;
+  handleDelete: () => Promise<void>;
   handleCanHelp: () => Promise<void>;
   handleStatusChange: (status: string) => Promise<void>;
   handleAcceptParticipant: (participantId: string) => Promise<void>;

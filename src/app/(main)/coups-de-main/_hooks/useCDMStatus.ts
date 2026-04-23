@@ -25,36 +25,83 @@ export function useCDMStatus(
   // ── Suppression ──────────────────────────────────────────────────────────
   const handleDelete = async (id: string) => {
     if (!confirm('Supprimer cette annonce ?')) return;
-    await supabase.from('help_requests').delete().eq('id', id);
+
+    const loadingToast = toast.loading('Suppression…');
+
+    const { error, count } = await supabase
+      .from('help_requests')
+      .delete({ count: 'exact' })   // « count » permet de détecter le blocage RLS silencieux
+      .eq('id', id);
+
+    toast.dismiss(loadingToast);
+
+    if (error) {
+      // Erreur Supabase explicite (contrainte FK, réseau, etc.)
+      toast.error(`Erreur lors de la suppression : ${error.message}`);
+      return;
+    }
+
+    if (count === 0) {
+      // RLS a bloqué silencieusement (Supabase ne renvoie pas d'erreur quand
+      // la politique RLS empêche la suppression — il retourne juste count=0).
+      // Cela peut aussi arriver si l'id n'existe pas.
+      toast.error(
+        "Impossible de supprimer cette annonce. Vérifiez que vous en êtes bien l'auteur et que vous êtes connecté.",
+        { duration: 5000 },
+      );
+      return;
+    }
+
     toast.success('Annonce supprimée');
-    fetchItems();
+    await fetchItems();
   };
 
   // ── Résolution ───────────────────────────────────────────────────────────
   const handleResolve = async (id: string) => {
-    await supabase
+    const { error, count } = await supabase
       .from('help_requests')
-      .update({ status: 'resolved', resolved_at: new Date().toISOString() })
+      .update({ status: 'resolved', resolved_at: new Date().toISOString() }, { count: 'exact' })
       .eq('id', id);
+
+    if (error || count === 0) {
+      toast.error(error?.message ?? 'Impossible de marquer comme résolu.');
+      return;
+    }
+
     toast.success('✅ Marqué comme résolu ! Merci pour votre entraide.');
-    fetchItems();
+    await fetchItems();
   };
 
   // ── Pause / reprise ──────────────────────────────────────────────────────
   const handlePause = async (id: string, wasPaused: boolean) => {
-    await supabase
+    const { error, count } = await supabase
       .from('help_requests')
-      .update({ status: wasPaused ? 'active' : 'paused' })
+      .update({ status: wasPaused ? 'active' : 'paused' }, { count: 'exact' })
       .eq('id', id);
+
+    if (error || count === 0) {
+      toast.error(error?.message ?? 'Impossible de modifier le statut.');
+      return;
+    }
+
     toast.success(wasPaused ? '▶️ Annonce réactivée' : '⏸ Annonce mise en pause');
-    fetchItems();
+    await fetchItems();
   };
 
   // ── Changement de statut générique ───────────────────────────────────────
   const handleStatusChange = async (id: string, newStatus: string) => {
-    await supabase.from('help_requests').update({ status: newStatus }).eq('id', id);
+    const { error, count } = await supabase
+      .from('help_requests')
+      .update({ status: newStatus }, { count: 'exact' })
+      .eq('id', id);
+
+    if (error || count === 0) {
+      toast.error(error?.message ?? 'Impossible de modifier le statut.');
+      return;
+    }
+
     toast.success(`✅ Statut : ${STATUS_LABELS[newStatus] || newStatus}`);
-    fetchItems();
+    await fetchItems();
   };
 
   // ── Je peux aider ────────────────────────────────────────────────────────

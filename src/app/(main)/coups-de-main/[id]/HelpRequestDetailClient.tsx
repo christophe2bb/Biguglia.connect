@@ -18,7 +18,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import {
   Bookmark, BookmarkCheck, Share2, Check, HandHeart,
-  Loader2, Pencil, Star,
+  Loader2, Pencil, Star, Trash2,
 } from 'lucide-react';
 import ReportButton from '@/components/ui/ReportButton';
 import RatingWidget from '@/components/ui/RatingWidget';
@@ -176,13 +176,31 @@ export default function HelpRequestDetailClient({ item, variant }: Props) {
         alreadyHelping={d.alreadyHelping}
         onCanHelp={d.handleCanHelp}
         onStatusChange={d.handleStatusChange}
+        onDelete={d.handleDelete}
       />
     );
   }
 
   // ── mobile-bar ────────────────────────────────────────────────────────────
   if (variant === 'mobile-bar') {
-    if (d.isAuthor || !d.isActive) return null;
+    // Barre auteur sur mobile : bouton Supprimer visible (la sidebar desktop est masquée)
+    if (d.isAuthor) {
+      return (
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-lg lg:hidden">
+          <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={d.handleDelete}
+              className="flex-1 flex items-center justify-center gap-2 font-bold px-4 py-2.5 rounded-xl text-sm text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" aria-hidden="true" />
+              Supprimer
+            </button>
+          </div>
+        </div>
+      );
+    }
+    if (!d.isActive) return null;
     return (
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-lg lg:hidden">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">

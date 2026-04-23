@@ -1,6 +1,6 @@
 'use client';
 
-import { Shield, ChevronRight, Check, Loader2 } from 'lucide-react';
+import { Shield, ChevronRight, Check, Loader2, Trash2 } from 'lucide-react';
 import { HandHeart } from 'lucide-react';
 import HelpContact from './HelpContact';
 import type { HelpRequest } from '../_types';
@@ -14,11 +14,12 @@ type Props = {
   alreadyHelping: boolean;
   onCanHelp: () => void;
   onStatusChange: (status: string) => void;
+  onDelete: () => void;
 };
 
 export default function HelpSidebar({
   item, isAuthor, isActive, userId,
-  helping, alreadyHelping, onCanHelp, onStatusChange,
+  helping, alreadyHelping, onCanHelp, onStatusChange, onDelete,
 }: Props) {
   return (
     <aside className="hidden lg:block w-72 flex-shrink-0 space-y-5">
@@ -89,6 +90,17 @@ export default function HelpSidebar({
                 📦 Archiver
               </button>
             )}
+            {/* Suppression — toujours disponible pour l'auteur */}
+            <div className="pt-2 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={onDelete}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors font-semibold"
+              >
+                <Trash2 className="w-4 h-4" aria-hidden="true" />
+                Supprimer l&apos;annonce
+              </button>
+            </div>
           </div>
         )}
       </div>
