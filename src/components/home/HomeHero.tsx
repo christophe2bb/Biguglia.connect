@@ -45,8 +45,7 @@ export default function HomeHero({ totalItems, generatedAt }: HomeHeroProps) {
   return (
     <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 via-brand-700 to-orange-800 mb-8">
       {/* Décoration */}
-      <div className="absolute inset-0 opacity-[0.06]"
-        style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }}
+      <div className="absolute inset-0 opacity-[0.06] bg-dot-grid-lg"
       />
       <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3 blur-2xl" />
 

@@ -29,8 +29,7 @@ export function AssocHero({ asso, coverPhoto, saved, onToggleSave, onShare }: Pr
     <div className="relative overflow-hidden bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-600 text-white">
       {/* dot-grid overlay */}
       <div
-        className="absolute inset-0 opacity-10"
-        style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }}
+        className="absolute inset-0 opacity-10 bg-dot-grid-lg"
       />
 
       {/* cover photo (faded) */}

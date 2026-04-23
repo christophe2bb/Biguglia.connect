@@ -344,7 +344,7 @@ export function Lightbox({ photos, idx, onClose, eventTitle }: LightboxProps) {
             <X className="w-5 h-5" aria-hidden="true" />
           </button>
 
-          <div className="relative w-full max-w-4xl" style={{ aspectRatio: '16/9' }}>
+          <div className="relative w-full max-w-4xl aspect-video">
             <Image
               src={photos[idx].url}
               alt={eventTitle ? `${eventTitle} — photo ${idx + 1} sur ${photos.length}` : `Photo ${idx + 1} sur ${photos.length}`}

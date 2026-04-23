@@ -105,8 +105,7 @@ export default function EventMiniForum({ eventId, userId, catColor, catBg, catBo
               {comments.map(c => (
                 <div key={c.id} className="flex items-start gap-2">
                   <div
-                    className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-black text-white"
-                    style={{ background: 'linear-gradient(135deg,#a855f7,#ec4899)' }}
+                    className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-black text-white btn-gradient-violet-pink"
                   >
                     {c.author?.full_name?.[0]?.toUpperCase() ?? '?'}
                   </div>

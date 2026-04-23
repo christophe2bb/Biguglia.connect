@@ -118,21 +118,51 @@ Migration nonces = chantier séparé, planifié post-production (voir §4).
 
 #### `style-src 'unsafe-inline'` — pourquoi obligatoire
 
-1. **154 occurrences de `style={{...}}`** réparties dans 67 composants React :  
-   les styles inline JSX sont émis par React comme attributs `style=""` sur les éléments DOM,  
-   mais les animations CSS-in-JS et les transitions dynamiques (ex. `{ width: progress + '%' }`)  
-   passent aussi par des balises `<style>` injectées au runtime.  
-   Supprimer `'unsafe-inline'` de `style-src` casse ces composants.
+**Statut migration (2026-04-23)** : sprint 1 terminé — 90 `style={{}}` supprimés (169 → 79, −53 %).
+
+**Répartition initiale** : 169 occurrences dans 69 fichiers (PR #409).  
+**Répartition après sprint 1** : 79 occurrences dans 40 fichiers.
+
+##### Ce qui a été migré (sprint 1)
+
+| Catégorie | Occurrences supprimées | Méthode |
+|---|---|---|
+| Motif grille de points `radial-gradient(circle, white 1px …)` | 28 | Classes CSS utilitaires `bg-dot-grid-{sm\|md\|lg\|xl\|22\|18}` dans `globals.css` |
+| Boutons gradient statiques `linear-gradient(135deg,…)` | 14 | Classes `btn-gradient-{orange\|emerald\|violet\|blue\|…}` dans `globals.css` |
+| `CalendarView.tsx` (45 → 7) | 38 | Refactoring vers classes CSS `.cal-*` |
+| `AnimatedEventCell.tsx` (23 → 18) | 5 | Refactoring partiel + CSS custom properties |
+| Positionnement/z-index statiques | 5 | Classes Tailwind (`fixed inset-0 z-0`, `z-[1]`, etc.) |
+| `aspectRatio: '16/9'` | 1 | `aspect-video` Tailwind |
+| `width: '60%'` statique | 1 | `w-[60%]` Tailwind |
+
+##### Occurrences légitimes restantes (79) — ne peuvent pas utiliser `className`
+
+1. **Valeurs calculées à l'exécution** (47 cas) : `width: ${pct}%`, `height: ${n}px`,  
+   `transform: scale(${zoom})`, etc. — Tailwind ne peut pas générer des classes pour des valeurs inconnues à la compilation.
+
+2. **Couleurs dynamiques de catégorie d'événement** (18 cas dans `AnimatedEventCell`) :  
+   `background: pastel?.bg`, `color: pastel?.ring`, etc. — injectées via CSS custom properties  
+   (`--aec-ring`, `--aec-ring-22`, …) pour réduire l'impact CSP.
+
+3. **Styles SVG/canvas** (4 cas) : `stroke-dasharray` animé, transitions SVG.
+
+4. **API Route OG** (`/api/og`) (14 cas) : composant `ImageResponse` Vercel — rendu côté serveur,  
+   pas exposé au navigateur → sans impact sur la CSP du client.
+
+##### Plan sprint 2 (post-lancement)
+
+- Extraire les `px` calculés (progress bars) vers un composant `<ProgressBar value={n} />` dédié  
+  avec `style={{ width }}` isolé et documenté.
+- Tester la suppression de `'unsafe-inline'` de `style-src` une fois les 79 cas restants  
+  évalués — seules les valeurs vraiment dynamiques la nécessitent.
 
 2. **Tailwind CSS JIT** génère des classes à la demande et peut injecter une balise  
    `<style>` dans le `<head>` en développement. En production le CSS est statique,  
    mais la valeur reste requise pour la compatibilité build.
 
-3. **Refactoring requis** : migrer 154 `style={{}}` vers des classes Tailwind statiques  
-   ou des variables CSS représente un chantier UI complet, distinct du nonce CSP.
-
-> **Décision** : les deux directives conservent `'unsafe-inline'` jusqu'à la migration  
-> nonces (§4). Ce choix est assumé, documenté ici et dans `next.config.js`.
+> **Décision** : `'unsafe-inline'` conservé dans `style-src` le temps du sprint 2.  
+> Sprint 1 a réduit la surface de 53 % (169 → 79). Ce choix est assumé, documenté ici  
+> et dans `next.config.js`. Voir PR #409 pour le détail des changements.
 
 #### Atténuations déjà en place
 

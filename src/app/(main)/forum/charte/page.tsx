@@ -457,7 +457,7 @@ export default function CharteForumPage() {
 
         {/* ── CTA bas de page ──────────────────────────────────────────────── */}
         <section className="bg-gradient-to-br from-violet-600 to-indigo-700 rounded-3xl p-8 text-white text-center relative overflow-hidden">
-          <div className="absolute inset-0 opacity-[0.06] rounded-3xl" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+          <div className="absolute inset-0 opacity-[0.06] rounded-3xl bg-dot-grid-md" />
           <div className="relative z-10">
             <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <MessageSquare className="w-6 h-6" />

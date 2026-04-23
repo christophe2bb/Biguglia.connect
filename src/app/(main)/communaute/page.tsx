@@ -126,8 +126,7 @@ export default async function CommunautePage() {
           HERO
       ══════════════════════════════════════════════════════ */}
       <section className="relative bg-gradient-to-br from-brand-600 via-brand-700 to-indigo-800 overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.06]"
-          style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+        <div className="absolute inset-0 opacity-[0.06] bg-dot-grid-lg" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-orange-400/15 rounded-full blur-3xl -translate-y-1/3 translate-x-1/4" />
 
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-20 text-center">
@@ -392,8 +391,7 @@ export default async function CommunautePage() {
             CTA FINAL
         ══════════════════════════════════════════════════════ */}
         <section className="bg-gradient-to-br from-brand-600 via-brand-700 to-orange-700 rounded-3xl p-8 sm:p-12 text-center text-white overflow-hidden relative">
-          <div className="absolute inset-0 opacity-[0.06]"
-            style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+          <div className="absolute inset-0 opacity-[0.06] bg-dot-grid-md" />
           <div className="relative">
             <div className="text-4xl mb-4">🏘️</div>
             <h2 className="text-2xl sm:text-3xl font-black mb-3">

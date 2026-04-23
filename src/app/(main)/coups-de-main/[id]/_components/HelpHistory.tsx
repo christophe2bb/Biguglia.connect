@@ -100,8 +100,7 @@ export function Discussion({
         <div className="space-y-4 mb-6 max-h-96 overflow-y-auto">
           {comments.map(c => (
             <div key={c.id} className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-black text-white"
-                style={{ background: 'linear-gradient(135deg,#f97316,#fb923c)' }}>
+              <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-black text-white btn-gradient-orange">
                 {c.author?.full_name?.[0]?.toUpperCase() ?? '?'}
               </div>
               <div className="flex-1 bg-gray-50 rounded-xl px-4 py-3">
@@ -119,8 +118,7 @@ export function Discussion({
       {/* Champ commentaire */}
       {profile ? (
         <div className="flex items-end gap-2 pt-4 border-t border-gray-100">
-          <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-black text-white"
-            style={{ background: 'linear-gradient(135deg,#f97316,#fb923c)' }}>
+          <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-black text-white btn-gradient-orange">
             {profile.full_name?.[0]?.toUpperCase() ?? '?'}
           </div>
           <div className="flex-1">

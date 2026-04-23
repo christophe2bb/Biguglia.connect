@@ -436,8 +436,7 @@ export default function LostFoundCard({
                 {comments.map(c => (
                   <div key={c.id} className="flex items-start gap-2">
                     <div
-                      className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-black text-white"
-                      style={{ background: item.type === 'perdu' ? 'linear-gradient(135deg,#f97316,#ef4444)' : 'linear-gradient(135deg,#10b981,#0ea5e9)' }}>
+                      className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-black text-white ${item.type === 'perdu' ? 'btn-gradient-orange-red' : 'btn-gradient-emerald-sky'}`}>
                       {c.author?.full_name?.[0]?.toUpperCase() ?? '?'}
                     </div>
                     <div className="flex-1 bg-gray-50 rounded-lg px-2.5 py-1.5">

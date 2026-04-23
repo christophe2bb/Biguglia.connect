@@ -253,8 +253,7 @@ export default async function ArtisanTradePage(
           HERO
       ══════════════════════════════════════════ */}
       <section className="bg-gradient-to-br from-brand-600 via-brand-700 to-indigo-800 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.05]"
-          style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+        <div className="absolute inset-0 opacity-[0.05] bg-dot-grid-md" />
 
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
           {/* Fil d'Ariane */}
@@ -466,8 +465,7 @@ export default async function ArtisanTradePage(
             CTA INSCRIPTION ARTISAN
         ══════════════════════════════════════════ */}
         <section className="bg-gradient-to-br from-brand-600 to-indigo-700 rounded-3xl p-8 text-center text-white relative overflow-hidden">
-          <div className="absolute inset-0 opacity-[0.05]"
-            style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
+          <div className="absolute inset-0 opacity-[0.05] bg-dot-grid-18" />
           <div className="relative">
             <p className="text-3xl mb-3">{trade.emoji}</p>
             <h2 className="text-xl font-black mb-2">

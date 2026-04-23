@@ -52,7 +52,7 @@ export default function AssociationsPage() {
 
       {/* ── HERO ── */}
       <div className="relative overflow-hidden bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-600 text-white">
-        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+        <div className="absolute inset-0 opacity-10 bg-dot-grid-lg" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 relative z-10">
           <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-6">
