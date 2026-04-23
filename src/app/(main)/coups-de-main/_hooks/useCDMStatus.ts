@@ -24,35 +24,44 @@ export function useCDMStatus(
 
   // ── Suppression ──────────────────────────────────────────────────────────
   const handleDelete = async (id: string) => {
+    // Vérifier la session AVANT le confirm pour éviter échec silencieux post-confirm
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) {
+      toast.error('Session expirée. Reconnectez-vous.');
+      router.push('/connexion');
+      return;
+    }
+
     if (!confirm('Supprimer cette annonce ?')) return;
 
     const loadingToast = toast.loading('Suppression…');
 
+    // eq('author_id') en plus de eq('id') = double sécurité côté client
+    // (la RLS reste la vraie protection côté serveur)
     const { error, count } = await supabase
       .from('help_requests')
-      .delete({ count: 'exact' })   // « count » permet de détecter le blocage RLS silencieux
-      .eq('id', id);
+      .delete({ count: 'exact' })
+      .eq('id', id)
+      .eq('author_id', sessionData.session.user.id);
 
     toast.dismiss(loadingToast);
 
     if (error) {
-      // Erreur Supabase explicite (contrainte FK, réseau, etc.)
+      console.error('[useCDMStatus] handleDelete error:', error);
       toast.error(`Erreur lors de la suppression : ${error.message}`);
       return;
     }
 
     if (count === 0) {
-      // RLS a bloqué silencieusement (Supabase ne renvoie pas d'erreur quand
-      // la politique RLS empêche la suppression — il retourne juste count=0).
-      // Cela peut aussi arriver si l'id n'existe pas.
+      // RLS ou mauvais author_id : Supabase retourne count=0 sans error
       toast.error(
-        "Impossible de supprimer cette annonce. Vérifiez que vous en êtes bien l'auteur et que vous êtes connecté.",
+        "Impossible de supprimer : vous n'êtes peut-être pas l'auteur ou l'annonce n'existe plus.",
         { duration: 5000 },
       );
       return;
     }
 
-    toast.success('Annonce supprimée');
+    toast.success('Annonce supprimée ✅');
     await fetchItems();
   };
 
