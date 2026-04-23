@@ -10,7 +10,7 @@ import type { HelpRequest, HelpComment, HelpParticipant, UseHelpDetailReturn } f
 
 export function useHelpRequestDetail(initialItem: HelpRequest): UseHelpDetailReturn {
   const { id } = useParams<{ id: string }>();
-  const { profile } = useAuthStore();
+  const { profile, userId, isAuthenticated } = useAuthStore();
   const router = useRouter();
   // Stable Supabase client — createClient() appelé une seule fois au montage
   const supabaseRef = useRef(createClient());
@@ -122,37 +122,36 @@ export function useHelpRequestDetail(initialItem: HelpRequest): UseHelpDetailRet
   };
 
   // ── Supprimer l'annonce (auteur uniquement) ────────────────────────────────
-  // ⚠️ Cette fonction N'affiche PAS de confirm() natif (bloquant, interdit en prod).
-  // La confirmation est gérée par le composant UI (dialog React).
+  // Pas de getSession() ici (appel réseau ~2s qui bloque le thread).
+  // On utilise userId depuis le store Zustand (déjà en mémoire).
   const handleDelete = async () => {
-    // 1. Vérifier la session (évite l'appel Supabase avec JWT absent)
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData?.session) {
-      toast.error('Votre session a expiré. Reconnectez-vous pour supprimer cette annonce.');
+    // 1. Vérifier l'authentification via le store (synchrone, 0ms)
+    if (!isAuthenticated || !userId) {
+      toast.error('Connectez-vous pour supprimer cette annonce.');
       router.push('/connexion');
       return;
     }
 
     const loadingToast = toast.loading('Suppression en cours…');
 
-    // 2. Double filtre id + author_id (sécurité côté client, la RLS reste la vraie barrière)
+    // 2. DELETE filtré sur id + author_id (la RLS reste la barrière serveur)
     const { error, count } = await supabase
       .from('help_requests')
       .delete({ count: 'exact' })
       .eq('id', id)
-      .eq('author_id', sessionData.session.user.id);
+      .eq('author_id', userId);
 
     toast.dismiss(loadingToast);
 
     if (error) {
       console.error('[handleDelete] Supabase error:', error);
-      toast.error('Erreur lors de la suppression : ' + error.message);
+      toast.error('Erreur : ' + error.message);
       return;
     }
 
     if (count === 0) {
       toast.error(
-        "Impossible de supprimer : vous n'êtes peut-être pas l'auteur ou l'annonce n'existe plus.",
+        "Suppression impossible — vérifiez que vous êtes bien l'auteur.",
         { duration: 5000 },
       );
       return;
