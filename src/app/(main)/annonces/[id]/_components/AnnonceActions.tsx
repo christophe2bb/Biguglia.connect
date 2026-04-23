@@ -170,6 +170,13 @@ export default function AnnonceActions({ listing, variant = 'topbar' }: Props) {
     setDeleting(true);
     setConfirmDeleteOpen(false);
 
+    console.log('[AnnonceActions] handleDelete START', {
+      listingId: listing.id,
+      listingUserId: listing.user_id,
+      zustandUserId: userId,
+      match: listing.user_id === userId,
+    });
+
     // 1. Supprimer les photos du storage
     const photos = listing.photos as Array<{ id: string; url: string }> | undefined;
     if (photos?.length) {
@@ -177,30 +184,28 @@ export default function AnnonceActions({ listing, variant = 'topbar' }: Props) {
         .map(p => safeStoragePath(p.url, 'photos'))
         .filter(Boolean) as string[];
       if (paths.length) {
-        await supabase.storage.from('photos').remove(paths); // nosec — chemins validés par safeStoragePath
+        await supabase.storage.from('photos').remove(paths); // nosec
       }
       await supabase.from('listing_photos').delete().eq('listing_id', listing.id);
     }
 
-    // 2. Supprimer l'annonce — .select('id') pour détecter le blocage RLS silencieux
+    // 2. Supprimer l'annonce — eq('id') seul, pas de eq('user_id') (laisse la RLS décider)
     const { data: deleted, error } = await supabase
       .from('listings')
       .delete()
       .eq('id', listing.id)
-      .eq('user_id', userId)   // double filtre : seul le propriétaire peut supprimer
       .select('id');
 
-    console.log('[AnnonceActions] listings delete result:', { deleted, error, listingId: listing.id });
+    console.log('[AnnonceActions] DELETE result:', { deleted, error });
 
     if (error) {
-      toast.error(`Erreur lors de la suppression : ${error.message}`);
+      toast.error(`Erreur : ${error.message}`, { duration: 8000 });
       setDeleting(false);
       return;
     }
 
-    // Supabase + RLS peut retourner error=null mais 0 lignes supprimées
     if (!deleted || deleted.length === 0) {
-      toast.error('Suppression refusée — vérifiez que vous êtes bien le propriétaire.');
+      toast.error('Suppression bloquée — politique de sécurité. Vérifiez la console.', { duration: 8000 });
       setDeleting(false);
       return;
     }
