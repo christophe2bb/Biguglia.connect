@@ -126,7 +126,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             • Next.js 15 App Router gère lui-même le preload de l'image LCP via
               ReactDOM.preload() lorsque priority=true est posé sur <Image>.
               Le preload pointe sur /_next/image?url=... (URL réelle de l'img).
-              Un <link rel="preload" href="/images/biguglia-hero.jpg"> serait
+              Un <link rel="preload" href="/images/biguglia-hero.webp"> serait
               une URL DIFFÉRENTE de l'img src → doublon inutile + warning Lighthouse.
             • fetchPriority="high" est passé directement au composant <Image>
               dans page.tsx → il apparaît dans l'attribut fetchpriority de l'<img>.

@@ -75,7 +75,7 @@ export default function EvenementsPage() {
       <SectionTracker section="evenements" />
       {/* Background — wrapper div gère le positionnement fixed ; Image fill ne peut pas avoir style.position */}
       <div aria-hidden="true" style={{ position: 'fixed', inset: 0, zIndex: 0, opacity: 0.2, pointerEvents: 'none' }}>
-        <Image src="/images/biguglia-etang.jpg" alt="" fill
+        <Image src="/images/biguglia-etang.webp" alt="" fill sizes="100vw"
           style={{ objectFit: 'cover', objectPosition: 'center top' }} />
       </div>
 

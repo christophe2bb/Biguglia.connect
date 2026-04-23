@@ -137,7 +137,7 @@ export default function HomePage() {
       <section className="relative min-h-[60vh] sm:min-h-[70vh] flex items-end">
         <div className="absolute inset-0 overflow-hidden">
           <Image
-            src="/images/biguglia-hero.jpg"
+            src="/images/biguglia-hero.webp"
             alt="Biguglia"
             fill
             priority

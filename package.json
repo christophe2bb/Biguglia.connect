@@ -26,7 +26,8 @@
     "test:e2e:report": "playwright show-report",
     "test:e2e:debug": "playwright test --debug",
     "ci": "npm run typecheck && npm run lint && npm run test",
-    "ci:e2e": "playwright test --reporter=list,html"
+    "ci:e2e": "playwright test --reporter=list,html",
+    "optimize:images": "node scripts/optimize-images.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.48.0",
