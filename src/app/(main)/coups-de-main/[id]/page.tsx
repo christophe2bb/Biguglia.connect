@@ -245,6 +245,9 @@ export default async function HelpRequestDetailPage({ params }: Props) {
               </div>
             </div>
 
+            {/* Client: actions auteur (Modifier / statut / Supprimer) — visible sur tous les écrans */}
+            <HelpRequestDetailClient item={item} variant="author-actions" />
+
             {/* Client: participants, discussion, statut, notation */}
             <HelpRequestDetailClient item={item} variant="main-content" />
 
