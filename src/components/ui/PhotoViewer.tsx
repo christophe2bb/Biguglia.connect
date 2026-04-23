@@ -12,6 +12,14 @@
  *      pour pouvoir être importés depuis les Server Components sans déclencher
  *      une erreur de module boundary Next.js App Router.
  *      Ce fichier les ré-exporte pour la rétrocompatibilité.
+ *
+ * ── Accessibilité (WCAG 2.1 AA) ───────────────────────────────────────────────
+ *  - role="dialog" + aria-modal="true" confinent le curseur virtuel des AT
+ *  - Focus trap natif (useFocusTrap) : Tab/Shift+Tab cyclent dans la modale
+ *  - Focus initial sur le bouton Fermer à l'ouverture
+ *  - Focus restauré sur l'élément déclencheur à la fermeture
+ *  - Escape, ← →, +/- gérés par un listener clavier global
+ *  - Tous les boutons icon-only ont aria-label ; les icônes sont aria-hidden
  */
 
 import { useState, useEffect, useCallback, useRef, useId } from 'react';
@@ -26,6 +34,94 @@ import { cn } from '@/lib/utils';
 export type { PhotoItem } from './photo-utils';
 export { toPhotoItems } from './photo-utils';
 import type { PhotoItem } from './photo-utils';
+
+// ─── Focus trap natif (Tab / Shift+Tab) ──────────────────────────────────────
+/**
+ * Retourne l'ensemble des éléments focusables dans un conteneur DOM.
+ * Utilisé par le focus trap pour cycler Tab/Shift+Tab à l'intérieur de la modale.
+ */
+function getFocusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), ' +
+      'select:not([disabled]), textarea:not([disabled]), ' +
+      '[tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter(el => !el.hasAttribute('disabled') && el.offsetParent !== null);
+}
+
+/**
+ * useFocusTrap
+ *  - Capture document.activeElement à l'ouverture, le restaure à la fermeture.
+ *  - Donne le focus à l'élément `initialFocusRef` via rAF (après peinture DOM).
+ *  - Piège Tab et Shift+Tab dans le conteneur `containerRef`.
+ *
+ * Dépendance intentionnellement limitée à [] (mount/unmount uniquement).
+ * onClose est lu via une ref stable pour éviter de re-enregistrer les listeners
+ * à chaque render (cf. pattern "event handler ref").
+ */
+function useFocusTrap(onClose: () => void) {
+  const containerRef    = useRef<HTMLDivElement>(null);
+  const initialFocusRef = useRef<HTMLElement>(null);
+  const triggerRef      = useRef<Element | null>(null);
+  // Ref stable vers onClose pour ne pas re-enregistrer les listeners
+  const onCloseRef      = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
+
+  useEffect(() => {
+    // Sauvegarder l'élément actif avant l'ouverture
+    triggerRef.current = document.activeElement;
+
+    // Déplacer le focus dans la modale après peinture
+    const frame = requestAnimationFrame(() => {
+      initialFocusRef.current?.focus();
+    });
+
+    function onKeyDown(e: KeyboardEvent) {
+      // Escape → fermer
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onCloseRef.current();
+        return;
+      }
+
+      // Tab / Shift+Tab → cycler dans le conteneur
+      if (e.key === 'Tab' && containerRef.current) {
+        const focusable = getFocusableElements(containerRef.current);
+        if (focusable.length === 0) { e.preventDefault(); return; }
+
+        const first = focusable[0];
+        const last  = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+          // Shift+Tab : si le focus est sur le premier élément → aller au dernier
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          // Tab : si le focus est sur le dernier élément → aller au premier
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('keydown', onKeyDown);
+      // Restaurer le focus sur l'élément déclencheur
+      if (triggerRef.current instanceof HTMLElement) triggerRef.current.focus();
+      triggerRef.current = null;
+    };
+  }, []); // mount/unmount uniquement — onClose lu via onCloseRef (stable)
+
+  return { containerRef, initialFocusRef };
+}
 
 // ─── 1. LIGHTBOX PLEIN ÉCRAN ─────────────────────────────────────────────────
 interface PhotoViewerProps {
@@ -42,10 +138,10 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
   const [drag, setDrag]   = useState<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
   const touchStartX       = useRef<number | null>(null);
   const imgRef            = useRef<HTMLDivElement>(null);
-  // Accessibility: unique id for aria-label region; refs for focus management
   const dialogLabelId     = useId();
-  const closeButtonRef    = useRef<HTMLButtonElement>(null);
-  const triggerRef        = useRef<Element | null>(null);
+
+  // Focus trap : Tab/Shift+Tab confinés dans la lightbox, focus initial sur bouton Fermer
+  const { containerRef, initialFocusRef: closeButtonRef } = useFocusTrap(onClose);
 
   const total = photos.length;
   const photo = photos[idx];
@@ -53,34 +149,20 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
   // Reset zoom/pos when changing photo
   useEffect(() => { setZoom(1); setPos({ x: 0, y: 0 }); }, [idx]);
 
-  // Focus management: save trigger element, focus close button on mount, restore on unmount
-  useEffect(() => {
-    triggerRef.current = document.activeElement;
-    // rAF ensures the DOM is painted before we steal focus
-    const frame = requestAnimationFrame(() => { closeButtonRef.current?.focus(); });
-    return () => {
-      cancelAnimationFrame(frame);
-      if (triggerRef.current instanceof HTMLElement) triggerRef.current.focus();
-      triggerRef.current = null;
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // run once on mount/unmount
-
   const prev = useCallback(() => { setIdx(i => (i - 1 + total) % total); }, [total]);
   const next = useCallback(() => { setIdx(i => (i + 1) % total); }, [total]);
 
-  // Keyboard navigation (Escape + arrows + zoom shortcuts)
+  // Keyboard navigation (arrows + zoom shortcuts — Escape géré par useFocusTrap)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
-      if (e.key === 'ArrowLeft') prev();
-      if (e.key === 'ArrowRight') next();
-      if (e.key === '+' || e.key === '=') setZoom(z => Math.min(z + 0.5, 4));
-      if (e.key === '-') setZoom(z => Math.max(z - 0.5, 1));
+      if (e.key === 'ArrowLeft')              prev();
+      if (e.key === 'ArrowRight')             next();
+      if (e.key === '+' || e.key === '=')     setZoom(z => Math.min(z + 0.5, 4));
+      if (e.key === '-')                      setZoom(z => Math.max(z - 0.5, 1));
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onClose, prev, next]);
+  }, [prev, next]);
 
   // Touch swipe
   const onTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
@@ -105,18 +187,29 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
   if (!photo) return null;
 
   return (
-    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+    /*
+     * Wrapper role="none" : reçoit les handlers touch/mouse (swipe, drag-to-pan).
+     * jsx-a11y n'émet pas d'erreur sur role="none" avec des handlers pointeur.
+     * Le role="dialog" est sur l'élément interne qui porte la sémantique ARIA
+     * et le focus trap (containerRef).
+     */
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={title ? `Visionneuse — ${title}` : 'Visionneuse de photos'}
-      aria-labelledby={dialogLabelId}
-      className="fixed inset-0 z-[9999] bg-black/95 flex flex-col"
+      role="none"
+      className="fixed inset-0 z-[9999]"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
+    >
+    <div
+      ref={containerRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title ? `Visionneuse — ${title}` : 'Visionneuse de photos'}
+      aria-labelledby={dialogLabelId}
+      tabIndex={-1}
+      className="w-full h-full bg-black/95 flex flex-col"
     >
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
@@ -160,9 +253,9 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
               Reset
             </button>
           )}
-          {/* Fermer */}
+          {/* Fermer — reçoit le focus initial via initialFocusRef */}
           <button
-            ref={closeButtonRef}
+            ref={closeButtonRef as React.RefObject<HTMLButtonElement>}
             onClick={onClose}
             aria-label="Fermer la visionneuse"
             className="p-2 rounded-full bg-white/10 text-white hover:bg-red-500/60 transition-colors"
@@ -185,10 +278,15 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
           </button>
         )}
 
-        {/* Image — transforms are applied to the wrapper div so next/image can be used */}
-        {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+        {/*
+         * Conteneur de l'image zoomable — div sans rôle ARIA car purement
+         * fonctionnel (drag-to-pan souris). Aucune sémantique propre :
+         * l'image <Image> à l'intérieur porte l'alt descriptif.
+         * onMouseDown sur une div neutre (sans role) est valide jsx-a11y.
+         */}
         <div
           ref={imgRef}
+          role="none"
           onMouseDown={onMouseDown}
           style={{
             transform: `scale(${zoom}) translate(${pos.x / zoom}px, ${pos.y / zoom}px)`,
@@ -254,6 +352,7 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose, title }: PhotoV
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }
