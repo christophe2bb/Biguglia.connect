@@ -123,33 +123,45 @@ export function useHelpRequestDetail(initialItem: HelpRequest): UseHelpDetailRet
 
   // ── Supprimer l'annonce (auteur uniquement) ────────────────────────────────
   const handleDelete = async () => {
+    // 1. Vérifier la session AVANT d'ouvrir le confirm (évite confirm + échec silencieux)
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) {
+      toast.error('Votre session a expiré. Reconnectez-vous pour supprimer cette annonce.');
+      router.push('/connexion');
+      return;
+    }
+
     if (!confirm('Supprimer définitivement cette annonce ? Cette action est irréversible.')) return;
 
     const loadingToast = toast.loading('Suppression en cours…');
 
+    // 2. Supprimer avec eq('id') ET eq('author_id') pour double sécurité + count exact
     const { error, count } = await supabase
       .from('help_requests')
       .delete({ count: 'exact' })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('author_id', sessionData.session.user.id);
 
     toast.dismiss(loadingToast);
 
     if (error) {
+      console.error('[handleDelete] Supabase error:', error);
       toast.error('Erreur lors de la suppression : ' + error.message);
       return;
     }
 
+    // count null = Supabase n'a pas renvoyé le header count (réseau / version)
+    // count 0   = RLS ou mauvais author_id
+    // count >= 1 = suppression réussie
     if (count === 0) {
-      // RLS a bloqué silencieusement (Supabase renvoie count=0 sans error
-      // quand la politique RLS empêche la suppression)
       toast.error(
-        "Impossible de supprimer cette annonce. Vérifiez que vous en êtes bien l'auteur et que vous êtes connecté.",
+        "Impossible de supprimer : vous n'êtes peut-être pas l'auteur ou l'annonce n'existe plus.",
         { duration: 5000 },
       );
       return;
     }
 
-    toast.success('Annonce supprimée');
+    toast.success('Annonce supprimée ✅');
     router.push('/coups-de-main');
   };
 
