@@ -102,6 +102,7 @@ export type UseOutingDetailReturn = {
 
   // Deletion
   handleDeleteOuting: () => Promise<void>;
+  activeParticipantsCount: number;
 
   // Transition modal
   showModal: boolean;

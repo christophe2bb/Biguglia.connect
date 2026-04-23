@@ -242,13 +242,10 @@ export function useOutingDetail(): UseOutingDetailReturn {
     setApplyingTransition(false);
   };
 
+  // ⚠️ Appelé APRÈS confirmation dans l'UI (pas de confirm() bloquant).
+  // La valeur active (nb participants) doit être transmise par l'UI pour afficher
+  // un message adapté dans le dialog de confirmation.
   const handleDeleteOuting = async () => {
-    const active = participants.filter(p => p.status !== 'annule').length;
-    if (active > 0) {
-      if (!confirm(`Cette sortie a ${active} participant(s) actif(s). Supprimer quand même ?`)) return;
-    } else {
-      if (!confirm('Supprimer définitivement cette sortie ?')) return;
-    }
     const { error } = await supabase.from('group_outings').delete().eq('id', outingId);
     if (error) toast.error('Erreur lors de la suppression');
     else {
@@ -256,6 +253,9 @@ export function useOutingDetail(): UseOutingDetailReturn {
       router.push('/promenades?tab=agenda');
     }
   };
+
+  /** Nombre de participants actifs — utilisé par l'UI pour le message de confirmation. */
+  const activeParticipantsCount = participants.filter(p => p.status !== 'annule').length;
 
   // ── Computed ──────────────────────────────────────────────────────────────
   const isOrganizer = profile?.id === outing?.organizer_id;
@@ -324,6 +324,7 @@ export function useOutingDetail(): UseOutingDetailReturn {
     handleRegister,
     // Deletion
     handleDeleteOuting,
+    activeParticipantsCount,
     // Transition modal
     showModal,
     pendingTo,

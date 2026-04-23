@@ -200,7 +200,7 @@ export default function DashboardEvenementsPage() {
   const handleDelete = async (id: string) => {
     const ev = myEvents.find(e => e.id === id);
     if ((ev?.participants_count ?? 0) > 0) { toast.error('Impossible : des participants sont inscrits'); return; }
-    if (!confirm('Supprimer définitivement cet événement ?')) return;
+    // ⚠️ Appelé APRÈS confirmation dans l'UI.
     await supabase.from('events').delete().eq('id', id);
     toast.success('Événement supprimé');
     await fetchMyEvents();

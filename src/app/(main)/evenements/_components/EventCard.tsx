@@ -42,6 +42,7 @@ export default function EventCard({
     ? Math.round((event.participants_count / event.max_participants) * 100) : null;
   const isFull    = event.max_participants !== null && (event.participants_count ?? 0) >= event.max_participants;
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [pendingEventAction, setPendingEventAction] = useState<{ id: string; key: string; label: string } | null>(null);
   const photoItems   = event.cover_photo ? [{ url: event.cover_photo, isPrimary: true }] : [];
   const isUrgent     = countdown?.includes("Aujourd'hui") || countdown === 'Demain';
   const isAnnule     = event.status === 'annule' || event.status === 'cancelled';
@@ -312,28 +313,40 @@ export default function EventCard({
               <ReportButton targetType="event" targetId={event.id} targetTitle={event.title} variant="icon" />
             )}
             {userId === event.author_id ? (
-              onStatusChange && (() => {
-                const s = event.status || 'a_venir';
-                const isPast = new Date(event.event_date + 'T23:59:59') < new Date();
-                const acts: { label: string; key: string; color: string }[] = [];
-                if (!['annule','cancelled','archive','archived'].includes(s)) {
-                  if (!isPast) acts.push({ label: '✖ Annuler', key: 'annule', color: 'text-red-500 bg-red-50 border-red-200' });
-                  if (!['reporte','postponed'].includes(s)) acts.push({ label: '🔄 Reporter', key: 'reporte', color: 'text-amber-600 bg-amber-50 border-amber-200' });
-                } else if (isPast || ['completed','complet'].includes(s)) {
-                  acts.push({ label: '📦 Archiver', key: 'archive', color: 'text-gray-500 bg-gray-50 border-gray-200' });
-                }
-                return acts.length > 0 ? (
-                  <div className="flex flex-wrap gap-1">
-                    {acts.map(a => (
-                      <button key={a.key}
-                        onClick={() => { if (window.confirm(`${a.label} cet événement ?`)) onStatusChange(event.id, a.key); }}
-                        className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors', a.color)}>
-                        {a.label}
-                      </button>
-                    ))}
+              <>
+                {onStatusChange && (() => {
+                  const s = event.status || 'a_venir';
+                  const isPast = new Date(event.event_date + 'T23:59:59') < new Date();
+                  const acts: { label: string; key: string; color: string }[] = [];
+                  if (!['annule','cancelled','archive','archived'].includes(s)) {
+                    if (!isPast) acts.push({ label: '✖ Annuler', key: 'annule', color: 'text-red-500 bg-red-50 border-red-200' });
+                    if (!['reporte','postponed'].includes(s)) acts.push({ label: '🔄 Reporter', key: 'reporte', color: 'text-amber-600 bg-amber-50 border-amber-200' });
+                  } else if (isPast || ['completed','complet'].includes(s)) {
+                    acts.push({ label: '📦 Archiver', key: 'archive', color: 'text-gray-500 bg-gray-50 border-gray-200' });
+                  }
+                  return acts.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {acts.map(a => (
+                        <button key={a.key}
+                          onClick={() => setPendingEventAction({ id: event.id, key: a.key, label: a.label })}
+                          className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors', a.color)}>
+                          {a.label}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
+                {/* Confirmation inline de changement de statut */}
+                {pendingEventAction && pendingEventAction.id === event.id && (
+                  <div className="flex items-center gap-2 mt-1 p-1.5 bg-amber-50 border border-amber-200 rounded-xl">
+                    <span className="text-[10px] text-amber-800 font-semibold flex-1">{pendingEventAction.label} cet événement ?</span>
+                    <button onClick={() => { if (onStatusChange) onStatusChange(pendingEventAction.id, pendingEventAction.key); setPendingEventAction(null); }}
+                      className="text-[10px] font-bold text-white bg-amber-600 hover:bg-amber-700 px-2 py-0.5 rounded">Oui</button>
+                    <button onClick={() => setPendingEventAction(null)}
+                      className="text-[10px] font-bold text-gray-600 px-1">✕</button>
                   </div>
-                ) : null;
-              })()
+                )}
+              </>
             ) : (
               <ContactButton sourceType="event" sourceId={event.id} sourceTitle={event.title} ownerId={event.author_id} userId={userId} size="sm" />
             )}

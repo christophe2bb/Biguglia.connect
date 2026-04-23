@@ -116,9 +116,9 @@ export default function DashboardPerduTrouvePage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // ⚠️ Appelé APRÈS confirmation dans l'UI (pendingStatusChange state).
   const handleStatusChange = async (id: string, newStatus: LFStatus) => {
     const cfg = STATUS_CONFIG[newStatus];
-    if (!confirm(`Passer en "${cfg.label}" ?`)) return;
     const now = new Date().toISOString();
     const updates: Record<string, string> = { status: newStatus, updated_at: now };
     if (newStatus === 'restitue') updates.restitution_confirmed_at = now;
@@ -156,8 +156,8 @@ export default function DashboardPerduTrouvePage() {
     fetchData();
   };
 
+  // ⚠️ Appelé APRÈS confirmation dans l'UI.
   const handleDelete = async (id: string) => {
-    if (!confirm('Archiver cette annonce ?')) return;
     await supabase.from('lost_found_items').update({
       status: 'archive',
       archived_at: new Date().toISOString(),

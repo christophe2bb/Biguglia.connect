@@ -92,7 +92,7 @@ export default function AdminUtilisateursPage() {
   const suspendUser = async (userId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
     const action = newStatus === 'suspended' ? 'suspendre' : 'réactiver';
-    if (!confirm(`Voulez-vous ${action} ce compte ?`)) return;
+    // ⚠️ Appelé APRÈS confirmation dans l'UI.
     const res = await adminFetch(`/api/admin/users/${userId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -109,8 +109,7 @@ export default function AdminUtilisateursPage() {
   };
 
   const deleteUser = async (userId: string, name: string) => {
-    if (!window.confirm(`⚠️ ATTENTION\n\nSupprimer définitivement le compte de "${name}" ?\n\nCette action est IRRÉVERSIBLE.`)) return;
-    if (!window.confirm(`Confirmez-vous la suppression définitive du compte de "${name}" ?`)) return;
+    // ⚠️ Appelé APRÈS confirmation dans l'UI (double confirmation gérée dans l'UI).
     const res = await adminFetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -124,7 +123,7 @@ export default function AdminUtilisateursPage() {
 
   const changeRole = async (userId: string, newRole: string) => {
     const label = ROLE_OPTIONS.find(r => r.value === newRole)?.label || newRole;
-    if (!confirm(`Changer le rôle vers "${label}" ?`)) return;
+    // ⚠️ Appelé APRÈS confirmation dans l'UI.
     const res = await adminFetch(`/api/admin/users/${userId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

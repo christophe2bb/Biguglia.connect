@@ -121,7 +121,7 @@ export function useLFDetail(id: string, initialItem?: LFItem): UseLFDetailReturn
   const handleStatusChange = useCallback(async (newStatus: LFStatus) => {
     if (!item) return;
     const cfg = STATUS_CONFIG[newStatus];
-    if (!confirm(`Passer le dossier en "${cfg.label}" ?`)) return;
+    // ⚠️ Appelé APRÈS confirmation dans l'UI (pas de confirm() bloquant).
 
     setTransitioning(true);
     const now = new Date().toISOString();
@@ -145,7 +145,8 @@ export function useLFDetail(id: string, initialItem?: LFItem): UseLFDetailReturn
 
   // ── handleDelete (archive) ────────────────────────────────────────────────
   const handleDelete = useCallback(async () => {
-    if (!item || !confirm('Archiver cette annonce ?')) return;
+    // ⚠️ Appelé APRÈS confirmation dans l'UI (pas de confirm() bloquant).
+    if (!item) return;
     await supabase.from('lost_found_items').update({
       status: 'archive',
       archived_at: new Date().toISOString(),

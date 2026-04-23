@@ -156,7 +156,7 @@ export default function DashboardMaterielPage() {
   const handleDelete = async (item: EquipmentWithRequests) => {
     const { allowed, reason } = canDelete(item.status as EquipmentStatus, !!item.active_loan);
     if (!allowed) { toast.error(`Suppression impossible : ${reason}`); return; }
-    if (!window.confirm(`Supprimer "${item.title}" définitivement ?`)) return;
+    // ⚠️ Appelé APRÈS confirmation dans l'UI.
     const supabase = createClient();
     await supabase.from('equipment_items').delete().eq('id', item.id);
     toast.success('Matériel supprimé');

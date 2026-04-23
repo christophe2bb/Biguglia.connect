@@ -125,7 +125,7 @@ export function useConversationActions(
       setIsBlocked(false);
       toast.success(`${otherUser.full_name || 'Utilisateur'} débloqué`);
     } else {
-      if (!confirm(`Bloquer ${otherUser.full_name || 'cet utilisateur'} ?`)) return;
+      // ⚠️ Appelé APRÈS confirmation dans l'UI (pas de confirm() bloquant).
       await supabase.from('user_blocks').insert({ user_id: profile.id, target_user_id: otherUser.id });
       setIsBlocked(true);
       toast.success(`${otherUser.full_name || 'Utilisateur'} bloqué`);

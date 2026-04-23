@@ -197,8 +197,8 @@ export function useTopicPage(initialData?: InitialTopicData): UseTopicPageReturn
     setSubmitting(false);
   };
 
+  // ⚠️ Appelé APRÈS confirmation dans le dialog React (pas de confirm() bloquant).
   const deleteReply = async (replyId: string) => {
-    if (!confirm('Supprimer cette réponse ?')) return;
     const supabase = createClient();
     const { error } = await supabase.from('forum_replies').delete().eq('id', replyId);
     if (error) {
@@ -209,8 +209,8 @@ export function useTopicPage(initialData?: InitialTopicData): UseTopicPageReturn
     toast.success('Réponse supprimée');
   };
 
+  // ⚠️ Appelé APRÈS confirmation dans le dialog React (pas de confirm() bloquant).
   const deleteTopic = async () => {
-    if (!confirm('Supprimer définitivement ce sujet ?')) return;
     const supabase = createClient();
     const { error } = await supabase.from('forum_topics').delete().eq('id', topicId);
     if (error) {

@@ -56,6 +56,8 @@ export default function LostFoundCard({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIdx, setLightboxIdx]   = useState(0);
   const [transitioning, setTransitioning] = useState(false);
+  const [pendingTransition, setPendingTransition] = useState<LFStatus | null>(null);
+  const [pendingDelete, setPendingDelete] = useState(false);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const shareRef = useRef<HTMLDivElement>(null);
@@ -106,13 +108,16 @@ export default function LostFoundCard({
   };
 
   const handleTransition = async (newStatus: LFStatus) => {
-    const statusLabel: Record<LFStatus, string> = {
-      perdu: 'Perdu', trouve: 'Trouvé', identifie: 'Identifié',
-      restitue: 'Restitué', clos: 'Clos', archive: 'Archivé', draft: 'Brouillon',
-    };
-    if (!window.confirm(`Passer le dossier en "${statusLabel[newStatus]}" ?`)) return;
+    // Ouvre la confirmation inline — pas de window.confirm() bloquant
+    setPendingTransition(newStatus);
+  };
+
+  const doTransition = async () => {
+    if (!pendingTransition) return;
+    const ns = pendingTransition;
+    setPendingTransition(null);
     setTransitioning(true);
-    await onStatusChange(item.id, newStatus);
+    await onStatusChange(item.id, ns);
     setTransitioning(false);
   };
 
@@ -176,10 +181,24 @@ export default function LostFoundCard({
               className="p-1.5 bg-white/90 text-gray-600 hover:text-blue-600 rounded-lg shadow" title="Modifier">
               <Pencil className="w-3.5 h-3.5" />
             </button>
-            <button onClick={() => onDelete(item.id)}
-              className="p-1.5 bg-white/90 text-gray-600 hover:text-red-600 rounded-lg shadow" title="Supprimer">
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
+            {!pendingDelete ? (
+              <button onClick={() => setPendingDelete(true)}
+                className="p-1.5 bg-white/90 text-gray-600 hover:text-red-600 rounded-lg shadow" title="Supprimer">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <div className="flex items-center gap-1 bg-white/95 rounded-lg shadow px-2 py-1">
+                <span className="text-xs text-red-600 font-semibold">Supprimer ?</span>
+                <button onClick={() => { setPendingDelete(false); onDelete(item.id); }}
+                  className="text-xs font-bold text-white bg-red-600 px-1.5 py-0.5 rounded" title="Confirmer">
+                  Oui
+                </button>
+                <button onClick={() => setPendingDelete(false)}
+                  className="text-xs font-bold text-gray-600 hover:text-gray-900 px-1" title="Annuler">
+                  ✕
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -356,6 +375,22 @@ export default function LostFoundCard({
                       </button>
                     );
                   })}
+                </div>
+              )}
+              {/* Confirmation inline de changement de statut (remplace window.confirm) */}
+              {pendingTransition && (
+                <div className="flex items-center gap-2 mt-1 p-2 bg-amber-50 border border-amber-200 rounded-xl">
+                  <span className="text-xs text-amber-800 font-semibold flex-1">
+                    Passer en «&nbsp;{STATUS_CONFIG[pendingTransition]?.label}&nbsp;» ?
+                  </span>
+                  <button onClick={doTransition}
+                    className="text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 px-2 py-0.5 rounded-lg">
+                    Oui
+                  </button>
+                  <button onClick={() => setPendingTransition(null)}
+                    className="text-xs font-bold text-gray-600 hover:text-gray-900 px-1">
+                    ✕
+                  </button>
                 </div>
               )}
             </div>

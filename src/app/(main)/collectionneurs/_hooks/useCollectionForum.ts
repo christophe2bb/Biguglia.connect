@@ -122,9 +122,9 @@ export function useCollectionForum(profileId?: string) {
   };
 
   // ── Delete post ───────────────────────────────────────────────────────────
+  // ⚠️ Appelé APRÈS confirmation dans l'UI (pas de confirm() bloquant).
   const handleDeletePost = async (post: ForumPost) => {
     if (!profileId || profileId !== post.author_id) return;
-    if (!confirm(`Supprimer le sujet "${post.title}" ? Action irréversible.`)) return;
 
     const { error } = await supabase
       .from('forum_posts')

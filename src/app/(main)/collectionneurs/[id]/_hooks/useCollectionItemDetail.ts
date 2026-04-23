@@ -195,8 +195,9 @@ export function useCollectionItemDetail(): UseCollectionItemDetailReturn {
   };
 
   /* ── Suppression ─────────────────────────────────────────────────────── */
+  // ⚠️ Appelé APRÈS confirmation dans l'UI (pas de confirm() bloquant).
   const handleDelete = async () => {
-    if (!item || !confirm('Supprimer définitivement cette annonce ?')) return;
+    if (!item) return;
     const { error } = await supabase.from('collection_items').delete().eq('id', item.id);
     if (error) { toast.error('Erreur lors de la suppression'); return; }
     toast.success('Annonce supprimée');
