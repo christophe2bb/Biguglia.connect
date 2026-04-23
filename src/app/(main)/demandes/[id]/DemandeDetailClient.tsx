@@ -163,9 +163,18 @@ export default function DemandeDetailClient() {
     const isAdmin = profile.role === 'admin' || profile.role === 'moderator';
     if (!isOwner && !isAdmin) return;
 
-    const { error } = await supabase.from('request_comments').delete().eq('id', comment.id);
+    const { data: deleted, error } = await supabase
+      .from('request_comments')
+      .delete()
+      .eq('id', comment.id)
+      .select('id');
+
     if (error) {
+      console.error('[doDeleteComment] Supabase error:', error);
       toast.error(`Erreur : ${error.message}`);
+    } else if (!deleted || deleted.length === 0) {
+      console.warn('[doDeleteComment] 0 rows deleted — RLS policy may be missing');
+      toast.error('Suppression bloquée — politique de sécurité (migration RLS requise).');
     } else {
       toast.success('Commentaire supprimé', { duration: 2000 });
       fetchComments();
@@ -175,22 +184,49 @@ export default function DemandeDetailClient() {
   // ── Supprimer la demande ─────────────────────────────────────────────────
   // ⚠️ Appelé APRÈS confirmation dans le dialog React (pas de confirm() bloquant).
   const doDeleteRequest = async () => {
-    if (!request || !profile || profile.id !== request.resident_id) return;
+    if (!request || !profile) return;
+
+    // Vérification côté client : l'utilisateur doit être le propriétaire
+    if (profile.id !== request.resident_id) {
+      toast.error('Vous n\'êtes pas autorisé à supprimer cette demande.');
+      return;
+    }
 
     setDeleting(true);
-    const { error } = await supabase
+
+    // .select('id') permet de détecter le cas « 0 lignes supprimées » (RLS silencieux)
+    const { data: deleted, error } = await supabase
       .from('service_requests')
       .delete()
       .eq('id', id)
-      .eq('resident_id', profile.id);
+      .eq('resident_id', profile.id)
+      .select('id');
 
     if (error) {
+      console.error('[doDeleteRequest] Supabase error:', error);
       toast.error(`Erreur lors de la suppression : ${error.message}`);
       setDeleting(false);
-    } else {
-      toast.success('Demande supprimée.', { duration: 3000 });
-      router.push('/demandes');
+      return;
     }
+
+    if (!deleted || deleted.length === 0) {
+      // RLS a bloqué silencieusement — la politique DELETE n'est pas encore déployée
+      console.warn('[doDeleteRequest] 0 rows deleted — RLS policy missing or mismatch', {
+        id,
+        resident_id: profile.id,
+      });
+      toast.error(
+        'Suppression bloquée par la politique de sécurité. ' +
+        'Vérifiez que la migration RLS a bien été exécutée dans Supabase.',
+        { duration: 6000 }
+      );
+      setDeleting(false);
+      return;
+    }
+
+    console.info('[doDeleteRequest] Supprimé avec succès :', deleted[0].id);
+    toast.success('Demande supprimée.', { duration: 3000 });
+    router.push('/demandes');
   };
 
   // ── Marquer comme résolue ─────────────────────────────────────────────────
@@ -198,13 +234,20 @@ export default function DemandeDetailClient() {
   const doMarkResolved = async () => {
     if (!request || !profile || profile.id !== request.resident_id) return;
 
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from('service_requests')
       .update({ status: 'completed' })
       .eq('id', id)
-      .eq('resident_id', profile.id);
+      .eq('resident_id', profile.id)
+      .select('id');
 
-    if (!error) {
+    if (error) {
+      console.error('[doMarkResolved] Supabase error:', error);
+      toast.error(`Erreur : ${error.message}`);
+    } else if (!updated || updated.length === 0) {
+      console.warn('[doMarkResolved] 0 rows updated — RLS UPDATE policy may be missing');
+      toast.error('Mise à jour bloquée — politique de sécurité (migration RLS requise).');
+    } else {
       toast.success('✅ Demande marquée comme résolue !', { duration: 4000 });
       fetchRequest();
     }
