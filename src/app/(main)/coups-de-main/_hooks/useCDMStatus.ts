@@ -23,8 +23,9 @@ export function useCDMStatus(
   const router      = useRouter();
 
   // ── Suppression ──────────────────────────────────────────────────────────
+  // ⚠️ Pas de confirm() natif ici — la confirmation est gérée par le composant UI.
   const handleDelete = async (id: string) => {
-    // Vérifier la session AVANT le confirm pour éviter échec silencieux post-confirm
+    // 1. Vérifier la session (évite appel Supabase avec JWT absent)
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData?.session) {
       toast.error('Session expirée. Reconnectez-vous.');
@@ -32,12 +33,9 @@ export function useCDMStatus(
       return;
     }
 
-    if (!confirm('Supprimer cette annonce ?')) return;
-
     const loadingToast = toast.loading('Suppression…');
 
-    // eq('author_id') en plus de eq('id') = double sécurité côté client
-    // (la RLS reste la vraie protection côté serveur)
+    // 2. Double filtre id + author_id
     const { error, count } = await supabase
       .from('help_requests')
       .delete({ count: 'exact' })
@@ -53,7 +51,6 @@ export function useCDMStatus(
     }
 
     if (count === 0) {
-      // RLS ou mauvais author_id : Supabase retourne count=0 sans error
       toast.error(
         "Impossible de supprimer : vous n'êtes peut-être pas l'auteur ou l'annonce n'existe plus.",
         { duration: 5000 },

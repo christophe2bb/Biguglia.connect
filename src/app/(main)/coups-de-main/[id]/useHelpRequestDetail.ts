@@ -122,8 +122,10 @@ export function useHelpRequestDetail(initialItem: HelpRequest): UseHelpDetailRet
   };
 
   // ── Supprimer l'annonce (auteur uniquement) ────────────────────────────────
+  // ⚠️ Cette fonction N'affiche PAS de confirm() natif (bloquant, interdit en prod).
+  // La confirmation est gérée par le composant UI (dialog React).
   const handleDelete = async () => {
-    // 1. Vérifier la session AVANT d'ouvrir le confirm (évite confirm + échec silencieux)
+    // 1. Vérifier la session (évite l'appel Supabase avec JWT absent)
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData?.session) {
       toast.error('Votre session a expiré. Reconnectez-vous pour supprimer cette annonce.');
@@ -131,11 +133,9 @@ export function useHelpRequestDetail(initialItem: HelpRequest): UseHelpDetailRet
       return;
     }
 
-    if (!confirm('Supprimer définitivement cette annonce ? Cette action est irréversible.')) return;
-
     const loadingToast = toast.loading('Suppression en cours…');
 
-    // 2. Supprimer avec eq('id') ET eq('author_id') pour double sécurité + count exact
+    // 2. Double filtre id + author_id (sécurité côté client, la RLS reste la vraie barrière)
     const { error, count } = await supabase
       .from('help_requests')
       .delete({ count: 'exact' })
@@ -150,9 +150,6 @@ export function useHelpRequestDetail(initialItem: HelpRequest): UseHelpDetailRet
       return;
     }
 
-    // count null = Supabase n'a pas renvoyé le header count (réseau / version)
-    // count 0   = RLS ou mauvais author_id
-    // count >= 1 = suppression réussie
     if (count === 0) {
       toast.error(
         "Impossible de supprimer : vous n'êtes peut-être pas l'auteur ou l'annonce n'existe plus.",

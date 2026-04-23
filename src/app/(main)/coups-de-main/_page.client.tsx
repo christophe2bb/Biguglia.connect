@@ -1,13 +1,53 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { Loader2, Plus, HandHeart, ArrowRight, Users, Shield, AlertCircle, X } from 'lucide-react';
+import { Loader2, Plus, HandHeart, ArrowRight, Users, Shield, AlertCircle, X, Trash2, AlertTriangle } from 'lucide-react';
+import Modal from '@/components/ui/Modal';
 import { SECURITY_TIPS } from './_constants';
 import { useCoupsDeMain } from './_hooks/useCoupsDeMain';
 import HelpCard from './_components/HelpCard';
 import HelpForm from './_components/HelpForm';
 import HelpFilters from './_components/HelpFilters';
 import HelpSidebar from './_components/HelpSidebar';
+
+// ─── Dialog confirmation suppression ────────────────────────────────────────
+function DeleteConfirmDialog({
+  isOpen, itemTitle, deleting, onConfirm, onCancel,
+}: {
+  isOpen: boolean;
+  itemTitle: string;
+  deleting: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Modal isOpen={isOpen} onClose={onCancel} size="sm">
+      <div className="text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+          <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
+        </div>
+        <h3 className="text-base font-bold text-gray-900 mb-2">Supprimer cette annonce ?</h3>
+        <p className="text-sm text-gray-500 mb-1 font-medium truncate px-2">« {itemTitle} »</p>
+        <p className="text-sm text-gray-400 mb-6">
+          Cette action est irréversible.
+        </p>
+        <div className="flex gap-3">
+          <button type="button" onClick={onCancel} disabled={deleting}
+            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50">
+            Annuler
+          </button>
+          <button type="button" onClick={onConfirm} disabled={deleting}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50">
+            {deleting
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Suppression…</>
+              : <><Trash2 className="w-4 h-4" /> Supprimer</>}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 // ─── Page principale ──────────────────────────────────────────────────────────
 export default function CoupsDeMainPage() {
@@ -19,7 +59,7 @@ export default function CoupsDeMainPage() {
     form, setForm, previews, photos,
     resetForm, handleEdit, handlePhotoSelect, removePhoto, toggleArr, handleSubmit,
     // CRUD
-    fetchItems, handleDelete, handleResolve, handlePause, handleStatusChange, handleCanHelp,
+    fetchItems, handleDelete: _handleDelete, handleResolve, handlePause, handleStatusChange, handleCanHelp,
     // Filters
     filters, showFilters, setShowFilters,
     setFilterType, setFilterCat, setFilterUrgency, setFilterSector, setFilterFree, setFilterMyHelp, setSearch,
@@ -34,8 +74,30 @@ export default function CoupsDeMainPage() {
     profile,
   } = useCoupsDeMain();
 
+  // ── Dialog suppression (remplace confirm() natif) ─────────────────────────
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [pendingDeleteTitle, setPendingDeleteTitle] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteConfirmed = async () => {
+    if (!pendingDeleteId) return;
+    setDeleting(true);
+    await _handleDelete(pendingDeleteId);
+    setDeleting(false);
+    setPendingDeleteId(null);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-emerald-50">
+
+      {/* Dialog suppression */}
+      <DeleteConfirmDialog
+        isOpen={!!pendingDeleteId}
+        itemTitle={pendingDeleteTitle}
+        deleting={deleting}
+        onConfirm={handleDeleteConfirmed}
+        onCancel={() => setPendingDeleteId(null)}
+      />
 
       {/* ── DB warning ── */}
       {!dbReady && (
@@ -213,7 +275,7 @@ export default function CoupsDeMainPage() {
                       userId={profile?.id}
                       isAuthor={item.author_id === profile?.id}
                       onEdit={handleEdit}
-                      onDelete={handleDelete}
+                      onDelete={(id) => { setPendingDeleteId(id); setPendingDeleteTitle(paginated.find(i => i.id === id)?.title ?? ''); }}
                       onResolve={handleResolve}
                       onPause={handlePause}
                       onStatusChange={handleStatusChange}
