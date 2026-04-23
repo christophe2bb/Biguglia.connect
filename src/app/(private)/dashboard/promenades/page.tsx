@@ -173,11 +173,7 @@ export default function DashboardPromenadePage() {
   };
 
   const handleDeleteOuting = async (outing: OutingWithStats) => {
-    if ((outing.participants_count || 0) > 0) {
-      if (!confirm(`Cette sortie a ${outing.participants_count} participant(s). Supprimer quand même ?`)) return;
-    } else {
-      if (!confirm('Supprimer définitivement cette sortie ?')) return;
-    }
+    // ⚠️ Appelé APRÈS confirmation dans l'UI.
 
     const { error } = await supabase
       .from('group_outings')

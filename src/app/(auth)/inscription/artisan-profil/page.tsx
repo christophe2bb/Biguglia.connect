@@ -112,6 +112,7 @@ export default function ArtisanProfilPage() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [confirmNoInsurance, setConfirmNoInsurance] = useState(false);
 
   const _emptyDoc = useCallback((): DocUpload => ({ file: null, uploading: false, url: null, name: '' }), []);
   const [docKbis, setDocKbis] = useState<DocUpload>({ file: null, uploading: false, url: null, name: '' });
@@ -173,9 +174,9 @@ export default function ArtisanProfilPage() {
       toast.error('Veuillez remplir tous les champs obligatoires'); return;
     }
     // Pour les professionnels : l'assurance est fortement recommandée mais pas bloquante
-    if (form.artisan_type === 'professionnel' && !docInsurance.url) {
-      const ok = window.confirm('Vous avez indiqué être un professionnel mais aucune attestation d\'assurance n\'a été jointe. Continuer sans assurance ?');
-      if (!ok) { setLoading(false); return; }
+    if (form.artisan_type === 'professionnel' && !docInsurance.url && !confirmNoInsurance) {
+      setConfirmNoInsurance(true);
+      return; // Attend confirmation explicite via le bouton dans l'UI
     }
 
     setLoading(true);
@@ -483,11 +484,29 @@ export default function ArtisanProfilPage() {
           )}
         </div>
 
+        {/* Avertissement assurance (remplace window.confirm bloquant) */}
+        {confirmNoInsurance && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
+            <p className="font-bold mb-2">⚠️ Aucune attestation d&apos;assurance jointe</p>
+            <p className="mb-3">Vous avez indiqué être un professionnel. L&apos;assurance est fortement recommandée. Continuer sans assurance ?</p>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setConfirmNoInsurance(false)}
+                className="px-3 py-1.5 rounded-lg border border-amber-400 text-xs font-semibold text-amber-800 bg-white hover:bg-amber-100">
+                Annuler — ajouter une assurance
+              </button>
+              <button type="button"
+                onClick={(e) => { setConfirmNoInsurance(false); handleSubmit(e as unknown as React.FormEvent); }}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-amber-600 hover:bg-amber-700">
+                Continuer sans assurance
+              </button>
+            </div>
+          </div>
+        )}
         <div className="flex gap-3">
           <Button type="button" variant="outline" className="flex-1" onClick={() => router.push('/dashboard')}>
             Plus tard
           </Button>
-          <Button type="submit" className="flex-1" loading={loading}>
+          <Button type="submit" className="flex-1" loading={loading} disabled={confirmNoInsurance}>
             Soumettre pour validation
           </Button>
         </div>

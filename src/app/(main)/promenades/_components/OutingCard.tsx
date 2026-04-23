@@ -48,6 +48,8 @@ export default function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit
   const [chatCount, setChatCount]   = useState<number | null>(null);
   const [tableOk, setTableOk]       = useState<boolean | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [pendingStatusAction, setPendingStatusAction] = useState<{ id: string; key: string; label: string } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState(false);
   const photoItems = outing.cover_photo ? [{ url: outing.cover_photo, isPrimary: true }] : [];
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -133,7 +135,15 @@ export default function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit
         {isOrganizer && (
           <div className="absolute top-3 right-3 flex gap-1">
             <button type="button" onClick={() => onEdit(outing)} className="p-1.5 bg-white/90 text-gray-600 hover:text-emerald-600 rounded-xl transition-colors shadow-sm"><Pencil className="w-3.5 h-3.5" /></button>
-            <button type="button" onClick={() => onDelete(outing.id)} className="p-1.5 bg-white/90 text-gray-600 hover:text-red-600 rounded-xl transition-colors shadow-sm"><Trash2 className="w-3.5 h-3.5" /></button>
+            {!pendingDelete ? (
+              <button type="button" onClick={() => setPendingDelete(true)} className="p-1.5 bg-white/90 text-gray-600 hover:text-red-600 rounded-xl transition-colors shadow-sm"><Trash2 className="w-3.5 h-3.5" /></button>
+            ) : (
+              <div className="flex items-center gap-1 bg-white/95 rounded-xl shadow px-2 py-1">
+                <span className="text-[10px] text-red-600 font-semibold">Supprimer ?</span>
+                <button onClick={() => { setPendingDelete(false); onDelete(outing.id); }} className="text-[10px] font-bold text-white bg-red-600 px-1.5 py-0.5 rounded">Oui</button>
+                <button onClick={() => setPendingDelete(false)} className="text-[10px] font-bold text-gray-600 px-1">✕</button>
+              </div>
+            )}
           </div>
         )}
 
@@ -228,7 +238,7 @@ export default function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit
                       const aCfg = OUTING_STATUS_CONFIG[a.cfg];
                       return (
                         <button key={a.key}
-                          onClick={() => { if (window.confirm(`${a.label} ?`)) onStatusChange(outing.id, a.key); }}
+                          onClick={() => setPendingStatusAction({ id: outing.id, key: a.key, label: a.label })}
                           className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors', aCfg.bg, aCfg.color, aCfg.border)}>
                           {a.label}
                         </button>
@@ -237,6 +247,16 @@ export default function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit
                   </div>
                 ) : null;
               })()}
+              {/* Confirmation inline de changement de statut */}
+              {pendingStatusAction && pendingStatusAction.id === outing.id && (
+                <div className="flex items-center gap-2 mt-1 p-1.5 bg-amber-50 border border-amber-200 rounded-xl">
+                  <span className="text-[10px] text-amber-800 font-semibold flex-1">{pendingStatusAction.label} ?</span>
+                  <button onClick={() => { if (onStatusChange) onStatusChange(pendingStatusAction.id, pendingStatusAction.key); setPendingStatusAction(null); }}
+                    className="text-[10px] font-bold text-white bg-amber-600 hover:bg-amber-700 px-2 py-0.5 rounded">Oui</button>
+                  <button onClick={() => setPendingStatusAction(null)}
+                    className="text-[10px] font-bold text-gray-600 px-1">✕</button>
+                </div>
+              )}
             </div>
           ) : (
             <ContactButton sourceType="outing" sourceId={outing.id} sourceTitle={outing.title} ownerId={outing.organizer_id} userId={userId} size="sm" />

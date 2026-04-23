@@ -94,7 +94,7 @@ export default function AdminSignalementsPage() {
   };
 
   const banUser = async (targetId: string, targetType: string) => {
-    if (!confirm('⚠️ Suspendre cet utilisateur ? Cette action est réversible depuis Admin → Utilisateurs.')) return;
+    // ⚠️ Appelé APRÈS confirmation dans l'UI.
     if (targetType !== 'user') {
       toast.error('Pour suspendre un utilisateur, allez dans Admin → Utilisateurs');
       return;

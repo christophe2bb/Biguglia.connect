@@ -182,7 +182,7 @@ export function useMaterielDetail(initialItem: EquipmentItemFull): UseMaterielDe
     if (!item || !profile) return;
     const { allowed, reason } = canDelete(item.status as EquipmentStatus, !!activeLoan);
     if (!allowed) { toast.error(`Suppression impossible : ${reason}`); return; }
-    if (!window.confirm('Supprimer définitivement ce matériel ?')) return;
+    // ⚠️ Appelé APRÈS confirmation dans l'UI (pas de confirm() bloquant).
     const supabase = createClient();
     const photos = item.photos as Array<{ url: string }> | undefined;
     if (photos?.length) {

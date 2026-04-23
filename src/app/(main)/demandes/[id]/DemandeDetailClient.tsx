@@ -14,6 +14,7 @@ import {
   Trash2, User, Pencil,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
+import Modal from '@/components/ui/Modal';
 import toast from 'react-hot-toast';
 import ContactButton from '@/components/ui/ContactButton';
 import { SectorBadge } from '@/components/ui/SectorFilter';
@@ -71,6 +72,10 @@ export default function DemandeDetailClient() {
   const [newComment, setNewComment]   = useState('');
   const [submitting, setSubmitting]   = useState(false);
   const [deleting, setDeleting]       = useState(false);
+  // ── Dialog state (remplace window.confirm() bloquant) ────────────────────
+  const [confirmDeleteRequest, setConfirmDeleteRequest]   = useState(false);
+  const [confirmResolve,       setConfirmResolve]         = useState(false);
+  const [pendingDeleteComment, setPendingDeleteComment]   = useState<RequestComment | null>(null);
 
   // ── Charger la demande ──────────────────────────────────────────────────
   const fetchRequest = useCallback(async () => {
@@ -151,12 +156,12 @@ export default function DemandeDetailClient() {
   };
 
   // ── Supprimer un commentaire ─────────────────────────────────────────────
-  const handleDeleteComment = async (comment: RequestComment) => {
+  // ⚠️ Appelé APRÈS confirmation dans le dialog React (pas de confirm() bloquant).
+  const doDeleteComment = async (comment: RequestComment) => {
     if (!profile) return;
     const isOwner = profile.id === comment.author_id;
     const isAdmin = profile.role === 'admin' || profile.role === 'moderator';
     if (!isOwner && !isAdmin) return;
-    if (!confirm('Supprimer ce commentaire ?')) return;
 
     const { error } = await supabase.from('request_comments').delete().eq('id', comment.id);
     if (error) {
@@ -168,9 +173,9 @@ export default function DemandeDetailClient() {
   };
 
   // ── Supprimer la demande ─────────────────────────────────────────────────
-  const handleDeleteRequest = async () => {
+  // ⚠️ Appelé APRÈS confirmation dans le dialog React (pas de confirm() bloquant).
+  const doDeleteRequest = async () => {
     if (!request || !profile || profile.id !== request.resident_id) return;
-    if (!confirm('Supprimer définitivement cette demande ? Cette action est irréversible.')) return;
 
     setDeleting(true);
     const { error } = await supabase
@@ -189,9 +194,9 @@ export default function DemandeDetailClient() {
   };
 
   // ── Marquer comme résolue ─────────────────────────────────────────────────
-  const handleMarkResolved = async () => {
+  // ⚠️ Appelé APRÈS confirmation dans le dialog React (pas de confirm() bloquant).
+  const doMarkResolved = async () => {
     if (!request || !profile || profile.id !== request.resident_id) return;
-    if (!confirm('Marquer cette demande comme résolue ?')) return;
 
     const { error } = await supabase
       .from('service_requests')
@@ -232,6 +237,70 @@ export default function DemandeDetailClient() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* ── Dialogs de confirmation (remplacent window.confirm()) ────────────── */}
+      <Modal isOpen={confirmDeleteRequest} onClose={() => setConfirmDeleteRequest(false)} size="sm">
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+            <AlertCircle className="h-6 w-6 text-red-600" aria-hidden="true" />
+          </div>
+          <h3 className="text-base font-bold text-gray-900 mb-2">Supprimer cette demande ?</h3>
+          <p className="text-sm text-gray-500 mb-6">Cette action est irréversible.</p>
+          <div className="flex gap-3">
+            <button type="button" onClick={() => setConfirmDeleteRequest(false)}
+              disabled={deleting}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50">
+              Annuler
+            </button>
+            <button type="button" onClick={() => { setConfirmDeleteRequest(false); doDeleteRequest(); }}
+              disabled={deleting}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50">
+              {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              Supprimer
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={confirmResolve} onClose={() => setConfirmResolve(false)} size="sm">
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
+            <CheckCircle className="h-6 w-6 text-emerald-600" aria-hidden="true" />
+          </div>
+          <h3 className="text-base font-bold text-gray-900 mb-2">Marquer comme résolue ?</h3>
+          <p className="text-sm text-gray-500 mb-6">La demande sera clôturée définitivement.</p>
+          <div className="flex gap-3">
+            <button type="button" onClick={() => setConfirmResolve(false)}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+              Annuler
+            </button>
+            <button type="button" onClick={() => { setConfirmResolve(false); doMarkResolved(); }}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors">
+              <CheckCircle className="w-4 h-4" /> Confirmer
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={!!pendingDeleteComment} onClose={() => setPendingDeleteComment(null)} size="sm">
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+            <AlertCircle className="h-6 w-6 text-red-600" aria-hidden="true" />
+          </div>
+          <h3 className="text-base font-bold text-gray-900 mb-2">Supprimer ce commentaire ?</h3>
+          <p className="text-sm text-gray-500 mb-6">Cette action est irréversible.</p>
+          <div className="flex gap-3">
+            <button type="button" onClick={() => setPendingDeleteComment(null)}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+              Annuler
+            </button>
+            <button type="button" onClick={() => { if (pendingDeleteComment) doDeleteComment(pendingDeleteComment); setPendingDeleteComment(null); }}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-colors">
+              <Trash2 className="w-4 h-4" /> Supprimer
+            </button>
+          </div>
+        </div>
+      </Modal>
+
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* ── Retour ── */}
@@ -318,14 +387,14 @@ export default function DemandeDetailClient() {
                     </Link>
 
                     {/* Marquer résolue */}
-                    <button onClick={handleMarkResolved}
+                    <button onClick={() => setConfirmResolve(true)}
                       className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl hover:bg-emerald-100 transition-colors">
                       <CheckCircle className="w-4 h-4" /> Marquer résolue
                     </button>
 
                     {/* Supprimer */}
                     <button
-                      onClick={handleDeleteRequest}
+                      onClick={() => setConfirmDeleteRequest(true)}
                       disabled={deleting}
                       className="inline-flex items-center gap-1.5 text-sm font-bold text-red-600 bg-red-50 border border-red-200 px-4 py-2 rounded-xl hover:bg-red-100 transition-colors disabled:opacity-50"
                     >
@@ -340,7 +409,7 @@ export default function DemandeDetailClient() {
                 {/* Supprimer même si résolue (pour nettoyer) */}
                 {isOwner && isResolved && (
                   <button
-                    onClick={handleDeleteRequest}
+                    onClick={() => setConfirmDeleteRequest(true)}
                     disabled={deleting}
                     className="inline-flex items-center gap-1.5 text-sm font-bold text-red-600 bg-red-50 border border-red-200 px-4 py-2 rounded-xl hover:bg-red-100 transition-colors disabled:opacity-50"
                   >
@@ -411,7 +480,7 @@ export default function DemandeDetailClient() {
                         </div>
                         {canDelete && (
                           <button
-                            onClick={() => handleDeleteComment(comment)}
+                            onClick={() => setPendingDeleteComment(comment)}
                             className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-50 transition-[colors,opacity]"
                             title="Supprimer"
                           >

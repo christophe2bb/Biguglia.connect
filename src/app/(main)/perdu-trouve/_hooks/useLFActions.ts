@@ -39,8 +39,8 @@ export function useLFActions(
 ): LFActionsReturn {
   const supabase = createClient();
 
+  // ⚠️ Appelé APRÈS confirmation dans l'UI (pas de confirm() bloquant).
   const handleDelete = async (id: string) => {
-    if (!confirm('Supprimer cette annonce ?')) return;
     await supabase.from('lost_found_items').update({
       status: 'archive',
       archived_at: new Date().toISOString(),

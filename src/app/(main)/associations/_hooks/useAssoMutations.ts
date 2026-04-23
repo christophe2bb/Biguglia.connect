@@ -13,7 +13,7 @@ export function useAssoMutations(fetchAssos: () => Promise<void>): AssoMutations
   const supabase    = supabaseRef.current;
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Supprimer cette fiche association ?')) return;
+    // ⚠️ Appelé APRÈS confirmation dans l'UI (pas de confirm() bloquant).
     await supabase.from('associations').delete().eq('id', id);
     toast.success('Fiche supprimée');
     fetchAssos();

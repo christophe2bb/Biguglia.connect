@@ -111,8 +111,8 @@ export function useOutings(profile: { id: string } | null | undefined) {
     setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
   };
 
+  // ⚠️ Appelé APRÈS confirmation dans l'UI (pas de confirm() bloquant).
   const handleDeleteOuting = async (id: string) => {
-    if (!confirm('Supprimer cette sortie ?')) return;
     await supabase.from('group_outings').delete().eq('id', id);
     toast.success('Sortie supprimée');
     fetchOutings();

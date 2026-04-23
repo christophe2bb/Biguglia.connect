@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import {
   Calendar, MapPin, Users, Eye, Trash2,
@@ -45,6 +46,8 @@ export default function OutingCard({ outing, onStatusChange, onDelete }: Props) 
     weekday: 'short', day: 'numeric', month: 'long',
   });
   const isPast = new Date(outing.outing_date + 'T23:59:59') < new Date();
+  // Confirmation inline (remplace window.confirm() bloquant)
+  const [pendingAction, setPendingAction] = useState<{ to: OutingStatus; label: string; reason?: string } | null>(null);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-colors">
@@ -109,11 +112,12 @@ export default function OutingCard({ outing, onStatusChange, onDelete }: Props) 
               const toCfg = OUTING_STATUS_CONFIG[t.to];
               const handleClick = () => {
                 if (t.requiresReason) {
+                  // Prompt pour la raison — acceptable (courte saisie, non critique)
                   const reason = window.prompt(`${t.label} — Raison (obligatoire) :`);
                   if (!reason) return;
                   onStatusChange(outing, t.to, reason);
-                } else if (window.confirm(`${toCfg.icon} ${t.label} ?`)) {
-                  onStatusChange(outing, t.to);
+                } else {
+                  setPendingAction({ to: t.to, label: `${toCfg.icon} ${t.label}` });
                 }
               };
               return (
@@ -130,14 +134,20 @@ export default function OutingCard({ outing, onStatusChange, onDelete }: Props) 
             })}
             {isPast && ['ouverte', 'complete'].includes(displayed) && (
               <button
-                onClick={() => {
-                  if (window.confirm('Marquer cette sortie comme terminée ?')) {
-                    onStatusChange(outing, 'terminee');
-                  }
-                }}
+                onClick={() => setPendingAction({ to: 'terminee', label: 'Marquer comme terminée' })}
                 className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 transition-colors">
                 <StopCircle className="w-3 h-3" /> Clore la sortie
               </button>
+            )}
+            {/* Confirmation inline (remplace window.confirm) */}
+            {pendingAction && (
+              <div className="flex items-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded-xl w-full mt-1">
+                <span className="text-xs text-amber-800 font-semibold flex-1">{pendingAction.label} ?</span>
+                <button onClick={() => { onStatusChange(outing, pendingAction.to); setPendingAction(null); }}
+                  className="text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 px-2 py-0.5 rounded">Oui</button>
+                <button onClick={() => setPendingAction(null)}
+                  className="text-xs font-bold text-gray-600 px-1">✕</button>
+              </div>
             )}
           </div>
         )}
