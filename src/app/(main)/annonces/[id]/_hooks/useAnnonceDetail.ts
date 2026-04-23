@@ -161,37 +161,54 @@ export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
     setDeleting(true);
     setConfirmDeleteOpen(false);
 
-    // 1. Supprimer les photos du storage
+    // ── Diagnostic : log userId vs listing.user_id ──────────────────────────
+    console.log('[handleDelete] START', {
+      listingId: listing.id,
+      listingUserId: listing.user_id,
+      zustandUserId: userId,
+      match: listing.user_id === userId,
+    });
+
+    // 1. Supprimer les photos du storage (ne pas bloquer sur erreur)
     const photos = listing.photos as Array<{ id: string; url: string }> | undefined;
     if (photos?.length) {
       const paths = photos
         .map(p => safeStoragePath(p.url, 'photos'))
         .filter(Boolean) as string[];
       if (paths.length) {
-        await supabase.storage.from('photos').remove(paths); // nosec — chemins validés par safeStoragePath
+        const { error: storageErr } = await supabase.storage.from('photos').remove(paths); // nosec
+        if (storageErr) console.warn('[handleDelete] storage remove error:', storageErr);
       }
       await supabase.from('listing_photos').delete().eq('listing_id', listing.id);
     }
 
-    // 2. Supprimer l'annonce — .select('id') pour détecter le blocage RLS silencieux
+    // 2. Supprimer l'annonce — eq('id') UNIQUEMENT, la RLS se charge du user_id
+    // Ne pas ajouter eq('user_id') : si la RLS est misconfigurée elle retourne
+    // 0 lignes même pour le propriétaire. On laisse la RLS faire son travail.
     const { data: deleted, error } = await supabase
       .from('listings')
       .delete()
       .eq('id', listing.id)
-      .eq('user_id', userId)   // double filtre : seul le propriétaire peut supprimer
       .select('id');
 
-    console.log('[handleDelete] listings delete result:', { deleted, error, listingId: listing.id });
+    console.log('[handleDelete] DELETE result:', {
+      deleted,
+      error,
+      deletedCount: deleted?.length ?? 0,
+    });
 
     if (error) {
-      toast.error(`Erreur lors de la suppression : ${error.message}`);
+      console.error('[handleDelete] Supabase error:', error);
+      toast.error(`Erreur : ${error.message}`, { duration: 8000 });
       setDeleting(false);
       return;
     }
 
-    // Supabase + RLS peut retourner error=null mais 0 ligne supprimée
     if (!deleted || deleted.length === 0) {
-      toast.error('Suppression refusée — vérifiez que vous êtes bien le propriétaire.');
+      // RLS a bloqué. Afficher un toast avec les infos de debug.
+      const msg = `Suppression bloquée (RLS). userId=${userId?.slice(0,8)} listingUser=${listing.user_id?.slice(0,8)}`;
+      console.error('[handleDelete] RLS block:', msg);
+      toast.error('Suppression bloquée — politique de sécurité. Vérifiez la console.', { duration: 8000 });
       setDeleting(false);
       return;
     }
