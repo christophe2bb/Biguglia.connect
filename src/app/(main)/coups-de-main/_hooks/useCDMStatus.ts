@@ -23,36 +23,36 @@ export function useCDMStatus(
   const router      = useRouter();
 
   // ── Suppression ──────────────────────────────────────────────────────────
-  // ⚠️ Pas de confirm() natif ici — la confirmation est gérée par le composant UI.
+  // Pas de getSession() ici (appel réseau ~2s qui bloque le thread).
+  // profileId vient du store Zustand (déjà en mémoire, synchrone).
   const handleDelete = async (id: string) => {
-    // 1. Vérifier la session (évite appel Supabase avec JWT absent)
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData?.session) {
-      toast.error('Session expirée. Reconnectez-vous.');
+    // 1. Vérifier l'authentification via profileId (synchrone, 0ms)
+    if (!profileId) {
+      toast.error('Connectez-vous pour supprimer cette annonce.');
       router.push('/connexion');
       return;
     }
 
     const loadingToast = toast.loading('Suppression…');
 
-    // 2. Double filtre id + author_id
+    // 2. DELETE filtré sur id + author_id
     const { error, count } = await supabase
       .from('help_requests')
       .delete({ count: 'exact' })
       .eq('id', id)
-      .eq('author_id', sessionData.session.user.id);
+      .eq('author_id', profileId);
 
     toast.dismiss(loadingToast);
 
     if (error) {
       console.error('[useCDMStatus] handleDelete error:', error);
-      toast.error(`Erreur lors de la suppression : ${error.message}`);
+      toast.error(`Erreur : ${error.message}`);
       return;
     }
 
     if (count === 0) {
       toast.error(
-        "Impossible de supprimer : vous n'êtes peut-être pas l'auteur ou l'annonce n'existe plus.",
+        "Suppression impossible — vérifiez que vous êtes bien l'auteur.",
         { duration: 5000 },
       );
       return;
