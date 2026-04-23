@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { useAuthStore } from '@/lib/auth-store';
 import { toPhotoItems } from '@/components/ui/photo-utils';
+import { safeStoragePath } from '@/lib/upload-utils';
 import toast from 'react-hot-toast';
 import { Listing } from '@/types';
 import type { ExtListing, ShareMethod, AuthorProfile } from '../_types';
@@ -20,6 +22,10 @@ export type UseAnnonceDetailReturn = {
   currentStatus: string;
   isSaved: boolean;
   showSharePanel: boolean;
+  // Dialog suppression (remplace confirm() bloquant)
+  confirmDeleteOpen: boolean;
+  openDeleteConfirm: () => void;
+  closeDeleteConfirm: () => void;
   toggleSave: () => void;
   setShowSharePanel: (v: boolean | ((prev: boolean) => boolean)) => void;
   handleShare: (method: ShareMethod) => Promise<void>;
@@ -28,17 +34,26 @@ export type UseAnnonceDetailReturn = {
 };
 
 export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
-  const router  = useRouter();
-  const supabase = createClient();
+  const router = useRouter();
+  // Stable Supabase client — une seule instance au montage
+  const supabaseRef = useRef(createClient());
+  const supabase = supabaseRef.current;
+  // userId depuis Zustand (mémoire, 0ms — pas d'appel réseau dans les handlers)
+  const { userId } = useAuthStore();
 
-  const [listing,        setListing]        = useState<ExtListing | null>(null);
-  const [similar,        setSimilar]        = useState<Listing[]>([]);
-  const [loading,        setLoading]        = useState(true);
-  const [notFound,       setNotFound]       = useState(false);
-  const [deleting,       setDeleting]       = useState(false);
-  const [currentStatus,  setCurrentStatus]  = useState<string>('active');
-  const [isSaved,        setIsSaved]        = useState(false);
-  const [showSharePanel, setShowSharePanel] = useState(false);
+  const [listing,           setListing]           = useState<ExtListing | null>(null);
+  const [similar,           setSimilar]           = useState<Listing[]>([]);
+  const [loading,           setLoading]           = useState(true);
+  const [notFound,          setNotFound]          = useState(false);
+  const [deleting,          setDeleting]          = useState(false);
+  const [currentStatus,     setCurrentStatus]     = useState<string>('active');
+  const [isSaved,           setIsSaved]           = useState(false);
+  const [showSharePanel,    setShowSharePanel]    = useState(false);
+  // État du dialog de confirmation suppression (remplace window.confirm())
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+
+  const openDeleteConfirm  = useCallback(() => setConfirmDeleteOpen(true),  []);
+  const closeDeleteConfirm = useCallback(() => setConfirmDeleteOpen(false), []);
 
   // ── Load saved state from localStorage ──────────────────────────────────────
   useEffect(() => {
@@ -111,7 +126,7 @@ export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
           .then(() => { /* ignore */ });
       }
     })();
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id, supabase]);
 
   // ── toggleSave ───────────────────────────────────────────────────────────────
   const toggleSave = useCallback(() => {
@@ -131,30 +146,60 @@ export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
   }, [id]);
 
   // ── handleDelete ─────────────────────────────────────────────────────────────
+  // ⚠️ Appelé APRÈS confirmation dans le dialog React (pas de confirm() bloquant ici).
+  // Utilise userId depuis Zustand (0ms) — pas de getSession() dans le handler.
   const handleDelete = useCallback(async () => {
     if (!listing) return;
-    if (!window.confirm('Supprimer définitivement cette annonce ? Cette action est irréversible.')) return;
+
+    // Vérification auth depuis Zustand (mémoire, synchrone)
+    if (!userId) {
+      toast.error('Connectez-vous pour supprimer cette annonce.');
+      router.push('/connexion');
+      return;
+    }
 
     setDeleting(true);
+    setConfirmDeleteOpen(false);
+
+    // 1. Supprimer les photos du storage
     const photos = listing.photos as Array<{ id: string; url: string }> | undefined;
     if (photos?.length) {
-      for (const photo of photos) {
-        const parts = photo.url.split('/storage/v1/object/public/photos/');
-        if (parts[1]) await supabase.storage.from('photos').remove([parts[1]]);
+      const paths = photos
+        .map(p => safeStoragePath(p.url, 'photos'))
+        .filter(Boolean) as string[];
+      if (paths.length) {
+        await supabase.storage.from('photos').remove(paths); // nosec — chemins validés par safeStoragePath
       }
       await supabase.from('listing_photos').delete().eq('listing_id', listing.id);
     }
 
-    const { error } = await supabase.from('listings').delete().eq('id', listing.id);
+    // 2. Supprimer l'annonce — .select('id') pour détecter le blocage RLS silencieux
+    const { data: deleted, error } = await supabase
+      .from('listings')
+      .delete()
+      .eq('id', listing.id)
+      .eq('user_id', userId)   // double filtre : seul le propriétaire peut supprimer
+      .select('id');
+
+    console.log('[handleDelete] listings delete result:', { deleted, error, listingId: listing.id });
+
     if (error) {
-      toast.error('Erreur lors de la suppression');
+      toast.error(`Erreur lors de la suppression : ${error.message}`);
       setDeleting(false);
       return;
     }
 
-    toast.success('Annonce supprimée');
-    router.push('/annonces');
-  }, [listing, router, supabase]);
+    // Supabase + RLS peut retourner error=null mais 0 ligne supprimée
+    if (!deleted || deleted.length === 0) {
+      toast.error('Suppression refusée — vérifiez que vous êtes bien le propriétaire.');
+      setDeleting(false);
+      return;
+    }
+
+    toast.success('Annonce supprimée ✅');
+    router.replace('/annonces');
+    router.refresh();
+  }, [listing, userId, router, supabase]);
 
   // ── handleStatusChange ───────────────────────────────────────────────────────
   const handleStatusChange = useCallback(async (newStatus: string) => {
@@ -202,6 +247,7 @@ export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
     loading, notFound, deleting,
     currentStatus,
     isSaved, showSharePanel,
+    confirmDeleteOpen, openDeleteConfirm, closeDeleteConfirm,
     toggleSave, setShowSharePanel,
     handleShare, handleDelete, handleStatusChange,
   };

@@ -16,7 +16,7 @@ type Props = {
   deleting: boolean;
   userId: string | undefined;
   onStatusChange: (s: string) => Promise<void>;
-  onDelete: () => Promise<void>;
+  onDelete: () => void | Promise<void>;
 };
 
 export function SellerCard({
@@ -100,15 +100,13 @@ export function SellerCard({
             <Share2 className="w-3.5 h-3.5" />
             Partager
           </button>
-          {deleting && (
-            <button
-              onClick={onDelete}
-              disabled={deleting}
-              className="flex items-center justify-center gap-2 w-full px-4 py-2 text-xs text-red-500 hover:text-red-700 transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" /> Supprimer
-            </button>
-          )}
+          <button
+            onClick={onDelete}
+            disabled={deleting}
+            className="flex items-center justify-center gap-2 w-full px-4 py-2 text-xs text-red-500 hover:text-red-700 disabled:opacity-50 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" /> {deleting ? 'Suppression…' : 'Supprimer'}
+          </button>
         </div>
       )}
     </div>
