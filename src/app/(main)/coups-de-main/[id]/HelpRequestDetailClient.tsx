@@ -37,7 +37,7 @@ const PhotoViewer = dynamic(
 );
 import { toPhotoItems } from '@/components/ui/photo-utils';
 
-type Variant = 'topbar' | 'photo-overlay' | 'main-content' | 'sidebar' | 'mobile-bar' | 'lightbox';
+type Variant = 'topbar' | 'photo-overlay' | 'author-actions' | 'main-content' | 'sidebar' | 'mobile-bar' | 'lightbox';
 
 interface Props {
   item: HelpRequest;
@@ -118,6 +118,64 @@ export default function HelpRequestDetailClient({ item, variant }: Props) {
         className="absolute inset-0 w-full h-full"
         aria-label="Agrandir la photo"
       />
+    );
+  }
+
+  // ── author-actions: boutons Supprimer + changer statut (auteur, visible sur tous les écrans) ──
+  if (variant === 'author-actions') {
+    if (!d.isAuthor) return null;
+    const currentItem = d.item ?? item;
+    const st = currentItem.status;
+    return (
+      <div className="bg-white rounded-2xl border border-red-100 shadow-sm p-5">
+        <h3 className="text-sm font-black text-gray-800 mb-3">Gérer mon annonce</h3>
+        <div className="flex flex-wrap gap-2">
+          {/* Modifier */}
+          <a
+            href={`/coups-de-main/${item.id}/modifier`}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors"
+          >
+            <Pencil className="w-3.5 h-3.5" aria-hidden="true" /> Modifier
+          </a>
+          {/* Changer statut */}
+          {st === 'active' && (
+            <>
+              <button type="button" onClick={() => d.handleStatusChange('in_progress')}
+                className="px-4 py-2 rounded-xl text-sm font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition-colors">
+                ⚡ En cours
+              </button>
+              <button type="button" onClick={() => d.handleStatusChange('paused')}
+                className="px-4 py-2 rounded-xl text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors">
+                ⏸ Mettre en pause
+              </button>
+              <button type="button" onClick={() => d.handleStatusChange('resolved')}
+                className="px-4 py-2 rounded-xl text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-colors">
+                ✅ Marquer résolue
+              </button>
+            </>
+          )}
+          {(st === 'paused' || st === 'closed') && (
+            <button type="button" onClick={() => d.handleStatusChange('active')}
+              className="px-4 py-2 rounded-xl text-sm font-semibold text-orange-700 bg-orange-50 border border-orange-200 hover:bg-orange-100 transition-colors">
+              ▶️ Réactiver
+            </button>
+          )}
+          {st === 'resolved' && (
+            <button type="button" onClick={() => d.handleStatusChange('archived')}
+              className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors">
+              📦 Archiver
+            </button>
+          )}
+          {/* Supprimer — toujours disponible */}
+          <button
+            type="button"
+            onClick={d.handleDelete}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> Supprimer
+          </button>
+        </div>
+      </div>
     );
   }
 
