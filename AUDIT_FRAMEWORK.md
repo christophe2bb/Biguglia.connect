@@ -1442,7 +1442,7 @@ Each critical component needs a runbook:
 | Legal pages missing data retention details | Compliance |
 | No E2E tests (Playwright) | Testing |
 | Missing loading.tsx on low-traffic pages | Performance |
-| No CSP nonce (documented roadmap exists) | Security |
+| CSP nonce not yet migrated to Level 3 style-src-elem | Security |
 
 ### P4 — Technical Debt / Cosmetic (Future Consideration)
 
@@ -2035,14 +2035,16 @@ When a finding cannot be immediately fixed (due to technical constraints, cost, 
 **Example from reference project (Biguglia Connect):**
 
 ```
-Risk: unsafe-inline in CSP script-src
-Impact: XSS via compromised third-party script would execute arbitrary code
-Mitigation: unsafe-eval removed in production, all user inputs escaped via safeJsonLd(),
+Risk: style-src 'unsafe-inline' retained (79 legitimate dynamic React style={{}} attributes)
+Impact: Style injection only (no JS execution). Risk level: Low.
+Mitigation: script-src uses nonce+strict-dynamic (no unsafe-inline in production),
+            style-src-elem is nonce-protected (blocks injected <style> tags),
+            style-src-attr 'unsafe-inline' covers only attribute-level styles,
             X-Frame-Options: DENY, HSTS active, rate limiting on auth endpoints
 Owner: Lead developer
-Review date: 2026-07-01 (3 months)
+Review date: 2026-07-01 (sprint 2 — evaluate removing unsafe-inline from style-src)
 Escalation: CTO within 4 hours if CSP violation detected in Sentry
-Documentation: next.config.js lines 25-60, SECURITY.md §3
+Documentation: src/middleware.ts buildCsp(), SECURITY.md §3.1
 ```
 
 ### 26.7 Continuous Audit — Beyond the Pre-Production Snapshot
@@ -2146,6 +2148,7 @@ done  # → 6th request should be 429
 
 ---
 
-*Framework version 2.0 — 2026-04-22*  
+*Framework version 2.1 — 2026-04-27*  
 *Reference implementation: Biguglia Connect (Next.js 15 · React 18 · TypeScript strict · Supabase · Vercel · Sentry)*  
-*Based on: OWASP Top-10 2021, OWASP ASVS L2, WCAG 2.1 AA, GDPR (EU) 2016/679, Core Web Vitals (Google), Next.js best practices*
+*Based on: OWASP Top-10 2021, OWASP ASVS L2, WCAG 2.1 AA, GDPR (EU) 2016/679, Core Web Vitals (Google), Next.js best practices*  
+*2026-04-27: Updated risk acceptance example (CSP script-src resolved — nonce+strict-dynamic in prod, PR #425/#427); P3 example updated to CSP Level 3 style-src-elem.*
