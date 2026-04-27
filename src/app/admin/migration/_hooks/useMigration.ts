@@ -30,6 +30,7 @@ import { EQUIPMENT_LIFECYCLE_SQL } from '@/lib/equipment';
 import { OUTINGS_LIFECYCLE_SQL }   from '@/lib/outings';
 import { EVENT_LIFECYCLE_SQL, EVENT_FIX_SQL } from '@/lib/events';
 import { safeImageExt, uploadFile } from '@/lib/upload-utils';
+import { useAuthStore } from '@/lib/auth-store';
 
 // ─── SQL map ─────────────────────────────────────────────────────────────────
 
@@ -125,6 +126,7 @@ function isMissingTable(error: { code?: string; message?: string }): boolean {
 
 export function useMigration() {
   const supabase     = createClient();
+  const { profile }  = useAuthStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Table diagnostic
@@ -244,7 +246,7 @@ export function useMigration() {
     // Le fichier vient d'un <input type="file"> admin → doit impérativement passer par la
     // route sécurisée qui vérifie les magic bytes et rejette les extensions forgées.
     try {
-      const publicUrl = await uploadFile(file, 'photos', path);
+      const publicUrl = await uploadFile(file, 'photos', path, profile?.id);
       // Nettoyage immédiat : supprimer le fichier de test après vérification réussie
       await supabase.storage.from('photos').remove([path]); // nosec: .remove() is a delete op
       alert(`✅ Upload réussi !\n\nURL publique : ${publicUrl}\n\nLe bucket fonctionne correctement.`);

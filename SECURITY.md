@@ -25,6 +25,7 @@ Do **not** open public GitHub issues for security bugs.
 | CWE-22 path traversal in uploads — 2 missed files | High | `safeImageExt()` applied to `artisan-profil` + `materiel/nouveau` | #371 |
 | CSP `script-src` `'unsafe-inline'` (app) | Medium | **Résolu** — nonce + strict-dynamic livré dans `middleware.ts` (PR #425/#427) | §3.1 |
 | CSP `style-src` `'unsafe-inline'` (app) | Low | **Accepted** — React `style={{}}` dynamiques (79 cas restants) ; `style-src-elem` noncé livré (PR #427) | §3.1 |
+| CWE-639 IDOR — `/api/upload` path non borné au user connecté | Medium | `validatePathOwnership()` — userId-scoped ou entity ownership via DB | #430, §3.4 |
 
 ---
 
@@ -230,6 +231,57 @@ désinfection HTML appropriée"*.
 
 ---
 
+### 3.4 `/api/upload` — Validation d'ownership (IDOR — CWE-639) ✅ Résolu (PR #430)
+
+**Contexte** : `/api/upload` utilise le service-role Supabase pour bypasser les RLS Storage.  
+Toute la sécurité repose donc sur la validation applicative — un path forgé par un utilisateur  
+authentifié pouvait potentiellement écrire dans le dossier d'un autre utilisateur.
+
+**Risque identifié** : absence d'un contrôle explicite du type :
+```ts
+// Avant PR #430 : seul le path-traversal (..) était bloqué
+const safePath = safeRelativePath(path);          // anti CWE-22
+// ❌ Pas de vérification que safePath ∈ périmètre de userId
+```
+
+**Correction — `validatePathOwnership()` dans `route.ts`** :
+
+Trois niveaux de validation, appliqués avant toute lecture du fichier :
+
+| Niveau | Pattern | Vérification |
+|--------|---------|-------------|
+| **1 — user-scoped** | `{userId}/...` | `segments[0] === userId` — contrôle direct |
+| **2 — entity-scoped** | `{category}/{entityId}/...` | `SELECT user_id FROM <table> WHERE id = entityId` → doit être = userId |
+| **3 — admin** | `__diagnostic__/...` | `SELECT role FROM profiles WHERE id = userId` → doit être `admin`/`moderateur` |
+| **default** | préfixe inconnu | → 403 |
+
+Catégories entity-scoped couvertes :
+`listings`, `artisans`, `requests`, `events`, `associations`, `coups-de-main`,
+`lost-found`, `promenades`, `outings`, `equipment`, `forum`, `cv`, `collection`.
+
+**Après correction** :
+```ts
+// ④-bis Validation d'ownership (anti IDOR — CWE-639)
+const ownershipError = await validatePathOwnership(safePath, userId);
+if (ownershipError) return ownershipError;  // 403 si hors périmètre
+```
+
+Un utilisateur authentifié qui tente d'uploader dans `listings/<autreUUID>/...`  
+reçoit `403 Chemin non autorisé` — même s'il fournit un path syntaxiquement valide.
+
+**Tests** : 12 nouveaux cas dans `src/app/api/upload/__tests__/upload.test.ts` couvrant :  
+user-scoped valide/invalide, entity owned/not-owned, entity inexistante,  
+préfixe inconnu, `__diagnostic__` non-admin / admin, `collection` IDOR.
+
+**Historique des corrections upload** :
+
+| PR | Correction |
+|----|-----------|
+| #354, #357, #359, #361, #371 | CWE-22 — path traversal (`safeRelativePath`, `safeStoragePath`) |
+| #430 | CWE-639 — IDOR ownership (`validatePathOwnership`) |
+
+---
+
 ## 4. Nonce CSP Migration — ✅ Complétée (PR #425 + #427, 2026-04-27)
 
 Toutes les phases sont livrées en production. Cette section documente l'implémentation réelle.
@@ -305,4 +357,5 @@ export async function JsonLd({ data, nonce: nonceProp }: JsonLdProps) {
 
 ---
 
-*Last updated: 2026-04-27 — §3.1 mis à jour : script-src nonce+strict-dynamic livré (PR #425) ; style-src-elem noncé livré (PR #427) ; §4 roadmap remplacée par l'implémentation réelle ; §5 CSP source corrigée (middleware.ts, pas next.config.js).*
+*Last updated: 2026-04-27 — §3.4 ajouté : CWE-639 IDOR `/api/upload` corrigé (PR #430) — `validatePathOwnership()` ; §2 table mise à jour.*  
+*2026-04-27 — §3.1 mis à jour : script-src nonce+strict-dynamic livré (PR #425) ; style-src-elem noncé livré (PR #427) ; §4 roadmap remplacée par l'implémentation réelle ; §5 CSP source corrigée (middleware.ts, pas next.config.js).*

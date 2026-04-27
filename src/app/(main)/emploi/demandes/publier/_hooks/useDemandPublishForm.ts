@@ -7,6 +7,7 @@
  */
 
 import { useState } from 'react';
+import { useAuthStore } from '@/lib/auth-store';
 import { publishJobDemand } from '@/services/jobs/publish-demand';
 import {
   CONTRACT_TYPES,
@@ -42,6 +43,7 @@ export interface UseDemandPublishFormReturn {
 
 /* ── Hook ─────────────────────────────────────────────────────────────────── */
 export function useDemandPublishForm(): UseDemandPublishFormReturn {
+  const { profile } = useAuthStore();
   const [step, setStep]               = useState<Step>(1);
   const [form, setForm]               = useState<FormData>(INITIAL);
   const [submitting, setSubmitting]   = useState(false);
@@ -109,7 +111,7 @@ export function useDemandPublishForm(): UseDemandPublishFormReturn {
       const ext = safeDocExt(form.cv_file.name);
       const path = `cv/${demandId}.${ext}`;
       // uploadFile valide les magic bytes côté serveur (rejet PDF/image falsifié)
-      const publicUrl = await uploadFile(form.cv_file, 'job-documents', path);
+      const publicUrl = await uploadFile(form.cv_file, 'job-documents', path, profile?.id);
       return publicUrl;
     } catch {
       return null;

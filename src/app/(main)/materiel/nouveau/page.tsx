@@ -151,7 +151,7 @@ export default function NouveauMaterielPage() {
       const fileName = `equipment/${item.id}/${Date.now()}-${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
       try {
         // uploadFile valide les magic bytes côté serveur avant d'envoyer à Supabase
-        const publicUrl = await uploadFile(photo, 'photos', fileName);
+        const publicUrl = await uploadFile(photo, 'photos', fileName, profile.id);
         await supabase.from('equipment_photos').insert({
           item_id: item.id, url: publicUrl, display_order: i, is_cover: i === 0,
         });

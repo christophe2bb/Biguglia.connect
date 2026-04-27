@@ -91,7 +91,7 @@ export async function submitAssoItem(
       const ext = safeImageExt(file.name);
       const path = `associations/${assoId}/${Date.now()}_${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
       try {
-        const publicUrl = await uploadFile(file, 'photos', path);
+        const publicUrl = await uploadFile(file, 'photos', path, profileId);
         const { error: dbErr } = await supabase.from('asso_photos').insert({
           asso_id: assoId, url: publicUrl, display_order: i,
         });

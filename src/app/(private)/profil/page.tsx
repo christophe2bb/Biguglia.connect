@@ -53,7 +53,7 @@ function ProfilContent() {
     let publicUrl: string;
     try {
       // uploadFile valide les magic bytes côté serveur (rejet de tout fichier non-image réel)
-      publicUrl = await uploadFile(file, 'photos', path);
+      publicUrl = await uploadFile(file, 'photos', path, profile.id);
     } catch (err) {
       toast.error(`Photo refusée : ${err instanceof Error ? err.message : 'type invalide'}`);
       setUploadingPhoto(false);
