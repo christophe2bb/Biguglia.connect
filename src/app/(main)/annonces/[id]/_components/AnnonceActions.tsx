@@ -64,7 +64,7 @@ function DeleteConfirmDialog({
         </h3>
         <p className="text-sm text-gray-500 mb-1 font-medium truncate px-2">« {title} »</p>
         <p className="text-sm text-gray-400 mb-6">
-          Cette action est irréversible. L'annonce et toutes ses photos seront définitivement supprimées.
+          Cette action est irréversible. L&apos;annonce et toutes ses photos seront définitivement supprimées.
         </p>
         <div className="flex gap-3">
           <button

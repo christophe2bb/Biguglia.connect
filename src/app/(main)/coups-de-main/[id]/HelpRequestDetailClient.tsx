@@ -70,7 +70,7 @@ function DeleteConfirmDialog({ isOpen, title, deleting, onConfirm, onCancel }: D
           « {title} »
         </p>
         <p className="text-sm text-gray-400 mb-6">
-          Cette action est irréversible. L'annonce et toutes ses réponses seront définitivement supprimées.
+          Cette action est irréversible. L&apos;annonce et toutes ses réponses seront définitivement supprimées.
         </p>
         <div className="flex gap-3">
           <button

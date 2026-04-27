@@ -261,7 +261,7 @@ export function useMigration() {
 
     setTestingUpload(false); // always reset, even on error
     if (fileInputRef.current) fileInputRef.current.value = '';
-  }, [supabase]);
+  }, [supabase, profile?.id]);
 
   // ── Init ─────────────────────────────────────────────────────────────────────
   useEffect(() => {
