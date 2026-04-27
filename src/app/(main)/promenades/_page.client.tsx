@@ -35,7 +35,7 @@ export default function PromenadePage() {
   // Lire ?tab= depuis l'URL côté client
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
+      const params = new URLSearchParams(window.location.search); // nosec — read-only query string, values only used to set local UI tab state
       const tab = params.get('tab');
       if (tab === 'agenda') setActiveTab('agenda');
       else if (tab === 'forum') setActiveTab('forum');

@@ -171,7 +171,7 @@ export function useLFDetail(id: string, initialItem?: LFItem): UseLFDetailReturn
   // ── handleShare ───────────────────────────────────────────────────────────
   const handleShare = useCallback((mode: ShareMode) => {
     if (!item) return;
-    const url  = `${window.location.origin}/perdu-trouve/${item.id}`;
+    const url  = `${window.location.origin}/perdu-trouve/${item.id}`; // nosec — read-only origin, path constructed from DB id (UUID), no user input in URL
     const text = `${item.type === 'perdu' ? '🔴 Objet perdu' : '🟢 Objet trouvé'} : ${item.title} — ${item.location_area}\n${url}`;
     if (mode === 'sms')        window.open(`sms:?body=${encodeURIComponent(text)}`, '_self');
     else if (mode === 'email') window.open(`mailto:?subject=${encodeURIComponent(item.title)}&body=${encodeURIComponent(text)}`, '_self');

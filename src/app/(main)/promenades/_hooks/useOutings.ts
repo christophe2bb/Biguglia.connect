@@ -199,7 +199,7 @@ export function useOutings(profile: { id: string } | null | undefined) {
       for (let i = 0; i < outingPhotos.length; i++) {
         const file = outingPhotos[i];
         const ext = safeImageExt(file.name);
-        const path = `outings/${outingId}/${Date.now()}_${i}.${ext}`;
+        const path = `outings/${outingId}/${Date.now()}_${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
         try {
           const publicUrl = await uploadFile(file, 'photos', path);
           await supabase.from('outing_photos').insert({ outing_id: outingId, url: publicUrl, display_order: i });

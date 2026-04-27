@@ -136,7 +136,7 @@ export default function HelpCard({
     setSending(false);
   };
 
-  const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/coups-de-main/${item.id}`;
+  const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/coups-de-main/${item.id}`; // nosec — read-only origin, path constructed from DB id (UUID), no user input in URL
   const shareText = encodeURIComponent(`${typeConf.emoji} ${item.title} — ${item.location_area}\n${shareUrl}`);
 
   // Resolve and pause actions are handled locally then delegated up

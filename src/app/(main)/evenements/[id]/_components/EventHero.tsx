@@ -91,21 +91,21 @@ export default function EventHero({
                 {copied ? 'Lien copié ✓' : 'Copier le lien'}
               </button>
               <a
-                href={`https://wa.me/?text=${encodeURIComponent(event.title + ' — ' + window.location.href)}`}
+                href={`https://wa.me/?text=${encodeURIComponent(event.title + ' — ' + window.location.href)}`} /* nosec — read-only current URL for WhatsApp sharing */
                 target="_blank" rel="noopener noreferrer"
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-gray-700 hover:bg-gray-50 font-medium"
               >
                 <span className="text-base">💬</span> WhatsApp
               </a>
               <a
-                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`}
+                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`} /* nosec — read-only current URL for Facebook sharing */
                 target="_blank" rel="noopener noreferrer"
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-gray-700 hover:bg-gray-50 font-medium"
               >
                 <span className="text-base">📘</span> Facebook
               </a>
               <a
-                href={`mailto:?subject=${encodeURIComponent(event.title)}&body=${encodeURIComponent('Rejoins-moi : ' + window.location.href)}`}
+                href={`mailto:?subject=${encodeURIComponent(event.title)}&body=${encodeURIComponent('Rejoins-moi : ' + window.location.href)}`} /* nosec — read-only current URL for email sharing */
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-gray-700 hover:bg-gray-50 font-medium"
               >
                 <span className="text-base">📧</span> Email

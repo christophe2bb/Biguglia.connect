@@ -149,7 +149,7 @@ export function usePromenades(
       for (let i = 0; i < photos.length; i++) {
         const photo = photos[i];
         const ext = safeImageExt(photo.name);
-        const fileName = `promenades/${prom.id}/${Date.now()}-${i}.${ext}`;
+        const fileName = `promenades/${prom.id}/${Date.now()}-${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
         try {
           const publicUrl = await uploadFile(photo, 'photos', fileName);
           await supabase.from('promenade_photos').insert({ promenade_id: prom.id, url: publicUrl, display_order: i });

@@ -165,7 +165,7 @@ export default function ModifierMaterielPage() {
     // Ajout des nouvelles photos — via /api/upload (magic-bytes validation côté serveur)
     for (const photo of newPhotos) {
       const ext = safeImageExt(photo.name);
-      const fileName = `equipment/${id}/${Date.now()}.${ext}`;
+      const fileName = `equipment/${id}/${Date.now()}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
       try {
         const publicUrl = await uploadFile(photo, 'photos', fileName);
         await supabase.from('equipment_photos').insert({

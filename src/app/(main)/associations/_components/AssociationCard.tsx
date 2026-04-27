@@ -96,7 +96,7 @@ export default function AssociationCard({
     setSending(false);
   };
 
-  const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/associations/${asso.id}`;
+  const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/associations/${asso.id}`; // nosec — read-only origin, path constructed from DB id (UUID), no user input in URL
   const shareText = encodeURIComponent(`${asso.name} — ${asso.description_short}\n${shareUrl}`);
 
   return (

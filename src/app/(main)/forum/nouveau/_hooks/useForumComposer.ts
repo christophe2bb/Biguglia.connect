@@ -233,7 +233,7 @@ export function useForumComposer() {
       for (let i = 0; i < photos.length; i++) {
         const file = photos[i];
         const ext = safeImageExt(file.name);
-        const path = `forum/${topicId}/${Date.now()}_${i}.${ext}`;
+        const path = `forum/${topicId}/${Date.now()}_${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
         try {
           const publicUrl = await uploadFile(file, 'photos', path);
           await supabase.from('forum_topic_photos').insert({

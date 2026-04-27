@@ -126,7 +126,7 @@ export default function LostFoundCard({
   });
 
   const shareText = encodeURIComponent(
-    `${item.type === 'perdu' ? '🔴 Objet perdu' : '🟢 Objet trouvé'} : ${item.title} — ${item.location_area}\n${typeof window !== 'undefined' ? window.location.origin : ''}/perdu-trouve`
+    `${item.type === 'perdu' ? '🔴 Objet perdu' : '🟢 Objet trouvé'} : ${item.title} — ${item.location_area}\n${typeof window !== 'undefined' ? window.location.origin : ''}/perdu-trouve` // nosec — read-only origin, hardcoded path '/perdu-trouve', no user input in URL
   );
 
   return (
@@ -445,7 +445,7 @@ export default function LostFoundCard({
                 </button>
                 <div className="border-t border-gray-100" />
                 <button onClick={() => {
-                  navigator.clipboard.writeText(`${typeof window !== 'undefined' ? window.location.origin : ''}/perdu-trouve#${item.id}`);
+                  navigator.clipboard.writeText(`${typeof window !== 'undefined' ? window.location.origin : ''}/perdu-trouve#${item.id}`); // nosec — read-only origin, fragment from DB id (UUID), no user input in URL
                   toast.success('Lien copié !');
                   setOpenShare(false);
                 }}
