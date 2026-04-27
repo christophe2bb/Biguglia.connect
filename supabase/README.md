@@ -9,7 +9,7 @@ relancées sans risque.
 ## Politique RLS (Row Level Security)
 
 **RLS activé sur toutes les tables** contenant des données utilisateur.
-118 policies versionnées dans 25 fichiers de migration.
+100 policies versionnées dans 20 fichiers de migration (sur 33 fichiers au total — les autres ajoutent des colonnes, index ou corrections de schéma).
 
 ### Principes appliqués
 
@@ -26,8 +26,9 @@ relancées sans risque.
 | Table | RLS | Policies principales |
 |---|---|---|
 | `profiles` | ✅ | Voir son profil, modifier son profil, admin peut tout voir |
-| `listings` | ✅ | Voir les annonces actives (public), créer/modifier les siennes |
-| `service_requests` | ✅ | Voir ses demandes, créer (résident), répondre (artisan), admin |
+| `listings` | ✅ | Voir les annonces actives (public), créer/modifier/supprimer les siennes, admin |
+| `service_requests` | ✅ | Voir ses demandes, créer (résident), répondre (artisan), supprimer/mettre à jour, admin |
+| `request_comments` | ✅ | Auteur, résident de la demande, ou admin peuvent supprimer |
 | `messages` | ✅ | Voir uniquement les conversations où on est participant |
 | `artisan_profiles` | ✅ | Voir les profils vérifiés (public), modifier le sien |
 | `moderation_queue` | ✅ | Admin uniquement |

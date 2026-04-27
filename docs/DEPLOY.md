@@ -37,6 +37,8 @@ Exécuter les migrations dans l'ordre dans **Supabase → SQL Editor** :
 | 29 | `supabase/migrations/20260421_cleanup_duplicate_policies.sql` | Nettoyage policies RLS dupliquées |
 | 30 | `supabase/migrations/20260421_unindexed_fk.sql` | Index sur clés étrangères non couvertes |
 | 31 | `supabase/migrations/20260422_service_requests_sector_id.sql` | Ajout colonne `sector_id` sur `service_requests` |
+| 32 | `supabase/migrations/20260423_listings_delete_rls_fix.sql` | ⚠️ **CRITIQUE** — Policy RLS DELETE manquante sur `listings` : suppressions silencieuses (0 lignes supprimées sans erreur) |
+| 33 | `supabase/migrations/20260423_service_requests_delete_rls.sql` | ⚠️ **CRITIQUE** — Policy RLS DELETE manquante sur `service_requests` et `request_comments` : idem + policy UPDATE auteur/artisan |
 
 > **Ordre d'exécution obligatoire** : respecter impérativement le numéro `#` du tableau.
 > Les noms de fichiers commencent par une date (`YYYYMMDD`) : trier par nom = trier par ordre correct.
@@ -47,6 +49,10 @@ Exécuter les migrations dans l'ordre dans **Supabase → SQL Editor** :
 >   **doivent être exécutées avant** `#14` (`20260414_admin_full_fix`) — ce dernier référence
 >   des colonnes (`listing_type` enum étendu, `is_negotiable`, etc.) créées par les deux précédentes.
 >   Exécuter `#14` seul sur une base vierge produira une erreur `column does not exist`.
+> - `#32` et `#33` (**migrations 20260423**) corrigent des **suppressions silencieuses dues à RLS** :
+>   sans ces migrations, un DELETE sur `listings` ou `service_requests` retourne `0 lignes supprimées`
+>   **sans erreur visible** — l'UI semble fonctionner mais l'enregistrement reste en base.
+>   **Ne pas déployer l'application sans avoir appliqué `#32` et `#33`.**
 > - Plus généralement, chaque migration suppose que toutes les précédentes ont réussi.
 >
 > **Idempotence** : tous les fichiers utilisent `IF NOT EXISTS` / `IF EXISTS` — ils peuvent être
@@ -293,9 +299,19 @@ UPDATE profiles SET role = 'admin' WHERE email = 'votre@email.fr';
 Chaque migration est idempotente et documentée. Pour annuler manuellement :
 
 ```sql
--- Exemple : annuler 20260422_service_requests_sector_id.sql
+-- Annuler 20260422_service_requests_sector_id.sql (#31)
 ALTER TABLE service_requests DROP COLUMN IF EXISTS sector_id;
 DROP INDEX IF EXISTS idx_service_requests_sector_id;
+
+-- Annuler 20260423_listings_delete_rls_fix.sql (#32)
+-- ⚠️ Rétablit le bug DELETE silencieux sur listings — ne faire qu'avec rollback Vercel simultané
+DROP POLICY IF EXISTS "listings_delete_owner_or_admin" ON public.listings;
+
+-- Annuler 20260423_service_requests_delete_rls.sql (#33)
+-- ⚠️ Rétablit les bugs DELETE silencieux sur service_requests et request_comments
+DROP POLICY IF EXISTS "service_requests_delete_owner_or_admin" ON public.service_requests;
+DROP POLICY IF EXISTS "request_comments_delete_author_or_admin" ON public.request_comments;
+DROP POLICY IF EXISTS "service_requests_update_owner_or_admin" ON public.service_requests;
 ```
 
 > **Règle d'or** : ne rollback jamais une migration sans avoir rollbacké Vercel d'abord.
