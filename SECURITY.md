@@ -282,6 +282,38 @@ préfixe inconnu, `__diagnostic__` non-admin / admin, `collection` IDOR.
 
 ---
 
+### 3.5 `X-XSS-Protection` — Retiré intentionnellement (PR #434, 2026-04-27)
+
+**Statut** : ✅ Retiré de `next.config.js`
+
+#### Pourquoi ce header était présent
+
+`X-XSS-Protection: 1; mode=block` était historiquement recommandé pour activer
+le filtre XSS intégré dans Internet Explorer 8+, Chrome < 78 et Safari < 16.
+
+#### Pourquoi il a été retiré
+
+| Navigateur | Statut |
+|------------|--------|
+| Chrome | Supprimé en v78 (2019) — l'équipe Chromium a jugé le filtre dangereux |
+| Firefox | N'a jamais supporté ce header |
+| Safari | Retiré en v16 (2022) |
+| IE | Seul navigateur encore concerné — mais la valeur `mode=block` peut être contournée (XSS auditor bypass, CVE-2019-5790 style) |
+
+**MDN Web Docs** classe ce header comme *deprecated*.  
+**OWASP Secure Headers Project** recommande de ne **pas** l'envoyer.
+
+#### Ce qui remplace
+
+La **CSP Level 3 avec nonce + `strict-dynamic`** déployée dans `src/middleware.ts`
+(`buildCsp(nonce)`) est la protection XSS réelle et efficace sur tous les navigateurs
+modernes. Elle bloque l'exécution de tout script sans nonce valide, y compris les
+injections via `innerHTML`, `eval` ou les scripts inline non noncés.
+
+> **Référence** : https://owasp.org/www-project-secure-headers/#x-xss-protection
+
+---
+
 ## 4. Nonce CSP Migration — ✅ Complétée (PR #425 + #427, 2026-04-27)
 
 Toutes les phases sont livrées en production. Cette section documente l'implémentation réelle.
@@ -354,8 +386,10 @@ export async function JsonLd({ data, nonce: nonceProp }: JsonLdProps) {
 | `Cross-Origin-Opener-Policy` | `same-origin` | Spectre/side-channel |
 | `Cross-Origin-Resource-Policy` | `cross-origin` | Resource isolation |
 | `Permissions-Policy` | Défini dans `next.config.js` | Feature restriction |
+| ~~`X-XSS-Protection`~~ | ~~`1; mode=block`~~ | **Retiré** (PR #434) — header obsolète et potentiellement dangereux sur anciens IE. La CSP nonce remplace entièrement cette protection. Voir §3.5. |
 
 ---
 
-*Last updated: 2026-04-27 — §3.4 ajouté : CWE-639 IDOR `/api/upload` corrigé (PR #430) — `validatePathOwnership()` ; §2 table mise à jour.*  
+*Last updated: 2026-04-27 — §3.5 ajouté : `X-XSS-Protection` retiré (PR #434) — header obsolète, remplacé par CSP nonce ; §5 table mise à jour.*  
+*2026-04-27 — §3.4 ajouté : CWE-639 IDOR `/api/upload` corrigé (PR #430) — `validatePathOwnership()` ; §2 table mise à jour.*  
 *2026-04-27 — §3.1 mis à jour : script-src nonce+strict-dynamic livré (PR #425) ; style-src-elem noncé livré (PR #427) ; §4 roadmap remplacée par l'implémentation réelle ; §5 CSP source corrigée (middleware.ts, pas next.config.js).*

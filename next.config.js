@@ -81,7 +81,13 @@ const securityHeaders = [
   { key: 'X-DNS-Prefetch-Control',        value: 'on' },
   { key: 'Referrer-Policy',               value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy',            value: PermissionsPolicy },
-  { key: 'X-XSS-Protection',             value: '1; mode=block' },
+  // X-XSS-Protection intentionnellement retiré (PR #434, 2026-04-27).
+  // Ce header est obsolète : Chrome l'a supprimé (v78+), Firefox ne l'a
+  // jamais supporté, Safari l'a retiré (v16+). MDN le classe « déprecié ».
+  // Pire : la valeur '1; mode=block' peut introduire des side-channel XSS
+  // sur les anciens IE (CVE style — XSS auditor bypass). La CSP avec nonce
+  // + strict-dynamic (src/middleware.ts buildCsp()) est la vraie protection.
+  // Ref : https://owasp.org/www-project-secure-headers/#x-xss-protection
   { key: 'Cross-Origin-Opener-Policy',    value: 'same-origin' },
   { key: 'Cross-Origin-Resource-Policy',  value: 'cross-origin' },
 ];
