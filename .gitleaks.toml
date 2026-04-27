@@ -1,0 +1,70 @@
+# .gitleaks.toml — Configuration Gitleaks pour Biguglia Connect
+#
+# Référence : https://github.com/gitleaks/gitleaks#configuration
+#
+# Ce fichier supprime les faux positifs des scanners de secrets sur les
+# valeurs de test fictives utilisées dans les fichiers __tests__/*.
+#
+# ─── Pourquoi ces suppressions sont sûres ────────────────────────────────────
+#
+# Les tokens JWT dans src/lib/supabase/__tests__/middleware.test.ts ont
+# le header {"alg":"none","typ":"TEST"} — l'algorithme "none" signifie que
+# le token n'est PAS signé et serait rejeté immédiatement par tout serveur
+# JWT réel. Ce sont des données de test construites pour simuler la présence
+# d'un cookie sans faire de vrai appel réseau.
+#
+# Décodage des tokens signalés :
+#   eyJhbGciOiJub25lIiwidHlwIjoiVEVTVCJ9  → {"alg":"none","typ":"TEST"}
+#   eyJhbm9uS2V5IjoibW9jayJ9              → {"anonKey":"mock"}
+#   .mock / .test.signature / .chunk.sig   → signatures fictives
+#
+# ─── Règle inline (méthode préférée) ─────────────────────────────────────────
+#
+# Chaque ligne concernée porte déjà le commentaire :
+#   // pragma: allowlist secret  gitleaks:allow
+#
+# Le mot-clé "gitleaks:allow" en fin de ligne est reconnu nativement par
+# gitleaks >= v8 et supprime le résultat pour cette ligne spécifique.
+#
+# Ce fichier fournit une couche de protection supplémentaire au niveau
+# du chemin, pour les outils qui ne lisent pas les commentaires inline.
+# ─────────────────────────────────────────────────────────────────────────────
+
+title = "Biguglia Connect — Gitleaks configuration"
+
+[extend]
+# Utiliser les règles par défaut de gitleaks comme base
+useDefault = true
+
+[[rules]]
+id          = "test-jwt-fixture"
+description = "JWT de test avec alg=none dans les fichiers __tests__ — pas un secret réel"
+# Correspond aux tokens JWT fictifs utilisés dans les tests
+regex       = '''eyJhbGciOiJub25lIiwidHlwIjoiVEVTVCJ9\.[A-Za-z0-9_-]+\.[A-Za-z0-9_.-]+'''
+allowlist.paths = [
+  # Uniquement dans les répertoires de tests
+  '''.*__tests__.*''',
+  '''.*\.test\.(ts|tsx|js|jsx)$''',
+  '''.*\.spec\.(ts|tsx|js|jsx)$''',
+]
+
+[[rules.allowlist]]
+description = "Supprimer les JWT de test avec alg=none dans les fichiers __tests__"
+regexTarget = "line"
+# Lignes qui portent le commentaire de suppression explicite
+regex       = '''gitleaks:allow'''
+
+[allowlist]
+description = "Suppressions globales"
+# Chemins complètement exclus du scan
+paths = [
+  # Dépendances
+  '''node_modules''',
+  # Build Next.js
+  '''.next''',
+  # Artefacts de build
+  '''out''',
+  '''dist''',
+]
+# Commits exclus (aucun pour l'instant)
+commits = []
