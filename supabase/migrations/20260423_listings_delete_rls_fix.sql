@@ -2,10 +2,34 @@
 -- FIX: Garantir la policy RLS DELETE sur listings
 -- Problème : la suppression retourne 0 lignes sans erreur
 -- Cause probable : policy DELETE absente ou mal configurée
+--
+-- ⚠️  COMPORTEMENT DESTRUCTIF VOLONTAIRE
+-- ⚠️  Cette migration REMPLACE la totalité des policies DELETE
+-- ⚠️  existantes sur public.listings par une policy unique et
+-- ⚠️  canonique ("listings_delete_owner_or_admin").
+--
+-- Rationale : les anciens noms connus (établis dans la migration
+-- baseline 20260407) étaient 'listings_delete' et
+-- 'listings_delete_own'. L'une ou l'autre pouvait être absente,
+-- présente en doublon, ou inactive, ce qui produisait les
+-- suppressions silencieuses observées en production.
+--
+-- Après cette migration, une seule policy DELETE existe :
+--   "listings_delete_owner_or_admin"
+--   USING (auth.uid() = user_id OR role IN ('admin','moderateur'))
+--
+-- Si une policy DELETE supplémentaire avait été ajoutée
+-- manuellement entre la baseline et ce correctif, elle sera
+-- supprimée et son comportement devra être reproduit dans
+-- une nouvelle migration post-20260423.
 -- ============================================================
 
--- 1. Supprimer toutes les policies DELETE existantes sur listings
---    (en cas de doublon ou de policy mal configurée)
+-- 1. Remplacement de TOUTES les policies DELETE sur listings
+--    par une policy unique et canonique.
+--    Policies supprimées (noms historiques + tout doublon) :
+--      - 'listings_delete'          (baseline 20260407)
+--      - 'listings_delete_own'      (baseline 20260407)
+--      - toute autre policy DELETE présente à l'exécution
 DO $$
 DECLARE
   pol RECORD;
