@@ -257,10 +257,19 @@ try {
     disableClientWebpackPlugin: !process.env.NEXT_PUBLIC_SENTRY_DSN,
 
     // ── Tunneling ────────────────────────────────────────────────────────
-    // Route les requêtes Sentry via /api/monitoring pour éviter les bloqueurs
-    // de pub (ad-blockers bloquent souvent *.sentry.io).
-    // La route /api/monitoring/route.ts est créée automatiquement par le plugin.
-    tunnelRoute: '/api/monitoring',
+    // Route les requêtes Sentry via /api/sentry-tunnel pour éviter les
+    // bloqueurs de pub (ad-blockers bloquent souvent *.sentry.io).
+    //
+    // IMPORTANT : le plugin Sentry N'INJECTE PAS de route.ts — il injecte
+    // une règle Next.js `rewrites` qui intercepte UNIQUEMENT les requêtes
+    // portant les query params ?o=<orgid>&p=<projectid> et les redirige
+    // vers https://o:<orgid>.ingest.sentry.io/api/…/envelope/
+    // Les requêtes sans ces params atteignent normalement le handler suivant.
+    //
+    // /api/monitoring est réservé au health-check (src/app/api/monitoring/route.ts).
+    // Utiliser /api/sentry-tunnel évite tout conflit de routage entre
+    // le rewrite Sentry et le endpoint de monitoring maison.
+    tunnelRoute: '/api/sentry-tunnel',
 
     // ── Nettoyage des source maps ─────────────────────────────────────────
     // Supprime les .map du déploiement après upload (pas exposés publiquement).

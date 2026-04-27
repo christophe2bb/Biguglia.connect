@@ -133,7 +133,7 @@ const LOCAL_IPS = new Set([
  * Prefixes de routes exemptées du rate-limiting.
  * /api/auth/callback est géré par Supabase OAuth — volume imprévisible.
  */
-const BYPASS_PREFIXES = ['/api/_next', '/api/monitoring'] as const;
+const BYPASS_PREFIXES = ['/api/_next', '/api/monitoring', '/api/sentry-tunnel'] as const;
 
 // ─── Initialisation Redis (lazy, avec fallback) ───────────────────────────────
 

@@ -1,7 +1,11 @@
 /**
  * API Route — GET /api/monitoring  &  POST /api/monitoring
  * ──────────────────────────────────────────────────────────────────────────────
- * Endpoint de monitoring de santé de l'application.
+ * Endpoint de monitoring de santé de l'application (health-check).
+ *
+ * ⚠️  SÉPARATION TUNNEL SENTRY : le tunnel Sentry est sur /api/sentry-tunnel
+ *     (tunnelRoute dans next.config.js). Cette route est exclusivement réservée
+ *     au health-check — elle ne traite aucune requête Sentry.
  *
  * Utilisé par :
  *   • Vercel Health Checks (sonde de disponibilité)
