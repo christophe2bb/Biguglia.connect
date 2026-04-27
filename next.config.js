@@ -175,9 +175,9 @@ const nextConfig = {
       { protocol: 'https', hostname: '**.supabase.co' },
       { protocol: 'https', hostname: '**.supabase.in' },
       { protocol: 'https', hostname: 'images.unsplash.com' },
-      { protocol: 'https', hostname: 'sspark.genspark.ai' },
-      { protocol: 'https', hostname: '**.genspark.ai' },
-      { protocol: 'https', hostname: 'www.genspark.ai' },
+      // genspark.ai retiré (2026-04-27) : aucun usage applicatif dans src/
+      // (sspark.genspark.ai, **.genspark.ai, www.genspark.ai supprimés pour
+      // réduire la surface autorisée — voir SECURITY.md §3.6)
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
       { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
     ],
