@@ -2,10 +2,21 @@
  * Tests unitaires pour POST /api/upload
  * ──────────────────────────────────────────────────────────────────────────────
  * Vérifie la validation magic-bytes, les contrôles d'authentification,
- * la validation de paramètres et la protection path-traversal.
+ * la validation de paramètres, la protection path-traversal (CWE-22)
+ * et la validation d'ownership (IDOR — CWE-639).
  *
  * Architecture testée :
- *   Client → POST /api/upload → ① Auth → ② FormData → ③ Path → ④ Size → ⑤ Magic-bytes → Supabase
+ *   Client → POST /api/upload
+ *     → ① Auth
+ *     → ② FormData
+ *     → ③ Paramètres
+ *     → ④ Path traversal
+ *     → ④-bis Ownership (userId/ ou entity ownership via DB)
+ *     → ⑤ Taille
+ *     → ⑥ Magic-bytes
+ *     → ⑦ MIME
+ *     → ⑧ Bucket × type
+ *     → ⑨ Supabase Storage
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -57,28 +68,41 @@ function pdfBuffer(extraBytes = 100): Uint8Array {
   return buf;
 }
 
+// ── Constantes de test ────────────────────────────────────────────────────────
+
+const TEST_USER_ID   = 'user-uuid-123';
+const OTHER_USER_ID  = 'other-user-uuid-456';
+const ENTITY_UUID    = 'entity-uuid-789';
+
 // ── Mocks des dépendances ─────────────────────────────────────────────────────
 
 vi.mock('server-only', () => ({}));
 
-// Mock getUserFromRequest — par défaut : authentifié
+// Mock getUserFromRequest — par défaut : authentifié (retourne { id, email })
 const mockGetUser = vi.fn();
 vi.mock('@/lib/supabase/auth-helper', () => ({
   getUserFromRequest: mockGetUser,
 }));
 
-// Mock createAdminClient — par défaut : upload OK
-const mockUpload  = vi.fn();
-const mockGetUrl  = vi.fn();
+// Mock createAdminClient — gère storage ET les requêtes ownership (from/select/eq/single)
+const mockUpload    = vi.fn();
+const mockGetUrl    = vi.fn();
+const mockSingle    = vi.fn();
+const mockEq        = vi.fn(() => ({ single: mockSingle }));
+const mockSelect    = vi.fn(() => ({ eq: mockEq }));
+const mockFromTable = vi.fn(() => ({ select: mockSelect }));
+
 const mockStorage = {
   from: vi.fn(() => ({
     upload:       mockUpload,
     getPublicUrl: mockGetUrl,
   })),
 };
+
 vi.mock('@/lib/supabase/server', () => ({
   createAdminClient: vi.fn(() => ({
     storage: mockStorage,
+    from: mockFromTable,
   })),
 }));
 
@@ -93,7 +117,7 @@ vi.mock('@/lib/upload-utils', async (importOriginal) => {
 function makeRequest(
   fileBytes: Uint8Array | null,
   bucket   = 'photos',
-  path     = 'test/image.jpg',
+  path     = `${TEST_USER_ID}/image.jpg`,
   filename = 'photo.jpg',
 ): NextRequest {
   const formData = new FormData();
@@ -117,11 +141,13 @@ describe('POST /api/upload', () => {
 
   beforeEach(() => {
     vi.resetModules();
-    // Par défaut : utilisateur authentifié
-    mockGetUser.mockResolvedValue('user-uuid-123');
+    // Par défaut : utilisateur authentifié (objet { id, email })
+    mockGetUser.mockResolvedValue({ id: TEST_USER_ID, email: 'test@example.com' });
     // Par défaut : upload Supabase réussi
-    mockUpload.mockResolvedValue({ data: { path: 'test/image.jpg' }, error: null });
+    mockUpload.mockResolvedValue({ data: { path: `${TEST_USER_ID}/image.jpg` }, error: null });
     mockGetUrl.mockReturnValue({ data: { publicUrl: 'https://cdn.example.com/test/image.jpg' } });
+    // Par défaut : entité appartient à l'utilisateur connecté
+    mockSingle.mockResolvedValue({ data: { user_id: TEST_USER_ID, id: TEST_USER_ID }, error: null });
   });
 
   afterEach(() => {
@@ -145,7 +171,7 @@ describe('POST /api/upload', () => {
     const { POST } = await import('../route');
     const formData = new FormData();
     formData.append('bucket', 'photos');
-    formData.append('path', 'test/img.jpg');
+    formData.append('path', `${TEST_USER_ID}/img.jpg`);
     const req = new NextRequest('http://localhost/api/upload', {
       method: 'POST', body: formData,
     });
@@ -155,7 +181,7 @@ describe('POST /api/upload', () => {
 
   it('retourne 400 si le bucket est invalide', async () => {
     const { POST } = await import('../route');
-    const res = await POST(makeRequest(jpegBuffer(), 'evil-bucket', 'x.jpg'));
+    const res = await POST(makeRequest(jpegBuffer(), 'evil-bucket', `${TEST_USER_ID}/x.jpg`));
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain('Bucket invalide');
@@ -167,7 +193,7 @@ describe('POST /api/upload', () => {
     expect(res.status).toBe(400);
   });
 
-  // ── ③ Protection path-traversal ────────────────────────────────────────────
+  // ── ③ Protection path-traversal (CWE-22) ──────────────────────────────────
 
   it('retourne 400 si le path contient un path-traversal (..)', async () => {
     const { POST } = await import('../route');
@@ -183,6 +209,127 @@ describe('POST /api/upload', () => {
     expect(res.status).toBe(400);
   });
 
+  // ── ④-bis Validation d'ownership (IDOR — CWE-639) ─────────────────────────
+  // Garantit qu'un utilisateur ne peut écrire QUE dans son périmètre.
+
+  describe('Ownership validation (CWE-639)', () => {
+
+    // — Niveau 1 : chemins user-scoped (userId/ en premier segment) ────────────
+
+    it('accepte un chemin user-scoped valide ({userId}/...)', async () => {
+      const { POST } = await import('../route');
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `${TEST_USER_ID}/avatar.jpg`));
+      expect(res.status).toBe(200);
+    });
+
+    it('rejette un chemin dont le premier segment est un userId DIFFÉRENT (403)', async () => {
+      const { POST } = await import('../route');
+      // mockFromTable ne sera pas appelé car le premier segment est un UUID connu → nivel 1
+      // mais OTHER_USER_ID !== TEST_USER_ID → refus par la règle userId-scoped
+      // Et OTHER_USER_ID ne matche pas une règle entity-scoped → refus par défaut
+      mockSingle.mockResolvedValue({ data: null, error: { message: 'not found' } });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `${OTHER_USER_ID}/avatar.jpg`));
+      expect(res.status).toBe(403);
+      const body = await res.json();
+      expect(body.error).toBe('Chemin non autorisé');
+    });
+
+    // — Niveau 2 : chemins entity-scoped ─────────────────────────────────────
+
+    it('accepte un chemin entity-scoped quand l\'entité appartient à l\'utilisateur', async () => {
+      const { POST } = await import('../route');
+      // mockSingle retourne user_id = TEST_USER_ID → autorisé
+      mockSingle.mockResolvedValue({ data: { user_id: TEST_USER_ID }, error: null });
+      mockUpload.mockResolvedValue({ data: { path: `listings/${ENTITY_UUID}/ts.jpg` }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `listings/${ENTITY_UUID}/ts.jpg`));
+      expect(res.status).toBe(200);
+    });
+
+    it('rejette un chemin entity-scoped quand l\'entité appartient à un AUTRE utilisateur (403)', async () => {
+      const { POST } = await import('../route');
+      // L'entité est possédée par OTHER_USER_ID, pas par TEST_USER_ID
+      mockSingle.mockResolvedValue({ data: { user_id: OTHER_USER_ID }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `listings/${ENTITY_UUID}/ts.jpg`));
+      expect(res.status).toBe(403);
+      const body = await res.json();
+      expect(body.error).toBe('Chemin non autorisé');
+    });
+
+    it('rejette un chemin entity-scoped si l\'entité n\'existe pas en base (403)', async () => {
+      const { POST } = await import('../route');
+      // Entité introuvable → refus pour ne pas révéler l'existence
+      mockSingle.mockResolvedValue({ data: null, error: { message: 'not found' } });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `listings/nonexistent-uuid/ts.jpg`));
+      expect(res.status).toBe(403);
+    });
+
+    it('rejette un chemin entity-scoped avec ID manquant (403)', async () => {
+      const { POST } = await import('../route');
+      // Chemin mal formé : "listings/" sans ID
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', 'listings/'));
+      // safeRelativePath rejette les chemins se terminant par "/" (chemin vide après strip)
+      // selon l'implémentation → 400 ou 403, les deux sont valides
+      expect([400, 403]).toContain(res.status);
+    });
+
+    it('rejette un préfixe de chemin inconnu (403)', async () => {
+      const { POST } = await import('../route');
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `unknown-category/${ENTITY_UUID}/ts.jpg`));
+      expect(res.status).toBe(403);
+      const body = await res.json();
+      expect(body.error).toBe('Chemin non autorisé');
+    });
+
+    it('rejette le préfixe __diagnostic__ pour un utilisateur non-admin (403)', async () => {
+      const { POST } = await import('../route');
+      // mockSingle retourne un utilisateur avec rôle "resident" (pas admin)
+      mockSingle.mockResolvedValue({ data: { role: 'resident' }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `__diagnostic__/test_${Date.now()}.png`));
+      expect(res.status).toBe(403);
+    });
+
+    it('accepte le préfixe __diagnostic__ pour un admin', async () => {
+      const { POST } = await import('../route');
+      // mockSingle retourne un utilisateur avec rôle "admin"
+      mockSingle.mockResolvedValue({ data: { role: 'admin' }, error: null });
+      mockUpload.mockResolvedValue({ data: { path: '__diagnostic__/test.png' }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `__diagnostic__/test_${Date.now()}.png`));
+      expect(res.status).toBe(200);
+    });
+
+    it('accepte le préfixe collection/{userId} (user-scoped via profile.id)', async () => {
+      const { POST } = await import('../route');
+      // collection/ est une règle entity-scoped vers profiles.id = profiles.id
+      // mockSingle retourne { id: TEST_USER_ID }
+      mockSingle.mockResolvedValue({ data: { id: TEST_USER_ID }, error: null });
+      mockUpload.mockResolvedValue({ data: { path: `collection/${TEST_USER_ID}/ts.jpg` }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `collection/${TEST_USER_ID}/ts.jpg`));
+      expect(res.status).toBe(200);
+    });
+
+    it('rejette collection/{autreUserId} (IDOR — 403)', async () => {
+      const { POST } = await import('../route');
+      // mockSingle retourne { id: OTHER_USER_ID } → owner ≠ current user
+      mockSingle.mockResolvedValue({ data: { id: OTHER_USER_ID }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `collection/${OTHER_USER_ID}/ts.jpg`));
+      expect(res.status).toBe(403);
+    });
+
+    it('accepte le chemin artisan docs user-scoped ({userId}/label.pdf)', async () => {
+      const { POST } = await import('../route');
+      mockUpload.mockResolvedValue({ data: { path: `${TEST_USER_ID}/cv.pdf` }, error: null });
+      const pdfBytes = pdfBuffer();
+      const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+      const fd = new FormData();
+      fd.append('file', blob, 'cv.pdf');
+      fd.append('bucket', 'documents');
+      fd.append('path', `${TEST_USER_ID}/cv-label-${Date.now()}.pdf`);
+      const req = new NextRequest('http://localhost/api/upload', { method: 'POST', body: fd });
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+    });
+  });
+
   // ── ④ Validation de la taille ─────────────────────────────────────────────
 
   it('retourne 413 si le fichier dépasse 5 MB pour le bucket photos', async () => {
@@ -193,7 +340,7 @@ describe('POST /api/upload', () => {
     const formData = new FormData();
     formData.append('file', bigBlob, 'big.jpg');
     formData.append('bucket', 'photos');
-    formData.append('path', 'test/big.jpg');
+    formData.append('path', `${TEST_USER_ID}/big.jpg`);
     const req = new NextRequest('http://localhost/api/upload', { method: 'POST', body: formData });
     const res = await POST(req);
     expect(res.status).toBe(413);
@@ -205,7 +352,8 @@ describe('POST /api/upload', () => {
 
   it('accepte un vrai JPEG (FF D8 FF)', async () => {
     const { POST } = await import('../route');
-    const res = await POST(makeRequest(jpegBuffer(), 'photos', 'user/photo.jpg'));
+    mockUpload.mockResolvedValue({ data: { path: `${TEST_USER_ID}/photo.jpg` }, error: null });
+    const res = await POST(makeRequest(jpegBuffer(), 'photos', `${TEST_USER_ID}/photo.jpg`));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toHaveProperty('url');
@@ -214,7 +362,8 @@ describe('POST /api/upload', () => {
 
   it('accepte un vrai PNG (89 50 4E 47 + IHDR)', async () => {
     const { POST } = await import('../route');
-    const res = await POST(makeRequest(pngBuffer(), 'photos', 'user/photo.png', 'image.png'));
+    mockUpload.mockResolvedValue({ data: { path: `${TEST_USER_ID}/photo.png` }, error: null });
+    const res = await POST(makeRequest(pngBuffer(), 'photos', `${TEST_USER_ID}/photo.png`, 'image.png'));
     expect(res.status).toBe(200);
   });
 
@@ -222,7 +371,7 @@ describe('POST /api/upload', () => {
 
   it('rejette un fichier PHP déguisé en .jpg (415)', async () => {
     const { POST } = await import('../route');
-    const res = await POST(makeRequest(phpInJpegBuffer(), 'photos', 'user/evil.jpg'));
+    const res = await POST(makeRequest(phpInJpegBuffer(), 'photos', `${TEST_USER_ID}/evil.jpg`));
     expect(res.status).toBe(415);
     const body = await res.json();
     expect(body.error).toContain('non autorisé');
@@ -231,7 +380,7 @@ describe('POST /api/upload', () => {
 
   it('rejette un SVG avec <script> déguisé en .jpg (415)', async () => {
     const { POST } = await import('../route');
-    const res = await POST(makeRequest(svgInJpegBuffer(), 'photos', 'user/evil.jpg'));
+    const res = await POST(makeRequest(svgInJpegBuffer(), 'photos', `${TEST_USER_ID}/evil.jpg`));
     expect(res.status).toBe(415);
     const body = await res.json();
     expect(body.error).toContain('non autorisé');
@@ -240,7 +389,7 @@ describe('POST /api/upload', () => {
   it('rejette un texte brut déguisé en image (415)', async () => {
     const { POST } = await import('../route');
     const textBytes = new TextEncoder().encode('Hello world, this is plain text');
-    const res = await POST(makeRequest(textBytes, 'photos', 'user/text.jpg'));
+    const res = await POST(makeRequest(textBytes, 'photos', `${TEST_USER_ID}/text.jpg`));
     expect(res.status).toBe(415);
   });
 
@@ -248,7 +397,7 @@ describe('POST /api/upload', () => {
 
   it('rejette un PDF dans le bucket photos (415)', async () => {
     const { POST } = await import('../route');
-    const res = await POST(makeRequest(pdfBuffer(), 'photos', 'user/cv.pdf', 'cv.pdf'));
+    const res = await POST(makeRequest(pdfBuffer(), 'photos', `${TEST_USER_ID}/cv.pdf`, 'cv.pdf'));
     expect(res.status).toBe(415);
     const body = await res.json();
     expect(body.error).toContain('"photos"');
@@ -256,7 +405,8 @@ describe('POST /api/upload', () => {
 
   it('accepte un PDF dans le bucket job-documents', async () => {
     const { POST } = await import('../route');
-    const res = await POST(makeRequest(pdfBuffer(), 'job-documents', 'cv/user.pdf', 'cv.pdf'));
+    mockUpload.mockResolvedValue({ data: { path: `${TEST_USER_ID}/cv.pdf` }, error: null });
+    const res = await POST(makeRequest(pdfBuffer(), 'job-documents', `${TEST_USER_ID}/cv.pdf`, 'cv.pdf'));
     expect(res.status).toBe(200);
   });
 
@@ -265,7 +415,7 @@ describe('POST /api/upload', () => {
   it('retourne 500 si Supabase Storage échoue', async () => {
     mockUpload.mockResolvedValue({ data: null, error: { message: 'Storage error' } });
     const { POST } = await import('../route');
-    const res = await POST(makeRequest(jpegBuffer(), 'photos', 'user/photo.jpg'));
+    const res = await POST(makeRequest(jpegBuffer(), 'photos', `${TEST_USER_ID}/photo.jpg`));
     expect(res.status).toBe(500);
     const body = await res.json();
     expect(body.error).toContain('Storage error');
@@ -275,7 +425,8 @@ describe('POST /api/upload', () => {
 
   it('retourne url et path dans la réponse 200', async () => {
     const { POST } = await import('../route');
-    const res = await POST(makeRequest(jpegBuffer(), 'photos', 'events/123/photo.jpg'));
+    mockUpload.mockResolvedValue({ data: { path: `${TEST_USER_ID}/photo.jpg` }, error: null });
+    const res = await POST(makeRequest(jpegBuffer(), 'photos', `${TEST_USER_ID}/photo.jpg`));
     expect(res.status).toBe(200);
     const body = await res.json() as { url: string; path: string };
     expect(typeof body.url).toBe('string');
@@ -284,20 +435,21 @@ describe('POST /api/upload', () => {
 
   it('impose le vrai Content-Type (mime détecté) au lieu de celui du client', async () => {
     const { POST } = await import('../route');
+    mockUpload.mockResolvedValue({ data: { path: `${TEST_USER_ID}/photo.jpg` }, error: null });
     // Upload a real PNG bytes but declare it as JPEG (typical attack: extension mismatch)
     const png = pngBuffer();
     const blob = new Blob([png.buffer as ArrayBuffer], { type: 'image/jpeg' }); // lie about MIME
     const fd = new FormData();
     fd.append('file', blob, 'photo.jpg');
     fd.append('bucket', 'photos');
-    fd.append('path', 'user/photo.jpg');
+    fd.append('path', `${TEST_USER_ID}/photo.jpg`);
     const req = new NextRequest('http://localhost/api/upload', { method: 'POST', body: fd });
     const res = await POST(req);
     // Route should succeed (PNG is allowed) but use the REAL detected MIME, not client-declared
     expect(res.status).toBe(200);
     // Supabase upload called with image/png (detected), NOT image/jpeg (client-declared)
     expect(mockUpload).toHaveBeenCalledWith(
-      'user/photo.jpg',
+      `${TEST_USER_ID}/photo.jpg`,
       expect.any(Buffer),
       expect.objectContaining({ contentType: 'image/png', upsert: true }),
     );

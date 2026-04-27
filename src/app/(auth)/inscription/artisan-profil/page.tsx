@@ -47,7 +47,7 @@ function DocumentUploader({
     let storagePath: string;
     try {
       // uploadFileGetPath valide les magic bytes côté serveur et retourne le chemin relatif
-      const returnedPath = await uploadFileGetPath(file, 'documents', path);
+      const returnedPath = await uploadFileGetPath(file, 'documents', path, userId);
       storagePath = `documents/${returnedPath}`;
     } catch (err) {
       console.error('Upload error:', err);
@@ -219,7 +219,7 @@ export default function ArtisanProfilPage() {
       const fileName = `artisans/${artisanId}/gallery-${Date.now()}-${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
       try {
         // uploadFile valide les magic bytes côté serveur
-        const publicUrl = await uploadFile(photo, 'photos', fileName);
+        const publicUrl = await uploadFile(photo, 'photos', fileName, profile.id);
         await supabase.from('artisan_photos').insert({ artisan_id: artisanId, url: publicUrl, display_order: i });
       } catch (err) {
         console.error('Photo upload error:', err);

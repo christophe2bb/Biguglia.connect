@@ -154,7 +154,7 @@ export function useCollectionneurForm(): UseCollectionneurFormReturn {
     const ext = safeImageExt(file.name);
     const path = `collection/${profile.id}/${Date.now()}_${idx}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
     try {
-      return await uploadFile(file, 'photos', path);
+      return await uploadFile(file, 'photos', path, profile.id);
     } catch {
       return null;
     }

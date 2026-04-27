@@ -28,17 +28,39 @@
  *
  * ## Flux de sécurité
  *
- *   Client → POST /api/upload (FormData) → magic-bytes check → Supabase Storage
+ *   Client → POST /api/upload (FormData) → auth → ownership → magic-bytes → Supabase Storage
  *
  * ## Buckets supportés
  *
  *   • photos         — images publiques (annonces, événements, profils…)
  *   • job-documents  — documents emploi (CV, pièces justificatives)
+ *   • documents      — documents privés artisans (bucket privé)
  *
  * ## Authentification
  *
  *   Requiert une session Supabase valide (cookie ou Bearer token).
  *   Un utilisateur non authentifié reçoit 401.
+ *
+ * ## Validation du chemin (IDOR — CWE-639)
+ *
+ *   Toute la sécurité reposant sur la validation applicative (client admin
+ *   bypass RLS), le chemin fourni par le client DOIT être validé côté serveur.
+ *
+ *   Règle : safePath.startsWith(`${userId}/`) **ou** l'entité référencée
+ *   dans le chemin appartient à l'utilisateur connecté.
+ *
+ *   Deux stratégies selon le préfixe du chemin :
+ *
+ *   A. Chemins user-scoped  (premier segment = userId) :
+ *      Vérifié par la règle startsWith(`${userId}/`).
+ *      Ex. : `{userId}/avatar.jpg`, `{userId}/doc-label-ts.pdf`
+ *
+ *   B. Chemins entity-scoped (premier segment = catégorie) :
+ *      L'entité référencée (2ème segment = entity UUID) est vérifiée en base
+ *      via validatePathOwnership() : SELECT user_id FROM <table> WHERE id=?
+ *      Ex. : `listings/{id}/ts.jpg`, `events/{id}/ts.jpg`, `cv/{demandId}.pdf`
+ *
+ *   Exception admin : le préfixe `__diagnostic__/` est réservé aux admins.
  *
  * ## Rate-limiting
  *
@@ -48,7 +70,7 @@
  * ## Paramètres FormData
  *
  *   file     : Blob/File — le fichier à uploader
- *   bucket   : string   — "photos" | "job-documents"
+ *   bucket   : string   — "photos" | "job-documents" | "documents"
  *   path     : string   — chemin de destination dans le bucket
  *                         (ex. "userId/1234567890.jpg")
  *
@@ -57,6 +79,7 @@
  *   200 { url: string }                     — URL publique du fichier uploadé
  *   400 { error: string }                   — Paramètre manquant ou invalide
  *   401 { error: "Non authentifié" }        — Session absente ou expirée
+ *   403 { error: "Chemin non autorisé" }    — IDOR : chemin hors périmètre user
  *   413 { error: "Fichier trop volumineux" }— > 5 MB
  *   415 { error: "Type de fichier non autorisé", detected: string }
  *   500 { error: string }                   — Erreur Supabase Storage
@@ -107,15 +130,126 @@ const BUCKET_ALLOWED_TYPES: Record<string, Set<string>> = {
   'documents':     new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']),
 };
 
+// ── Validation d'ownership (IDOR — CWE-639) ───────────────────────────────────
+
+/**
+ * Mapping préfixe de chemin → table Supabase + colonne user.
+ *
+ * Pour chaque catégorie, on connaît :
+ *   - table    : table Supabase contenant l'entité
+ *   - idColumn : colonne de clé primaire (UUID)
+ *   - userCol  : colonne référençant l'auteur (doit être = userId)
+ *   - idSegment: indice du segment du chemin contenant l'UUID de l'entité
+ *                (ex. "listings/UUID/ts.jpg" → idSegment=1)
+ */
+interface OwnershipRule {
+  table: string;
+  idColumn: string;
+  userCol: string;
+  idSegment: number;
+}
+
+const ENTITY_OWNERSHIP_RULES: Record<string, OwnershipRule> = {
+  listings:        { table: 'listings',         idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
+  artisans:        { table: 'artisan_profiles', idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
+  requests:        { table: 'service_requests', idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
+  events:          { table: 'events',           idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
+  associations:    { table: 'associations',     idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
+  'coups-de-main': { table: 'coups_de_main',   idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
+  'lost-found':    { table: 'lost_found',       idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
+  promenades:      { table: 'promenades',       idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
+  outings:         { table: 'outings',          idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
+  equipment:       { table: 'equipment',        idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
+  forum:           { table: 'forum_topics',     idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
+  cv:              { table: 'job_demands',      idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
+  collection:      { table: 'profiles',         idColumn: 'id', userCol: 'id',         idSegment: 1 },
+};
+
+/**
+ * Vérifie que le chemin est strictement borné à l'utilisateur connecté (IDOR).
+ *
+ * Stratégie en trois niveaux :
+ *
+ * 1. Chemin user-scoped   : premier segment = userId → autorisé directement.
+ * 2. Chemin entity-scoped : premier segment = catégorie connue →
+ *    vérifie en base que l'entité référencée appartient à userId.
+ * 3. Chemin admin          : préfixe "__diagnostic__/" → vérifie rôle admin.
+ *
+ * @returns `null` si le chemin est autorisé.
+ * @returns `NextResponse` 403 si l'accès est refusé.
+ */
+async function validatePathOwnership(
+  safePath: string,
+  userId: string,
+): Promise<NextResponse | null> {
+  const segments = safePath.split('/');
+  const firstSegment = segments[0];
+
+  // ── Niveau 1 : chemin user-scoped ────────────────────────────────────────────
+  // Le premier segment EST l'userId (UUID v4).
+  // Ex. : `{userId}/avatar.jpg`, `{userId}/doc-label-ts.pdf`
+  if (firstSegment === userId) {
+    return null; // autorisé
+  }
+
+  // ── Niveau 2 : chemin entity-scoped ─────────────────────────────────────────
+  const rule = ENTITY_OWNERSHIP_RULES[firstSegment];
+  if (rule) {
+    const entityId = segments[rule.idSegment];
+    if (!entityId) {
+      return NextResponse.json({ error: 'Chemin non autorisé' }, { status: 403 });
+    }
+
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from(rule.table)
+      .select(rule.userCol)
+      .eq(rule.idColumn, entityId)
+      .single();
+
+    if (error || !data) {
+      // Entité introuvable → refus (ne pas révéler l'existence ou non)
+      return NextResponse.json({ error: 'Chemin non autorisé' }, { status: 403 });
+    }
+
+    const ownerField = data as unknown as Record<string, unknown>;
+    if (ownerField[rule.userCol] !== userId) {
+      return NextResponse.json({ error: 'Chemin non autorisé' }, { status: 403 });
+    }
+
+    return null; // autorisé
+  }
+
+  // ── Niveau 3 : préfixe admin ─────────────────────────────────────────────────
+  // `__diagnostic__/` est réservé aux admins.
+  if (firstSegment === '__diagnostic__') {
+    const supabase = createAdminClient();
+    const { data } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
+    const role = (data as { role?: string } | null)?.role;
+    if (role === 'admin' || role === 'moderateur') {
+      return null; // autorisé
+    }
+    return NextResponse.json({ error: 'Chemin non autorisé' }, { status: 403 });
+  }
+
+  // ── Par défaut : préfixe inconnu → refus ────────────────────────────────────
+  return NextResponse.json({ error: 'Chemin non autorisé' }, { status: 403 });
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // ① Authentification — session ou Bearer token
-  const userId = await getUserFromRequest(req);
-  if (!userId) {
+  const user = await getUserFromRequest(req);
+  if (!user) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
+  const userId = user.id;
 
   // ② Parser le FormData
   let formData: FormData;
@@ -143,11 +277,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Paramètre "path" manquant' }, { status: 400 });
   }
 
-  // ④ Validation du path (anti path-traversal)
+  // ④ Validation du path (anti path-traversal — CWE-22)
   const safePath = safeRelativePath(path);
   if (!safePath) {
     return NextResponse.json({ error: 'Chemin de fichier invalide' }, { status: 400 });
   }
+
+  // ④-bis Validation d'ownership (anti IDOR — CWE-639)
+  // Garantit qu'un utilisateur ne peut écrire QUE dans son périmètre :
+  // soit son dossier personnel (userId/…), soit une entité dont il est auteur.
+  const ownershipError = await validatePathOwnership(safePath, userId);
+  if (ownershipError) return ownershipError;
 
   // ⑤ Validation de la taille (avant de lire tout le buffer en mémoire)
   const maxBytes = MAX_SIZE_BY_BUCKET[bucket] ?? MAX_SIZE_BYTES;
@@ -193,8 +333,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // ⑨ Upload vers Supabase Storage via le client admin
   // Le client admin bypasse les RLS Storage pour permettre l'upload depuis
-  // une API Route — la sécurité est garantie par la vérification d'auth (①)
-  // et la validation magic-bytes (⑦).
+  // une API Route — la sécurité est garantie par :
+  //   • vérification d'auth (①)
+  //   • validation d'ownership (④-bis)
+  //   • validation magic-bytes (⑦)
   const supabase = createAdminClient();
 
   const { data, error } = await supabase.storage

@@ -90,7 +90,7 @@ export async function submitLFItem(
       const ext = safeImageExt(file.name);
       const path = `lost-found/${itemId}/${Date.now()}_${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
       try {
-        const publicUrl = await uploadFile(file, 'photos', path);
+        const publicUrl = await uploadFile(file, 'photos', path, profile.id);
         await supabase.from('lf_photos').insert({
           item_id: itemId, url: publicUrl, display_order: i, is_cover: i === 0,
         });

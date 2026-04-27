@@ -45,7 +45,7 @@
 
 ### Résumé — Score 100/100 sur tous les domaines ✅
 
-Le projet est **en état GO SOLID** : TypeScript strict 0 erreur, ESLint 0 warning (toutes les règles `jsx-a11y/*`, `@typescript-eslint/no-explicit-any` et `react-hooks/exhaustive-deps` promus en `error`), **1 287 tests passent à 100 %** (35 fichiers, 5.5 s).
+Le projet est **en état GO SOLID** : TypeScript strict 0 erreur, ESLint 0 warning (toutes les règles `jsx-a11y/*`, `@typescript-eslint/no-explicit-any` et `react-hooks/exhaustive-deps` promus en `error`), **1 299 tests passent à 100 %** (35 fichiers, 5.5 s).
 
 Tous les points P1 et P2 identifiés à l'audit initial ont été corrigés :
 
@@ -77,7 +77,7 @@ Tous les points P1 et P2 identifiés à l'audit initial ont été corrigés :
 | **Évaluation sécurité** | Revue CSP, headers, guards auth, usage service-role key, upload validation, env vars |
 | **Évaluation perf** | LCP hero preload, CLS image containers, `transition-all`, reflows JS, loading skeletons |
 | **SEO technique** | Sitemap, robots.txt, metadata coverage, structured data, canonical |
-| **Tests** | Suite complète : **35 fichiers, 1 287 cas** — 100% passing, 5.5 s |
+| **Tests** | Suite complète : **35 fichiers, 1 299 cas** — 100% passing, 5.5 s |
 | **Conformité** | Pages légales, consentement inscription, robots anti-AI |
 
 ---
@@ -155,7 +155,7 @@ Tous les points P1 et P2 identifiés à l'audit initial ont été corrigés :
 - **X-Frame-Options: DENY**, X-Content-Type-Options: nosniff, CORP, COOP, Referrer-Policy, Permissions-Policy.
 - **Anti-bot UA blacklist** dans le middleware (sqlmap, nikto, gobuster, hydra, etc.).
 - **Rate-limit distribué** Upstash Redis avec groupes de routes différenciés (login: 5 req/min, publications: 10 req/min, default: 300 req/min) + fallback mémoire.
-- **Upload sécurisé** : `safeImageExt()` / `safeDocExt()` / `safeRelativePath()` dans `lib/upload-utils.ts` — allowlist stricte, protection path traversal (CWE-22).
+- **Upload sécurisé** : `safeImageExt()` / `safeDocExt()` / `safeRelativePath()` dans `lib/upload-utils.ts` — allowlist stricte, protection path traversal (CWE-22). Validation d'ownership ajoutée (PR #430) : `validatePathOwnership()` vérifie que le chemin appartient au user connecté (CWE-639) — chemin user-scoped ou entité DB appartenant au user (voir `SECURITY.md §3.4`).
 - **Service-role key** uniquement dans des modules `server-only` (jamais dans le bundle client).
 - **Route `/api/test-sentry`** correctement gardée — token obligatoire si `SENTRY_TEST_ENABLED=true` en production.
 - **`dangerouslySetInnerHTML`** dans `JsonLd.tsx` : classé **risque faible** (composant SEO dédié, JSON-LD uniquement, nonce CSP, `safeJsonLd()` sanitizer, documentation présente — voir `SECURITY.md §3.3`).
@@ -263,7 +263,7 @@ Tous les points P1 et P2 identifiés à l'audit initial ont été corrigés :
 ### 4.8 Tests & observabilité (100/100) ✅
 
 #### Points forts
-- **35 fichiers de test, 1 287 cas — 100% passing** en 5.5 secondes.
+- **35 fichiers de test, 1 299 cas — 100% passing** en 5.5 secondes.
 - Couverture API routes **admin, emploi, messages** : CRUD, guards, RLS, permissions isolation.
 - Test critique `no-debug-routes.test.ts` : vérifie l'absence de routes de debug en production.
 - Test `permissions-isolation.test.ts` : vérifie que les routes admin rejettent les non-admins.
@@ -405,7 +405,7 @@ Tous les points P1 et P2 identifiés à l'audit initial ont été corrigés :
 
 - [x] `npm run typecheck` → 0 erreur ✅
 - [x] `npm run lint` → 0 warning ✅
-- [x] `npm run test` → 1287/1287 ✅ (35 fichiers)
+- [x] `npm run test` → 1299/1299 ✅ (35 fichiers)
 - [ ] Build Next.js sans erreur ni warning critique *(à vérifier sur Vercel)*
 - [ ] Variables d'environnement Vercel vérifiées : `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `NEXT_PUBLIC_SITE_URL`
 - [ ] Source maps Sentry uploadées et supprimées au build
@@ -474,7 +474,7 @@ Les critères suivants déclencheraient un NO-GO :
 - ✅ Build passe
 - ✅ TypeScript 0 erreur
 - ✅ ESLint 0 warning (toutes les règles critiques en `error`)
-- ✅ 1 287/1 287 tests passent (35 fichiers)
+- ✅ 1 299/1 299 tests passent (35 fichiers)
 - ✅ CSP Level 3 nonce + strict-dynamic (PR #425/#427)
 - ✅ Security headers complets (HSTS, X-Frame-Options, CORP, COOP, Referrer-Policy)
 - ✅ Double guard admin (middleware + layout Server Component)
@@ -512,4 +512,4 @@ Le projet **Biguglia Connect** est en état de production-ready sur **tous les a
 
 *Rapport initial généré le 2026-04-22 — Biguglia Connect audit pré-production v1.0*  
 *Mis à jour le 2026-04-27 — v3.0 GO SOLID — tous les P1/P2/P3 résolus (PRs #425–#427, commit `6ce38da`)*  
-*1 287 tests passent, TypeScript 0 erreur, ESLint 0 warning, CSP Level 3 nonce livré, 14 noindex conformés*
+*1 299 tests passent, TypeScript 0 erreur, ESLint 0 warning, CSP Level 3 nonce livré, 14 noindex conformés*

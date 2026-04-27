@@ -201,7 +201,7 @@ export function useOutings(profile: { id: string } | null | undefined) {
         const ext = safeImageExt(file.name);
         const path = `outings/${outingId}/${Date.now()}_${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
         try {
-          const publicUrl = await uploadFile(file, 'photos', path);
+          const publicUrl = await uploadFile(file, 'photos', path, profile?.id);
           await supabase.from('outing_photos').insert({ outing_id: outingId, url: publicUrl, display_order: i });
         } catch (err) {
           toast.error(`Photo ${i + 1} : ${err instanceof Error ? err.message : 'Erreur upload'}`);

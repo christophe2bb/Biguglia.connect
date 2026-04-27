@@ -36,24 +36,33 @@
  * client — utiliser cette fonction à la place.
  *
  * @param file    - Fichier à uploader (File ou Blob)
- * @param bucket  - Bucket cible : "photos" | "job-documents"
+ * @param bucket  - Bucket cible : "photos" | "job-documents" | "documents"
  * @param path    - Chemin relatif dans le bucket (ex. "userId/1234567890.jpg")
+ * @param ownerId - UUID de l'utilisateur propriétaire du chemin.
+ *                  Obligatoire pour les chemins entité-scopés (ex. listings/{id}/...).
+ *                  Pour les chemins directement user-scopés (ex. {userId}/avatar.jpg),
+ *                  peut être omis si le premier segment du chemin est déjà le userId.
  * @returns URL publique du fichier uploadé (ou chemin relatif pour les buckets privés)
  * @throws Error si le serveur rejette le fichier (type invalide, trop gros, non authentifié…)
  *
  * @example
- *   const ext = safeImageExt(photo.name);
- *   const url = await uploadFile(photo, 'photos', `annonces/${id}/${Date.now()}.${ext}`);
+ *   // Chemin directement user-scopé — ownerId optionnel (mais recommandé) :
+ *   const url = await uploadFile(photo, 'photos', `${userId}/avatar.jpg`, userId);
+ *
+ *   // Chemin entité-scopé — ownerId obligatoire :
+ *   const url = await uploadFile(photo, 'photos', `listings/${listingId}/${Date.now()}.jpg`, userId);
  */
 export async function uploadFile(
   file: File | Blob,
   bucket: 'photos' | 'job-documents' | 'documents',
   path: string,
+  ownerId?: string,
 ): Promise<string> {
   const form = new FormData();
   form.append('file',   file);
   form.append('bucket', bucket);
   form.append('path',   path);
+  if (ownerId) form.append('ownerId', ownerId);
 
   const res = await fetch('/api/upload', { method: 'POST', body: form });
 
@@ -71,19 +80,23 @@ export async function uploadFile(
  * Comme uploadFile(), mais retourne le chemin Storage relatif au lieu de l'URL publique.
  * Utile pour les buckets privés (ex. "documents") où l'URL publique est vide.
  *
+ * @param ownerId - UUID de l'utilisateur propriétaire du chemin (voir uploadFile()).
+ *
  * @example
- *   const path = await uploadFileGetPath(file, 'documents', `userId/cv.pdf`);
+ *   const path = await uploadFileGetPath(file, 'documents', `${userId}/cv.pdf`, userId);
  *   // stocker `documents/${path}` en BDD, puis createSignedUrl pour lecture admin
  */
 export async function uploadFileGetPath(
   file: File | Blob,
   bucket: 'documents' | 'job-documents',
   path: string,
+  ownerId?: string,
 ): Promise<string> {
   const form = new FormData();
   form.append('file',   file);
   form.append('bucket', bucket);
   form.append('path',   path);
+  if (ownerId) form.append('ownerId', ownerId);
 
   const res = await fetch('/api/upload', { method: 'POST', body: form });
 
