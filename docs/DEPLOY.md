@@ -37,7 +37,7 @@ Exécuter les migrations dans l'ordre dans **Supabase → SQL Editor** :
 | 29 | `supabase/migrations/20260421_cleanup_duplicate_policies.sql` | Nettoyage policies RLS dupliquées |
 | 30 | `supabase/migrations/20260421_unindexed_fk.sql` | Index sur clés étrangères non couvertes |
 | 31 | `supabase/migrations/20260422_service_requests_sector_id.sql` | Ajout colonne `sector_id` sur `service_requests` |
-| 32 | `supabase/migrations/20260423_listings_delete_rls_fix.sql` | ⚠️ **CRITIQUE** — Policy RLS DELETE manquante sur `listings` : suppressions silencieuses (0 lignes supprimées sans erreur) |
+| 32 | `supabase/migrations/20260423_listings_delete_rls_fix.sql` | ⚠️ **CRITIQUE** — **Remplace toutes les policies DELETE existantes** sur `listings` puis recrée une policy canonique unique (`listings_delete_owner_or_admin`). Corrige les suppressions silencieuses dues à une policy absente ou en doublon. |
 | 33 | `supabase/migrations/20260423_service_requests_delete_rls.sql` | ⚠️ **CRITIQUE** — Policy RLS DELETE manquante sur `service_requests` et `request_comments` : idem + policy UPDATE auteur/artisan |
 
 > **Ordre d'exécution obligatoire** : respecter impérativement le numéro `#` du tableau.
@@ -53,6 +53,11 @@ Exécuter les migrations dans l'ordre dans **Supabase → SQL Editor** :
 >   sans ces migrations, un DELETE sur `listings` ou `service_requests` retourne `0 lignes supprimées`
 >   **sans erreur visible** — l'UI semble fonctionner mais l'enregistrement reste en base.
 >   **Ne pas déployer l'application sans avoir appliqué `#32` et `#33`.**
+> - `#32` est **destructive par conception** : elle supprime *toutes* les policies DELETE existantes
+>   sur `listings` avant de recréer une policy unique canonique. Les noms historiques ciblés sont
+>   `listings_delete` et `listings_delete_own` (baseline #1). Si une policy DELETE personnalisée
+>   avait été ajoutée manuellement entre #1 et #32, elle sera supprimée — vérifier l'absence de
+>   policies DELETE inattendues dans Supabase → Authentication → Policies avant d'exécuter.
 > - Plus généralement, chaque migration suppose que toutes les précédentes ont réussi.
 >
 > **Idempotence** : tous les fichiers utilisent `IF NOT EXISTS` / `IF EXISTS` — ils peuvent être
