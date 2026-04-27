@@ -91,7 +91,7 @@ export default function AdminUtilisateursPage() {
 
   const suspendUser = async (userId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
-    const action = newStatus === 'suspended' ? 'suspendre' : 'réactiver';
+    const _action = newStatus === 'suspended' ? 'suspendre' : 'réactiver';
     // ⚠️ Appelé APRÈS confirmation dans l'UI.
     const res = await adminFetch(`/api/admin/users/${userId}`, {
       method: 'PATCH',
@@ -122,7 +122,7 @@ export default function AdminUtilisateursPage() {
   };
 
   const changeRole = async (userId: string, newRole: string) => {
-    const label = ROLE_OPTIONS.find(r => r.value === newRole)?.label || newRole;
+    const _label = ROLE_OPTIONS.find(r => r.value === newRole)?.label || newRole;
     // ⚠️ Appelé APRÈS confirmation dans l'UI.
     const res = await adminFetch(`/api/admin/users/${userId}`, {
       method: 'PATCH',
