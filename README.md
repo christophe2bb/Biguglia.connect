@@ -8,7 +8,7 @@ Plateforme communautaire locale — Next.js 14 · Supabase · Tailwind CSS · Ty
 
 ```bash
 npm install
-cp .env.local.example .env.local   # renseigner NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY
+cp .env.local.example .env.local   # renseigner au minimum : NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_SITE_URL
 npm run dev                         # http://localhost:3000
 ```
 
