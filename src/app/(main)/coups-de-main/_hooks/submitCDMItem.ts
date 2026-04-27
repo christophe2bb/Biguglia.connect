@@ -63,7 +63,7 @@ export async function submitCDMItem(
     for (let i = 0; i < photos.length; i++) {
       const file = photos[i];
       const ext = safeImageExt(file.name);
-      const path = `coups-de-main/${itemId}/${Date.now()}_${i}.${ext}`;
+      const path = `coups-de-main/${itemId}/${Date.now()}_${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
       try {
         const publicUrl = await uploadFile(file, 'photos', path);
         await supabase.from('help_photos').insert({

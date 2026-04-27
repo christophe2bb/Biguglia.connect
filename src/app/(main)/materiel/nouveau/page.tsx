@@ -147,7 +147,7 @@ export default function NouveauMaterielPage() {
     for (let i = 0; i < photos.length; i++) {
       const photo = photos[i];
       const ext = safeImageExt(photo.name);
-      const fileName = `equipment/${item.id}/${Date.now()}-${i}.${ext}`;
+      const fileName = `equipment/${item.id}/${Date.now()}-${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
       try {
         // uploadFile valide les magic bytes côté serveur avant d'envoyer à Supabase
         const publicUrl = await uploadFile(photo, 'photos', fileName);

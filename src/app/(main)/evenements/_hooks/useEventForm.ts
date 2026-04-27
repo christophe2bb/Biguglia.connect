@@ -54,7 +54,7 @@ export function useEventForm(profileId: string | undefined, onSuccess: () => voi
     for (let i = 0; i < eventPhotos.length; i++) {
       const file = eventPhotos[i];
       const ext = safeImageExt(file.name);
-      const path = `events/${eventId}/${Date.now()}_${i}.${ext}`;
+      const path = `events/${eventId}/${Date.now()}_${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
       try {
         const publicUrl = await uploadFile(file, 'photos', path);
         await supabase.from('event_photos').insert({

@@ -189,7 +189,7 @@ export default function ModifierAnnoncePage() {
     for (let i = 0; i < newPhotos.length; i++) {
       const photo = newPhotos[i];
       const ext = safeImageExt(photo.name);
-      const fileName = `listings/${id}/${Date.now()}_${i}.${ext}`;
+      const fileName = `listings/${id}/${Date.now()}_${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
       try {
         const publicUrl = await uploadFile(photo, 'photos', fileName);
         await supabase.from('listing_photos').insert({

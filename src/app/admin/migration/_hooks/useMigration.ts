@@ -203,7 +203,7 @@ export function useMigration() {
           0x33,0x00,0x00,0x00,0x00,0x49,0x45,0x4E,
           0x44,0xAE,0x42,0x60,0x82,
         ]);
-        const testPath = `__diagnostic__/test_${Date.now()}.png`;
+        const testPath = `__diagnostic__/test_${Date.now()}.png`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
         // Passe par uploadFile() → /api/upload → validation magic-bytes (CWE-434)
         // Le blob est une constante hardcodée (PNG 1×1 pixel), non issu d'un input utilisateur,
         // mais on passe systématiquement par la route sécurisée pour cohérence.
@@ -238,7 +238,7 @@ export function useMigration() {
   const testRealUpload = useCallback(async (file: File) => {
     setTestingUpload(true);
     const ext  = safeImageExt(file.name);
-    const path = `__diagnostic__/real_test_${Date.now()}.${ext}`;
+    const path = `__diagnostic__/real_test_${Date.now()}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
 
     // Passe par uploadFile() → /api/upload → validation magic-bytes côté serveur (CWE-434)
     // Le fichier vient d'un <input type="file"> admin → doit impérativement passer par la
