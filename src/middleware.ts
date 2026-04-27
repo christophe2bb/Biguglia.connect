@@ -108,12 +108,33 @@ const isDev = process.env.NODE_ENV === 'development';
 /**
  * Construit la Content-Security-Policy avec le nonce fourni.
  *
- * Logique script-src :
+ * ─── script-src ───────────────────────────────────────────────────────────────
  *  - Production : 'nonce-{nonce}' 'strict-dynamic' blob: + domaines explicites
  *    'strict-dynamic' propage la confiance aux scripts chargés dynamiquement
  *    par les scripts noncés (Next.js lazy-loading, Sentry Replay).
- *    'unsafe-inline' est RETIRÉ.
+ *    'unsafe-inline' est RETIRÉ de script-src.
  *  - Développement : + 'unsafe-eval' pour le HMR Next.js.
+ *
+ * ─── style-src vs style-src-elem / style-src-attr (CSP3) ─────────────────────
+ *  Stratégie CSP Level 3 avec granularité fine :
+ *
+ *  style-src-elem  → contrôle les balises <style> et <link rel="stylesheet">
+ *    • 'nonce-{nonce}' : seules les balises <style nonce="..."> sont autorisées
+ *    • 'self'          : feuilles CSS locales Next.js (/_next/static/css/…)
+ *    • fonts.googleapis.com : Google Fonts (feuille de style externe)
+ *    Note : 'unsafe-inline' est RETIRÉ → les <style> injectés sans nonce sont bloqués.
+ *
+ *  style-src-attr  → contrôle les attributs style="" sur les éléments HTML
+ *    • 'unsafe-inline' conservé intentionnellement :
+ *      React JSX style={{ width: `${n}%` }} est compilé en attribut style=""
+ *      dynamique. Supprimer 'unsafe-inline' ici casserait les 77 composants
+ *      qui utilisent des widths/colors/transforms dynamiques (progress bars,
+ *      cartes, animations). La migration complète vers CSS custom properties
+ *      est planifiée mais hors-scope de ce sprint.
+ *      Risque résiduel : XSS via style="" limité aux CSS injections (pas d'exécution JS).
+ *
+ *  style-src (fallback legacy) : conservé pour navigateurs sans support CSP3
+ *    (Firefox < 91, Safari < 15). Peut être supprimé lors du passage à CSP3 strict.
  *
  * Next.js 15 lit le nonce depuis ce header CSP via :
  *   next/dist/server/app-render/get-script-nonce-from-header.js
@@ -124,10 +145,21 @@ export function buildCsp(nonce: string): string {
     ? `'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval' blob: https://vercel.live https://*.vercel-scripts.com https://browser.sentry-cdn.com`
     : `'nonce-${nonce}' 'strict-dynamic' blob: https://vercel.live https://*.vercel-scripts.com https://browser.sentry-cdn.com`;
 
+  // style-src-elem : balises <style> et <link rel="stylesheet"> — nonce requis
+  const styleElem = `'nonce-${nonce}' 'self' https://fonts.googleapis.com`;
+
+  // style-src-attr : attributs style="" sur les éléments — unsafe-inline conservé
+  // (React inline styles dynamiques, voir commentaire buildCsp ci-dessus)
+  const styleAttr = "'unsafe-inline'";
+
   return [
     "default-src 'self'",
     `script-src ${scriptSrc}`,
+    // Legacy fallback pour navigateurs sans support CSP3 style-src-elem/attr
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    // CSP3 granular style directives (override style-src dans les navigateurs supportés)
+    `style-src-elem ${styleElem}`,
+    `style-src-attr ${styleAttr}`,
     "font-src 'self' https://fonts.gstatic.com data:",
     `img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in https://images.unsplash.com https://*.genspark.ai https://lh3.googleusercontent.com https://avatars.githubusercontent.com`,
     `connect-src 'self' https://${SUPABASE_ORIGIN} wss://${SUPABASE_ORIGIN} https://*.supabase.co wss://*.supabase.co https://*.supabase.in wss://*.supabase.in https://vercel.live https://*.vercel-scripts.com https://vitals.vercel-insights.com https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://browser.sentry-cdn.com`,

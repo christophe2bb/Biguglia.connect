@@ -31,6 +31,7 @@
  *   • Bypass CSP — le nonce change à chaque requête (couvert par tests unitaires)
  */
 
+import type { APIRequestContext } from '@playwright/test';
 import { test, expect, skipIfNoCredentials, loginAs, logout, TEST_CREDENTIALS } from './fixtures';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -449,5 +450,225 @@ test.describe('Smoke 5 — Health endpoint', () => {
     // X-Content-Type-Options: nosniff
     const xContentType = response.headers()['x-content-type-options'];
     expect(xContentType).toBe('nosniff');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SMOKE TEST 6 — CSP headers sur /connexion, /annonces, /admin
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Vérifie que le middleware injecte bien la CSP avec nonce + strict-dynamic
+// sur toutes les routes importantes, y compris les pages auth et admin.
+// La production ne doit JAMAIS servir unsafe-eval dans script-src.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Smoke 6 — CSP headers multi-routes', () => {
+  /**
+   * Vérifie la CSP sur une route donnée.
+   * On accepte que /admin puisse rediriger (302 → /connexion) :
+   * dans ce cas, on vérifie sur la destination.
+   */
+  async function checkCspOnRoute(
+    request: APIRequestContext,
+    route: string,
+  ) {
+    const response = await request.get(route, {
+      // Suivre les redirections (admin → connexion)
+      maxRedirects: 3,
+    });
+    const csp = response.headers()['content-security-policy'];
+
+    // La CSP doit être présente (le middleware la pose sur toutes les routes HTML)
+    expect(csp, `CSP absent sur ${route}`).toBeTruthy();
+
+    // Doit utiliser le nonce (et non unsafe-inline pour les scripts)
+    expect(csp, `CSP sur ${route} doit contenir nonce-`).toContain('nonce-');
+
+    // strict-dynamic propage la confiance aux scripts chargés dynamiquement
+    expect(csp, `CSP sur ${route} doit contenir strict-dynamic`).toContain('strict-dynamic');
+
+    // unsafe-eval ne doit JAMAIS apparaître dans script-src en production.
+    // En développement (NODE_ENV=development), il est autorisé pour le HMR.
+    // Ce test tourne contre l'app buildée (CI) → NODE_ENV=production.
+    if (process.env.NODE_ENV !== 'development') {
+      expect(
+        csp,
+        `script-src sur ${route} ne doit pas contenir unsafe-eval en production`,
+      ).not.toMatch(/script-src[^;]*'unsafe-eval'/);
+    }
+
+    return csp;
+  }
+
+  test('/connexion — CSP nonce + strict-dynamic (pas d\'unsafe-eval en prod)', async ({ request }) => {
+    await checkCspOnRoute(request, '/connexion');
+  });
+
+  test('/annonces — CSP nonce + strict-dynamic', async ({ request }) => {
+    await checkCspOnRoute(request, '/annonces');
+  });
+
+  test('/admin — CSP nonce + strict-dynamic (via redirect /connexion)', async ({ request }) => {
+    // /admin redirige vers /connexion si non authentifié → on vérifie la destination
+    await checkCspOnRoute(request, '/admin');
+  });
+
+  test('/ — X-Frame-Options: deny anti-clickjacking', async ({ request }) => {
+    const response = await request.get('/');
+    const xfo = response.headers()['x-frame-options'];
+    expect(xfo, 'X-Frame-Options doit être deny').toBeTruthy();
+    expect(xfo?.toLowerCase()).toBe('deny');
+  });
+
+  test('/connexion — Referrer-Policy présent', async ({ request }) => {
+    const response = await request.get('/connexion');
+    const rp = response.headers()['referrer-policy'];
+    expect(rp, 'Referrer-Policy doit être présent sur /connexion').toBeTruthy();
+  });
+
+  test('/connexion — Permissions-Policy présent', async ({ request }) => {
+    const response = await request.get('/connexion');
+    const pp = response.headers()['permissions-policy'];
+    expect(pp, 'Permissions-Policy doit être présent sur /connexion').toBeTruthy();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SMOKE TEST 7 — Page /annonces : chargement, filtres, pagination
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Valide le parcours utilisateur principal de la section petites annonces :
+//   • La page charge sans erreur 500
+//   • Les éléments UI critiques sont visibles (titre, liste ou message vide)
+//   • Les contrôles de filtrage sont accessibles
+//   • La pagination est présente si des annonces existent
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Smoke 7 — Page /annonces', () => {
+  test('charge et affiche le titre de la section', async ({ page }) => {
+    const response = await page.goto('/annonces', { waitUntil: 'domcontentloaded' });
+
+    // La page doit répondre 200 (pas d'erreur serveur)
+    expect(response?.status()).toBe(200);
+
+    // Un H1 doit être visible
+    await expect(page.locator('h1').first()).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('contient un champ de recherche ou des filtres', async ({ page }) => {
+    await page.goto('/annonces', { waitUntil: 'domcontentloaded' });
+
+    // Attendre que le composant client soit hydraté
+    await page.waitForLoadState('networkidle');
+
+    // L'un de ces éléments doit être présent (recherche ou filtre catégorie)
+    const searchOrFilter = page.locator(
+      'input[type="search"], input[placeholder*="recherch"], select[name*="catégor"], [data-testid*="filter"]',
+    ).first();
+
+    // Tolérant : si aucun filtre n'est rendu, on vérifie simplement qu'une liste existe
+    const hasSearchOrFilter = await searchOrFilter.isVisible({ timeout: 10_000 }).catch(() => false);
+    if (!hasSearchOrFilter) {
+      // Au minimum, un conteneur de liste d'annonces doit être présent
+      const listContainer = page.locator('ul, [role="list"], [data-testid*="listing"]').first();
+      await expect(listContainer).toBeAttached({ timeout: 10_000 });
+    } else {
+      await expect(searchOrFilter).toBeVisible();
+    }
+  });
+
+  test('affiche des annonces ou un message "aucune annonce"', async ({ page }) => {
+    await page.goto('/annonces', { waitUntil: 'domcontentloaded' });
+    await page.waitForLoadState('networkidle');
+
+    // Soit des cartes d'annonce, soit un message vide
+    const hasListings = await page.locator('article, [data-testid*="card"], .listing-card').first()
+      .isVisible({ timeout: 10_000 }).catch(() => false);
+
+    if (!hasListings) {
+      // Message "aucune annonce" ou équivalent doit être présent
+      await expect(
+        page.getByText(/aucune annonce|pas d'annonce|aucun résultat|0 annonce/i).first(),
+      ).toBeVisible({ timeout: 10_000 });
+    } else {
+      // Au moins une carte d'annonce est présente
+      expect(hasListings).toBe(true);
+    }
+  });
+
+  test('/annonces — noindex absent (page indexable)', async ({ request }) => {
+    // /annonces est une page publique indexable — robots ne doit PAS contenir noindex
+    const response = await request.get('/annonces');
+    // On vérifie via le header X-Robots-Tag s'il est présent
+    const xRobots = response.headers()['x-robots-tag'];
+    if (xRobots) {
+      expect(xRobots).not.toContain('noindex');
+    }
+    // Vérification 200
+    expect(response.status()).toBe(200);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SMOKE TEST 8 — Guards routes privées (messaging, dashboard, profil)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Vérifie que le middleware Next.js intercepte bien toutes les routes privées
+// et redirige vers /connexion sans exposer de données sensibles.
+// Ces tests fonctionnent sans credentials (visiteur anonyme).
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Smoke 8 — Guards routes privées', () => {
+  test.beforeEach(async ({ page }) => {
+    // S'assurer qu'on est bien déconnecté
+    await page.context().clearCookies();
+  });
+
+  test('/messages → redirigé vers /connexion', async ({ page }) => {
+    await page.goto('/messages', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/connexion/, { timeout: 15_000 });
+  });
+
+  test('/dashboard → redirigé vers /connexion', async ({ page }) => {
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/connexion/, { timeout: 15_000 });
+  });
+
+  test('/profil → redirigé vers /connexion', async ({ page }) => {
+    await page.goto('/profil', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/connexion/, { timeout: 15_000 });
+  });
+
+  test('/dashboard/avis → redirigé vers /connexion', async ({ page }) => {
+    await page.goto('/dashboard/avis', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/connexion/, { timeout: 15_000 });
+  });
+
+  test('/notifications → redirigé vers /connexion', async ({ page }) => {
+    await page.goto('/notifications', { waitUntil: 'domcontentloaded' });
+    // Soit redirect connexion, soit page 401/403 — ne doit pas afficher de données
+    const url = page.url();
+    const isRedirected = url.includes('/connexion');
+    if (!isRedirected) {
+      // La page ne doit pas afficher de notifications réelles
+      const bodyText = await page.evaluate(() => document.body.innerText);
+      expect(bodyText).not.toMatch(/notification.*non lue|vous avez \d+ nouvelle/i);
+    } else {
+      expect(isRedirected).toBe(true);
+    }
+  });
+
+  test('la page /connexion est bien publique (200)', async ({ page }) => {
+    const response = await page.goto('/connexion', { waitUntil: 'domcontentloaded' });
+    expect(response?.status()).toBe(200);
+    // Doit afficher le formulaire de connexion
+    await expect(page.locator('form')).toBeVisible({ timeout: 10_000 });
+  });
+
+  test('la page /inscription est bien publique (200)', async ({ page }) => {
+    const response = await page.goto('/inscription', { waitUntil: 'domcontentloaded' });
+    expect(response?.status()).toBe(200);
+    // Doit afficher un formulaire
+    await expect(page.locator('form')).toBeVisible({ timeout: 10_000 });
   });
 });

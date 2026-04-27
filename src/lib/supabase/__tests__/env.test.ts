@@ -58,8 +58,8 @@ import {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const VALID_URL     = 'https://qmrkacrpncdkhofiqlrg.supabase.co';
-const VALID_ANON    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhbm9uS2V5Ijoi';
-const VALID_SERVICE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzZXJ2aWNlUm9sZSI6';
+const VALID_ANON    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhbm9uS2V5Ijoi'; // pragma: allowlist secret  gitleaks:allow
+const VALID_SERVICE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzZXJ2aWNlUm9sZSI6'; // pragma: allowlist secret  gitleaks:allow
 
 /** Sauvegarde et restaure les variables d'environnement entre les tests */
 let originalEnv: Record<string, string | undefined>;
