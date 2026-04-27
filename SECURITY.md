@@ -314,6 +314,37 @@ injections via `innerHTML`, `eval` ou les scripts inline non noncés.
 
 ---
 
+### 3.6 Domaines `genspark.ai` — Retirés de `img-src` CSP et `remotePatterns` (2026-04-27)
+
+**Statut** : ✅ Retiré
+
+#### Contexte
+
+Les entrées suivantes étaient présentes dans la configuration :
+
+- **`next.config.js` → `remotePatterns`** :
+  ```
+  { protocol: 'https', hostname: 'sspark.genspark.ai' }
+  { protocol: 'https', hostname: '**.genspark.ai' }
+  { protocol: 'https', hostname: 'www.genspark.ai' }
+  ```
+- **`src/middleware.ts` → `img-src` CSP** :
+  ```
+  https://*.genspark.ai
+  ```
+
+#### Analyse
+
+Un audit exhaustif de `src/` (tous les `.ts`, `.tsx`, `.js`) n'a trouvé **aucun usage applicatif** du domaine `genspark.ai` en dehors de ces deux fichiers de configuration. Aucune page, composant ou hook ne charge d'image depuis ce domaine.
+
+#### Action
+
+Retrait des trois entrées `remotePatterns` et de la directive `img-src` correspondante afin de réduire la surface d'attaque autorisée.
+
+**Principe appliqué** : *allowlist minimale* — n'autoriser que les domaines réellement utilisés par l'application.
+
+---
+
 ## 4. Nonce CSP Migration — ✅ Complétée (PR #425 + #427, 2026-04-27)
 
 Toutes les phases sont livrées en production. Cette section documente l'implémentation réelle.
@@ -390,6 +421,6 @@ export async function JsonLd({ data, nonce: nonceProp }: JsonLdProps) {
 
 ---
 
-*Last updated: 2026-04-27 — §3.5 ajouté : `X-XSS-Protection` retiré (PR #434) — header obsolète, remplacé par CSP nonce ; §5 table mise à jour.*  
+*Last updated: 2026-04-27 — §3.6 ajouté : domaines `genspark.ai` retirés de `img-src` CSP et `remotePatterns` (aucun usage applicatif) ; §3.5 ajouté : `X-XSS-Protection` retiré (PR #434) — header obsolète, remplacé par CSP nonce ; §5 table mise à jour.*  
 *2026-04-27 — §3.4 ajouté : CWE-639 IDOR `/api/upload` corrigé (PR #430) — `validatePathOwnership()` ; §2 table mise à jour.*  
 *2026-04-27 — §3.1 mis à jour : script-src nonce+strict-dynamic livré (PR #425) ; style-src-elem noncé livré (PR #427) ; §4 roadmap remplacée par l'implémentation réelle ; §5 CSP source corrigée (middleware.ts, pas next.config.js).*

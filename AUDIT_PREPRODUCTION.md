@@ -153,6 +153,8 @@ Tous les points P1 et P2 identifiés à l'audit initial ont été corrigés :
   - `'unsafe-eval'` absent en production (conservé uniquement en dev pour HMR Next.js).
 - **HSTS** max-age=63072000 (2 ans) + includeSubDomains + preload.
 - **X-Frame-Options: DENY**, X-Content-Type-Options: nosniff, CORP, COOP, Referrer-Policy, Permissions-Policy.
+- **X-XSS-Protection** retiré intentionnellement (PR #434) — header obsolète (Chrome v78+, Firefox n'a jamais supporté, Safari v16+), remplacé par CSP nonce + strict-dynamic. Voir `SECURITY.md §3.5`.
+- **CSP `img-src` / `remotePatterns`** : domaines `genspark.ai` retirés (PR #434) — aucun usage applicatif, réduction de la surface autorisée. Voir `SECURITY.md §3.6`.
 - **Anti-bot UA blacklist** dans le middleware (sqlmap, nikto, gobuster, hydra, etc.).
 - **Rate-limit distribué** Upstash Redis avec groupes de routes différenciés (login: 5 req/min, publications: 10 req/min, default: 300 req/min) + fallback mémoire.
 - **Upload sécurisé** : `safeImageExt()` / `safeDocExt()` / `safeRelativePath()` dans `lib/upload-utils.ts` — allowlist stricte, protection path traversal (CWE-22). Validation d'ownership ajoutée (PR #430) : `validatePathOwnership()` vérifie que le chemin appartient au user connecté (CWE-639) — chemin user-scoped ou entité DB appartenant au user (voir `SECURITY.md §3.4`).
@@ -476,7 +478,7 @@ Les critères suivants déclencheraient un NO-GO :
 - ✅ ESLint 0 warning (toutes les règles critiques en `error`)
 - ✅ 1 299/1 299 tests passent (35 fichiers)
 - ✅ CSP Level 3 nonce + strict-dynamic (PR #425/#427)
-- ✅ Security headers complets (HSTS, X-Frame-Options, CORP, COOP, Referrer-Policy)
+- ✅ Security headers complets (HSTS, X-Frame-Options, CORP, COOP, Referrer-Policy) — X-XSS-Protection retiré (obsolète, §3.5)
 - ✅ Double guard admin (middleware + layout Server Component)
 - ✅ 18+ loading.tsx — pas de CLS
 - ✅ onRouterTransitionStart — navigation Sentry active
@@ -511,5 +513,5 @@ Le projet **Biguglia Connect** est en état de production-ready sur **tous les a
 ---
 
 *Rapport initial généré le 2026-04-22 — Biguglia Connect audit pré-production v1.0*  
-*Mis à jour le 2026-04-27 — v3.0 GO SOLID — tous les P1/P2/P3 résolus (PRs #425–#427, commit `6ce38da`)*  
-*1 299 tests passent, TypeScript 0 erreur, ESLint 0 warning, CSP Level 3 nonce livré, 14 noindex conformés*
+*Mis à jour le 2026-04-27 — v3.1 — PRs #431–#434 : fix IDOR upload (CWE-639), fix build Vercel, docs SENTRY_TEST_TOKEN, retrait X-XSS-Protection + domaines genspark.ai*  
+*1 299 tests passent, TypeScript 0 erreur, ESLint 0 warning, CSP Level 3 nonce livré, 14 noindex conformés, surface CSP réduite*

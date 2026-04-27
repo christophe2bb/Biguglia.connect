@@ -161,7 +161,7 @@ export function buildCsp(nonce: string): string {
     `style-src-elem ${styleElem}`,
     `style-src-attr ${styleAttr}`,
     "font-src 'self' https://fonts.gstatic.com data:",
-    `img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in https://images.unsplash.com https://*.genspark.ai https://lh3.googleusercontent.com https://avatars.githubusercontent.com`,
+    `img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in https://images.unsplash.com https://lh3.googleusercontent.com https://avatars.githubusercontent.com`,
     `connect-src 'self' https://${SUPABASE_ORIGIN} wss://${SUPABASE_ORIGIN} https://*.supabase.co wss://*.supabase.co https://*.supabase.in wss://*.supabase.in https://vercel.live https://*.vercel-scripts.com https://vitals.vercel-insights.com https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://browser.sentry-cdn.com`,
     "worker-src 'self' blob:",
     "frame-src https://vercel.live",
