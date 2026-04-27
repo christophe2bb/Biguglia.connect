@@ -218,9 +218,9 @@ export default function PromenadeCard({ p, userId, onLike, onSave }: Props) {
             <button
               onClick={() => {
                 if (navigator.share) {
-                  navigator.share({ title: p.title, url: `${window.location.origin}/promenades` });
+                  navigator.share({ title: p.title, url: `${window.location.origin}/promenades` }); // nosec — read-only origin, hardcoded path '/promenades', no user input in URL
                 } else {
-                  navigator.clipboard.writeText(`${window.location.origin}/promenades`);
+                  navigator.clipboard.writeText(`${window.location.origin}/promenades`); // nosec — read-only origin, hardcoded path '/promenades', no user input in URL
                   toast.success('Lien copié !');
                 }
               }}

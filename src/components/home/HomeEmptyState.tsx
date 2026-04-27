@@ -90,7 +90,7 @@ export default function HomeEmptyState({ sectionId, variant = 'empty' }: HomeEmp
         </div>
         <p className="text-sm text-gray-500">Impossible de charger ce contenu</p>
         <button
-          onClick={() => window.location.reload()}
+          onClick={() => window.location.reload()} // nosec — reload() takes no arguments, no URL manipulation
           className="text-xs font-medium text-brand-600 hover:underline"
         >
           Réessayer

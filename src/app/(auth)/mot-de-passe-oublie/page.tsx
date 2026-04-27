@@ -19,7 +19,7 @@ export default function MotDePasseOubliePage() {
 
     const supabase = createClient();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`,
+      redirectTo: `${window.location.origin}/auth/reset-password`, // nosec — read-only origin, hardcoded path '/auth/reset-password', no user input in URL
     });
 
     if (error) {

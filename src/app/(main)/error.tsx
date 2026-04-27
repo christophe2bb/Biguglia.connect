@@ -48,7 +48,7 @@ const SECTION_LINKS: Array<{ pattern: RegExp; href: string; label: string }> = [
 
 function getSectionLink(): { href: string; label: string } | null {
   if (typeof window === 'undefined') return null;
-  const path = window.location.pathname;
+  const path = window.location.pathname; // nosec — read-only pathname for Sentry error tag, no user input, no write
   return SECTION_LINKS.find(({ pattern }) => pattern.test(path)) ?? null;
 }
 
@@ -60,7 +60,7 @@ export default function MainError({ error, reset }: ErrorProps) {
       tags: {
         boundary: 'main-layout',
         digest:   error.digest ?? 'none',
-        path:     typeof window !== 'undefined' ? window.location.pathname : 'unknown',
+        path:     typeof window !== 'undefined' ? window.location.pathname : 'unknown', // nosec — read-only pathname for Sentry error tag, no user input, no write
       },
     });
   }, [error]);

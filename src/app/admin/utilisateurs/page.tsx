@@ -142,7 +142,7 @@ export default function AdminUtilisateursPage() {
   const resetPassword = async (email: string) => {
     const res = await adminFetch('/api/admin/users/reset-password', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Origin': window.location.origin },
+      headers: { 'Content-Type': 'application/json', 'Origin': window.location.origin }, // nosec — read-only origin used as request header, not written to DOM
       body: JSON.stringify({ email }),
     });
     if (!res.ok) {

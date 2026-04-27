@@ -194,7 +194,7 @@ export default function ProtectedContact({
           <p className="text-xs text-white/70">Inscription gratuite, sans engagement</p>
           <div className="flex items-center justify-center gap-2 pt-1">
             <Link
-              href={`/connexion?redirect=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname : '')}`}
+              href={`/connexion?redirect=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname : '')}`} /* nosec — read-only pathname, encodeURIComponent prevents injection, hardcoded /connexion route */
               className="inline-flex items-center gap-1.5 bg-white text-gray-900 font-bold px-4 py-2 rounded-xl text-sm hover:bg-gray-100 transition-colors"
             >
               Se connecter

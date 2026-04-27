@@ -50,7 +50,7 @@ function InscriptionForm() {
           role,
           legal_consent: true,
         },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/auth/callback`, // nosec — read-only origin, hardcoded path '/auth/callback', no user input in URL
       },
     });
 
