@@ -11,8 +11,9 @@ import urllib.request
 import urllib.error
 import argparse
 
-# nosec B310 — SSRF false positive: URL is a hardcoded constant, no user input flows here.
-# This is an admin-only setup script, never exposed to end-users.
+# Constante hardcodée — aucune entrée utilisateur ne transite dans cette URL.
+# Script admin local uniquement, jamais exposé sur le web.
+# L'appel urlopen() sur la ligne ~35 porte le commentaire: # nosec B310
 SUPABASE_URL = "https://qmrkacrpncdkhofiqlrg.supabase.co"
 PROJECT_ID = "qmrkacrpncdkhofiqlrg"
 SCHEMA_FILE = os.path.join(os.path.dirname(__file__), '..', 'supabase-schema.sql')
