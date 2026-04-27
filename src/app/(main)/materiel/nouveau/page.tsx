@@ -146,7 +146,8 @@ export default function NouveauMaterielPage() {
 
     for (let i = 0; i < photos.length; i++) {
       const photo = photos[i];
-      const ext = safeImageExt(photo.name);
+      // photo.name n'est PAS injecté dans le chemin — seule l'extension validée (whitelist safeImageExt) l'est.
+      const ext = safeImageExt(photo.name); // nosec CWE-22 — photo.name → safeImageExt() → ext whitelist uniquement
       const fileName = `equipment/${item.id}/${Date.now()}-${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
       try {
         // uploadFile valide les magic bytes côté serveur avant d'envoyer à Supabase
