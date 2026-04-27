@@ -230,7 +230,7 @@ async function validatePathOwnership(
       .eq('id', userId)
       .single();
     const role = (data as { role?: string } | null)?.role;
-    if (role === 'admin' || role === 'moderateur') {
+    if (role === 'admin' || role === 'moderator') {
       return null; // autorisé
     }
     return NextResponse.json({ error: 'Chemin non autorisé' }, { status: 403 });
