@@ -266,9 +266,12 @@ try {
     // vers https://o:<orgid>.ingest.sentry.io/api/…/envelope/
     // Les requêtes sans ces params atteignent normalement le handler suivant.
     //
-    // /api/monitoring est réservé au health-check (src/app/api/monitoring/route.ts).
-    // Utiliser /api/sentry-tunnel évite tout conflit de routage entre
-    // le rewrite Sentry et le endpoint de monitoring maison.
+    // /api/monitoring est réservé exclusivement au health-check maison
+    // (src/app/api/monitoring/route.ts — Vercel probes, UptimeRobot, etc.).
+    // /api/sentry-tunnel est le point d'entrée dédié au tunnel Sentry :
+    // les vrais appels SDK arrivent avec ?o=<orgid>&p=<projectid> et sont
+    // réécrits vers ingest.sentry.io avant d'atteindre tout handler.
+    // Un GET sans ces params reçoit un 204 du stub route.ts de fallback.
     tunnelRoute: '/api/sentry-tunnel',
 
     // ── Nettoyage des source maps ─────────────────────────────────────────

@@ -133,7 +133,11 @@ const LOCAL_IPS = new Set([
  * Prefixes de routes exemptées du rate-limiting.
  * /api/auth/callback est géré par Supabase OAuth — volume imprévisible.
  */
-const BYPASS_PREFIXES = ['/api/_next', '/api/monitoring', '/api/sentry-tunnel'] as const;
+const BYPASS_PREFIXES = ['/api/_next', '/api/sentry-tunnel'] as const;
+// Note : /api/monitoring (health-check) N'est pas exempté — les probes externes
+// sont rares et bénéficient du rate-limit par sécurité (évite le scraping).
+// /api/sentry-tunnel est exempté car le SDK Sentry peut émettre des bursts
+// légitimes d'enveloppes (erreurs groupées, sessions) qui dépasseraient les seuils.
 
 // ─── Initialisation Redis (lazy, avec fallback) ───────────────────────────────
 
