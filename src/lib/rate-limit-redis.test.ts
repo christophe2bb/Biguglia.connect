@@ -230,8 +230,12 @@ describe('shouldBypassRateLimit', () => {
     expect(shouldBypassRateLimit('1.2.3.4', '/api/_next/webpack-hmr')).toBe(true);
   });
 
-  it('[BP-26] /api/monitoring → bypass', () => {
-    expect(shouldBypassRateLimit('1.2.3.4', '/api/monitoring')).toBe(true);
+  it('[BP-26] /api/sentry-tunnel → bypass (tunnel Sentry, bursts légitimes)', () => {
+    expect(shouldBypassRateLimit('1.2.3.4', '/api/sentry-tunnel')).toBe(true);
+  });
+
+  it('[BP-26b] /api/monitoring → pas de bypass (health-check, rate-limit conservé)', () => {
+    expect(shouldBypassRateLimit('1.2.3.4', '/api/monitoring')).toBe(false);
   });
 
   it('[BP-27] IP normale, /api/messages → pas de bypass', () => {

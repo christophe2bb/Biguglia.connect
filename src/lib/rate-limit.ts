@@ -153,10 +153,11 @@ export function _resetCleanupTimer(now = 0): void {
 
 /**
  * Prefixes de routes exemptées du rate-limiting.
- * - /api/auth : callbacks OAuth Supabase (volume imprévisible)
- * - /api/_next : endpoints internes Next.js
+ * - /api/auth         : callbacks OAuth Supabase (volume imprévisible)
+ * - /api/_next        : endpoints internes Next.js
+ * - /api/sentry-tunnel: tunnel Sentry (bursts légitimes d'événements JS)
  */
-const BYPASS_PREFIXES = ['/api/auth', '/api/_next'] as const;
+const BYPASS_PREFIXES = ['/api/auth', '/api/_next', '/api/sentry-tunnel'] as const;
 
 /** IPs locales exemptées (dev, tests, Vercel preview interne). */
 const LOCAL_IPS = new Set(['127.0.0.1', '::1', 'unknown', 'localhost']);
