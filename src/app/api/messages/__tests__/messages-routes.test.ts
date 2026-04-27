@@ -24,10 +24,18 @@ vi.mock('@/lib/supabase/server');
 vi.mock('@/lib/supabase/auth-helper');
 
 import { createAdminClient } from '@/lib/supabase/server';
-import { getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
+import { getUserIdBearerFirst, assertCsrfSafe } from '@/lib/supabase/auth-helper';
 
 const mockAdminClient    = vi.mocked(createAdminClient);
 const mockGetUserId      = vi.mocked(getUserIdBearerFirst);
+const mockAssertCsrfSafe = vi.mocked(assertCsrfSafe);
+
+/** Réponse 403 CSRF prête à retourner dans les tests de rejet cross-site */
+function makeCsrf403(): Response {
+  return new Response(JSON.stringify({ error: 'Requête refusée : en-tête Origin manquant (protection CSRF).' }), {
+    status: 403, headers: { 'Content-Type': 'application/json' },
+  });
+}
 
 // ── UUIDs de fixtures ──────────────────────────────────────────────────────────
 const USER_A   = '00000000-0000-0000-0000-000000000001';
@@ -82,6 +90,20 @@ describe('POST /api/messages/start-conversation', () => {
     ({ POST } = await import('@/app/api/messages/start-conversation/route'));
     mockGetUserId.mockReset();
     mockAdminClient.mockReset();
+    mockAssertCsrfSafe.mockReset();
+    mockAssertCsrfSafe.mockReturnValue(null); // safe par défaut
+  });
+
+  // ── CSRF ──────────────────────────────────────────────────────────────────
+
+  it('🔒 CSRF : retourne 403 si assertCsrfSafe rejette la requête cross-site', async () => {
+    mockAssertCsrfSafe.mockReturnValueOnce(makeCsrf403() as never);
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, subject: 'Test', relatedType: 'general', relatedId: null, initialMsg: null,
+    }) as never);
+    expect(res.status).toBe(403);
+    const json = await res.json();
+    expect(json.error).toContain('CSRF');
   });
 
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -343,6 +365,18 @@ describe('PATCH /api/messages/conversations', () => {
     ({ PATCH } = await import('@/app/api/messages/conversations/route'));
     mockGetUserId.mockReset();
     mockAdminClient.mockReset();
+    mockAssertCsrfSafe.mockReset();
+    mockAssertCsrfSafe.mockReturnValue(null); // safe par défaut
+  });
+
+  it('🔒 CSRF : retourne 403 si assertCsrfSafe rejette la requête cross-site', async () => {
+    mockAssertCsrfSafe.mockReturnValueOnce(makeCsrf403() as never);
+    const res = await PATCH(makeReq('https://app.test/api/messages/conversations', 'PATCH', {
+      conversationId: CONV_ID,
+    }) as never);
+    expect(res.status).toBe(403);
+    const json = await res.json();
+    expect(json.error).toContain('CSRF');
   });
 
   it('retourne 401 si non authentifié', async () => {
@@ -386,6 +420,18 @@ describe('DELETE /api/messages/conversations — IDOR protection', () => {
     ({ DELETE } = await import('@/app/api/messages/conversations/route'));
     mockGetUserId.mockReset();
     mockAdminClient.mockReset();
+    mockAssertCsrfSafe.mockReset();
+    mockAssertCsrfSafe.mockReturnValue(null); // safe par défaut
+  });
+
+  it('🔒 CSRF : retourne 403 si assertCsrfSafe rejette la requête cross-site', async () => {
+    mockAssertCsrfSafe.mockReturnValueOnce(makeCsrf403() as never);
+    const res = await DELETE(makeReq(
+      `https://app.test/api/messages/conversations?conversationId=${CONV_ID}`, 'DELETE',
+    ) as never);
+    expect(res.status).toBe(403);
+    const json = await res.json();
+    expect(json.error).toContain('CSRF');
   });
 
   it('retourne 400 si conversationId manquant', async () => {

@@ -88,7 +88,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fileTypeFromBuffer } from 'file-type';
 import { createAdminClient } from '@/lib/supabase/server';
-import { getUserFromRequest } from '@/lib/supabase/auth-helper';
+import { getUserFromRequest, assertCsrfSafe } from '@/lib/supabase/auth-helper';
 import { safeRelativePath } from '@/lib/upload-utils';
 
 export const runtime = 'nodejs'; // file-type requires Node.js (Buffer API)
@@ -245,7 +245,11 @@ async function validatePathOwnership(
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
 
-  // ① Authentification — session ou Bearer token
+  // ① CSRF — upload-utils.ts n'envoie pas de Bearer → cookie-only possible
+  const csrfError = assertCsrfSafe(req);
+  if (csrfError) return csrfError as NextResponse;
+
+  // ② Authentification — session ou Bearer token
   const user = await getUserFromRequest(req);
   if (!user) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });

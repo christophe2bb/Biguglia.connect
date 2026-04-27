@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/server';
-import { getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
+import { getUserIdBearerFirst, assertCsrfSafe } from '@/lib/supabase/auth-helper';
 
 // ── Schémas de validation Zod ─────────────────────────────────────────────────
 
@@ -187,6 +187,10 @@ export async function GET(req: NextRequest): Promise<Response> {
  * Met à jour le last_read_at d'une participation (marquer comme lu)
  */
 export async function PATCH(req: NextRequest): Promise<Response> {
+  // ── CSRF + Auth (CSRF en premier pour bloquer les requêtes cross-site cookie-only)
+  const csrfError = assertCsrfSafe(req);
+  if (csrfError) return csrfError;
+
   const userId = await getUserIdBearerFirst(req);
   if (!userId) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
@@ -228,7 +232,10 @@ export async function PATCH(req: NextRequest): Promise<Response> {
  * dans n'importe quelle conversation en forgeant la requête.
  */
 export async function DELETE(req: NextRequest): Promise<Response> {
-  // ── Auth en premier (401 avant 400) ──────────────────────────────────────
+  // ── CSRF + Auth (CSRF en premier pour bloquer les requêtes cross-site cookie-only)
+  const csrfError = assertCsrfSafe(req);
+  if (csrfError) return csrfError;
+
   const userId = await getUserIdBearerFirst(req);
   if (!userId) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });

@@ -69,7 +69,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createAdminClient } from '@/lib/supabase/server';
-import { getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
+import { getUserIdBearerFirst, assertCsrfSafe } from '@/lib/supabase/auth-helper';
 
 // ── Constantes et schéma ────────────────────────────────────────────────────
 
@@ -195,6 +195,10 @@ async function findExistingConversation(
 // ── Handler principal ────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest): Promise<Response> {
+  // ── CSRF — doit précéder l'auth pour bloquer les requêtes cross-site cookie-only
+  const csrfError = assertCsrfSafe(req);
+  if (csrfError) return csrfError;
+
   // ── Auth ────────────────────────────────────────────────────────────────────
   const userId = await getUserIdBearerFirst(req);
   if (!userId) {

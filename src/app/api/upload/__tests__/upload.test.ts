@@ -79,9 +79,12 @@ const ENTITY_UUID    = 'entity-uuid-789';
 vi.mock('server-only', () => ({}));
 
 // Mock getUserFromRequest — par défaut : authentifié (retourne { id, email })
+// Mock assertCsrfSafe — par défaut : requête safe (retourne null)
 const mockGetUser = vi.fn();
+const mockAssertCsrfSafe = vi.fn();
 vi.mock('@/lib/supabase/auth-helper', () => ({
   getUserFromRequest: mockGetUser,
+  assertCsrfSafe: mockAssertCsrfSafe,
 }));
 
 // Mock createAdminClient — gère storage ET les requêtes ownership (from/select/eq/single)
@@ -143,6 +146,8 @@ describe('POST /api/upload', () => {
     vi.resetModules();
     // Par défaut : utilisateur authentifié (objet { id, email })
     mockGetUser.mockResolvedValue({ id: TEST_USER_ID, email: 'test@example.com' });
+    // Par défaut : requête CSRF safe (null = pas d'erreur)
+    mockAssertCsrfSafe.mockReturnValue(null);
     // Par défaut : upload Supabase réussi
     mockUpload.mockResolvedValue({ data: { path: `${TEST_USER_ID}/image.jpg` }, error: null });
     mockGetUrl.mockReturnValue({ data: { publicUrl: 'https://cdn.example.com/test/image.jpg' } });
@@ -154,7 +159,20 @@ describe('POST /api/upload', () => {
     vi.clearAllMocks();
   });
 
-  // ── ① Authentification ─────────────────────────────────────────────────────
+  // ── ① CSRF ──────────────────────────────────────────────────────────────────
+
+  it('retourne 403 si la vérification CSRF échoue (requête cross-site cookie-only)', async () => {
+    mockAssertCsrfSafe.mockReturnValue(
+      new Response(JSON.stringify({ error: 'CSRF check failed' }), { status: 403 }),
+    );
+    const { POST } = await import('../route');
+    const res = await POST(makeRequest(jpegBuffer()));
+    expect(res.status).toBe(403);
+    // getUserFromRequest ne doit pas être appelé — CSRF bloque avant l'auth
+    expect(mockGetUser).not.toHaveBeenCalled();
+  });
+
+  // ── ② Authentification ─────────────────────────────────────────────────────
 
   it('retourne 401 si l\'utilisateur n\'est pas authentifié', async () => {
     mockGetUser.mockResolvedValue(null);
