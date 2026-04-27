@@ -59,7 +59,8 @@ describe('GET /api/health', () => {
 
     const supabaseCheck = body.checks.find((c: { name: string }) => c.name === 'supabase');
     expect(supabaseCheck).toBeDefined();
-    expect(['ok', 'degraded', 'error']).toContain(supabaseCheck.status);
+    // 'down' est aussi un statut valide (checkDatabase retourne 'down' si catch)
+    expect(['ok', 'degraded', 'error', 'down']).toContain(supabaseCheck.status);
   });
 
   it('le timestamp est un ISO 8601 valide', async () => {

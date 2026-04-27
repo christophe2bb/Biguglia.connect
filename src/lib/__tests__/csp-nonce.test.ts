@@ -169,17 +169,37 @@ describe('buildCsp', () => {
     });
   });
 
-  describe('style-src', () => {
-    it("includes 'unsafe-inline' in style-src (Tailwind JIT inline styles)", () => {
+  describe('style-src (CSP Level 3 granular directives)', () => {
+    it("includes 'unsafe-inline' in style-src (legacy fallback pour navigateurs sans CSP3)", () => {
       const csp = buildCsp(testNonce);
-      const styleSrc = csp.split(';').find(d => d.trim().startsWith('style-src'));
-      // style-src keeps unsafe-inline for Tailwind — intentional, documented in next.config.js
+      const styleSrc = csp.split(';').find(d => d.trim().startsWith('style-src') && !d.includes('style-src-'));
+      // style-src garde unsafe-inline comme fallback legacy — les navigateurs CSP3
+      // utilisent style-src-elem/style-src-attr qui priment sur style-src.
       expect(styleSrc).toContain("'unsafe-inline'");
     });
 
-    it('includes Google Fonts in style-src', () => {
+    it("style-src-elem inclut le nonce (bloque les <style> injectés sans nonce)", () => {
+      const csp = buildCsp(testNonce);
+      const styleElem = csp.split(';').find(d => d.trim().startsWith('style-src-elem'));
+      expect(styleElem).toBeDefined();
+      expect(styleElem).toContain(`'nonce-${testNonce}'`);
+      // Pas de unsafe-inline dans style-src-elem → les <style> sans nonce sont bloqués
+      expect(styleElem).not.toContain("'unsafe-inline'");
+    });
+
+    it("style-src-attr garde 'unsafe-inline' (React dynamic style={{}} attributes)", () => {
+      const csp = buildCsp(testNonce);
+      const styleAttr = csp.split(';').find(d => d.trim().startsWith('style-src-attr'));
+      expect(styleAttr).toBeDefined();
+      // unsafe-inline requis pour les style="" HTML générés par React JSX style={{...}}
+      expect(styleAttr).toContain("'unsafe-inline'");
+    });
+
+    it('includes Google Fonts in style-src and style-src-elem', () => {
       const csp = buildCsp(testNonce);
       expect(csp).toContain('https://fonts.googleapis.com');
+      const styleElem = csp.split(';').find(d => d.trim().startsWith('style-src-elem'));
+      expect(styleElem).toContain('https://fonts.googleapis.com');
     });
   });
 
