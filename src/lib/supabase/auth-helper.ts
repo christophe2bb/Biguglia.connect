@@ -39,10 +39,11 @@
  *      const csrfError = assertCsrfSafe(req);
  *      if (csrfError) return csrfError;
  *
- * Couverture actuelle (9 routes) :
+ * Couverture actuelle (10 routes avec assertCsrfSafe sur les mutations) :
  *   emploi/contact · emploi/demandes/[slug] · emploi/offres/[slug]
  *   emploi/ownership · messages/conversations · messages/conversation/[id]
  *   messages/unread · messages/start-conversation · messages/check-conversation
+ *   upload (POST — cookie-only depuis upload-utils.ts)
  */
 import 'server-only';
 import { NextResponse } from 'next/server';

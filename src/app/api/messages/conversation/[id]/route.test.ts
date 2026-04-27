@@ -66,13 +66,24 @@ vi.mock('@/lib/supabase/server', () => ({
 
 vi.mock('@/lib/supabase/auth-helper', () => ({
   getUserIdBearerFirst: vi.fn(),
+  // assertCsrfSafe : retourne null par défaut (requête safe)
+  assertCsrfSafe: vi.fn().mockReturnValue(null),
 }));
 
 import { createAdminClient } from '@/lib/supabase/server';
-import { getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
+import { getUserIdBearerFirst, assertCsrfSafe } from '@/lib/supabase/auth-helper';
 
-const mockGetUserId = getUserIdBearerFirst as MockedFunction<typeof getUserIdBearerFirst>;
-const mockCreateAdmin = createAdminClient as MockedFunction<typeof createAdminClient>;
+const mockGetUserId       = getUserIdBearerFirst as MockedFunction<typeof getUserIdBearerFirst>;
+const mockCreateAdmin     = createAdminClient as MockedFunction<typeof createAdminClient>;
+const mockAssertCsrfSafe  = assertCsrfSafe as MockedFunction<typeof assertCsrfSafe>;
+
+/** Réponse 403 CSRF prête à retourner dans les tests de rejet cross-site */
+function makeCsrf403(): Response {
+  return new Response(
+    JSON.stringify({ error: 'Requête refusée : en-tête Origin manquant (protection CSRF).' }),
+    { status: 403, headers: { 'Content-Type': 'application/json' } },
+  );
+}
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -598,7 +609,18 @@ describe('PATCH /api/messages/conversation/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetUserId.mockResolvedValue(USER_A);
+    mockAssertCsrfSafe.mockReturnValue(null); // safe par défaut
     mockCreateAdmin.mockReturnValue(buildAdminMock() as unknown as ReturnType<typeof createAdminClient>);
+  });
+
+  // ── CSRF ──────────────────────────────────────────────────────────────────
+
+  it('🔒 CSRF : retourne 403 si assertCsrfSafe rejette la requête cross-site', async () => {
+    mockAssertCsrfSafe.mockReturnValueOnce(makeCsrf403() as never);
+    const res = await PATCH(makePatchReq({ action: 'mark_read' }), routeParams());
+    expect(res.status).toBe(403);
+    const json = await res.json();
+    expect(json.error).toContain('CSRF');
   });
 
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -717,7 +739,18 @@ describe('POST /api/messages/conversation/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetUserId.mockResolvedValue(USER_A);
+    mockAssertCsrfSafe.mockReturnValue(null); // safe par défaut
     mockCreateAdmin.mockReturnValue(buildAdminMock() as unknown as ReturnType<typeof createAdminClient>);
+  });
+
+  // ── CSRF ──────────────────────────────────────────────────────────────────
+
+  it('🔒 CSRF : retourne 403 si assertCsrfSafe rejette la requête cross-site', async () => {
+    mockAssertCsrfSafe.mockReturnValueOnce(makeCsrf403() as never);
+    const res = await POST(makePostReq({ content: 'Test message' }), routeParams());
+    expect(res.status).toBe(403);
+    const json = await res.json();
+    expect(json.error).toContain('CSRF');
   });
 
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -803,7 +836,18 @@ describe('DELETE /api/messages/conversation/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetUserId.mockResolvedValue(USER_A);
+    mockAssertCsrfSafe.mockReturnValue(null); // safe par défaut
     mockCreateAdmin.mockReturnValue(buildAdminMock() as unknown as ReturnType<typeof createAdminClient>);
+  });
+
+  // ── CSRF ──────────────────────────────────────────────────────────────────
+
+  it('🔒 CSRF : retourne 403 si assertCsrfSafe rejette la requête cross-site', async () => {
+    mockAssertCsrfSafe.mockReturnValueOnce(makeCsrf403() as never);
+    const res = await DELETE(makeDeleteReq(MSG_ID), routeParams());
+    expect(res.status).toBe(403);
+    const json = await res.json();
+    expect(json.error).toContain('CSRF');
   });
 
   it('retourne 400 si messageId est absent de la query string', async () => {

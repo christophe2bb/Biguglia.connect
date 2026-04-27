@@ -54,7 +54,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
+import { getUserIdBearerFirst, assertCsrfSafe } from '@/lib/supabase/auth-helper';
 import { MAX_CONV_IDS } from './constants';
 
 /** Marqueurs identifiant les messages système (générés automatiquement). */
@@ -214,6 +214,9 @@ export async function GET(req: NextRequest) {
  * ne peut marquer comme lu que ses propres participations.
  */
 export async function PATCH(req: NextRequest) {
+  const csrfError = assertCsrfSafe(req);
+  if (csrfError) return csrfError;
+
   const userId = await getUserIdBearerFirst(req);
   if (!userId) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });

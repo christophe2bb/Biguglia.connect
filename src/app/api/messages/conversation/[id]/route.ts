@@ -15,7 +15,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
+import { getUserIdBearerFirst, assertCsrfSafe } from '@/lib/supabase/auth-helper';
 import type { ConversationApiResponse } from '@/app/(private)/messages/[id]/_types';
 import {
   zodError,
@@ -96,6 +96,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const csrfError = assertCsrfSafe(req);
+  if (csrfError) return csrfError;
+
   const { id } = await params;
   const conversationId = id;
   const userId = await getUserIdBearerFirst(req);
@@ -143,6 +146,9 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const csrfError = assertCsrfSafe(req);
+  if (csrfError) return csrfError;
+
   const { id } = await params;
   const conversationId = id;
   const userId = await getUserIdBearerFirst(req);
@@ -184,6 +190,9 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const csrfError = assertCsrfSafe(req);
+  if (csrfError) return csrfError;
+
   const { id } = await params;
   const conversationId = id;
   const messageId = new URL(req.url).searchParams.get('messageId');
