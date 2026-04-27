@@ -297,6 +297,24 @@ describe('POST /api/upload', () => {
       expect(res.status).toBe(200);
     });
 
+    it('accepte le préfixe __diagnostic__ pour un moderator (role EN, pas moderateur FR)', async () => {
+      const { POST } = await import('../route');
+      // Vérifie que 'moderator' (anglais, valeur correcte de l'enum) est accepté
+      // et que 'moderateur' (français, ancienne valeur invalide) ne serait PAS accepté.
+      mockSingle.mockResolvedValue({ data: { role: 'moderator' }, error: null });
+      mockUpload.mockResolvedValue({ data: { path: '__diagnostic__/test.png' }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `__diagnostic__/test_${Date.now()}.png`));
+      expect(res.status).toBe(200);
+    });
+
+    it('rejette le préfixe __diagnostic__ pour role moderateur (FR invalide — 403)', async () => {
+      const { POST } = await import('../route');
+      // 'moderateur' est l'ancienne valeur française — ne doit plus être reconnue
+      mockSingle.mockResolvedValue({ data: { role: 'moderateur' }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `__diagnostic__/test_${Date.now()}.png`));
+      expect(res.status).toBe(403);
+    });
+
     it('accepte le préfixe collection/{userId} (user-scoped via profile.id)', async () => {
       const { POST } = await import('../route');
       // collection/ est une règle entity-scoped vers profiles.id = profiles.id

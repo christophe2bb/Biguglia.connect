@@ -16,7 +16,7 @@
 --
 -- Après cette migration, une seule policy DELETE existe :
 --   "listings_delete_owner_or_admin"
---   USING (auth.uid() = user_id OR role IN ('admin','moderateur'))
+--   USING (auth.uid() = user_id OR is_moderator_or_admin())
 --
 -- Si une policy DELETE supplémentaire avait été ajoutée
 -- manuellement entre la baseline et ce correctif, elle sera
@@ -48,7 +48,7 @@ END $$;
 
 -- 2. Créer une policy DELETE claire et explicite
 --    Condition : l'utilisateur connecté est le propriétaire (user_id = auth.uid())
---    OU c'est un admin/moderateur
+--    OU c'est un admin/moderator (via is_moderator_or_admin())
 CREATE POLICY "listings_delete_owner_or_admin"
   ON public.listings
   AS PERMISSIVE
@@ -56,11 +56,7 @@ CREATE POLICY "listings_delete_owner_or_admin"
   TO PUBLIC
   USING (
     auth.uid() = user_id
-    OR EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid()
-        AND role IN ('admin', 'moderateur')
-    )
+    OR is_moderator_or_admin()
   );
 
 -- 3. Vérification
