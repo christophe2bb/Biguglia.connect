@@ -23,7 +23,8 @@ Do **not** open public GitHub issues for security bugs.
 | CSP missing / weak CSP on `supabase.com/dashboard` URL | Critical | **Out-of-scope** — same third-party URL, different rule | §3.0 |
 | `dangerouslySetInnerHTML` in `JsonLd.tsx` (Aikido re-scan) | Medium | `// nosec` added — Aikido AI confirmed false positive | #363 |
 | CWE-22 path traversal in uploads — 2 missed files | High | `safeImageExt()` applied to `artisan-profil` + `materiel/nouveau` | #371 |
-| CSP `script-src` + `style-src` `'unsafe-inline'` (app) | Medium | **Accepted** — Next.js 15 SSR constraint; nonce migration post-prod | §3.1 |
+| CSP `script-src` `'unsafe-inline'` (app) | Medium | **Résolu** — nonce + strict-dynamic livré dans `middleware.ts` (PR #425/#427) | §3.1 |
+| CSP `style-src` `'unsafe-inline'` (app) | Low | **Accepted** — React `style={{}}` dynamiques (79 cas restants) ; `style-src-elem` noncé livré (PR #427) | §3.1 |
 
 ---
 
@@ -69,11 +70,13 @@ Supabase intentionally uses `'unsafe-inline'` and `'unsafe-eval'` on their own d
 #### Biguglia Connect app — Our CSP is correctly configured
 
 ```bash
-# Our app sets a strict CSP via next.config.js (served by Vercel):
-# script-src 'self' 'unsafe-inline' blob:
+# Our app sets a strict CSP via src/middleware.ts → buildCsp(nonce) (served by Vercel Edge):
+# script-src 'nonce-{nonce}' 'strict-dynamic' blob:
 #             https://vercel.live https://*.vercel-scripts.com
 #             https://browser.sentry-cdn.com
-# (unsafe-eval removed in production — see §3.1 for full rationale)
+# (unsafe-eval absent in production — isDev flag in buildCsp() — see §3.1 for full rationale)
+# style-src-elem 'nonce-{nonce}' 'self' fonts.googleapis.com   (CSP Level 3, PR #427)
+# style-src-attr 'unsafe-inline'                               (React dynamic style= attributes)
 ```
 
 No code change in this repository can affect headers served by `supabase.com`.
@@ -92,31 +95,37 @@ a new alert. The only permanent fix is the scope exclusion above — not a code 
 
 ---
 
-### 3.1 CSP `script-src` + `style-src` — `'unsafe-inline'` Retained (Biguglia Connect app)
+### 3.1 CSP — État actuel (mis à jour post-PR #425/#427)
 
-**Status**: Assumed / accepted — contrainte technique Next.js 15 App Router.  
-Migration nonces = chantier séparé, planifié post-production (voir §4).  
-**Risk level**: Medium  
-**Directives concernées**: `script-src 'unsafe-inline'` · `style-src 'unsafe-inline'`  
-**Scanner**: signale CSP faible sur ces deux directives
+#### `script-src` — **Résolu** (PR #425, 2026-04-27)
 
-#### `script-src 'unsafe-inline'` — pourquoi obligatoire
+**Status**: ✅ Résolu — `'unsafe-inline'` retiré de `script-src` en production.  
+**Implémentation** : `src/middleware.ts` → `buildCsp(nonce)` — nonce par requête + `'strict-dynamic'`.  
+**Fichier source** : `src/lib/csp-nonce.ts` + `src/middleware.ts`.
 
-1. **Next.js App Router** injecte des balises `<script>` inline non-noncées pour l'hydratation SSR :
-   - `__NEXT_DATA__` (props initiales)
-   - React Server Components payload
-   - Route prefetch manifests
+La migration nonce (§4 ci-dessous) est **entièrement livrée** :
+- Phase 1 : nonce généré par requête dans le middleware ✅
+- Phase 2 : nonce propagé via header `x-nonce` aux Server Components ✅
+- Phase 3 : `'nonce-{nonce}' 'strict-dynamic'` dans `script-src` (pas d'`'unsafe-inline'`) ✅
+- Phase 4 : `JsonLd.tsx` utilise `nonce={nonce}` sur la balise `<script>` ✅
 
-   Sans `'unsafe-inline'`, l'application entière s'arrête (écran blanc).  
-   Référence : https://github.com/vercel/next.js/issues/15840
+`'unsafe-eval'` conservé uniquement en développement (`isDev`) pour le HMR Next.js — absent en production.
 
-2. **`JsonLd.tsx`** utilise `dangerouslySetInnerHTML` pour les balises  
-   `<script type="application/ld+json">` requises par les Rich Results Google.  
-   La sortie est sanitisée via `safeJsonLd()` (voir §3.3).
+Scanner Aikido/Semgrep : si l'alerte `script-src unsafe-inline` réapparaît, vérifier que la page testée
+est bien servie par Vercel (le middleware s'exécute en Edge). En local sans middleware, la CSP statique
+de `next.config.js` est utilisée comme fallback.
 
-3. **Vercel Live** injecte des scripts inline de monitoring/preview.
+#### `style-src 'unsafe-inline'` — conservé (risque Low)
 
-#### `style-src 'unsafe-inline'` — pourquoi obligatoire
+**Status**: Accepted / assumed — React `style={{}}` dynamiques non migrables en classe Tailwind.  
+**Risk level**: Low (style injection uniquement, pas d'exécution JS)  
+**Directive concernée**: `style-src 'unsafe-inline'` (fallback legacy) · `style-src-attr 'unsafe-inline'`
+
+**CSP Level 3 livré (PR #427)** : `style-src-elem 'nonce-{nonce}' 'self' fonts.googleapis.com`
+bloque les `<style>` injectés sans nonce. `style-src-attr` conserve `'unsafe-inline'` pour les
+attributs `style=""` générés par React (`width: ${pct}%`, etc.).
+
+#### `style-src 'unsafe-inline'` — état de la migration
 
 **Statut migration (2026-04-23)** : sprint 1 terminé — 90 `style={{}}` supprimés (169 → 79, −53 %).
 
@@ -160,15 +169,17 @@ Migration nonces = chantier séparé, planifié post-production (voir §4).
    `<style>` dans le `<head>` en développement. En production le CSS est statique,  
    mais la valeur reste requise pour la compatibilité build.
 
-> **Décision** : `'unsafe-inline'` conservé dans `style-src` le temps du sprint 2.  
-> Sprint 1 a réduit la surface de 53 % (169 → 79). Ce choix est assumé, documenté ici  
-> et dans `next.config.js`. Voir PR #409 pour le détail des changements.
+> **Décision** : `style-src 'unsafe-inline'` conservé comme fallback legacy + `style-src-attr 'unsafe-inline'`  
+> pour les attributs `style=""` React dynamiques. Sprint 1 a réduit la surface de 53 % (169 → 79).  
+> Ce choix est assumé, documenté ici et dans `src/middleware.ts`. Voir PR #409, #427.
 
 #### Atténuations déjà en place
 
 | Atténuation | Détail |
 |-------------|--------|
-| `'unsafe-eval'` retiré en prod | Conservé uniquement en dev pour le HMR Next.js |
+| `script-src` nonce + strict-dynamic | ✅ Livré en prod — `unsafe-inline` retiré (PR #425) |
+| `style-src-elem` noncé | ✅ Livré en prod — bloque les `<style>` non noncés (PR #427) |
+| `'unsafe-eval'` retiré en prod | Conservé uniquement en dev (`isDev`) pour le HMR Next.js |
 | Entrées utilisateur échappées | `safeJsonLd()`, `safeImageExt()`, `safeDocExt()` |
 | Pas de wildcard script | CSP restreint à `'self'` + domaines explicites |
 | `X-Frame-Options: DENY` | Actif |
@@ -189,11 +200,17 @@ This is an **admin-only** setup script, not exposed to end users.
 The scanner incorrectly identifies `urllib.request.urlopen()` calls as SSRF risk  
 because it cannot trace the URL's origin statically.
 
-### 3.3 `dangerouslySetInnerHTML` in `JsonLd.tsx` — False Positive
+### 3.3 `dangerouslySetInnerHTML` in `JsonLd.tsx` — Low Risk / False Positive
 
-**Status**: Confirmed false positive — downgraded by Aikido AI triage  
-**File**: `src/components/seo/JsonLd.tsx` line 53  
+**Status**: Confirmed false positive — downgraded by Aikido AI triage — **classified Low risk, non-blocking**  
+**File**: `src/components/seo/JsonLd.tsx`  
 **Suppression**: `// nosec react/no-danger` + `// eslint-disable-next-line react/no-danger`
+
+**Why Low risk (not Medium/High)** — four independent controls in place:
+1. **Dedicated SEO component** — `JsonLd.tsx` serves a single purpose: JSON-LD structured data for Google Rich Results. No other use of `dangerouslySetInnerHTML` exists in the codebase.
+2. **`safeJsonLd()` sanitizer** — escapes all HTML injection vectors before serialisation.
+3. **CSP nonce** — the `<script>` tag carries `nonce={nonce}` read from `headers()`. Even if sanitisation were bypassed, the browser CSP (`'nonce-{nonce}' 'strict-dynamic'`) would block execution of any injected script without the correct nonce.
+4. **No user-controlled data** — JSON-LD schemas are constructed server-side from typed TypeScript objects; raw user input never flows into this component unescaped.
 
 `dangerouslySetInnerHTML` is used **only** for `<script type="application/ld+json">` —  
 a requirement for Google Rich Results (Schema.org). It cannot be replaced with textContent  
@@ -213,80 +230,63 @@ désinfection HTML appropriée"*.
 
 ---
 
-## 4. Nonce CSP Migration Roadmap
+## 4. Nonce CSP Migration — ✅ Complétée (PR #425 + #427, 2026-04-27)
 
-**Goal**: Replace `'unsafe-inline'` with `'nonce-{nonce}' 'strict-dynamic'`
+Toutes les phases sont livrées en production. Cette section documente l'implémentation réelle.
 
-### Phase 1 — Generate nonce per request (middleware)
+### Phase 1 — Nonce par requête dans le middleware ✅ LIVRÉ
 
 ```typescript
-// src/middleware.ts
-import { nanoid } from 'nanoid';
-
-export function middleware(request: NextRequest) {
-  const nonce = Buffer.from(nanoid()).toString('base64');
-  const cspHeader = `script-src 'nonce-${nonce}' 'strict-dynamic'; ...`;
-  
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-nonce', nonce);
-  requestHeaders.set('Content-Security-Policy', cspHeader);
-  
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
-  response.headers.set('Content-Security-Policy', cspHeader);
-  return response;
+// src/middleware.ts — buildCsp(nonce) + src/lib/csp-nonce.ts
+// Le nonce est généré par generateNonce() (128 bits, base64url)
+// et injecté dans le header x-nonce (request) + Content-Security-Policy (response).
+export function buildCsp(nonce: string): string {
+  const scriptSrc = isDev
+    ? `'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval' blob: https://vercel.live ...`
+    : `'nonce-${nonce}' 'strict-dynamic' blob: https://vercel.live ...`;
+  // ...
 }
 ```
 
-### Phase 2 — Propagate nonce to layout
+### Phase 2 — Propagation nonce aux Server Components ✅ LIVRÉ
+
+Le nonce est lu via `(await headers()).get('x-nonce')` dans :
+- `src/components/seo/JsonLd.tsx` (nonce sur `<script type="application/ld+json">`)
+- `src/app/layout.tsx` (nonce sur les scripts tiers si applicable)
+
+### Phase 3 — `'nonce-{nonce}' 'strict-dynamic'` en production ✅ LIVRÉ
+
+`script-src` en production : `'nonce-{nonce}' 'strict-dynamic' blob: https://vercel.live https://*.vercel-scripts.com https://browser.sentry-cdn.com`
+
+`'unsafe-inline'` est **absent** de `script-src` en production.
+
+### Phase 4 — `JsonLd.tsx` nonce-aware ✅ LIVRÉ
 
 ```typescript
-// src/app/layout.tsx
-import { headers } from 'next/headers';
-
-export default async function RootLayout({ children }) {
-  const nonce = (await headers()).get('x-nonce') ?? '';
+// src/components/seo/JsonLd.tsx — implémentation actuelle
+export async function JsonLd({ data, nonce: nonceProp }: JsonLdProps) {
+  let nonce = nonceProp;
+  if (!nonce) {
+    const headersList = await headers();
+    nonce = headersList.get('x-nonce') ?? undefined;
+  }
   return (
-    <html>
-      <head>
-        <Script nonce={nonce} ... />
-      </head>
-      <body>{children}</body>
-    </html>
+    <script
+      type="application/ld+json"
+      nonce={nonce}
+      dangerouslySetInnerHTML={{ __html: safeJsonLd(data) }} // nosec
+    />
   );
 }
 ```
 
-### Phase 3 — Replace `'unsafe-inline'` with `'nonce-{nonce}' 'strict-dynamic'`
+### CSP Level 3 style-src granulaire — ✅ LIVRÉ (PR #427)
 
-When `'strict-dynamic'` is in CSP, scripts loaded **by** a trusted script inherit trust —  
-no need to allowlist each third-party domain. The CSP becomes:
-
-```
-script-src 'nonce-{nonce}' 'strict-dynamic' https:;
-```
-
-### Phase 4 — Refactor `JsonLd.tsx`
-
-Replace `dangerouslySetInnerHTML` with a nonce-aware approach:
-
-```typescript
-// Option A: Pass nonce prop
-<script type="application/ld+json" nonce={nonce}
-  dangerouslySetInnerHTML={{ __html: safeJsonLd(data) }} />
-
-// Option B: API Route with JSON response + correct headers
-// GET /api/schema/[type] → returns JSON with Content-Type: application/ld+json
-```
-
-### Estimated Effort
-
-| Phase | Complexity | Estimated Time |
+| Directive | Valeur | Rôle |
 |---|---|---|
-| Phase 1 (middleware nonce) | Medium | 1 day |
-| Phase 2 (layout propagation) | Medium | 0.5 day |
-| Phase 3 (CSP update + testing) | Low | 0.5 day |
-| Phase 4 (JsonLd refactor) | Low | 0.5 day |
-| **Total** | | **~2.5 days** |
+| `style-src-elem` | `'nonce-{nonce}' 'self' fonts.googleapis.com` | Bloque les `<style>` sans nonce |
+| `style-src-attr` | `'unsafe-inline'` | Attributs `style=""` React dynamiques |
+| `style-src` | `'self' 'unsafe-inline' fonts.googleapis.com` | Fallback navigateurs sans CSP3 |
 
 ---
 
@@ -294,15 +294,15 @@ Replace `dangerouslySetInnerHTML` with a nonce-aware approach:
 
 | Header | Value | Purpose |
 |---|---|---|
-| `Content-Security-Policy` | See `next.config.js` | XSS, clickjacking, injection prevention |
+| `Content-Security-Policy` | Généré par `src/middleware.ts` (nonce par requête) | XSS, clickjacking, injection prevention |
 | `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` | Force HTTPS |
 | `X-Frame-Options` | `DENY` | Clickjacking prevention |
 | `X-Content-Type-Options` | `nosniff` | MIME-sniffing prevention |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` | Privacy |
 | `Cross-Origin-Opener-Policy` | `same-origin` | Spectre/side-channel |
 | `Cross-Origin-Resource-Policy` | `cross-origin` | Resource isolation |
-| `Permissions-Policy` | See `next.config.js` | Feature restriction |
+| `Permissions-Policy` | Défini dans `next.config.js` | Feature restriction |
 
 ---
 
-*Last updated: 2026-04-22 — §3.1 étendu : style-src unsafe-inline documenté et assumé (contrainte Next.js 15 + 154 style={{}} JSX) ; migration nonces post-prod §4.*
+*Last updated: 2026-04-27 — §3.1 mis à jour : script-src nonce+strict-dynamic livré (PR #425) ; style-src-elem noncé livré (PR #427) ; §4 roadmap remplacée par l'implémentation réelle ; §5 CSP source corrigée (middleware.ts, pas next.config.js).*
