@@ -150,19 +150,20 @@ interface OwnershipRule {
 }
 
 const ENTITY_OWNERSHIP_RULES: Record<string, OwnershipRule> = {
-  listings:        { table: 'listings',         idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
-  artisans:        { table: 'artisan_profiles', idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
-  requests:        { table: 'service_requests', idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
-  events:          { table: 'events',           idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
-  associations:    { table: 'associations',     idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
-  'coups-de-main': { table: 'coups_de_main',   idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
-  'lost-found':    { table: 'lost_found',       idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
-  promenades:      { table: 'promenades',       idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
-  outings:         { table: 'outings',          idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
-  equipment:       { table: 'equipment',        idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
-  forum:           { table: 'forum_topics',     idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
-  cv:              { table: 'job_demands',      idColumn: 'id', userCol: 'user_id',    idSegment: 1 },
-  collection:      { table: 'profiles',         idColumn: 'id', userCol: 'id',         idSegment: 1 },
+  // table            vraie table DB          PK       colonne owner              segment
+  listings:        { table: 'listings',         idColumn: 'id', userCol: 'user_id',      idSegment: 1 },
+  artisans:        { table: 'artisan_profiles', idColumn: 'id', userCol: 'user_id',      idSegment: 1 },
+  requests:        { table: 'service_requests', idColumn: 'id', userCol: 'resident_id',  idSegment: 1 }, // ⚠️ resident_id (pas user_id)
+  events:          { table: 'events',           idColumn: 'id', userCol: 'author_id',    idSegment: 1 }, // ⚠️ author_id
+  associations:    { table: 'associations',     idColumn: 'id', userCol: 'author_id',    idSegment: 1 }, // ⚠️ author_id
+  'coups-de-main': { table: 'help_requests',   idColumn: 'id', userCol: 'author_id',    idSegment: 1 }, // ⚠️ table=help_requests, author_id
+  'lost-found':    { table: 'lost_found_items', idColumn: 'id', userCol: 'author_id',   idSegment: 1 }, // ⚠️ table=lost_found_items, author_id
+  promenades:      { table: 'promenades',       idColumn: 'id', userCol: 'author_id',    idSegment: 1 }, // ⚠️ author_id
+  outings:         { table: 'group_outings',    idColumn: 'id', userCol: 'organizer_id', idSegment: 1 }, // ⚠️ table=group_outings, organizer_id
+  equipment:       { table: 'equipment_items',  idColumn: 'id', userCol: 'owner_id',     idSegment: 1 }, // ⚠️ table=equipment_items, owner_id
+  forum:           { table: 'forum_topics',     idColumn: 'id', userCol: 'author_id',    idSegment: 1 }, // ⚠️ author_id
+  cv:              { table: 'job_demands',      idColumn: 'id', userCol: 'user_id',      idSegment: 1 },
+  collection:      { table: 'profiles',         idColumn: 'id', userCol: 'id',           idSegment: 1 }, // profile.id = owner
 };
 
 /**

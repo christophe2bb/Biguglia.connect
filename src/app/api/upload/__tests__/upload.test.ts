@@ -348,6 +348,113 @@ describe('POST /api/upload', () => {
     });
   });
 
+  // ── ③-bis : Régression mappings entity-scoped (Bloquant 2) ──────────────────
+  // Vérifie que chaque préfixe utilise la bonne table ET la bonne colonne owner.
+  // Avant le fix, tous ces préfixes renvoyaient 403 car la colonne était 'user_id'
+  // alors que le schéma réel utilise resident_id / author_id / organizer_id / owner_id.
+
+  describe('mappings entity-scoped corrigés (Bloquant 2)', () => {
+    it('requests/ → service_requests.resident_id (200 si owner)', async () => {
+      const { POST } = await import('../route');
+      mockSingle.mockResolvedValue({ data: { resident_id: TEST_USER_ID }, error: null });
+      mockUpload.mockResolvedValue({ data: { path: `requests/${ENTITY_UUID}/ts.jpg` }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `requests/${ENTITY_UUID}/ts.jpg`));
+      expect(res.status).toBe(200);
+    });
+
+    it('requests/ → service_requests.resident_id (403 si autre user)', async () => {
+      const { POST } = await import('../route');
+      mockSingle.mockResolvedValue({ data: { resident_id: OTHER_USER_ID }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `requests/${ENTITY_UUID}/ts.jpg`));
+      expect(res.status).toBe(403);
+    });
+
+    it('events/ → events.author_id (200 si owner)', async () => {
+      const { POST } = await import('../route');
+      mockSingle.mockResolvedValue({ data: { author_id: TEST_USER_ID }, error: null });
+      mockUpload.mockResolvedValue({ data: { path: `events/${ENTITY_UUID}/ts.jpg` }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `events/${ENTITY_UUID}/ts.jpg`));
+      expect(res.status).toBe(200);
+    });
+
+    it('events/ → events.author_id (403 si autre user)', async () => {
+      const { POST } = await import('../route');
+      mockSingle.mockResolvedValue({ data: { author_id: OTHER_USER_ID }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `events/${ENTITY_UUID}/ts.jpg`));
+      expect(res.status).toBe(403);
+    });
+
+    it('associations/ → associations.author_id (200 si owner)', async () => {
+      const { POST } = await import('../route');
+      mockSingle.mockResolvedValue({ data: { author_id: TEST_USER_ID }, error: null });
+      mockUpload.mockResolvedValue({ data: { path: `associations/${ENTITY_UUID}/ts.jpg` }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `associations/${ENTITY_UUID}/ts.jpg`));
+      expect(res.status).toBe(200);
+    });
+
+    it('coups-de-main/ → help_requests.author_id (200 si owner)', async () => {
+      const { POST } = await import('../route');
+      mockSingle.mockResolvedValue({ data: { author_id: TEST_USER_ID }, error: null });
+      mockUpload.mockResolvedValue({ data: { path: `coups-de-main/${ENTITY_UUID}/ts.jpg` }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `coups-de-main/${ENTITY_UUID}/ts.jpg`));
+      expect(res.status).toBe(200);
+    });
+
+    it('lost-found/ → lost_found_items.author_id (200 si owner)', async () => {
+      const { POST } = await import('../route');
+      mockSingle.mockResolvedValue({ data: { author_id: TEST_USER_ID }, error: null });
+      mockUpload.mockResolvedValue({ data: { path: `lost-found/${ENTITY_UUID}/ts.jpg` }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `lost-found/${ENTITY_UUID}/ts.jpg`));
+      expect(res.status).toBe(200);
+    });
+
+    it('promenades/ → promenades.author_id (200 si owner)', async () => {
+      const { POST } = await import('../route');
+      mockSingle.mockResolvedValue({ data: { author_id: TEST_USER_ID }, error: null });
+      mockUpload.mockResolvedValue({ data: { path: `promenades/${ENTITY_UUID}/ts.jpg` }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `promenades/${ENTITY_UUID}/ts.jpg`));
+      expect(res.status).toBe(200);
+    });
+
+    it('outings/ → group_outings.organizer_id (200 si owner)', async () => {
+      const { POST } = await import('../route');
+      mockSingle.mockResolvedValue({ data: { organizer_id: TEST_USER_ID }, error: null });
+      mockUpload.mockResolvedValue({ data: { path: `outings/${ENTITY_UUID}/ts.jpg` }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `outings/${ENTITY_UUID}/ts.jpg`));
+      expect(res.status).toBe(200);
+    });
+
+    it('outings/ → group_outings.organizer_id (403 si autre user)', async () => {
+      const { POST } = await import('../route');
+      mockSingle.mockResolvedValue({ data: { organizer_id: OTHER_USER_ID }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `outings/${ENTITY_UUID}/ts.jpg`));
+      expect(res.status).toBe(403);
+    });
+
+    it('equipment/ → equipment_items.owner_id (200 si owner)', async () => {
+      const { POST } = await import('../route');
+      mockSingle.mockResolvedValue({ data: { owner_id: TEST_USER_ID }, error: null });
+      mockUpload.mockResolvedValue({ data: { path: `equipment/${ENTITY_UUID}/ts.jpg` }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `equipment/${ENTITY_UUID}/ts.jpg`));
+      expect(res.status).toBe(200);
+    });
+
+    it('equipment/ → equipment_items.owner_id (403 si autre user)', async () => {
+      const { POST } = await import('../route');
+      mockSingle.mockResolvedValue({ data: { owner_id: OTHER_USER_ID }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `equipment/${ENTITY_UUID}/ts.jpg`));
+      expect(res.status).toBe(403);
+    });
+
+    it('forum/ → forum_topics.author_id (200 si owner)', async () => {
+      const { POST } = await import('../route');
+      mockSingle.mockResolvedValue({ data: { author_id: TEST_USER_ID }, error: null });
+      mockUpload.mockResolvedValue({ data: { path: `forum/${ENTITY_UUID}/ts.jpg` }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', `forum/${ENTITY_UUID}/ts.jpg`));
+      expect(res.status).toBe(200);
+    });
+  });
+
   // ── ④ Validation de la taille ─────────────────────────────────────────────
 
   it('retourne 413 si le fichier dépasse 5 MB pour le bucket photos', async () => {
