@@ -23,6 +23,7 @@ import dynamic from 'next/dynamic';
 import { TrendingUp, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import type { AdminDashboardStats } from '@/app/api/admin/dashboard/route';
+import { adminFetch } from '@/lib/admin-fetch';
 
 import AdminStatsGrid from './_components/AdminStatsGrid';
 import AdminNavGrid   from './_components/AdminNavGrid';
@@ -39,7 +40,7 @@ function AdminContent() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/dashboard', { credentials: 'include' });
+      const res = await adminFetch('/api/admin/dashboard');
       if (!res.ok) {
         console.warn('[Admin] /api/admin/dashboard →', res.status);
         return;

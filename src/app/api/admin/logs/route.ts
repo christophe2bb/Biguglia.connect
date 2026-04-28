@@ -118,17 +118,17 @@ export async function GET(req: Request): Promise<Response> {
   // pour afficher un nom lisible dans l'interface.
   const actorIdSet = new Set((logs ?? []).map((l) => l.actor_id as string));
   const actorIds = Array.from(actorIdSet);
-  const profileMap: Record<string, { email: string; display_name: string | null }> = {};
+  const profileMap: Record<string, { email: string; full_name: string | null }> = {};
 
   if (actorIds.length > 0) {
     const { data: profiles } = await adminClient
       .from('profiles')
-      .select('id, email, display_name')
+      .select('id, email, full_name')
       .in('id', actorIds);
 
     if (profiles) {
       for (const p of profiles) {
-        profileMap[p.id] = { email: p.email, display_name: p.display_name };
+        profileMap[p.id] = { email: p.email, full_name: p.full_name };
       }
     }
   }
@@ -139,7 +139,7 @@ export async function GET(req: Request): Promise<Response> {
     return {
       ...l,
       actor_email: profile?.email     ?? null,
-      actor_name:  profile?.display_name ?? null,
+      actor_name:  profile?.full_name ?? null,
     } as AdminActionLog;
   });
 

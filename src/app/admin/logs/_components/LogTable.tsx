@@ -5,7 +5,7 @@
  * Composant extrait de logs/page.tsx pour alléger l'orchestrateur.
  */
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import type { AdminActionLog } from '@/app/api/admin/logs/route';
 import { actionLabel, actionColor, formatDate } from './log-config';
@@ -59,9 +59,8 @@ export default function LogTable({ logs, loading, hasFilters }: LogTableProps) {
           </thead>
           <tbody className="divide-y divide-gray-50">
             {logs.map((log) => (
-              <>
+              <Fragment key={log.id}>
                 <tr
-                  key={log.id}
                   onClick={() => toggle(log.id)}
                   className="hover:bg-gray-50/60 cursor-pointer transition-colors"
                 >
@@ -108,7 +107,7 @@ export default function LogTable({ logs, loading, hasFilters }: LogTableProps) {
                 </tr>
 
                 {expandedId === log.id && (
-                  <tr key={`${log.id}-detail`} className="bg-slate-50">
+                  <tr className="bg-slate-50">
                     <td colSpan={6} className="px-6 py-4">
                       <div className="mb-2">
                         <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Métadonnées (meta)</span>
@@ -123,7 +122,7 @@ export default function LogTable({ logs, loading, hasFilters }: LogTableProps) {
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             ))}
           </tbody>
         </table>
