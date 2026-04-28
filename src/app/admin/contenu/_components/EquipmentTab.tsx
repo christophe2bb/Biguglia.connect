@@ -64,11 +64,7 @@ export default function EquipmentTab() {
                   {equip.is_available ? 'Disponible' : 'Indisponible'}
                 </span>
                 {equip.category && <span className="text-xs text-gray-400">{equip.category.icon} {equip.category.name}</span>}
-                {equip.borrow_count > 0 && (
-                  <span className="text-xs text-indigo-600 font-medium">
-                    {equip.borrow_count} prêt{equip.borrow_count > 1 ? 's' : ''}
-                  </span>
-                )}
+
               </div>
               <div className="text-xs text-gray-500">
                 Par <span className="font-medium">{equip.owner?.full_name || equip.owner?.email}</span>

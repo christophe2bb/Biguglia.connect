@@ -68,7 +68,7 @@ export default function ForumTab() {
                 )}
                 {post.category && <span className="text-xs text-gray-400">{post.category.icon} {post.category.name}</span>}
                 <span className="text-xs text-gray-400 flex items-center gap-1">
-                  <Eye className="w-3 h-3" />{post.view_count || 0} vues
+                  <Eye className="w-3 h-3" />{post.views || 0} vues
                 </span>
               </div>
               <div className="text-xs text-gray-500">
