@@ -57,7 +57,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       let q = adminClient
         .from('listings')
         .select(`
-          id, title, description, status, condition, is_free, price,
+          id, title, description, status, listing_type, condition, price, location,
           created_at, updated_at, user_id,
           category:listing_categories(name, icon)
         `)
