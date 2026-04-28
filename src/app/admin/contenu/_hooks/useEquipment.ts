@@ -1,16 +1,13 @@
 /**
  * Hook — useEquipment
  *
+ * Lecture  : GET /api/admin/contenu/equipment_items (service-role, bypass RLS)
  * Mutations : routées via l'API serveur /api/admin/contenu/equipment_items/[id]
  *   • DELETE  : suppression
  *   • PATCH   : disponibilité (set_available)
- *
- * Avant ce correctif, les mutations appelaient directement
- * createClient().from('equipment_items').delete/update() côté navigateur.
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { adminFetch } from '@/lib/admin-fetch';
 import toast from 'react-hot-toast';
 import type { ContentEquipment } from '../_types';
@@ -21,21 +18,23 @@ export function useEquipment() {
   const [search, setSearch]           = useState('');
   const [availFilter, setAvailFilter] = useState('');
 
-  // ── Lecture ──────────────────────────────────────────────────────────────
+  // ── Lecture via API serveur ──────────────────────────────────────────────
   const fetchEquipment = useCallback(async () => {
     setLoading(true);
-    const supabase = createClient();
-    const { data } = await supabase
-      .from('equipment_items')
-      .select(`
-        id, title, description, is_available, borrow_count, condition, created_at,
-        owner:profiles!equipment_items_owner_id_fkey(id, full_name, email, avatar_url),
-        category:equipment_categories(name, icon)
-      `)
-      .order('created_at', { ascending: false })
-      .limit(200);
-    setItems((data as unknown as ContentEquipment[]) || []);
-    setLoading(false);
+    try {
+      const res = await adminFetch('/api/admin/contenu/equipment_items');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        toast.error('Erreur chargement équipements : ' + (body.error ?? res.statusText));
+        return;
+      }
+      const { items: data } = await res.json() as { items: ContentEquipment[] };
+      setItems(data ?? []);
+    } catch (err) {
+      toast.error('Erreur réseau : ' + String(err));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchEquipment(); }, [fetchEquipment]);

@@ -1,16 +1,13 @@
 /**
  * Hook — useForumPosts
  *
+ * Lecture  : GET /api/admin/contenu/forum_posts (service-role, bypass RLS)
  * Mutations : routées via l'API serveur /api/admin/contenu/forum_posts/[id]
  *   • DELETE  : suppression
  *   • PATCH   : fermer/rouvrir (set_closed), épingler/désépingler (set_pinned)
- *
- * Avant ce correctif, les mutations appelaient directement
- * createClient().from('forum_posts').delete/update() côté navigateur.
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { adminFetch } from '@/lib/admin-fetch';
 import toast from 'react-hot-toast';
 import type { ContentForumPost } from '../_types';
@@ -21,21 +18,23 @@ export function useForumPosts() {
   const [search, setSearch]             = useState('');
   const [closedFilter, setClosedFilter] = useState('');
 
-  // ── Lecture ──────────────────────────────────────────────────────────────
+  // ── Lecture via API serveur ──────────────────────────────────────────────
   const fetchPosts = useCallback(async () => {
     setLoading(true);
-    const supabase = createClient();
-    const { data } = await supabase
-      .from('forum_posts')
-      .select(`
-        id, title, content, is_closed, is_pinned, view_count, created_at,
-        author:profiles!forum_posts_author_id_fkey(id, full_name, email, avatar_url),
-        category:forum_categories(name, icon)
-      `)
-      .order('created_at', { ascending: false })
-      .limit(200);
-    setItems((data as unknown as ContentForumPost[]) || []);
-    setLoading(false);
+    try {
+      const res = await adminFetch('/api/admin/contenu/forum_posts');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        toast.error('Erreur chargement posts : ' + (body.error ?? res.statusText));
+        return;
+      }
+      const { items: data } = await res.json() as { items: ContentForumPost[] };
+      setItems(data ?? []);
+    } catch (err) {
+      toast.error('Erreur réseau : ' + String(err));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);

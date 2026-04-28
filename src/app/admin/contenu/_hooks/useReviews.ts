@@ -1,15 +1,12 @@
 /**
  * Hook — useReviews
  *
+ * Lecture  : GET /api/admin/contenu/reviews (service-role, bypass RLS)
  * Mutations : routées via l'API serveur /api/admin/contenu/reviews/[id]
  *   • DELETE : suppression
- *
- * Avant ce correctif, deleteItem appelait directement
- * createClient().from('reviews').delete() côté navigateur.
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { adminFetch } from '@/lib/admin-fetch';
 import toast from 'react-hot-toast';
 import type { ContentReview } from '../_types';
@@ -20,21 +17,23 @@ export function useReviews() {
   const [search, setSearch]             = useState('');
   const [ratingFilter, setRatingFilter] = useState('');
 
-  // ── Lecture ──────────────────────────────────────────────────────────────
+  // ── Lecture via API serveur ──────────────────────────────────────────────
   const fetchReviews = useCallback(async () => {
     setLoading(true);
-    const supabase = createClient();
-    const { data } = await supabase
-      .from('reviews')
-      .select(`
-        id, rating, comment, created_at,
-        reviewer:profiles!reviews_reviewer_id_fkey(id, full_name, email, avatar_url),
-        artisan:artisan_profiles!reviews_artisan_id_fkey(id, business_name)
-      `)
-      .order('created_at', { ascending: false })
-      .limit(200);
-    setItems((data as unknown as ContentReview[]) || []);
-    setLoading(false);
+    try {
+      const res = await adminFetch('/api/admin/contenu/reviews');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        toast.error('Erreur chargement avis : ' + (body.error ?? res.statusText));
+        return;
+      }
+      const { items: data } = await res.json() as { items: ContentReview[] };
+      setItems(data ?? []);
+    } catch (err) {
+      toast.error('Erreur réseau : ' + String(err));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchReviews(); }, [fetchReviews]);
