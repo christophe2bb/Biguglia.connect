@@ -153,6 +153,16 @@ function makeEmploiDb(opts: {
   return { from: fromMock } as unknown as ReturnType<typeof createAdminClient>;
 }
 
+// ─── CSRF helper ────────────────────────────────────────────────────────────
+
+/** Réponse 403 CSRF prête à retourner dans les tests de rejet cross-site */
+function makeCsrf403(): Response {
+  return new Response(
+    JSON.stringify({ error: 'Requête refusée : en-tête Origin manquant (protection CSRF).' }),
+    { status: 403, headers: { 'Content-Type': 'application/json' } },
+  );
+}
+
 // ─── Request builders ─────────────────────────────────────────────────────────
 
 function makeReqWithOrigin(method: string, body?: unknown): Request {
@@ -216,6 +226,14 @@ describe('DELETE /api/emploi/offres/[slug]', () => {
 
   beforeEach(() => { vi.clearAllMocks(); mockCsrf.mockReturnValue(null); });
 
+  it('🔒 CSRF : retourne 403 si assertCsrfSafe rejette la requête cross-site', async () => {
+    mockCsrf.mockReturnValueOnce(makeCsrf403() as never);
+    const res = await deleteOffer(makeReqWithOrigin('DELETE'), makeParams());
+    expect(res.status).toBe(403);
+    const json = await res.json();
+    expect(json.error).toContain('CSRF');
+  });
+
   it('401 si non authentifié', async () => {
     asGuest();
     mockCreateAdmin.mockReturnValue(makeEmploiDb());
@@ -257,6 +275,14 @@ describe('DELETE /api/emploi/offres/[slug]', () => {
 describe('PATCH /api/emploi/offres/[slug]', () => {
 
   beforeEach(() => { vi.clearAllMocks(); mockCsrf.mockReturnValue(null); });
+
+  it('🔒 CSRF : retourne 403 si assertCsrfSafe rejette la requête cross-site', async () => {
+    mockCsrf.mockReturnValueOnce(makeCsrf403() as never);
+    const res = await patchOffer(makeReqWithOrigin('PATCH', { title: 'Chef cuisinier confirmé 2026' }), makeParams());
+    expect(res.status).toBe(403);
+    const json = await res.json();
+    expect(json.error).toContain('CSRF');
+  });
 
   it('401 si non authentifié', async () => {
     asGuest();
@@ -342,6 +368,17 @@ describe('DELETE /api/emploi/demandes/[slug]', () => {
 
   beforeEach(() => { vi.clearAllMocks(); mockCsrf.mockReturnValue(null); });
 
+  it('🔒 CSRF : retourne 403 si assertCsrfSafe rejette la requête cross-site', async () => {
+    mockCsrf.mockReturnValueOnce(makeCsrf403() as never);
+    const req = new Request(`https://app.test/api/emploi/demandes/${SLUG}`, {
+      method: 'DELETE', headers: { Origin: 'https://app.test' },
+    });
+    const res = await deleteDemand(req, makeParams());
+    expect(res.status).toBe(403);
+    const json = await res.json();
+    expect(json.error).toContain('CSRF');
+  });
+
   it('401 si non authentifié', async () => {
     asGuest();
     mockCreateAdmin.mockReturnValue(makeEmploiDb());
@@ -376,6 +413,18 @@ describe('DELETE /api/emploi/demandes/[slug]', () => {
 describe('PATCH /api/emploi/demandes/[slug]', () => {
 
   beforeEach(() => { vi.clearAllMocks(); mockCsrf.mockReturnValue(null); });
+
+  it('🔒 CSRF : retourne 403 si assertCsrfSafe rejette la requête cross-site', async () => {
+    mockCsrf.mockReturnValueOnce(makeCsrf403() as never);
+    const req = new Request(`https://app.test/api/emploi/demandes/${SLUG}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json', Origin: 'https://app.test' },
+      body: JSON.stringify({ title: 'Cherche emploi saisonnier été 2026' }),
+    });
+    const res = await patchDemand(req, makeParams());
+    expect(res.status).toBe(403);
+    const json = await res.json();
+    expect(json.error).toContain('CSRF');
+  });
 
   it('403 si userId ≠ owner', async () => {
     asOther();
