@@ -55,8 +55,11 @@ export interface ListingCardProps {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function ListingCard({ listing, currentUserId, isSaved, onToggleSave }: ListingCardProps) {
-  const photos     = listing.photos as Array<{ url: string }> | undefined;
-  const lExt       = listing as Listing & { is_urgent?: boolean; sector_id?: string; author_id?: string; user_id?: string };
+  // cover_url : colonne dénormalisée sur listings (trigger trg_listing_photos_cover).
+  // Fallback sur photos[0].url pour les contextes où la relation est encore chargée
+  // (page détail, dashboard) ou si la migration n’est pas encore déployée.
+  const lExt       = listing as Listing & { is_urgent?: boolean; sector_id?: string; author_id?: string; user_id?: string; cover_url?: string | null };
+  const coverUrl   = lExt.cover_url ?? (listing.photos as Array<{ url: string }> | undefined)?.[0]?.url ?? null;
   const typeColor  = ALL_TYPE_COLORS[listing.listing_type]  || 'bg-gray-100 text-gray-700';
   const typeLabel  = ALL_TYPE_LABELS[listing.listing_type]  || listing.listing_type;
   const typeEmoji  = ALL_TYPE_EMOJIS[listing.listing_type]  || '📦';
@@ -69,9 +72,9 @@ export function ListingCard({ listing, currentUserId, isSaved, onToggleSave }: L
 
         {/* ── Photo zone — aspect-[4/3] évite le CLS (hauteur calculée sans JS) ── */}
         <div className="relative aspect-[4/3] overflow-hidden">
-          {photos && photos.length > 0 ? (
+          {coverUrl ? (
             <Image
-              src={photos[0].url}
+              src={coverUrl}
               alt={listing.title}
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"

@@ -77,21 +77,25 @@ export interface UseListingsPageReturn {
  * Centralises all filter state, data fetching from Supabase, and derived
  * computations for the /annonces listing page.
  *
- * Performance fixes applied (2026-04-27):
+ * Performance fixes applied:
  *
- *  #1  Photos join limited to 1 row per listing — was fetching ALL photos for
- *      every listing (potentially 500 × N rows over the wire). The list view
- *      only ever displays the first photo.
+ *  #1  (2026-04-27) Photos join limited to 1 row per listing — was fetching ALL
+ *      photos for every listing (potentially 500 × N rows over the wire).
+ *
+ *  #1b (2026-04-28) JOIN listing_photos éliminé complètement : on lit désormais
+ *      `cover_url` directement sur `listings` (colonne dénormalisée maintenue par
+ *      le trigger `trg_listing_photos_cover`, migration 20260428_listings_cover_url).
+ *      Économie : 0 ligne listing_photos transférée en liste (vs N × 200 avant).
  *
  *  #2  Categories fetched ONCE at mount (empty deps []) — was re-fetched on
  *      every server-filter change because it shared the same fetchData callback.
  *
  *  #3  currentPage reset folded into fetchData — eliminated the second
- *      useEffect whose deps overlapped with fetchData's, causing double renders
+ *      useEffect whose deps overlapped with fetchData’s, causing double renders
  *      and a stale-closure risk on every server-filter change.
  *
  *  #4  filtered / paginated / stats / counts wrapped in useMemo — previously
- *      recalculated on every render even when listings and filters hadn't changed.
+ *      recalculated on every render even when listings and filters hadn’t changed.
  *
  *  #5  Search input debounced (300 ms) — was re-filtering 500 listings on
  *      every keystroke without any delay.
@@ -166,29 +170,22 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
 
     const supabase = createClient();
 
-    // FIX #1: `listing_photos(url)` was fetching ALL photos for every listing.
-    // The list view only needs the first photo — use a subquery limit.
-    // Supabase PostgREST supports "!inner" and limit via the embedded resource
-    // syntax: `listing_photos(url).order(created_at).limit(1)` is not directly
-    // supported in the string DSL, so we select the relation without limit and
-    // slice in JS — but the real gain is removing description from the select
-    // (often a large text field) and relying on RLS to filter deleted rows.
-    //
-    // For a true single-photo fetch, the cleanest approach is a DB view or a
-    // separate photos API call on demand. As an immediate fix we still fetch
-    // all photos but drop `description` from the listings payload (saves ~40%
-    // payload on text-heavy listings) and cap at 200 rows instead of 500.
+    // FIX #1b (2026-04-28) : le join listing_photos est éliminé complètement.
+    // `cover_url` est une colonne dénormalisée sur `listings`, maintenue par le
+    // trigger `trg_listing_photos_cover` (migration 20260428_listings_cover_url).
+    // Avant : PostgREST renvoyait TOUTES les photos de chaque listing dans le
+    //         tableau JSON `photos` — seule photos[0].url était consommée.
+    // Après : 0 ligne listing_photos transférée ; cover_url = URL prête à l’emploi.
     let query = supabase
       .from('listings')
       .select(`
         id, title, price, location, listing_type, status,
         created_at, is_urgent, sector_id, category_id, user_id, author_id,
-        category:listing_categories(id, name, slug, icon),
-        photos:listing_photos(url)
+        cover_url,
+        category:listing_categories(id, name, slug, icon)
       `)
-      // FIX #1b: reduced from 500 to 200 — sufficient for any real village
-      // marketplace; combined with server-side filters the typical result is
-      // well under 100 items.
+      // 200 lignes max — suffisant pour un marché de village ;
+      // avec les filtres serveur la réponse typique est < 100 items.
       .limit(200);
 
     if (selectedStatus === 'active')    query = query.eq('status', 'active');
