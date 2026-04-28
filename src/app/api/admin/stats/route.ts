@@ -145,8 +145,8 @@ export async function GET(req: NextRequest) {
     adminClient.from('profiles').select('id, role, created_at').order('created_at'),
     adminClient.from('messages').select('id, created_at').order('created_at'),
     adminClient.from('conversations').select('id, created_at'),
-    adminClient.from('listings').select('id, status, views_count, created_at, category:listing_categories(name)').order('created_at'),
-    adminClient.from('forum_posts').select('id, title, status, created_at, category:forum_categories(name)').order('created_at'),
+    adminClient.from('listings').select('id, status, created_at, category:listing_categories(name)').order('created_at'),
+    adminClient.from('forum_posts').select('id, title, is_closed, created_at, category:forum_categories(name)').order('created_at'),
     adminClient.from('forum_comments').select('id, created_at').order('created_at'),
     adminClient.from('service_requests').select('id, status, created_at').order('created_at'),
     adminClient.from('reviews').select('id, rating, created_at'),
@@ -175,18 +175,18 @@ export async function GET(req: NextRequest) {
   const totalMessages     = msgs.length;
   const totalConversations = (allConversations ?? []).length;
 
-  const listings      = (allListings ?? []) as unknown as Array<{ id: string; status: string; views_count: number | null; created_at: string; category: { name: string } | null }>;
+  const listings      = (allListings ?? []) as unknown as Array<{ id: string; status: string; created_at: string; category: { name: string } | null }>;
   const totalListings  = listings.length;
   const activeListings = listings.filter(l => l.status === 'active').length;
-  const listingViews   = listings.reduce((s, l) => s + (l.views_count ?? 0), 0);
+  const listingViews   = 0; // views_count n'existe pas dans la table listings
   const listingCatMap: Record<string, number> = {};
   listings.forEach(l => { const cat = l.category?.name ?? 'Autre'; listingCatMap[cat] = (listingCatMap[cat] ?? 0) + 1; });
   const listingCategories = Object.entries(listingCatMap).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, value]) => ({ name, value }));
 
-  const posts         = (allPosts ?? []) as unknown as Array<{ id: string; title: string; status: string; created_at: string; category: { name: string } | null }>;
+  const posts         = (allPosts ?? []) as unknown as Array<{ id: string; title: string; is_closed: boolean; created_at: string; category: { name: string } | null }>;
   const totalPosts    = posts.length;
   const totalComments = (allComments ?? []).length;
-  const closedPosts   = posts.filter(p => p.status === 'closed').length;
+  const closedPosts   = posts.filter(p => p.is_closed === true).length;
   const forumCatMap: Record<string, number> = {};
   posts.forEach(p => { const cat = p.category?.name ?? 'Autre'; forumCatMap[cat] = (forumCatMap[cat] ?? 0) + 1; });
   const forumCategories = Object.entries(forumCatMap).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, value]) => ({ name, value }));
