@@ -22,7 +22,7 @@ export interface ContentForumPost {
   content: string;
   is_closed: boolean;
   is_pinned: boolean;
-  view_count: number;
+  views: number;
   created_at: string;
   author?: { id: string; full_name: string; email: string; avatar_url: string };
   category?: { name: string; icon: string };
@@ -34,7 +34,6 @@ export interface ContentEquipment {
   title: string;
   description: string;
   is_available: boolean;
-  borrow_count: number;
   condition: string;
   created_at: string;
   owner?: { id: string; full_name: string; email: string; avatar_url: string };

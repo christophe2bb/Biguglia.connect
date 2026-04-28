@@ -94,7 +94,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       let q = adminClient
         .from('forum_posts')
         .select(`
-          id, title, content, is_closed, is_pinned, view_count, created_at, author_id,
+          id, title, content, is_closed, is_pinned, views, created_at, author_id,
           category:forum_categories(name, icon)
         `)
         .order('created_at', { ascending: false })
@@ -128,7 +128,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       let q = adminClient
         .from('equipment_items')
         .select(`
-          id, title, description, is_available, borrow_count, condition, created_at, owner_id,
+          id, title, description, is_available, condition, created_at, owner_id,
           category:equipment_categories(name, icon)
         `)
         .order('created_at', { ascending: false })
