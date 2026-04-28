@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/admin-fetch';
 import toast from 'react-hot-toast';
 import type { ContentEquipment } from '../_types';
 
@@ -41,7 +42,7 @@ export function useEquipment() {
 
   // ── Suppression via API serveur ──────────────────────────────────────────
   const deleteItem = async (id: string) => {
-    const res = await fetch(`/api/admin/contenu/equipment_items/${id}`, {
+    const res = await adminFetch(`/api/admin/contenu/equipment_items/${id}`, {
       method: 'DELETE',
     });
     if (!res.ok) {
@@ -55,7 +56,7 @@ export function useEquipment() {
 
   // ── Disponibilité via API serveur ────────────────────────────────────────
   const toggleAvail = async (id: string, current: boolean) => {
-    const res = await fetch(`/api/admin/contenu/equipment_items/${id}`, {
+    const res = await adminFetch(`/api/admin/contenu/equipment_items/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'set_available', value: !current }),

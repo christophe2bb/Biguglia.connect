@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/admin-fetch';
 import toast from 'react-hot-toast';
 import type { ContentReview } from '../_types';
 
@@ -40,7 +41,7 @@ export function useReviews() {
 
   // ── Suppression via API serveur ──────────────────────────────────────────
   const deleteItem = async (id: string) => {
-    const res = await fetch(`/api/admin/contenu/reviews/${id}`, {
+    const res = await adminFetch(`/api/admin/contenu/reviews/${id}`, {
       method: 'DELETE',
     });
     if (!res.ok) {
