@@ -68,7 +68,10 @@ export default function ListingsTab() {
                 </span>
                 {item.category && <span className="text-xs text-gray-400">{item.category.icon} {item.category.name}</span>}
                 <span className="text-xs text-gray-400">
-                  {item.is_free ? '🎁 Gratuit' : item.price ? `${item.price} €` : ''}
+                  {item.listing_type === 'free' ? '🎁 Gratuit'
+                    : item.listing_type === 'wanted' ? '🔍 Recherché'
+                    : item.listing_type === 'service' ? '👷 Service'
+                    : item.price ? `${item.price} €` : ''}
                 </span>
               </div>
               <div className="text-xs text-gray-500">

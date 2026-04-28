@@ -5,9 +5,10 @@ export interface ContentListing {
   title: string;
   description: string;
   status: string;
-  condition: string;
-  is_free: boolean;
-  price?: number;
+  listing_type: string;
+  condition?: string | null;
+  price?: number | null;
+  location: string;
   created_at: string;
   updated_at: string;
   owner?: { id: string; full_name: string; email: string; avatar_url: string };
