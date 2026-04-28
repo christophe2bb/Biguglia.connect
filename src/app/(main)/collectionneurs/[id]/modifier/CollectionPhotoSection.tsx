@@ -54,7 +54,11 @@ export function CollectionPhotoSection({
         accept="image/*"
         multiple
         className="hidden"
-        onChange={e => onFilesChange(e.target.files)}
+        onChange={e => {
+          onFilesChange(e.target.files);
+          // Réinitialiser la valeur pour permettre de re-sélectionner les mêmes fichiers
+          e.target.value = '';
+        }}
       />
 
       {/* Grille de miniatures */}

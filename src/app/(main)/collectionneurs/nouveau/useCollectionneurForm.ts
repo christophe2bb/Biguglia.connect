@@ -140,9 +140,11 @@ export function useCollectionneurForm(): UseCollectionneurFormReturn {
       if (form.photos.length === 0)
         return { ok: false, msg: 'Ajoutez au moins 1 photo.' };
       if (form.photos.some(p => p.uploading))
-        return { ok: false, msg: "Photos en cours d'envoi…" };
-      if (form.photos.some(p => p.error))
-        return { ok: false, msg: 'Certaines photos ont échoué.' };
+        return { ok: false, msg: "Photos en cours d'envoi… Patientez." };
+      // Les photos en erreur sont ignorées à la soumission — on ne bloque pas
+      const validPhotos = form.photos.filter(p => p.url && !p.error);
+      if (validPhotos.length === 0)
+        return { ok: false, msg: 'Aucune photo valide. Réessayez l\'upload.' };
       return { ok: true };
     }
     return { ok: true };
@@ -163,7 +165,8 @@ export function useCollectionneurForm(): UseCollectionneurFormReturn {
   // ─── Gestion des fichiers sélectionnés ──────────────────────────────────
   const handleFiles = useCallback(async (files: FileList | null) => {
     if (!files) return;
-    const remaining = MAX_PHOTOS - form.photos.length;
+    const currentPhotos = form.photos;
+    const remaining = MAX_PHOTOS - currentPhotos.length;
     if (remaining <= 0) { toast.error(`Maximum ${MAX_PHOTOS} photos.`); return; }
 
     const accepted = Array.from(files).slice(0, remaining).filter(f => {
@@ -173,21 +176,24 @@ export function useCollectionneurForm(): UseCollectionneurFormReturn {
     });
     if (!accepted.length) return;
 
+    // Capturer startIdx AVANT le setForm pour éviter la race condition
+    const startIdx = currentPhotos.length;
+
     // Ajouter des aperçus locaux en état "uploading"
     const previews: PhotoItem[] = accepted.map((file, i) => ({
       file,
       preview:    URL.createObjectURL(file),
-      is_cover:   form.photos.length === 0 && i === 0,
-      sort_order: form.photos.length + i,
+      is_cover:   startIdx === 0 && i === 0,
+      sort_order: startIdx + i,
       uploading:  true,
     }));
     setForm(prev => ({ ...prev, photos: [...prev.photos, ...previews] }));
 
     // Upload en parallèle
-    const startIdx = form.photos.length;
     const uploaded = await Promise.all(accepted.map((file, i) => uploadPhoto(file, startIdx + i)));
 
     // Mettre à jour les photos avec l'URL ou l'erreur
+    // On retrouve les previews en cherchant par index absolu (startIdx + i)
     setForm(prev => {
       const newPhotos = [...prev.photos];
       for (let i = 0; i < accepted.length; i++) {
@@ -195,7 +201,7 @@ export function useCollectionneurForm(): UseCollectionneurFormReturn {
         if (pIdx >= 0 && pIdx < newPhotos.length) {
           newPhotos[pIdx] = uploaded[i]
             ? { ...newPhotos[pIdx], url: uploaded[i]!, uploading: false }
-            : { ...newPhotos[pIdx], uploading: false, error: 'Échec' };
+            : { ...newPhotos[pIdx], uploading: false, error: 'Échec upload' };
         }
       }
       return { ...prev, photos: newPhotos };
