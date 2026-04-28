@@ -66,6 +66,35 @@ Sentry.init({
   replaysSessionSampleRate: 0,  // pas de replay systématique (RGPD + perf)
   replaysOnErrorSampleRate: 0,  // 0 = replay désactivé → forced reflow supprimé
 
+  // ── Erreurs ignorées (filtre rapide avant beforeSend) ─────────────────────
+  //
+  // ignoreErrors : liste de patterns (string exact ou RegExp) sur le message
+  // d'erreur. Évalué AVANT beforeSend → plus efficace (pas de serialisation
+  // de l'événement complet).
+  //
+  // Erreurs filtrées :
+  //   • NotFoundError removeChild/insertBefore — DOM modifié par extensions
+  //     (Grammarly, LastPass, Dashlane, traducteurs…) avant hydratation React.
+  //     Ref : https://github.com/facebook/react/issues/17256
+  //   • ResizeObserver loop — événement navigateur bénin, non bloquant.
+  //   • Non-Error promise rejection — Supabase realtime / service workers.
+  //   • Load failed / Failed to fetch — utilisateur hors-ligne ou bloqué.
+  ignoreErrors: [
+    // Extensions navigateur modifiant le DOM avant hydratation React
+    /NotFoundError.*removeChild/i,
+    /NotFoundError.*insertBefore/i,
+    /NotFoundError.*Impossible d'exécuter/i,
+    // ResizeObserver (Chrome/Firefox, non bloquant)
+    /ResizeObserver loop limit exceeded/,
+    /ResizeObserver loop completed with undelivered notifications/,
+    // Rejections non-Error (service workers, Supabase realtime)
+    /Non-Error promise rejection captured/,
+    // Erreurs réseau bénignes (hors-ligne, bloqué par ad-blocker)
+    /Failed to fetch/i,
+    /Load failed/i,
+    /NetworkError/i,
+  ],
+
   // ── Intégrations client ───────────────────────────────────────────────────
   integrations: [
     // Feedback utilisateur (bouton "Signaler un bug" intégrable)
@@ -87,7 +116,11 @@ Sentry.init({
 
     // ① Ignorer les erreurs des extensions navigateur (url chrome-extension://)
     const frames = event.exception?.values?.[0]?.stacktrace?.frames;
-    if (frames?.some(f => f.filename?.startsWith('chrome-extension://'))) {
+    if (frames?.some(f =>
+      f.filename?.startsWith('chrome-extension://') ||
+      f.filename?.startsWith('moz-extension://') ||
+      f.filename?.includes('contentscript')
+    )) {
       return null;
     }
 
@@ -111,6 +144,32 @@ Sentry.init({
         msg.includes('lock broken') ||
         msg.includes('steal')
       ) {
+        return null;
+      }
+
+      // ③ bis — NotFoundError : removeChild / insertBefore
+      // Causé par des extensions navigateur (Grammarly, LastPass, etc.) qui
+      // modifient le DOM AVANT l'hydratation React. React essaie ensuite de
+      // supprimer un nœud que l'extension a déjà déplacé → NotFoundError.
+      // Ces erreurs sont invisibles à l'application et ne reflètent aucun bug
+      // applicatif — elles viennent du contexte navigateur de l'utilisateur.
+      // Ref : https://github.com/facebook/react/issues/17256
+      if (
+        err.name === 'NotFoundError' &&
+        (msg.includes('removechild') || msg.includes('insertbefore') || msg.includes('removeChild') || msg.includes('insertBefore'))
+      ) {
+        return null;
+      }
+
+      // ③ ter — TypeError liés aux extensions (ex. "Cannot read properties of null")
+      // provenant de scripts d'extension (contentscript.js, background.js, etc.)
+      if (err.name === 'TypeError' && frames?.some(f =>
+        !f.filename ||
+        f.filename === '<anonymous>' ||
+        f.filename?.includes('contentscript') ||
+        f.filename?.startsWith('chrome-extension://') ||
+        f.filename?.startsWith('moz-extension://')
+      )) {
         return null;
       }
     }
