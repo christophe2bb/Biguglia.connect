@@ -296,9 +296,11 @@ export default function NouvelleAnnoncePage() {
                 const files = Array.from(e.target.files || []);
                 if (photos.length + files.length > 5) {
                   toast.error('Maximum 5 photos autorisées');
+                  e.target.value = '';
                   return;
                 }
                 addPhotos(files);
+                e.target.value = '';
               }}
             />
             {previews.length > 0 && (

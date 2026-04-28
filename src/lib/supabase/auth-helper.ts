@@ -71,16 +71,34 @@ function extractBearer(req: Request): string | null {
  * Résout l'hostname attendu (lowercase) depuis NEXT_PUBLIC_SITE_URL
  * ou, en dernier recours, depuis l'en-tête Host de la requête elle-même.
  */
-function resolveAppHostname(req: Request): string {
+/**
+ * Retourne l'ensemble des hostnames autorisés pour cette app.
+ * - Toujours : le host header de la requête (domaine réel servi par Vercel/serveur).
+ * - Si NEXT_PUBLIC_SITE_URL est défini et valide : son hostname en plus.
+ *
+ * On accepte plusieurs valeurs pour couvrir :
+ *   • biguglia-connect.fr  (domaine custom)
+ *   • biguglia-connect.vercel.app  (URL Vercel automatique)
+ *   • localhost  (développement local)
+ * sans avoir à configurer manuellement chaque variante.
+ */
+function resolveAllowedHostnames(req: Request): Set<string> {
+  const allowed = new Set<string>();
+
+  // Le host header est TOUJOURS le domaine qui sert la requête → toujours autorisé
+  const hostHeader = req.headers.get('host') ?? '';
+  const hostName = hostHeader.split(':')[0].toLowerCase();
+  if (hostName) allowed.add(hostName);
+
+  // NEXT_PUBLIC_SITE_URL : hostname explicitement configuré (optionnel, en plus)
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
   if (siteUrl) {
     try {
-      return new URL(siteUrl).hostname.toLowerCase();
-    } catch { /* fallback ci-dessous */ }
+      allowed.add(new URL(siteUrl).hostname.toLowerCase());
+    } catch { /* URL invalide, ignoré */ }
   }
-  // Fallback : Host header (supprime le port éventuel)
-  const host = req.headers.get('host') ?? '';
-  return host.split(':')[0].toLowerCase();
+
+  return allowed;
 }
 
 // ─── CSRF guard ───────────────────────────────────────────────────────────────
@@ -101,7 +119,7 @@ export function assertCsrfSafe(req: Request): NextResponse | null {
   // (un attaquant cross-site ne peut pas lire le token JS de la victime)
   if (extractBearer(req)) return null;
 
-  const appHostname = resolveAppHostname(req);
+  const allowedHostnames = resolveAllowedHostnames(req);
 
   // Tenter Origin d'abord, puis Referer en fallback
   const originHeader  = req.headers.get('origin');
@@ -126,7 +144,7 @@ export function assertCsrfSafe(req: Request): NextResponse | null {
     );
   }
 
-  if (requestHostname !== appHostname) {
+  if (!allowedHostnames.has(requestHostname)) {
     return NextResponse.json(
       { error: 'Requête refusée : origine cross-site détectée (protection CSRF).' },
       { status: 403 },
