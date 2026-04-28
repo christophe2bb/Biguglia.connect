@@ -12,8 +12,9 @@
  *   GET /api/test-sentry?scenario=ping          ← vérifie sans envoyer d'erreur
  *
  * SÉCURITÉ :
- *   • Désactivée en production (NODE_ENV === 'production' sans SENTRY_TEST_ENABLED)
- *   • Protégée par le header X-Sentry-Test-Token si SENTRY_TEST_TOKEN est défini
+ *   • Désactivée en production sans SENTRY_TEST_ENABLED=true (403 immédiat)
+ *   • SENTRY_TEST_TOKEN obligatoire partout sauf développement local (fail-closed)
+ *   • Header X-Sentry-Test-Token requis à chaque appel hors développement
  *   • Ne contient aucune PII — les erreurs envoyées sont factices
  *
  * CE QUE VÉRIFIER dans Sentry après appel :
@@ -39,22 +40,33 @@ import {
 /**
  * Vérifie que la route de test est autorisée dans l'environnement courant.
  *
- * Règles :
- *   • Toujours autorisée en development.
- *   • En production : requiert la variable SENTRY_TEST_ENABLED=true ET
- *     le header X-Sentry-Test-Token correspondant à SENTRY_TEST_TOKEN.
- *   • Si SENTRY_TEST_ENABLED n'est pas défini, on autorise hors production
- *     (staging, preview Vercel) pour permettre les tests de déploiement.
+ * Règles (du plus restrictif au moins restrictif) :
+ *
+ *   development
+ *     → toujours autorisé, aucun token requis.
+ *
+ *   production sans SENTRY_TEST_ENABLED=true
+ *     → 403 immédiat — la route est désactivée par défaut.
+ *
+ *   production avec SENTRY_TEST_ENABLED=true
+ *     → le header X-Sentry-Test-Token doit correspondre à SENTRY_TEST_TOKEN.
+ *       Si SENTRY_TEST_TOKEN n'est pas défini → 403 (configuration incomplète).
+ *
+ *   preview / staging (non-production)
+ *     → SENTRY_TEST_TOKEN doit être défini ET fourni dans le header.
+ *       Sans token configuré → 403 (fail-closed : sécurité par défaut).
+ *
+ * Principe : l'état sûr est le refus. Toute ouverture est un opt-in explicite.
  */
 function isAuthorized(req: NextRequest): { ok: boolean; reason?: string } {
   const env = process.env.NODE_ENV;
   const testEnabled = process.env.SENTRY_TEST_ENABLED;
   const expectedToken = process.env.SENTRY_TEST_TOKEN;
 
-  // En développement local : toujours autorisé
+  // ── Développement local : accès libre (pas de Vercel, réseau privé)
   if (env === 'development') return { ok: true };
 
-  // En production stricte : requiert opt-in explicite
+  // ── Production sans opt-in explicite : désactivée
   if (env === 'production' && testEnabled !== 'true') {
     return {
       ok: false,
@@ -62,15 +74,24 @@ function isAuthorized(req: NextRequest): { ok: boolean; reason?: string } {
     };
   }
 
-  // Si un token est défini, le vérifier
-  if (expectedToken) {
-    const provided = req.headers.get('x-sentry-test-token');
-    if (provided !== expectedToken) {
-      return {
-        ok: false,
-        reason: 'Token de test invalide ou manquant (header X-Sentry-Test-Token).',
-      };
-    }
+  // ── Token obligatoire dans tous les autres cas (production + preview/staging)
+  // Si le token n'est pas configuré côté serveur → configuration incomplète → refus
+  if (!expectedToken) {
+    return {
+      ok: false,
+      reason:
+        'SENTRY_TEST_TOKEN non configuré. ' +
+        'Définir cette variable (openssl rand -hex 32) pour protéger la route.',
+    };
+  }
+
+  // Vérifier le header fourni par l'appelant
+  const provided = req.headers.get('x-sentry-test-token');
+  if (provided !== expectedToken) {
+    return {
+      ok: false,
+      reason: 'Token de test invalide ou manquant (header X-Sentry-Test-Token).',
+    };
   }
 
   return { ok: true };
