@@ -71,8 +71,9 @@ export default function ModifierEvenementPage() {
       if (!e1 && d1) {
         data = d1;
       } else {
+        // Fallback : événement local (table local_events)
         const { data: d2 } = await supabase
-          .from('events')
+          .from('local_events')
           .select('*')
           .eq('id', id)
           .single();
@@ -183,10 +184,10 @@ export default function ModifierEvenementPage() {
         updated_at: new Date().toISOString(),
       };
 
-      // Try events table first, then local_events
+      // Try events table first, then local_events (fallback)
       const { error: e1 } = await supabase.from('events').update(updates).eq('id', id);
       if (e1) {
-        const { error: e2 } = await supabase.from('events').update(updates).eq('id', id);
+        const { error: e2 } = await supabase.from('local_events').update(updates).eq('id', id);
         if (e2) { toast.error('Erreur lors de la mise à jour'); return; }
       }
 
