@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { EVENT_CATEGORIES_LIST } from '@/lib/events';
-import { safeImageExt, uploadFile } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile, isAcceptedImageType } from '@/lib/upload-utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface EventForm {
@@ -122,7 +122,7 @@ export default function ModifierEvenementPage() {
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []).filter(f =>
-      ['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(f.type)
+      isAcceptedImageType(f)
     );
     const maxNew = 8 - existingPhotos.length;
     const toAdd = files.slice(0, maxNew);
@@ -492,7 +492,7 @@ export default function ModifierEvenementPage() {
           {/* ── Photos ── */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
             <h2 className="font-black text-gray-900 text-lg">Photos</h2>
-            <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoSelect} />
+            <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" multiple className="hidden" onChange={handlePhotoSelect} />
 
             {/* Existing photos */}
             {existingPhotos.length > 0 && (

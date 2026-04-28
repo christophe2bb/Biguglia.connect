@@ -172,7 +172,7 @@ export default function TabAgenda({
                   </button>
                 )}
               </div>
-              <input ref={outingPhotoRef} type="file" accept="image/*" multiple className="hidden" onChange={handleOutingPhotoSelect} />
+              <input ref={outingPhotoRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" multiple className="hidden" onChange={handleOutingPhotoSelect} />
             </div>
           </div>
 

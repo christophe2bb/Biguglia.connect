@@ -365,7 +365,7 @@ export default function HelpForm({
             <input
               ref={photoInputRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
               multiple
               onChange={e => {
                 const files = Array.from(e.target.files ?? []);

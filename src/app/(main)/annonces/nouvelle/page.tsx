@@ -289,7 +289,7 @@ export default function NouvelleAnnoncePage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
               multiple
               className="hidden"
               onChange={e => {

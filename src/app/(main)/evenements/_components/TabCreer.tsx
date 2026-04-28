@@ -179,7 +179,7 @@ export default function TabCreer({
               <p className="block text-sm font-bold text-gray-700 mb-1.5">
                 Photos <span className="text-gray-400 font-normal">(optionnel · max 5)</span>
               </p>
-              <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={onPhotoSelect} />
+              <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" multiple className="hidden" onChange={onPhotoSelect} />
               {eventPhotoPreviews.length > 0 && (
                 <div className="flex gap-2 flex-wrap mb-2">
                   {eventPhotoPreviews.map((src, i) => (

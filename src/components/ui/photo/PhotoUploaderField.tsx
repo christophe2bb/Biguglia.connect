@@ -105,7 +105,7 @@ export function PhotoUploaderField({
             {photos.length}/{maxPhotos} — La <strong>1ère photo</strong> sera la photo principale
           </p>
           <input
-            ref={inputRef} type="file" accept="image/*" multiple className="hidden"
+            ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" multiple className="hidden"
             onChange={e => { handleFiles(e.target.files); e.target.value = ''; }}
             disabled={disabled}
           />

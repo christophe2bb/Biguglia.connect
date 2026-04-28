@@ -462,7 +462,7 @@ export default function ArtisanProfilPage() {
             <p className="text-sm font-medium text-gray-600">Ajouter des photos de réalisations</p>
             <p className="text-xs text-gray-400 mt-1">PNG, JPG jusqu&apos;à 5 Mo chacune</p>
           </button>
-          <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handlePhotoAdd(e.target.files)} />
+          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" multiple className="hidden" onChange={(e) => handlePhotoAdd(e.target.files)} />
           {photos.length > 0 && (
             <div className="flex flex-wrap gap-3 mt-4">
               {photos.map((photo, i) => (

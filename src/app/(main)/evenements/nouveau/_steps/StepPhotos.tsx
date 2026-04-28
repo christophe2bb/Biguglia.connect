@@ -21,7 +21,7 @@ export function StepPhotos({ form, photos, photoPreviews, photoInputRef, handleP
         Ajoutez jusqu&apos;à 8 photos. La première sera l&apos;image principale.
       </p>
 
-      <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoSelect} />
+      <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" multiple className="hidden" onChange={handlePhotoSelect} />
 
       {/* Photo grid */}
       {photoPreviews.length > 0 && (

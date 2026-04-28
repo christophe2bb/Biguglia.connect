@@ -113,6 +113,32 @@ export async function uploadFileGetPath(
 /** Extensions autorisées pour les photos. */
 const ALLOWED_IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif']);
 
+/**
+ * Valeur à passer à l'attribut `accept` des `<input type="file">`.
+ * Limite le sélecteur de fichiers aux seuls formats acceptés par le serveur,
+ * empêchant les utilisateurs de sélectionner HEIC, BMP, TIFF, RAW, etc.
+ * qui seraient rejetés par la validation magic-bytes côté serveur.
+ */
+export const ACCEPTED_IMAGE_TYPES = 'image/jpeg,image/png,image/webp,image/gif,image/avif';
+
+/**
+ * Taille maximale d'une photo (en Mo), alignée sur la limite serveur
+ * (MAX_SIZE_BY_BUCKET['photos'] dans /api/upload/route.ts).
+ */
+export const MAX_PHOTO_MB = 5;
+
+/**
+ * Vérifie que le type MIME d'un fichier est accepté par le serveur.
+ * À appeler côté client avant l'upload pour afficher un message d'erreur
+ * immédiat plutôt que d'attendre un 415 du serveur.
+ *
+ * @param file - Fichier à valider
+ * @returns true si le type est accepté, false sinon
+ */
+export function isAcceptedImageType(file: File): boolean {
+  return ACCEPTED_IMAGE_TYPES.split(',').includes(file.type);
+}
+
 /** Extensions autorisées pour les documents (CV, pièces justificatives). */
 const ALLOWED_DOC_EXTS = new Set(['pdf', 'jpg', 'jpeg', 'png', 'webp']);
 

@@ -284,7 +284,7 @@ export default function LFForm({
             )}
           </div>
 
-          <input ref={photoRef} type="file" accept="image/*" multiple className="hidden" onChange={onPhotoSelect} />
+          <input ref={photoRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" multiple className="hidden" onChange={onPhotoSelect} />
 
           <p className="text-xs text-gray-400">
             {photos.length === 0
