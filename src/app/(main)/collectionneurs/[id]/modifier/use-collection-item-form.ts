@@ -218,16 +218,20 @@ export function useCollectionItemForm(id: string) {
 
   const handleFiles = useCallback(async (files: FileList | null) => {
     if (!files) return;
-    const existing  = form.photos.filter(p => !p.toDelete);
+    const currentPhotos = form.photos;
+    const existing  = currentPhotos.filter(p => !p.toDelete);
     const remaining = MAX_PHOTOS - existing.length;
     if (remaining <= 0) { toast.error(`Maximum ${MAX_PHOTOS} photos.`); return; }
 
     const accepted = Array.from(files).slice(0, remaining).filter(f => {
-      if (!f.type.startsWith('image/')) return false;
-      if (f.size > MAX_FILE_MB * 1024 * 1024) { toast.error(`${f.name} trop lourd.`); return false; }
+      if (!f.type.startsWith('image/')) { toast.error(`${f.name} : format non supporté.`); return false; }
+      if (f.size > MAX_FILE_MB * 1024 * 1024) { toast.error(`${f.name} trop lourd (max ${MAX_FILE_MB} Mo).`); return false; }
       return true;
     });
     if (!accepted.length) return;
+
+    // Capturer startIdx AVANT le setForm (évite la race condition)
+    const startIdx = currentPhotos.length;
 
     const previews: PhotoItem[] = accepted.map((file, i) => ({
       file,
@@ -240,16 +244,17 @@ export function useCollectionItemForm(id: string) {
 
     const uploaded = await Promise.all(accepted.map((file, i) => uploadPhoto(file, existing.length + i)));
 
+    // On retrouve les previews par index absolu (startIdx + i)
     setForm(prev => {
       const newPhotos = [...prev.photos];
-      const baseIdx   = prev.photos.length - accepted.length;
       for (let i = 0; i < accepted.length; i++) {
-        if (baseIdx + i < newPhotos.length) {
-          newPhotos[baseIdx + i] = {
-            ...newPhotos[baseIdx + i],
+        const pIdx = startIdx + i;
+        if (pIdx >= 0 && pIdx < newPhotos.length) {
+          newPhotos[pIdx] = {
+            ...newPhotos[pIdx],
             url: uploaded[i] || undefined,
             uploading: false,
-            error: uploaded[i] ? undefined : 'Échec',
+            error: uploaded[i] ? undefined : 'Échec upload',
           };
         }
       }

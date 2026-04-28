@@ -61,7 +61,11 @@ export default function StepPhotos({
         accept="image/*"
         multiple
         className="hidden"
-        onChange={e => onFiles(e.target.files)}
+        onChange={e => {
+          onFiles(e.target.files);
+          // Réinitialiser la valeur pour permettre de re-sélectionner les mêmes fichiers
+          e.target.value = '';
+        }}
       />
 
       {/* Grille photos */}
