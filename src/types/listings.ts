@@ -36,6 +36,14 @@ export interface Listing {
   views?: number;
   created_at: string;
   updated_at: string;
+  /**
+   * Colonne dénormalisée (trigger trg_listing_photos_cover, migration 20260428).
+   * URL de la photo cover (display_order le plus bas) — disponible directement
+   * sur la table listings, sans join listing_photos.
+   * Utilisé par la vue liste /annonces pour éliminer le join photos.
+   * Les contextes qui chargent la relation photos complète peuvent ignorer ce champ.
+   */
+  cover_url?: string | null;
   user?: Profile;
   category?: ListingCategory;
   photos?: ListingPhoto[];
