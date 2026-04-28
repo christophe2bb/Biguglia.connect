@@ -436,8 +436,9 @@ export default function ModifierAnnoncePage() {
             onChange={e => {
               const files = Array.from(e.target.files || []);
               const total = existingPhotos.length + newPhotos.length + files.length;
-              if (total > 5) { toast.error('Maximum 5 photos autorisées'); return; }
+              if (total > 5) { toast.error('Maximum 5 photos autorisées'); e.target.value = ''; return; }
               addNewPhotos(files);
+              e.target.value = '';
             }}
           />
         </div>

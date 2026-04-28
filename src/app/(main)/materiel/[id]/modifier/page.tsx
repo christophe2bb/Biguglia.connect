@@ -466,11 +466,12 @@ export default function ModifierMaterielPage() {
             onChange={(e) => {
               const files = Array.from(e.target.files || []);
               if (existingPhotos.length + newPhotos.length + files.length > 5) {
-                toast.error('Max 5 photos'); return;
+                toast.error('Max 5 photos'); e.target.value = ''; return;
               }
               const urls = files.map(f => URL.createObjectURL(f));
               setNewPreviews(p => [...p, ...urls]);
               setNewPhotos(p => [...p, ...files]);
+              e.target.value = '';
             }}
           />
         </div>

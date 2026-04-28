@@ -293,7 +293,7 @@ export default function NouveauMaterielPage() {
                 <p className="text-xs text-gray-400 mt-1">PNG, JPG — max 5 photos</p>
               </button>
               <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden"
-                onChange={(e) => handlePhotoAdd(e.target.files)} />
+                onChange={(e) => { handlePhotoAdd(e.target.files); e.target.value = ''; }} />
               {photos.length > 0 && (
                 <div className="flex flex-wrap gap-3 mt-4">
                   {photos.map((_photo, i) => (

@@ -106,7 +106,7 @@ export function PhotoUploaderField({
           </p>
           <input
             ref={inputRef} type="file" accept="image/*" multiple className="hidden"
-            onChange={e => handleFiles(e.target.files)}
+            onChange={e => { handleFiles(e.target.files); e.target.value = ''; }}
             disabled={disabled}
           />
         </div>
