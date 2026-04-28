@@ -72,7 +72,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
       // Enrich avec le profil auteur (user_id → profiles)
       const userIds = [...new Set((rows ?? []).map(r => r.user_id).filter(Boolean))];
-      let profileMap: Record<string, { id: string; full_name: string; email: string; avatar_url: string }> = {};
+      const profileMap: Record<string, { id: string; full_name: string; email: string; avatar_url: string }> = {};
       if (userIds.length > 0) {
         const { data: profiles } = await adminClient
           .from('profiles')
@@ -106,7 +106,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
       const authorIds = [...new Set((rows ?? []).map(r => r.author_id).filter(Boolean))];
-      let profileMap: Record<string, { id: string; full_name: string; email: string; avatar_url: string }> = {};
+      const profileMap: Record<string, { id: string; full_name: string; email: string; avatar_url: string }> = {};
       if (authorIds.length > 0) {
         const { data: profiles } = await adminClient
           .from('profiles')
@@ -140,7 +140,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
       const ownerIds = [...new Set((rows ?? []).map(r => r.owner_id).filter(Boolean))];
-      let profileMap: Record<string, { id: string; full_name: string; email: string; avatar_url: string }> = {};
+      const profileMap: Record<string, { id: string; full_name: string; email: string; avatar_url: string }> = {};
       if (ownerIds.length > 0) {
         const { data: profiles } = await adminClient
           .from('profiles')
@@ -174,7 +174,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
       // Reviewer profiles
       const reviewerIds = [...new Set((rows ?? []).map(r => r.reviewer_id).filter(Boolean))];
-      let reviewerMap: Record<string, { id: string; full_name: string; email: string; avatar_url: string }> = {};
+      const reviewerMap: Record<string, { id: string; full_name: string; email: string; avatar_url: string }> = {};
       if (reviewerIds.length > 0) {
         const { data: profiles } = await adminClient
           .from('profiles')
@@ -185,7 +185,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
       // Artisan profiles (business_name from artisan_profiles)
       const artisanIds = [...new Set((rows ?? []).map(r => r.artisan_id).filter(Boolean))];
-      let artisanMap: Record<string, { id: string; business_name: string }> = {};
+      const artisanMap: Record<string, { id: string; business_name: string }> = {};
       if (artisanIds.length > 0) {
         const { data: artisans } = await adminClient
           .from('artisan_profiles')
