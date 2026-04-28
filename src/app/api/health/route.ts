@@ -7,8 +7,9 @@
  *   • Alertes externes (UptimeRobot, Better Uptime…)
  *
  * Format de réponse : { status, version, env, timestamp, uptime_s, checks[] }
+ * checks inclut : supabase, auth, rate_limit
  *
- * ⓘ  La logique de vérification (DB, auth) est partagée avec /api/monitoring
+ * ⓘ  La logique de vérification (DB, auth, rate_limit) est partagée avec /api/monitoring
  *     via src/app/api/_health/check.ts pour éviter la duplication.
  *     /api/monitoring conserve son propre format JSON (services{}) pour la
  *     rétrocompatibilité avec les monitors Vercel configurés sur cette route.
@@ -22,20 +23,22 @@
  */
 
 import { NextResponse } from 'next/server';
-import { checkDatabase, checkAuth, overallStatus } from '../_health/check';
+import { checkDatabase, checkAuth, checkRateLimitRedis, overallStatus } from '../_health/check';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(): Promise<NextResponse> {
-  const [dbCheck, authCheck] = await Promise.all([
+  const [dbCheck, authCheck, rateLimitCheck] = await Promise.all([
     checkDatabase(),
     Promise.resolve(checkAuth()),
+    checkRateLimitRedis(),
   ]);
 
   const checks = [
-    { name: 'supabase', ...dbCheck },
-    { name: 'auth',     ...authCheck },
+    { name: 'supabase',   ...dbCheck },
+    { name: 'auth',       ...authCheck },
+    { name: 'rate_limit', ...rateLimitCheck },
   ];
 
   const status = overallStatus(checks);

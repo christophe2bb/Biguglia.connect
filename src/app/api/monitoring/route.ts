@@ -22,10 +22,14 @@
  *   "environment": "production",
  *   "uptime_ms": 12345,
  *   "services": {
- *     "database": { "status": "ok", "latency_ms": 42 },
- *     "auth":     { "status": "ok" }
+ *     "database":   { "status": "ok", "latency_ms": 42 },
+ *     "auth":       { "status": "ok" },
+ *     "rate_limit": { "status": "ok", "mode": "redis", "latency_ms": 3 }
  *   }
  * }
+ *
+ * Quand Redis n'est pas configuré :
+ *   "rate_limit": { "status": "degraded", "mode": "memory", "error": "UPSTASH_…" }
  *
  * Format GET 503 (dégradé) :
  * { "status": "degraded", … "services": { "database": { "status": "degraded" } } }
@@ -41,7 +45,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { checkDatabase, checkAuth, overallStatus } from '../_health/check';
+import { checkDatabase, checkAuth, checkRateLimitRedis, overallStatus } from '../_health/check';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -59,12 +63,13 @@ const PROCESS_START = Date.now();
 // ─── GET /api/monitoring ──────────────────────────────────────────────────────
 
 export async function GET(_req: NextRequest): Promise<NextResponse> {
-  const [dbCheck, authCheck] = await Promise.all([
+  const [dbCheck, authCheck, rateLimitCheck] = await Promise.all([
     checkDatabase(),
     Promise.resolve(checkAuth()),
+    checkRateLimitRedis(),
   ]);
 
-  const status = overallStatus([dbCheck, authCheck]);
+  const status = overallStatus([dbCheck, authCheck, rateLimitCheck]);
 
   return NextResponse.json(
     {
@@ -74,8 +79,9 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
       environment: process.env.NODE_ENV ?? 'unknown',
       uptime_ms:   Date.now() - PROCESS_START,
       services: {
-        database: dbCheck,
-        auth:     authCheck,
+        database:   dbCheck,
+        auth:       authCheck,
+        rate_limit: rateLimitCheck,
       },
     },
     {

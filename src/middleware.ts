@@ -83,14 +83,22 @@ import { generateNonce } from '@/lib/csp-nonce';
 // AVERTISSEMENT DÉMARRAGE — Redis non configuré
 // Émis une seule fois au premier cold-start de l'instance Edge.
 // Visible dans Vercel → Functions → Logs.
+// En production : console.error → capturé par Sentry Edge instrumentation.
 // ─────────────────────────────────────────────────────────────────────────────
 if (!isRedisConfigured()) {
-  console.warn(
+  const msg =
     '[rate-limit] Redis non configuré — fallback mémoire actif. ' +
     'En production multi-instance Vercel, chaque instance dispose de ses propres ' +
     'compteurs : la protection anti brute-force/spam est inefficace. ' +
-    'Ajouter UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN (voir docs/DEPLOY.md §5b).',
-  );
+    'Ajouter UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN (voir docs/DEPLOY.md §5b). ' +
+    'Vérification visible dans /api/health (rate_limit.status = degraded).';
+  // Production → error (Sentry Edge capturera ce log comme "console error")
+  // Dev / CI  → warn  (pas d'alerte Sentry, comportement normal sans Redis)
+  if (process.env.NODE_ENV === 'production') {
+    console.error(msg);
+  } else {
+    console.warn(msg);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

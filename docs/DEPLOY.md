@@ -111,8 +111,8 @@ Dans **Database > Replication**, activer :
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ Requis | Clé publique Supabase (`sb_publishable_...`) |
 | `NEXT_PUBLIC_SITE_URL` | ✅ Requis | URL du site déployé (ex : `https://biguglia-connect.vercel.app`) |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ Requis | Clé service role (côté serveur uniquement, ne jamais exposer côté client) |
-| `UPSTASH_REDIS_REST_URL` | ⚠️ Fortement recommandé | URL REST Upstash (ex : `https://xxx.upstash.io`) — voir §5b ci-dessous |
-| `UPSTASH_REDIS_REST_TOKEN` | ⚠️ Fortement recommandé | Token Bearer Upstash — voir §5b ci-dessous |
+| `UPSTASH_REDIS_REST_URL` | ✅ Requis en prod | URL REST Upstash (ex : `https://xxx.upstash.io`) — voir §5b ci-dessous |
+| `UPSTASH_REDIS_REST_TOKEN` | ✅ Requis en prod | Token Bearer Upstash — voir §5b ci-dessous |
 | `NEXT_PUBLIC_SENTRY_DSN` | ⚠️ Fortement recommandé | DSN public Sentry — monitoring client (erreurs JS, Core Web Vitals, Replay) |
 | `SENTRY_DSN` | ⚠️ Fortement recommandé | DSN Sentry côté serveur (mêmes valeur que `NEXT_PUBLIC_SENTRY_DSN`) |
 | `SENTRY_ORG` | ⚠️ Recommandé build | Slug de l'organisation Sentry (ex : `biguglia-connect`) — upload source maps |
@@ -128,11 +128,15 @@ Dans **Database > Replication**, activer :
 > Sans `SENTRY_AUTH_TOKEN`, les source maps ne sont pas uploadées :
 > les stack traces Sentry afficheront du code minifié illisible.
 
-> 🚨 **Sans `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`**, le rate-limiting
-> fonctionne en **mode mémoire locale** : chaque instance Vercel Edge possède ses propres
-> compteurs. Sur plusieurs instances simultanées, une IP peut multiplier ses tentatives
-> (brute-force, spam) par le nombre d'instances actives.
-> **En production multi-instance, ces deux variables sont indispensables.**
+> 🚨 **Sans `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`** (variables **requises en prod**) :
+> - Le rate-limiting fonctionne en **mode mémoire locale** : chaque instance Vercel Edge
+>   possède ses propres compteurs.
+> - Sur plusieurs instances simultanées, une IP peut multiplier ses tentatives de
+>   brute-force ou spam par le nombre d'instances actives.
+> - **Signal visible** : `GET /api/health` retourne `rate_limit.status = "degraded"` et
+>   `rate_limit.mode = "memory"`. Le middleware émet un `console.error` au cold-start
+>   (visible dans Vercel → Functions → Logs, capturé par Sentry en production).
+> - **En production multi-instance, ces deux variables sont indispensables.**
 
 ### Via interface Vercel
 
@@ -354,8 +358,8 @@ vercel env ls --environment production
 # ✅ NEXT_PUBLIC_SUPABASE_ANON_KEY
 # ✅ NEXT_PUBLIC_SITE_URL          ← robots.txt, canonical, OG images
 # ✅ SUPABASE_SERVICE_ROLE_KEY     ← admin routes, modération
-# ✅ UPSTASH_REDIS_REST_URL        ← rate-limiting distribué
-# ✅ UPSTASH_REDIS_REST_TOKEN      ← rate-limiting distribué
+# ✅ UPSTASH_REDIS_REST_URL        ← rate-limiting distribué (REQUIS en prod)
+# ✅ UPSTASH_REDIS_REST_TOKEN      ← rate-limiting distribué (REQUIS en prod)
 # ✅ NEXT_PUBLIC_SENTRY_DSN        ← monitoring client
 # ✅ SENTRY_DSN                    ← monitoring serveur
 # ✅ SENTRY_AUTH_TOKEN             ← upload source maps

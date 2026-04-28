@@ -5,8 +5,9 @@
  *
  * Avant ce refactor, les deux routes dupliquaient la même logique de vérification
  * Supabase (requête légère + timeout + gestion RLS).  Ce module centralise :
- *   • checkDatabase() — connectivité Supabase avec timeout 5 s
- *   • checkAuth()     — présence des variables d'env (pas de réseau)
+ *   • checkDatabase()       — connectivité Supabase avec timeout 5 s
+ *   • checkAuth()           — présence des variables d'env (pas de réseau)
+ *   • checkRateLimitRedis() — présence des vars Upstash + ping Redis réel
  *
  * Les deux endpoints conservent leur propre format de réponse JSON pour la
  * rétrocompatibilité (monitors externes configurés sur l'un ou l'autre) :
@@ -17,6 +18,7 @@
 
 import 'server-only';
 import { createClient } from '@supabase/supabase-js';
+import { isRedisConfigured } from '@/lib/rate-limit-redis';
 
 // ─── Types partagés ──────────────────────────────────────────────────────────
 
@@ -93,6 +95,87 @@ export function checkAuth(): ServiceCheck {
   return url && anonKey
     ? { status: 'ok' }
     : { status: 'degraded', error: 'Supabase env vars missing' };
+}
+
+/**
+ * checkRateLimitRedis — Vérifie la disponibilité du rate-limiting distribué.
+ *
+ * Deux niveaux de vérification :
+ *   1. Présence des variables d'env UPSTASH_REDIS_REST_URL + TOKEN
+ *      → 'degraded' si absentes (fallback mémoire actif, insuffisant multi-instance)
+ *   2. Ping HTTP réel vers Upstash (SET nx + GET) avec timeout 3 s
+ *      → 'degraded' si les variables sont là mais Redis inaccessible
+ *
+ * Statut retourné :
+ *   'ok'       — Redis configuré ET joignable
+ *   'degraded' — variables absentes ou Redis inaccessible (fallback mémoire)
+ *   'down'     — erreur inattendue
+ *
+ * Note : cette vérification est intentionnellement légère (PING HTTP, pas de
+ * Lua script sliding window) pour ne pas consommer de quota Upstash.
+ */
+export async function checkRateLimitRedis(): Promise<ServiceCheck & { mode: 'redis' | 'memory' }> {
+  if (!isRedisConfigured()) {
+    return {
+      status: 'degraded',
+      mode:   'memory',
+      error:  'UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN absents — '
+            + 'fallback mémoire actif (insuffisant en multi-instance Vercel)',
+    };
+  }
+
+  const url   = process.env.UPSTASH_REDIS_REST_URL!;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN!;
+  const start = Date.now();
+
+  try {
+    // Ping léger : PING via l'API REST Upstash (GET /ping)
+    // Répond { result: 'PONG' } — sans consommer de slot de rate-limit.
+    const res = await Promise.race([
+      fetch(`${url}/ping`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      }),
+      new Promise<Response>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 3_000),
+      ),
+    ]);
+
+    const latency_ms = Date.now() - start;
+
+    if (!res.ok) {
+      return {
+        status:     'degraded',
+        mode:       'redis',
+        latency_ms,
+        error:      `Upstash HTTP ${res.status}`,
+      };
+    }
+
+    const body = await res.json() as { result?: string };
+    if (body?.result !== 'PONG') {
+      return {
+        status:     'degraded',
+        mode:       'redis',
+        latency_ms,
+        error:      `Réponse inattendue : ${JSON.stringify(body)}`,
+      };
+    }
+
+    return { status: 'ok', mode: 'redis', latency_ms };
+
+  } catch (err) {
+    const latency_ms = Date.now() - start;
+    const message    = err instanceof Error ? err.message : String(err);
+    return {
+      status:     'degraded',
+      mode:       'redis',
+      latency_ms,
+      error:      message === 'timeout'
+                    ? 'Upstash timeout (> 3 s)'
+                    : `Upstash error: ${message}`,
+    };
+  }
 }
 
 /** Calcule le statut global à partir d'un tableau de ServiceCheck. */
