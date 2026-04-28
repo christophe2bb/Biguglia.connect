@@ -16,7 +16,7 @@ export type StepId = (typeof STEPS)[number]['id'];
 
 // ─── Limites médias ───────────────────────────────────────────────────────────
 export const MAX_PHOTOS  = 12;
-export const MAX_FILE_MB = 8;
+export const MAX_FILE_MB = 5; // aligné sur MAX_SIZE_BY_BUCKET['photos'] côté serveur
 export const MAX_TAGS    = 8;
 
 // ─── État initial du formulaire ───────────────────────────────────────────────

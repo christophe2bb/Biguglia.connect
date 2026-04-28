@@ -21,7 +21,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import toast from 'react-hot-toast';
 
 import { EMPTY_FORM, MAX_PHOTOS, MAX_FILE_MB, FALLBACK_CATEGORIES } from './_config';
-import { safeImageExt, uploadFile } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile, isAcceptedImageType } from '@/lib/upload-utils';
 import type {
   CollectionneurFormData,
   CollectionCategory,
@@ -170,7 +170,7 @@ export function useCollectionneurForm(): UseCollectionneurFormReturn {
     if (remaining <= 0) { toast.error(`Maximum ${MAX_PHOTOS} photos.`); return; }
 
     const accepted = Array.from(files).slice(0, remaining).filter(f => {
-      if (!f.type.startsWith('image/')) { toast.error(`${f.name} : format non supporté.`); return false; }
+      if (!isAcceptedImageType(f)) { toast.error(`${f.name} : format non supporté (JPEG, PNG, WebP, GIF, AVIF).`); return false; }
       if (f.size > MAX_FILE_MB * 1024 * 1024) { toast.error(`${f.name} trop lourd (max ${MAX_FILE_MB} Mo).`); return false; }
       return true;
     });

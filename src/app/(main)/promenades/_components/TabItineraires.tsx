@@ -247,7 +247,7 @@ export default function TabItineraires({
                   </button>
                 )}
               </div>
-              <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden"
+              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" multiple className="hidden"
                 onChange={e => {
                   const newFiles = Array.from(e.target.files || []).slice(0, 5 - photos.length);
                   const newUrls = newFiles.map(f => URL.createObjectURL(f));

@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import toast from 'react-hot-toast';
-import { safeImageExt, uploadFile } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile, isAcceptedImageType } from '@/lib/upload-utils';
 import {
   type CollectionMode, type CollectionStatus, type RarityLevel, type ConditionLevel,
   type CollectionItem, type CollectionCategory,
@@ -69,7 +69,7 @@ export const SECTION_IDS = ['mode', 'infos', 'details', 'transaction', 'localisa
 export type SectionId = typeof SECTION_IDS[number];
 
 export const MAX_PHOTOS  = 12;
-export const MAX_FILE_MB = 8;
+export const MAX_FILE_MB = 5; // aligné sur MAX_SIZE_BY_BUCKET['photos'] côté serveur
 
 // ─── Valeur initiale du formulaire ────────────────────────────────────────────
 const INITIAL_FORM: CollectionFormState = {
@@ -224,7 +224,7 @@ export function useCollectionItemForm(id: string) {
     if (remaining <= 0) { toast.error(`Maximum ${MAX_PHOTOS} photos.`); return; }
 
     const accepted = Array.from(files).slice(0, remaining).filter(f => {
-      if (!f.type.startsWith('image/')) { toast.error(`${f.name} : format non supporté.`); return false; }
+      if (!isAcceptedImageType(f)) { toast.error(`${f.name} : format non supporté (JPEG, PNG, WebP, GIF, AVIF).`); return false; }
       if (f.size > MAX_FILE_MB * 1024 * 1024) { toast.error(`${f.name} trop lourd (max ${MAX_FILE_MB} Mo).`); return false; }
       return true;
     });

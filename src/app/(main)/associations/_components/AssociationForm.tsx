@@ -309,7 +309,7 @@ export default function AssociationForm({
               </button>
             )}
           </div>
-          <input ref={photoRef as React.RefObject<HTMLInputElement>} type="file" accept="image/*" multiple className="hidden" onChange={onPhotoSelect} />
+          <input ref={photoRef as React.RefObject<HTMLInputElement>} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" multiple className="hidden" onChange={onPhotoSelect} />
           <p className="text-xs text-gray-400">1ère photo = couverture principale · {photos.length}/6</p>
           <div className="flex justify-between">
             <button type="button" onClick={() => setStep(4)} className="px-5 py-2.5 rounded-xl text-sm text-gray-500 hover:bg-gray-100">← Retour</button>

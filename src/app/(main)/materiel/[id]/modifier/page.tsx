@@ -16,7 +16,7 @@ import {
   AVAILABILITY_MODE_CONFIG, PICKUP_MODE_CONFIG, LEND_DURATION_HINTS, CONDITION_CONFIG,
   type AvailabilityMode, type PickupMode, type LendDurationHint, type ConditionLabel,
 } from '@/lib/equipment';
-import { safeImageExt, uploadFile } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile, isAcceptedImageType, MAX_PHOTO_MB } from '@/lib/upload-utils';
 
 // ─── Types locaux ──────────────────────────────────────────────────────────────
 
@@ -460,11 +460,22 @@ export default function ModifierMaterielPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
             multiple
             className="hidden"
             onChange={(e) => {
-              const files = Array.from(e.target.files || []);
+              const rawFiles = Array.from(e.target.files || []);
+              const files = rawFiles.filter(f => {
+                if (!isAcceptedImageType(f)) {
+                  toast.error(`${f.name} : format non supporté (JPEG, PNG, WebP uniquement)`);
+                  return false;
+                }
+                if (f.size > MAX_PHOTO_MB * 1024 * 1024) {
+                  toast.error(`${f.name} : fichier trop volumineux (max ${MAX_PHOTO_MB} Mo)`);
+                  return false;
+                }
+                return true;
+              });
               if (existingPhotos.length + newPhotos.length + files.length > 5) {
                 toast.error('Max 5 photos'); e.target.value = ''; return;
               }

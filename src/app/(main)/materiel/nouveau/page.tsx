@@ -18,7 +18,7 @@ import {
   AVAILABILITY_MODE_CONFIG, PICKUP_MODE_CONFIG, LEND_DURATION_HINTS, CONDITION_CONFIG,
   AvailabilityMode, PickupMode, LendDurationHint, ConditionLabel,
 } from '@/lib/equipment';
-import { safeImageExt, uploadFile } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile, isAcceptedImageType, MAX_PHOTO_MB } from '@/lib/upload-utils';
 
 // Durée suggérée par catégorie (CDC §3.3)
 const CATEGORY_DURATION_HINTS: Record<string, LendDurationHint> = {
@@ -88,7 +88,17 @@ export default function NouveauMaterielPage() {
 
   const handlePhotoAdd = (files: FileList | null) => {
     if (!files) return;
-    const newFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+    const newFiles = Array.from(files).filter(f => {
+      if (!isAcceptedImageType(f)) {
+        toast.error(`${f.name} : format non supporté (JPEG, PNG, WebP, GIF, AVIF uniquement)`);
+        return false;
+      }
+      if (f.size > MAX_PHOTO_MB * 1024 * 1024) {
+        toast.error(`${f.name} : fichier trop volumineux (max ${MAX_PHOTO_MB} Mo)`);
+        return false;
+      }
+      return true;
+    });
     if (photos.length + newFiles.length > 5) { toast.error('Maximum 5 photos'); return; }
     const newUrls = newFiles.map(f => URL.createObjectURL(f));
     setPhotos(prev => [...prev, ...newFiles]);
@@ -292,7 +302,7 @@ export default function NouveauMaterielPage() {
                 <p className="text-sm font-medium text-gray-600">Ajouter des photos</p>
                 <p className="text-xs text-gray-400 mt-1">PNG, JPG — max 5 photos</p>
               </button>
-              <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden"
+              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" multiple className="hidden"
                 onChange={(e) => { handlePhotoAdd(e.target.files); e.target.value = ''; }} />
               {photos.length > 0 && (
                 <div className="flex flex-wrap gap-3 mt-4">

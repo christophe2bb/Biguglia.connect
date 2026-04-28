@@ -7,7 +7,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { useModeration } from '@/hooks/useModeration';
 import { type ModerationStatus } from '@/lib/moderation';
 import { ListingCategory } from '@/types';
-import { safeImageExt, uploadFile } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile, isAcceptedImageType, MAX_PHOTO_MB } from '@/lib/upload-utils';
 import toast from 'react-hot-toast';
 import { TOTAL_STEPS } from '../_config';
 
@@ -137,7 +137,18 @@ export function useNewListingForm(): UseNewListingFormReturn {
 
   const addPhotos = useCallback((files: File[]) => {
     const remaining = 5 - photos.length;
-    const toAdd = files.slice(0, remaining);
+    const valid = files.filter(f => {
+      if (!isAcceptedImageType(f)) {
+        toast.error(`${f.name} : format non supporté (JPEG, PNG, WebP, GIF, AVIF uniquement)`);
+        return false;
+      }
+      if (f.size > MAX_PHOTO_MB * 1024 * 1024) {
+        toast.error(`${f.name} : fichier trop volumineux (max ${MAX_PHOTO_MB} Mo)`);
+        return false;
+      }
+      return true;
+    });
+    const toAdd = valid.slice(0, remaining);
     setPhotos(p => [...p, ...toAdd]);
     const newPreviews = toAdd.map(f => URL.createObjectURL(f));
     setPreviews(p => [...p, ...newPreviews]);

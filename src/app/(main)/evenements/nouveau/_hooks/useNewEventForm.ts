@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import { type EventForm, type FormStep, DEFAULT_FORM, STEPS } from '../_config';
-import { safeImageExt, uploadFile } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile, isAcceptedImageType } from '@/lib/upload-utils';
 
 // ── Return type ───────────────────────────────────────────────────────────────
 
@@ -78,7 +78,7 @@ export function useNewEventForm(
 
   const handlePhotoSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []).filter(f =>
-      ['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(f.type)
+      isAcceptedImageType(f)
     );
     const remaining = 8 - photos.length;
     const toAdd = files.slice(0, remaining);

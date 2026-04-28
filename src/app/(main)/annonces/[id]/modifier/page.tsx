@@ -7,7 +7,7 @@ import { Camera, X, ChevronLeft, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { ListingCategory } from '@/types';
-import { safeImageExt, uploadFile } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile, isAcceptedImageType, MAX_PHOTO_MB } from '@/lib/upload-utils';
 import toast from 'react-hot-toast';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -122,7 +122,18 @@ export default function ModifierAnnoncePage() {
   const addNewPhotos = (files: File[]) => {
     const total = existingPhotos.length + newPhotos.length;
     const remaining = 5 - total;
-    const toAdd = files.slice(0, remaining);
+    const valid = files.filter(f => {
+      if (!isAcceptedImageType(f)) {
+        toast.error(`${f.name} : format non supporté (JPEG, PNG, WebP, GIF, AVIF uniquement)`);
+        return false;
+      }
+      if (f.size > MAX_PHOTO_MB * 1024 * 1024) {
+        toast.error(`${f.name} : fichier trop volumineux (max ${MAX_PHOTO_MB} Mo)`);
+        return false;
+      }
+      return true;
+    });
+    const toAdd = valid.slice(0, remaining);
     setNewPhotos(p => [...p, ...toAdd]);
     setNewPreviews(p => [...p, ...toAdd.map(f => URL.createObjectURL(f))]);
   };
@@ -430,7 +441,7 @@ export default function ModifierAnnoncePage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
             multiple
             className="hidden"
             onChange={e => {
