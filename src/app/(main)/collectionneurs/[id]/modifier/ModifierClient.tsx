@@ -1,23 +1,19 @@
 'use client';
 
 /**
- * src/app/(main)/collectionneurs/[id]/modifier/ModifierClient.tsx
- * ─────────────────────────────────────────────────────────────────────────────
- * Orchestrateur UI — page d'édition d'annonce collectionneur.
- *
- * Logique d'état et appels Supabase → use-collection-item-form.ts
- * Section Photos → CollectionPhotoSection.tsx
+ * ModifierClient.tsx — orchestrateur UI pur JSX.
+ * Toute la logique métier est dans use-collection-item-form.ts.
  */
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { cn } from '@/lib/utils';
 import {
   ArrowLeft, Save, Loader2, Trash2, AlertCircle,
-  Camera, X, MapPin, Truck, Package,
+  Camera, MapPin, Truck, Package,
   Info, Tag, ArrowLeftRight, Gift, Search, Gem,
-  ChevronDown, ChevronUp, Plus,
+  ChevronDown, ChevronUp, Plus, X,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   MODE_CONFIG, STATUS_CONFIG, RARITY_CONFIG, CONDITION_CONFIG,
   type CollectionMode, type CollectionStatus, type RarityLevel, type ConditionLevel,
@@ -25,11 +21,28 @@ import {
 import { useCollectionItemForm, type SectionId } from './use-collection-item-form';
 import { CollectionPhotoSection } from './CollectionPhotoSection';
 
-// ─── Composant ────────────────────────────────────────────────────────────────
+// ─── Sous-composant accordéon ─────────────────────────────────────────────────
+
+function SectionHeader({
+  id, title, icon: Icon, open, onToggle,
+}: {
+  id: SectionId; title: string; icon: React.ElementType; open: boolean; onToggle: () => void;
+}) {
+  return (
+    <button onClick={onToggle} className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition">
+      <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+        <Icon className="w-4 h-4 text-blue-500" />{title}
+      </h3>
+      {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+    </button>
+  );
+}
+
+// ─── Composant principal ──────────────────────────────────────────────────────
 
 export default function ModifierClient() {
   const params = useParams();
-  const id     = params?.id as string;
+  const id = params?.id as string;
 
   const {
     loading, saving, notFound, forbidden, deleting, deleteConfirm, setDeleteConfirm,
@@ -40,62 +53,46 @@ export default function ModifierClient() {
     handleSave, handleDelete,
   } = useCollectionItemForm(id);
 
-  // ── États de chargement / erreur ──────────────────────────────────────────
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-      </div>
-    );
-  }
+  // ── Écrans de chargement / erreur ─────────────────────────────────────────
 
-  if (notFound) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-center p-8">
-        <div>
-          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-          <h2 className="text-xl font-bold text-gray-700 mb-2">Annonce introuvable</h2>
-          <Link href="/collectionneurs" className="text-blue-600 hover:underline">Retour à la liste</Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (forbidden) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-center p-8">
-        <div>
-          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
-          <h2 className="text-xl font-bold text-gray-700 mb-2">Accès non autorisé</h2>
-          <p className="text-gray-500 mb-4">Vous ne pouvez modifier que vos propres annonces.</p>
-          <Link href="/collectionneurs" className="text-blue-600 hover:underline">Retour à la liste</Link>
-        </div>
-      </div>
-    );
-  }
-
-  // ── En-tête de section (réutilisable dans le JSX) ─────────────────────────
-  const SectionHeader = ({ id: sid, title, icon: Icon }: { id: SectionId; title: string; icon: React.ElementType }) => (
-    <button
-      onClick={() => toggleSection(sid)}
-      className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition"
-    >
-      <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-        <Icon className="w-4 h-4 text-blue-500" />{title}
-      </h3>
-      {openSections.has(sid)
-        ? <ChevronUp className="w-4 h-4 text-gray-400" />
-        : <ChevronDown className="w-4 h-4 text-gray-400" />}
-    </button>
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+    </div>
   );
 
+  if (notFound) return (
+    <div className="min-h-screen flex items-center justify-center text-center p-8">
+      <div>
+        <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+        <h2 className="text-xl font-bold text-gray-700 mb-2">Annonce introuvable</h2>
+        <Link href="/collectionneurs" className="text-blue-600 hover:underline">Retour à la liste</Link>
+      </div>
+    </div>
+  );
+
+  if (forbidden) return (
+    <div className="min-h-screen flex items-center justify-center text-center p-8">
+      <div>
+        <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
+        <h2 className="text-xl font-bold text-gray-700 mb-2">Accès non autorisé</h2>
+        <p className="text-gray-500 mb-4">Vous ne pouvez modifier que vos propres annonces.</p>
+        <Link href="/collectionneurs" className="text-blue-600 hover:underline">Retour à la liste</Link>
+      </div>
+    </div>
+  );
+
+  // ── Helpers locaux (raccourcis de lecture pure, pas de logique) ───────────
   const activePhotos = form.photos.filter(p => !p.toDelete);
+  const sec = (s: SectionId) => openSections.has(s);
+  const tog = (s: SectionId) => () => toggleSection(s);
 
   // ── Rendu ─────────────────────────────────────────────────────────────────
+
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* Barre de navigation sticky */}
+      {/* Navigation sticky */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-20">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link href={`/collectionneurs/${id}`} className="p-2 hover:bg-gray-100 rounded-xl transition">
@@ -105,11 +102,8 @@ export default function ModifierClient() {
             <h1 className="font-semibold text-gray-900">Modifier l&apos;annonce</h1>
             {item && <p className="text-xs text-gray-500 truncate">{item.title}</p>}
           </div>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm transition disabled:opacity-60"
-          >
+          <button onClick={handleSave} disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm transition disabled:opacity-60">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Enregistrer
           </button>
@@ -118,10 +112,10 @@ export default function ModifierClient() {
 
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-4 pb-24">
 
-        {/* ── Mode & Statut ──────────────────────────────────────────────── */}
+        {/* Mode & Statut */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          <SectionHeader id="mode" title="Mode & Statut" icon={Tag} />
-          {openSections.has('mode') && (
+          <SectionHeader id="mode" title="Mode & Statut" icon={Tag} open={sec('mode')} onToggle={tog('mode')} />
+          {sec('mode') && (
             <div className="p-4 pt-0 space-y-4">
               <div>
                 <p className="block text-sm font-medium text-gray-700 mb-2">Mode d&apos;annonce</p>
@@ -130,10 +124,8 @@ export default function ModifierClient() {
                     const Icon = cfg.icon;
                     return (
                       <button key={mode} onClick={() => update('mode', mode)}
-                        className={cn(
-                          'flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 text-xs font-medium transition',
-                          form.mode === mode ? `border-blue-500 ${cfg.bg} ${cfg.color}` : 'border-gray-200 text-gray-600 hover:border-gray-300',
-                        )}>
+                        className={cn('flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 text-xs font-medium transition',
+                          form.mode === mode ? `border-blue-500 ${cfg.bg} ${cfg.color}` : 'border-gray-200 text-gray-600 hover:border-gray-300')}>
                         <Icon className="w-5 h-5" /> {cfg.label}
                       </button>
                     );
@@ -145,10 +137,8 @@ export default function ModifierClient() {
                 <div className="flex flex-wrap gap-2">
                   {(Object.entries(STATUS_CONFIG) as [CollectionStatus, typeof STATUS_CONFIG.actif][]).map(([status, cfg]) => (
                     <button key={status} onClick={() => update('status', status)}
-                      className={cn(
-                        'px-3 py-1.5 rounded-full text-xs font-semibold border transition',
-                        form.status === status ? `${cfg.bg} ${cfg.color} border-current` : 'border-gray-200 text-gray-600 hover:border-gray-300',
-                      )}>
+                      className={cn('px-3 py-1.5 rounded-full text-xs font-semibold border transition',
+                        form.status === status ? `${cfg.bg} ${cfg.color} border-current` : 'border-gray-200 text-gray-600 hover:border-gray-300')}>
                       {cfg.label}
                     </button>
                   ))}
@@ -158,21 +148,18 @@ export default function ModifierClient() {
           )}
         </div>
 
-        {/* ── Informations principales ───────────────────────────────────── */}
+        {/* Informations principales */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          <SectionHeader id="infos" title="Informations principales" icon={Info} />
-          {openSections.has('infos') && (
+          <SectionHeader id="infos" title="Informations principales" icon={Info} open={sec('infos')} onToggle={tog('infos')} />
+          {sec('infos') && (
             <div className="p-4 pt-0 space-y-4">
-              {/* Catégorie */}
               <div>
                 <p className="block text-sm font-medium text-gray-700 mb-2">Catégorie</p>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-3">
                   {categories.map(cat => (
                     <button key={cat.id} onClick={() => update('category_id', cat.id)}
-                      className={cn(
-                        'p-2.5 rounded-xl border-2 text-left transition text-xs',
-                        form.category_id === cat.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300',
-                      )}>
+                      className={cn('p-2.5 rounded-xl border-2 text-left transition text-xs',
+                        form.category_id === cat.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300')}>
                       <span className="text-lg block">{cat.icon}</span>
                       <span className="font-medium leading-tight line-clamp-2">{cat.name}</span>
                     </button>
@@ -183,7 +170,6 @@ export default function ModifierClient() {
                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm" />
               </div>
 
-              {/* Titre */}
               <div>
                 <p className="block text-sm font-medium text-gray-700 mb-1.5">Titre <span className="text-red-500">*</span></p>
                 <input type="text" value={form.title} onChange={e => update('title', e.target.value)} maxLength={120}
@@ -191,7 +177,6 @@ export default function ModifierClient() {
                 <p className="text-xs text-gray-400 mt-1">{form.title.length}/120</p>
               </div>
 
-              {/* Description */}
               <div>
                 <p className="block text-sm font-medium text-gray-700 mb-1.5">Description <span className="text-red-500">*</span></p>
                 <textarea value={form.description} onChange={e => update('description', e.target.value)}
@@ -200,7 +185,6 @@ export default function ModifierClient() {
                 <p className="text-xs text-gray-400 mt-1">{form.description.length}/2000</p>
               </div>
 
-              {/* État + Rareté */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="block text-sm font-medium text-gray-700 mb-1.5">État</p>
@@ -222,7 +206,6 @@ export default function ModifierClient() {
                 </div>
               </div>
 
-              {/* Tags */}
               <div>
                 <p className="block text-sm font-medium text-gray-700 mb-1.5">Tags</p>
                 <div className="flex flex-wrap gap-2 mb-2">
@@ -261,18 +244,18 @@ export default function ModifierClient() {
           )}
         </div>
 
-        {/* ── Détails de l'objet ─────────────────────────────────────────── */}
+        {/* Détails de l'objet */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          <SectionHeader id="details" title="Détails de l'objet" icon={Gem} />
-          {openSections.has('details') && (
+          <SectionHeader id="details" title="Détails de l'objet" icon={Gem} open={sec('details')} onToggle={tog('details')} />
+          {sec('details') && (
             <div className="p-4 pt-0 grid grid-cols-2 gap-3">
               {([
-                { key: 'year_period',  label: 'Époque / Période',  placeholder: 'Ex: 1950–1960' },
-                { key: 'brand',        label: 'Marque / Fabricant', placeholder: 'Ex: LIP, Dinky Toys…' },
-                { key: 'series_name',  label: 'Série / Collection', placeholder: 'Ex: Collection Tintin' },
-                { key: 'dimensions',   label: 'Dimensions',         placeholder: 'Ex: 12 × 8 × 5 cm' },
-                { key: 'material',     label: 'Matière',            placeholder: 'Ex: Métal, Porcelaine…' },
-                { key: 'provenance',   label: 'Provenance',         placeholder: 'Ex: Grenier familial' },
+                { key: 'year_period', label: 'Époque / Période',   placeholder: 'Ex: 1950–1960' },
+                { key: 'brand',       label: 'Marque / Fabricant',  placeholder: 'Ex: LIP, Dinky Toys…' },
+                { key: 'series_name', label: 'Série / Collection',  placeholder: 'Ex: Collection Tintin' },
+                { key: 'dimensions',  label: 'Dimensions',          placeholder: 'Ex: 12 × 8 × 5 cm' },
+                { key: 'material',    label: 'Matière',             placeholder: 'Ex: Métal, Porcelaine…' },
+                { key: 'provenance',  label: 'Provenance',          placeholder: 'Ex: Grenier familial' },
               ] as const).map(({ key, label, placeholder }) => (
                 <div key={key}>
                   <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
@@ -299,10 +282,10 @@ export default function ModifierClient() {
           )}
         </div>
 
-        {/* ── Transaction ────────────────────────────────────────────────── */}
+        {/* Transaction */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          <SectionHeader id="transaction" title="Transaction" icon={ArrowLeftRight} />
-          {openSections.has('transaction') && (
+          <SectionHeader id="transaction" title="Transaction" icon={ArrowLeftRight} open={sec('transaction')} onToggle={tog('transaction')} />
+          {sec('transaction') && (
             <div className="p-4 pt-0 space-y-3">
               {form.mode === 'vente' && (
                 <div>
@@ -319,9 +302,8 @@ export default function ModifierClient() {
                 <div>
                   <p className="block text-sm font-medium text-gray-700 mb-1.5">Objet(s) souhaité(s) en échange</p>
                   <textarea value={form.exchange_expected} onChange={e => update('exchange_expected', e.target.value)}
-                    rows={2}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none text-sm"
-                    placeholder="Ce que vous souhaitez en retour…" />
+                    rows={2} placeholder="Ce que vous souhaitez en retour…"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none text-sm" />
                 </div>
               )}
               {form.mode === 'don' && (
@@ -338,10 +320,10 @@ export default function ModifierClient() {
           )}
         </div>
 
-        {/* ── Localisation & Remise ──────────────────────────────────────── */}
+        {/* Localisation & Remise */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          <SectionHeader id="localisation" title="Localisation & Remise" icon={MapPin} />
-          {openSections.has('localisation') && (
+          <SectionHeader id="localisation" title="Localisation & Remise" icon={MapPin} open={sec('localisation')} onToggle={tog('localisation')} />
+          {sec('localisation') && (
             <div className="p-4 pt-0 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -373,10 +355,11 @@ export default function ModifierClient() {
           )}
         </div>
 
-        {/* ── Photos ────────────────────────────────────────────────────── */}
+        {/* Photos */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          <SectionHeader id="photos" title={`Photos (${activePhotos.length}/12)`} icon={Camera} />
-          {openSections.has('photos') && (
+          <SectionHeader id="photos" title={`Photos (${activePhotos.length}/12)`} icon={Camera}
+            open={sec('photos')} onToggle={tog('photos')} />
+          {sec('photos') && (
             <CollectionPhotoSection
               photos={form.photos}
               fileInputRef={fileInputRef}
@@ -387,7 +370,7 @@ export default function ModifierClient() {
           )}
         </div>
 
-        {/* ── Zone dangereuse ────────────────────────────────────────────── */}
+        {/* Zone dangereuse */}
         <div className="bg-white rounded-2xl border border-red-200 overflow-hidden">
           <div className="p-4">
             <h3 className="font-semibold text-red-700 mb-2 flex items-center gap-2">
@@ -428,7 +411,7 @@ export default function ModifierClient() {
           <button onClick={handleSave} disabled={saving}
             className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition disabled:opacity-60">
             {saving
-              ? <><Loader2 className="w-5 h-5 animate-spin" /> Enregistrement…</>
+              ? <><Loader2 className="w-5 h-5 animate-spin" /> Enregistrement&hellip;</>
               : <><Save className="w-5 h-5" /> Enregistrer les modifications</>}
           </button>
         </div>

@@ -119,7 +119,7 @@ Dans **Database > Replication**, activer :
 | `SENTRY_PROJECT` | ⚠️ Recommandé build | Slug du projet Sentry (ex : `biguglia-connect-nextjs`) — upload source maps |
 | `SENTRY_AUTH_TOKEN` | ⚠️ Recommandé build | Auth token Sentry pour l'upload des source maps au build (générer dans Sentry → Settings → Auth Tokens) |
 | `SENTRY_TEST_ENABLED` | 🚫 Ne pas définir en prod | Active `/api/test-sentry` — **uniquement sur Preview/Staging**. Absent = route désactivée (403) en production. |
-| `SENTRY_TEST_TOKEN` | 🔒 Preview/Staging si activé | Secret partagé pour le header `X-Sentry-Test-Token`. Protège la route si `SENTRY_TEST_ENABLED=true`. Générer : `openssl rand -hex 32`. |
+| `SENTRY_TEST_TOKEN` | 🔴 **Obligatoire** si route active | Secret partagé **requis** pour le header `X-Sentry-Test-Token`. **Sans ce token côté serveur, la route retourne 403 même si `SENTRY_TEST_ENABLED=true`** (fail-closed). Générer : `openssl rand -hex 32`. |
 
 > ⚠️ Ne jamais committer `.env.local`. Toutes ces valeurs sont confidentielles.
 
@@ -372,14 +372,16 @@ vercel env ls --environment production
 > | Variable | Scope recommandé | Description |
 > |----------|-----------------|-------------|
 > | `SENTRY_TEST_ENABLED` | Preview / Staging **uniquement** | Active la route `/api/test-sentry`. **Ne pas définir en production** (ou définir à `false`). La route retourne 403 si absent en production. |
-> | `SENTRY_TEST_TOKEN` | Preview / Staging **uniquement** | Secret partagé pour protéger `/api/test-sentry` : si défini, chaque appel doit fournir le header `X-Sentry-Test-Token: <valeur>`. Sans ce token, la route n'est protégée que par `SENTRY_TEST_ENABLED`. **Fortement recommandé si `SENTRY_TEST_ENABLED=true` est défini sur un preview public.** Exemple : générer via `openssl rand -hex 32`. |
+> | `SENTRY_TEST_TOKEN` | **Obligatoire** si route active | Secret partagé **requis**. Sans ce token côté serveur, la route retourne **403** même si `SENTRY_TEST_ENABLED=true` (fail-closed). Chaque appel doit fournir `X-Sentry-Test-Token: <valeur>`. Générer : `openssl rand -hex 32`. |
 > | `VERCEL_GIT_COMMIT_SHA` | Auto | Injectée automatiquement par Vercel. |
 >
-> **Logique d'accès à `/api/test-sentry`** :
-> - `development` → toujours autorisée (sans token).
+> **Logique d'accès à `/api/test-sentry`** (fail-closed — le refus est l'état par défaut) :
+> - `development` → toujours autorisée (réseau privé, sans token).
 > - `production` sans `SENTRY_TEST_ENABLED=true` → **403** (désactivée).
-> - `production` avec `SENTRY_TEST_ENABLED=true` + `SENTRY_TEST_TOKEN` défini → requiert header `X-Sentry-Test-Token`.
-> - Preview / Staging (non-production) → autorisée, mais protégée par `SENTRY_TEST_TOKEN` si défini.
+> - `production` avec `SENTRY_TEST_ENABLED=true` mais sans `SENTRY_TEST_TOKEN` → **403** (configuration incomplète).
+> - `production` avec `SENTRY_TEST_ENABLED=true` + bon `SENTRY_TEST_TOKEN` → requiert header `X-Sentry-Test-Token` correct.
+> - Preview / Staging sans `SENTRY_TEST_TOKEN` → **403** (fail-closed : token obligatoire).
+> - Preview / Staging avec `SENTRY_TEST_TOKEN` → requiert header `X-Sentry-Test-Token` correct.
 
 ---
 
