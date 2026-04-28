@@ -8,7 +8,7 @@
  * Couverture :
  *   1. generateNonce() — entropie, unicité, format base64url, longueur
  *   2. buildCsp() — présence du nonce, absence de unsafe-inline (prod),
- *      strict-dynamic, directives obligatoires
+ *      strict-dynamic, frame-ancestors 'none', directives obligatoires
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -122,6 +122,13 @@ describe('buildCsp', () => {
       const csp = buildCsp(testNonce);
       expect(csp).toContain('upgrade-insecure-requests');
     });
+
+    it("includes frame-ancestors 'none' (anti-clickjacking, équivalent X-Frame-Options: DENY)", () => {
+      const csp = buildCsp(testNonce);
+      // frame-ancestors 'none' bloque tout chargement dans un <iframe> tiers.
+      // Doit figurer dans le header CSP enforced (ignoré dans <meta http-equiv>).
+      expect(csp).toContain("frame-ancestors 'none'");
+    });
   });
 
   describe('connect-src domains', () => {
@@ -170,12 +177,15 @@ describe('buildCsp', () => {
   });
 
   describe('style-src (CSP Level 3 granular directives)', () => {
-    it("includes 'unsafe-inline' in style-src (legacy fallback pour navigateurs sans CSP3)", () => {
+    it("does NOT include a standalone style-src directive (legacy fallback supprimé)", () => {
       const csp = buildCsp(testNonce);
-      const styleSrc = csp.split(';').find(d => d.trim().startsWith('style-src') && !d.includes('style-src-'));
-      // style-src garde unsafe-inline comme fallback legacy — les navigateurs CSP3
-      // utilisent style-src-elem/style-src-attr qui priment sur style-src.
-      expect(styleSrc).toContain("'unsafe-inline'");
+      // style-src legacy 'unsafe-inline' supprimé — seuls style-src-elem et
+      // style-src-attr (CSP3) sont présents. Navigateurs pré-CSP3 < 1% du trafic
+      // en 2026 et ne supportent pas TLS 1.3 (requis par Supabase).
+      const styleSrc = csp.split(';').find(
+        d => d.trim().startsWith('style-src') && !d.trim().startsWith('style-src-elem') && !d.trim().startsWith('style-src-attr')
+      );
+      expect(styleSrc).toBeUndefined();
     });
 
     it("style-src-elem inclut le nonce (bloque les <style> injectés sans nonce)", () => {
