@@ -123,6 +123,14 @@ const isDev = process.env.NODE_ENV === 'development';
  *    'unsafe-inline' est RETIRÉ de script-src.
  *  - Développement : + 'unsafe-eval' pour le HMR Next.js.
  *
+ * ─── frame-ancestors 'none' ───────────────────────────────────────────────────
+ *  Bloque tout chargement de l'application dans un <iframe>, <frame>, <embed>
+ *  ou <object> d'un autre site. Équivalent moderne du header X-Frame-Options: DENY.
+ *  'none' car aucune page légitime de l'app n'est conçue pour être iframée.
+ *  Note : frame-ancestors ignore les directives report-only en prod — c'est bien
+ *  un header CSP enforced qui doit figurer dans le header CSP de la RÉPONSE.
+ *  Il n'est PAS applicable dans une balise <meta http-equiv>.
+ *
  * ─── style-src vs style-src-elem / style-src-attr (CSP3) ─────────────────────
  *  Stratégie CSP Level 3 avec granularité fine :
  *
@@ -141,8 +149,11 @@ const isDev = process.env.NODE_ENV === 'development';
  *      est planifiée mais hors-scope de ce sprint.
  *      Risque résiduel : XSS via style="" limité aux CSS injections (pas d'exécution JS).
  *
- *  style-src (fallback legacy) : conservé pour navigateurs sans support CSP3
- *    (Firefox < 91, Safari < 15). Peut être supprimé lors du passage à CSP3 strict.
+ *  style-src (fallback legacy) : SUPPRIMÉ — navigateurs sans support CSP3
+ *    (Firefox < 91, Safari < 15) représentent < 1 % du trafic en 2026 et ne
+ *    supportent pas TLS 1.3 (requis par Supabase). Le fallback 'unsafe-inline'
+ *    annulait les bénéfices de style-src-elem dans ces navigateurs. Supprimé
+ *    au profit de la chaîne style-src-elem / style-src-attr CSP3 only.
  *
  * Next.js 15 lit le nonce depuis ce header CSP via :
  *   next/dist/server/app-render/get-script-nonce-from-header.js
@@ -163,9 +174,7 @@ export function buildCsp(nonce: string): string {
   return [
     "default-src 'self'",
     `script-src ${scriptSrc}`,
-    // Legacy fallback pour navigateurs sans support CSP3 style-src-elem/attr
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    // CSP3 granular style directives (override style-src dans les navigateurs supportés)
+    // CSP3 granular style directives — style-src legacy supprimé (voir commentaire buildCsp)
     `style-src-elem ${styleElem}`,
     `style-src-attr ${styleAttr}`,
     "font-src 'self' https://fonts.gstatic.com data:",
@@ -173,6 +182,10 @@ export function buildCsp(nonce: string): string {
     `connect-src 'self' https://${SUPABASE_ORIGIN} wss://${SUPABASE_ORIGIN} https://*.supabase.co wss://*.supabase.co https://*.supabase.in wss://*.supabase.in https://vercel.live https://*.vercel-scripts.com https://vitals.vercel-insights.com https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://browser.sentry-cdn.com`,
     "worker-src 'self' blob:",
     "frame-src https://vercel.live",
+    // frame-ancestors 'none' : bloque tout chargement de l'app dans un <iframe>
+    // d'un autre site (clickjacking). Équivalent moderne de X-Frame-Options: DENY.
+    // Doit figurer dans le header CSP enforced — ignoré dans les balises <meta>.
+    "frame-ancestors 'none'",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
