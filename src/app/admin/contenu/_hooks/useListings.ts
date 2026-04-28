@@ -17,6 +17,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/admin-fetch';
 import toast from 'react-hot-toast';
 import type { ContentListing } from '../_types';
 
@@ -47,7 +48,7 @@ export function useListings() {
 
   // ── Suppression via API serveur ──────────────────────────────────────────
   const deleteItem = async (id: string) => {
-    const res = await fetch(`/api/admin/contenu/listings/${id}`, {
+    const res = await adminFetch(`/api/admin/contenu/listings/${id}`, {
       method: 'DELETE',
     });
     if (!res.ok) {
@@ -62,7 +63,7 @@ export function useListings() {
   // ── Changement de statut via API serveur ─────────────────────────────────
   const toggleStatus = async (id: string, current: string) => {
     const newStatus = current === 'active' ? 'inactive' : 'active';
-    const res = await fetch(`/api/admin/contenu/listings/${id}`, {
+    const res = await adminFetch(`/api/admin/contenu/listings/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'set_status', value: newStatus }),

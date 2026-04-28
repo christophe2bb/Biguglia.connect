@@ -18,6 +18,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { ArrowLeft, RefreshCw, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import type { AdminLogsResponse } from '@/app/api/admin/logs/route';
+import { adminFetch } from '@/lib/admin-fetch';
 import LogFilters from './_components/LogFilters';
 
 // Lazy-load heavy table (rows not needed until data arrives)
@@ -67,7 +68,7 @@ export default function AdminLogsPage() {
         params.set('to', to.toISOString());
       }
 
-      const res = await fetch(`/api/admin/logs?${params.toString()}`, {
+      const res = await adminFetch(`/api/admin/logs?${params.toString()}`, {
         signal:  controller.signal,
         headers: { 'x-requested-with': 'XMLHttpRequest' },
       });

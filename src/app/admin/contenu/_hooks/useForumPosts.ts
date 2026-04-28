@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { adminFetch } from '@/lib/admin-fetch';
 import toast from 'react-hot-toast';
 import type { ContentForumPost } from '../_types';
 
@@ -41,7 +42,7 @@ export function useForumPosts() {
 
   // ── Suppression via API serveur ──────────────────────────────────────────
   const deleteItem = async (id: string) => {
-    const res = await fetch(`/api/admin/contenu/forum_posts/${id}`, {
+    const res = await adminFetch(`/api/admin/contenu/forum_posts/${id}`, {
       method: 'DELETE',
     });
     if (!res.ok) {
@@ -55,7 +56,7 @@ export function useForumPosts() {
 
   // ── Fermer / rouvrir via API serveur ─────────────────────────────────────
   const toggleClosed = async (id: string, current: boolean) => {
-    const res = await fetch(`/api/admin/contenu/forum_posts/${id}`, {
+    const res = await adminFetch(`/api/admin/contenu/forum_posts/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'set_closed', value: !current }),
@@ -71,7 +72,7 @@ export function useForumPosts() {
 
   // ── Épingler / désépingler via API serveur ───────────────────────────────
   const togglePinned = async (id: string, current: boolean) => {
-    const res = await fetch(`/api/admin/contenu/forum_posts/${id}`, {
+    const res = await adminFetch(`/api/admin/contenu/forum_posts/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'set_pinned', value: !current }),
