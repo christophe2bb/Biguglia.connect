@@ -11,12 +11,60 @@
  * SÉCURITÉ :
  *   • getAdminUser() vérifie la session + role admin/moderator côté serveur
  *   • createAdminClient() (service role) contourne la RLS
+ *
+ * Fix TS2352 : Supabase retourne les jointures one-to-one (profile via FK)
+ * comme un tableau [] côté SDK. On caste via `unknown` et on prend [0] au
+ * runtime plutôt que de forcer un type incompatible directement.
  */
 
 import 'server-only';
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminUser } from '@/lib/supabase/admin-guard';
+
+// ── Types internes ────────────────────────────────────────────────────────────
+
+interface RawProfile {
+  id: string;
+  full_name?: string | null;
+  avatar_url?: string | null;
+  email?: string | null;
+  role?: string | null;
+}
+
+interface RawParticipant {
+  user_id: string;
+  last_read_at?: string | null;
+  // Supabase SDK retourne les FK one-to-one comme un tableau — on normalise au runtime
+  profile: RawProfile[] | RawProfile | null;
+}
+
+interface RawMessage {
+  id: string;
+  content: string;
+  sender_id: string;
+  created_at: string;
+}
+
+interface RawConv {
+  id: string;
+  subject?: string | null;
+  related_type?: string | null;
+  related_id?: string | null;
+  created_at: string;
+  updated_at: string;
+  participants?: RawParticipant[];
+  last_msg?: RawMessage[];
+}
+
+// Normalise profile : tableau [] ou objet ou null → objet | null
+function normalizeProfile(p: RawProfile[] | RawProfile | null): RawProfile | null {
+  if (!p) return null;
+  if (Array.isArray(p)) return p[0] ?? null;
+  return p;
+}
+
+// ── GET /api/admin/messages ───────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
   const guard = await getAdminUser(req);
@@ -28,7 +76,7 @@ export async function GET(req: NextRequest) {
 
   try {
     // Récupérer toutes les conversations avec participants et dernier message
-    const { data: conversations, error } = await adminClient
+    const { data: rawData, error } = await adminClient
       .from('conversations')
       .select(`
         id,
@@ -56,78 +104,66 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Cast sûr via unknown pour éviter TS2352 (SDK retourne profile comme [])
+    const conversations = (rawData ?? []) as unknown as RawConv[];
+
     // Compter le total de messages pour chaque conversation
     const { data: msgCounts, error: countErr } = await adminClient
       .from('messages')
       .select('conversation_id')
-      .in('conversation_id', (conversations ?? []).map((c: { id: string }) => c.id));
+      .in('conversation_id', conversations.map(c => c.id));
 
     if (countErr) console.warn('[admin/messages] msgCounts error:', countErr);
 
     const countMap: Record<string, number> = {};
     for (const m of msgCounts ?? []) {
-      countMap[m.conversation_id] = (countMap[m.conversation_id] ?? 0) + 1;
+      countMap[(m as { conversation_id: string }).conversation_id] =
+        (countMap[(m as { conversation_id: string }).conversation_id] ?? 0) + 1;
     }
 
-    // Mapper + trier les messages par date desc, garder seulement le dernier
-    type RawConv = {
-      id: string;
-      subject?: string | null;
-      related_type?: string | null;
-      related_id?: string | null;
-      created_at: string;
-      updated_at: string;
-      participants?: Array<{
-        user_id: string;
-        last_read_at?: string | null;
-        profile?: { id: string; full_name?: string | null; avatar_url?: string | null; email?: string | null; role?: string | null } | null;
-      }>;
-      last_msg?: Array<{ id: string; content: string; sender_id: string; created_at: string }>;
-    };
-
-    const mapped = (conversations as RawConv[] ?? []).map(conv => {
+    // Mapper : normaliser profile (tableau → objet) + trier messages
+    const mapped = conversations.map(conv => {
       const msgs = [...(conv.last_msg ?? [])].sort((a, b) =>
         b.created_at.localeCompare(a.created_at)
       );
       const lastMsg = msgs[0] ?? null;
 
       return {
-        id: conv.id,
-        subject: conv.subject ?? null,
-        related_type: conv.related_type ?? null,
-        related_id: conv.related_id ?? null,
-        created_at: conv.created_at,
-        updated_at: conv.updated_at,
-        message_count: countMap[conv.id] ?? 0,
+        id:            conv.id,
+        subject:       conv.subject       ?? null,
+        related_type:  conv.related_type  ?? null,
+        related_id:    conv.related_id    ?? null,
+        created_at:    conv.created_at,
+        updated_at:    conv.updated_at,
+        message_count: countMap[conv.id]  ?? 0,
         participants: (conv.participants ?? []).map(p => ({
-          user_id: p.user_id,
+          user_id:      p.user_id,
           last_read_at: p.last_read_at ?? null,
-          profile: p.profile ?? null,
+          profile:      normalizeProfile(p.profile),
         })),
-        last_message: lastMsg ? {
-          id: lastMsg.id,
-          content: lastMsg.content,
-          sender_id: lastMsg.sender_id,
-          created_at: lastMsg.created_at,
-        } : null,
+        last_message: lastMsg
+          ? { id: lastMsg.id, content: lastMsg.content, sender_id: lastMsg.sender_id, created_at: lastMsg.created_at }
+          : null,
       };
     });
 
-    // Filtrer par recherche (nom participant ou contenu dernier message)
+    // Filtrer par recherche (nom participant, email, contenu ou sujet)
     const filtered = search
       ? mapped.filter(c => {
           const s = search.toLowerCase();
-          const participantMatch = c.participants.some(p =>
-            p.profile?.full_name?.toLowerCase().includes(s) ||
-            p.profile?.email?.toLowerCase().includes(s)
+          return (
+            c.participants.some(p =>
+              p.profile?.full_name?.toLowerCase().includes(s) ||
+              p.profile?.email?.toLowerCase().includes(s)
+            ) ||
+            c.last_message?.content?.toLowerCase().includes(s) ||
+            c.subject?.toLowerCase().includes(s)
           );
-          const msgMatch = c.last_message?.content?.toLowerCase().includes(s);
-          const subjectMatch = c.subject?.toLowerCase().includes(s);
-          return participantMatch || msgMatch || subjectMatch;
         })
       : mapped;
 
     return NextResponse.json({ conversations: filtered, total: filtered.length });
+
   } catch (err) {
     console.error('[admin/messages] unexpected error:', err);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
