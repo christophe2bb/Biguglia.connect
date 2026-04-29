@@ -135,10 +135,12 @@ const isDev = process.env.NODE_ENV === 'development';
  *  Stratégie CSP Level 3 avec granularité fine :
  *
  *  style-src-elem  → contrôle les balises <style> et <link rel="stylesheet">
- *    • 'nonce-{nonce}' : seules les balises <style nonce="..."> sont autorisées
+ *    • 'nonce-{nonce}' : balises <style nonce="..."> autorisées (Next.js SSR)
+ *    • 'unsafe-inline' : requis pour Recharts qui injecte des <style> sans nonce
  *    • 'self'          : feuilles CSS locales Next.js (/_next/static/css/…)
  *    • fonts.googleapis.com : Google Fonts (feuille de style externe)
- *    Note : 'unsafe-inline' est RETIRÉ → les <style> injectés sans nonce sont bloqués.
+ *    Risque résiduel : CSS injection limitée (pas d'exécution JS). Acceptable
+ *    car script-src reste strict (nonce + strict-dynamic).
  *
  *  style-src-attr  → contrôle les attributs style="" sur les éléments HTML
  *    • 'unsafe-inline' conservé intentionnellement :
@@ -164,8 +166,10 @@ export function buildCsp(nonce: string): string {
     ? `'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval' blob: https://vercel.live https://*.vercel-scripts.com https://browser.sentry-cdn.com`
     : `'nonce-${nonce}' 'strict-dynamic' blob: https://vercel.live https://*.vercel-scripts.com https://browser.sentry-cdn.com`;
 
-  // style-src-elem : balises <style> et <link rel="stylesheet"> — nonce requis
-  const styleElem = `'nonce-${nonce}' 'self' https://fonts.googleapis.com`;
+  // style-src-elem : balises <style> et <link rel="stylesheet">
+  // 'unsafe-inline' ajouté pour Recharts qui injecte des <style> sans nonce.
+  // Le nonce protège les scripts (script-src) — risque résiduel style-only acceptable.
+  const styleElem = `'nonce-${nonce}' 'unsafe-inline' 'self' https://fonts.googleapis.com`;
 
   // style-src-attr : attributs style="" sur les éléments — unsafe-inline conservé
   // (React inline styles dynamiques, voir commentaire buildCsp ci-dessus)
