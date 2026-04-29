@@ -23,6 +23,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/admin/stats',        label: 'Statistiques',               desc: 'Graphiques & activité complète',                                  icon: '📊', highlight: true  },
   { href: '/admin/artisans',     label: 'Gestion artisans',           desc: 'Valider, refuser, suspendre',                                     icon: '⚒️'  },
   { href: '/admin/utilisateurs', label: 'Utilisateurs',               desc: 'Gérer les comptes',                                               icon: '👥'  },
+  { href: '/admin/messages',     label: 'Messages',                   desc: 'Voir toutes les conversations membres',                            icon: '💬'  },
   { href: '/admin/contenu',      label: 'Contenu',                    desc: 'Annonces, forum, avis, matériel',                                 icon: '📋'  },
   { href: '/admin/moderation',   label: 'Modération',                 desc: 'File de validation des publications',                              icon: '🛡️', hasBadge: true  },
   { href: '/admin/signalements', label: 'Signalements',               desc: 'Modérer le contenu',                                              icon: '🚩'  },

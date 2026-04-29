@@ -12,6 +12,9 @@
  *   ?status=...   — filtre statut (listings seulement)
  *   ?limit=N      — max résultats (défaut 200)
  *
+ * Réponse : { items: [...], total: number }
+ *   total = count exact de la table (sans limit) pour les badges de l'UI.
+ *
  * SÉCURITÉ :
  *   • getAdminUser() vérifie la session + role admin/moderator côté serveur
  *   • createAdminClient() (service role) contourne la RLS
@@ -53,6 +56,14 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
     // ── listings ─────────────────────────────────────────────────────────────
     if (table === 'listings') {
+      // Count exact (sans limit) pour le badge
+      let countQ = adminClient
+        .from('listings')
+        .select('*', { count: 'exact', head: true });
+      if (status) countQ = countQ.eq('status', status);
+      if (search) countQ = countQ.ilike('title', `%${search}%`);
+      const { count: total } = await countQ;
+
       // listings a deux FK vers profiles (user_id + owner_id) → FK ambiguë.
       // On lit d'abord les listings, puis les profils séparément.
       let q = adminClient
@@ -87,11 +98,18 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         owner: r.user_id ? profileMap[r.user_id] ?? null : null,
       }));
 
-      return NextResponse.json({ items });
+      return NextResponse.json({ items, total: total ?? items.length });
     }
 
     // ── forum_posts ──────────────────────────────────────────────────────────
     if (table === 'forum_posts') {
+      // Count exact
+      let countQ = adminClient
+        .from('forum_posts')
+        .select('*', { count: 'exact', head: true });
+      if (search) countQ = countQ.ilike('title', `%${search}%`);
+      const { count: total } = await countQ;
+
       let q = adminClient
         .from('forum_posts')
         .select(`
@@ -121,11 +139,18 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         author: r.author_id ? profileMap[r.author_id] ?? null : null,
       }));
 
-      return NextResponse.json({ items });
+      return NextResponse.json({ items, total: total ?? items.length });
     }
 
     // ── equipment_items ──────────────────────────────────────────────────────
     if (table === 'equipment_items') {
+      // Count exact
+      let countQ = adminClient
+        .from('equipment_items')
+        .select('*', { count: 'exact', head: true });
+      if (search) countQ = countQ.ilike('title', `%${search}%`);
+      const { count: total } = await countQ;
+
       let q = adminClient
         .from('equipment_items')
         .select(`
@@ -155,11 +180,18 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         owner: r.owner_id ? profileMap[r.owner_id] ?? null : null,
       }));
 
-      return NextResponse.json({ items });
+      return NextResponse.json({ items, total: total ?? items.length });
     }
 
     // ── reviews ──────────────────────────────────────────────────────────────
     if (table === 'reviews') {
+      // Count exact
+      let countQ = adminClient
+        .from('reviews')
+        .select('*', { count: 'exact', head: true });
+      if (search) countQ = countQ.ilike('comment', `%${search}%`);
+      const { count: total } = await countQ;
+
       let q = adminClient
         .from('reviews')
         .select(`
@@ -201,7 +233,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         artisan:  r.artisan_id  ? artisanMap[r.artisan_id]   ?? null : null,
       }));
 
-      return NextResponse.json({ items });
+      return NextResponse.json({ items, total: total ?? items.length });
     }
 
     return NextResponse.json({ error: 'Table non supportée.' }, { status: 400 });
