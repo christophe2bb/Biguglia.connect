@@ -14,6 +14,7 @@
  */
 
 import 'server-only';
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminUser } from '@/lib/supabase/admin-guard';
 import { captureApiError } from '@/lib/monitoring/sentry';

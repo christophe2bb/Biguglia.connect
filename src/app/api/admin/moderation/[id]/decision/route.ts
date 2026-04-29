@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * API Route — PATCH /api/admin/moderation/[id]/decision
  *
