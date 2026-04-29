@@ -11,12 +11,12 @@ import { useReviews } from '../_hooks/useReviews';
 import type { ConfirmTarget } from '../_types';
 
 const RATING_OPTIONS = [
-  { value: '',  label: 'Toutes notes'     },
-  { value: '1', label: '⭐ 1/5'           },
-  { value: '2', label: '⭐⭐ 2/5'         },
-  { value: '3', label: '⭐⭐⭐ 3/5'       },
-  { value: '4', label: '⭐⭐⭐⭐ 4/5'     },
-  { value: '5', label: '⭐⭐⭐⭐⭐ 5/5'   },
+  { value: '',  label: 'Toutes notes'   },
+  { value: '1', label: '⭐ 1/5'         },
+  { value: '2', label: '⭐⭐ 2/5'       },
+  { value: '3', label: '⭐⭐⭐ 3/5'     },
+  { value: '4', label: '⭐⭐⭐⭐ 4/5'   },
+  { value: '5', label: '⭐⭐⭐⭐⭐ 5/5' },
 ];
 
 export default function ReviewsTab() {
@@ -34,7 +34,7 @@ export default function ReviewsTab() {
       <ConfirmModal
         open={!!confirm}
         title="Supprimer l'avis"
-        message={`Supprimer définitivement cet avis : "${confirm?.label}" ?`}
+        message={`Supprimer définitivement cet avis de "${confirm?.label}" ? Cette action est irréversible.`}
         onConfirm={() => { if (confirm) { deleteItem(confirm.id); setConfirm(null); } }}
         onCancel={() => setConfirm(null)}
       />
@@ -53,8 +53,9 @@ export default function ReviewsTab() {
 
       <ContentTable loading={loading} empty={items.length === 0} emptyMessage="Aucun avis trouvé">
         {items.map(review => (
-          <div key={review.id} className="bg-white border rounded-xl p-4 flex items-start gap-4">
+          <div key={review.id} className="bg-white border border-gray-100 rounded-xl p-4 flex items-start gap-4">
             <Avatar src={review.reviewer?.avatar_url} name={review.reviewer?.full_name || '?'} size="sm" />
+
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-1">
                 <StarRating rating={review.rating} />
@@ -76,10 +77,15 @@ export default function ReviewsTab() {
                 {' · '}{formatRelative(review.created_at)}
               </div>
             </div>
+
+            {/* Seule action disponible : supprimer */}
             <button
-              onClick={() => setConfirm({ id: review.id, label: review.comment?.slice(0, 60) + '…' })}
+              onClick={() => setConfirm({
+                id: review.id,
+                label: review.reviewer?.full_name || review.reviewer?.email || 'Auteur inconnu',
+              })}
               className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors flex-shrink-0"
-              title="Supprimer"
+              title="Supprimer définitivement cet avis"
             >
               <Trash2 className="w-4 h-4" />
             </button>
