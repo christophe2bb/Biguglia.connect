@@ -21,7 +21,7 @@ export default function AdminStatsGrid({ stats, loading }: AdminStatsGridProps) 
     { icon: Wrench,        label: 'Artisans vérifiés',  value: stats?.verified_artisans  ?? 0, color: 'text-green-600',  bg: 'bg-green-50',   href: '/admin/artisans' },
     { icon: AlertTriangle, label: 'En attente',         value: stats?.pending_artisans   ?? 0, color: 'text-orange-600', bg: 'bg-orange-50',  href: '/admin/artisans',       highlight: (stats?.pending_artisans ?? 0) > 0 },
     { icon: Package,       label: 'Annonces actives',   value: stats?.total_listings     ?? 0, color: 'text-purple-600', bg: 'bg-purple-50',  href: '/admin/contenu' },
-    { icon: MessageSquare, label: 'Messages',           value: stats?.total_messages     ?? 0, color: 'text-brand-600',  bg: 'bg-brand-50',   href: '/admin/stats' },
+    { icon: MessageSquare, label: 'Messages',           value: stats?.total_messages     ?? 0, color: 'text-brand-600',  bg: 'bg-brand-50',   href: '/admin/stats#messages' },
     { icon: Flag,          label: 'Signalements',       value: stats?.pending_reports    ?? 0, color: 'text-red-600',    bg: 'bg-red-50',     href: '/admin/signalements',   highlight: (stats?.pending_reports ?? 0) > 0 },
     { icon: Shield,        label: 'En modération',      value: stats?.pending_moderation ?? 0, color: 'text-amber-600',  bg: 'bg-amber-50',   href: '/admin/moderation',     highlight: (stats?.pending_moderation ?? 0) > 0 },
     { icon: TrendingUp,    label: 'Posts forum',        value: stats?.total_forum_posts  ?? 0, color: 'text-teal-600',   bg: 'bg-teal-50',    href: '/admin/contenu' },

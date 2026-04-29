@@ -12,7 +12,7 @@ import type { AllStats } from '../_types';
 
 export function SectionMessages({ stats }: { stats: AllStats }) {
   return (
-    <section>
+    <section id="messages">
       <SectionTitle icon={MessageSquare} title="Messages & Conversations" color="text-orange-700" />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
