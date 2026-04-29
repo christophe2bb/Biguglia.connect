@@ -167,9 +167,9 @@ export function buildCsp(nonce: string): string {
     : `'nonce-${nonce}' 'strict-dynamic' blob: https://vercel.live https://*.vercel-scripts.com https://browser.sentry-cdn.com`;
 
   // style-src-elem : balises <style> et <link rel="stylesheet">
-  // 'unsafe-inline' ajouté pour Recharts qui injecte des <style> sans nonce.
-  // Le nonce protège les scripts (script-src) — risque résiduel style-only acceptable.
-  const styleElem = `'nonce-${nonce}' 'unsafe-inline' 'self' https://fonts.googleapis.com`;
+  // Nonce requis — pas de 'unsafe-inline' ici (le test CI l'interdit).
+  // Recharts utilise des attributs style="" (→ style-src-attr 'unsafe-inline'), pas des <style>.
+  const styleElem = `'nonce-${nonce}' 'self' https://fonts.googleapis.com`;
 
   // style-src-attr : attributs style="" sur les éléments — unsafe-inline conservé
   // (React inline styles dynamiques, voir commentaire buildCsp ci-dessus)

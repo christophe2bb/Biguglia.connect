@@ -24,7 +24,7 @@ import { CollectionPhotoSection } from './CollectionPhotoSection';
 // ─── Sous-composant accordéon ─────────────────────────────────────────────────
 
 function SectionHeader({
-  id, title, icon: Icon, open, onToggle,
+  id: _id, title, icon: Icon, open, onToggle,
 }: {
   id: SectionId; title: string; icon: React.ElementType; open: boolean; onToggle: () => void;
 }) {
