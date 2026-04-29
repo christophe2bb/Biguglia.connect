@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   MessageSquare, Search, RefreshCw, X, ArrowLeft,
   Users, ShoppingBag, HandHeart, MapPin, Package,
@@ -74,11 +75,15 @@ function getParticipantName(p: Participant): string {
 
 function Avatar({ profile, size = 8 }: { profile?: ParticipantProfile | null; size?: number }) {
   if (profile?.avatar_url) {
+    const px = size * 4;
     return (
-      <img
+      <Image
         src={profile.avatar_url}
         alt={profile.full_name ?? 'avatar'}
+        width={px}
+        height={px}
         className={`w-${size} h-${size} rounded-full object-cover`}
+        unoptimized
       />
     );
   }
