@@ -36,17 +36,17 @@ function ArtisansContent() {
       setCategories(cats || []);
 
       // Artisans vérifiés uniquement.
-      // Stratégie double pour être robuste aux données héritées (is_verified pas encore
-      // synchronisé en base) : on récupère tout, puis on filtre côté client sur
-      // profile.role === 'artisan_verified' OU is_verified === true.
-      // La migration 20260430_artisan_is_verified_backfill.sql corrige is_verified en base ;
-      // une fois appliquée, les deux conditions convergent.
+      // La RLS (politique artisan_profiles_select_verified) filtre côté Supabase
+      // sur is_verified = true. Les colonnes is_verified, trade_name, location,
+      // intervention_zone sont ajoutées par la migration
+      // 20260430_artisan_profiles_missing_columns.sql.
+      // Note: pas de FK hint — PostgREST infère la relation via user_id FK.
       let query = supabase
         .from('artisan_profiles')
         .select(`
-          id, user_id, business_name, trade_name, description, location,
-          intervention_zone, is_featured, is_verified, siret,
-          profile:profiles!artisan_profiles_user_id_fkey(id, full_name, avatar_url, role),
+          id, user_id, business_name, trade_name, description,
+          location, intervention_zone, is_featured, is_verified, siret,
+          profile:profiles(id, full_name, avatar_url, role),
           trade_category:trade_categories(id, name, slug, icon),
           gallery:artisan_photos(url, display_order),
           reviews(rating)
@@ -60,12 +60,12 @@ function ArtisansContent() {
 
       const { data } = await query.order('is_featured', { ascending: false });
 
-      // Filtre côté client : artisan vérifié = is_verified OU role artisan_verified
-      // (défense en profondeur pendant la période de transition des données)
+      // Calcul note moyenne — la RLS garantit déjà que seuls les artisans vérifiés
+      // sont retournés. Filtre JS en défense supplémentaire (données héritées).
       const enriched = (data || [])
         .filter(a => {
           const role = (a.profile as { role?: string } | null)?.role;
-          return a.is_verified === true || role === 'artisan_verified';
+          return (a as { is_verified?: boolean }).is_verified === true || role === 'artisan_verified';
         })
         .map(a => ({
           ...a,
