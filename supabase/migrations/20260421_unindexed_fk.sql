@@ -8,7 +8,7 @@
 --   un seq-scan complet sur la table enfant.
 --
 -- Stratégie :
---   • CREATE INDEX CONCURRENTLY IF NOT EXISTS  → pas de verrou, idempotent
+--   • CREATE INDEX IF NOT EXISTS  → pas de verrou, idempotent
 --   • Nommage uniforme : idx_<table>_<colonne>
 --   • Commentaire indiquant la table parente référencée
 --   • Regroupement par domaine fonctionnel
@@ -42,10 +42,10 @@
 --    user_id     → profiles      (FK principale, utilisée dans toutes les policies)
 --    trade_category_id → trade_categories  (filtre de recherche artisans par métier)
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_artisan_profiles_user_id
+CREATE INDEX IF NOT EXISTS idx_artisan_profiles_user_id
   ON public.artisan_profiles (user_id);  -- FK → profiles
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_artisan_profiles_trade_category_id
+CREATE INDEX IF NOT EXISTS idx_artisan_profiles_trade_category_id
   ON public.artisan_profiles (trade_category_id);  -- FK → trade_categories
 
 -- ---------------------------------------------------------------------------
@@ -54,10 +54,10 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_artisan_profiles_trade_category_id
 --    artisan_id  → artisan_profiles (supprimé dans migration_B lot 4 car idx_scan=0
 --                                    à ce moment ; le trafic a augmenté depuis)
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_service_requests_resident_id
+CREATE INDEX IF NOT EXISTS idx_service_requests_resident_id
   ON public.service_requests (resident_id);  -- FK → profiles
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_service_requests_artisan_id
+CREATE INDEX IF NOT EXISTS idx_service_requests_artisan_id
   ON public.service_requests (artisan_id);  -- FK → artisan_profiles
 
 -- ---------------------------------------------------------------------------
@@ -66,13 +66,13 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_service_requests_artisan_id
 --    category_id          → listing_categories (filtre de recherche)
 --    reserved_by_user_id  → profiles          (nullable, filtre réservations)
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_listings_user_id
+CREATE INDEX IF NOT EXISTS idx_listings_user_id
   ON public.listings (user_id);  -- FK → profiles
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_listings_category_id
+CREATE INDEX IF NOT EXISTS idx_listings_category_id
   ON public.listings (category_id);  -- FK → listing_categories
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_listings_reserved_by_user_id
+CREATE INDEX IF NOT EXISTS idx_listings_reserved_by_user_id
   ON public.listings (reserved_by_user_id)  -- FK → profiles (nullable)
   WHERE reserved_by_user_id IS NOT NULL;
 
@@ -81,10 +81,10 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_listings_reserved_by_user_id
 --    artisan_id  → artisan_profiles  (filtre principal : reviews d'un artisan)
 --    reviewer_id → profiles          (unicité + policy DELETE)
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_reviews_artisan_id
+CREATE INDEX IF NOT EXISTS idx_reviews_artisan_id
   ON public.reviews (artisan_id);  -- FK → artisan_profiles
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_reviews_reviewer_id
+CREATE INDEX IF NOT EXISTS idx_reviews_reviewer_id
   ON public.reviews (reviewer_id);  -- FK → profiles
 
 -- ---------------------------------------------------------------------------
@@ -92,17 +92,17 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_reviews_reviewer_id
 --    user_id    → profiles          (lookup "mes favoris")
 --    artisan_id → artisan_profiles  (lookup "qui m'a mis en favori")
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_favorite_artisans_user_id
+CREATE INDEX IF NOT EXISTS idx_favorite_artisans_user_id
   ON public.favorite_artisans (user_id);  -- FK → profiles
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_favorite_artisans_artisan_id
+CREATE INDEX IF NOT EXISTS idx_favorite_artisans_artisan_id
   ON public.favorite_artisans (artisan_id);  -- FK → artisan_profiles
 
 -- ---------------------------------------------------------------------------
 -- 6. reports
 --    reporter_id → profiles  (policy SELECT "voir ses propres signalements")
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_reports_reporter_id
+CREATE INDEX IF NOT EXISTS idx_reports_reporter_id
   ON public.reports (reporter_id);  -- FK → profiles
 
 -- ---------------------------------------------------------------------------
@@ -110,14 +110,14 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_reports_reporter_id
 --    event_id → events  (seul user_id est indexé ; event_id manque)
 --    Utilisé dans : DELETE cascade depuis events, lookup "sauvegardé par event"
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_event_saves_event_id
+CREATE INDEX IF NOT EXISTS idx_event_saves_event_id
   ON public.event_saves (event_id);  -- FK → events
 
 -- ---------------------------------------------------------------------------
 -- 8. association_needs
 --    created_by → profiles  (policy UPDATE/DELETE + filtre "mes besoins")
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_asso_needs_created_by
+CREATE INDEX IF NOT EXISTS idx_asso_needs_created_by
   ON public.association_needs (created_by)  -- FK → profiles (nullable)
   WHERE created_by IS NOT NULL;
 
@@ -126,7 +126,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_asso_needs_created_by
 --    author_id → profiles  (seul item_id est indexé via lf_comments_item_idx)
 --    Utilisé dans : DELETE cascade, policy INSERT/DELETE
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_lf_comments_author_id
+CREATE INDEX IF NOT EXISTS idx_lf_comments_author_id
   ON public.lf_comments (author_id)  -- FK → profiles (nullable)
   WHERE author_id IS NOT NULL;
 
@@ -134,7 +134,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_lf_comments_author_id
 -- 10. lf_matches
 --     suggested_by → profiles  (nullable ; utilisé dans les vérifications admin)
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_lf_matches_suggested_by
+CREATE INDEX IF NOT EXISTS idx_lf_matches_suggested_by
   ON public.lf_matches (suggested_by)  -- FK → profiles (nullable)
   WHERE suggested_by IS NOT NULL;
 
@@ -143,7 +143,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_lf_matches_suggested_by
 --     changed_by → profiles  (nullable ; seul listing_id est indexé)
 --     Utilisé dans : policy INSERT (auth.uid() = changed_by), filtres admin
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_lsh_changed_by
+CREATE INDEX IF NOT EXISTS idx_lsh_changed_by
   ON public.listing_status_history (changed_by)  -- FK → profiles (nullable)
   WHERE changed_by IS NOT NULL;
 
@@ -152,7 +152,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_lsh_changed_by
 --     reporter_id → profiles  (seuls listing_id et status sont indexés)
 --     Utilisé dans : policy SELECT/DELETE, DELETE cascade depuis profiles
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_listing_reports_reporter_id
+CREATE INDEX IF NOT EXISTS idx_listing_reports_reporter_id
   ON public.listing_reports (reporter_id);  -- FK → profiles
 
 -- ---------------------------------------------------------------------------
@@ -160,7 +160,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_listing_reports_reporter_id
 --     changed_by → profiles  (seul help_request_id est indexé)
 --     Utilisé dans : DELETE cascade, filtres admin
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_help_status_history_changed_by
+CREATE INDEX IF NOT EXISTS idx_help_status_history_changed_by
   ON public.help_request_status_history (changed_by)  -- FK → profiles (nullable)
   WHERE changed_by IS NOT NULL;
 
@@ -169,7 +169,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_help_status_history_changed_by
 --     reviewed_by → profiles  (seuls author_id/status/risk_score sont indexés)
 --     Utilisé dans : filtres admin "modéré par", DELETE cascade depuis profiles
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_modqueue_reviewed_by
+CREATE INDEX IF NOT EXISTS idx_modqueue_reviewed_by
   ON public.moderation_queue (reviewed_by)  -- FK → profiles (nullable)
   WHERE reviewed_by IS NOT NULL;
 
@@ -178,10 +178,10 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_modqueue_reviewed_by
 --     outing_id  → group_outings  (supprimé dans migration_B : outing_status_history_outing_idx)
 --     changed_by → profiles       (jamais indexé)
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_outing_status_history_outing_id
+CREATE INDEX IF NOT EXISTS idx_outing_status_history_outing_id
   ON public.outing_status_history (outing_id);  -- FK → group_outings
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_outing_status_history_changed_by
+CREATE INDEX IF NOT EXISTS idx_outing_status_history_changed_by
   ON public.outing_status_history (changed_by)  -- FK → profiles (nullable)
   WHERE changed_by IS NOT NULL;
 
@@ -191,7 +191,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_outing_status_history_changed_by
 --                                   idx_collection_views_viewer_id)
 --     Utilisé dans : COUNT vues par item, DELETE cascade depuis collection_items
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_collection_views_item_id
+CREATE INDEX IF NOT EXISTS idx_collection_views_item_id
   ON public.collection_views (item_id);  -- FK → collection_items
 
 -- ============================================================================
