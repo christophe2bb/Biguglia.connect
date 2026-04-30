@@ -260,8 +260,14 @@ BEGIN
     SELECT 1 FROM information_schema.tables
     WHERE table_schema = 'public' AND table_name = 'group_outings'
   ) THEN
+    -- DROP d'abord pour éviter l'erreur "cannot change name of view column"
+    -- (CREATE OR REPLACE VIEW ne peut pas modifier l'ordre/nom des colonnes existantes)
     EXECUTE $v$
-      CREATE OR REPLACE VIEW public.outing_organizer_summary
+      DROP VIEW IF EXISTS public.outing_organizer_summary;
+    $v$;
+
+    EXECUTE $v$
+      CREATE VIEW public.outing_organizer_summary
         WITH (security_invoker = true)
       AS
       SELECT
@@ -274,16 +280,19 @@ BEGIN
         go.difficulty,
         go.kids_friendly,
         go.dogs_allowed,
-        COUNT(op.id)  AS participants_count,
+        COUNT(op.id) AS participants_count,
         go.created_at,
         go.updated_at
       FROM public.group_outings go
       LEFT JOIN public.outing_participants op ON op.outing_id = go.id
       GROUP BY go.id;
+    $v$;
 
+    EXECUTE $v$
       GRANT SELECT ON public.outing_organizer_summary TO authenticated;
     $v$;
-    RAISE NOTICE 'Vue outing_organizer_summary créée/mise à jour';
+
+    RAISE NOTICE 'Vue outing_organizer_summary recréée';
   ELSE
     RAISE NOTICE 'Table group_outings absente — vue outing_organizer_summary ignorée';
   END IF;
