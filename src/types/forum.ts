@@ -42,7 +42,7 @@ export interface ForumTag {
 
 // ─── Sujets & réponses ────────────────────────────────────────────────────────
 
-export type ForumTopicStatus = 'ouvert' | 'verrouille' | 'masque' | 'archive';
+export type ForumTopicStatus = 'ouvert' | 'verrouille' | 'masque' | 'archive' | 'closed';
 
 export interface ForumReply {
   id: string;

@@ -176,8 +176,10 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
     const BASE_FIELDS = 'id, title, price, location, listing_type, status, created_at, is_urgent, sector_id, category_id, user_id, author_id';
     const CAT_JOIN   = 'category:listing_categories(id, name, slug, icon)';
 
-    const applyFiltersAndSort = (q: ReturnType<typeof supabase.from>) => {
-      let r = q;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const applyFiltersAndSort = (q: any) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let r: any = q;
       if (selectedStatus === 'active')        r = r.eq('status', 'active');
       else if (selectedStatus === 'reserved') r = r.eq('status', 'reserved');
       else if (selectedStatus === 'sold')     r = r.in('status', ['sold', 'given', 'exchanged']);

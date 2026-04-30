@@ -115,7 +115,7 @@ export function useForumPage(): UseForumPageReturn {
     setHotTopics([...topicList].sort((a, b) => (b.reply_count ?? 0) - (a.reply_count ?? 0)).slice(0, 5));
     setRecentlyResolved(topicList.filter(t => (t as ForumTopic & { status?: string }).status === 'closed').slice(0, 3));
     setLoading(false);
-  }, [selectedSector, selectedCategory, selectedType, sortMode, statusFilter, urgencyFilter, searchQuery]);
+  }, [selectedSector, selectedCategory, sortMode, statusFilter, searchQuery]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
