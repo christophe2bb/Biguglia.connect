@@ -69,9 +69,10 @@ export default function AdminUtilisateursPage() {
           forum_posts:      u.post_count,
           service_requests: u.request_count,
         },
-        updated_at:     u.created_at,
-        legal_consent:  false,
-        home_sector_id: null,
+        updated_at:      u.updated_at,
+        legal_consent:   u.legal_consent,
+        legal_consent_at: u.legal_consent_at ?? undefined,
+        home_sector_id:  null,
       }));
 
       setUsers(profiles);
