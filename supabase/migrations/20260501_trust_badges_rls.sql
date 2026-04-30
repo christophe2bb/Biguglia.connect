@@ -160,28 +160,60 @@ CREATE TABLE IF NOT EXISTS public.interactions (
 );
 
 -- Colonnes manquantes si la table existait déjà sans elles
+-- ÉTAPE 1 : ajouter d'abord source_type / source_id (colonnes critiques pour la contrainte UNIQUE)
+ALTER TABLE public.interactions
+  ADD COLUMN IF NOT EXISTS source_type           TEXT        NOT NULL DEFAULT 'listing',
+  ADD COLUMN IF NOT EXISTS source_id             UUID;
+
+-- ÉTAPE 2 : ajouter les autres colonnes manquantes
 ALTER TABLE public.interactions
   ADD COLUMN IF NOT EXISTS interaction_type      TEXT        NOT NULL DEFAULT 'transaction',
   ADD COLUMN IF NOT EXISTS conversation_id       UUID,
   ADD COLUMN IF NOT EXISTS status_history        JSONB       NOT NULL DEFAULT '[]',
   ADD COLUMN IF NOT EXISTS started_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
   ADD COLUMN IF NOT EXISTS accepted_at           TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS review_unlocked       BOOLEAN     NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS review_requester_done BOOLEAN     NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS review_receiver_done  BOOLEAN     NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS updated_at            TIMESTAMPTZ NOT NULL DEFAULT now();
 
--- Contrainte unique sur (source_type, source_id, requester_id) si elle n'existe pas
+-- ÉTAPE 3 : contrainte UNIQUE et index dans DO $$ EXECUTE pour éviter
+-- l'erreur de compilation quand les colonnes viennent d'être ajoutées
 DO $$ BEGIN
+  -- Contrainte unique (source_type, source_id, requester_id)
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
     WHERE conname = 'interactions_source_type_source_id_requester_id_key'
       AND conrelid = 'public.interactions'::regclass
   ) THEN
     BEGIN
-      ALTER TABLE public.interactions
+      EXECUTE 'ALTER TABLE public.interactions
         ADD CONSTRAINT interactions_source_type_source_id_requester_id_key
-        UNIQUE (source_type, source_id, requester_id);
+        UNIQUE (source_type, source_id, requester_id)';
     EXCEPTION WHEN others THEN
-      RAISE NOTICE 'Contrainte unique interactions déjà existante ou conflit de données — ignoré';
+      RAISE NOTICE 'Contrainte unique interactions — ignoré : %', SQLERRM;
     END;
+  END IF;
+
+  -- Index sur (source_type, source_id) — via EXECUTE pour éviter erreur colonne
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes
+    WHERE schemaname = 'public' AND tablename = 'interactions'
+      AND indexname = 'idx_interactions_source'
+  ) THEN
+    EXECUTE 'CREATE INDEX idx_interactions_source
+      ON public.interactions (source_type, source_id)
+      WHERE source_id IS NOT NULL';
+  END IF;
+
+  -- Index sur started_at — via EXECUTE car colonne ajoutée dynamiquement
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes
+    WHERE schemaname = 'public' AND tablename = 'interactions'
+      AND indexname = 'idx_interactions_started_at'
+  ) THEN
+    EXECUTE 'CREATE INDEX idx_interactions_started_at
+      ON public.interactions (started_at DESC)';
   END IF;
 END $$;
 
@@ -201,11 +233,10 @@ CREATE POLICY "interactions_update" ON public.interactions FOR UPDATE
 CREATE POLICY "interactions_delete" ON public.interactions FOR DELETE
   USING (auth.uid() = requester_id OR is_moderator_or_admin());
 
+-- Index sur colonnes qui existent depuis le début (pas d'EXECUTE nécessaire)
 CREATE INDEX IF NOT EXISTS idx_interactions_requester_id ON public.interactions (requester_id);
 CREATE INDEX IF NOT EXISTS idx_interactions_receiver_id  ON public.interactions (receiver_id);
 CREATE INDEX IF NOT EXISTS idx_interactions_status       ON public.interactions (status);
-CREATE INDEX IF NOT EXISTS idx_interactions_started_at   ON public.interactions (started_at DESC);
-CREATE INDEX IF NOT EXISTS idx_interactions_source       ON public.interactions (source_type, source_id) WHERE source_id IS NOT NULL;
 
 
 -- ============================================================================
