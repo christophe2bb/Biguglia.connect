@@ -38,6 +38,9 @@ export interface AdminUserEntry {
   role: string;
   status: string;
   created_at: string;
+  updated_at: string;
+  legal_consent: boolean;
+  legal_consent_at: string | null;
   // Compteurs d'activité (calculés côté serveur)
   message_count: number;
   listing_count: number;
@@ -70,7 +73,8 @@ export async function GET(req: NextRequest): Promise<Response> {
   let query = adminClient
     .from('profiles')
     .select(`
-      id, full_name, email, phone, avatar_url, role, status, created_at,
+      id, full_name, email, phone, avatar_url, role, status,
+      created_at, updated_at, legal_consent, legal_consent_at,
       artisan_profile:artisan_profiles(
         id, business_name, artisan_type,
         trade_category:trade_categories(name, icon)
@@ -147,7 +151,10 @@ export async function GET(req: NextRequest): Promise<Response> {
       avatar_url:    p.avatar_url != null ? String(p.avatar_url) : null,
       role:          String(p.role ?? ''),
       status:        String(p.status ?? ''),
-      created_at:    String(p.created_at ?? ''),
+      created_at:       String(p.created_at ?? ''),
+      updated_at:       String(p.updated_at ?? p.created_at ?? ''),
+      legal_consent:    Boolean(p.legal_consent ?? false),
+      legal_consent_at: p.legal_consent_at != null ? String(p.legal_consent_at) : null,
       message_count: msgMap[id]     ?? 0,
       listing_count: listingMap[id] ?? 0,
       post_count:    postMap[id]    ?? 0,
