@@ -90,7 +90,7 @@ function CollectionneursDashboardContent() {
         .from('collection_items')
         .select(`
           *,
-          photos:collection_item_photos(id, url, image_url, is_cover, sort_order)
+          photos:collection_item_photos(id, url, is_cover, sort_order)
         `)
         .eq('author_id', profileId)
         .order('created_at', { ascending: false });
@@ -99,10 +99,10 @@ function CollectionneursDashboardContent() {
         ...d,
         mode: ((d.mode || (d.item_type === 'troc' ? 'echange' : d.item_type)) as CollectionMode) || 'vente',
         status: (d.status as CollectionStatus) || 'actif',
-        photos: ((d.photos as Array<{ id?: string; url?: string; image_url?: string; is_cover?: boolean; sort_order?: number; preview?: string }>) || []).map(p => ({
+        photos: ((d.photos as Array<{ id?: string; url?: string; is_cover?: boolean; sort_order?: number; preview?: string }>) || []).map(p => ({
           ...p,
-          url: p.image_url || p.url,
-          preview: p.image_url || p.url || '',
+          url: p.url,
+          preview: p.url || '',
         })),
       })) as CollectionItem[];
 

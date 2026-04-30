@@ -167,6 +167,7 @@ export function useForumComposer() {
     const supabase = createClient();
     let topicId: string | null = null;
 
+    // Note: post_type et urgency n'existent pas sur forum_topics (colonnes absentes du schéma)
     const { data: topicData, error } = await supabase
       .from('forum_topics')
       .insert({
@@ -178,8 +179,6 @@ export function useForumComposer() {
         status:         'ouvert',
         visibility:     form.visibility,
         tags:           form.tags,
-        post_type:      form.post_type   || null,
-        urgency:        form.urgency,
         is_pinned:      false,
         is_hot:         false,
         views:          0,

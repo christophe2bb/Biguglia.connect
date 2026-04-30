@@ -45,7 +45,7 @@ export const metadata: Metadata = {
 interface EventRow {
   id:          string;
   title:       string;
-  start_date:  string | null;
+  event_date:  string | null;
   location:    string | null;
   category:    string | null;
   description: string | null;
@@ -57,11 +57,11 @@ async function fetchUpcomingEvents(): Promise<{ events: EventRow[]; total: numbe
     const today = new Date().toISOString().split('T')[0];
     const { data, count } = await supabase
       .from('events')
-      .select('id, title, start_date, location, category, description', { count: 'exact' })
+      .select('id, title, event_date, location, category, description', { count: 'exact' })
       .neq('status', 'annule')
       .neq('status', 'draft')
-      .gte('start_date', today)
-      .order('start_date', { ascending: true })
+      .gte('event_date', today)
+      .order('event_date', { ascending: true })
       .limit(6);
     return { events: (data ?? []) as EventRow[], total: count ?? 0 };
   } catch {
@@ -110,7 +110,7 @@ export default async function EvenementsBigugliaPage() {
       item: {
         '@type':     'Event',
         name:        e.title,
-        startDate:   e.start_date,
+        startDate:   e.event_date,
         description: e.description ?? `Événement à ${GEO.city} — ${e.title}`,
         location: {
           '@type': 'Place',
@@ -135,7 +135,7 @@ export default async function EvenementsBigugliaPage() {
     name:        ev.title,
     description: ev.description ?? `Événement à ${GEO.city} — ${ev.title}`,
     url:         `${SITE_URL}/evenements/${ev.id}`,
-    startDate:   ev.start_date,
+    startDate:   ev.event_date,
     eventStatus: 'https://schema.org/EventScheduled',
     eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
     location: {
@@ -326,10 +326,10 @@ export default async function EvenementsBigugliaPage() {
                           </span>
                         )}
                       </div>
-                      {ev.start_date && (
+                      {ev.event_date && (
                         <p className="text-xs text-violet-600 font-bold flex items-center gap-1">
                           <Clock className="w-3.5 h-3.5" />
-                          {formatEventDate(ev.start_date)}
+                          {formatEventDate(ev.event_date)}
                         </p>
                       )}
                       {ev.location && (

@@ -116,12 +116,13 @@ export async function checkEligibility(
 
     // ── Artisan : auteur de la demande uniquement ─────────────────────────────
     case 'service_request': {
+      // service_requests n'a pas de colonne user_id → c'est resident_id
       const { data } = await supabase
         .from('service_requests')
-        .select('user_id')
+        .select('resident_id')
         .eq('id', targetId)
         .single();
-      return data?.user_id === userId;
+      return data?.resident_id === userId;
     }
 
     default:

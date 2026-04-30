@@ -62,7 +62,7 @@ export function useForumPage(): UseForumPageReturn {
       supabase.from('forum_topics').select('*', { count: 'exact', head: true }),
       supabase.from('forum_replies').select('*', { count: 'exact', head: true }),
       supabase.from('forum_topics').select('author_id', { count: 'exact', head: true }).not('author_id', 'is', null),
-      supabase.from('forum_topics').select('*', { count: 'exact', head: true }).eq('is_resolved', true),
+      supabase.from('forum_topics').select('*', { count: 'exact', head: true }).eq('status', 'closed'),
     ]);
     setStats({ topics: tc || 0, replies: rc || 0, members: mc || 0, resolved: resc || 0 });
 
@@ -77,10 +77,10 @@ export function useForumPage(): UseForumPageReturn {
 
       if (selectedSector)           query = query.eq('sector_id', selectedSector);
       if (selectedCategory)         query = query.eq('category_id', selectedCategory);
-      if (selectedType)             query = query.eq('post_type', selectedType);
-      if (statusFilter === 'resolu') query = query.eq('is_resolved', true);
-      else if (statusFilter === 'ouvert') query = query.eq('status', 'ouvert');
-      if (urgencyFilter === 'haute') query = query.eq('urgency', 'haute');
+      // post_type/is_resolved/urgency n'existent pas sur forum_topics
+      // status 'closed' = résolu, 'open' = ouvert
+      if (statusFilter === 'resolu') query = query.eq('status', 'closed');
+      else if (statusFilter === 'ouvert') query = query.not('status', 'eq', 'closed');
       if (searchQuery.trim())        query = query.ilike('title', `%${searchQuery.trim()}%`);
 
       if (sortMode === 'views') query = query.order('views', { ascending: false });
@@ -113,7 +113,7 @@ export function useForumPage(): UseForumPageReturn {
 
     setTopics(topicList);
     setHotTopics([...topicList].sort((a, b) => (b.reply_count ?? 0) - (a.reply_count ?? 0)).slice(0, 5));
-    setRecentlyResolved(topicList.filter(t => (t as ForumTopic & { is_resolved?: boolean }).is_resolved).slice(0, 3));
+    setRecentlyResolved(topicList.filter(t => (t as ForumTopic & { status?: string }).status === 'closed').slice(0, 3));
     setLoading(false);
   }, [selectedSector, selectedCategory, selectedType, sortMode, statusFilter, urgencyFilter, searchQuery]);
 

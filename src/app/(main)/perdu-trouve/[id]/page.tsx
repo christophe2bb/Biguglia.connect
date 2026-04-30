@@ -33,7 +33,7 @@ async function fetchLFItem(id: string): Promise<LFItem | null> {
   // Attempt 1 – with explicit FK
   let { data, error } = await supabase
     .from('lost_found_items')
-    .select('*, author:profiles!lost_found_items_author_id_fkey(full_name, avatar_url, created_at, role, phone), photos:lf_photos(url, display_order, is_cover, visibility_type)')
+    .select('*, author:profiles!lost_found_items_author_id_fkey(full_name, avatar_url, created_at, role, phone), photos:lf_photos(url, display_order, visibility_type)')
     .eq('id', id)
     .single();
 
@@ -41,7 +41,7 @@ async function fetchLFItem(id: string): Promise<LFItem | null> {
   if ((error || !data) && error?.message?.includes('fkey')) {
     ({ data, error } = await supabase
       .from('lost_found_items')
-      .select('*, author:profiles(full_name, avatar_url, created_at, role, phone), photos:lf_photos(url, display_order, is_cover, visibility_type)')
+      .select('*, author:profiles(full_name, avatar_url, created_at, role, phone), photos:lf_photos(url, display_order, visibility_type)')
       .eq('id', id)
       .single());
   }

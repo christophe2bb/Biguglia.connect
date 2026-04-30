@@ -27,7 +27,7 @@ export function useOutings(profile: { id: string } | null | undefined) {
     setLoadingOutings(true);
     const { data } = await supabase
       .from('group_outings')
-      .select(`*, organizer:profiles!group_outings_organizer_id_fkey(full_name), participants:outing_participants(count), sector_id`)
+      .select(`*, organizer:profiles!group_outings_organizer_id_fkey(full_name), participants:outing_participants(count)`)
       .in('status', ['ouverte', 'complete', 'open', 'active', 'full'])
       .gte('outing_date', new Date().toISOString().split('T')[0])
       .order('outing_date', { ascending: true })
@@ -103,7 +103,7 @@ export function useOutings(profile: { id: string } | null | undefined) {
       difficulty: o.difficulty || 'facile',
       kids_friendly: o.kids_friendly || false,
       dogs_allowed: o.dogs_allowed || false,
-      sector_id: o.sector_id || '',
+      sector_id: '',  // colonne absente de group_outings en base
     });
     setOutingPhotos([]);
     setOutingPreviews([]);

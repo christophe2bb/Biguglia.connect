@@ -99,7 +99,7 @@ function makeUsersDb(opts: {
     ],
     profilesError = false,
     messages      = [{ sender_id: USER1_ID }, { sender_id: USER1_ID }],
-    listings      = [{ owner_id: USER1_ID }],
+    listings      = [{ author_id: USER1_ID }],   // owner_id → author_id (colonne réelle)
     posts         = [],
     requests      = [{ resident_id: USER2_ID }],
   } = opts;

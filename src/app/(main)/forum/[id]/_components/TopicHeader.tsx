@@ -60,7 +60,8 @@ export function TopicHeader({
     <>
       {/* ── Badges ── */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
-        {topic.is_resolved && (
+        {/* is_resolved n'existe pas en DB → dérivé de status === 'closed' */}
+        {(topic.is_resolved || topic.status === 'closed') && (
           <span className="inline-flex items-center gap-1.5 text-xs bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full font-bold border border-emerald-200">
             <CheckCircle2 className="w-3.5 h-3.5" /> Résolu
           </span>

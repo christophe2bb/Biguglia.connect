@@ -66,13 +66,22 @@ interface PostRow {
 async function fetchRecentPosts(): Promise<{ posts: PostRow[]; total: number }> {
   try {
     const supabase = await createClient();
+    // forum_topics has status + reply_count ; forum_posts n'a ni l'un ni l'autre
     const { data, count } = await supabase
-      .from('forum_posts')
-      .select('id, title, category, created_at, reply_count', { count: 'exact' })
-      .eq('status', 'published')
+      .from('forum_topics')
+      .select('id, title, tags, created_at, reply_count', { count: 'exact' })
+      .in('status', ['open', 'published'])
       .order('created_at', { ascending: false })
       .limit(6);
-    return { posts: (data ?? []) as PostRow[], total: count ?? 0 };
+    // Normalize: use first tag as category if available
+    const posts: PostRow[] = (data ?? []).map(r => ({
+      id:          r.id,
+      title:       r.title,
+      category:    Array.isArray(r.tags) && r.tags.length > 0 ? r.tags[0] : null,
+      created_at:  r.created_at,
+      reply_count: r.reply_count ?? 0,
+    }));
+    return { posts, total: count ?? 0 };
   } catch {
     return { posts: [], total: 0 };
   }

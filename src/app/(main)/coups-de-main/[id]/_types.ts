@@ -31,7 +31,7 @@ export type HelpRequest = {
   photos?: { url: string; display_order: number; caption?: string }[];
   created_at: string;
   updated_at: string;
-  resolved_at?: string | null;
+  status_changed_at?: string | null; // resolved_at n'existe pas sur help_requests → status_changed_at (mis à jour par trigger)
 };
 
 export type HelpComment = {

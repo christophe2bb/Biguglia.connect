@@ -194,3 +194,74 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 SELECT 'OK: statuts enrichis appliqués avec succès' AS result;`;
+
+// =============================================================================
+// Migration : listings.cover_url — colonne dénormalisée + trigger
+// Migration file : supabase/migrations/20260428_listings_cover_url.sql
+// =============================================================================
+export const LISTINGS_COVER_SQL = `-- ============================================================
+-- listings.cover_url — colonne dénormalisée pour la vue liste
+-- ============================================================
+-- Évite le join listing_photos (N lignes) dans la page /annonces.
+-- cover_url = URL de la photo avec le plus petit display_order.
+
+-- 1. Colonne
+ALTER TABLE public.listings
+  ADD COLUMN IF NOT EXISTS cover_url TEXT DEFAULT NULL;
+
+COMMENT ON COLUMN public.listings.cover_url IS
+  'URL dénormalisée de la photo cover (display_order le plus bas). '
+  'Maintenue par le trigger trg_listing_photos_cover.';
+
+-- 2. Fonction trigger
+CREATE OR REPLACE FUNCTION public.fn_sync_listing_cover_url()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_listing_id UUID;
+  v_cover_url  TEXT;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    v_listing_id := OLD.listing_id;
+  ELSE
+    v_listing_id := NEW.listing_id;
+  END IF;
+  SELECT url INTO v_cover_url
+    FROM public.listing_photos
+   WHERE listing_id = v_listing_id
+   ORDER BY display_order ASC
+   LIMIT 1;
+  UPDATE public.listings
+     SET cover_url = v_cover_url
+   WHERE id = v_listing_id;
+  RETURN NULL;
+END;
+$$;
+
+-- 3. Trigger
+DROP TRIGGER IF EXISTS trg_listing_photos_cover ON public.listing_photos;
+CREATE TRIGGER trg_listing_photos_cover
+  AFTER INSERT OR UPDATE OF url, display_order OR DELETE
+  ON public.listing_photos
+  FOR EACH ROW
+  EXECUTE FUNCTION public.fn_sync_listing_cover_url();
+
+-- 4. Index
+CREATE INDEX IF NOT EXISTS idx_listing_photos_listing_order
+  ON public.listing_photos (listing_id, display_order ASC);
+
+-- 5. Backfill
+UPDATE public.listings l
+   SET cover_url = (
+         SELECT url
+           FROM public.listing_photos p
+          WHERE p.listing_id = l.id
+          ORDER BY p.display_order ASC
+          LIMIT 1
+       )
+ WHERE l.cover_url IS NULL;
+
+SELECT 'OK: listings.cover_url migration appliquée' AS result;`;

@@ -184,7 +184,8 @@ export function useHelpRequestDetail(initialItem: HelpRequest): UseHelpDetailRet
     if (!item) return;
     const { error, count } = await supabase.from('help_requests').update({
       status: newStatus,
-      ...(newStatus === 'resolved' ? { resolved_at: new Date().toISOString() } : {}),
+      // resolved_at n'existe pas sur help_requests → on utilise status_changed_at
+      status_changed_at: new Date().toISOString(),
     }, { count: 'exact' }).eq('id', id);
 
     if (error || count === 0) {

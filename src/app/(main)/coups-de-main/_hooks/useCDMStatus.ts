@@ -63,10 +63,12 @@ export function useCDMStatus(
   };
 
   // ── Résolution ───────────────────────────────────────────────────────────
+  // Note: resolved_at n'existe pas sur help_requests → on met uniquement le statut
+  // (status_changed_at est mis à jour automatiquement par trigger)
   const handleResolve = async (id: string) => {
     const { error, count } = await supabase
       .from('help_requests')
-      .update({ status: 'resolved', resolved_at: new Date().toISOString() }, { count: 'exact' })
+      .update({ status: 'resolved' }, { count: 'exact' })
       .eq('id', id);
 
     if (error || count === 0) {

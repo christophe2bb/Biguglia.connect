@@ -53,13 +53,21 @@ interface AssociationRow {
 async function fetchAssociations(): Promise<{ assocs: AssociationRow[]; total: number }> {
   try {
     const supabase = await createClient();
+    // 'city' n'existe pas → on utilise 'location' ; 'description' n'existe pas → 'description_short'
     const { data, count } = await supabase
       .from('associations')
-      .select('id, name, category, description, city', { count: 'exact' })
+      .select('id, name, category, description_short, location', { count: 'exact' })
       .eq('status', 'active')
       .order('name', { ascending: true })
       .limit(9);
-    return { assocs: (data ?? []) as AssociationRow[], total: count ?? 0 };
+    const assocs: AssociationRow[] = (data ?? []).map(r => ({
+      id:          r.id,
+      name:        r.name,
+      category:    r.category ?? null,
+      description: (r as { description_short?: string | null }).description_short ?? null,
+      city:        (r as { location?: string | null }).location ?? null,
+    }));
+    return { assocs, total: count ?? 0 };
   } catch {
     return { assocs: [], total: 0 };
   }

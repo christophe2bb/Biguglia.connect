@@ -209,7 +209,7 @@ export async function getJobOfferBySlug(
     .from('job_offers')
     .select(
       `*, author:profiles!user_id (
-        id, display_name, avatar_url, is_verified, created_at
+        id, full_name, avatar_url, role, created_at
       )`,
     )
     .eq('slug', slug)

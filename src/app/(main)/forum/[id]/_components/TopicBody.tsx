@@ -183,12 +183,13 @@ export function TopicBody({
           {canResolve && (
             <button onClick={onToggleResolved}
               className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border transition-colors font-semibold ${
-                topic.is_resolved
+                (topic.is_resolved || topic.status === 'closed')
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                   : 'border-gray-200 text-gray-500 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200'
               }`}>
-              {topic.is_resolved ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-              {topic.is_resolved ? 'Non résolu' : 'Marquer résolu'}
+              {/* is_resolved n'existe pas en DB → dérivé de status === 'closed' */}
+              {(topic.is_resolved || topic.status === 'closed') ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+              {(topic.is_resolved || topic.status === 'closed') ? 'Non résolu' : 'Marquer résolu'}
             </button>
           )}
 

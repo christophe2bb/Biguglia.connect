@@ -156,7 +156,7 @@ export function useCollectionItemForm(id: string) {
         .select(`
           *,
           category:collection_categories(*),
-          photos:collection_item_photos(id, url, image_url, is_cover, sort_order)
+          photos:collection_item_photos(id, url, is_cover, sort_order)
         `)
         .eq('id', id)
         .single();
@@ -192,10 +192,10 @@ export function useCollectionItemForm(id: string) {
         city: (d.city as string) || '',
         postal_code: (d.postal_code as string) || '',
         tags: (d.tags as string[]) || [],
-        photos: ((d.photos as Array<{ id?: string; url?: string; image_url?: string; is_cover?: boolean; sort_order?: number }>) || []).map(p => ({
+        photos: ((d.photos as Array<{ id?: string; url?: string; is_cover?: boolean; sort_order?: number }>) || []).map(p => ({
           id: p.id,
-          preview: p.image_url || p.url || '',
-          url: p.image_url || p.url,
+          preview: p.url || '',
+          url: p.url,
           is_cover: p.is_cover || false,
           sort_order: p.sort_order || 0,
         })),
@@ -337,7 +337,6 @@ export function useCollectionItemForm(id: string) {
           newPhotos.map((p, i) => ({
             item_id: id,
             url: p.url!,
-            image_url: p.url!,
             is_cover: p.is_cover,
             sort_order: p.sort_order,
             alt_text: `${form.title} - photo ${i + 1}`,

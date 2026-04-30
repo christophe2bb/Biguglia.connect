@@ -170,45 +170,52 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
 
     const supabase = createClient();
 
-    // FIX #1b (2026-04-28) : le join listing_photos est éliminé complètement.
-    // `cover_url` est une colonne dénormalisée sur `listings`, maintenue par le
-    // trigger `trg_listing_photos_cover` (migration 20260428_listings_cover_url).
-    // Avant : PostgREST renvoyait TOUTES les photos de chaque listing dans le
-    //         tableau JSON `photos` — seule photos[0].url était consommée.
-    // Après : 0 ligne listing_photos transférée ; cover_url = URL prête à l’emploi.
-    let query = supabase
-      .from('listings')
-      .select(`
-        id, title, price, location, listing_type, status,
-        created_at, is_urgent, sector_id, category_id, user_id, author_id,
-        cover_url,
-        category:listing_categories(id, name, slug, icon)
-      `)
-      // 200 lignes max — suffisant pour un marché de village ;
-      // avec les filtres serveur la réponse typique est < 100 items.
-      .limit(200);
+    // FIX #1b (2026-04-28) : cover_url est une colonne dénormalisée sur `listings`
+    // (migration 20260428_listings_cover_url — trigger trg_listing_photos_cover).
+    // Si la migration n'est pas encore appliquée, fallback vers listing_photos.
+    const BASE_FIELDS = 'id, title, price, location, listing_type, status, created_at, is_urgent, sector_id, category_id, user_id, author_id';
+    const CAT_JOIN   = 'category:listing_categories(id, name, slug, icon)';
 
-    if (selectedStatus === 'active')    query = query.eq('status', 'active');
-    else if (selectedStatus === 'reserved') query = query.eq('status', 'reserved');
-    else if (selectedStatus === 'sold')     query = query.in('status', ['sold', 'given', 'exchanged']);
-    else if (selectedStatus === 'expired')  query = query.eq('status', 'expired');
-    else if (selectedStatus === 'archived') query = query.eq('status', 'archived');
-    else query = query.neq('status', 'archived');
+    const applyFiltersAndSort = (q: ReturnType<typeof supabase.from>) => {
+      let r = q;
+      if (selectedStatus === 'active')        r = r.eq('status', 'active');
+      else if (selectedStatus === 'reserved') r = r.eq('status', 'reserved');
+      else if (selectedStatus === 'sold')     r = r.in('status', ['sold', 'given', 'exchanged']);
+      else if (selectedStatus === 'expired')  r = r.eq('status', 'expired');
+      else if (selectedStatus === 'archived') r = r.eq('status', 'archived');
+      else r = r.neq('status', 'archived');
+      if (selectedCategory) {
+        // Read from ref — avoids adding `categories` as a fetchData dependency
+        const cat = categoriesRef.current.find(c => c.slug === selectedCategory);
+        if (cat) r = r.eq('category_id', cat.id);
+      }
+      if (selectedType)  r = r.eq('listing_type', selectedType);
+      if (filterSector)  r = r.eq('sector_id', filterSector);
+      if (sortBy === 'price_asc')       r = r.order('price', { ascending: true,  nullsFirst: false });
+      else if (sortBy === 'price_desc') r = r.order('price', { ascending: false, nullsFirst: false });
+      else                              r = r.order('created_at', { ascending: false });
+      return r.limit(200);
+    };
 
-    if (selectedCategory) {
-      // Read from ref — avoids adding `categories` as a fetchData dependency
-      // (which would cause a re-fetch every time categories state updates).
-      const cat = categoriesRef.current.find(c => c.slug === selectedCategory);
-      if (cat) query = query.eq('category_id', cat.id);
+    // Tentative 1 — cover_url dénormalisée (migration appliquée)
+    let { data, error } = await applyFiltersAndSort(
+      supabase.from('listings').select(`${BASE_FIELDS}, cover_url, ${CAT_JOIN}`)
+    );
+
+    // Tentative 2 — fallback listing_photos si cover_url absent (migration non appliquée)
+    if (error?.message?.includes('cover_url') || error?.message?.includes('column')) {
+      ({ data, error } = await applyFiltersAndSort(
+        supabase.from('listings').select(`${BASE_FIELDS}, photos:listing_photos(url, display_order), ${CAT_JOIN}`)
+      ));
+      if (data) {
+        data = (data as Record<string, unknown>[]).map(row => {
+          const photos = (row.photos as Array<{ url: string; display_order?: number }> | undefined) || [];
+          const sorted = [...photos].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+          return { ...row, cover_url: sorted[0]?.url ?? null };
+        });
+      }
     }
-    if (selectedType)  query = query.eq('listing_type', selectedType);
-    if (filterSector)  query = query.eq('sector_id', filterSector);
 
-    if (sortBy === 'price_asc')       query = query.order('price', { ascending: true,  nullsFirst: false });
-    else if (sortBy === 'price_desc') query = query.order('price', { ascending: false, nullsFirst: false });
-    else                              query = query.order('created_at', { ascending: false });
-
-    const { data } = await query;
     setListings((data as unknown as Listing[]) || []);
     setLoading(false);
   }, [selectedCategory, selectedType, selectedStatus, sortBy, filterSector]);
