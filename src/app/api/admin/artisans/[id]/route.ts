@@ -73,12 +73,26 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
   const body: PatchBody = parsed.data;
 
   if (body.action === 'approve') {
+    // 1. Mettre à jour le rôle dans profiles
     const { error } = await adminClient
       .from('profiles')
       .update({ role: 'artisan_verified', status: 'active' })
       .eq('id', artisanUserId);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // 2. Mettre is_verified = true dans artisan_profiles
+    // ⚠️ C'était le bug : la page publique et les widgets filtrent sur is_verified,
+    // mais ce champ n'était jamais mis à jour lors de la validation → artisan invisible.
+    const { error: apError } = await adminClient
+      .from('artisan_profiles')
+      .update({ is_verified: true })
+      .eq('user_id', artisanUserId);
+
+    if (apError) {
+      // Non bloquant : le rôle est déjà mis à jour, on logue et on continue
+      console.error('[artisan approve] is_verified update failed:', apError.message);
+    }
 
     await adminClient.from('notifications').insert({
       user_id: artisanUserId,
@@ -108,9 +122,10 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
 
   if (profileErr) return NextResponse.json({ error: profileErr.message }, { status: 500 });
 
+  // Réinitialiser is_verified + enregistrer le motif de rejet
   await adminClient
     .from('artisan_profiles')
-    .update({ rejection_reason: body.reason })
+    .update({ rejection_reason: body.reason, is_verified: false })
     .eq('user_id', artisanUserId);
 
   await adminClient.from('notifications').insert({
