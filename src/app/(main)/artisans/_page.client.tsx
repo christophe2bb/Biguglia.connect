@@ -35,10 +35,8 @@ function ArtisansContent() {
         .order('display_order');
       setCategories(cats || []);
 
-      // Artisans vérifiés uniquement
-      // Note: on ne filtre PAS sur profiles.role via Supabase (les filtres sur colonnes
-      // de tables jointes ne fonctionnent pas dans Supabase PostgREST).
-      // On filtre côté client après récupération, ou on ajoute is_verified sur artisan_profiles.
+      // Artisans vérifiés uniquement — on filtre directement via is_verified (colonne locale,
+      // fiable) plutôt que sur profiles.role (jointure distante non filtrable par PostgREST).
       let query = supabase
         .from('artisan_profiles')
         // Sélection stricte : on n'embarque que les colonnes utiles pour les cartes.
@@ -51,6 +49,7 @@ function ArtisansContent() {
           gallery:artisan_photos(url, display_order),
           reviews(rating)
         `)
+        .eq('is_verified', true)
         .limit(200);
 
       if (selectedCategory) {
@@ -60,12 +59,8 @@ function ArtisansContent() {
 
       const { data } = await query.order('is_featured', { ascending: false });
 
-      // Calculer la note moyenne + filtrer artisans vérifiés côté client
+      // Calculer la note moyenne (le filtre is_verified garantit déjà les artisans validés)
       const enriched = (data || [])
-        .filter(a => {
-          const role = (a.profile as { role?: string } | null)?.role;
-          return role === 'artisan_verified' || role === 'admin';
-        })
         .map(a => ({
           ...a,
           avg_rating: a.reviews?.length
