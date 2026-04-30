@@ -3,20 +3,19 @@
 /**
  * UserDrawer — Panneau latéral de détails utilisateur (lazy-loaded).
  *
- * Affiché quand l'admin clique sur "Voir détails" dans UserCard.
- * Chargé en lazy depuis page.tsx via dynamic() pour ne pas alourdir
- * le bundle initial de la page admin utilisateurs.
+ * Ouvert via le bouton "Détails" de UserCard.
+ * Contient : info complètes, changement de rôle, activité, profil artisan,
+ * actions avec confirmation intégrée (suspendre / supprimer / réinit. MDP).
  *
- * Usage:
- *   const UserDrawer = dynamic(() => import('./_components/UserDrawer'));
- *   <UserDrawer user={selectedUser} onClose={() => setSelected(null)} ... />
+ * z-index : overlay z-40 / panneau z-50 → toujours au-dessus de tout le contenu.
  */
 
-import { useEffect, useRef, useId } from 'react';
+import { useEffect, useRef, useId, useState } from 'react';
 import Link from 'next/link';
 import {
   X, Mail, Phone, Crown, Eye,
   HardHat, Users, UserX, UserCheck, Trash2,
+  AlertTriangle, CheckCircle2, KeyRound,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
@@ -30,6 +29,8 @@ const ROLE_OPTIONS = [
   { value: 'moderator',        label: '🛡️ Modérateur',          color: 'text-purple-700', bg: 'bg-purple-50' },
 ];
 
+type ConfirmStep = 'suspend' | 'delete' | 'reset' | null;
+
 interface UserDrawerProps {
   user: UserWithActivity;
   onClose: () => void;
@@ -42,25 +43,31 @@ interface UserDrawerProps {
 export default function UserDrawer({
   user, onClose, onSuspend, onDelete, onChangeRole, onResetPassword,
 }: UserDrawerProps) {
-  const overlayRef  = useRef<HTMLDivElement>(null);
-  const drawerRef   = useRef<HTMLElement>(null);
-  const triggerRef  = useRef<Element | null>(null);
-  const titleId     = useId();
+  const overlayRef   = useRef<HTMLDivElement>(null);
+  const drawerRef    = useRef<HTMLElement>(null);
+  const triggerRef   = useRef<Element | null>(null);
+  const titleId      = useId();
+  const [confirm, setConfirm] = useState<ConfirmStep>(null);
+
   const isSuspended = user.status === 'suspended';
   const isArtisan   = user.role === 'artisan_verified' || user.role === 'artisan_pending';
 
-  // Fermer sur Escape
+  /* ── Fermer sur Escape ── */
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (confirm) { setConfirm(null); return; }
+        onClose();
+      }
+    };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
+  }, [onClose, confirm]);
 
-  // Focus management + scroll lock (CSS-only — pas de forced layout reflow)
+  /* ── Focus trap + scroll lock ── */
   useEffect(() => {
     triggerRef.current = document.activeElement;
     document.documentElement.classList.add('modal-open');
-    // Move focus into drawer on next tick
     const frame = requestAnimationFrame(() => { drawerRef.current?.focus(); });
     return () => {
       cancelAnimationFrame(frame);
@@ -69,16 +76,55 @@ export default function UserDrawer({
     };
   }, []);
 
-  const roleBadgeVariant = () => {
+  const roleBadgeVariant = (): 'success' | 'warning' | 'purple' | 'default' => {
     if (user.role === 'artisan_verified') return 'success';
     if (user.role === 'artisan_pending')  return 'warning';
     if (user.role === 'moderator')        return 'purple';
     return 'default';
   };
 
+  /* ── Handlers avec confirmation ── */
+  const handleConfirm = () => {
+    if (confirm === 'suspend') {
+      onSuspend(user.id, user.status);
+      setConfirm(null);
+    } else if (confirm === 'delete') {
+      onDelete(user.id, user.full_name || user.email);
+      setConfirm(null);
+      onClose();
+    } else if (confirm === 'reset') {
+      onResetPassword(user.email);
+      setConfirm(null);
+    }
+  };
+
+  /* ── Libellés de confirmation ── */
+  const confirmConfig: Record<NonNullable<ConfirmStep>, { title: string; desc: string; confirmLabel: string; color: string }> = {
+    suspend: {
+      title:        isSuspended ? 'Réactiver ce compte ?' : 'Suspendre ce compte ?',
+      desc:         isSuspended
+        ? 'L\'utilisateur pourra de nouveau accéder à toutes les fonctionnalités.'
+        : 'L\'utilisateur sera bloqué et recevra une notification.',
+      confirmLabel: isSuspended ? 'Oui, réactiver' : 'Oui, suspendre',
+      color:        isSuspended ? 'bg-green-600 hover:bg-green-700' : 'bg-amber-600 hover:bg-amber-700',
+    },
+    delete: {
+      title:        'Supprimer définitivement ?',
+      desc:         `Le compte de "${user.full_name || user.email}" et toutes ses données seront supprimés de façon irréversible.`,
+      confirmLabel: 'Oui, supprimer',
+      color:        'bg-red-600 hover:bg-red-700',
+    },
+    reset: {
+      title:        'Envoyer la réinitialisation MDP ?',
+      desc:         `Un email de réinitialisation sera envoyé à ${user.email}.`,
+      confirmLabel: 'Envoyer l\'email',
+      color:        'bg-gray-700 hover:bg-gray-800',
+    },
+  };
+
   return (
     <>
-      {/* Overlay */}
+      {/* Overlay z-40 */}
       <div
         ref={overlayRef}
         className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity"
@@ -86,7 +132,7 @@ export default function UserDrawer({
         aria-hidden
       />
 
-      {/* Panneau */}
+      {/* Panneau z-50 */}
       <aside
         ref={drawerRef}
         role="dialog"
@@ -96,8 +142,8 @@ export default function UserDrawer({
         className="fixed right-0 top-0 h-full w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col overflow-hidden outline-none"
       >
 
-        {/* En-tête */}
-        <div className="flex items-center gap-4 p-5 border-b border-gray-100">
+        {/* ── En-tête ── */}
+        <div className="flex items-center gap-4 p-5 border-b border-gray-100 flex-shrink-0">
           <Avatar src={user.avatar_url} name={user.full_name || user.email} size="lg" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -127,7 +173,7 @@ export default function UserDrawer({
           </button>
         </div>
 
-        {/* Contenu scrollable */}
+        {/* ── Contenu scrollable ── */}
         <div className="flex-1 overflow-y-auto p-5 space-y-6">
 
           {/* Modifier le rôle */}
@@ -150,6 +196,9 @@ export default function UserDrawer({
                 </button>
               ))}
             </div>
+            <p className="text-xs text-gray-400 mt-2">
+              Seul un administrateur peut modifier les rôles.
+            </p>
           </section>
 
           {/* Informations complètes */}
@@ -159,12 +208,12 @@ export default function UserDrawer({
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
               {[
-                { label: 'ID utilisateur',       value: <span className="font-mono text-xs truncate">{user.id}</span> },
-                { label: 'Statut compte',         value: <span className="capitalize font-medium">{user.status}</span> },
-                { label: 'Inscription',           value: formatDate(user.created_at) },
-                { label: 'Dernière mise à jour',  value: formatRelative(user.updated_at) },
-                { label: 'CGU acceptées',         value: user.legal_consent ? `✅ Oui${user.legal_consent_at ? ` · ${formatDate(user.legal_consent_at)}` : ''}` : '❌ Non' },
-                { label: 'Téléphone',             value: user.phone || 'Non renseigné' },
+                { label: 'ID utilisateur',      value: <span className="font-mono text-xs truncate">{user.id}</span> },
+                { label: 'Statut compte',        value: <span className="capitalize font-medium">{user.status}</span> },
+                { label: 'Inscription',          value: formatDate(user.created_at) },
+                { label: 'Dernière mise à jour', value: formatRelative(user.updated_at) },
+                { label: 'CGU acceptées',        value: user.legal_consent ? `✅ Oui${user.legal_consent_at ? ` · ${formatDate(user.legal_consent_at)}` : ''}` : '❌ Non' },
+                { label: 'Téléphone',            value: user.phone || 'Non renseigné' },
               ].map(({ label, value }) => (
                 <div key={label} className="bg-gray-50 rounded-xl border border-gray-100 px-3 py-2">
                   <span className="text-xs text-gray-400 block mb-0.5">{label}</span>
@@ -178,7 +227,7 @@ export default function UserDrawer({
           {user._counts && (
             <section>
               <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Activité</h3>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[
                   { label: 'Messages',  value: user._counts.messages },
                   { label: 'Annonces',  value: user._counts.listings },
@@ -213,7 +262,7 @@ export default function UserDrawer({
                     </div>
                   </div>
                 </div>
-                <Link href="/admin/artisans" className="text-xs text-brand-600 hover:underline">
+                <Link href="/admin/artisans" className="text-xs text-brand-600 hover:underline font-medium">
                   Gérer →
                 </Link>
               </div>
@@ -221,33 +270,81 @@ export default function UserDrawer({
           )}
         </div>
 
-        {/* Pied fixe : actions */}
-        <div className="border-t border-gray-100 p-5 bg-gray-50/50 space-y-2">
-          <div className="flex gap-2">
-            <button
-              onClick={() => onSuspend(user.id, user.status)}
-              className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                isSuspended
-                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                  : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-              }`}
-            >
-              {isSuspended ? <UserCheck className="w-4 h-4" /> : <UserX className="w-4 h-4" />}
-              {isSuspended ? 'Réactiver' : 'Suspendre'}
-            </button>
-            <button
-              onClick={() => onResetPassword(user.email)}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
-            >
-              <Mail className="w-4 h-4" /> Réinit. MDP
-            </button>
-          </div>
-          <button
-            onClick={() => { onDelete(user.id, user.full_name || user.email); onClose(); }}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-red-50 text-red-700 hover:bg-red-100 transition-colors border border-red-200"
-          >
-            <Trash2 className="w-4 h-4" /> Supprimer définitivement
-          </button>
+        {/* ── Pied fixe : actions ── */}
+        <div className="border-t border-gray-100 flex-shrink-0 bg-white">
+
+          {/* Bannière de confirmation */}
+          {confirm && (
+            <div className={`px-5 py-4 border-b flex flex-col gap-3 ${
+              confirm === 'delete'
+                ? 'bg-red-50 border-red-200'
+                : confirm === 'suspend' && !isSuspended
+                  ? 'bg-amber-50 border-amber-200'
+                  : 'bg-gray-50 border-gray-200'
+            }`}>
+              <div className="flex items-start gap-2">
+                <AlertTriangle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                  confirm === 'delete' ? 'text-red-500' : 'text-amber-500'
+                }`} />
+                <div>
+                  <p className={`text-sm font-semibold ${
+                    confirm === 'delete' ? 'text-red-700' : 'text-gray-800'
+                  }`}>
+                    {confirmConfig[confirm].title}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {confirmConfig[confirm].desc}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirm(null)}
+                  className="flex-1 px-4 py-2 rounded-xl text-sm font-medium bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleConfirm}
+                  className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium text-white transition-colors ${confirmConfig[confirm].color}`}
+                >
+                  <CheckCircle2 className="w-4 h-4 inline mr-1.5" />
+                  {confirmConfig[confirm].confirmLabel}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Boutons d'action */}
+          {!confirm && (
+            <div className="p-5 space-y-2">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirm('suspend')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                    isSuspended
+                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                      : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                  }`}
+                >
+                  {isSuspended ? <UserCheck className="w-4 h-4" /> : <UserX className="w-4 h-4" />}
+                  {isSuspended ? 'Réactiver' : 'Suspendre'}
+                </button>
+                <button
+                  onClick={() => setConfirm('reset')}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                >
+                  <KeyRound className="w-4 h-4" /> Réinit. MDP
+                </button>
+              </div>
+              <button
+                onClick={() => setConfirm('delete')}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-red-50 text-red-700 hover:bg-red-100 transition-colors border border-red-200"
+              >
+                <Trash2 className="w-4 h-4" /> Supprimer définitivement
+              </button>
+            </div>
+          )}
         </div>
       </aside>
     </>

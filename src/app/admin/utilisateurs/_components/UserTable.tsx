@@ -3,9 +3,8 @@
 /**
  * UserTable — Liste des utilisateurs avec lazy-loading des cartes et pagination.
  *
- * Reçoit la liste paginée depuis la page parente et affiche
- * chaque entrée via UserCard (chargée en lazy).
- * Séparation nette : logique de fetch/filtre dans page.tsx, rendu ici.
+ * Passe onSelect à UserCard : le bouton "Détails" dans la carte ouvre directement
+ * le UserDrawer sans wrapper div clickable (qui causait la double ouverture).
  */
 
 import dynamic from 'next/dynamic';
@@ -39,7 +38,6 @@ export default function UserTable({
   onSelect,
   onSuspend,
   onDelete,
-  onChangeRole,
   onResetPassword,
 }: UserTableProps) {
   if (loading) {
@@ -66,15 +64,14 @@ export default function UserTable({
     <div>
       <div className="space-y-3">
         {users.map(user => (
-          <div key={user.id} onClick={() => onSelect(user)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(user); } }} role="button" tabIndex={0} className="cursor-pointer">
-            <UserCard
-              user={user}
-              onSuspend={onSuspend}
-              onDelete={onDelete}
-              onChangeRole={onChangeRole}
-              onResetPassword={onResetPassword}
-            />
-          </div>
+          <UserCard
+            key={user.id}
+            user={user}
+            onSelect={onSelect}
+            onSuspend={onSuspend}
+            onDelete={onDelete}
+            onResetPassword={onResetPassword}
+          />
         ))}
       </div>
 
