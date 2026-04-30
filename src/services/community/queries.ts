@@ -140,7 +140,7 @@ async function _fetchTopArtisans(limit = 4): Promise<SpotlightArtisan[]> {
     .select(`
       id,
       business_name,
-      profile:profiles!artisan_profiles_id_fkey(
+      profile:profiles!artisan_profiles_user_id_fkey(
         id, full_name, avatar_url, created_at, role
       ),
       trade_category:trade_categories(name),
@@ -157,7 +157,7 @@ async function _fetchTopArtisans(limit = 4): Promise<SpotlightArtisan[]> {
       .select(`
         id,
         business_name,
-        profile:profiles!artisan_profiles_id_fkey(
+        profile:profiles!artisan_profiles_user_id_fkey(
           id, full_name, avatar_url, created_at, role
         ),
         trade_category:trade_categories(name)
