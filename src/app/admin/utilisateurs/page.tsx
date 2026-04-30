@@ -31,7 +31,8 @@ const ROLE_OPTIONS = [
 ];
 
 export default function AdminUtilisateursPage() {
-  useAuthStore();
+  const profile = useAuthStore(s => s.profile);
+  const actorRole: 'admin' | 'moderator' = profile?.role === 'admin' ? 'admin' : 'moderator';
   const [users, setUsers] = useState<UserWithActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -260,6 +261,7 @@ export default function AdminUtilisateursPage() {
       {selectedUser && (
         <UserDrawer
           user={selectedUser}
+          actorRole={actorRole}
           onClose={() => setSelectedUser(null)}
           onSuspend={suspendUser}
           onDelete={deleteUser}
