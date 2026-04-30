@@ -16,13 +16,19 @@
 -- 1. user_favorites
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.user_favorites (
-  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id     UUID        NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  target_id   UUID,
-  target_type TEXT,
-  target_user_id UUID    REFERENCES public.profiles(id) ON DELETE CASCADE,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+  id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        UUID        NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  target_id      UUID,
+  target_type    TEXT,
+  target_user_id UUID        REFERENCES public.profiles(id) ON DELETE CASCADE,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Colonnes manquantes si la table existait déjà sans elles
+ALTER TABLE public.user_favorites
+  ADD COLUMN IF NOT EXISTS target_id      UUID,
+  ADD COLUMN IF NOT EXISTS target_type    TEXT,
+  ADD COLUMN IF NOT EXISTS target_user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
 
 ALTER TABLE public.user_favorites ENABLE ROW LEVEL SECURITY;
 
@@ -37,9 +43,32 @@ CREATE POLICY "user_favorites_insert" ON public.user_favorites FOR INSERT
 CREATE POLICY "user_favorites_delete" ON public.user_favorites FOR DELETE
   USING (auth.uid() = user_id);
 
-CREATE INDEX IF NOT EXISTS idx_user_favorites_user_id        ON public.user_favorites (user_id);
-CREATE INDEX IF NOT EXISTS idx_user_favorites_target_user_id ON public.user_favorites (target_user_id) WHERE target_user_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_user_favorites_target_id      ON public.user_favorites (target_id) WHERE target_id IS NOT NULL;
+-- Index sur user_id (colonne existante depuis le début)
+CREATE INDEX IF NOT EXISTS idx_user_favorites_user_id ON public.user_favorites (user_id);
+
+-- Index sur colonnes ajoutées dynamiquement → via EXECUTE pour éviter
+-- l'erreur de compilation PostgreSQL "column does not exist"
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes
+    WHERE schemaname = 'public' AND tablename = 'user_favorites'
+      AND indexname = 'idx_user_favorites_target_user_id'
+  ) THEN
+    EXECUTE 'CREATE INDEX idx_user_favorites_target_user_id
+      ON public.user_favorites (target_user_id)
+      WHERE target_user_id IS NOT NULL';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes
+    WHERE schemaname = 'public' AND tablename = 'user_favorites'
+      AND indexname = 'idx_user_favorites_target_id'
+  ) THEN
+    EXECUTE 'CREATE INDEX idx_user_favorites_target_id
+      ON public.user_favorites (target_id)
+      WHERE target_id IS NOT NULL';
+  END IF;
+END $$;
 
 
 -- ============================================================================
