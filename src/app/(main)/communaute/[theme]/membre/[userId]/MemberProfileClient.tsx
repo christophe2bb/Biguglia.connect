@@ -142,8 +142,7 @@ interface MemberProfile {
   id: string;
   full_name: string;
   avatar_url?: string | null;
-  bio?: string | null;
-  city?: string | null;
+  // bio et city n'existent pas sur la table profiles → données dans theme_profiles
 }
 
 interface ThemeProfile {
@@ -183,9 +182,10 @@ export default function MemberProfilePage() {
       setLoading(true);
 
       // 1. Profil de base
+      // Note: profiles n'a pas de colonnes bio/city → ces infos viennent de theme_profiles
       const { data: p } = await supabase
         .from('profiles')
-        .select('id, full_name, avatar_url, bio, city')
+        .select('id, full_name, avatar_url')
         .eq('id', userId)
         .maybeSingle();
 
@@ -338,13 +338,7 @@ export default function MemberProfilePage() {
               </div>
             )}
 
-            {/* Bio globale si pas de bio thématique */}
-            {!themeProfile?.bio && memberProfile.bio && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">À propos</h2>
-                <p className="text-gray-700 leading-relaxed italic">&ldquo;{memberProfile.bio}&rdquo;</p>
-              </div>
-            )}
+            {/* Bio globale si pas de bio thématique — profiles.bio n'existe pas, section masquée */}
 
             {/* Offre / Cherche */}
             {(themeProfile?.offering || themeProfile?.looking_for) && (
@@ -399,10 +393,10 @@ export default function MemberProfilePage() {
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
               <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Infos</h2>
 
-              {(themeProfile?.location_zone || memberProfile.city) && (
+              {themeProfile?.location_zone && (
                 <div className="flex items-start gap-2.5 text-sm text-gray-600">
                   <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                  <span>{themeProfile?.location_zone || memberProfile.city}</span>
+                  <span>{themeProfile.location_zone}</span>
                 </div>
               )}
 

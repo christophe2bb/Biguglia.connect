@@ -118,7 +118,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     { data: requests },
   ] = await Promise.all([
     adminClient.from('messages').select('sender_id').in('sender_id', userIds),
-    adminClient.from('listings').select('owner_id').in('owner_id', userIds),
+    adminClient.from('listings').select('author_id').in('author_id', userIds),
     adminClient.from('forum_posts').select('author_id').in('author_id', userIds),
     adminClient.from('service_requests').select('resident_id').in('resident_id', userIds),
   ]);
@@ -136,7 +136,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   };
 
   const msgMap      = countBy(msgs      as Array<Record<string, unknown>> | null, 'sender_id');
-  const listingMap  = countBy(listings  as Array<Record<string, unknown>> | null, 'owner_id');
+  const listingMap  = countBy(listings  as Array<Record<string, unknown>> | null, 'author_id');
   const postMap     = countBy(posts     as Array<Record<string, unknown>> | null, 'author_id');
   const requestMap  = countBy(requests  as Array<Record<string, unknown>> | null, 'resident_id');
 

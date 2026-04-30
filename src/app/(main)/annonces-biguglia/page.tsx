@@ -72,12 +72,14 @@ interface AnnonceRow {
 async function fetchRecentAnnonces(): Promise<{ annonces: AnnonceRow[]; total: number; donCount: number }> {
   try {
     const supabase = await createClient();
+    // 'category' et 'published_at' n'existent pas sur listings
+    // → on utilise category_id (join) et created_at ; on remonte category_id comme category
     const [{ data, count }, { count: donCount }] = await Promise.all([
       supabase
         .from('listings')
-        .select('id, title, price, category, published_at, listing_type', { count: 'exact' })
+        .select('id, title, price, listing_type, created_at, category:listing_categories(name)', { count: 'exact' })
         .eq('status', 'active')
-        .order('published_at', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(6),
       supabase
         .from('listings')
@@ -85,8 +87,20 @@ async function fetchRecentAnnonces(): Promise<{ annonces: AnnonceRow[]; total: n
         .eq('status', 'active')
         .eq('listing_type', 'don'),
     ]);
+    const annonces: AnnonceRow[] = (data ?? []).map(r => {
+      const row = r as Record<string, unknown>;
+      const catObj = row.category as { name?: string } | null;
+      return {
+        id:           row.id as string,
+        title:        row.title as string,
+        price:        (row.price as number | null) ?? null,
+        category:     catObj?.name ?? null,
+        published_at: (row.created_at as string | null) ?? null,
+        listing_type: (row.listing_type as string | null) ?? null,
+      };
+    });
     return {
-      annonces: (data ?? []) as AnnonceRow[],
+      annonces,
       total:    count    ?? 0,
       donCount: donCount ?? 0,
     };

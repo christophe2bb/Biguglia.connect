@@ -53,6 +53,7 @@ export const metadata: Metadata = {
 // ─── Données live ─────────────────────────────────────────────────────────────
 
 interface JobOffer  { id: string; title: string; contract_type: string | null; published_at: string | null; }
+// job_demands a contract_types (pluriel) et non contract_type
 interface JobDemand { id: string; title: string; contract_type: string | null; published_at: string | null; }
 
 async function fetchRecentJobs(): Promise<{ offers: JobOffer[]; demands: JobDemand[]; totalOffers: number; totalDemands: number }> {
@@ -65,14 +66,19 @@ async function fetchRecentJobs(): Promise<{ offers: JobOffer[]; demands: JobDema
         .order('published_at', { ascending: false })
         .limit(4),
       supabase.from('job_demands')
-        .select('id, title, contract_type, published_at', { count: 'exact' })
+        .select('id, title, contract_types, published_at', { count: 'exact' })
         .eq('status', 'active')
         .order('published_at', { ascending: false })
         .limit(4),
     ]);
     return {
       offers:       (offers  ?? []) as JobOffer[],
-      demands:      (demands ?? []) as JobDemand[],
+      demands:      (demands ?? []).map(d => ({
+        id:            d.id,
+        title:         d.title,
+        contract_type: Array.isArray(d.contract_types) ? d.contract_types[0] ?? null : (d.contract_types as string | null),
+        published_at:  d.published_at,
+      })) as JobDemand[],
       totalOffers:  totalOffers  ?? 0,
       totalDemands: totalDemands ?? 0,
     };

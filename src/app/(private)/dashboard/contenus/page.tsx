@@ -149,7 +149,7 @@ function MesContenusContent() {
         { data: forum },
         { data: associations },
       ] = await Promise.all([
-        supabase.from('listings').select('id, title, description, status, views, created_at, location, photos:listing_photos(url)').eq('user_id', profileId).order('created_at', { ascending: false }),
+        supabase.from('listings').select('id, title, description, status, views_count, created_at, location, photos:listing_photos(url)').eq('user_id', profileId).order('created_at', { ascending: false }),
         supabase.from('equipment_items').select('id, title, description, is_available, pickup_location, created_at, photos:equipment_photos(url)').eq('owner_id', profileId).order('created_at', { ascending: false }),
         supabase.from('help_requests').select('id, title, description, status, location_city, created_at').eq('author_id', profileId).order('created_at', { ascending: false }),
         supabase.from('events').select('id, title, description, status, location, event_date, created_at, photos:event_photos(url)').eq('author_id', profileId).order('created_at', { ascending: false }),

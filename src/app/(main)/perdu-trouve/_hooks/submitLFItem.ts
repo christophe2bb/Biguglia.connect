@@ -91,8 +91,9 @@ export async function submitLFItem(
       const path = `lost-found/${itemId}/${Date.now()}_${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
       try {
         const publicUrl = await uploadFile(file, 'photos', path, profile.id);
+        // is_cover n'existe pas sur lf_photos (colonne absente) — on utilise display_order=0 comme photo principale
         await supabase.from('lf_photos').insert({
-          item_id: itemId, url: publicUrl, display_order: i, is_cover: i === 0,
+          item_id: itemId, url: publicUrl, display_order: i,
         });
       } catch (err) {
         toast.error(`Photo ${i + 1} non sauvegardée : ${err instanceof Error ? err.message : ''}`);

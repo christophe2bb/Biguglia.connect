@@ -79,22 +79,24 @@ interface ArtisanRow {
 async function fetchArtisansByTrade(tradeSlug: string): Promise<ArtisanRow[]> {
   try {
     const supabase = await createClient();
+    // avg_rating, review_count, city n'existent pas sur artisan_profiles
+    // → avg_rating/review_count calculés depuis la jointure reviews
+    // → city vient de location (colonne réelle)
     const { data } = await supabase
       .from('artisan_profiles')
       .select(`
         id,
         business_name,
         artisan_type,
-        city,
-        avg_rating,
-        review_count,
-        profile:profiles!artisan_profiles_user_id_fkey(id, full_name, avatar_url),
-        trade_category:trade_categories!artisan_profiles_trade_category_id_fkey(name, slug)
+        location,
+        is_verified,
+        profile:profiles(id, full_name, avatar_url),
+        trade_category:trade_categories!artisan_profiles_trade_category_id_fkey(name, slug),
+        reviews(rating)
       `)
-      .eq('status', 'verified')
+      .eq('is_verified', true)
       .eq('trade_category.slug', tradeSlug)
       .not('trade_category', 'is', null)
-      .order('avg_rating', { ascending: false })
       .limit(12);
 
     if (!data) return [];
@@ -102,22 +104,27 @@ async function fetchArtisansByTrade(tradeSlug: string): Promise<ArtisanRow[]> {
     return data
       .filter(row => row.trade_category !== null)
       .map((row) => {
-        // Supabase returns joined rows as objects or arrays
-        const profile = Array.isArray(row.profile) ? row.profile[0] : row.profile;
-        const cat     = Array.isArray(row.trade_category) ? row.trade_category[0] : row.trade_category;
+        const profile  = Array.isArray(row.profile) ? row.profile[0] : row.profile;
+        const cat      = Array.isArray(row.trade_category) ? row.trade_category[0] : row.trade_category;
+        const reviews  = Array.isArray(row.reviews) ? row.reviews : [];
+        const ratings  = reviews.map((r: { rating: number }) => r.rating).filter(Boolean);
+        const avg_rating   = ratings.length > 0
+          ? Math.round((ratings.reduce((a: number, b: number) => a + b, 0) / ratings.length) * 10) / 10
+          : null;
         return {
           id:            profile?.id ?? row.id,
           full_name:     profile?.full_name ?? 'Artisan',
           avatar_url:    profile?.avatar_url ?? null,
           business_name: row.business_name,
-          avg_rating:    row.avg_rating,
-          review_count:  row.review_count,
-          city:          row.city,
+          avg_rating,
+          review_count:  ratings.length || null,
+          city:          row.location ?? null,
           trade_slug:    cat?.slug ?? tradeSlug,
           trade_name:    cat?.name ?? null,
           artisan_type:  row.artisan_type,
         };
-      });
+      })
+      .sort((a, b) => (b.avg_rating ?? 0) - (a.avg_rating ?? 0));
   } catch {
     return [];
   }

@@ -19,21 +19,35 @@ function getPublicClient() {
 type MemberSEO = {
   id: string;
   full_name: string;
-  bio?: string | null;
-  city?: string | null;
+  bio?: string | null;  // colonne absente de profiles → remplie via theme_profiles
+  city?: string | null; // colonne absente de profiles → non disponible directement
 };
 
 /**
  * Fetch minimal data for generateMetadata + first paint shell.
  * Returns null when the member does not exist.
+ * Note: profiles n'a pas de colonnes bio/city → on enrichit depuis theme_profiles si dispo.
  */
 export async function fetchMemberSEO(userId: string): Promise<MemberSEO | null> {
   const supabase = getPublicClient();
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, bio, city')
+    .select('id, full_name')
     .eq('id', userId)
     .maybeSingle();
   if (error || !data) return null;
-  return data as MemberSEO;
+
+  // Enrichissement optionnel via theme_profiles (bio disponible ici)
+  const { data: themeProfile } = await supabase
+    .from('theme_profiles')
+    .select('bio, location_zone')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  return {
+    id:        data.id,
+    full_name: data.full_name,
+    bio:       (themeProfile as { bio?: string | null } | null)?.bio ?? null,
+    city:      (themeProfile as { location_zone?: string | null } | null)?.location_zone ?? null,
+  };
 }

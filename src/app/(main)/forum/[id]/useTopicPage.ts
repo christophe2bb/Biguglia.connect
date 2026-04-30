@@ -289,10 +289,12 @@ export function useTopicPage(initialData?: InitialTopicData): UseTopicPageReturn
 
   const toggleResolved = async () => {
     const supabase = createClient();
-    const newVal = !topic?.is_resolved;
-    await supabase.from('forum_topics').update({ is_resolved: newVal }).eq('id', topicId);
-    setTopic(prev => prev ? { ...prev, is_resolved: newVal } : prev);
-    toast.success(newVal ? '✅ Sujet marqué comme résolu !' : 'Statut résolu retiré');
+    // is_resolved n'existe pas sur forum_topics → on utilise status 'closed' / 'ouvert'
+    const isCurrentlyClosed = topic?.status === 'closed';
+    const newStatus = isCurrentlyClosed ? 'ouvert' : 'closed';
+    await supabase.from('forum_topics').update({ status: newStatus }).eq('id', topicId);
+    setTopic(prev => prev ? { ...prev, status: newStatus, is_resolved: !isCurrentlyClosed } : prev);
+    toast.success(!isCurrentlyClosed ? '✅ Sujet marqué comme résolu !' : 'Statut résolu retiré');
   };
 
   return {

@@ -72,9 +72,10 @@ export default function HelpStatus({ item }: Props) {
                 {step.status === 'active' && (
                   <p className="text-xs text-gray-400 mt-0.5">{formatRelative(item.created_at)}</p>
                 )}
-                {step.status === 'resolved' && item.resolved_at && (
+                {/* resolved_at n'existe pas → status_changed_at mis à jour par trigger */}
+                {step.status === 'resolved' && item.status === 'resolved' && item.status_changed_at && (
                   <p className="text-xs text-emerald-500 mt-0.5">
-                    {new Date(item.resolved_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+                    {new Date(item.status_changed_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
                   </p>
                 )}
                 {step.status === 'in_progress' && item.status === 'in_progress' && (

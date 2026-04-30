@@ -59,13 +59,14 @@ export function useLFData(filters: Filters): LFDataReturn {
     };
 
     // Tentative 1 — FK explicite
+    // Note: lf_photos n'a pas de colonne is_cover → on utilise display_order=0 comme photo principale
     let { data, error } = await buildQuery(
-      '*, author:profiles!lost_found_items_author_id_fkey(full_name, avatar_url, created_at, role, phone), photos:lf_photos(url, display_order, is_cover)'
+      '*, author:profiles!lost_found_items_author_id_fkey(full_name, avatar_url, created_at, role, phone), photos:lf_photos(url, display_order)'
     );
     // Tentative 2 — sans FK nommée
     if (error?.message?.includes('fkey') || error?.message?.includes('foreign') || error?.code === 'PGRST200') {
       ({ data, error } = await buildQuery(
-        '*, author:profiles(full_name, avatar_url, created_at, role, phone), photos:lf_photos(url, display_order, is_cover)'
+        '*, author:profiles(full_name, avatar_url, created_at, role, phone), photos:lf_photos(url, display_order)'
       ));
     }
     // Tentative 3 — sans jointures

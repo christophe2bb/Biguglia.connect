@@ -45,10 +45,10 @@ export default function HelpContact({ item, isAuthor, isActive, userId }: Props)
         />
       )}
 
-      {/* Date de résolution */}
-      {item.resolved_at && (
+      {/* Date de résolution — resolved_at n'existe pas sur help_requests → status_changed_at */}
+      {item.status === 'resolved' && item.status_changed_at && (
         <p className="text-xs text-emerald-600 font-semibold">
-          ✅ Résolu le {new Date(item.resolved_at).toLocaleDateString('fr-FR', {
+          ✅ Résolu le {new Date(item.status_changed_at).toLocaleDateString('fr-FR', {
             day: 'numeric', month: 'long', year: 'numeric',
           })}
         </p>

@@ -43,11 +43,12 @@ export type ProfileRow   = Database['public']['Tables']['profiles']['Row'];
 /**
  * Champs sélectionnés dans la jointure author:profiles!user_id.
  * Sous-ensemble de ProfileRow correspondant à la projection
- * `id, display_name, avatar_url, is_verified, created_at`.
+ * `id, full_name, avatar_url, role, created_at`.
+ * Note : display_name et is_verified n'existent pas sur profiles en base.
  */
 export type AuthorJoinRow = Pick<
   ProfileRow,
-  'id' | 'display_name' | 'avatar_url' | 'is_verified' | 'created_at'
+  'id' | 'full_name' | 'avatar_url' | 'role' | 'created_at'
 >;
 
 /** Row job_offers enrichie de la jointure author */
@@ -121,10 +122,10 @@ export function toAuthorProfile(
 
   return {
     id:           obj.id,
-    display_name: obj.display_name ?? '',
-    avatar_url:   obj.avatar_url   ?? null,
-    is_verified:  obj.is_verified  ?? false,
-    created_at:   obj.created_at   ?? '',
+    display_name: obj.full_name   ?? '',
+    avatar_url:   obj.avatar_url  ?? null,
+    is_verified:  obj.role === 'artisan_verified',
+    created_at:   obj.created_at  ?? '',
   };
 }
 
