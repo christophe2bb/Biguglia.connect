@@ -35,12 +35,14 @@ function ArtisansContent() {
         .order('display_order');
       setCategories(cats || []);
 
-      // Artisans vérifiés uniquement — on filtre directement via is_verified (colonne locale,
-      // fiable) plutôt que sur profiles.role (jointure distante non filtrable par PostgREST).
+      // Artisans vérifiés uniquement.
+      // Stratégie double pour être robuste aux données héritées (is_verified pas encore
+      // synchronisé en base) : on récupère tout, puis on filtre côté client sur
+      // profile.role === 'artisan_verified' OU is_verified === true.
+      // La migration 20260430_artisan_is_verified_backfill.sql corrige is_verified en base ;
+      // une fois appliquée, les deux conditions convergent.
       let query = supabase
         .from('artisan_profiles')
-        // Sélection stricte : on n'embarque que les colonnes utiles pour les cartes.
-        // gallery limitée aux 3 premières photos (tri display_order), reviews à rating seul.
         .select(`
           id, user_id, business_name, trade_name, description, location,
           intervention_zone, is_featured, is_verified, siret,
@@ -49,7 +51,6 @@ function ArtisansContent() {
           gallery:artisan_photos(url, display_order),
           reviews(rating)
         `)
-        .eq('is_verified', true)
         .limit(200);
 
       if (selectedCategory) {
@@ -59,8 +60,13 @@ function ArtisansContent() {
 
       const { data } = await query.order('is_featured', { ascending: false });
 
-      // Calculer la note moyenne (le filtre is_verified garantit déjà les artisans validés)
+      // Filtre côté client : artisan vérifié = is_verified OU role artisan_verified
+      // (défense en profondeur pendant la période de transition des données)
       const enriched = (data || [])
+        .filter(a => {
+          const role = (a.profile as { role?: string } | null)?.role;
+          return a.is_verified === true || role === 'artisan_verified';
+        })
         .map(a => ({
           ...a,
           avg_rating: a.reviews?.length
