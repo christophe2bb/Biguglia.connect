@@ -134,44 +134,61 @@ export const fetchCommunityStats = unstable_cache(
 async function _fetchTopArtisans(limit = 4): Promise<SpotlightArtisan[]> {
   const supabase = await createClient();
 
-  // Artisans vérifiés avec leur score de confiance
-  const { data: artisans } = await supabase
+  // Artisans vérifiés — double critère pour être robuste aux données héritées
+  // (is_verified pas encore synchronisé avant la migration backfill) :
+  // on récupère les is_featured=true + is_verified=true, et on filtre aussi
+  // sur profile.role côté JS comme filet de sécurité.
+  const { data: rawFeatured } = await supabase
     .from('artisan_profiles')
     .select(`
       id,
       business_name,
+      is_verified,
       profile:profiles!artisan_profiles_user_id_fkey(
         id, full_name, avatar_url, created_at, role
       ),
       trade_category:trade_categories(name),
       reviews:reviews(rating)
     `)
-    .eq('is_verified', true)
     .eq('is_featured', true)
     .limit(limit * 2);
 
-  if (!artisans || artisans.length === 0) {
+  // Filtre JS : is_verified OU role artisan_verified (robustesse période de transition)
+  type RawArtisan = {
+    id: string;
+    business_name: string | null;
+    is_verified: boolean | null;
+    profile: { id: string; full_name: string; avatar_url: string | null; created_at: string; role: string } | null;
+    trade_category: { name: string } | null;
+    reviews?: Array<{ rating: number }>;
+  };
+
+  const artisans = (rawFeatured as unknown as RawArtisan[] | null)
+    ?.filter(a => a.is_verified === true || a.profile?.role === 'artisan_verified')
+    ?? [];
+
+  if (artisans.length === 0) {
     // Fallback sans is_featured filter
-    const { data: fallback } = await supabase
+    const { data: rawFallback } = await supabase
       .from('artisan_profiles')
       .select(`
         id,
         business_name,
+        is_verified,
         profile:profiles!artisan_profiles_user_id_fkey(
           id, full_name, avatar_url, created_at, role
         ),
         trade_category:trade_categories(name)
       `)
-      .eq('is_verified', true)
-      .limit(limit);
+      .limit(limit * 3);
 
-    if (!fallback) return [];
-    return (fallback as unknown as Array<{
-      id: string;
-      business_name: string | null;
-      profile: { id: string; full_name: string; avatar_url: string | null; created_at: string; role: string } | null;
-      trade_category: { name: string } | null;
-    }>).map(a => ({
+    const fallback = (rawFallback as unknown as RawArtisan[] | null)
+      ?.filter(a => a.is_verified === true || a.profile?.role === 'artisan_verified')
+      .slice(0, limit)
+      ?? [];
+
+    if (fallback.length === 0) return [];
+    return fallback.map(a => ({
       id:            a.profile?.id ?? a.id,
       full_name:     a.profile?.full_name ?? 'Artisan',
       avatar_url:    a.profile?.avatar_url ?? null,
@@ -184,15 +201,7 @@ async function _fetchTopArtisans(limit = 4): Promise<SpotlightArtisan[]> {
     }));
   }
 
-  type RawArtisan = {
-    id: string;
-    business_name: string | null;
-    profile: { id: string; full_name: string; avatar_url: string | null; created_at: string; role: string } | null;
-    trade_category: { name: string } | null;
-    reviews?: Array<{ rating: number }>;
-  };
-
-  return (artisans as unknown as RawArtisan[])
+  return (artisans as RawArtisan[])
     .map(a => {
       const ratings = (a.reviews ?? []).map(r => r.rating).filter(r => r > 0);
       const avg = ratings.length > 0
