@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, memo } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import {
   MessageSquare, Package, Activity, Star, Clock,
   LayoutGrid, CheckCircle, Wrench, RefreshCw, Shield, User, ChevronRight,
@@ -88,10 +88,15 @@ function DashboardContent() {
     fetchForTab(tab);
   }, [fetchForTab]);
 
-  // Déclencher le fetch de l'onglet overview au montage initial
-  // (useEffect inside handleTabChange wouldn't fire at mount — call once here)
-  // fetchForTab is called for 'overview' via the useEffect below
-  useState(() => { fetchForTab('overview'); });
+  // Déclencher le fetch de l'onglet overview au montage initial.
+  // Anti-pattern corrigé : useState(() => { fetchForTab() }) est interdit —
+  // le lazy initializer de useState ne doit PAS avoir de side-effects.
+  // Un appel de fonction async dans un lazy init est non-déterministe et
+  // peut causer des erreurs de rendu qui remontent jusqu'au global-error.
+  useEffect(() => {
+    fetchForTab('overview');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // [] = uniquement au montage — fetchForTab est stable (useCallback dans useDashboardData)
 
   if (!profile) return null;
 
