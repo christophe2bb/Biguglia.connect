@@ -273,17 +273,24 @@ export async function middleware(request: NextRequest) {
   const nonce = generateNonce();
 
   // Passer le nonce aux Server Components via request headers (x-nonce)
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-nonce', nonce);
-  const requestWithNonce = new NextRequest(request.url, {
-    headers: requestHeaders,
-    method: request.method,
-    body: request.body,
-  });
+  //
+  // ⚠️  IMPORTANT — NE PAS utiliser `new NextRequest(request.url, { body: request.body })`
+  //
+  //  Le body d'une requête POST est un ReadableStream qui ne peut être lu qu'une seule fois.
+  //  Reconstruire un NextRequest en passant `body: request.body` "transfère" le stream :
+  //  il est marqué comme consommé (locked/disturbed), et la route API qui appelle
+  //  `req.json()` reçoit un stream vide → SyntaxError → "Échec du chargement de Fetch"
+  //  (visible dans la console comme "Fetch a fini de se charger : POST <URL>").
+  //
+  //  Solution : passer les headers supplémentaires à updateSession() via le paramètre
+  //  `extraReqHeaders`. updateSession() les injecte dans NextResponse.next({ request: { headers } })
+  //  — API Next.js qui propage les headers aux Server Components SANS toucher au body stream.
+  const extraHeaders = new Headers();
+  extraHeaders.set('x-nonce', nonce);
 
   // 4. Refresh session Supabase + guard routes protégées
-  //    On passe la request modifiée (avec x-nonce) à updateSession.
-  const supabaseResponse = await updateSession(requestWithNonce);
+  //    On passe la request originale (body intact) + les headers extra à updateSession.
+  const supabaseResponse = await updateSession(request, extraHeaders);
 
   // Ajouter le header CSP dynamique avec le nonce sur la response
   supabaseResponse.headers.set('Content-Security-Policy', buildCsp(nonce));

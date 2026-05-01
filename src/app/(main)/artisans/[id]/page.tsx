@@ -31,28 +31,33 @@ type Props = { params: Promise<{ id: string }> };
 
 // ─── Fetch data ───────────────────────────────────────────────────────────────
 async function fetchArtisan(id: string) {
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from('artisan_profiles')
-    .select(`
-      *,
-      profile:profiles!artisan_profiles_user_id_fkey(id, full_name, avatar_url, phone),
-      trade_category:trade_categories(*),
-      gallery:artisan_photos(*)
-    `)
-    .eq('id', id)
-    .single();
+    const { data, error } = await supabase
+      .from('artisan_profiles')
+      .select(`
+        *,
+        profile:profiles!artisan_profiles_user_id_fkey(id, full_name, avatar_url, phone),
+        trade_category:trade_categories(*),
+        gallery:artisan_photos(*)
+      `)
+      .eq('id', id)
+      .single();
 
-  if (error || !data) return null;
+    if (error || !data) return null;
 
-  const { data: reviews } = await supabase
-    .from('reviews')
-    .select('*, reviewer:profiles!reviews_reviewer_id_fkey(full_name, avatar_url)')
-    .eq('artisan_id', id)
-    .order('created_at', { ascending: false });
+    const { data: reviews } = await supabase
+      .from('reviews')
+      .select('*, reviewer:profiles!reviews_reviewer_id_fkey(full_name, avatar_url)')
+      .eq('artisan_id', id)
+      .order('created_at', { ascending: false });
 
-  return { artisan: data as ArtisanProfile, reviews: (reviews as Review[]) || [] };
+    return { artisan: data as ArtisanProfile, reviews: (reviews as Review[]) || [] };
+  } catch (err) {
+    console.error('[ArtisanDetailPage] fetchArtisan error:', err);
+    return null;
+  }
 }
 
 // ─── Metadata ────────────────────────────────────────────────────────────────
