@@ -38,8 +38,9 @@ export default function HelpHeader({ item, displayName, onOpenPhoto }: Props) {
           {allPhotos.length > 1 && (
             <div className="flex gap-2 p-4 pt-2 overflow-x-auto">
               {allPhotos.slice(1).map((ph, i) => (
-                <button key={i} type="button" onClick={() => onOpenPhoto(i + 1)} className="flex-shrink-0 focus:outline-none">
-                  <Image src={ph.url} alt="" fill className="object-cover rounded-lg border border-gray-100 hover:border-orange-300 transition-colors" />
+                <button key={i} type="button" onClick={() => onOpenPhoto(i + 1)}
+                  className="relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-orange-300">
+                  <Image src={ph.url} alt="" fill sizes="80px" className="object-cover hover:scale-110 transition-transform duration-300" />
                 </button>
               ))}
             </div>

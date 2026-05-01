@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -64,7 +64,12 @@ export default function DemandeDetailClient() {
   const { id } = useParams<{ id: string }>();
   const { profile } = useAuthStore();
   const router = useRouter();
-  const supabase = createClient();
+  // Stable client — créé une seule fois au montage pour éviter les re-renders
+  // infinis (createClient() en corps de composant change de référence à chaque
+  // render → supabase change → useEffect se re-déclenche → boucle infinie et
+  // perte de session → fetch /api/messages/start-conversation échoue)
+  const supabaseRef = useRef(createClient());
+  const supabase = supabaseRef.current;
 
   const [request, setRequest]         = useState<ServiceRequest | null>(null);
   const [comments, setComments]       = useState<RequestComment[]>([]);
@@ -358,7 +363,9 @@ export default function DemandeDetailClient() {
           {request.photos && request.photos.length > 0 && (
             <div className="flex gap-2 p-4 pb-0 overflow-x-auto">
               {request.photos.map((p, i) => (
-                <Image src={p.url} alt="" key={i} fill className="w-auto rounded-xl object-cover flex-shrink-0" />
+                <div key={i} className="relative flex-shrink-0 w-32 h-32 rounded-xl overflow-hidden">
+                  <Image src={p.url} alt="" fill sizes="128px" className="object-cover" />
+                </div>
               ))}
             </div>
           )}

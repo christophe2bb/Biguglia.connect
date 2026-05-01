@@ -301,8 +301,8 @@ export default function AssociationCard({
           <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1">
             {allPhotos.slice(1).map((p, i) => (
               <button key={i} onClick={() => { setLightboxIdx(i + 1); setLightboxOpen(true); }}
-                className="flex-shrink-0 focus:outline-none">
-                <Image src={p.url} alt="" fill className="object-cover rounded-lg border border-gray-100 hover:border-violet-300 transition-colors" />
+                className="relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-violet-300">
+                <Image src={p.url} alt="" fill sizes="64px" className="object-cover hover:scale-110 transition-transform duration-300" />
               </button>
             ))}
           </div>

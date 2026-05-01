@@ -352,8 +352,9 @@ export default function LostFoundCard({
         {allPhotos.length > 1 && (
           <div className="flex gap-1.5 mb-3 overflow-x-auto">
             {allPhotos.slice(1).map((p, i) => (
-              <button key={i} onClick={() => { setLightboxIdx(i + 1); setLightboxOpen(true); }} className="flex-shrink-0">
-                <Image src={p.url} alt="" fill className="object-cover rounded-lg border border-gray-100 hover:border-blue-300 transition-colors" />
+              <button key={i} onClick={() => { setLightboxIdx(i + 1); setLightboxOpen(true); }}
+                className="relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-300">
+                <Image src={p.url} alt="" fill sizes="64px" className="object-cover hover:scale-110 transition-transform duration-300" />
               </button>
             ))}
           </div>

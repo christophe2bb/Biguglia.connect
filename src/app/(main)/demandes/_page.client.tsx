@@ -201,9 +201,9 @@ export default function DemandesPageClient() {
                   className="block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-200 transition-colors p-5 group">
                   <div className="flex gap-4">
                     {/* Photo ou icône catégorie */}
-                    <div className="flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-blue-50 flex items-center justify-center">
+                    <div className="relative flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-blue-50 flex items-center justify-center">
                       {firstPhoto
-                        ? <Image src={firstPhoto} alt="" fill className="object-cover" />
+                        ? <Image src={firstPhoto} alt="" fill sizes="64px" className="object-cover" />
                         : <span className="text-2xl">{req.category?.icon ?? '🔧'}</span>
                       }
                     </div>
