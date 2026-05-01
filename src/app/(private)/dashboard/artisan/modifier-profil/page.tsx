@@ -16,7 +16,6 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Textarea from '@/components/ui/Textarea';
-import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 import toast from 'react-hot-toast';
@@ -403,7 +402,7 @@ function ModifierProfilContent() {
                   {avatarPreview ? (
                     <>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={avatarPreview} alt="Aperçu de la photo principale" className="w-full h-full object-cover" />
+                      <img src={avatarPreview} alt="Aperçu de votre annonce artisan" className="w-full h-full object-cover" />
                       <button
                         type="button"
                         onClick={() => {
@@ -479,7 +478,7 @@ function ModifierProfilContent() {
 
               {/* Type artisan */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Type d&apos;intervenant</label>
+                <p className="block text-sm font-medium text-gray-700 mb-2">Type d&apos;intervenant</p>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
@@ -603,7 +602,7 @@ function ModifierProfilContent() {
                 {newPhotoPreviews.map((url, i) => (
                   <div key={`new-${i}`} className="relative w-24 h-24 group">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={url} alt="Nouvelle photo" className="w-24 h-24 object-cover rounded-xl" />
+                    <img src={url} alt="Aperçu de la réalisation" className="w-24 h-24 object-cover rounded-xl" />
                     <button
                       type="button"
                       onClick={() => removeNewPhoto(i)}
