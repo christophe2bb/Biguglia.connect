@@ -153,13 +153,11 @@ export default function ContactButton({
   if (userId === ownerId) return null;
 
   // ── Déduire le vrai related_type à utiliser ───────────────────────────────────
-  // Pour 'artisan' → 'general' (pas de type artisan dans l'ENUM)
-  // Pour 'community' → 'community' si ENUM ok, sinon 'general' en fallback
-  const primaryRelType = sourceType === 'artisan' ? 'general' : sourceType;
-
+  // 'artisan' est désormais dans l'enum related_type → on l'envoie tel quel
   // Pour 'community', le sourceId est un themeSlug (text, pas UUID)
   // → on ne le stocke PAS dans related_id (colonne UUID) mais dans le subject
   const isCommunity = sourceType === 'community';
+  const primaryRelType = sourceType; // tous les types sont maintenant dans l'enum Supabase
   const relatedIdUUID = (!isCommunity && sourceId && isUUID(sourceId)) ? sourceId : null;
 
   // Le sujet encode le contexte pour l'isolation des conversations communautaires
