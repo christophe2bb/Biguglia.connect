@@ -137,6 +137,28 @@ export function ContextBanner({ relatedType, relatedId, subject }: ContextBanner
             .select('title, description')
             .eq('id', relatedId).single();
           if (data) setContextData({ title: data.title, description: data.description?.slice(0, 120) });
+        } else if (relatedType === 'artisan') {
+          const { data } = await supabase
+            .from('artisan_profiles')
+            .select('business_name, description, location, trade_category:trade_categories(name)')
+            .eq('id', relatedId).single();
+          if (data) {
+            const trade = data.trade_category as { name?: string } | null;
+            setContextData({
+              title: data.business_name || 'Artisan',
+              description: data.description?.slice(0, 120),
+              location: data.location,
+              status: trade?.name,
+            });
+          }
+        } else if (relatedType === 'event') {
+          const { data } = await supabase
+            .from('events')
+            .select('title, description, location')
+            .eq('id', relatedId).single();
+          if (data) setContextData({ title: data.title, description: data.description?.slice(0, 120), location: data.location });
+        } else if (relatedType === 'community') {
+          setContextData({ title: subject || 'Communauté' });
         }
       } catch (e) {
         console.warn('[ContextBanner] load failed', e);

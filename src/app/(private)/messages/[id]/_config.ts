@@ -7,6 +7,7 @@
 
 import {
   ShoppingBag, HandHeart, Dog, Users, MapPin, Wrench, MessageSquare,
+  HardHat, Calendar, Globe,
 } from 'lucide-react';
 
 // ─── Config contexte par related_type ─────────────────────────────────────────
@@ -26,6 +27,9 @@ export const CONTEXT_CONFIG: Record<string, {
   outing:          { icon: MapPin,        label: 'Sortie groupée',  color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', href: () => `/promenades` },
   collection_item: { icon: ShoppingBag,   label: 'Collectionneur',  color: 'text-rose-700',    bg: 'bg-rose-50',    border: 'border-rose-200',   href: () => `/collectionneurs` },
   service_request: { icon: Wrench,        label: 'Demande artisan', color: 'text-brand-700',   bg: 'bg-brand-50',   border: 'border-brand-200',  href: id => `/demandes/${id}` },
+  artisan:         { icon: HardHat,       label: 'Artisan',         color: 'text-amber-700',   bg: 'bg-amber-50',   border: 'border-amber-200',  href: id => `/artisans/${id}` },
+  event:           { icon: Calendar,      label: 'Événement',       color: 'text-violet-700',  bg: 'bg-violet-50',  border: 'border-violet-200', href: id => `/evenements/${id}` },
+  community:       { icon: Globe,         label: 'Communauté',      color: 'text-cyan-700',    bg: 'bg-cyan-50',    border: 'border-cyan-200',   href: () => `/communaute` },
   general:         { icon: MessageSquare, label: 'Conversation',    color: 'text-gray-700',    bg: 'bg-gray-50',    border: 'border-gray-200',   href: () => `/` },
 };
 
