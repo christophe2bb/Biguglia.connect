@@ -197,7 +197,11 @@ function DemandeServiceForm() {
         (form.preferred_date ? `**Date souhaitée :** ${new Date(form.preferred_date).toLocaleDateString('fr-FR')}\n` : '') +
         (form.preferred_time ? `**Heure :** ${form.preferred_time}\n` : '') +
         `**Lieu :** ${form.address}\n\n` +
-        `**Description :**\n${form.description}`;
+        `**Description :**\n${form.description}` +
+        (photoUrls.length > 0
+          ? `\n\n─────────────────────\n**Photos jointes :**\n` +
+            photoUrls.map(url => url).join('\n')
+          : '');
 
       let conversationId: string | null = null;
       try {
