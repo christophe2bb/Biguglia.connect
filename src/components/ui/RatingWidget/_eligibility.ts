@@ -9,6 +9,8 @@
  *   event                   → inscrit + événement passé
  *   outing                  → inscrit + sortie passée
  *   service_request         → auteur de la demande uniquement
+ *   artisan                 → avoir eu une conversation avec l'artisan
+ *                             (interaction réelle = échange de messages)
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -112,6 +114,16 @@ export async function checkEligibility(
         .eq('user_id', userId)
         .maybeSingle();
       return !!data;
+    }
+
+    // ── Fiche artisan : avoir échangé des messages avec l'artisan ─────────────
+    // targetId = artisan_profiles.id (UUID de la fiche, pas du user)
+    // On vérifie qu'une conversation existe avec related_type='artisan'
+    // et related_id=targetId. Pas besoin d'exchange_status='done' : le fait
+    // d'avoir échangé des messages constitue une interaction réelle suffisante.
+    case 'artisan': {
+      const { conversationId } = await checkConversationViaAPI('artisan', targetId, authToken);
+      return !!conversationId;
     }
 
     // ── Artisan : auteur de la demande uniquement ─────────────────────────────

@@ -3,7 +3,7 @@
 export type RatingTargetType =
   | 'listing' | 'equipment' | 'help_request' | 'lost_found'
   | 'association' | 'outing' | 'collection_item' | 'event'
-  | 'promenade' | 'service_request';
+  | 'promenade' | 'service_request' | 'artisan';
 
 export interface RatingData {
   avg: number;
