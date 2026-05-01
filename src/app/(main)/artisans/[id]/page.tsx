@@ -88,6 +88,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default async function ArtisanDetailPage({ params }: Props) {
   const { id } = await params;
+
+  // Récupérer la session serveur pour passer userId au ContactButton
+  // createClient() lit les cookies de session → pas de round-trip supplémentaire
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  const currentUserId = user?.id ?? null;
+
   const result = await fetchArtisan(id);
   if (!result) notFound();
 
@@ -243,7 +250,7 @@ export default async function ArtisanDetailPage({ params }: Props) {
               sourceId={artisan.id}
               sourceTitle={artisan.business_name}
               ownerId={artisan.user_id}
-              userId={undefined}
+              userId={currentUserId}
               ctaLabel="Envoyer un message"
               className="w-full justify-center"
               variant="primary"
