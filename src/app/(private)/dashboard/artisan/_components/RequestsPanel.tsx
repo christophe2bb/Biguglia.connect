@@ -129,30 +129,45 @@ export default function RequestsPanel({ requests, loading, pendingCount, onUpdat
                     <Link href="/messages" className="flex items-center gap-1 text-xs text-brand-600 hover:underline font-medium">
                       <MessageSquare className="w-3.5 h-3.5" /> Répondre
                     </Link>
-                    {req.status === 'submitted' && (
-                      <button
-                        onClick={() => onUpdateStatus(req.id, 'viewed')}
-                        className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 ml-auto"
-                      >
-                        <Eye className="w-3.5 h-3.5" /> Marquer vue
-                      </button>
-                    )}
-                    {req.status === 'replied' && (
-                      <button
-                        onClick={() => onUpdateStatus(req.id, 'scheduled')}
-                        className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 ml-auto font-medium"
-                      >
-                        <Calendar className="w-3.5 h-3.5" /> Planifier
-                      </button>
-                    )}
-                    {req.status === 'scheduled' && (
-                      <button
-                        onClick={() => onUpdateStatus(req.id, 'completed')}
-                        className="flex items-center gap-1 text-xs text-green-600 hover:text-green-800 ml-auto font-medium"
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" /> Terminer
-                      </button>
-                    )}
+
+                    <div className="ml-auto flex items-center gap-2">
+                      {/* Vue → depuis submitted */}
+                      {req.status === 'submitted' && (
+                        <button
+                          onClick={() => onUpdateStatus(req.id, 'viewed')}
+                          className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> Marquer vue
+                        </button>
+                      )}
+                      {/* Planifier → depuis viewed ou replied */}
+                      {['viewed', 'replied'].includes(req.status) && (
+                        <button
+                          onClick={() => onUpdateStatus(req.id, 'scheduled')}
+                          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          <Calendar className="w-3.5 h-3.5" /> Planifier
+                        </button>
+                      )}
+                      {/* Terminer → depuis replied, scheduled ou viewed */}
+                      {['replied', 'scheduled', 'viewed'].includes(req.status) && (
+                        <button
+                          onClick={() => onUpdateStatus(req.id, 'completed')}
+                          className="flex items-center gap-1 text-xs text-green-600 hover:text-green-800 font-medium"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" /> Terminer
+                        </button>
+                      )}
+                      {/* Statut final */}
+                      {req.status === 'completed' && (
+                        <span className="flex items-center gap-1 text-xs text-green-600 font-semibold">
+                          <CheckCircle className="w-3.5 h-3.5" /> Terminée — avis débloqué
+                        </span>
+                      )}
+                      {req.status === 'cancelled' && (
+                        <span className="text-xs text-gray-400">Annulée</span>
+                      )}
+                    </div>
                   </div>
                 </>
               )}
