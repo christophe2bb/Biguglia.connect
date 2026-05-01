@@ -134,9 +134,21 @@ export function ContextBanner({ relatedType, relatedId, subject }: ContextBanner
         } else if (relatedType === 'service_request') {
           const { data } = await supabase
             .from('service_requests')
-            .select('title, description')
+            .select('title, description, address, urgency, photos:service_request_photos(url)')
             .eq('id', relatedId).single();
-          if (data) setContextData({ title: data.title, description: data.description?.slice(0, 120) });
+          if (data) {
+            const photos = data.photos as Array<{ url: string }> | undefined;
+            const urgencyLabel =
+              data.urgency === 'tres_urgent' ? '🔴 Très urgent' :
+              data.urgency === 'urgent'      ? '🟠 Urgent'      : undefined;
+            setContextData({
+              title: data.title,
+              description: data.description?.slice(0, 120),
+              photo: photos?.[0]?.url,
+              location: data.address,
+              status: urgencyLabel,
+            });
+          }
         } else if (relatedType === 'artisan') {
           const { data } = await supabase
             .from('artisan_profiles')

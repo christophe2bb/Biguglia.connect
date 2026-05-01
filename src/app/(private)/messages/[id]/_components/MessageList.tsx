@@ -27,6 +27,94 @@ import { ProfileWithEmail, GroupedMessage } from '../_types';
 import { getDisplayName } from '../_utils';
 import { CONTEXT_CONFIG } from '../_config';
 
+// ─── MessageContent — rendu Markdown simple (gras, sauts de ligne, images) ───
+
+/**
+ * Rendu minimal de Markdown dans les bulles de message :
+ *   **texte**  → <strong>texte</strong>
+ *   \n         → saut de ligne visuel
+ *   ─── …     → séparateur horizontal fin
+ *   https://…  → lien cliquable (images : <img> inline)
+ * Pas de librairie externe pour garder le bundle léger.
+ */
+function MessageContent({ content, isMe }: { content: string; isMe: boolean }) {
+  // Découper par lignes
+  const lines = content.split('\n');
+
+  return (
+    <div className="space-y-0.5">
+      {lines.map((line, li) => {
+        // Séparateur horizontal (─── ou ---)
+        if (/^[─\-]{3,}$/.test(line.trim())) {
+          return (
+            <hr
+              key={li}
+              className={`my-2 border-0 h-px ${isMe ? 'bg-white/30' : 'bg-gray-300'}`}
+            />
+          );
+        }
+
+        // Ligne vide → petit espace
+        if (!line.trim()) {
+          return <div key={li} className="h-1" />;
+        }
+
+        // Découper la ligne en segments gras / normal / image-url / lien
+        const parts: React.ReactNode[] = [];
+        // Regex : image-url, lien, ou texte **gras**
+        const regex = /(https?:\/\/\S+\.(jpg|jpeg|png|webp|gif|avif)(\?\S*)?)|(\*\*(.+?)\*\*)|(https?:\/\/\S+)/gi;
+        let last = 0;
+        let m: RegExpExecArray | null;
+
+        while ((m = regex.exec(line)) !== null) {
+          // Texte avant le match
+          if (m.index > last) parts.push(line.slice(last, m.index));
+
+          if (m[1]) {
+            // Image inline
+            parts.push(
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={`img-${li}-${m.index}`}
+                src={m[1]}
+                alt="Photo jointe"
+                loading="lazy"
+                className="mt-2 max-w-full rounded-xl max-h-64 object-cover border border-white/20"
+              />
+            );
+          } else if (m[4]) {
+            // **gras**
+            parts.push(
+              <strong key={`b-${li}-${m.index}`} className={`font-bold ${isMe ? 'text-white' : 'text-gray-900'}`}>
+                {m[5]}
+              </strong>
+            );
+          } else if (m[6]) {
+            // Lien simple
+            parts.push(
+              <a
+                key={`a-${li}-${m.index}`}
+                href={m[6]}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`underline underline-offset-2 ${isMe ? 'text-white/90 hover:text-white' : 'text-brand-600 hover:text-brand-800'}`}
+              >
+                {m[6].replace(/^https?:\/\//, '').slice(0, 40)}…
+              </a>
+            );
+          }
+          last = m.index + m[0].length;
+        }
+
+        // Texte restant après le dernier match
+        if (last < line.length) parts.push(line.slice(last));
+
+        return <p key={li} className="leading-snug">{parts}</p>;
+      })}
+    </div>
+  );
+}
+
 // ─── DateSeparator ────────────────────────────────────────────────────────────
 
 function DateSeparator({ date }: { date: string }) {
@@ -129,7 +217,7 @@ function MessageBubble({
         {/* Bulle */}
         <div
           className={cn(
-            'max-w-[65%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words cursor-default select-text',
+            'max-w-[75%] px-4 py-3 rounded-2xl text-sm leading-relaxed break-words cursor-default select-text',
             isMe ? 'bg-brand-600 text-white rounded-tr-sm' : 'bg-gray-100 text-gray-800 rounded-tl-sm',
             isTemp && 'opacity-60',
             menuOpen && isMe && 'ring-2 ring-red-400',
@@ -139,7 +227,10 @@ function MessageBubble({
           onTouchEnd={handlePressEnd}
           onTouchMove={handlePressEnd}
         >
-          {msg.content ?? <span className="italic text-gray-400 text-xs">[message supprimé]</span>}
+          {msg.content
+            ? <MessageContent content={msg.content} isMe={isMe} />
+            : <span className="italic text-gray-400 text-xs">[message supprimé]</span>
+          }
         </div>
 
         {/* Bouton suppression */}
