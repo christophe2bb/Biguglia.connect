@@ -20,6 +20,9 @@ function DemandeServiceForm() {
   const router = useRouter();
   const { profile } = useAuthStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Client Supabase stable — créé une seule fois, session persistée dans les cookies
+  const supabaseRef = useRef(createClient());
+  const supabase = supabaseRef.current;
 
   const [categories, setCategories] = useState<TradeCategory[]>([]);
   const [artisan, setArtisan] = useState<ArtisanProfile | null>(null);
@@ -62,8 +65,6 @@ function DemandeServiceForm() {
     if (!profile) { router.push('/connexion?redirect=/artisans/demande'); return; }
 
     const fetchData = async () => {
-      const supabase = createClient();
-
       const { data: cats } = await supabase.from('trade_categories').select('*').order('display_order');
       setCategories(cats || []);
 
@@ -119,7 +120,15 @@ function DemandeServiceForm() {
     }
 
     setLoading(true);
-    const supabase = createClient();
+
+    // Vérifier la session avant toute opération DB — évite auth.uid() = NULL (→ 403)
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error('Session expirée. Reconnectez-vous.');
+      router.push('/connexion?redirect=/artisans/demande');
+      setLoading(false);
+      return;
+    }
 
     const { data: request, error } = await supabase
       .from('service_requests')
@@ -162,7 +171,6 @@ function DemandeServiceForm() {
 
     // Si artisan spécifié, créer une conversation via l'API admin (contourne RLS récursive)
     if (artisanId && artisan) {
-      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         await fetch('/api/messages/start-conversation', {
           method: 'POST',
