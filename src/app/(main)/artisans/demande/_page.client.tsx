@@ -81,7 +81,7 @@ function DemandeServiceForm() {
       }
     };
     fetchData();
-  }, [profile, artisanId, router]);
+  }, [profile, artisanId, router, supabase]);
 
   const handlePhotoAdd = (files: FileList | null) => {
     if (!files) return;
