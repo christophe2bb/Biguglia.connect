@@ -269,17 +269,69 @@ export async function POST(req: NextRequest): Promise<Response> {
     .select('id')
     .single();
 
-  // Gestion de la unique_violation (23505) si la contrainte DB est déjà en place
-  // et que deux requêtes concurrentes ont passé le garde applicatif simultanément.
+  // Gestion des erreurs d'insertion conversation
   if (convError) {
+    // 23505 = unique_violation (race condition) — on retrouve la conv existante
     if (convError.code === '23505') {
-      // Race condition gagnée par l'autre requête — on retrouve la conv existante.
       const raceId = await findExistingConversation(
         admin, userId, ownerId, relatedType ?? null, relatedId ?? null
       );
       if (raceId) return NextResponse.json({ conversationId: raceId, isNew: false });
     }
-    console.error('[start-conversation] create error:', convError.message);
+    // 22P02 = invalid input value for enum related_type
+    // → la valeur relatedType n'existe pas encore dans l'enum PostgreSQL en production.
+    // Solution : exécuter dans Supabase SQL Editor :
+    //   ALTER TYPE related_type ADD VALUE IF NOT EXISTS '<valeur>';
+    if (convError.code === '22P02') {
+      console.error(
+        '[start-conversation] ENUM ERROR — related_type manquant dans l\'enum PG:',
+        relatedType, '| message:', convError.message,
+        '| Solution: ALTER TYPE related_type ADD VALUE IF NOT EXISTS \'' + relatedType + '\''
+      );
+      // Fallback : réessayer avec related_type='general' pour ne pas bloquer l'utilisateur
+      const fallbackPayload: Record<string, unknown> = {
+        subject,
+        related_type: 'general',
+        updated_at: new Date().toISOString(),
+        // related_id volontairement omis : 'general' n'a pas de contexte lié
+      };
+      const { data: fallbackConv, error: fallbackErr } = await admin
+        .from('conversations')
+        .insert(fallbackPayload)
+        .select('id')
+        .single();
+      if (fallbackErr) {
+        console.error('[start-conversation] fallback general error:', fallbackErr.message);
+        return NextResponse.json(
+          { error: `Type de conversation '${relatedType}' non supporté en base — migration requise` },
+          { status: 422 }
+        );
+      }
+      if (fallbackConv?.id) {
+        // Continuer avec la conv fallback (related_type='general')
+        console.warn('[start-conversation] fallback conv créée avec related_type=general, id:', fallbackConv.id);
+        // Remplacer convId par le fallback et continuer normalement
+        const fallbackId = fallbackConv.id;
+        const [insertSelfFb, insertOwnerFb] = await Promise.all([
+          admin.from('conversation_participants')
+            .insert({ conversation_id: fallbackId, user_id: userId,  joined_at: new Date().toISOString() })
+            .select('user_id').maybeSingle(),
+          admin.from('conversation_participants')
+            .insert({ conversation_id: fallbackId, user_id: ownerId, joined_at: new Date().toISOString() })
+            .select('user_id').maybeSingle(),
+        ]);
+        const selfFbOk = !insertSelfFb.error || insertSelfFb.error.code === '23505';
+        if (!selfFbOk) {
+          await admin.from('conversations').delete().eq('id', fallbackId);
+          return NextResponse.json({ error: 'Impossible d\'ajouter le participant (fallback)' }, { status: 500 });
+        }
+        if (insertOwnerFb.error && insertOwnerFb.error.code !== '23505') {
+          console.warn('[start-conversation] fallback owner insert error:', insertOwnerFb.error.message);
+        }
+        return NextResponse.json({ conversationId: fallbackId, isNew: true });
+      }
+    }
+    console.error('[start-conversation] create error:', convError.message, '| code:', convError.code);
     return NextResponse.json(
       { error: convError.message || 'Erreur création conversation' },
       { status: 500 }
