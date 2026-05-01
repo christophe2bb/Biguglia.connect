@@ -188,13 +188,17 @@ describe('buildCsp', () => {
       expect(styleSrc).toBeUndefined();
     });
 
-    it("style-src-elem inclut le nonce (bloque les <style> injectés sans nonce)", () => {
+    it("style-src-elem utilise 'unsafe-inline' SANS nonce (CSP3 : nonce annule unsafe-inline)", () => {
       const csp = buildCsp(testNonce);
       const styleElem = csp.split(';').find(d => d.trim().startsWith('style-src-elem'));
       expect(styleElem).toBeDefined();
-      expect(styleElem).toContain(`'nonce-${testNonce}'`);
-      // Pas de unsafe-inline dans style-src-elem → les <style> sans nonce sont bloqués
-      expect(styleElem).not.toContain("'unsafe-inline'");
+      // Le nonce est absent de style-src-elem : en CSP Level 3, la présence d'un nonce
+      // rend 'unsafe-inline' inopérant. On retire le nonce pour que unsafe-inline
+      // fonctionne réellement (nécessaire pour Recharts, Supabase UI, etc.).
+      // Le nonce reste dans script-src où il est utile (strict-dynamic).
+      expect(styleElem).not.toContain(`'nonce-${testNonce}'`);
+      // unsafe-inline doit être présent pour autoriser les <style> injectés par les libs
+      expect(styleElem).toContain("'unsafe-inline'");
     });
 
     it("style-src-attr garde 'unsafe-inline' (React dynamic style={{}} attributes)", () => {

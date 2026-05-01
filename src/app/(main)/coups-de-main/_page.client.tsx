@@ -56,7 +56,7 @@ export default function CoupsDeMainPage() {
     items, loading, dbReady,
     // Form
     showForm, setShowForm, editingItem, step, setStep, submitting,
-    form, setForm, previews, photos,
+    form, setForm, previews, photos, existingPhotoUrls,
     resetForm, handleEdit, handlePhotoSelect, removePhoto, toggleArr, handleSubmit,
     // CRUD
     fetchItems, handleDelete: _handleDelete, handleResolve, handlePause, handleStatusChange, handleCanHelp,
@@ -202,7 +202,7 @@ export default function CoupsDeMainPage() {
                 submitting={submitting}
                 editingItem={!!editingItem}
                 previews={previews}
-                photosCount={photos.length}
+                photosCount={existingPhotoUrls.length + photos.length}
                 onPhotoSelect={handlePhotoSelect}
                 onRemovePhoto={removePhoto}
                 onToggleArr={toggleArr}

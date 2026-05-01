@@ -17,6 +17,7 @@ export type CDMFormReturn = {
   setForm:     React.Dispatch<React.SetStateAction<HelpFormValues>>;
   photos:      File[];
   previews:    string[];
+  existingPhotoUrls: string[]; // URLs des photos déjà en base (édition)
   resetForm:        () => void;
   handleEdit:       (item: HelpRequest) => void;
   handlePhotoSelect:(files: File[], reset?: () => void) => void;
@@ -33,12 +34,18 @@ export function useCDMForm(fetchItems: () => Promise<void>): CDMFormReturn {
   const [form, setForm]               = useState<HelpFormValues>(EMPTY_FORM);
   const [photos, setPhotos]           = useState<File[]>([]);
   const [previews, setPreviews]       = useState<string[]>([]);
+  // URLs des photos déjà sauvegardées en base (mode édition uniquement)
+  // Elles s'affichent dans le formulaire mais ne sont pas des File objects.
+  // Si l'utilisateur n'ajoute pas de nouvelles photos → elles sont conservées.
+  // Si l'utilisateur ajoute de nouvelles photos → les anciennes seront supprimées.
+  const [existingPhotoUrls, setExistingPhotoUrls] = useState<string[]>([]);
 
   // ── Réinitialisation ─────────────────────────────────────────────────────
   const resetForm = () => {
     setForm(EMPTY_FORM);
     setPhotos([]);
     setPreviews([]);
+    setExistingPhotoUrls([]);
     setStep(1);
     setEditingItem(null);
     setShowForm(false);
@@ -71,6 +78,14 @@ export function useCDMForm(fetchItems: () => Promise<void>): CDMFormReturn {
       display_name:        item.display_name,
       check1: true, check2: true, check3: true, check4: true, check5: true,
     });
+
+    // Pré-charger les photos existantes comme previews
+    const sorted = [...(item.photos ?? [])].sort((a, b) => a.display_order - b.display_order);
+    const urls   = sorted.map(p => p.url);
+    setExistingPhotoUrls(urls);
+    setPreviews(urls);   // afficher les URLs existantes dans la zone photos
+    setPhotos([]);       // aucun nouveau File sélectionné
+
     setStep(1);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -78,7 +93,9 @@ export function useCDMForm(fetchItems: () => Promise<void>): CDMFormReturn {
 
   // ── Photos ───────────────────────────────────────────────────────────────
   const handlePhotoSelect = (files: File[], reset?: () => void) => {
-    if (photos.length + files.length > 5) { toast.error('5 photos maximum'); return; }
+    // Compter les photos existantes conservées + les nouveaux fichiers
+    const currentTotal = existingPhotoUrls.length + photos.length;
+    if (currentTotal + files.length > 5) { toast.error('5 photos maximum'); return; }
     setPhotos(p => [...p, ...files]);
     files.forEach(f => {
       const reader = new FileReader();
@@ -89,8 +106,22 @@ export function useCDMForm(fetchItems: () => Promise<void>): CDMFormReturn {
   };
 
   const removePhoto = (i: number) => {
-    setPhotos(p => p.filter((_, idx) => idx !== i));
-    setPreviews(p => p.filter((_, idx) => idx !== i));
+    const existingCount = existingPhotoUrls.length;
+
+    if (i < existingCount) {
+      // Suppression d'une photo existante (URL en base)
+      setExistingPhotoUrls(p => p.filter((_, idx) => idx !== i));
+      setPreviews(p => p.filter((_, idx) => idx !== i));
+    } else {
+      // Suppression d'un nouveau fichier sélectionné
+      const newIdx = i - existingCount;
+      setPhotos(p => p.filter((_, idx) => idx !== newIdx));
+      // Reconstruire les previews : garder les URLs existantes + previews des nouveaux fichiers sauf celui supprimé
+      setPreviews(() => [
+        ...existingPhotoUrls,
+        ...previews.slice(existingCount).filter((_, idx) => idx !== newIdx),
+      ]);
+    }
   };
 
   const toggleArr = (key: 'equipment' | 'conditions', val: string) => {
@@ -109,7 +140,11 @@ export function useCDMForm(fetchItems: () => Promise<void>): CDMFormReturn {
       return;
     }
     setSubmitting(true);
-    await submitCDMItem(form, isDraft, profileId, editingItem, photos, fetchItems, resetForm, setSubmitting);
+    await submitCDMItem(
+      form, isDraft, profileId, editingItem,
+      photos, existingPhotoUrls,
+      fetchItems, resetForm, setSubmitting,
+    );
   };
 
   return {
@@ -118,7 +153,7 @@ export function useCDMForm(fetchItems: () => Promise<void>): CDMFormReturn {
     step, setStep,
     submitting,
     form, setForm,
-    photos, previews,
+    photos, previews, existingPhotoUrls,
     resetForm, handleEdit,
     handlePhotoSelect, removePhoto, toggleArr,
     handleSubmit,

@@ -12,6 +12,7 @@ export async function submitCDMItem(
   profileId: string,
   editingItem: HelpRequest | null,
   photos: File[],
+  existingPhotoUrls: string[],   // URLs des photos déjà en base à CONSERVER
   fetchItems: () => Promise<void>,
   resetForm: () => void,
   setSubmitting: (v: boolean) => void,
@@ -50,6 +51,40 @@ export async function submitCDMItem(
     const { error } = await supabase.from('help_requests').update(payload).eq('id', editingItem.id);
     if (error) { toast.error('Erreur modification : ' + error.message); setSubmitting(false); return; }
     itemId = editingItem.id;
+
+    // ── Gestion des photos en mode édition ──────────────────────────────────
+    // Stratégie :
+    //   1. Récupérer toutes les photos actuellement en base
+    //   2. Supprimer celles qui ne sont plus dans existingPhotoUrls (supprimées par l'utilisateur)
+    //   3. Si de nouvelles photos ont été sélectionnées, les uploader et les insérer
+    //   4. Renuméroter les display_order pour cohérence
+    const { data: currentPhotos } = await supabase
+      .from('help_photos')
+      .select('id, url')
+      .eq('help_id', itemId);
+
+    if (currentPhotos && currentPhotos.length > 0) {
+      // Photos à supprimer = celles en base qui ne sont plus dans existingPhotoUrls
+      const toDelete = currentPhotos.filter(p => !existingPhotoUrls.includes(p.url));
+      if (toDelete.length > 0) {
+        await supabase
+          .from('help_photos')
+          .delete()
+          .in('id', toDelete.map(p => p.id));
+      }
+
+      // Renuméroter les photos conservées selon leur nouvel ordre
+      for (let i = 0; i < existingPhotoUrls.length; i++) {
+        const match = currentPhotos.find(p => p.url === existingPhotoUrls[i]);
+        if (match) {
+          await supabase
+            .from('help_photos')
+            .update({ display_order: i })
+            .eq('id', match.id);
+        }
+      }
+    }
+
     toast.success('✅ Annonce modifiée !');
   } else {
     const { data, error } = await supabase.from('help_requests').insert(payload).select('id').single();
@@ -58,16 +93,19 @@ export async function submitCDMItem(
     toast.success(isDraft ? '💾 Brouillon enregistré' : '🤝 Annonce publiée !', { duration: 4000 });
   }
 
-  // Upload photos
+  // ── Upload des nouvelles photos (création ET édition) ─────────────────────
+  // En mode édition : les nouvelles photos s'ajoutent APRÈS les existantes conservées
+  const startOrder = editingItem ? existingPhotoUrls.length : 0;
+
   if (photos.length > 0 && itemId) {
     for (let i = 0; i < photos.length; i++) {
       const file = photos[i];
-      const ext = safeImageExt(file.name);
+      const ext  = safeImageExt(file.name);
       const path = `coups-de-main/${itemId}/${Date.now()}_${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
       try {
         const publicUrl = await uploadFile(file, 'photos', path, profileId);
         await supabase.from('help_photos').insert({
-          help_id: itemId, url: publicUrl, display_order: i,
+          help_id: itemId, url: publicUrl, display_order: startOrder + i,
         });
       } catch (err) {
         toast.error(`Photo ${i + 1} non sauvegardée : ${err instanceof Error ? err.message : ''}`);
