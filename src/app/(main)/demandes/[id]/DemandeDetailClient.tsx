@@ -5,6 +5,14 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { toPhotoItems } from '@/components/ui/photo-utils';
+import dynamic from 'next/dynamic';
+
+// PhotoGallery — lazy-load identique aux annonces
+const PhotoGallery = dynamic(
+  () => import('@/components/ui/PhotoViewer').then(m => ({ default: m.PhotoGallery })),
+  { ssr: false, loading: () => <div className="h-64 bg-gray-100 rounded-2xl animate-pulse mx-4 mt-4" /> }
+);
 import { useAuthStore } from '@/lib/auth-store';
 import { formatRelative } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
@@ -359,14 +367,14 @@ export default function DemandeDetailClient() {
 
         {/* ── Carte principale ── */}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden mb-6">
-          {/* Photos */}
+          {/* Photos — galerie avec lightbox (même composant que les annonces) */}
           {request.photos && request.photos.length > 0 && (
-            <div className="flex gap-2 p-4 pb-0 overflow-x-auto">
-              {request.photos.map((p, i) => (
-                <div key={i} className="relative flex-shrink-0 w-32 h-32 rounded-xl overflow-hidden">
-                  <Image src={p.url} alt="" fill sizes="128px" className="object-cover" />
-                </div>
-              ))}
+            <div className="p-4 pb-0">
+              <PhotoGallery
+                photos={toPhotoItems(request.photos)}
+                title={request.title}
+                mainHeight="h-64"
+              />
             </div>
           )}
 
