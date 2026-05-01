@@ -92,19 +92,27 @@ function ArtisanDashboardContent() {
         .select('id, status')
         .eq('artisan_id', ap.id);
 
-      // Avis reçus
+      // Avis reçus — système trust : target_user_id = profile.id de l'artisan
       const { data: revs } = await supabase
         .from('reviews')
-        .select('*, reviewer:profiles!reviews_reviewer_id_fkey(full_name, avatar_url)')
-        .eq('artisan_id', ap.id)
+        .select('id, rating, comment, created_at, source_type, author:profiles!reviews_author_id_fkey(full_name, avatar_url)')
+        .eq('target_user_id', profile.id)
+        .eq('moderation_status', 'visible')
         .order('created_at', { ascending: false })
         .limit(5);
 
       setRequests((reqs as ServiceRequest[]) || []);
-      setReviews((revs as Review[]) || []);
+      // Normaliser pour le ReviewsPanel qui attend review.reviewer
+      const normalizedRevs = (revs || []).map(r => ({
+        ...r,
+        reviewer: (r as unknown as { author: { full_name: string; avatar_url?: string } }).author,
+      }));
+      setReviews(normalizedRevs as unknown as Review[]);
 
       const totalRequests = allReqs?.length || 0;
+      // En attente = demandes pas encore traitées
       const pendingRequests = allReqs?.filter(r => ['submitted', 'viewed'].includes(r.status)).length || 0;
+      // Terminées = completed uniquement
       const completedRequests = allReqs?.filter(r => r.status === 'completed').length || 0;
       const avgRating = revs?.length
         ? revs.reduce((sum, r) => sum + r.rating, 0) / revs.length
@@ -139,11 +147,16 @@ function ArtisanDashboardContent() {
 
     setRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: newStatus } : r));
 
+    // Mettre à jour le compteur Terminées en temps réel
+    if (newStatus === 'completed') {
+      setStats(prev => ({ ...prev, completedRequests: prev.completedRequests + 1 }));
+    }
+
     const labels: Record<string, string> = {
-      viewed: 'Marquée comme vue',
-      replied: 'Marquée comme répondue',
+      viewed:    'Marquée comme vue',
+      replied:   'Marquée comme répondue',
       scheduled: 'Intervention planifiée',
-      completed: 'Intervention terminée',
+      completed: 'Intervention terminée ✅',
     };
     toast.success(labels[newStatus] || 'Statut mis à jour');
 
@@ -156,6 +169,50 @@ function ArtisanDashboardContent() {
         title: '📋 Demande mise à jour',
         message: `Votre demande "${req.title}" est maintenant : ${STATUS_LABELS[newStatus]}`,
         link: `/artisans/demande/${requestId}`,
+      });
+    }
+
+    // Quand l'intervention est terminée → créer/débloquer une trust_interaction
+    // pour que le résident puisse laisser un avis sur l'artisan
+    if (newStatus === 'completed' && req && artisanProfile) {
+      // Chercher une interaction existante pour cette service_request
+      const { data: existing } = await supabase
+        .from('trust_interactions')
+        .select('id')
+        .eq('source_type', 'service_request')
+        .eq('source_id', requestId)
+        .maybeSingle();
+
+      if (existing) {
+        // Mettre à jour l'interaction existante
+        await supabase.from('trust_interactions').update({
+          status: 'done',
+          review_unlocked: true,
+          completed_at: new Date().toISOString(),
+        }).eq('id', existing.id);
+      } else {
+        // Créer l'interaction depuis zéro
+        await supabase.from('trust_interactions').insert({
+          source_type:      'service_request',
+          source_id:        requestId,
+          requester_id:     req.resident_id,
+          receiver_id:      artisanProfile.user_id,
+          interaction_type: 'service_request',
+          status:           'done',
+          review_unlocked:  true,
+          review_requester_done: false,
+          review_receiver_done:  false,
+          completed_at:     new Date().toISOString(),
+        });
+      }
+
+      // Notifier le résident qu'il peut laisser un avis
+      await supabase.from('notifications').insert({
+        user_id: req.resident_id,
+        type:    'review_request',
+        title:   '⭐ Donnez votre avis !',
+        message: `L'intervention de ${artisanProfile.business_name} est terminée. Partagez votre expérience !`,
+        link:    '/dashboard/avis',
       });
     }
   };
