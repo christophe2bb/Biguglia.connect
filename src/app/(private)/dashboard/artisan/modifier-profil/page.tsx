@@ -44,7 +44,7 @@ function BusinessCard({
           <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white/20 flex-shrink-0 border-2 border-white/40">
             {avatarPreview ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={avatarPreview} alt="Photo" className="w-full h-full object-cover" />
+              <img src={avatarPreview} alt="Aperçu du profil artisan" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-2xl">
                 {category?.icon || '🔧'}
@@ -403,7 +403,7 @@ function ModifierProfilContent() {
                   {avatarPreview ? (
                     <>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={avatarPreview} alt="Photo principale" className="w-full h-full object-cover" />
+                      <img src={avatarPreview} alt="Aperçu de la photo principale" className="w-full h-full object-cover" />
                       <button
                         type="button"
                         onClick={() => {

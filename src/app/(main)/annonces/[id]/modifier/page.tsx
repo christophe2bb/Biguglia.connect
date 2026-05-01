@@ -399,7 +399,7 @@ export default function ModifierAnnoncePage() {
             {/* Existing photos */}
             {existingPhotos.map(photo => (
               <div key={photo.id} className="relative w-24 h-24 group">
-                <Image src={photo.url} alt="Photo" fill className="object-cover rounded-xl border border-gray-200" />
+                <Image src={photo.url} alt="Aperçu de l'annonce" fill className="object-cover rounded-xl border border-gray-200" />
                 <button
                   type="button"
                   onClick={() => removeExistingPhoto(photo.id)}

@@ -475,7 +475,7 @@ export default function ArtisanProfilPage() {
           {coverPreview ? (
             <div className="relative rounded-2xl overflow-hidden mb-2" style={{ height: 200 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={coverPreview} alt="Photo principale" className="w-full h-full object-cover" />
+              <img src={coverPreview} alt="Aperçu de l'annonce artisan" className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-black/20 flex items-end p-3">
                 <span className="text-white text-xs font-bold bg-black/50 px-2 py-1 rounded-lg">📸 Photo principale</span>
               </div>
