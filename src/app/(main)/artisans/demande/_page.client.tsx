@@ -171,6 +171,21 @@ function DemandeServiceForm() {
 
     // Créer une conversation privée avec l'artisan via l'API admin (contourne RLS récursive)
     if (artisanId && artisan) {
+      // Vérification critique : user_id doit être présent pour identifier le
+      // destinataire dans start-conversation (ownerId = profiles.id, pas artisan_profiles.id)
+      if (!artisan.user_id) {
+        console.error('[DemandeService] artisan.user_id manquant — impossible de créer la conversation', {
+          artisanId,
+          artisanProfileId: artisan.id,
+        });
+        // La demande est créée, on redirige quand même avec un toast d'avertissement
+        toast.success('Demande envoyée ! Réponse dans vos messages dès que l\'artisan accepte.', { duration: 5000 });
+        toast.error('La conversation privée n\'a pas pu être créée (profil artisan incomplet).', { duration: 6000 });
+        router.push(`/artisans/${artisanId}`);
+        setLoading(false);
+        return;
+      }
+
       const urgencyLabel =
         form.urgency === 'tres_urgent' ? 'Très urgent' :
         form.urgency === 'urgent'      ? 'Urgent'      : 'Normal';
@@ -184,23 +199,36 @@ function DemandeServiceForm() {
         `**Lieu :** ${form.address}\n\n` +
         `**Description :**\n${form.description}`;
 
-      const convRes = await fetch('/api/messages/start-conversation', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          ownerId: artisan.user_id,
-          subject: `Devis : ${form.title}`,
-          relatedType: 'service_request',
-          relatedId: request.id,
-          initialMsg,
-        }),
-      }).catch(() => null);
+      let conversationId: string | null = null;
+      try {
+        const convRes = await fetch('/api/messages/start-conversation', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            ownerId: artisan.user_id,
+            subject: `Devis : ${form.title}`,
+            relatedType: 'service_request',
+            relatedId: request.id,
+            initialMsg,
+          }),
+        });
 
-      const convData = await convRes?.json().catch(() => null);
-      const conversationId = convData?.conversationId ?? null;
+        if (convRes.ok) {
+          const convData = await convRes.json().catch(() => null);
+          conversationId = convData?.conversationId ?? null;
+          if (!conversationId) {
+            console.warn('[DemandeService] start-conversation OK mais pas de conversationId', convData);
+          }
+        } else {
+          const errBody = await convRes.json().catch(() => ({ error: `HTTP ${convRes.status}` }));
+          console.error('[DemandeService] start-conversation erreur HTTP', convRes.status, errBody);
+        }
+      } catch (convErr) {
+        console.error('[DemandeService] start-conversation exception réseau', convErr);
+      }
 
       toast.success(
         `Demande envoyée à ${artisan.business_name} ! Vous recevrez sa réponse dans vos messages.`,
@@ -211,7 +239,9 @@ function DemandeServiceForm() {
       if (conversationId) {
         router.push(`/messages/${conversationId}`);
       } else {
-        router.push(`/artisans/${artisanId}`);
+        // La demande est créée même si la conversation a échoué — l'artisan
+        // verra le devis dans "Mes devis reçus" depuis /demandes
+        router.push(`/demandes`);
       }
       return;
     }
