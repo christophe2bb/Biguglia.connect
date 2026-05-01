@@ -2,8 +2,9 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  MessageSquare, Search, RefreshCw, SlidersHorizontal, X, ChevronDown,
+  MessageSquare, Search, RefreshCw, SlidersHorizontal, X, ChevronDown, AlertTriangle,
 } from 'lucide-react';
+import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import { cn } from '@/lib/utils';
 import { TabId } from './_types';
@@ -69,9 +70,27 @@ export default function MessagesPage() {
   const hasMoreConvs = filtered.length > visibleCount;
   const { totalUnread, unreadCount, toHandleCount, presentTypes } = computeCounts(conversations);
 
+  const nameMissing = profile && !profile.full_name?.trim();
+
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
+
+      {/* Alerte nom manquant */}
+      {nameMissing && (
+        <div className="mb-5 flex items-start gap-3 bg-amber-50 border-2 border-amber-300 rounded-2xl p-4">
+          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold text-amber-900 text-sm">Votre nom n&apos;est pas renseigné</p>
+            <p className="text-amber-700 text-sm mt-0.5">
+              Vos interlocuteurs vous voient sous votre adresse e‑mail au lieu de votre nom.{' '}
+              <Link href="/profil" className="underline font-semibold hover:text-amber-900">
+                Renseigner mon nom →
+              </Link>
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* En-tête */}
       <div className="flex items-center justify-between mb-6">

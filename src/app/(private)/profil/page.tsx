@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Mail, Phone, Save, LogOut, Trash2, Camera, Wrench, Shield, Clock, ArrowRight } from 'lucide-react';
+import { User, Mail, Phone, Save, LogOut, Trash2, Camera, Wrench, Shield, Clock, ArrowRight, AlertTriangle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import toast from 'react-hot-toast';
@@ -77,10 +77,14 @@ function ProfilContent() {
 
   const handleSave = async () => {
     if (!profile) return;
+    if (!fullName.trim()) {
+      toast.error('Le nom complet est obligatoire. Il sera affiché dans toutes vos conversations.');
+      return;
+    }
     setLoading(true);
     const supabase = createClient();
     const { data, error } = await supabase
-      .from('profiles').update({ full_name: fullName, phone, home_sector_id: homeSector || null }).eq('id', profile.id).select().single();
+      .from('profiles').update({ full_name: fullName.trim(), phone, home_sector_id: homeSector || null }).eq('id', profile.id).select().single();
     if (error) toast.error('Erreur lors de la sauvegarde');
     else { setProfile(data as typeof profile); toast.success('Profil mis à jour !'); }
     setLoading(false);
@@ -94,9 +98,26 @@ function ProfilContent() {
 
   if (!profile) return null;
 
+  const nameMissing = !profile.full_name?.trim();
+
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <h1 className="text-2xl font-bold text-gray-900 mb-8">Mon profil</h1>
+
+      {/* Alerte nom manquant */}
+      {nameMissing && (
+        <div className="mb-6 flex items-start gap-3 bg-amber-50 border-2 border-amber-300 rounded-2xl p-4">
+          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold text-amber-900 text-sm">Votre nom n&apos;est pas renseigné</p>
+            <p className="text-amber-700 text-sm mt-0.5">
+              Dans toutes vos conversations, vous apparaissez sous votre adresse e‑mail au lieu de votre nom complet.
+              Renseignez votre nom ci-dessous et cliquez sur &laquo;&nbsp;Enregistrer&nbsp;&raquo;.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-6">
 
         {/* Avatar + infos */}
@@ -148,11 +169,12 @@ function ProfilContent() {
 
           <div className="space-y-4">
             <Input
-              label="Nom complet"
+              label="Nom complet *"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               leftIcon={<User className="w-4 h-4" />}
-              placeholder="Votre nom complet"
+              placeholder="Votre nom complet (obligatoire)"
+              error={!fullName.trim() ? 'Ce champ est obligatoire — il apparaît dans vos conversations' : undefined}
             />
             <Input
               label="Téléphone"
