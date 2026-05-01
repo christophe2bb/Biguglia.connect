@@ -7,7 +7,7 @@ import {
   Activity, Clock, CheckCheck, AlertCircle, Star,
   ShoppingCart, Wrench, HandHeart, Users, MapPin, Calendar,
   MessageSquare, ChevronRight, RefreshCw, ArrowRight,
-  ShoppingBag, XCircle,
+  ShoppingBag, XCircle, Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -109,12 +109,15 @@ function filterInteractions(rows: InteractionRow[], tab: FilterTab, userId: stri
 }
 
 // ─── Carte d'interaction ──────────────────────────────────────────────────────
-function InteractionCard({ row, userId, onStatusChange }: {
+function InteractionCard({ row, userId, onStatusChange, onDelete }: {
   row: InteractionRow;
   userId: string;
   onStatusChange: (id: string, status: InteractionStatus) => void;
+  onDelete: (id: string) => void;
 }) {
-  const [acting, setActing] = useState(false);
+  const [acting, setActing]       = useState(false);
+  const [confirm, setConfirm]     = useState(false);
+  const [deleting, setDeleting]   = useState(false);
   const supabase = createClient();
   const srcConf  = SOURCE_CONFIG[row.source_type] || SOURCE_CONFIG.listing;
   const SrcIcon  = srcConf.icon;
@@ -128,7 +131,6 @@ function InteractionCard({ row, userId, onStatusChange }: {
       if (newStatus === 'done') {
         const { error } = await supabase.rpc('confirm_interaction_done', { p_interaction_id: row.id });
         if (error) {
-          // Fallback
           const updateData = isRequester ? { review_requester_done: true } : { review_receiver_done: true };
           await supabase.from('interactions').update(updateData).eq('id', row.id);
         }
@@ -139,8 +141,37 @@ function InteractionCard({ row, userId, onStatusChange }: {
     } finally { setActing(false); }
   };
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    await supabase.from('interactions').delete().eq('id', row.id);
+    onDelete(row.id);
+  };
+
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+    <div className={cn(
+      'bg-white rounded-2xl border border-gray-100 overflow-hidden transition-all duration-300',
+      deleting ? 'opacity-0 scale-95 pointer-events-none' : 'hover:shadow-md',
+    )}>
+      {/* Barre confirmation suppression */}
+      {confirm && (
+        <div className="flex items-center gap-2 bg-red-50 border-b border-red-100 px-4 py-2.5 text-sm">
+          <Trash2 className="w-4 h-4 text-red-500 flex-shrink-0" />
+          <span className="flex-1 text-gray-700 font-medium text-xs">Supprimer cet échange ?</span>
+          <button
+            onClick={handleDelete}
+            className="bg-red-500 hover:bg-red-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-colors"
+          >
+            Supprimer
+          </button>
+          <button
+            onClick={() => setConfirm(false)}
+            className="text-gray-400 hover:text-gray-600 font-medium text-xs px-2"
+          >
+            Annuler
+          </button>
+        </div>
+      )}
+
       <div className="flex items-start gap-3 p-4">
         {/* Icône source */}
         <div className={cn('p-2 rounded-xl flex-shrink-0 mt-0.5', srcConf.bg)}>
@@ -156,9 +187,25 @@ function InteractionCard({ row, userId, onStatusChange }: {
                 {row.source_title || 'Échange'}
               </p>
             </div>
-            <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0', STATUS_BADGE[row.status])}>
-              {STATUS_LABELS[row.status]}
-            </span>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap', STATUS_BADGE[row.status])}>
+                {STATUS_LABELS[row.status]}
+              </span>
+              {/* Bouton supprimer — toujours visible */}
+              <button
+                onClick={() => setConfirm(v => !v)}
+                title="Supprimer cet échange"
+                aria-label="Supprimer cet échange"
+                className={cn(
+                  'w-7 h-7 rounded-lg flex items-center justify-center transition-colors flex-shrink-0',
+                  confirm
+                    ? 'bg-red-500 text-white'
+                    : 'text-red-300 hover:text-red-500 hover:bg-red-50 active:bg-red-100'
+                )}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
           {/* Autre participant */}
@@ -197,7 +244,7 @@ function InteractionCard({ row, userId, onStatusChange }: {
               </button>
             )}
 
-            {/* Avis débloqué — lien vers dashboard/avis */}
+            {/* Avis débloqué */}
             {row.review_unlocked && row.status === 'done' && !myDone && (
               <Link href="/dashboard/avis?tab=pending"
                 className="px-3 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold hover:bg-amber-100 flex items-center gap-1">
@@ -303,6 +350,10 @@ function MesEchangesContent() {
   const handleStatusChange = (id: string, newStatus: InteractionStatus) => {
     setInteractions(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
     setTimeout(load, 500);
+  };
+
+  const handleDelete = (id: string) => {
+    setInteractions(prev => prev.filter(r => r.id !== id));
   };
 
   if (!profile) return null;
@@ -423,6 +474,7 @@ function MesEchangesContent() {
                 row={row}
                 userId={profile.id}
                 onStatusChange={handleStatusChange}
+                onDelete={handleDelete}
               />
             ))}
           </div>
