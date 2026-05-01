@@ -74,10 +74,24 @@ export type RealtimeRefs = UnreadRefs & {
  *
  * Le paramètre `signal` (AbortSignal) permet au hook appelant d'annuler la
  * souscription si le composant se démonte avant que le canal ne soit établi.
- * C'est le mécanisme principal contre le bug React Strict Mode
- * « cannot add postgres_changes callbacks after subscribe() » : si le signal
- * est déclenché pendant le callback subscribe(), on retire immédiatement le
- * canal orphelin sans rien faire d'autre.
+ *
+ * ── Fix « cannot add postgres_changes callbacks after subscribe() » ────────────
+ * Supabase lève cette exception quand `.on()` est appelé sur un canal dont
+ * `.subscribe()` a déjà été invoqué. Cela arrive en React Strict Mode (double
+ * invoke des effets) ou lors d'un re-montage rapide :
+ *
+ *   1. Mount 1  → channel A créé + subscribe() appelé
+ *   2. Cleanup  → abort signal déclenché, removeChannel(A) lancé (async)
+ *   3. Mount 2  → connectRealtime() tente de créer channel B
+ *                 OR Supabase réutilise le même objet canal (bug interne)
+ *                 → .on() après subscribe() → exception
+ *
+ * Solution à 3 niveaux :
+ *   a. try/catch global : toute exception de la chaîne channel/on/subscribe
+ *      est catchée — aucune erreur ne remonte au composant React.
+ *   b. Attente async (50 ms) avant de créer le canal si un canal précédent
+ *      existait — laisse Supabase finaliser removeChannel() côté WebSocket.
+ *   c. Vérification signal après l'attente : si démonté entre-temps, on abandonne.
  *
  * - INSERT messages  → incrément local immédiat (sans DB round-trip)
  * - INSERT notifications → incrément notifications
@@ -94,106 +108,139 @@ export function connectRealtime(
   // Si le signal est déjà déclenché (ex. double appel synchrone), ne rien faire.
   if (signal?.aborted) return;
 
-  // Nettoyage du canal précédent (fire-and-forget : removeChannel est async
-  // mais on null immédiatement la ref pour qu'aucun autre chemin ne tente
-  // de supprimer le même canal deux fois).
+  // Nettoyage du canal précédent.
+  // removeChannel() est async côté WebSocket — on null la ref immédiatement
+  // pour éviter qu'un autre chemin tente de supprimer le même canal deux fois.
+  const hadPreviousChannel = !!refs.channelRef.current;
   if (refs.channelRef.current) {
     const old = refs.channelRef.current;
     refs.channelRef.current = null;
     supabase.removeChannel(old).catch(() => null);
   }
 
-  const channel = supabase
-    .channel(`unread-counts-${userId}-${Date.now()}`)
+  /**
+   * Crée effectivement le canal après un éventuel délai.
+   * Wrappé dans un try/catch pour absorber l'exception Supabase
+   * « cannot add postgres_changes callbacks after subscribe() ».
+   */
+  const doConnect = () => {
+    // Re-vérifier le signal après l'éventuelle attente async.
+    if (signal?.aborted || !refs.mountedRef.current) return;
 
-    // ── Nouveau message ──────────────────────────────────────────────────────
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-      const msg = payload.new as {
-        id: string; sender_id: string; conversation_id: string;
-        content: string; created_at: string;
-      };
-      if (msg.sender_id === userId) return;
+    try {
+      const channel = supabase
+        .channel(`unread-counts-${userId}-${Date.now()}`)
 
-      const msgAt       = new Date(msg.created_at).getTime();
-      const readAt      = refs.readMapRef.current[msg.conversation_id] ?? 0;
-      const convKnown   = msg.conversation_id in refs.readMapRef.current;
-      const replayed    = msgAt < refs.hookStartRef.current;
-      const alreadyRead = msgAt <= readAt;
+        // ── Nouveau message ────────────────────────────────────────────────
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+          const msg = payload.new as {
+            id: string; sender_id: string; conversation_id: string;
+            content: string; created_at: string;
+          };
+          if (msg.sender_id === userId) return;
 
-      if (!convKnown || isSystem(msg.content || '') || replayed || alreadyRead) return;
+          const msgAt       = new Date(msg.created_at).getTime();
+          const readAt      = refs.readMapRef.current[msg.conversation_id] ?? 0;
+          const convKnown   = msg.conversation_id in refs.readMapRef.current;
+          const replayed    = msgAt < refs.hookStartRef.current;
+          const alreadyRead = msgAt <= readAt;
 
-      if (!refs.unreadMapRef.current[msg.conversation_id]) {
-        refs.unreadMapRef.current[msg.conversation_id] = new Set();
-      }
-      refs.unreadMapRef.current[msg.conversation_id].add(msg.id);
+          if (!convKnown || isSystem(msg.content || '') || replayed || alreadyRead) return;
 
-      const n = totalUnreadMsgs(refs.unreadMapRef.current);
+          if (!refs.unreadMapRef.current[msg.conversation_id]) {
+            refs.unreadMapRef.current[msg.conversation_id] = new Set();
+          }
+          refs.unreadMapRef.current[msg.conversation_id].add(msg.id);
+
+          const n = totalUnreadMsgs(refs.unreadMapRef.current);
+          if (refs.mountedRef.current) {
+            setCounts(prev => ({ messages: n, notifications: prev.notifications, total: n + prev.notifications }));
+          }
+        })
+
+        // ── Nouvelle notification ──────────────────────────────────────────
+        .on('postgres_changes', {
+          event: 'INSERT', schema: 'public', table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        }, () => {
+          setCounts(prev => ({ ...prev, notifications: prev.notifications + 1, total: prev.total + 1 }));
+        })
+
+        // ── Notification mise à jour (ex. lu) → refetch debounced ───────────
+        .on('postgres_changes', {
+          event: 'UPDATE', schema: 'public', table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        }, () => {
+          scheduleRealtimeFetch(supabase, userId, refs, setCounts);
+        })
+
+        // ── Statut du canal ────────────────────────────────────────────────
+        .subscribe(status => {
+          // Signal déclenché entre la création du canal et la réponse Realtime :
+          // retirer le canal orphelin immédiatement.
+          if (signal?.aborted) {
+            supabase.removeChannel(channel).catch(() => null);
+            return;
+          }
+
+          if (!refs.mountedRef.current) return;
+
+          if (status === 'SUBSCRIBED') {
+            refs.reconnectIdx.current = 0;
+            if (refs.realtimePollRef.current) {
+              clearInterval(refs.realtimePollRef.current);
+              refs.realtimePollRef.current = null;
+            }
+            // Debounce au SUBSCRIBED : évite un double-fetch si le canal se
+            // reconnecte en rafale (ex. réseau instable).
+            scheduleRealtimeFetch(supabase, userId, refs, setCounts);
+
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            // Reconnexion exponentielle
+            const delay = RECONNECT_DELAYS[Math.min(refs.reconnectIdx.current, RECONNECT_DELAYS.length - 1)];
+            refs.reconnectIdx.current = Math.min(refs.reconnectIdx.current + 1, RECONNECT_DELAYS.length - 1);
+            if (refs.reconnectRef.current) clearTimeout(refs.reconnectRef.current);
+            refs.reconnectRef.current = setTimeout(() => {
+              if (refs.mountedRef.current) connectRealtime(supabase, userId, refs, setCounts);
+            }, delay);
+            // Polling de secours pendant la reconnexion
+            if (!refs.realtimePollRef.current) {
+              refs.realtimePollRef.current = setInterval(() => {
+                if (refs.mountedRef.current) {
+                  fetchCounts(supabase, userId, refs, setCounts as Parameters<typeof fetchCounts>[3]);
+                }
+              }, REALTIME_POLL_MS);
+            }
+          }
+        });
+
+      refs.channelRef.current = channel;
+
+    } catch (err) {
+      // Absorber l'exception Supabase « cannot add postgres_changes callbacks
+      // after subscribe() » — peut survenir lors du double-invoke React Strict
+      // Mode ou d'un re-montage rapide. Le canal sera recréé à la prochaine
+      // tentative (reconnexion exponentielle ou re-montage du composant).
+      console.warn('[unreadRealtime] connectRealtime error (ignoré, sera retenté) :', err);
+
+      // Planifier une reconnexion après un court délai pour laisser Supabase
+      // finaliser le nettoyage du canal précédent.
       if (refs.mountedRef.current) {
-        setCounts(prev => ({ messages: n, notifications: prev.notifications, total: n + prev.notifications }));
-      }
-    })
-
-    // ── Nouvelle notification ────────────────────────────────────────────────
-    .on('postgres_changes', {
-      event: 'INSERT', schema: 'public', table: 'notifications',
-      filter: `user_id=eq.${userId}`,
-    }, () => {
-      setCounts(prev => ({ ...prev, notifications: prev.notifications + 1, total: prev.total + 1 }));
-    })
-
-    // ── Notification mise à jour (ex. lu) → refetch debounced ─────────────────
-    // IMPORTANT : on passe par scheduleRealtimeFetch (debounce 1 s) pour absorber
-    // les rafales d'événements UPDATE CDC (ex. mark-all-read déclenche N updates
-    // simultanés qui sinon lanceraient N fetchCounts en parallèle).
-    .on('postgres_changes', {
-      event: 'UPDATE', schema: 'public', table: 'notifications',
-      filter: `user_id=eq.${userId}`,
-    }, () => {
-      scheduleRealtimeFetch(supabase, userId, refs, setCounts);
-    })
-
-    // ── Statut du canal ──────────────────────────────────────────────────────
-    .subscribe(status => {
-      // Si le signal a été déclenché (composant démonté entre la création du
-      // canal et la réponse du serveur Realtime), retirer immédiatement le
-      // canal orphelin et ne rien faire d'autre. Cela évite le bug React Strict
-      // Mode : le canal créé lors du premier mount (déjà SUBSCRIBED) est retiré
-      // proprement avant que le second mount ne tente d'en créer un nouveau.
-      if (signal?.aborted) {
-        supabase.removeChannel(channel).catch(() => null);
-        return;
-      }
-
-      if (!refs.mountedRef.current) return;
-
-      if (status === 'SUBSCRIBED') {
-        refs.reconnectIdx.current = 0;
-        if (refs.realtimePollRef.current) {
-          clearInterval(refs.realtimePollRef.current);
-          refs.realtimePollRef.current = null;
-        }
-        // Debounce au SUBSCRIBED aussi : évite un double-fetch si le canal
-        // se reconnecte en rafale (ex. réseau instable).
-        scheduleRealtimeFetch(supabase, userId, refs, setCounts);
-
-      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-        // Reconnexion exponentielle
-        const delay = RECONNECT_DELAYS[Math.min(refs.reconnectIdx.current, RECONNECT_DELAYS.length - 1)];
-        refs.reconnectIdx.current = Math.min(refs.reconnectIdx.current + 1, RECONNECT_DELAYS.length - 1);
+        const retryDelay = RECONNECT_DELAYS[0]; // 1 s
         if (refs.reconnectRef.current) clearTimeout(refs.reconnectRef.current);
         refs.reconnectRef.current = setTimeout(() => {
           if (refs.mountedRef.current) connectRealtime(supabase, userId, refs, setCounts);
-        }, delay);
-        // Polling de secours pendant la reconnexion (15 s — moins agressif que 10 s)
-        if (!refs.realtimePollRef.current) {
-          refs.realtimePollRef.current = setInterval(() => {
-            if (refs.mountedRef.current) {
-              fetchCounts(supabase, userId, refs, setCounts as Parameters<typeof fetchCounts>[3]);
-            }
-          }, REALTIME_POLL_MS);
-        }
+        }, retryDelay);
       }
-    });
+    }
+  };
 
-  refs.channelRef.current = channel;
+  if (hadPreviousChannel) {
+    // Laisser 50 ms à Supabase pour finaliser le removeChannel() WebSocket
+    // avant de créer un nouveau canal. Évite le « cannot add callbacks after
+    // subscribe() » lors des re-montages rapides (React Strict Mode, fast-refresh).
+    setTimeout(doConnect, 50);
+  } else {
+    doConnect();
+  }
 }
