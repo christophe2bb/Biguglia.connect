@@ -167,6 +167,21 @@ export default function ArtisanDetailClient() {
 
   if (!artisan) return null;
 
+  // ── Fusionner avatar_url + galerie en une seule liste d'URLs ──────────────
+  // avatar_url en premier (si présent et pas déjà dans la galerie),
+  // puis toutes les photos de chantier triées par display_order.
+  const allPhotos: string[] = (() => {
+    const galleryUrls = (artisan.gallery ?? [])
+      .slice()
+      .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
+      .map(p => p.url);
+    const avatar = artisan.avatar_url ?? artisan.profile?.avatar_url ?? null;
+    if (avatar && !galleryUrls.includes(avatar)) {
+      return [avatar, ...galleryUrls];
+    }
+    return galleryUrls;
+  })();
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Retour */}
@@ -178,8 +193,8 @@ export default function ArtisanDetailClient() {
         {/* Colonne principale */}
         <div className="lg:col-span-2 space-y-6">
           {/* Galerie — carousel */}
-          {artisan.gallery && artisan.gallery.length > 0 ? (() => {
-            const total = artisan.gallery!.length;
+          {allPhotos.length > 0 ? (() => {
+            const total = allPhotos.length;
             return (
               <div className="bg-gray-900 rounded-2xl overflow-hidden shadow-lg">
                 {/* Image principale */}
@@ -199,7 +214,7 @@ export default function ArtisanDetailClient() {
                   }}
                 >
                   <Image
-                    src={artisan.gallery![activePhoto]?.url}
+                    src={allPhotos[activePhoto]}
                     alt={`Réalisation ${activePhoto + 1} sur ${total}`}
                     fill
                     priority
@@ -236,7 +251,7 @@ export default function ArtisanDetailClient() {
                   {total > 1 && (
                     <div className="absolute bottom-3 left-0 right-0 flex flex-col items-center gap-1.5 pointer-events-none">
                       <div className="flex gap-1.5">
-                        {artisan.gallery!.map((_, i) => (
+                        {allPhotos.map((_, i) => (
                           <span
                             key={i}
                             className={`block rounded-full transition-all duration-300 ${
@@ -257,9 +272,9 @@ export default function ArtisanDetailClient() {
                 {/* Miniatures défilantes */}
                 {total > 1 && (
                   <div className="flex gap-2 p-3 overflow-x-auto scrollbar-hide bg-gray-800/60">
-                    {artisan.gallery!.map((photo, i) => (
+                    {allPhotos.map((url, i) => (
                       <button
-                        key={photo.id}
+                        key={i}
                         onClick={() => setActivePhoto(i)}
                         aria-label={`Voir la réalisation ${i + 1}`}
                         className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-all duration-200 ${
@@ -269,7 +284,7 @@ export default function ArtisanDetailClient() {
                         }`}
                       >
                         <div className="relative w-full h-full">
-                          <Image src={photo.url} alt="" fill sizes="64px" className="object-cover" />
+                          <Image src={url} alt="" fill sizes="64px" className="object-cover" />
                         </div>
                       </button>
                     ))}
@@ -284,8 +299,8 @@ export default function ArtisanDetailClient() {
           )}
 
           {/* Lightbox plein écran */}
-          {lightboxOpen && artisan.gallery && artisan.gallery.length > 0 && (() => {
-            const total = artisan.gallery!.length;
+          {lightboxOpen && allPhotos.length > 0 && (() => {
+            const total = allPhotos.length;
             return (
               <div
                 role="dialog"
@@ -332,7 +347,7 @@ export default function ArtisanDetailClient() {
                 {/* Image plein écran */}
                 <div className="relative w-full max-w-4xl mx-8 aspect-video z-10">
                   <Image
-                    src={artisan.gallery![activePhoto]?.url}
+                    src={allPhotos[activePhoto]}
                     alt={`Réalisation ${activePhoto + 1} sur ${total}`}
                     fill
                     sizes="100vw"
