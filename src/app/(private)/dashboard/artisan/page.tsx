@@ -71,7 +71,7 @@ function ArtisanDashboardContent() {
       // Profil artisan
       const { data: ap } = await supabase
         .from('artisan_profiles')
-        .select('*, trade_category:trade_categories(*)')
+        .select('*, trade_category:trade_categories(*), view_count')
         .eq('user_id', profile.id)
         .single();
       setArtisanProfile(ap as ArtisanProfile || null);
@@ -116,7 +116,7 @@ function ArtisanDashboardContent() {
         completedRequests,
         avgRating: Math.round(avgRating * 10) / 10,
         reviewCount: revs?.length || 0,
-        totalViews: 0,
+        totalViews: (ap as ArtisanProfile & { view_count?: number })?.view_count || 0,
       });
 
       setLoading(false);
@@ -214,10 +214,14 @@ function ArtisanDashboardContent() {
         />
       </div>
 
-      {/* Zone d'intervention & infos */}
+      {/* Carte de visite artisan */}
       {artisanProfile && (
         <div className="bg-gradient-to-r from-brand-50 to-blue-50 border border-brand-200 rounded-2xl p-5 mb-8 flex flex-col sm:flex-row items-start gap-4">
-          <Avatar src={profile.avatar_url} name={profile.full_name || ''} size="lg" />
+          <Avatar
+            src={artisanProfile.avatar_url || profile.avatar_url}
+            name={artisanProfile.business_name || profile.full_name || ''}
+            size="lg"
+          />
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <span className="font-bold text-gray-900 text-lg">{artisanProfile.business_name}</span>
@@ -233,12 +237,21 @@ function ArtisanDashboardContent() {
               {stats.reviewCount > 0 && (
                 <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />{stats.avgRating}/5</span>
               )}
+              <span className="flex items-center gap-1 text-purple-600 font-medium">
+                <Eye className="w-3.5 h-3.5" />{stats.totalViews} vue{stats.totalViews !== 1 ? 's' : ''} du profil
+              </span>
             </div>
           </div>
-          <Link href={artisanProfile ? `/artisans/${artisanProfile.id}` : '#'} target="_blank"
-            className="flex-shrink-0 flex items-center gap-1.5 bg-white border border-brand-200 text-brand-700 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-brand-50 transition-colors">
-            <Eye className="w-4 h-4" /> Mon profil public
-          </Link>
+          <div className="flex flex-col gap-2 flex-shrink-0">
+            <Link href={artisanProfile ? `/artisans/${artisanProfile.id}` : '#'} target="_blank"
+              className="flex items-center gap-1.5 bg-white border border-brand-200 text-brand-700 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-brand-50 transition-colors">
+              <Eye className="w-4 h-4" /> Mon profil public
+            </Link>
+            <Link href="/dashboard/artisan/modifier-profil"
+              className="flex items-center gap-1.5 bg-brand-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-brand-700 transition-colors">
+              <TrendingUp className="w-4 h-4" /> Modifier mon profil
+            </Link>
+          </div>
         </div>
       )}
 
@@ -249,6 +262,14 @@ function ArtisanDashboardContent() {
           loading={loading}
           pendingCount={stats.pendingRequests}
           onUpdateStatus={updateRequestStatus}
+          onDelete={(id) => {
+            setRequests(prev => prev.filter(r => r.id !== id));
+            setStats(prev => ({
+              ...prev,
+              totalRequests: Math.max(0, prev.totalRequests - 1),
+              pendingRequests: Math.max(0, prev.pendingRequests - 1),
+            }));
+          }}
         />
 
         {/* Avis clients — lazy panel */}
@@ -268,7 +289,7 @@ function ArtisanDashboardContent() {
             { icon: MessageSquare, label: 'Mes messages', href: '/messages', color: 'bg-green-50 text-green-600' },
             { icon: Bell, label: 'Notifications', href: '/notifications', color: 'bg-blue-50 text-blue-600' },
             { icon: Eye, label: 'Mon profil public', href: artisanProfile ? `/artisans/${artisanProfile.id}` : '#', color: 'bg-orange-50 text-orange-600' },
-            { icon: TrendingUp, label: 'Mettre à jour profil', href: '/inscription/artisan-profil', color: 'bg-purple-50 text-purple-600' },
+            { icon: TrendingUp, label: 'Modifier mon profil', href: '/dashboard/artisan/modifier-profil', color: 'bg-purple-50 text-purple-600' },
           ].map(({ icon: Icon, label, href, color }) => (
             <Link key={href} href={href}>
               <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-sm hover:border-gray-200 transition-colors text-center">

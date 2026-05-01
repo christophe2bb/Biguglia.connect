@@ -77,6 +77,9 @@ export default function ArtisanDetailClient() {
       }
       setArtisan(data as ArtisanProfile);
 
+      // Incrémenter le compteur de vues (ne bloque pas le chargement)
+      void supabase.rpc('increment_artisan_view', { artisan_id: id as string });
+
       // Reviews
       const { data: rev } = await supabase
         .from('reviews')
