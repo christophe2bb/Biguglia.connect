@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { MapPin, Clock, Shield, Star, Phone, Calendar, ChevronLeft, ChevronRight, Heart, HardHat, Users, CheckCircle, FileCheck, X, ZoomIn } from 'lucide-react';
+import { MapPin, Clock, Shield, Star, Phone, Calendar, ChevronLeft, ChevronRight, Heart, HardHat, Users, CheckCircle, FileCheck, X, ZoomIn, Pencil } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { ArtisanProfile, Review } from '@/types';
 import { useAuthStore } from '@/lib/auth-store';
@@ -16,6 +16,7 @@ import StarRating from '@/components/ui/StarRating';
 import EmptyState from '@/components/ui/EmptyState';
 import { formatRelative } from '@/lib/utils';
 import ContactButton from '@/components/ui/ContactButton';
+import ReviewForm from '@/components/ui/ReviewForm';
 
 // Nombre de documents fournis (sans exposer leur contenu)
 function DocBadge({ artisan }: { artisan: ArtisanProfile }) {
@@ -56,6 +57,11 @@ export default function ArtisanDetailClient() {
   const [loading, setLoading] = useState(true);
   const [activePhoto, setActivePhoto] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  // Avis
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewInteractionId, setReviewInteractionId] = useState<string | null>(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [alreadyReviewed, setAlreadyReviewed] = useState(false);
 
   // Swipe tactile
   const touchStartX = useRef<number | null>(null);
@@ -148,7 +154,72 @@ export default function ArtisanDetailClient() {
     }
   };
 
-  // startConversation replaced by ContactButton component
+  // ── Ouvrir le formulaire d'avis : crée automatiquement la trust_interaction ──
+  const openReviewForm = async () => {
+    if (!profile) { router.push('/connexion'); return; }
+    if (!artisan) return;
+    setReviewLoading(true);
+    const supabase = createClient();
+
+    // Vérifier si l'utilisateur a déjà laissé un avis sur cet artisan
+    const { data: existingReview } = await supabase
+      .from('reviews')
+      .select('id')
+      .eq('target_user_id', artisan.user_id)
+      .eq('author_id', profile.id)
+      .maybeSingle();
+
+    if (existingReview) {
+      toast('Vous avez déjà laissé un avis sur cet artisan.', { icon: 'ℹ️' });
+      setAlreadyReviewed(true);
+      setReviewLoading(false);
+      return;
+    }
+
+    // Chercher une trust_interaction existante pour cet artisan
+    const { data: existing } = await supabase
+      .from('trust_interactions')
+      .select('id')
+      .eq('source_type', 'service_request')
+      .eq('requester_id', profile.id)
+      .eq('receiver_id', artisan.user_id)
+      .maybeSingle();
+
+    let interactionId = existing?.id ?? null;
+
+    if (!interactionId) {
+      // Créer une nouvelle interaction directe (visite de profil)
+      const { data: created } = await supabase
+        .from('trust_interactions')
+        .insert({
+          source_type:      'service_request',
+          source_id:        artisan.id,  // id du profil artisan
+          requester_id:     profile.id,
+          receiver_id:      artisan.user_id,
+          interaction_type: 'service_request',
+          status:           'done',
+          review_unlocked:  true,
+          review_requester_done: false,
+          review_receiver_done:  false,
+          completed_at:     new Date().toISOString(),
+        })
+        .select('id')
+        .single();
+      interactionId = created?.id ?? null;
+    } else {
+      // Débloquer l'avis si pas encore fait
+      await supabase.from('trust_interactions').update({
+        status: 'done',
+        review_unlocked: true,
+        completed_at: new Date().toISOString(),
+      }).eq('id', interactionId);
+    }
+
+    setReviewLoading(false);
+    if (!interactionId) { toast.error('Impossible d\'ouvrir le formulaire'); return; }
+    setReviewInteractionId(interactionId);
+    setReviewOpen(true);
+  };
 
   const avgRating = reviews.length
     ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
@@ -427,17 +498,95 @@ export default function ArtisanDetailClient() {
           </div>
 
           {/* Avis */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Avis clients ({reviews.length})
-            </h2>
-            {reviews.length === 0 ? (
+          <div id="avis" className="bg-white rounded-2xl border border-gray-100 p-6">
+            {/* En-tête avis */}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Avis clients {reviews.length > 0 && <span className="text-gray-400 font-normal text-base">({reviews.length})</span>}
+              </h2>
+
+              {/* Bouton Laisser un avis — visible pour tout utilisateur connecté sauf l'artisan */}
+              {profile && profile.id !== artisan.user_id && !alreadyReviewed && !reviewOpen && (
+                <button
+                  type="button"
+                  onClick={openReviewForm}
+                  disabled={reviewLoading}
+                  className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+                >
+                  {reviewLoading
+                    ? <span className="text-xs">Chargement…</span>
+                    : <><Pencil className="w-3.5 h-3.5" /> Laisser un avis</>
+                  }
+                </button>
+              )}
+
+              {/* Avis déjà laissé */}
+              {(alreadyReviewed) && (
+                <span className="flex items-center gap-1 text-xs text-green-600 font-semibold bg-green-50 border border-green-200 px-3 py-1.5 rounded-full">
+                  <CheckCircle className="w-3.5 h-3.5" /> Avis déjà soumis
+                </span>
+              )}
+
+              {/* Pas connecté : invitation à se connecter */}
+              {!profile && (
+                <Link
+                  href={`/connexion?redirect=/artisans/${artisan.id}#avis`}
+                  className="flex items-center gap-1.5 text-sm text-amber-600 hover:text-amber-700 font-semibold"
+                >
+                  <Star className="w-3.5 h-3.5" /> Se connecter pour noter
+                </Link>
+              )}
+            </div>
+
+            {/* Formulaire d'avis inline */}
+            {reviewOpen && reviewInteractionId && (
+              <div className="mb-6">
+                <ReviewForm
+                  interactionId={reviewInteractionId}
+                  sourceType="service_request"
+                  sourceId={artisan.id}
+                  sourceTitle={artisan.business_name}
+                  targetUserId={artisan.user_id}
+                  targetUserName={artisan.business_name}
+                  targetUserAvatar={artisan.profile?.avatar_url}
+                  variant="inline"
+                  onSuccess={() => {
+                    setReviewOpen(false);
+                    setAlreadyReviewed(true);
+                    toast.success('Merci pour votre avis !');
+                    // Rafraîchir les avis
+                    const supabase = createClient();
+                    supabase
+                      .from('reviews')
+                      .select('id, rating, comment, created_at, author:profiles!reviews_author_id_fkey(full_name, avatar_url)')
+                      .eq('target_user_id', artisan.user_id)
+                      .eq('moderation_status', 'visible')
+                      .order('created_at', { ascending: false })
+                      .limit(10)
+                      .then(({ data }) => {
+                        if (data) {
+                          setReviews(data.map(r => ({
+                            ...r,
+                            reviewer: (r as unknown as { author: { full_name: string; avatar_url?: string } }).author,
+                          })) as unknown as Review[]);
+                        }
+                      });
+                  }}
+                  onCancel={() => setReviewOpen(false)}
+                />
+              </div>
+            )}
+
+            {/* Liste des avis */}
+            {reviews.length === 0 && !reviewOpen ? (
               <EmptyState
                 icon="💬"
                 title="Pas encore d'avis"
-                description="Soyez le premier à laisser un avis après votre intervention."
+                description={profile && profile.id !== artisan.user_id
+                  ? 'Vous avez travaillé avec cet artisan ? Soyez le premier à partager votre expérience !'
+                  : 'Les avis de vos clients apparaîtront ici.'}
               />
-            ) : (
+            ) : reviews.length > 0 ? (
               <div className="space-y-4">
                 {reviews.map(review => (
                   <div key={review.id} className="border-b border-gray-50 pb-4 last:border-0 last:pb-0">
@@ -455,11 +604,11 @@ export default function ArtisanDetailClient() {
                         </div>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-600">{review.comment}</p>
+                    {review.comment && <p className="text-sm text-gray-600 leading-relaxed">{review.comment}</p>}
                   </div>
                 ))}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
 
