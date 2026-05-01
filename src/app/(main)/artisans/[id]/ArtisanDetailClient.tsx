@@ -1,9 +1,9 @@
 'use client';
 
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { MapPin, Clock, Shield, Star, Phone, Calendar, ChevronLeft, Heart, HardHat, Users, CheckCircle, FileCheck } from 'lucide-react';
+import { MapPin, Clock, Shield, Star, Phone, Calendar, ChevronLeft, ChevronRight, Heart, HardHat, Users, CheckCircle, FileCheck, X, ZoomIn } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { ArtisanProfile, Review } from '@/types';
 import { useAuthStore } from '@/lib/auth-store';
@@ -55,6 +55,31 @@ export default function ArtisanDetailClient() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activePhoto, setActivePhoto] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  // Swipe tactile
+  const touchStartX = useRef<number | null>(null);
+
+  const goNext = useCallback((total: number) => {
+    setActivePhoto(p => (p + 1) % total);
+  }, []);
+
+  const goPrev = useCallback((total: number) => {
+    setActivePhoto(p => (p - 1 + total) % total);
+  }, []);
+
+  // Clavier (flèches + Échap) quand la lightbox est ouverte
+  useEffect(() => {
+    if (!lightboxOpen || !artisan?.gallery) return;
+    const total = artisan.gallery.length;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') goNext(total);
+      if (e.key === 'ArrowLeft') goPrev(total);
+      if (e.key === 'Escape') setLightboxOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightboxOpen, artisan?.gallery, goNext, goPrev]);
 
   useEffect(() => {
     const fetchArtisan = async () => {
@@ -152,29 +177,180 @@ export default function ArtisanDetailClient() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Colonne principale */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Galerie */}
-          {artisan.gallery && artisan.gallery.length > 0 ? (
-            <div className="bg-gray-100 rounded-2xl overflow-hidden">
-              <div className="h-72">
-                <Image src={artisan.gallery[activePhoto]?.url} alt="Réalisation" fill priority sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" />
+          {/* Galerie — carousel */}
+          {artisan.gallery && artisan.gallery.length > 0 ? (() => {
+            const total = artisan.gallery!.length;
+            return (
+              <div className="bg-gray-900 rounded-2xl overflow-hidden shadow-lg">
+                {/* Image principale */}
+                <button
+                  type="button"
+                  aria-label="Ouvrir la galerie en plein écran"
+                  className="relative h-72 sm:h-80 cursor-zoom-in select-none w-full block"
+                  onClick={() => setLightboxOpen(true)}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setLightboxOpen(true); }}
+                  onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
+                  onTouchEnd={e => {
+                    if (touchStartX.current === null) return;
+                    const dx = e.changedTouches[0].clientX - touchStartX.current;
+                    if (dx < -40) goNext(total);
+                    else if (dx > 40) goPrev(total);
+                    touchStartX.current = null;
+                  }}
+                >
+                  <Image
+                    src={artisan.gallery![activePhoto]?.url}
+                    alt={`Réalisation ${activePhoto + 1} sur ${total}`}
+                    fill
+                    priority
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    className="object-cover transition-opacity duration-300"
+                  />
+
+                  {/* Bouton zoom */}
+                  <div className="absolute top-3 right-3 bg-black/40 rounded-xl p-1.5 text-white pointer-events-none">
+                    <ZoomIn className="w-4 h-4" />
+                  </div>
+
+                  {/* Flèches navigation */}
+                  {total > 1 && (
+                    <>
+                      <button
+                        onClick={e => { e.stopPropagation(); goPrev(total); }}
+                        aria-label="Photo précédente"
+                        className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); goNext(total); }}
+                        aria-label="Photo suivante"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors"
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                    </>
+                  )}
+
+                  {/* Compteur + indicateurs */}
+                  {total > 1 && (
+                    <div className="absolute bottom-3 left-0 right-0 flex flex-col items-center gap-1.5 pointer-events-none">
+                      <div className="flex gap-1.5">
+                        {artisan.gallery!.map((_, i) => (
+                          <span
+                            key={i}
+                            className={`block rounded-full transition-all duration-300 ${
+                              i === activePhoto
+                                ? 'w-5 h-2 bg-white'
+                                : 'w-2 h-2 bg-white/50'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-xs text-white/80 bg-black/30 px-2 py-0.5 rounded-full">
+                        {activePhoto + 1} / {total}
+                      </span>
+                    </div>
+                  )}
+                </button>
+
+                {/* Miniatures défilantes */}
+                {total > 1 && (
+                  <div className="flex gap-2 p-3 overflow-x-auto scrollbar-hide bg-gray-800/60">
+                    {artisan.gallery!.map((photo, i) => (
+                      <button
+                        key={photo.id}
+                        onClick={() => setActivePhoto(i)}
+                        aria-label={`Voir la réalisation ${i + 1}`}
+                        className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-all duration-200 ${
+                          i === activePhoto
+                            ? 'border-brand-400 scale-105 shadow-lg'
+                            : 'border-transparent opacity-60 hover:opacity-90'
+                        }`}
+                      >
+                        <div className="relative w-full h-full">
+                          <Image src={photo.url} alt="" fill sizes="64px" className="object-cover" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-              {artisan.gallery.length > 1 && (
-                <div className="flex gap-2 p-3 overflow-x-auto">
-                  {artisan.gallery.map((photo, i) => (
-                    <button key={photo.id} onClick={() => setActivePhoto(i)}
-                      className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-colors ${i === activePhoto ? 'border-brand-500' : 'border-transparent'}`}
-                    >
-                      <Image src={photo.url} alt="" fill sizes="64px" className="object-cover" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
+            );
+          })() : (
             <div className="h-64 gradient-hero rounded-2xl flex items-center justify-center">
               <span className="text-6xl">{artisan.trade_category?.icon || '🔧'}</span>
             </div>
           )}
+
+          {/* Lightbox plein écran */}
+          {lightboxOpen && artisan.gallery && artisan.gallery.length > 0 && (() => {
+            const total = artisan.gallery!.length;
+            return (
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Galerie plein écran"
+                className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+              >
+                {/* Fond cliquable pour fermer */}
+                <button
+                  type="button"
+                  aria-label="Fermer la galerie"
+                  className="absolute inset-0 w-full h-full cursor-default"
+                  onClick={() => setLightboxOpen(false)}
+                />
+                {/* Fermer */}
+                <button
+                  className="absolute top-4 right-4 text-white bg-white/10 hover:bg-white/20 rounded-full p-2 transition-colors"
+                  onClick={() => setLightboxOpen(false)}
+                  aria-label="Fermer"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+
+                {/* Flèches lightbox */}
+                {total > 1 && (
+                  <>
+                    <button
+                      className="absolute left-4 text-white bg-white/10 hover:bg-white/25 rounded-full p-3 transition-colors"
+                      onClick={e => { e.stopPropagation(); goPrev(total); }}
+                      aria-label="Photo précédente"
+                    >
+                      <ChevronLeft className="w-7 h-7" />
+                    </button>
+                    <button
+                      className="absolute right-4 text-white bg-white/10 hover:bg-white/25 rounded-full p-3 transition-colors"
+                      onClick={e => { e.stopPropagation(); goNext(total); }}
+                      aria-label="Photo suivante"
+                    >
+                      <ChevronRight className="w-7 h-7" />
+                    </button>
+                  </>
+                )}
+
+                {/* Image plein écran */}
+                <div className="relative w-full max-w-4xl mx-8 aspect-video z-10">
+                  <Image
+                    src={artisan.gallery![activePhoto]?.url}
+                    alt={`Réalisation ${activePhoto + 1} sur ${total}`}
+                    fill
+                    sizes="100vw"
+                    className="object-contain"
+                  />
+                </div>
+
+                {/* Compteur lightbox */}
+                {total > 1 && (
+                  <div className="absolute bottom-6 left-0 right-0 flex justify-center">
+                    <span className="text-white/80 text-sm bg-black/40 px-3 py-1 rounded-full">
+                      {activePhoto + 1} / {total}
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Infos principales */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
