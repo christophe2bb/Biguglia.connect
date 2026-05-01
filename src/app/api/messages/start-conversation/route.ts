@@ -180,13 +180,15 @@ async function findExistingConversation(
     .limit(1);
 
   if (relatedId && relatedType) {
-    // Correspondance exacte : même objet lié
+    // Correspondance EXACTE : même type ET même objet lié — aucun fallback sur d'autres types
     query = query.eq('related_type', relatedType).eq('related_id', relatedId);
   } else if (relatedType && relatedType !== 'general') {
-    // Correspondance par type de contexte (ex : toutes les convs 'artisan' avec ce profil)
+    // Correspondance par type de contexte uniquement (sans relatedId)
     query = query.eq('related_type', relatedType);
+  } else {
+    // Cas 'general' ou sans contexte : chercher uniquement les convs 'general' (pas toute conv partagée)
+    query = query.eq('related_type', 'general');
   }
-  // Sinon : toute conversation partagée (cas 'general' ou sans contexte)
 
   const { data } = await query.maybeSingle();
   return data?.id ?? null;
@@ -218,6 +220,9 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const { ownerId, subject, relatedType, relatedId, initialMsg } = parsed.data;
 
+  // Log de diagnostic (visible dans Vercel Functions logs)
+  console.log('[start-conversation] payload reçu:', { userId, ownerId, relatedType, relatedId: relatedId ?? null, subject });
+
   // Empêcher une conversation avec soi-même
   if (ownerId === userId) {
     return NextResponse.json(
@@ -244,7 +249,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   const existingId = await findExistingConversation(
     admin, userId, ownerId, relatedType ?? null, relatedId ?? null
   );
+  console.log('[start-conversation] existingId trouvé:', existingId ?? 'aucun');
   if (existingId) {
+    console.log('[start-conversation] → retour conv existante:', existingId);
     return NextResponse.json({ conversationId: existingId, isNew: false });
   }
 
