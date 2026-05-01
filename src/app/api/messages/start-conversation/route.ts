@@ -293,20 +293,48 @@ export async function POST(req: NextRequest): Promise<Response> {
   const convId = newConv.id;
 
   // ── Step 2 : Ajouter les participants ───────────────────────────────────────
+  // Essai 1 : upsert (ignore doublons)
   const { error: partError } = await admin
     .from('conversation_participants')
     .upsert(
       [
-        { conversation_id: convId, user_id: userId },
-        { conversation_id: convId, user_id: ownerId },
+        { conversation_id: convId, user_id: userId,  joined_at: new Date().toISOString() },
+        { conversation_id: convId, user_id: ownerId, joined_at: new Date().toISOString() },
       ],
       { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
     );
 
   if (partError) {
-    console.error('[start-conversation] add participants error:', partError.message);
-    // Non bloquant — la conv est créée; on continue (les participants sont critiques
-    // mais le client peut toujours être redirigé)
+    console.error('[start-conversation] upsert participants error:', partError.message, partError.code);
+
+    // Essai 2 : INSERT individuel pour isoler lequel échoue
+    const insertSelf  = await admin.from('conversation_participants')
+      .insert({ conversation_id: convId, user_id: userId, joined_at: new Date().toISOString() })
+      .select('user_id').maybeSingle();
+    const insertOwner = await admin.from('conversation_participants')
+      .insert({ conversation_id: convId, user_id: ownerId, joined_at: new Date().toISOString() })
+      .select('user_id').maybeSingle();
+
+    const selfOk  = !insertSelf.error  || insertSelf.error.code  === '23505'; // 23505 = déjà présent
+    const ownerOk = !insertOwner.error || insertOwner.error.code === '23505';
+
+    if (insertSelf.error  && insertSelf.error.code  !== '23505')
+      console.error('[start-conversation] insert self error:',  insertSelf.error.message,  insertSelf.error.code);
+    if (insertOwner.error && insertOwner.error.code !== '23505')
+      console.error('[start-conversation] insert owner error:', insertOwner.error.message, insertOwner.error.code);
+
+    // Si l'utilisateur courant n'a pas pu être ajouté → il n'aura pas accès → erreur bloquante
+    if (!selfOk) {
+      return NextResponse.json(
+        { error: `Impossible d'ajouter le participant (${insertSelf.error?.message})` },
+        { status: 500 }
+      );
+    }
+
+    // Si le destinataire n'a pas pu être ajouté → conv créée mais incomplète → on continue
+    if (!ownerOk) {
+      console.warn('[start-conversation] destinataire non ajouté comme participant, conv incomplète');
+    }
   }
 
   // ── Step 3 : Message initial ────────────────────────────────────────────────
