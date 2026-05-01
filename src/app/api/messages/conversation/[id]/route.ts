@@ -17,6 +17,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getUserIdBearerFirst, assertCsrfSafe } from '@/lib/supabase/auth-helper';
 import type { ConversationApiResponse } from '@/app/(private)/messages/[id]/_types';
+
+// Augmente la limite Vercel à 30 s (défaut : 10 s Hobby / 15 s Pro)
+export const maxDuration = 30;
 import {
   zodError,
   parseJsonBody,

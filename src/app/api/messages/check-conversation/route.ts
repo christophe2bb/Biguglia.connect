@@ -25,6 +25,9 @@ import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
 
+// Augmente la limite Vercel à 30 s (défaut : 10 s Hobby / 15 s Pro)
+export const maxDuration = 30;
+
 // ── Validation des query params ───────────────────────────────────────────────
 const RELATED_TYPES = [
   'listing', 'equipment', 'help_request', 'association',

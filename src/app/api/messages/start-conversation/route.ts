@@ -71,6 +71,10 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getUserIdBearerFirst, assertCsrfSafe } from '@/lib/supabase/auth-helper';
 
+// Augmente la limite Vercel à 30 s (défaut : 10 s Hobby / 15 s Pro)
+// Nécessaire : cet endpoint enchaîne ~5 requêtes Supabase Admin en séquence
+export const maxDuration = 30;
+
 // ── Constantes et schéma ────────────────────────────────────────────────────
 
 /**

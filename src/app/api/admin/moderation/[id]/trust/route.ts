@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 /**
  * API Route — PATCH /api/admin/moderation/[id]/trust
  *

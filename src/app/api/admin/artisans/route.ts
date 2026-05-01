@@ -1,4 +1,6 @@
 export const dynamic = 'force-dynamic';
+// Augmente la limite Vercel à 30 s (défaut : 10 s Hobby / 15 s Pro)
+export const maxDuration = 30;
 /**
  * API Route — GET /api/admin/artisans
  *
