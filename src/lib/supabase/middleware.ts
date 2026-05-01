@@ -317,8 +317,35 @@ function hasValidToken(request: NextRequest): boolean {
   return false;
 }
 
-export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
+/**
+ * updateSession — Rafraîchit la session Supabase et applique les guards de navigation.
+ *
+ * @param request         La requête entrante (NextRequest original — body stream intact).
+ * @param extraReqHeaders Headers supplémentaires à injecter dans la request vue par les
+ *                        Server Components (ex: x-nonce pour la CSP). Ces headers sont
+ *                        passés à NextResponse.next({ request: { headers } }) sans jamais
+ *                        reconstruire le NextRequest ni toucher au body stream.
+ */
+export async function updateSession(
+  request: NextRequest,
+  extraReqHeaders?: Headers,
+) {
+  // Construire les headers de request à transmettre aux Server Components.
+  // Si des headers supplémentaires sont fournis (ex: x-nonce), on les fusionne
+  // avec les headers originaux via NextResponse.next({ request: { headers } }).
+  // Cette API Next.js propage les headers SANS reconstruire la Request et
+  // SANS consommer le body stream → sûr pour les requêtes POST avec body JSON.
+  const requestHeaders: Headers = extraReqHeaders
+    ? (() => {
+        const merged = new Headers(request.headers);
+        extraReqHeaders.forEach((value, key) => merged.set(key, value));
+        return merged;
+      })()
+    : request.headers;
+
+  let supabaseResponse = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
 
   // ── Purge des cookies au format inconnu (héritage binaire pré-0.3) ──────────
   const cookiePrefix = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
@@ -337,7 +364,9 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
-          supabaseResponse = NextResponse.next({ request });
+          supabaseResponse = NextResponse.next({
+            request: { headers: requestHeaders },
+          });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options as Parameters<typeof supabaseResponse.cookies.set>[2])
           );
