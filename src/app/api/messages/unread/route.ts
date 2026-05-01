@@ -57,6 +57,9 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { getUserIdBearerFirst, assertCsrfSafe } from '@/lib/supabase/auth-helper';
 import { MAX_CONV_IDS } from './constants';
 
+// Augmente la limite Vercel à 30 s (défaut : 10 s Hobby / 15 s Pro)
+export const maxDuration = 30;
+
 /** Marqueurs identifiant les messages système (générés automatiquement). */
 const SYSTEM_PREFIXES = ['👋', '✅', '🤝'];
 const SYSTEM_SUBSTRINGS = [

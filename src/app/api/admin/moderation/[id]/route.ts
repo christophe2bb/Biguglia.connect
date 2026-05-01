@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 /**
  * API Route — /api/admin/moderation/[id]
  *

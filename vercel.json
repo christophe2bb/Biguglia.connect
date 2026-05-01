@@ -5,6 +5,15 @@
   "installCommand": "npm ci",
   "devCommand": "npm run dev",
   "regions": ["cdg1"],
+  "functions": {
+    "src/app/api/messages/start-conversation/route.ts": { "maxDuration": 30 },
+    "src/app/api/messages/unread/route.ts":             { "maxDuration": 30 },
+    "src/app/api/messages/conversations/route.ts":      { "maxDuration": 30 },
+    "src/app/api/messages/conversation/[id]/route.ts":  { "maxDuration": 30 },
+    "src/app/api/messages/check-conversation/route.ts": { "maxDuration": 30 },
+    "src/app/api/admin/**":                             { "maxDuration": 30 },
+    "src/app/api/upload/route.ts":                      { "maxDuration": 60 }
+  },
   "git": {
     "deploymentEnabled": {
       "main": true,
