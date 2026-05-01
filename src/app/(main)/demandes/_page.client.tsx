@@ -67,6 +67,7 @@ export default function DemandesPageClient() {
         photos:service_request_photos(url)
       `)
       .order('created_at', { ascending: false })
+      .is('artisan_id', null)   // exclure les devis privés (envoyés directement à un artisan)
       .limit(50);
 
     if (filterStatus === 'open') {

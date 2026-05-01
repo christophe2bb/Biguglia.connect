@@ -169,26 +169,54 @@ function DemandeServiceForm() {
       );
     }
 
-    // Si artisan spécifié, créer une conversation via l'API admin (contourne RLS récursive)
+    // Créer une conversation privée avec l'artisan via l'API admin (contourne RLS récursive)
     if (artisanId && artisan) {
-      if (session) {
-        await fetch('/api/messages/start-conversation', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            ownerId: artisan.user_id,
-            subject: form.title,
-            relatedType: 'service_request',
-            relatedId: request.id,
-            initialMsg: null,
-          }),
-        }).catch(() => null);
+      const urgencyLabel =
+        form.urgency === 'tres_urgent' ? 'Très urgent' :
+        form.urgency === 'urgent'      ? 'Urgent'      : 'Normal';
+
+      const initialMsg =
+        `📋 **Demande de devis — ${form.title}**\n\n` +
+        `**Catégorie :** ${artisan.trade_category?.name ?? ''}\n` +
+        `**Urgence :** ${urgencyLabel}\n` +
+        (form.preferred_date ? `**Date souhaitée :** ${new Date(form.preferred_date).toLocaleDateString('fr-FR')}\n` : '') +
+        (form.preferred_time ? `**Heure :** ${form.preferred_time}\n` : '') +
+        `**Lieu :** ${form.address}\n\n` +
+        `**Description :**\n${form.description}`;
+
+      const convRes = await fetch('/api/messages/start-conversation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          ownerId: artisan.user_id,
+          subject: `Devis : ${form.title}`,
+          relatedType: 'service_request',
+          relatedId: request.id,
+          initialMsg,
+        }),
+      }).catch(() => null);
+
+      const convData = await convRes?.json().catch(() => null);
+      const conversationId = convData?.conversationId ?? null;
+
+      toast.success(
+        `Demande envoyée à ${artisan.business_name} ! Vous recevrez sa réponse dans vos messages.`,
+        { duration: 5000 }
+      );
+
+      // Rediriger vers la conversation privée avec l'artisan
+      if (conversationId) {
+        router.push(`/messages/${conversationId}`);
+      } else {
+        router.push(`/artisans/${artisanId}`);
       }
+      return;
     }
 
+    // Cas sans artisan spécifié → demande publique classique
     toast.success('Demande publiée ! Les habitants peuvent maintenant vous répondre.', { duration: 5000 });
     router.push('/demandes');
   };
