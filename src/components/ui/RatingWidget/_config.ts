@@ -13,6 +13,7 @@ export const POLL_CONFIG: Record<RatingTargetType, { question: string; options: 
   event:           { question: "L'événement était ?",             options: [{ label: 'Excellent !',        emoji: '🎉' }, { label: 'Bien organisé',       emoji: '📋' }, { label: 'Ambiance top',      emoji: '🎶' }, { label: 'À améliorer',      emoji: '📝' }] },
   promenade:       { question: 'La promenade était ?',            options: [{ label: 'Superbe vue',        emoji: '🌟' }, { label: 'Bien balisée',        emoji: '🗺️' }, { label: 'Accessible',        emoji: '👣' }, { label: 'Difficile',        emoji: '⛰️' }] },
   service_request: { question: 'Prestation réalisée ?',           options: [{ label: 'Excellent travail',  emoji: '⭐' }, { label: 'Dans les délais',     emoji: '⏱️' }, { label: 'Prix honnête',      emoji: '💰' }, { label: 'Je recommande',    emoji: '👍' }] },
+  artisan:         { question: 'Comment s\'était l\'intervention ?', options: [{ label: 'Excellent travail', emoji: '⭐' }, { label: 'Dans les délais',     emoji: '⏱️' }, { label: 'Prix honnête',      emoji: '💰' }, { label: 'Je recommande',    emoji: '👍' }] },
 };
 
 // ─── Couleur selon la moyenne ─────────────────────────────────────────────────

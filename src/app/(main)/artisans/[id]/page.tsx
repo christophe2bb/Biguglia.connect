@@ -1,9 +1,11 @@
 /**
  * artisans/[id] — Server Component (server-first)
  * ─────────────────────────────────────────────────────────────────────────────
- * Fetch serveur : artisan + profil + galerie + avis + catégorie
+ * Fetch serveur : artisan + profil + galerie + catégorie
  * Rendu HTML complet côté serveur (zéro skeleton côté client)
- * ArtisanActions (client) : favoris uniquement
+ * ArtisanActions (client) : favoris + galerie
+ * RatingWidget (client)   : avis avec formulaire si éligible
+ *                           Éligibilité 'artisan' = avoir eu une conversation
  */
 
 import type { Metadata } from 'next';
@@ -18,12 +20,10 @@ import { createClient } from '@/lib/supabase/server';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import StarRating from '@/components/ui/StarRating';
-import EmptyState from '@/components/ui/EmptyState';
 import ContactButton from '@/components/ui/ContactButton';
+import RatingWidget from '@/components/ui/RatingWidget';
 import ArtisanActions from './_components/ArtisanActions';
-import { formatRelative } from '@/lib/utils';
-import type { ArtisanProfile, Review } from '@/types';
+import type { ArtisanProfile } from '@/types';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 
@@ -47,13 +47,7 @@ async function fetchArtisan(id: string) {
 
     if (error || !data) return null;
 
-    const { data: reviews } = await supabase
-      .from('reviews')
-      .select('*, reviewer:profiles!reviews_reviewer_id_fkey(full_name, avatar_url)')
-      .eq('artisan_id', id)
-      .order('created_at', { ascending: false });
-
-    return { artisan: data as ArtisanProfile, reviews: (reviews as Review[]) || [] };
+    return { artisan: data as ArtisanProfile };
   } catch (err) {
     console.error('[ArtisanDetailPage] fetchArtisan error:', err);
     return null;
@@ -94,8 +88,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ArtisanDetailPage({ params }: Props) {
   const { id } = await params;
 
-  // Récupérer la session serveur pour passer userId au ContactButton
-  // createClient() lit les cookies de session → pas de round-trip supplémentaire
+  // Session serveur → userId passé aux composants clients (ContactButton, RatingWidget)
   const supabaseAuth = await createClient();
   const { data: { user } } = await supabaseAuth.auth.getUser();
   const currentUserId = user?.id ?? null;
@@ -103,14 +96,11 @@ export default async function ArtisanDetailPage({ params }: Props) {
   const result = await fetchArtisan(id);
   if (!result) notFound();
 
-  const { artisan, reviews } = result;
-  const avgRating = reviews.length
-    ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-    : 0;
-  const gallery = artisan.gallery as Array<{ id: string; url: string }> | undefined;
+  const { artisan } = result;
+  const gallery    = artisan.gallery as Array<{ id: string; url: string }> | undefined;
   const profileData = artisan.profile as { id?: string; full_name?: string; avatar_url?: string; phone?: string } | undefined;
-  const docCount = [artisan.doc_kbis_url, artisan.doc_insurance_url, artisan.doc_id_url].filter(Boolean).length;
-  const isPro = artisan.artisan_type === 'professionnel';
+  const docCount   = [artisan.doc_kbis_url, artisan.doc_insurance_url, artisan.doc_id_url].filter(Boolean).length;
+  const isPro      = artisan.artisan_type === 'professionnel';
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -178,13 +168,16 @@ export default async function ArtisanDetailPage({ params }: Props) {
               <ArtisanActions artisan={artisan} variant="favorite" />
             </div>
 
-            {reviews.length > 0 && (
-              <div className="flex items-center gap-2 mb-4">
-                <StarRating rating={avgRating} size="md" />
-                <span className="font-semibold text-gray-800">{avgRating.toFixed(1)}</span>
-                <span className="text-gray-500 text-sm">({reviews.length} avis)</span>
-              </div>
-            )}
+            {/* Note compacte (RatingWidget compact — lecture seule dans l'en-tête) */}
+            <div className="mb-4">
+              <RatingWidget
+                targetType="artisan"
+                targetId={artisan.id}
+                authorId={artisan.user_id}
+                userId={currentUserId}
+                compact
+              />
+            </div>
 
             <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-5">
               <div className="flex items-center gap-1.5">
@@ -202,45 +195,34 @@ export default async function ArtisanDetailPage({ params }: Props) {
             <p className="text-gray-600 leading-relaxed">{artisan.description}</p>
           </div>
 
-          {/* Reviews */}
+          {/* ── Avis clients ─────────────────────────────────────────────────── */}
+          {/*
+           * RatingWidget complet :
+           *   - Affiche la moyenne + distribution des étoiles (toujours visible)
+           *   - Affiche le formulaire de notation SI l'utilisateur est éligible
+           *   - Éligibilité 'artisan' = avoir eu au moins une conversation avec l'artisan
+           *   - Sondage rapide après la première note (ex. "Prix honnête", "Dans les délais")
+           *   - Liste des commentaires écrits (dépliable)
+           *
+           * Règle métier :
+           *   Un client peut laisser un avis dès qu'il a échangé des messages avec
+           *   l'artisan via la messagerie de Biguglia Connect. Cela garantit une
+           *   interaction réelle sans être aussi strict que l'échange "confirmé".
+           *   L'artisan lui-même ne peut pas se noter (auto-notation bloquée).
+           *)
+          */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Avis clients ({reviews.length})
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
+              Avis clients
             </h2>
-            {reviews.length === 0 ? (
-              <EmptyState
-                icon="💬"
-                title="Pas encore d'avis"
-                description="Soyez le premier à laisser un avis après votre intervention."
-              />
-            ) : (
-              <div className="space-y-4">
-                {reviews.map(review => {
-                  const reviewer = review.reviewer as { full_name?: string; avatar_url?: string } | undefined;
-                  return (
-                    <div key={review.id} className="border-b border-gray-50 pb-4 last:border-0 last:pb-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Avatar
-                          src={reviewer?.avatar_url}
-                          name={reviewer?.full_name || 'Anonyme'}
-                          size="sm"
-                        />
-                        <div>
-                          <div className="text-sm font-medium text-gray-800">
-                            {reviewer?.full_name || 'Anonyme'}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <StarRating rating={review.rating} />
-                            <span className="text-xs text-gray-400">{formatRelative(review.created_at)}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-600">{review.comment}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            <RatingWidget
+              targetType="artisan"
+              targetId={artisan.id}
+              authorId={artisan.user_id}
+              userId={currentUserId}
+              showPoll
+            />
           </div>
         </div>
 
