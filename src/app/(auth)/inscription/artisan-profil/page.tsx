@@ -109,6 +109,9 @@ export default function ArtisanProfilPage() {
   const { profile, loading: authLoading } = useAuthStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [categories, setCategories] = useState<TradeCategory[]>([]);
+  const [coverPhoto, setCoverPhoto] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -211,19 +214,28 @@ export default function ArtisanProfilPage() {
       artisanId = data.id;
     }
 
-    // Upload gallery photos
+    // Upload photo principale → stockée dans artisan_profiles.avatar_url (visible sur la carte)
+    if (coverPhoto) {
+      try {
+        const ext = safeImageExt(coverPhoto.name); // nosec CWE-22
+        const fileName = `artisans/${artisanId}/cover-${Date.now()}.${ext}`;  // nosec CWE-22
+        const coverUrl = await uploadFile(coverPhoto, 'photos', fileName, profile.id);
+        await supabase.from('artisan_profiles').update({ avatar_url: coverUrl }).eq('id', artisanId);
+      } catch (err) {
+        console.error('Cover photo upload error:', err);
+      }
+    }
+
+    // Upload photos de galerie (réalisations)
     for (let i = 0; i < photos.length; i++) {
       const photo = photos[i];
-      // photo.name n'est PAS injecté dans le chemin — seule l'extension validée (whitelist safeImageExt) l'est.
-      const ext = safeImageExt(photo.name); // nosec CWE-22 — photo.name → safeImageExt() → ext whitelist uniquement
-      const fileName = `artisans/${artisanId}/gallery-${Date.now()}-${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
+      const ext = safeImageExt(photo.name); // nosec CWE-22
+      const fileName = `artisans/${artisanId}/gallery-${i}-${Date.now()}.${ext}`;  // nosec CWE-22
       try {
-        // uploadFile valide les magic bytes côté serveur
         const publicUrl = await uploadFile(photo, 'photos', fileName, profile.id);
         await supabase.from('artisan_photos').insert({ artisan_id: artisanId, url: publicUrl, display_order: i });
       } catch (err) {
-        console.error('Photo upload error:', err);
-        // On continue même si une photo échoue
+        console.error('Gallery photo upload error:', err);
       }
     }
 
@@ -449,7 +461,63 @@ export default function ArtisanProfilPage() {
           />
         </div>
 
-        {/* Photos galerie */}
+        {/* Photo principale — apparaît sur la carte artisan dans la liste */}
+        <div className="bg-white rounded-2xl border-2 border-brand-200 p-6">
+          <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+            <Camera className="w-4 h-4 text-brand-600" />
+            Photo principale de votre annonce
+            <span className="text-xs font-normal text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full">Recommandé</span>
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Cette photo apparaîtra sur votre carte dans la liste des artisans. Choisissez une belle photo représentative de votre activité.
+          </p>
+
+          {coverPreview ? (
+            <div className="relative rounded-2xl overflow-hidden mb-2" style={{ height: 200 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={coverPreview} alt="Photo principale" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/20 flex items-end p-3">
+                <span className="text-white text-xs font-bold bg-black/50 px-2 py-1 rounded-lg">📸 Photo principale</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (coverPreview) URL.revokeObjectURL(coverPreview);
+                  setCoverPhoto(null);
+                  setCoverPreview(null);
+                }}
+                className="absolute top-2 right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => coverInputRef.current?.click()}
+              className="w-full border-2 border-dashed border-brand-300 rounded-2xl p-8 text-center hover:border-brand-400 hover:bg-brand-50 transition-colors duration-200"
+            >
+              <Camera className="w-8 h-8 text-brand-400 mx-auto mb-2" />
+              <p className="text-sm font-medium text-brand-700">Ajouter la photo principale</p>
+              <p className="text-xs text-gray-400 mt-1">PNG, JPG · 5 Mo max — sera visible sur votre carte</p>
+            </button>
+          )}
+          <input
+            ref={coverInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              if (coverPreview) URL.revokeObjectURL(coverPreview);
+              setCoverPhoto(file);
+              setCoverPreview(URL.createObjectURL(file));
+            }}
+          />
+        </div>
+
+        {/* Photos galerie réalisations */}
         <div className="bg-white rounded-2xl border border-gray-100 p-6">
           <h2 className="font-semibold text-gray-900 mb-2">Photos de vos réalisations (optionnel)</h2>
           <p className="text-sm text-gray-500 mb-4">Ajoutez des photos de vos chantiers pour valoriser votre travail (max. 8 photos)</p>

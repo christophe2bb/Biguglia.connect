@@ -45,7 +45,7 @@ function ArtisansContent() {
         .from('artisan_profiles')
         .select(`
           id, user_id, business_name, trade_name, description,
-          location, intervention_zone, is_featured, is_verified, siret,
+          location, intervention_zone, is_featured, is_verified, siret, avatar_url,
           profile:profiles(id, full_name, avatar_url, role),
           trade_category:trade_categories(id, name, slug, icon),
           gallery:artisan_photos(url, display_order),
@@ -186,11 +186,11 @@ function ArtisanCard({ artisan }: { artisan: ArtisanProfile & { avg_rating?: num
   return (
     <Link href={`/artisans/${artisan.id}`}>
       <div className="bg-white rounded-2xl border border-gray-100 hover:shadow-md hover:border-gray-200 transition-colors duration-200 overflow-hidden group">
-        {/* Photo de galerie si disponible */}
-        {artisan.gallery && artisan.gallery.length > 0 ? (
-          <div className="h-40 bg-gray-100 overflow-hidden">
+        {/* Photo principale (avatar_url) en priorité, sinon 1ère photo de galerie */}
+        {(artisan as unknown as { avatar_url?: string }).avatar_url || (artisan.gallery && artisan.gallery.length > 0) ? (
+          <div className="relative h-40 bg-gray-100 overflow-hidden">
             <Image
-              src={artisan.gallery[0].url}
+              src={(artisan as unknown as { avatar_url?: string }).avatar_url || artisan.gallery![0].url}
               alt={artisan.business_name}
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
