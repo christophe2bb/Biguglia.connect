@@ -180,13 +180,15 @@ async function findExistingConversation(
     .limit(1);
 
   if (relatedId && relatedType) {
-    // Correspondance exacte : même objet lié
+    // Correspondance EXACTE : même type ET même objet lié — aucun fallback sur d'autres types
     query = query.eq('related_type', relatedType).eq('related_id', relatedId);
   } else if (relatedType && relatedType !== 'general') {
-    // Correspondance par type de contexte (ex : toutes les convs 'artisan' avec ce profil)
+    // Correspondance par type de contexte uniquement (sans relatedId)
     query = query.eq('related_type', relatedType);
+  } else {
+    // Cas 'general' ou sans contexte : chercher uniquement les convs 'general' (pas toute conv partagée)
+    query = query.eq('related_type', 'general');
   }
-  // Sinon : toute conversation partagée (cas 'general' ou sans contexte)
 
   const { data } = await query.maybeSingle();
   return data?.id ?? null;
@@ -218,6 +220,9 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const { ownerId, subject, relatedType, relatedId, initialMsg } = parsed.data;
 
+  // Log de diagnostic (visible dans Vercel Functions logs)
+  console.log('[start-conversation] payload reçu:', { userId, ownerId, relatedType, relatedId: relatedId ?? null, subject });
+
   // Empêcher une conversation avec soi-même
   if (ownerId === userId) {
     return NextResponse.json(
@@ -244,7 +249,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   const existingId = await findExistingConversation(
     admin, userId, ownerId, relatedType ?? null, relatedId ?? null
   );
+  console.log('[start-conversation] existingId trouvé:', existingId ?? 'aucun');
   if (existingId) {
+    console.log('[start-conversation] → retour conv existante:', existingId);
     return NextResponse.json({ conversationId: existingId, isNew: false });
   }
 
@@ -286,20 +293,48 @@ export async function POST(req: NextRequest): Promise<Response> {
   const convId = newConv.id;
 
   // ── Step 2 : Ajouter les participants ───────────────────────────────────────
+  // Essai 1 : upsert (ignore doublons)
   const { error: partError } = await admin
     .from('conversation_participants')
     .upsert(
       [
-        { conversation_id: convId, user_id: userId },
-        { conversation_id: convId, user_id: ownerId },
+        { conversation_id: convId, user_id: userId,  joined_at: new Date().toISOString() },
+        { conversation_id: convId, user_id: ownerId, joined_at: new Date().toISOString() },
       ],
       { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
     );
 
   if (partError) {
-    console.error('[start-conversation] add participants error:', partError.message);
-    // Non bloquant — la conv est créée; on continue (les participants sont critiques
-    // mais le client peut toujours être redirigé)
+    console.error('[start-conversation] upsert participants error:', partError.message, partError.code);
+
+    // Essai 2 : INSERT individuel pour isoler lequel échoue
+    const insertSelf  = await admin.from('conversation_participants')
+      .insert({ conversation_id: convId, user_id: userId, joined_at: new Date().toISOString() })
+      .select('user_id').maybeSingle();
+    const insertOwner = await admin.from('conversation_participants')
+      .insert({ conversation_id: convId, user_id: ownerId, joined_at: new Date().toISOString() })
+      .select('user_id').maybeSingle();
+
+    const selfOk  = !insertSelf.error  || insertSelf.error.code  === '23505'; // 23505 = déjà présent
+    const ownerOk = !insertOwner.error || insertOwner.error.code === '23505';
+
+    if (insertSelf.error  && insertSelf.error.code  !== '23505')
+      console.error('[start-conversation] insert self error:',  insertSelf.error.message,  insertSelf.error.code);
+    if (insertOwner.error && insertOwner.error.code !== '23505')
+      console.error('[start-conversation] insert owner error:', insertOwner.error.message, insertOwner.error.code);
+
+    // Si l'utilisateur courant n'a pas pu être ajouté → il n'aura pas accès → erreur bloquante
+    if (!selfOk) {
+      return NextResponse.json(
+        { error: `Impossible d'ajouter le participant (${insertSelf.error?.message})` },
+        { status: 500 }
+      );
+    }
+
+    // Si le destinataire n'a pas pu être ajouté → conv créée mais incomplète → on continue
+    if (!ownerOk) {
+      console.warn('[start-conversation] destinataire non ajouté comme participant, conv incomplète');
+    }
   }
 
   // ── Step 3 : Message initial ────────────────────────────────────────────────

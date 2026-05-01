@@ -210,12 +210,15 @@ export default function ContactButton({
         return;
       }
 
-      const { conversationId } = await res.json();
+      const responseData = await res.json();
+      console.log('[ContactButton] réponse API:', responseData);
+      const { conversationId } = responseData;
       if (!conversationId) {
         toast.error('Impossible d\'ouvrir la conversation');
         return;
       }
 
+      console.log('[ContactButton] redirection vers /messages/' + conversationId);
       onConversationReady?.(conversationId);
       router.push(`/messages/${conversationId}`);
 
