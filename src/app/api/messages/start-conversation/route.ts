@@ -278,6 +278,60 @@ export async function POST(req: NextRequest): Promise<Response> {
       );
       if (raceId) return NextResponse.json({ conversationId: raceId, isNew: false });
     }
+    // 23514 = check_violation (contrainte CHECK conversations_related_type_check)
+    // → la valeur relatedType n'est pas dans la liste CHECK de la colonne related_type.
+    // Solution : exécuter la migration migration_conversations_related_type.sql dans Supabase.
+    //   ALTER TABLE conversations DROP CONSTRAINT IF EXISTS conversations_related_type_check;
+    //   ALTER TABLE conversations ADD CONSTRAINT conversations_related_type_check
+    //     CHECK (related_type IN ('listing','equipment','general','help_request',
+    //       'collection_item','lost_found','association','outing','event','service_request',
+    //       'artisan','community'));
+    if (convError.code === '23514') {
+      console.error(
+        '[start-conversation] CHECK CONSTRAINT ERROR — related_type rejeté par PG:',
+        relatedType, '| message:', convError.message,
+        '| Solution: exécuter migration_conversations_related_type.sql dans Supabase SQL Editor'
+      );
+      // Fallback : réessayer avec related_type='general' pour ne pas bloquer l'utilisateur
+      const fallbackPayload23514: Record<string, unknown> = {
+        subject,
+        related_type: 'general',
+        updated_at: new Date().toISOString(),
+      };
+      const { data: fallbackConv23514, error: fallbackErr23514 } = await admin
+        .from('conversations')
+        .insert(fallbackPayload23514)
+        .select('id')
+        .single();
+      if (fallbackErr23514) {
+        console.error('[start-conversation] fallback (23514) general error:', fallbackErr23514.message);
+        return NextResponse.json(
+          { error: `Type de conversation '${relatedType}' non supporté en base — migration requise` },
+          { status: 422 }
+        );
+      }
+      if (fallbackConv23514?.id) {
+        console.warn('[start-conversation] fallback (23514) conv créée avec related_type=general, id:', fallbackConv23514.id);
+        const fallbackId23514 = fallbackConv23514.id;
+        const [insertSelfFb23514, insertOwnerFb23514] = await Promise.all([
+          admin.from('conversation_participants')
+            .insert({ conversation_id: fallbackId23514, user_id: userId,  joined_at: new Date().toISOString() })
+            .select('user_id').maybeSingle(),
+          admin.from('conversation_participants')
+            .insert({ conversation_id: fallbackId23514, user_id: ownerId, joined_at: new Date().toISOString() })
+            .select('user_id').maybeSingle(),
+        ]);
+        const selfFbOk23514 = !insertSelfFb23514.error || insertSelfFb23514.error.code === '23505';
+        if (!selfFbOk23514) {
+          await admin.from('conversations').delete().eq('id', fallbackId23514);
+          return NextResponse.json({ error: 'Impossible d\'ajouter le participant (fallback 23514)' }, { status: 500 });
+        }
+        if (insertOwnerFb23514.error && insertOwnerFb23514.error.code !== '23505') {
+          console.warn('[start-conversation] fallback (23514) owner insert error:', insertOwnerFb23514.error.message);
+        }
+        return NextResponse.json({ conversationId: fallbackId23514, isNew: true });
+      }
+    }
     // 22P02 = invalid input value for enum related_type
     // → la valeur relatedType n'existe pas encore dans l'enum PostgreSQL en production.
     // Solution : exécuter dans Supabase SQL Editor :
