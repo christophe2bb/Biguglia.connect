@@ -158,7 +158,7 @@ export function ContextBanner({ relatedType, relatedId, subject }: ContextBanner
             .eq('id', relatedId).single();
           if (data) setContextData({ title: data.title, description: data.description?.slice(0, 120), location: data.location });
         } else if (relatedType === 'community') {
-          setContextData({ title: subject || 'Communauté' });
+          setContextData({ title: 'Communauté' });
         }
       } catch (e) {
         console.warn('[ContextBanner] load failed', e);
