@@ -135,12 +135,17 @@ const isDev = process.env.NODE_ENV === 'development';
  *  Stratégie CSP Level 3 avec granularité fine :
  *
  *  style-src-elem  → contrôle les balises <style> et <link rel="stylesheet">
- *    • 'nonce-{nonce}' : balises <style nonce="..."> autorisées (Next.js SSR)
- *    • 'unsafe-inline' : requis pour Recharts qui injecte des <style> sans nonce
+ *    • 'unsafe-inline' : requis pour Recharts et composants tiers (Leaflet, etc.)
+ *      qui injectent des <style> sans nonce → 17 violations CSP en prod.
+ *      IMPORTANT (spec CSP3) : 'unsafe-inline' EST IGNORÉ si un nonce est présent
+ *      dans la même directive. Le nonce est donc RETIRÉ de style-src-elem afin que
+ *      'unsafe-inline' soit effectivement appliqué.
  *    • 'self'          : feuilles CSS locales Next.js (/_next/static/css/…)
  *    • fonts.googleapis.com : Google Fonts (feuille de style externe)
  *    Risque résiduel : CSS injection limitée (pas d'exécution JS). Acceptable
  *    car script-src reste strict (nonce + strict-dynamic).
+ *    Note : Next.js SSR injecte ses <style> via des <link rel="stylesheet"> servis
+ *    depuis 'self' (/_next/static/css/…), couverts par la source 'self'.
  *
  *  style-src-attr  → contrôle les attributs style="" sur les éléments HTML
  *    • 'unsafe-inline' conservé intentionnellement :
@@ -167,11 +172,14 @@ export function buildCsp(nonce: string): string {
     : `'nonce-${nonce}' 'strict-dynamic' blob: https://vercel.live https://*.vercel-scripts.com https://browser.sentry-cdn.com`;
 
   // style-src-elem : balises <style> et <link rel="stylesheet">
-  // 'unsafe-inline' ajouté : des composants tiers (Leaflet, animations CSS-in-JS, etc.)
-  // injectent des <style> sans nonce → 9 violations CSP observées en prod (Playwright).
-  // Le risque CSS-injection est limité : pas d'exécution JS via les styles.
-  // Les scripts restent stricts (nonce + strict-dynamic).
-  const styleElem = `'nonce-${nonce}' 'unsafe-inline' 'self' https://fonts.googleapis.com`;
+  // IMPORTANT — spec CSP3 : 'unsafe-inline' est IGNORÉ par le navigateur si un nonce
+  // est présent dans la même directive (message console : "unsafe-inline' is ignored if
+  // either a hash or nonce value is present"). Le nonce est donc RETIRÉ de style-src-elem.
+  // • 'unsafe-inline' seul → autorise tous les <style> (Recharts, Leaflet, CSS-in-JS).
+  // • 'self' → feuilles CSS Next.js (/_next/static/css/…) et link rel=stylesheet locaux.
+  // • fonts.googleapis.com → Google Fonts stylesheet externe.
+  // Le nonce reste dans script-src uniquement où il est nécessaire et effectif.
+  const styleElem = `'unsafe-inline' 'self' https://fonts.googleapis.com`;
 
   // style-src-attr : attributs style="" sur les éléments — unsafe-inline conservé
   // (React inline styles dynamiques, voir commentaire buildCsp ci-dessus)
