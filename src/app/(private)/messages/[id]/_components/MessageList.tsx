@@ -37,6 +37,20 @@ import { CONTEXT_CONFIG } from '../_config';
  *   https://…  → lien cliquable (images : <img> inline)
  * Pas de librairie externe pour garder le bundle léger.
  */
+/**
+ * Détecte si une URL pointe vers une image à afficher inline.
+ * Stratégie double :
+ *   1. URL Supabase Storage (contient "/storage/v1/object/public/")
+ *   2. URL avec extension image reconnue en fin de chemin (avant ? ou #)
+ */
+function isImageUrl(url: string): boolean {
+  // Supabase Storage public URL
+  if (url.includes('/storage/v1/object/public/')) return true;
+  // Extension image dans le chemin (avant query string ou ancre)
+  const path = url.split('?')[0].split('#')[0];
+  return /\.(jpg|jpeg|png|webp|gif|avif)$/i.test(path);
+}
+
 function MessageContent({ content, isMe }: { content: string; isMe: boolean }) {
   // Découper par lignes
   const lines = content.split('\n');
@@ -59,49 +73,52 @@ function MessageContent({ content, isMe }: { content: string; isMe: boolean }) {
           return <div key={li} className="h-1" />;
         }
 
-        // Découper la ligne en segments gras / normal / image-url / lien
+        // Découper la ligne en segments gras / url / texte normal
         const parts: React.ReactNode[] = [];
-        // Regex : image-url, lien, ou texte **gras**
-        const regex = /(https?:\/\/\S+\.(jpg|jpeg|png|webp|gif|avif)(\?\S*)?)|(\*\*(.+?)\*\*)|(https?:\/\/\S+)/gi;
+        // Regex : **gras** ou URL (toute URL, image ou non)
+        const regex = /(\*\*(.+?)\*\*)|(https?:\/\/[^\s]+)/gi;
         let last = 0;
         let m: RegExpExecArray | null;
 
         while ((m = regex.exec(line)) !== null) {
-          // Texte avant le match
+          // Texte brut avant le match
           if (m.index > last) parts.push(line.slice(last, m.index));
 
           if (m[1]) {
-            // Image inline
-            parts.push(
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={`img-${li}-${m.index}`}
-                src={m[1]}
-                alt="Pièce jointe"
-                loading="lazy"
-                className="mt-2 max-w-full rounded-xl max-h-64 object-cover border border-white/20"
-              />
-            );
-          } else if (m[4]) {
             // **gras**
             parts.push(
               <strong key={`b-${li}-${m.index}`} className={`font-bold ${isMe ? 'text-white' : 'text-gray-900'}`}>
-                {m[5]}
+                {m[2]}
               </strong>
             );
-          } else if (m[6]) {
-            // Lien simple
-            parts.push(
-              <a
-                key={`a-${li}-${m.index}`}
-                href={m[6]}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`underline underline-offset-2 ${isMe ? 'text-white/90 hover:text-white' : 'text-brand-600 hover:text-brand-800'}`}
-              >
-                {m[6].replace(/^https?:\/\//, '').slice(0, 40)}…
-              </a>
-            );
+          } else if (m[3]) {
+            const url = m[3];
+            if (isImageUrl(url)) {
+              // Image inline
+              parts.push(
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={`img-${li}-${m.index}`}
+                  src={url}
+                  alt="Pièce jointe"
+                  loading="lazy"
+                  className="mt-2 max-w-full rounded-xl max-h-64 object-cover border border-white/20 block"
+                />
+              );
+            } else {
+              // Lien cliquable
+              parts.push(
+                <a
+                  key={`a-${li}-${m.index}`}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`underline underline-offset-2 ${isMe ? 'text-white/90 hover:text-white' : 'text-brand-600 hover:text-brand-800'}`}
+                >
+                  {url.replace(/^https?:\/\//, '').slice(0, 40)}…
+                </a>
+              );
+            }
           }
           last = m.index + m[0].length;
         }
