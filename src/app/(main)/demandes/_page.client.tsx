@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -47,7 +47,10 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 
 export default function DemandesPageClient() {
   const { profile } = useAuthStore();
-  const supabase = createClient();
+  // Client stable — créé une seule fois (createClient() dans le corps du composant
+  // changerait de référence à chaque render → supabase instable → boucle infinie)
+  const supabaseRef = useRef(createClient());
+  const supabase = supabaseRef.current;
 
   const [requests, setRequests]     = useState<ServiceRequest[]>([]);
   const [loading, setLoading]       = useState(true);
@@ -58,31 +61,57 @@ export default function DemandesPageClient() {
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
-    let query = supabase
-      .from('service_requests')
-      .select(`
+    try {
+      const SELECT = `
         id, title, description, urgency, address, status, created_at, resident_id, sector_id,
         resident:profiles!service_requests_resident_id_fkey(full_name, avatar_url),
         category:trade_categories(id, name, icon),
         photos:service_request_photos(url)
-      `)
-      .order('created_at', { ascending: false })
-      .is('artisan_id', null)   // exclure les devis privés (envoyés directement à un artisan)
-      .limit(50);
+      `;
 
-    if (filterStatus === 'open') {
-      query = query.in('status', ['submitted', 'viewed', 'replied']);
-    } else if (filterStatus === 'resolved') {
-      query = query.in('status', ['completed', 'scheduled']);
+      // Tentative 1 : filtre artisan_id=null (devis privés exclus).
+      // Si la colonne n'existe pas en prod (code 42703), on recharge sans ce
+      // filtre — tous les devis apparaissent mais la page ne crashe pas.
+      let q = supabase
+        .from('service_requests')
+        .select(SELECT)
+        .order('created_at', { ascending: false })
+        .is('artisan_id', null)
+        .limit(50);
+      if (filterStatus === 'open')     q = q.in('status', ['submitted', 'viewed', 'replied']);
+      else if (filterStatus === 'resolved') q = q.in('status', ['completed', 'scheduled']);
+      if (filterUrgency !== 'all')     q = q.eq('urgency', filterUrgency);
+
+      let { data, error } = await q;
+
+      // Fallback si artisan_id absent en base (42703 = column does not exist)
+      if (error && (error as { code?: string }).code === '42703') {
+        console.warn('[demandes] artisan_id absent en base — fallback sans filtre privé');
+        let q2 = supabase
+          .from('service_requests')
+          .select(SELECT)
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (filterStatus === 'open')         q2 = q2.in('status', ['submitted', 'viewed', 'replied']);
+        else if (filterStatus === 'resolved') q2 = q2.in('status', ['completed', 'scheduled']);
+        if (filterUrgency !== 'all')         q2 = q2.eq('urgency', filterUrgency);
+        const fb = await q2;
+        data  = fb.data;
+        error = fb.error;
+      }
+
+      if (error) {
+        console.warn('[demandes] fetchRequests error:', error.message);
+        setRequests([]);
+      } else {
+        setRequests((data as unknown as ServiceRequest[]) || []);
+      }
+    } catch (err) {
+      console.warn('[demandes] fetchRequests exception:', err);
+      setRequests([]);
+    } finally {
+      setLoading(false);
     }
-
-    if (filterUrgency !== 'all') {
-      query = query.eq('urgency', filterUrgency);
-    }
-
-    const { data, error } = await query;
-    if (!error) setRequests((data as unknown as ServiceRequest[]) || []);
-    setLoading(false);
   }, [supabase, filterStatus, filterUrgency]);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
