@@ -54,6 +54,12 @@ export interface ArtisanProfile {
   rejection_reason?: string;
   verification_notes?: string;
   is_featured: boolean;
+  is_verified?: boolean;
+  avatar_url?: string;
+  view_count?: number;
+  location?: string;
+  trade_name?: string;
+  intervention_zone?: string;
   created_at: string;
   updated_at: string;
   // Relations
