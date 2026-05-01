@@ -43,6 +43,7 @@ export function useCoupsDeMain() {
     setForm:     form.setForm,
     photos:      form.photos,
     previews:    form.previews,
+    existingPhotoUrls: form.existingPhotoUrls,
     resetForm:        form.resetForm,
     handleEdit:       form.handleEdit,
     handlePhotoSelect:form.handlePhotoSelect,

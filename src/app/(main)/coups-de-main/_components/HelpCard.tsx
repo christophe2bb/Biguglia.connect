@@ -89,8 +89,9 @@ export default function HelpCard({
   const urgConf = URGENCY_CONFIG[item.urgency];
   const catConf = CATEGORIES.find(c => c.value === item.category);
   const CatIcon = catConf?.icon ?? HandHeart;
-  const coverPhoto = item.photos?.[0]?.url;
-  const allPhotos = toPhotoItems(item.photos ?? []);
+  const sortedPhotos = [...(item.photos ?? [])].sort((a, b) => a.display_order - b.display_order);
+  const coverPhoto = sortedPhotos[0]?.url;
+  const allPhotos = toPhotoItems(sortedPhotos);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(0);
   const [localStatus, setLocalStatus] = useState(item.status);
@@ -332,9 +333,18 @@ export default function HelpCard({
         {allPhotos.length > 1 && (
           <div className="flex gap-1.5 mb-3 overflow-x-auto">
             {allPhotos.slice(1).map((ph, i) => (
-              <button key={i} onClick={() => { setLightboxIdx(i + 1); setLightboxOpen(true); }}
-                className="flex-shrink-0 focus:outline-none">
-                <Image src={ph.url} alt="" fill className="object-cover rounded-lg border border-gray-100 hover:border-orange-300 transition-colors" />
+              <button
+                key={i}
+                onClick={() => { setLightboxIdx(i + 1); setLightboxOpen(true); }}
+                className="relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-orange-300"
+              >
+                <Image
+                  src={ph.url}
+                  alt={`Photo ${i + 2}`}
+                  fill
+                  sizes="64px"
+                  className="object-cover hover:scale-110 transition-transform duration-300"
+                />
               </button>
             ))}
           </div>
