@@ -77,7 +77,7 @@ function MessageContent({ content, isMe }: { content: string; isMe: boolean }) {
               <img
                 key={`img-${li}-${m.index}`}
                 src={m[1]}
-                alt="Photo jointe"
+                alt="Pièce jointe"
                 loading="lazy"
                 className="mt-2 max-w-full rounded-xl max-h-64 object-cover border border-white/20"
               />
