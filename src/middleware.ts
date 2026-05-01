@@ -167,9 +167,11 @@ export function buildCsp(nonce: string): string {
     : `'nonce-${nonce}' 'strict-dynamic' blob: https://vercel.live https://*.vercel-scripts.com https://browser.sentry-cdn.com`;
 
   // style-src-elem : balises <style> et <link rel="stylesheet">
-  // Nonce requis — pas de 'unsafe-inline' ici (le test CI l'interdit).
-  // Recharts utilise des attributs style="" (→ style-src-attr 'unsafe-inline'), pas des <style>.
-  const styleElem = `'nonce-${nonce}' 'self' https://fonts.googleapis.com`;
+  // 'unsafe-inline' ajouté : des composants tiers (Leaflet, animations CSS-in-JS, etc.)
+  // injectent des <style> sans nonce → 9 violations CSP observées en prod (Playwright).
+  // Le risque CSS-injection est limité : pas d'exécution JS via les styles.
+  // Les scripts restent stricts (nonce + strict-dynamic).
+  const styleElem = `'nonce-${nonce}' 'unsafe-inline' 'self' https://fonts.googleapis.com`;
 
   // style-src-attr : attributs style="" sur les éléments — unsafe-inline conservé
   // (React inline styles dynamiques, voir commentaire buildCsp ci-dessus)
