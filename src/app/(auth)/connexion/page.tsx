@@ -21,7 +21,7 @@ function ConnexionForm() {
 
   // Lire le paramètre de redirection post-login.
   // Le middleware envoie ?next= ; certains liens directs utilisent encore ?redirect=.
-  const rawNext = searchParams.get('next') || searchParams.get('redirect') || '/dashboard';
+  const rawNext = searchParams.get('next') || searchParams.get('redirect') || '/';
   // Refuser toute URL qui ne commence pas par '/' (évite les redirections vers des sites externes)
   const redirectTo = rawNext.startsWith('/') ? rawNext : '/dashboard';
 

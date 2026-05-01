@@ -179,7 +179,7 @@ const ConversationListItem = memo(function ConversationListItem({
           </div>
         </div>
 
-        {/* Bouton supprimer */}
+        {/* Bouton supprimer — toujours visible (mobile + desktop) */}
         <button
           data-conv-menu
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
@@ -187,9 +187,10 @@ const ConversationListItem = memo(function ConversationListItem({
             'flex-shrink-0 w-9 h-9 rounded-xl mr-3 flex items-center justify-center transition-colors',
             isConfirm
               ? 'bg-red-500 text-white'
-              : 'text-gray-300 hover:text-red-500 hover:bg-red-50 active:text-red-600 active:bg-red-50'
+              : 'text-red-300 hover:text-red-500 hover:bg-red-50 active:text-red-600 active:bg-red-50'
           )}
           title="Supprimer la conversation"
+          aria-label="Supprimer la conversation"
         >
           <Trash2 className="w-4 h-4" />
         </button>
