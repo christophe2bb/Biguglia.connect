@@ -12,6 +12,14 @@ import type { ExtListing, ShareMethod, AuthorProfile } from '../_types';
 
 const LS_KEY = 'annonces_favorites';
 
+// ── localStorage helpers (fallback non connecté) ─────────────────────────────
+function lsRead(): string[] {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) ?? '[]'); } catch { return []; }
+}
+function lsWrite(ids: string[]) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(ids)); } catch { /* ignore */ }
+}
+
 export type UseAnnonceDetailReturn = {
   listing: ExtListing | null;
   similar: Listing[];
@@ -55,14 +63,24 @@ export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
   const openDeleteConfirm  = useCallback(() => setConfirmDeleteOpen(true),  []);
   const closeDeleteConfirm = useCallback(() => setConfirmDeleteOpen(false), []);
 
-  // ── Load saved state from localStorage ──────────────────────────────────────
+  // ── Load saved state — Supabase si connecté, localStorage sinon ────────────
   useEffect(() => {
     if (!id) return;
-    try {
-      const list: string[] = JSON.parse(localStorage.getItem(LS_KEY) ?? '[]');
-      setIsSaved(list.includes(id));
-    } catch { /* ignore */ }
-  }, [id]);
+    if (userId) {
+      // Connecté : vérifier en base
+      supabase
+        .from('user_favorites')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('target_id', id)
+        .eq('target_type', 'listing')
+        .maybeSingle()
+        .then(({ data }) => setIsSaved(!!data));
+    } else {
+      // Non connecté : localStorage
+      setIsSaved(lsRead().includes(id));
+    }
+  }, [id, userId, supabase]);
 
   // ── Fetch listing + author + similar ────────────────────────────────────────
   useEffect(() => {
@@ -128,22 +146,33 @@ export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
     })();
   }, [id, supabase]);
 
-  // ── toggleSave ───────────────────────────────────────────────────────────────
+  // ── toggleSave — Supabase si connecté, localStorage sinon ──────────────────
   const toggleSave = useCallback(() => {
     if (!id) return;
     setIsSaved(prev => {
       const next = !prev;
-      try {
-        const list: string[] = JSON.parse(localStorage.getItem(LS_KEY) ?? '[]');
-        const updated = next ? [...list, id] : list.filter(s => s !== id);
-        localStorage.setItem(LS_KEY, JSON.stringify(updated));
-      } catch { /* ignore */ }
       toast(next ? 'Annonce sauvegardée en favoris !' : 'Retirée des favoris', {
         icon: next ? '❤️' : '💔',
       });
+      if (userId) {
+        // Connecté → Supabase (fire-and-forget)
+        if (next) {
+          supabase.from('user_favorites').insert({
+            user_id: userId, target_id: id, target_type: 'listing',
+          }).then(() => { /* ignore */ });
+        } else {
+          supabase.from('user_favorites').delete()
+            .eq('user_id', userId).eq('target_id', id).eq('target_type', 'listing')
+            .then(() => { /* ignore */ });
+        }
+      } else {
+        // Non connecté → localStorage
+        const list = lsRead();
+        lsWrite(next ? [...list, id] : list.filter(s => s !== id));
+      }
       return next;
     });
-  }, [id]);
+  }, [id, userId, supabase]);
 
   // ── handleDelete ─────────────────────────────────────────────────────────────
   // ⚠️ Appelé APRÈS confirmation dans le dialog React (pas de confirm() bloquant ici).

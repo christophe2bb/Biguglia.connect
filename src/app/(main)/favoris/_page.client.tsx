@@ -3,17 +3,17 @@
 /**
  * FavorisClient — Page Mes Favoris
  *
- * Onglet 1 — Annonces  : IDs sauvegardés en localStorage ('annonces_favorites')
- *                         Requête Supabase pour récupérer les données des annonces
- * Onglet 2 — Artisans  : user_favorites (target_type='artisan') en base Supabase
+ * Onglet 1 — Annonces :
+ *   • Connecté   → user_favorites (target_type='listing') dans Supabase
+ *                  + migration one-shot des IDs localStorage → Supabase
+ *   • Non connecté → localStorage 'annonces_favorites' (fallback)
  *
- * Comportement :
- *   - Non connecté + onglet Artisans → invite à se connecter
- *   - Bouton ❌ sur chaque carte pour retirer des favoris immédiatement
- *   - Lien direct vers la fiche complète
+ * Onglet 2 — Artisans :
+ *   • Connecté   → user_favorites (target_type='artisan') dans Supabase
+ *   • Non connecté → invite à se connecter
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Heart, Bookmark, ArrowLeft, Trash2, ExternalLink, Star, MapPin, Shield, Tag, Clock, Package } from 'lucide-react';
@@ -27,7 +27,7 @@ import Avatar from '@/components/ui/Avatar';
 // ── localStorage key (shared with useFavorites hook) ─────────────────────────
 const LS_KEY = 'annonces_favorites';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers localStorage ──────────────────────────────────────────────────────
 
 function readLocalIds(): string[] {
   if (typeof window === 'undefined') return [];
@@ -40,7 +40,11 @@ function readLocalIds(): string[] {
 }
 
 function writeLocalIds(ids: string[]) {
-  localStorage.setItem(LS_KEY, JSON.stringify(ids));
+  try { localStorage.setItem(LS_KEY, JSON.stringify(ids)); } catch { /* ignore */ }
+}
+
+function clearLocalIds() {
+  try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
 }
 
 // ── Type helpers ──────────────────────────────────────────────────────────────
@@ -285,23 +289,68 @@ type Tab = 'annonces' | 'artisans';
 
 export default function FavorisClient() {
   const { profile } = useAuthStore();
+  const userId = profile?.id ?? null;
 
-  const [activeTab, setActiveTab]           = useState<Tab>('annonces');
-  const [listings,   setListings]           = useState<ListingExt[]>([]);
-  const [artisanFavs, setArtisanFavs]       = useState<ArtisanFavoriteRow[]>([]);
-  const [localIds,   setLocalIds]           = useState<string[]>([]);
+  const [activeTab, setActiveTab]         = useState<Tab>('annonces');
+  const [listings,   setListings]         = useState<ListingExt[]>([]);
+  const [artisanFavs, setArtisanFavs]     = useState<ArtisanFavoriteRow[]>([]);
+
+  // IDs pour l'onglet annonces :
+  // - connecté  : IDs venant de Supabase (user_favorites)
+  // - non conn. : IDs venant de localStorage
+  const [listingFavIds, setListingFavIds] = useState<string[]>([]);
+
   const [loadingListings,  setLoadingListings]  = useState(true);
   const [loadingArtisans,  setLoadingArtisans]  = useState(true);
+  const migratedRef = useRef(false);
 
-  // ── Load local IDs (annonces) ─────────────────────────────────────────────
+  // ── Chargement des IDs favoris annonces ──────────────────────────────────
   useEffect(() => {
-    const ids = readLocalIds();
-    setLocalIds(ids);
-  }, []);
+    const supabase = createClient();
 
-  // ── Fetch listings from Supabase based on local IDs ───────────────────────
+    if (userId) {
+      // Connecté : lire depuis Supabase
+      (async () => {
+        const { data } = await supabase
+          .from('user_favorites')
+          .select('target_id')
+          .eq('user_id', userId)
+          .eq('target_type', 'listing')
+          .order('created_at', { ascending: false });
+
+        const dbIds = (data ?? []).map((r: { target_id: string }) => r.target_id);
+
+        // Migration one-shot : localStorage → Supabase
+        if (!migratedRef.current) {
+          migratedRef.current = true;
+          const localIds = readLocalIds().filter(id => !dbIds.includes(id));
+          if (localIds.length > 0) {
+            await supabase.from('user_favorites').insert(
+              localIds.map(id => ({
+                user_id:     userId,
+                target_id:   id,
+                target_type: 'listing',
+              }))
+            );
+            // Les IDs migrés s'ajoutent en tête (les plus récents en premier dans Supabase)
+            clearLocalIds();
+            setListingFavIds([...localIds, ...dbIds]);
+            return;
+          }
+          clearLocalIds();
+        }
+
+        setListingFavIds(dbIds);
+      })();
+    } else {
+      // Non connecté : localStorage
+      setListingFavIds(readLocalIds());
+    }
+  }, [userId]);
+
+  // ── Fetch listings depuis Supabase (basé sur les IDs) ────────────────────
   useEffect(() => {
-    if (localIds.length === 0) {
+    if (listingFavIds.length === 0) {
       setListings([]);
       setLoadingListings(false);
       return;
@@ -311,22 +360,22 @@ export default function FavorisClient() {
     supabase
       .from('listings')
       .select('id, title, price, location, listing_type, status, created_at, cover_url, is_urgent, sector_id, category:listing_categories(id, name, slug, icon), photos:listing_photos(url, display_order)')
-      .in('id', localIds)
+      .in('id', listingFavIds)
       .neq('status', 'archived')
       .then(({ data }) => {
-        // Preserve order of localIds
+        // Preserve order of listingFavIds
         const map = new Map((data || []).map(l => [l.id, l]));
-        const ordered = (localIds
+        const ordered = (listingFavIds
           .map(id => map.get(id))
           .filter(Boolean) as unknown) as ListingExt[];
         setListings(ordered);
         setLoadingListings(false);
       });
-  }, [localIds]);
+  }, [listingFavIds]);
 
-  // ── Fetch artisan favorites from Supabase ─────────────────────────────────
+  // ── Fetch artisan favorites depuis Supabase ───────────────────────────────
   useEffect(() => {
-    if (!profile?.id) {
+    if (!userId) {
       setLoadingArtisans(false);
       return;
     }
@@ -345,7 +394,7 @@ export default function FavorisClient() {
           gallery
         )
       `)
-      .eq('user_id', profile.id)
+      .eq('user_id', userId)
       .eq('target_type', 'artisan')
       .order('created_at', { ascending: false })
       .then(({ data, error }) => {
@@ -357,38 +406,61 @@ export default function FavorisClient() {
         }
         setLoadingArtisans(false);
       });
-  }, [profile?.id]);
+  }, [userId]);
 
   // ── Remove listing favorite ───────────────────────────────────────────────
-  const removeListingFav = useCallback((id: string) => {
-    const next = localIds.filter(x => x !== id);
-    writeLocalIds(next);
-    setLocalIds(next);
+  const removeListingFav = useCallback(async (id: string) => {
+    if (userId) {
+      // Connecté → supprimer en Supabase
+      const supabase = createClient();
+      await supabase
+        .from('user_favorites')
+        .delete()
+        .eq('user_id', userId)
+        .eq('target_id', id)
+        .eq('target_type', 'listing');
+    } else {
+      // Non connecté → localStorage
+      const next = listingFavIds.filter(x => x !== id);
+      writeLocalIds(next);
+    }
+    setListingFavIds(prev => prev.filter(x => x !== id));
     setListings(prev => prev.filter(l => l.id !== id));
     toast('Annonce retirée des favoris', { icon: '💔' });
-  }, [localIds]);
+  }, [userId, listingFavIds]);
 
   // ── Remove artisan favorite ───────────────────────────────────────────────
   const removeArtisanFav = useCallback(async (favId: string, artisanId: string) => {
-    if (!profile?.id) return;
+    if (!userId) return;
     const supabase = createClient();
     await supabase
       .from('user_favorites')
       .delete()
       .eq('id', favId)
-      .eq('user_id', profile.id);
+      .eq('user_id', userId);
     setArtisanFavs(prev => prev.filter(r => r.id !== favId));
     toast('Artisan retiré des favoris', { icon: '💔' });
-    void artisanId; // used implicitly
-  }, [profile?.id]);
+    void artisanId;
+  }, [userId]);
 
   // ── Clear all listings favorites ──────────────────────────────────────────
-  const clearAllListings = () => {
-    writeLocalIds([]);
-    setLocalIds([]);
+  const clearAllListings = useCallback(async () => {
+    if (userId) {
+      // Connecté → supprimer en Supabase
+      const supabase = createClient();
+      await supabase
+        .from('user_favorites')
+        .delete()
+        .eq('user_id', userId)
+        .eq('target_type', 'listing');
+    } else {
+      // Non connecté → localStorage
+      clearLocalIds();
+    }
+    setListingFavIds([]);
     setListings([]);
     toast('Tous les favoris annonces effacés', { icon: '🗑️' });
-  };
+  }, [userId]);
 
   // ── Tabs config ───────────────────────────────────────────────────────────
   const tabs: Array<{ id: Tab; label: string; icon: React.ReactNode; count: number }> = [
@@ -396,7 +468,7 @@ export default function FavorisClient() {
       id: 'annonces',
       label: 'Annonces',
       icon: <Tag className="w-4 h-4" />,
-      count: localIds.length,
+      count: listingFavIds.length,
     },
     {
       id: 'artisans',
@@ -435,7 +507,7 @@ export default function FavorisClient() {
           {/* Stats summary */}
           <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-white/15 backdrop-blur rounded-2xl p-4 text-center">
-              <p className="text-2xl font-black">{localIds.length}</p>
+              <p className="text-2xl font-black">{listingFavIds.length}</p>
               <p className="text-xs text-white/80 mt-0.5">Annonces</p>
             </div>
             <div className="bg-white/15 backdrop-blur rounded-2xl p-4 text-center">
@@ -443,7 +515,7 @@ export default function FavorisClient() {
               <p className="text-xs text-white/80 mt-0.5">Artisans</p>
             </div>
             <div className="bg-white/15 backdrop-blur rounded-2xl p-4 text-center">
-              <p className="text-2xl font-black">{localIds.length + artisanFavs.length}</p>
+              <p className="text-2xl font-black">{listingFavIds.length + artisanFavs.length}</p>
               <p className="text-xs text-white/80 mt-0.5">Total</p>
             </div>
             <div className="bg-white/15 backdrop-blur rounded-2xl p-4 text-center">
@@ -493,7 +565,7 @@ export default function FavorisClient() {
         {activeTab === 'annonces' && (
           <div>
             {/* Header with clear button */}
-            {localIds.length > 0 && (
+            {listingFavIds.length > 0 && (
               <div className="flex items-center justify-between mb-5">
                 <p className="text-sm text-gray-500">
                   <span className="font-bold text-gray-900">{listings.length}</span> annonce{listings.length !== 1 ? 's' : ''} sauvegardée{listings.length !== 1 ? 's' : ''}
@@ -509,9 +581,9 @@ export default function FavorisClient() {
             )}
 
             {/* Loading */}
-            {loadingListings && localIds.length > 0 && (
+            {loadingListings && listingFavIds.length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {[...Array(localIds.length)].map((_, i) => (
+                {[...Array(Math.min(listingFavIds.length, 8))].map((_, i) => (
                   <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
                     <div className="aspect-[4/3] bg-gray-200" />
                     <div className="p-3 space-y-2">
@@ -547,13 +619,21 @@ export default function FavorisClient() {
               />
             )}
 
-            {/* Info: localStorage notice */}
+            {/* Info: mode persistance */}
             {listings.length > 0 && (
               <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3">
                 <Bookmark className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
                 <div className="text-xs text-amber-700">
-                  <strong>Stockage local</strong> — vos annonces favorites sont enregistrées dans ce navigateur uniquement.
-                  Connectez-vous pour les synchroniser entre vos appareils (fonctionnalité à venir).
+                  {userId ? (
+                    <>
+                      <strong>Synchronisé sur tous vos appareils</strong> — vos favoris sont enregistrés dans votre compte et disponibles partout où vous êtes connecté.
+                    </>
+                  ) : (
+                    <>
+                      <strong>Stockage local</strong> — vos favoris sont enregistrés dans ce navigateur uniquement.{' '}
+                      <Link href="/connexion" className="underline font-semibold">Connectez-vous</Link> pour les synchroniser sur tous vos appareils.
+                    </>
+                  )}
                 </div>
               </div>
             )}
