@@ -31,6 +31,7 @@ import { getJobOffers } from '@/services/jobs/queries';
 import { JobOfferCard } from '@/components/jobs/JobOfferCard';
 import { JobFiltersClient } from './JobFiltersClient';
 import { SortSelectClient } from './SortSelectClient';
+import { SectorExplorerClient } from './SectorExplorerClient';
 import type { JobOfferFilters } from '@/types/jobs';
 import { JsonLd, breadcrumbSchema, faqSchema, itemListSchema, jobPostingSchema } from '@/components/seo/JsonLd';
 
@@ -173,7 +174,22 @@ export default async function OffresEmploiPage({ searchParams }: PageProps) {
         </div>
       </div>
 
-      {/* ── CONTENU PRINCIPAL ─────────────────────────────────────── */}
+      {/* ── BANDEAU EXPLORER PAR QUARTIER ─────────────────────────────── */}
+      <Suspense fallback={
+        <div className="bg-white border-b border-gray-100">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="h-24 bg-gray-100 rounded-2xl animate-pulse" />
+          </div>
+        </div>
+      }>
+        <SectorExplorerClient
+          totalOffers={total}
+          currentSectorId={filters.sectorId}
+          currentParams={sp as Record<string, string>}
+        />
+      </Suspense>
+
+            {/* ── CONTENU PRINCIPAL ─────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col lg:flex-row gap-6">
 
