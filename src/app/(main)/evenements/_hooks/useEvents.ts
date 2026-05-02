@@ -11,6 +11,7 @@ export function useEvents(profileId?: string) {
   const [events, setEvents]             = useState<LocalEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [dbReady, setDbReady]           = useState(true);
+  const [sectorCounts, setSectorCounts] = useState<Record<string, number>>({});
 
   const fetchEvents = useCallback(async () => {
     setLoadingEvents(true);
@@ -104,6 +105,23 @@ export function useEvents(profileId?: string) {
       }
 
       setEvents(enriched);
+
+      // Comptages par secteur (requête légère sans filtre secteur)
+      try {
+        const today2 = new Date().toISOString().split('T')[0];
+        const { data: sectorData } = await supabase
+          .from('events')
+          .select('sector_id')
+          .not('sector_id', 'is', null)
+          .in('status', ['a_venir', 'complet', 'reporte'])
+          .gte('event_date', today2);
+        const counts: Record<string, number> = {};
+        (sectorData || []).forEach((row: { sector_id: string }) => {
+          if (row.sector_id) counts[row.sector_id] = (counts[row.sector_id] || 0) + 1;
+        });
+        setSectorCounts(counts);
+      } catch { /* optional column */ }
+
     } catch (err) {
       console.error('fetchEvents error:', err);
       setDbReady(false);
@@ -150,5 +168,6 @@ export function useEvents(profileId?: string) {
     fetchEvents,
     handleJoin,
     handleEventStatusChange,
+    sectorCounts,
   };
 }

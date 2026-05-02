@@ -35,6 +35,7 @@ export default function EvenementsPage() {
   const {
     events, loadingEvents, dbReady, fetchEvents,
     handleJoin, handleEventStatusChange,
+    sectorCounts,
   } = useEvents(profile?.id);
 
   const {
@@ -224,6 +225,8 @@ export default function EvenementsPage() {
                   filterCat={filterCat} setFilterCat={setFilterCat}
                   filterStatus={filterStatus} setFilterStatus={setFilterStatus}
                   filterSector={filterSector} setFilterSector={setFilterSector}
+                  sectorCounts={sectorCounts}
+                  totalFiltered={filteredWithSaved.length}
                   searchQuery={searchQuery} setSearchQuery={setSearchQuery}
                   quickFilter={quickFilter} setQuickFilter={setQuickFilter}
                   showAdvFilters={showAdvFilters} setShowAdvFilters={setShowAdvFilters}
