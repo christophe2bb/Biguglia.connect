@@ -18,7 +18,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, X, MessageSquare, Bell, Search, PenLine } from 'lucide-react';
+import { Menu, X, MessageSquare, Bell, Search, PenLine, Heart } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { useUnreadCounts } from '@/hooks/useUnreadCounts';
@@ -139,6 +139,20 @@ export default function Navbar() {
                 >
                   <MessageSquare className="w-5 h-5" aria-hidden="true" />
                   <UnreadBadge count={unread.messages} />
+                </Link>
+
+                {/* Favoris (desktop) */}
+                <Link
+                  href="/favoris"
+                  className={cn(
+                    'hidden sm:flex relative p-2 rounded-xl transition-colors',
+                    pathname.startsWith('/favoris')
+                      ? 'bg-rose-50 text-rose-500'
+                      : 'text-gray-500 hover:bg-gray-100'
+                  )}
+                  aria-label="Mes favoris"
+                >
+                  <Heart className={`w-5 h-5 ${pathname.startsWith('/favoris') ? 'fill-rose-500 text-rose-500' : ''}`} aria-hidden="true" />
                 </Link>
 
                 {/* Notifications (desktop) */}

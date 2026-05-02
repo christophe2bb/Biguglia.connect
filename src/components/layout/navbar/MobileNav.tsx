@@ -4,7 +4,7 @@ import { useState, useId } from 'react';
 import Link from 'next/link';
 import {
   ChevronDown, Search, PenLine,
-  MessageSquare, Bell, Home, Activity,
+  MessageSquare, Bell, Home, Activity, Heart,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UNIVERS } from './univers';
@@ -147,6 +147,13 @@ export default function MobileNav({ profile, pathname, unread, onClose }: Props)
           <Link href="/recherche" onClick={onClose}
             className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
             <Search className="w-4 h-4 text-gray-400" aria-hidden="true" /> Rechercher
+          </Link>
+          <Link href="/favoris" onClick={onClose}
+            className={cn(
+              'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors',
+              pathname.startsWith('/favoris') ? 'text-rose-600 bg-rose-50' : 'text-gray-700 hover:bg-gray-50'
+            )}>
+            <Heart className={`w-4 h-4 ${pathname.startsWith('/favoris') ? 'fill-rose-500 text-rose-500' : 'text-rose-400'}`} aria-hidden="true" /> Mes favoris
           </Link>
           <Link href="/mes-echanges" onClick={onClose}
             className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-indigo-700 hover:bg-indigo-50">
