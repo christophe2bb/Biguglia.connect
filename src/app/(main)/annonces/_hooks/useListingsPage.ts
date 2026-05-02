@@ -53,6 +53,7 @@ export interface UseListingsPageReturn {
   currentPage: number;
   categoryCounts: Record<string, number>;
   sectorCounts: Record<string, number>;
+  allSectorCounts: Record<string, number>;
   activeFiltersCount: number;
   stats: { total: number; sale: number; free: number; urgent: number; exchange: number };
   // Filters
@@ -108,6 +109,9 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
   const categoriesRef = useRef<ListingCategory[]>([]);
   const [loading, setLoading]     = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  // Sector counts WITHOUT the sector filter applied — so window badges
+  // stay visible even when a sector is selected (FIX #6).
+  const [allSectorCounts, setAllSectorCounts] = useState<Record<string, number>>({});
 
   // Single filter state object with individual setters for ergonomics in JSX
   const [filters, setFilters] = useState<ListingsFilters>(DEFAULT_FILTERS);
@@ -158,9 +162,39 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
       });
   }, []);
 
+  // ── FIX #6 — allSectorCounts: fetch sector distribution ignoring filterSector ──
+  // Runs only when the non-sector filters change; keeps window badges visible
+  // even when a sector is active.
+  const { selectedCategory, selectedType, selectedStatus, sortBy, filterSector } = filters;
+
+  const fetchAllSectorCounts = useCallback(async () => {
+    const supabase = createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let q: any = supabase.from('listings').select('sector_id');
+    if (selectedStatus === 'active')        q = q.eq('status', 'active');
+    else if (selectedStatus === 'reserved') q = q.eq('status', 'reserved');
+    else if (selectedStatus === 'sold')     q = q.in('status', ['sold', 'given', 'exchanged']);
+    else if (selectedStatus === 'expired')  q = q.eq('status', 'expired');
+    else if (selectedStatus === 'archived') q = q.eq('status', 'archived');
+    else q = q.neq('status', 'archived');
+    if (selectedCategory) {
+      const cat = categoriesRef.current.find(c => c.slug === selectedCategory);
+      if (cat) q = q.eq('category_id', cat.id);
+    }
+    if (selectedType) q = q.eq('listing_type', selectedType);
+    // NOTE: filterSector intentionally NOT applied here
+    const { data } = await q.limit(500);
+    const counts: Record<string, number> = {};
+    for (const row of (data || []) as Array<{ sector_id?: string }>) {
+      if (row.sector_id) counts[row.sector_id] = (counts[row.sector_id] || 0) + 1;
+    }
+    setAllSectorCounts(counts);
+  }, [selectedCategory, selectedType, selectedStatus]);
+
+  useEffect(() => { fetchAllSectorCounts(); }, [fetchAllSectorCounts]);
+
   // ── FIX #1 + #3 — fetchData: photos limited + page reset folded in ─────────
   // Destructure only the server-side filter fields so useCallback deps stay minimal.
-  const { selectedCategory, selectedType, selectedStatus, sortBy, filterSector } = filters;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -297,6 +331,7 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
     currentPage,
     categoryCounts,
     sectorCounts,
+    allSectorCounts,
     activeFiltersCount,
     stats,
     filters,
