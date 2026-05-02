@@ -316,9 +316,9 @@ export default function FavorisClient() {
       .then(({ data }) => {
         // Preserve order of localIds
         const map = new Map((data || []).map(l => [l.id, l]));
-        const ordered = localIds
+        const ordered = (localIds
           .map(id => map.get(id))
-          .filter(Boolean) as ListingExt[];
+          .filter(Boolean) as unknown) as ListingExt[];
         setListings(ordered);
         setLoadingListings(false);
       });
