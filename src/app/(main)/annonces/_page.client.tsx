@@ -27,7 +27,7 @@ export default function AnnoncesPage() {
 
   const {
     categories, loading, filtered, paginated, totalPages, currentPage,
-    categoryCounts, sectorCounts, activeFiltersCount, stats, filters,
+    categoryCounts, allSectorCounts, activeFiltersCount, stats, filters,
     setSearch, setSelectedCategory, setSelectedType, setSelectedStatus,
     setSortBy, setFilterSector, setShowFavoritesOnly, setShowUrgentOnly,
     setShowFreeOnly, setShowAdvancedFilters, setCurrentPage, resetFilters,
@@ -89,7 +89,7 @@ export default function AnnoncesPage() {
               <p className="text-xs text-gray-500 mt-0.5">Cliquez sur un secteur pour filtrer les annonces</p>
             </div>
             <span className="text-xs text-gray-400 hidden sm:block">
-              {Object.values(sectorCounts).reduce((a, b) => a + b, 0)} annonces géolocalisées
+              {Object.values(allSectorCounts).reduce((a, b) => a + b, 0)} annonces géolocalisées
             </span>
           </div>
           <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
@@ -115,12 +115,12 @@ export default function AnnoncesPage() {
               <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
                 !filters.filterSector ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'
               }`}>
-                {page.listings.length}
+                {filtered.length}
               </span>
             </button>
 
             {SECTORS.map(sector => {
-              const count  = sectorCounts[sector.id] || 0;
+              const count  = allSectorCounts[sector.id] || 0;
               const colors = SECTOR_COLORS[sector.color];
               const active = filters.filterSector === sector.id;
               return (
@@ -143,13 +143,11 @@ export default function AnnoncesPage() {
                   }`}>
                     {sector.name}
                   </span>
-                  {count > 0 && (
-                    <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
-                      active ? colors.badgeSolid : 'bg-gray-100 text-gray-500'
-                    }`}>
-                      {count}
-                    </span>
-                  )}
+                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                    active ? colors.badgeSolid : count > 0 ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 text-gray-300'
+                  }`}>
+                    {count > 0 ? count : '–'}
+                  </span>
                   {active && (
                     <span className={`absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full ${colors.badgeSolid} flex items-center justify-center`}>
                       <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -398,7 +396,7 @@ export default function AnnoncesPage() {
                   <span className="text-xs font-bold bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{page.listings.length}</span>
                 </button>
                 {SECTORS.map(sector => {
-                  const count    = sectorCounts[sector.id] || 0;
+                  const count    = allSectorCounts[sector.id] || 0;
                   const colors   = SECTOR_COLORS[sector.color];
                   const isActive = filters.filterSector === sector.id;
                   return (
