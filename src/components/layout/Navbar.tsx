@@ -141,20 +141,6 @@ export default function Navbar() {
                   <UnreadBadge count={unread.messages} />
                 </Link>
 
-                {/* Favoris (desktop) */}
-                <Link
-                  href="/favoris"
-                  className={cn(
-                    'hidden sm:flex relative p-2 rounded-xl transition-colors',
-                    pathname.startsWith('/favoris')
-                      ? 'bg-rose-50 text-rose-500'
-                      : 'text-gray-500 hover:bg-gray-100'
-                  )}
-                  aria-label="Mes favoris"
-                >
-                  <Heart className={`w-5 h-5 ${pathname.startsWith('/favoris') ? 'fill-rose-500 text-rose-500' : ''}`} aria-hidden="true" />
-                </Link>
-
                 {/* Notifications (desktop) */}
                 <Link
                   href="/notifications"
@@ -197,6 +183,25 @@ export default function Navbar() {
                 </Link>
               </div>
             )}
+
+            {/* ❤️ Favoris — toujours visible, desktop + mobile */}
+            <Link
+              href="/favoris"
+              className={cn(
+                'relative p-2 rounded-xl transition-colors',
+                pathname.startsWith('/favoris')
+                  ? 'bg-rose-50 text-rose-500'
+                  : 'text-gray-500 hover:bg-gray-100'
+              )}
+              aria-label="Mes favoris"
+            >
+              <Heart
+                className={`w-5 h-5 transition-colors ${
+                  pathname.startsWith('/favoris') ? 'fill-rose-500 text-rose-500' : ''
+                }`}
+                aria-hidden="true"
+              />
+            </Link>
 
             {/* Icône recherche mobile */}
             <Link
