@@ -145,33 +145,63 @@ export function useNewEventForm(
 
       let eventId: string | null = null;
 
-      // Attempt 1: full payload
+      // Attempt 1: full payload (with price_type, price_amount, capacity, start_time)
       const { data: newEvent, error: evErr } = await supabase
         .from('events').insert(basePayload).select('id').single();
 
       if (!evErr && newEvent?.id) {
         eventId = newEvent.id;
       } else {
-        // Attempt 2: minimal fallback (avoids column-not-found errors on older schemas)
-        const minPayload = {
+        const isPriceColMissing = (evErr as { message?: string } | null)?.message?.includes('price_amount')
+          || (evErr as { message?: string } | null)?.message?.includes('price_type');
+
+        // Attempt 2: without price_amount/price_type (schema without those columns)
+        const minPayload: Record<string, unknown> = {
           author_id: profileId, title: form.title.trim(),
           description: form.description.trim() || null, category: form.category,
           event_date: form.event_date, start_time: form.start_time || '18:00',
           location: form.location.trim() || 'Biguglia',
           organizer_name: form.organizer_name.trim() || null,
           capacity: !form.is_unlimited && form.capacity ? parseInt(form.capacity) : null,
-          is_unlimited: form.is_unlimited, price_type: form.price_type,
-          price_amount: form.price_type === 'payant' && form.price_amount ? parseFloat(form.price_amount) : null,
+          is_unlimited: form.is_unlimited,
           registration_open: form.registration_open, status: 'a_venir', tags,
+          is_free: form.price_type === 'gratuit',
         };
+        // Only add price columns if the first error was NOT about missing columns
+        if (!isPriceColMissing) {
+          minPayload.price_type   = form.price_type;
+          minPayload.price_amount = form.price_type === 'payant' && form.price_amount ? parseFloat(form.price_amount) : null;
+        }
+        if (form.sector_id) minPayload.sector_id = form.sector_id;
+
         const { data: minEvent, error: minErr } = await supabase
           .from('events').insert(minPayload).select('id').single();
-        if (minErr) {
-          console.error('[Event création] Erreur Supabase :', minErr);
-          toast.error(`Erreur : ${minErr.message || "Impossible de créer l'événement"}`);
-          return;
+
+        if (!minErr && minEvent?.id) {
+          eventId = minEvent.id;
+        } else {
+          // Attempt 3: truly minimal — only core columns guaranteed to exist
+          const corePayload = {
+            author_id: profileId,
+            title: form.title.trim(),
+            description: form.description.trim() || null,
+            category: form.category,
+            event_date: form.event_date,
+            location: form.location.trim() || 'Biguglia',
+            organizer_name: form.organizer_name.trim() || null,
+            is_free: form.price_type === 'gratuit',
+            status: 'a_venir',
+            tags,
+          };
+          const { data: coreEvent, error: coreErr } = await supabase
+            .from('events').insert(corePayload).select('id').single();
+          if (coreErr) {
+            console.error('[Event création] Erreur Supabase :', coreErr);
+            toast.error(`Erreur : ${coreErr.message || "Impossible de créer l'événement"}`);
+            return;
+          }
+          eventId = coreEvent?.id ?? null;
         }
-        eventId = minEvent?.id ?? null;
       }
 
       if (!eventId) throw new Error("Pas d'ID événement retourné");

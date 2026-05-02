@@ -119,8 +119,11 @@ export function useEventForm(profileId: string | undefined, onSuccess: () => voi
       .single();
 
     if (error) {
-      // Fallback to minimal payload
-      const { data: ins2, error: e2 } = await supabase.from('events').insert({
+      const isPriceColMissing = error.message?.includes('price_amount')
+        || error.message?.includes('price_type');
+
+      // Attempt 2: without price_amount/price_type if those columns are missing
+      const fallbackPayload: Record<string, unknown> = {
         author_id: profileId,
         title: newEvent.title.trim(),
         description: newEvent.description.trim(),
@@ -134,8 +137,40 @@ export function useEventForm(profileId: string | undefined, onSuccess: () => voi
         price: !newEvent.is_free && newEvent.price ? parseFloat(newEvent.price) : null,
         tags: parsedTags,
         status: 'a_venir',
-      }).select('id').single();
-      if (e2) { toast.error(`Erreur : ${e2.message}`); setSubmittingEvent(false); return; }
+      };
+      if (!isPriceColMissing) {
+        fallbackPayload.price_type   = newEvent.is_free ? 'gratuit' : 'payant';
+        fallbackPayload.price_amount = !newEvent.is_free && newEvent.price ? parseFloat(newEvent.price) : null;
+      }
+      if (newEvent.sector_id) fallbackPayload.sector_id = newEvent.sector_id;
+
+      const { data: ins2, error: e2 } = await supabase
+        .from('events').insert(fallbackPayload).select('id').single();
+
+      if (e2) {
+        // Attempt 3: absolute minimal — only guaranteed core columns
+        const { data: ins3, error: e3 } = await supabase.from('events').insert({
+          author_id: profileId,
+          title: newEvent.title.trim(),
+          description: newEvent.description.trim(),
+          event_date: newEvent.event_date,
+          location: newEvent.location.trim() || 'Biguglia',
+          category: newEvent.category,
+          is_free: newEvent.is_free,
+          tags: parsedTags,
+          status: 'a_venir',
+        }).select('id').single();
+        if (e3) { toast.error(`Erreur : ${e3.message}`); setSubmittingEvent(false); return; }
+        if (ins3) {
+          await uploadEventPhotos(ins3.id);
+          toast.success('🎉 Événement publié !', { duration: 4000 });
+          resetForm();
+          onSuccess();
+          setSubmittingEvent(false);
+          return;
+        }
+      }
+
       if (ins2) {
         await uploadEventPhotos(ins2.id);
         toast.success('🎉 Événement publié !', { duration: 4000 });

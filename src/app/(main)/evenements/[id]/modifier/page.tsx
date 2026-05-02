@@ -158,7 +158,7 @@ export default function ModifierEvenementPage() {
         ? form.tags.split(',').map(t => t.trim()).filter(Boolean)
         : [];
 
-      const updates = {
+      const baseUpdates: Record<string, unknown> = {
         title: form.title.trim(),
         subtitle: form.subtitle.trim(),
         description: form.description.trim(),
@@ -184,11 +184,20 @@ export default function ModifierEvenementPage() {
         updated_at: new Date().toISOString(),
       };
 
-      // Try events table first, then local_events (fallback)
-      const { error: e1 } = await supabase.from('events').update(updates).eq('id', id);
+      // Try full update first; if price columns missing, retry without them
+      const { error: e1 } = await supabase.from('events').update(baseUpdates).eq('id', id);
       if (e1) {
-        const { error: e2 } = await supabase.from('local_events').update(updates).eq('id', id);
-        if (e2) { toast.error('Erreur lors de la mise à jour'); return; }
+        const isPriceColMissing = e1.message?.includes('price_amount') || e1.message?.includes('price_type');
+        if (isPriceColMissing) {
+          // Retry without price columns (schema hasn't been migrated yet)
+          const { price_type: _pt, price_amount: _pa, ...updatesNoPriceCol } = baseUpdates as Record<string, unknown> & { price_type: unknown; price_amount: unknown };
+          void _pt; void _pa;
+          const { error: e1b } = await supabase.from('events').update(updatesNoPriceCol).eq('id', id);
+          if (e1b) { toast.error('Erreur lors de la mise à jour'); return; }
+        } else {
+          const { error: e2 } = await supabase.from('local_events').update(baseUpdates).eq('id', id);
+          if (e2) { toast.error('Erreur lors de la mise à jour'); return; }
+        }
       }
 
       // Upload new photos — via /api/upload (magic-bytes validation côté serveur)
