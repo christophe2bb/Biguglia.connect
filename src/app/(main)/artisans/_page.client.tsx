@@ -104,10 +104,7 @@ function ArtisanCard({ artisan }: { artisan: EnrichedArtisan }) {
             </div>
 
             {/* Note — UserRatingBadge lit item_ratings (notes reçues) et ouvre le panel noteurs */}
-            <div
-              className="mt-3 pt-3 border-t border-gray-100"
-              onClick={e => e.preventDefault()}
-            >
+            <div className="mt-3 pt-3 border-t border-gray-100">
               {artisan.profile?.id ? (
                 <UserRatingBadge
                   userId={artisan.profile.id}

@@ -16,6 +16,7 @@
  *   _components/      — Stars, RatingForm, RatingSummary, PollPanel, ReviewList
  */
 
+import Image from 'next/image';
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { Star } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -138,7 +139,7 @@ interface RaterInfo {
  * Le badge est cliquable et ouvre un mini-panel listant tous les noteurs.
  */
 export function UserRatingBadge({
-  userId, artisanId, artisanType, showNoRating, className,
+  userId: _userId, artisanId, artisanType, showNoRating, className,
 }: {
   userId: string;
   artisanId?: string;          // id de artisan_profiles — pour lire les notes reçues
@@ -247,10 +248,9 @@ export function UserRatingBadge({
         <div
           ref={panelRef}
           role="dialog"
-          aria-modal="false"
+          aria-modal="true"
           aria-label="Liste des personnes ayant noté"
           className="absolute bottom-full left-0 mb-2 z-50 w-72 bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden"
-          onClick={e => e.stopPropagation()}
         >
           {/* En-tête */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-amber-50">
@@ -274,10 +274,13 @@ export function UserRatingBadge({
                 <div className="flex items-start gap-2">
                   {/* Avatar */}
                   {r.rater_avatar ? (
-                    <img
+                    <Image
                       src={r.rater_avatar}
                       alt={r.rater_name ?? 'avatar'}
+                      width={28}
+                      height={28}
                       className="w-7 h-7 rounded-full object-cover flex-shrink-0 mt-0.5"
+                      unoptimized
                     />
                   ) : (
                     <div className="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0 mt-0.5">
