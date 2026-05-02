@@ -16,7 +16,8 @@ import { CONDITION_LABELS } from '@/lib/utils';
 import { EQUIPMENT_STATUS_CONFIG, EquipmentStatus } from '@/lib/equipment';
 import type { EquipmentItemFull } from '@/lib/equipment';
 import SectionTracker from '@/components/ui/SectionTracker';
-import SectorFilter, { SectorBadge } from '@/components/ui/SectorFilter';
+import { SectorBadge } from '@/components/ui/SectorFilter';
+import { SECTORS, SECTOR_COLORS } from '@/lib/sectors';
 
 const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: 'disponible', label: '✅ Disponible uniquement' },
@@ -44,6 +45,7 @@ export default function MaterielPage() {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  const [sectorCounts, setSectorCounts] = useState<Record<string, number>>({});
 
   const catsRef = useRef<{ id: string; name: string; icon: string; slug: string }[]>([]);
 
@@ -96,6 +98,28 @@ export default function MaterielPage() {
     const total = count || 0;
     setTotalCount(total);
     setHasMore((pageIndex + 1) * PAGE_SIZE < total);
+
+    // Calcul des comptages par secteur (sans filtre secteur pour garder tous les badges visibles)
+    if (pageIndex === 0) {
+      const supabaseCounts = createClient();
+      let countQuery = supabaseCounts
+        .from('equipment_items')
+        .select('sector_id')
+        .not('sector_id', 'is', null);
+      if (selectedStatus !== 'all') countQuery = countQuery.eq('status', selectedStatus);
+      else countQuery = countQuery.neq('status', 'archive');
+      if (selectedCategory) {
+        const cat = currentCats.find((c) => c.slug === selectedCategory);
+        if (cat) countQuery = countQuery.eq('category_id', cat.id);
+      }
+      if (onlyFree) countQuery = countQuery.eq('is_free', true);
+      const { data: sectorData } = await countQuery;
+      const counts: Record<string, number> = {};
+      (sectorData || []).forEach((row: { sector_id: string }) => {
+        if (row.sector_id) counts[row.sector_id] = (counts[row.sector_id] || 0) + 1;
+      });
+      setSectorCounts(counts);
+    }
 
     if (pageIndex === 0) setLoading(false); else setLoadingMore(false);
   }, [selectedCategory, selectedStatus, onlyFree, filterSector]);
@@ -171,14 +195,86 @@ export default function MaterielPage() {
         </div>
       )}
 
-      {/* Filtre secteur */}
-      <div className="bg-white rounded-2xl border border-gray-100 px-4 pt-3 pb-2 mb-4">
-        <SectorFilter
-          value={filterSector}
-          onChange={setFilterSector}
-          compact
-          label="Secteur"
-        />
+      {/* ── Explorer par quartier ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 mb-4">
+        <div className="px-4 pt-4 pb-3">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-base font-black text-gray-900">🗺️ Explorer par quartier</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Cliquez sur un secteur pour filtrer le matériel</p>
+            </div>
+            <span className="text-xs text-gray-400 hidden sm:block">
+              {Object.values(sectorCounts).reduce((a, b) => a + b, 0)} matériels géolocalisés
+            </span>
+          </div>
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+            {/* Toute la ville */}
+            <button
+              type="button"
+              onClick={() => { setFilterSector(null); setPage(0); }}
+              className={`
+                flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3
+                transition-all duration-200 cursor-pointer
+                ${!filterSector
+                  ? 'bg-teal-50 border-teal-300 shadow-md scale-105'
+                  : 'bg-white border-gray-100 hover:bg-teal-50 hover:border-teal-200'
+                }
+              `}
+            >
+              <span className="text-2xl">🗺️</span>
+              <span className={`text-[10px] font-bold leading-tight text-center ${
+                !filterSector ? 'text-teal-700' : 'text-gray-700'
+              }`}>
+                Toute la ville
+              </span>
+              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                !filterSector ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-500'
+              }`}>
+                {filtered.length}
+              </span>
+            </button>
+
+            {SECTORS.map(sector => {
+              const count  = sectorCounts[sector.id] || 0;
+              const colors = SECTOR_COLORS[sector.color];
+              const active = filterSector === sector.id;
+              return (
+                <button
+                  key={sector.id}
+                  type="button"
+                  onClick={() => { setFilterSector(active ? null : sector.id); setPage(0); }}
+                  className={`
+                    relative flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3
+                    transition-all duration-200 cursor-pointer select-none
+                    ${active
+                      ? `${colors.bg} ${colors.border} shadow-md scale-105`
+                      : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200 hover:shadow-sm'
+                    }
+                  `}
+                >
+                  <span className="text-2xl">{sector.icon}</span>
+                  <span className={`text-[10px] font-bold leading-tight text-center ${
+                    active ? colors.text : 'text-gray-700'
+                  }`}>
+                    {sector.name}
+                  </span>
+                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                    active ? colors.badgeSolid : count > 0 ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 text-gray-300'
+                  }`}>
+                    {count > 0 ? count : '–'}
+                  </span>
+                  {active && (
+                    <span className={`absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full ${colors.badgeSolid} flex items-center justify-center`}>
+                      <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                      </svg>
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Filtres */}
