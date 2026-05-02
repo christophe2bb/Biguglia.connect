@@ -37,6 +37,7 @@ export function useLostFound(profileId?: string) {
     trouveCount:    data.trouveCount,
     identifieCount: data.identifieCount,
     restitueCount:  data.restitueCount,
+    sectorCounts:   data.sectorCounts,
     // Filtres
     ...filters,
     // Actions

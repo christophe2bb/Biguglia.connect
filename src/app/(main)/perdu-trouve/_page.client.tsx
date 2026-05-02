@@ -40,6 +40,7 @@ export default function PerduTrouvePage() {
     getSuggestedMatches,
     // stats
     perdusCount, trouveCount, identifieCount, restitueCount,
+    sectorCounts,
   } = useLostFound(profile?.id);
 
   // Initialise sector filter from profile on mount
@@ -161,6 +162,8 @@ export default function PerduTrouvePage() {
           activeCount={activeCount}
           historyCount={historyCount}
           filterSector={filterSector} setFilterSector={setFilterSector}
+          sectorCounts={sectorCounts}
+          totalItems={items.length}
           search={search} setSearch={setSearch}
           filterStatus={filterStatus} setFilterStatus={setFilterStatus}
           filterType={filterType} setFilterType={setFilterType}

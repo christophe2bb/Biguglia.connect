@@ -27,13 +27,15 @@ export type LFDataReturn = {
   trouveCount: number;
   identifieCount: number;
   restitueCount: number;
+  sectorCounts: Record<string, number>;
 };
 
 export function useLFData(filters: Filters): LFDataReturn {
   const supabase = useMemo(() => createClient(), []);
-  const [items, setItems]     = useState<LFItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dbReady, setDbReady] = useState(true);
+  const [items, setItems]           = useState<LFItem[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [dbReady, setDbReady]       = useState(true);
+  const [sectorCounts, setSectorCounts] = useState<Record<string, number>>({});
 
   const { flux, filterType, filterCat, filterStatus, filterSector, search } = filters;
 
@@ -102,6 +104,26 @@ export function useLFData(filters: Filters): LFDataReturn {
       : enriched;
 
     setItems(filtered as LFItem[]);
+
+    // Comptages par secteur — requête légère sans filtre secteur
+    try {
+      let countQ = supabase
+        .from('lost_found_items')
+        .select('sector_id')
+        .not('sector_id', 'is', null)
+        .neq('status', 'draft');
+      if (flux === 'actif') countQ = countQ.in('status', [...ACTIVE_STATUSES, ...ACTIVE_STATUSES_EN]);
+      else                  countQ = countQ.in('status', [...HISTORY_STATUSES, ...HISTORY_STATUSES_EN]);
+      if (filterType !== 'all') countQ = countQ.eq('type', filterType);
+      if (filterCat  !== 'all') countQ = countQ.eq('category', filterCat);
+      const { data: sectorData } = await countQ;
+      const counts: Record<string, number> = {};
+      (sectorData || []).forEach((row: { sector_id: string }) => {
+        if (row.sector_id) counts[row.sector_id] = (counts[row.sector_id] || 0) + 1;
+      });
+      setSectorCounts(counts);
+    } catch { /* optional column */ }
+
     setLoading(false);
   }, [flux, filterType, filterCat, filterStatus, filterSector, search, supabase]);
 
@@ -113,5 +135,6 @@ export function useLFData(filters: Filters): LFDataReturn {
   return {
     items, loading, dbReady, fetchItems,
     perdusCount, trouveCount, identifieCount, restitueCount,
+    sectorCounts,
   };
 }
