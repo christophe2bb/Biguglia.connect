@@ -314,40 +314,37 @@ export default function DemandesPageClient() {
     <div className="min-h-screen bg-gray-50">
 
       {/* ── HERO ── */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 text-white">
-        <div className="absolute inset-0 opacity-10 bg-dot-grid-lg" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+      <div className="bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 bg-white/20 rounded-xl"><Wrench className="w-5 h-5" /></div>
-                <span className="text-blue-200 font-semibold text-sm">Vie pratique · Entraide</span>
-              </div>
-              <h1 className="text-3xl sm:text-4xl font-black mb-2 leading-tight">Demandes d&apos;aide</h1>
-              <p className="text-blue-100 text-sm max-w-xl leading-relaxed">
+              <p className="text-emerald-100 text-sm font-medium mb-1">Vie pratique · Entraide</p>
+              <h1 className="text-3xl md:text-4xl font-black mb-2">🛠️ Demandes d&apos;aide</h1>
+              <p className="text-emerald-100 text-sm md:text-base max-w-xl">
                 Les habitants de Biguglia partagent leurs besoins — artisans, conseils, coups de main.
               </p>
-              <div className="flex flex-wrap gap-2 mt-4">
-                <span className="inline-flex items-center gap-1.5 bg-white/15 border border-white/20 rounded-full px-3 py-1.5 text-sm font-semibold">
-                  📋 {filtered.length} demande{filtered.length !== 1 ? 's' : ''}
-                </span>
-                {nbUrgent > 0 && (
-                  <span className="inline-flex items-center gap-1.5 bg-red-500/40 border border-white/20 rounded-full px-3 py-1.5 text-sm font-bold animate-pulse">
-                    🔥 {nbUrgent} urgent{nbUrgent !== 1 ? 's' : ''}
-                  </span>
-                )}
-                {nbNouveaux > 0 && (
-                  <span className="inline-flex items-center gap-1.5 bg-emerald-500/30 border border-white/20 rounded-full px-3 py-1.5 text-sm font-semibold">
-                    🆕 {nbNouveaux} nouvelle{nbNouveaux !== 1 ? 's' : ''}
-                  </span>
-                )}
-              </div>
             </div>
-            <Link href="/artisans/demande"
-              className="flex-shrink-0 inline-flex items-center gap-2 bg-white text-blue-700 font-black px-6 py-3 rounded-2xl hover:bg-blue-50 transition-colors shadow-lg text-sm">
-              <Plus className="w-4 h-4" /> Poster une demande
+            <Link
+              href="/artisans/demande"
+              className="flex-shrink-0 flex items-center gap-2 bg-white text-emerald-700 font-bold px-5 py-3 rounded-2xl hover:bg-emerald-50 transition shadow-lg shrink-0"
+            >
+              <Plus className="w-5 h-5" /> Poster une demande
             </Link>
+          </div>
+
+          {/* Stats bar — même format que les annonces */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8">
+            {[
+              { label: 'Demandes',  value: filtered.length,  icon: '📋' },
+              { label: 'Urgentes',  value: nbUrgent,         icon: '🔥' },
+              { label: 'Nouvelles', value: nbNouveaux,       icon: '🆕' },
+              { label: 'Résolues',  value: requests.filter(r => r.status === 'completed').length, icon: '✅' },
+            ].map(s => (
+              <div key={s.label} className="bg-white/10 backdrop-blur rounded-2xl px-4 py-3 text-center">
+                <div className="text-2xl font-black">{s.value}</div>
+                <div className="text-emerald-100 text-xs mt-0.5">{s.label}</div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
