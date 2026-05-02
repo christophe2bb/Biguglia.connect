@@ -69,6 +69,7 @@ export function useCollectionneurs(profileId?: string) {
   const [items,   setItems]   = useState<CollectionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [total,   setTotal]   = useState(0);
+  const [sectorCounts, setSectorCounts] = useState<Record<string, number>>({});
 
   // ── Active filter count (for badge) ──────────────────────────────────────
   const activeFiltersCount = [
@@ -193,6 +194,26 @@ export function useCollectionneurs(profileId?: string) {
       if (reset || page === 0) setItems(mapped);
       else setItems(prev => [...prev, ...mapped]);
       setTotal(count ?? mapped.length);
+
+      // Comptages par secteur (requête légère sans filtre secteur)
+      if (reset || page === 0) {
+        try {
+          let countQuery = supabase
+            .from('collection_items')
+            .select('sector_id')
+            .not('sector_id', 'is', null);
+          if (selectedStatus === 'actif') countQuery = countQuery.eq('status', 'actif');
+          else if (selectedStatus === 'reserve') countQuery = countQuery.in('status', ['actif', 'reserve']);
+          if (selectedMode !== 'all')   countQuery = countQuery.eq('mode', selectedMode);
+          if (selectedCat  !== 'all')   countQuery = countQuery.eq('category_id', selectedCat);
+          const { data: sectorData } = await countQuery;
+          const counts: Record<string, number> = {};
+          (sectorData || []).forEach((row: { sector_id: string }) => {
+            if (row.sector_id) counts[row.sector_id] = (counts[row.sector_id] || 0) + 1;
+          });
+          setSectorCounts(counts);
+        } catch { /* optional column */ }
+      }
     } finally {
       setLoading(false);
     }
@@ -273,5 +294,7 @@ export function useCollectionneurs(profileId?: string) {
     page, setPage,
     // Favorites
     handleFavoriteToggle,
+    // Sector counts
+    sectorCounts,
   };
 }

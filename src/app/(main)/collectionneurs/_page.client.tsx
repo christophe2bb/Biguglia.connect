@@ -131,7 +131,12 @@ export default function CollectionneursPage() {
           )}
 
           {/* Sector bar */}
-          <SectorBar filterSector={col.filterSector} setFilterSector={col.setFilterSector} />
+          <SectorBar
+            filterSector={col.filterSector}
+            setFilterSector={col.setFilterSector}
+            sectorCounts={col.sectorCounts}
+            totalFiltered={col.total}
+          />
 
           <div className="max-w-6xl mx-auto px-4 py-6">
             <div className="flex gap-6">

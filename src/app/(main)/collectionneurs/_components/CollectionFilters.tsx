@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import {
   SlidersHorizontal, LayoutGrid, List, Truck, MapPin, X,
 } from 'lucide-react';
-import SectorFilter from '@/components/ui/SectorFilter';
+import { SECTORS, SECTOR_COLORS } from '@/lib/sectors';
 import {
   MODE_CONFIG, CONDITION_CONFIG, RARITY_CONFIG,
   type CollectionMode, type RarityLevel, type ConditionLevel,
@@ -41,6 +41,8 @@ interface Props {
   // Sector
   filterSector: string | null;
   setFilterSector: (v: string | null) => void;
+  sectorCounts: Record<string, number>;
+  totalFiltered: number;
 }
 
 // ── Quick-mode toolbar + view toggle + filters button ─────────────────────────
@@ -265,15 +267,95 @@ export function AdvancedFilters({
   );
 }
 
-// ── Sector bar ────────────────────────────────────────────────────────────────
+// ── Sector Explorer banner ────────────────────────────────────────────────────
 export function SectorBar({
   filterSector,
   setFilterSector,
-}: Pick<Props, 'filterSector' | 'setFilterSector'>) {
+  sectorCounts,
+  totalFiltered,
+}: Pick<Props, 'filterSector' | 'setFilterSector' | 'sectorCounts' | 'totalFiltered'>) {
+  const totalGeolocated = Object.values(sectorCounts).reduce((a, b) => a + b, 0);
+
   return (
-    <div className="border-b border-gray-100 bg-white">
-      <div className="max-w-6xl mx-auto px-4 py-3">
-        <SectorFilter value={filterSector} onChange={setFilterSector} compact label="Secteur" />
+    <div className="bg-white border-b border-gray-100">
+      <div className="max-w-6xl mx-auto px-4 pt-4 pb-3">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-base font-black text-gray-900">🗺️ Explorer par quartier</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Cliquez sur un secteur pour filtrer les offres</p>
+          </div>
+          <span className="text-xs text-gray-400 hidden sm:block">
+            {totalGeolocated} offre{totalGeolocated !== 1 ? 's' : ''} géolocalisée{totalGeolocated !== 1 ? 's' : ''}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+          {/* Toute la ville */}
+          <button
+            type="button"
+            onClick={() => setFilterSector(null)}
+            className={`
+              flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3
+              transition-all duration-200 cursor-pointer
+              ${!filterSector
+                ? 'bg-amber-50 border-amber-300 shadow-md scale-105'
+                : 'bg-white border-gray-100 hover:bg-amber-50 hover:border-amber-200'
+              }
+            `}
+          >
+            <span className="text-2xl">🗺️</span>
+            <span className={`text-[10px] font-bold leading-tight text-center ${
+              !filterSector ? 'text-amber-700' : 'text-gray-700'
+            }`}>
+              Toute la ville
+            </span>
+            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+              !filterSector ? 'bg-amber-600 text-white' : 'bg-gray-100 text-gray-500'
+            }`}>
+              {totalFiltered}
+            </span>
+          </button>
+
+          {SECTORS.map(sector => {
+            const count  = sectorCounts[sector.id] || 0;
+            const colors = SECTOR_COLORS[sector.color];
+            const active = filterSector === sector.id;
+            return (
+              <button
+                key={sector.id}
+                type="button"
+                onClick={() => setFilterSector(active ? null : sector.id)}
+                className={`
+                  relative flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3
+                  transition-all duration-200 cursor-pointer select-none
+                  ${active
+                    ? `${colors.bg} ${colors.border} shadow-md scale-105`
+                    : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200 hover:shadow-sm'
+                  }
+                `}
+              >
+                <span className="text-2xl">{sector.icon}</span>
+                <span className={`text-[10px] font-bold leading-tight text-center ${
+                  active ? colors.text : 'text-gray-700'
+                }`}>
+                  {sector.name}
+                </span>
+                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                  active ? colors.badgeSolid : count > 0 ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 text-gray-300'
+                }`}>
+                  {count > 0 ? count : '–'}
+                </span>
+                {active && (
+                  <span className={`absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full ${colors.badgeSolid} flex items-center justify-center`}>
+                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                    </svg>
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
