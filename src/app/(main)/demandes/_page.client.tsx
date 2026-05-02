@@ -8,10 +8,9 @@ import { useAuthStore } from '@/lib/auth-store';
 import { formatRelative } from '@/lib/utils';
 import {
   Search, Plus, Loader2, AlertCircle, Clock, Flame,
-  Wrench, MessageSquare, ChevronRight, Filter, Briefcase, Lock,
-  MapPin,
+  Wrench, ChevronRight, Filter, Briefcase, Lock, MapPin,
 } from 'lucide-react';
-import SectorFilter from '@/components/ui/SectorFilter';
+import { SECTORS, SECTOR_COLORS } from '@/lib/sectors';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ServiceRequest = {
@@ -28,14 +27,13 @@ type ServiceRequest = {
   resident?: { full_name: string; avatar_url?: string } | null;
   category?: { id: string; name: string; icon: string } | null;
   photos?: { url: string }[];
-  comment_count?: number;
 };
 
 // ─── Configs ──────────────────────────────────────────────────────────────────
 const URGENCY_CONFIG = {
-  normal:      { label: 'Normal',      dot: 'bg-gray-400',    pill: 'bg-gray-100 text-gray-600',     icon: <Clock className="w-3 h-3" />,       border: 'border-gray-200' },
-  urgent:      { label: 'Urgent',      dot: 'bg-orange-500',  pill: 'bg-orange-100 text-orange-700', icon: <AlertCircle className="w-3 h-3" />, border: 'border-orange-200' },
-  tres_urgent: { label: 'Très urgent', dot: 'bg-red-500',     pill: 'bg-red-100 text-red-700',       icon: <Flame className="w-3 h-3" />,        border: 'border-red-200' },
+  normal:      { label: 'Normal',      pill: 'bg-gray-800/70 text-white',    icon: <Clock className="w-3 h-3" /> },
+  urgent:      { label: 'Urgent',      pill: 'bg-orange-600/90 text-white',  icon: <AlertCircle className="w-3 h-3" /> },
+  tres_urgent: { label: 'Très urgent', pill: 'bg-red-600/90 text-white',     icon: <Flame className="w-3 h-3" /> },
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -47,104 +45,160 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   cancelled:  { label: 'Annulée',       color: 'bg-gray-100 text-gray-400' },
 };
 
-// ─── Carte demande ────────────────────────────────────────────────────────────
+// ─── Composant fenêtre-secteur ────────────────────────────────────────────────
+function SectorWindow({
+  sector,
+  count,
+  isActive,
+  onClick,
+}: {
+  sector: typeof SECTORS[0];
+  count: number;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  const colors = SECTOR_COLORS[sector.color];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`
+        relative flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3
+        transition-all duration-200 cursor-pointer select-none
+        ${isActive
+          ? `${colors.bg} ${colors.border} shadow-md scale-105`
+          : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200 hover:shadow-sm'
+        }
+      `}
+    >
+      <span className="text-2xl">{sector.icon}</span>
+      <span className={`text-[10px] font-bold leading-tight text-center ${isActive ? colors.text : 'text-gray-700'}`}>
+        {sector.name}
+      </span>
+      {count > 0 && (
+        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${isActive ? colors.badgeSolid : 'bg-gray-100 text-gray-500'}`}>
+          {count}
+        </span>
+      )}
+      {isActive && (
+        <span className={`absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full ${colors.badgeSolid} flex items-center justify-center`}>
+          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+          </svg>
+        </span>
+      )}
+    </button>
+  );
+}
+
+// ─── Carte demande — style fenêtre annonces ───────────────────────────────────
 function RequestCard({ req, isPrivate = false }: { req: ServiceRequest; isPrivate?: boolean }) {
-  const urg  = URGENCY_CONFIG[req.urgency] ?? URGENCY_CONFIG.normal;
-  const st   = STATUS_CONFIG[req.status]   ?? STATUS_CONFIG.submitted;
+  const urg   = URGENCY_CONFIG[req.urgency] ?? URGENCY_CONFIG.normal;
+  const st    = STATUS_CONFIG[req.status]   ?? STATUS_CONFIG.submitted;
   const photo = req.photos?.[0]?.url;
   const name  = req.resident?.full_name ?? 'Habitant';
-  const initial = name[0]?.toUpperCase() ?? '?';
+  const sector = req.sector_id ? SECTORS.find(s => s.id === req.sector_id) : null;
+  const sectorColors = sector ? SECTOR_COLORS[sector.color] : null;
 
   return (
-    <Link
-      href={`/demandes/${req.id}`}
-      className={`group block bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden ${urg.border}`}
-    >
-      {/* ── Bandeau urgence (très urgent seulement) ── */}
-      {req.urgency === 'tres_urgent' && req.status !== 'completed' && req.status !== 'cancelled' && (
-        <div className="flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-red-500 to-orange-500 text-white text-xs font-black">
-          <Flame className="w-3.5 h-3.5 flex-shrink-0" />
-          TRÈS URGENT — Aide recherchée maintenant
-        </div>
-      )}
+    <Link href={`/demandes/${req.id}`} className="block group">
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-gray-200 transition-all duration-200">
 
-      <div className="flex gap-0">
-
-        {/* ── Bande colorée gauche (catégorie) ── */}
-        <div className="w-1.5 flex-shrink-0 bg-gradient-to-b from-blue-500 to-indigo-500 rounded-l-none" />
-
-        {/* ── Miniature photo ou icône ── */}
-        <div className="relative flex-shrink-0 w-20 h-auto min-h-[88px] bg-blue-50 flex items-center justify-center overflow-hidden">
+        {/* ── Zone photo — aspect 4/3 ── */}
+        <div className="relative aspect-[4/3] overflow-hidden">
           {photo ? (
-            <Image src={photo} alt="" fill sizes="80px" className="object-cover group-hover:scale-105 transition-transform duration-300" />
+            <Image
+              src={photo}
+              alt={req.title}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
+            />
           ) : (
-            <span className="text-3xl select-none">{req.category?.icon ?? '🔧'}</span>
+            <div className="w-full h-full bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+              <span className="text-6xl opacity-30">{req.category?.icon ?? '🔧'}</span>
+            </div>
           )}
-        </div>
 
-        {/* ── Contenu principal ── */}
-        <div className="flex-1 min-w-0 p-4">
+          {/* Gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
-          {/* Ligne 1 : badges */}
-          <div className="flex flex-wrap items-center gap-1.5 mb-2">
+          {/* Badge urgence haut gauche */}
+          <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+            <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-black rounded-full shadow ${urg.pill}`}>
+              {urg.icon} {urg.label}
+            </span>
             {isPrivate && (
-              <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-black rounded-full shadow bg-indigo-600 text-white">
                 <Lock className="w-2.5 h-2.5" /> Devis privé
               </span>
             )}
-            <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${urg.pill}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${urg.dot} inline-block`} />
-              {urg.label}
-            </span>
-            {req.category && (
-              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full font-medium">
-                {req.category.icon} {req.category.name}
+            {req.urgency === 'tres_urgent' && req.status !== 'completed' && req.status !== 'cancelled' && (
+              <span className="inline-block px-2 py-0.5 text-[10px] font-black rounded-full shadow bg-red-500 text-white animate-pulse">
+                ⚡ URGENT
               </span>
             )}
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${st.color}`}>
+          </div>
+
+          {/* Badge statut haut droite */}
+          <div className="absolute top-3 right-3">
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-full shadow ${st.color}`}>
               {st.label}
             </span>
           </div>
 
-          {/* Ligne 2 : titre */}
-          <h2 className="font-bold text-gray-900 text-sm leading-snug mb-1 group-hover:text-blue-700 transition-colors line-clamp-1">
-            {req.title}
-          </h2>
+          {/* Titre + catégorie en bas */}
+          <div className="absolute bottom-3 left-3 right-3">
+            <p className="text-white font-black text-sm leading-tight drop-shadow line-clamp-2">
+              {req.title}
+            </p>
+            {req.category?.name && (
+              <p className="text-white/80 text-xs mt-0.5">
+                {req.category.icon} {req.category.name}
+              </p>
+            )}
+          </div>
+        </div>
 
-          {/* Ligne 3 : description */}
-          <p className="text-gray-500 text-xs leading-relaxed line-clamp-2 mb-3">
+        {/* ── Footer ── */}
+        <div className="p-3">
+          {/* Description */}
+          <p className="text-xs text-gray-500 line-clamp-2 mb-2 leading-relaxed">
             {req.description}
           </p>
 
-          {/* Ligne 4 : auteur + date + localisation + CTA */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              {/* Avatar */}
+          {/* Auteur + date */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 min-w-0">
               {req.resident?.avatar_url ? (
-                <div className="relative w-6 h-6 rounded-full overflow-hidden flex-shrink-0">
-                  <Image src={req.resident.avatar_url} alt={name} fill sizes="24px" className="object-cover" />
+                <div className="relative w-5 h-5 rounded-full overflow-hidden flex-shrink-0">
+                  <Image src={req.resident.avatar_url} alt={name} fill sizes="20px" className="object-cover" />
                 </div>
               ) : (
-                <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
-                  <span className="text-white text-[10px] font-black">{initial}</span>
+                <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-[9px] font-black">{name[0]?.toUpperCase() ?? '?'}</span>
                 </div>
               )}
               <span className="text-xs font-semibold text-gray-700 truncate">{name}</span>
-              <span className="text-xs text-gray-400 flex-shrink-0">{formatRelative(req.created_at)}</span>
-              {req.address && (
-                <span className="hidden sm:flex items-center gap-0.5 text-xs text-gray-400 flex-shrink-0">
-                  <MapPin className="w-3 h-3" />{req.address}
+            </div>
+            <span className="text-xs text-gray-400 flex-shrink-0">{formatRelative(req.created_at)}</span>
+          </div>
+
+          {/* Localisation / secteur */}
+          {(sector || req.address) && (
+            <div className="flex items-center gap-1 mt-1.5">
+              {sector && sectorColors ? (
+                <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${sectorColors.badge}`}>
+                  {sector.icon} {sector.name}
                 </span>
+              ) : (
+                <>
+                  <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                  <span className="text-xs text-gray-400 truncate">{req.address}</span>
+                </>
               )}
             </div>
-
-            {/* CTA */}
-            <span className="flex-shrink-0 inline-flex items-center gap-1 text-xs font-bold text-blue-600 group-hover:text-blue-800 transition-colors">
-              <MessageSquare className="w-3.5 h-3.5" />
-              {isPrivate ? 'Voir le devis' : 'Répondre'}
-              <ChevronRight className="w-3.5 h-3.5" />
-            </span>
-          </div>
+          )}
         </div>
       </div>
     </Link>
@@ -157,19 +211,19 @@ export default function DemandesPageClient() {
   const supabaseRef = useRef(createClient());
   const supabase    = supabaseRef.current;
 
-  const [activeTab,      setActiveTab]      = useState<'public' | 'mes_devis'>('public');
-  const [requests,       setRequests]       = useState<ServiceRequest[]>([]);
-  const [mesDevis,       setMesDevis]       = useState<ServiceRequest[]>([]);
-  const [loading,        setLoading]        = useState(true);
-  const [loadingDevis,   setLoadingDevis]   = useState(false);
-  const [search,         setSearch]         = useState('');
-  const [filterUrgency,  setFilterUrgency]  = useState('all');
-  const [filterStatus,   setFilterStatus]   = useState('open');
-  const [filterSector,   setFilterSector]   = useState<string | null>(null);
+  const [activeTab,     setActiveTab]     = useState<'public' | 'mes_devis'>('public');
+  const [requests,      setRequests]      = useState<ServiceRequest[]>([]);
+  const [mesDevis,      setMesDevis]      = useState<ServiceRequest[]>([]);
+  const [loading,       setLoading]       = useState(true);
+  const [loadingDevis,  setLoadingDevis]  = useState(false);
+  const [search,        setSearch]        = useState('');
+  const [filterUrgency, setFilterUrgency] = useState('all');
+  const [filterStatus,  setFilterStatus]  = useState('open');
+  const [filterSector,  setFilterSector]  = useState<string | null>(null);
 
   const isArtisan = profile?.role === 'artisan_pending' || profile?.role === 'artisan_verified';
 
-  // ── Charger les demandes publiques ────────────────────────────────────────
+  // ── Charger les demandes publiques ──────────────────────────────────────────
   const fetchRequests = useCallback(async () => {
     setLoading(true);
     try {
@@ -185,33 +239,27 @@ export default function DemandesPageClient() {
         .order('created_at', { ascending: false })
         .is('artisan_id', null)
         .limit(50);
-      if (filterStatus === 'open')     q = q.in('status', ['submitted', 'viewed', 'replied']);
+      if (filterStatus === 'open')          q = q.in('status', ['submitted', 'viewed', 'replied']);
       else if (filterStatus === 'resolved') q = q.in('status', ['completed', 'scheduled']);
-      if (filterUrgency !== 'all')     q = q.eq('urgency', filterUrgency);
+      if (filterUrgency !== 'all')          q = q.eq('urgency', filterUrgency);
 
       let { data, error } = await q;
 
       if (error && (error as { code?: string }).code === '42703') {
-        let q2 = supabase
-          .from('service_requests')
-          .select(SELECT)
-          .order('created_at', { ascending: false })
-          .limit(50);
+        let q2 = supabase.from('service_requests').select(SELECT)
+          .order('created_at', { ascending: false }).limit(50);
         if (filterStatus === 'open')          q2 = q2.in('status', ['submitted', 'viewed', 'replied']);
         else if (filterStatus === 'resolved') q2 = q2.in('status', ['completed', 'scheduled']);
         if (filterUrgency !== 'all')          q2 = q2.eq('urgency', filterUrgency);
-        const fb = await q2;
-        data  = fb.data;
-        error = fb.error;
+        const fb = await q2; data = fb.data; error = fb.error;
       }
 
-      if (error) { setRequests([]); }
-      else       { setRequests((data as unknown as ServiceRequest[]) || []); }
+      setRequests(error ? [] : (data as unknown as ServiceRequest[]) || []);
     } catch { setRequests([]); }
     finally  { setLoading(false); }
   }, [supabase, filterStatus, filterUrgency]);
 
-  // ── Charger les devis privés ──────────────────────────────────────────────
+  // ── Charger les devis privés ────────────────────────────────────────────────
   const fetchMesDevis = useCallback(async () => {
     if (!profile?.id) return;
     setLoadingDevis(true);
@@ -219,7 +267,8 @@ export default function DemandesPageClient() {
       const { data, error } = await supabase
         .from('service_requests')
         .select(`
-          id, title, description, urgency, address, status, created_at, resident_id, artisan_id, sector_id,
+          id, title, description, urgency, address, status, created_at,
+          resident_id, artisan_id, sector_id,
           resident:profiles!service_requests_resident_id_fkey(full_name, avatar_url),
           category:trade_categories(id, name, icon),
           photos:service_request_photos(url)
@@ -227,9 +276,7 @@ export default function DemandesPageClient() {
         .not('artisan_id', 'is', null)
         .order('created_at', { ascending: false })
         .limit(50);
-
-      if (error) { setMesDevis([]); }
-      else       { setMesDevis((data as unknown as ServiceRequest[]) || []); }
+      setMesDevis(error ? [] : (data as unknown as ServiceRequest[]) || []);
     } catch { setMesDevis([]); }
     finally  { setLoadingDevis(false); }
   }, [supabase, profile?.id]);
@@ -241,9 +288,10 @@ export default function DemandesPageClient() {
 
   const filtered = requests.filter(r => {
     if (filterSector && r.sector_id !== filterSector) return false;
-    if (search && !r.title.toLowerCase().includes(search.toLowerCase()) &&
-        !r.description.toLowerCase().includes(search.toLowerCase()) &&
-        !r.category?.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search &&
+      !r.title.toLowerCase().includes(search.toLowerCase()) &&
+      !r.description.toLowerCase().includes(search.toLowerCase()) &&
+      !r.category?.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
@@ -253,33 +301,33 @@ export default function DemandesPageClient() {
     r.description.toLowerCase().includes(search.toLowerCase())
   );
 
-  // ── Compteurs KPI ─────────────────────────────────────────────────────────
-  const nbUrgent    = filtered.filter(r => r.urgency === 'urgent' || r.urgency === 'tres_urgent').length;
-  const nbNouveaux  = filtered.filter(r => r.status === 'submitted').length;
+  // Compteurs par secteur
+  const sectorCounts = SECTORS.reduce<Record<string, number>>((acc, s) => {
+    acc[s.id] = requests.filter(r => r.sector_id === s.id).length;
+    return acc;
+  }, {});
+
+  const nbUrgent   = filtered.filter(r => r.urgency === 'urgent' || r.urgency === 'tres_urgent').length;
+  const nbNouveaux = filtered.filter(r => r.status === 'submitted').length;
 
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* ── HERO ──────────────────────────────────────────────────────────── */}
+      {/* ── HERO ── */}
       <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 text-white">
         <div className="absolute inset-0 opacity-10 bg-dot-grid-lg" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 bg-white/20 rounded-xl">
-                  <Wrench className="w-5 h-5" />
-                </div>
+                <div className="p-2 bg-white/20 rounded-xl"><Wrench className="w-5 h-5" /></div>
                 <span className="text-blue-200 font-semibold text-sm">Vie pratique · Entraide</span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-black mb-2 leading-tight">Demandes d&apos;aide</h1>
               <p className="text-blue-100 text-sm max-w-xl leading-relaxed">
                 Les habitants de Biguglia partagent leurs besoins — artisans, conseils, coups de main.
-                Consultez, répondez, aidez.
               </p>
-
-              {/* KPIs */}
               <div className="flex flex-wrap gap-2 mt-4">
                 <span className="inline-flex items-center gap-1.5 bg-white/15 border border-white/20 rounded-full px-3 py-1.5 text-sm font-semibold">
                   📋 {filtered.length} demande{filtered.length !== 1 ? 's' : ''}
@@ -296,37 +344,80 @@ export default function DemandesPageClient() {
                 )}
               </div>
             </div>
-
-            <Link
-              href="/artisans/demande"
-              className="flex-shrink-0 inline-flex items-center gap-2 bg-white text-blue-700 font-black px-6 py-3 rounded-2xl hover:bg-blue-50 transition-colors shadow-lg text-sm"
-            >
+            <Link href="/artisans/demande"
+              className="flex-shrink-0 inline-flex items-center gap-2 bg-white text-blue-700 font-black px-6 py-3 rounded-2xl hover:bg-blue-50 transition-colors shadow-lg text-sm">
               <Plus className="w-4 h-4" /> Poster une demande
             </Link>
           </div>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* ── Fenêtres secteurs ── */}
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-base font-black text-gray-900">🗺️ Explorer par quartier</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Cliquez pour filtrer les demandes</p>
+            </div>
+            <span className="text-xs text-gray-400 hidden sm:block">
+              {Object.values(sectorCounts).reduce((a, b) => a + b, 0)} demandes géolocalisées
+            </span>
+          </div>
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+            {/* Toute la ville */}
+            <button
+              type="button"
+              onClick={() => setFilterSector(null)}
+              className={`
+                flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3
+                transition-all duration-200 cursor-pointer
+                ${!filterSector
+                  ? 'bg-blue-50 border-blue-300 shadow-md scale-105'
+                  : 'bg-white border-gray-100 hover:bg-blue-50 hover:border-blue-200'
+                }
+              `}
+            >
+              <span className="text-2xl">🗺️</span>
+              <span className={`text-[10px] font-bold leading-tight text-center ${!filterSector ? 'text-blue-700' : 'text-gray-700'}`}>
+                Tous
+              </span>
+              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${!filterSector ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                {requests.length}
+              </span>
+            </button>
 
-        {/* ── Onglets artisan ─────────────────────────────────────────────── */}
+            {SECTORS.map(sector => (
+              <SectorWindow
+                key={sector.id}
+                sector={sector}
+                count={sectorCounts[sector.id] || 0}
+                isActive={filterSector === sector.id}
+                onClick={() => setFilterSector(filterSector === sector.id ? null : sector.id)}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        {/* ── Onglets artisan ── */}
         {isArtisan && (
           <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 mb-6 w-fit">
             <button type="button" onClick={() => setActiveTab('public')}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-colors ${
                 activeTab === 'public' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
+              }`}>
               <Wrench className="w-4 h-4" /> Demandes publiques
             </button>
             <button type="button" onClick={() => setActiveTab('mes_devis')}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-colors ${
                 activeTab === 'mes_devis' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
+              }`}>
               <Briefcase className="w-4 h-4" /> Mes devis reçus
               {mesDevis.filter(d => d.status === 'submitted').length > 0 && (
-                <span className="bg-indigo-600 text-white text-xs font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                <span className="bg-indigo-600 text-white text-xs font-black px-1.5 py-0.5 rounded-full">
                   {mesDevis.filter(d => d.status === 'submitted').length}
                 </span>
               )}
@@ -334,83 +425,89 @@ export default function DemandesPageClient() {
           </div>
         )}
 
-        {/* ══ ONGLET DEMANDES PUBLIQUES ═════════════════════════════════════ */}
+        {/* ══ DEMANDES PUBLIQUES ═══════════════════════════════════════════ */}
         {activeTab === 'public' && (
           <>
-            {/* Filtre secteur */}
-            <SectorFilter
-              value={filterSector}
-              onChange={setFilterSector}
-              showAll={true}
-              compact={true}
-              label="Secteur"
-              className="mb-4"
-            />
-
             {/* Barre recherche + filtres */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-6 flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-6">
+              <div className="relative mb-3">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Rechercher une demande…"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400"
+                <input type="text" placeholder="Rechercher (titre, catégorie, secteur, description…)"
+                  value={search} onChange={e => setSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-              <div className="flex gap-2 flex-wrap">
-                <div className="flex items-center gap-1.5">
-                  <Filter className="w-4 h-4 text-gray-400" />
-                  <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-                    className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
-                    <option value="open">En cours</option>
-                    <option value="resolved">Résolues</option>
-                    <option value="all">Toutes</option>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { val: 'all',      label: '📋 Toutes' },
+                  { val: 'open',     label: '⏳ En cours' },
+                  { val: 'resolved', label: '✅ Résolues' },
+                ].map(chip => (
+                  <button key={chip.val} type="button"
+                    onClick={() => setFilterStatus(chip.val)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                      filterStatus === chip.val
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}>
+                    {chip.label}
+                  </button>
+                ))}
+                <div className="flex items-center gap-1.5 ml-auto">
+                  <Filter className="w-3.5 h-3.5 text-gray-400" />
+                  <select value={filterUrgency} onChange={e => setFilterUrgency(e.target.value)}
+                    className="text-xs border border-gray-200 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white font-medium">
+                    <option value="all">Toutes urgences</option>
+                    <option value="tres_urgent">🔴 Très urgent</option>
+                    <option value="urgent">🟠 Urgent</option>
+                    <option value="normal">⚪ Normal</option>
                   </select>
                 </div>
-                <select value={filterUrgency} onChange={e => setFilterUrgency(e.target.value)}
-                  className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
-                  <option value="all">Toutes urgences</option>
-                  <option value="tres_urgent">🔴 Très urgent</option>
-                  <option value="urgent">🟠 Urgent</option>
-                  <option value="normal">⚪ Normal</option>
-                </select>
               </div>
             </div>
 
-            {/* Compteur résultats */}
+            {/* Compteur */}
             {!loading && filtered.length > 0 && (
-              <p className="text-sm text-gray-500 font-medium mb-4">
-                {filtered.length} demande{filtered.length > 1 ? 's' : ''} trouvée{filtered.length > 1 ? 's' : ''}
+              <p className="text-sm text-gray-500 mb-4 font-medium">
+                {filtered.length} demande{filtered.length > 1 ? 's' : ''}
+                {search && ` pour « ${search} »`}
               </p>
             )}
 
-            {/* Liste */}
+            {/* Grille 3 colonnes */}
             {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
+                    <div className="aspect-[4/3] bg-gray-200" />
+                    <div className="p-3 space-y-2">
+                      <div className="h-3 bg-gray-200 rounded w-3/4" />
+                      <div className="h-3 bg-gray-100 rounded w-1/2" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : filtered.length === 0 ? (
-              <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
-                <Wrench className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                <p className="text-gray-500 font-semibold text-lg mb-2">
-                  {search ? 'Aucune demande pour cette recherche' : 'Aucune demande pour l\'instant'}
+              <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+                <div className="text-5xl mb-4">🔧</div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Aucune demande trouvée</h3>
+                <p className="text-gray-500 text-sm mb-6">
+                  {search ? 'Essayez avec d\'autres termes.' : 'Soyez le premier à poster une demande !'}
                 </p>
                 <Link href="/artisans/demande"
-                  className="inline-flex items-center gap-2 mt-4 bg-blue-600 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-blue-700 transition-colors">
+                  className="inline-flex items-center gap-2 bg-blue-600 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-blue-700 transition-colors">
                   <Plus className="w-4 h-4" /> Poster la première demande
                 </Link>
               </div>
             ) : (
-              <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filtered.map(req => <RequestCard key={req.id} req={req} />)}
               </div>
             )}
           </>
         )}
 
-        {/* ══ ONGLET MES DEVIS REÇUS ═══════════════════════════════════════ */}
+        {/* ══ MES DEVIS REÇUS ══════════════════════════════════════════════ */}
         {activeTab === 'mes_devis' && isArtisan && (
           <>
             <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 mb-6 flex gap-3">
@@ -423,24 +520,22 @@ export default function DemandesPageClient() {
                 </p>
               </div>
             </div>
-
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-6">
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-6">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input type="text" placeholder="Rechercher dans mes devis…"
                   value={search} onChange={e => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 />
               </div>
             </div>
-
             {loadingDevis ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
               </div>
             ) : filteredDevis.length === 0 ? (
-              <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
-                <Briefcase className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+              <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+                <div className="text-5xl mb-4">📋</div>
                 <p className="text-gray-500 font-semibold text-lg mb-2">
                   {search ? 'Aucun devis pour cette recherche' : 'Aucun devis reçu pour l\'instant'}
                 </p>
@@ -449,14 +544,14 @@ export default function DemandesPageClient() {
                 </p>
               </div>
             ) : (
-              <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredDevis.map(req => <RequestCard key={req.id} req={req} isPrivate />)}
               </div>
             )}
           </>
         )}
 
-        {/* ── Bannière connexion ─────────────────────────────────────────── */}
+        {/* ── Bannière connexion ── */}
         {!profile && (
           <div className="mt-8 bg-blue-50 border border-blue-200 rounded-2xl p-5 flex flex-col sm:flex-row items-center gap-4">
             <div className="flex-1">

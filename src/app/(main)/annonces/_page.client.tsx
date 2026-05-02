@@ -38,7 +38,6 @@ export default function AnnoncesPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-
   return (
     <div className="min-h-screen bg-gray-50">
       <SectionTracker section="annonces" />
@@ -77,6 +76,90 @@ export default function AnnoncesPage() {
                 <div className="text-blue-100 text-xs mt-0.5">{s.label}</div>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Explorer par quartier ── */}
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-base font-black text-gray-900">🗺️ Explorer par quartier</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Cliquez sur un secteur pour filtrer les annonces</p>
+            </div>
+            <span className="text-xs text-gray-400 hidden sm:block">
+              {Object.values(sectorCounts).reduce((a, b) => a + b, 0)} annonces géolocalisées
+            </span>
+          </div>
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+            {/* Toute la ville */}
+            <button
+              type="button"
+              onClick={() => { setFilterSector(null); setCurrentPage(1); }}
+              className={`
+                flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3
+                transition-all duration-200 cursor-pointer
+                ${!filters.filterSector
+                  ? 'bg-blue-50 border-blue-300 shadow-md scale-105'
+                  : 'bg-white border-gray-100 hover:bg-blue-50 hover:border-blue-200'
+                }
+              `}
+            >
+              <span className="text-2xl">🗺️</span>
+              <span className={`text-[10px] font-bold leading-tight text-center ${
+                !filters.filterSector ? 'text-blue-700' : 'text-gray-700'
+              }`}>
+                Toute la ville
+              </span>
+              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                !filters.filterSector ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'
+              }`}>
+                {page.listings.length}
+              </span>
+            </button>
+
+            {SECTORS.map(sector => {
+              const count  = sectorCounts[sector.id] || 0;
+              const colors = SECTOR_COLORS[sector.color];
+              const active = filters.filterSector === sector.id;
+              return (
+                <button
+                  key={sector.id}
+                  type="button"
+                  onClick={() => { setFilterSector(active ? null : sector.id); setCurrentPage(1); }}
+                  className={`
+                    relative flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3
+                    transition-all duration-200 cursor-pointer select-none
+                    ${active
+                      ? `${colors.bg} ${colors.border} shadow-md scale-105`
+                      : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200 hover:shadow-sm'
+                    }
+                  `}
+                >
+                  <span className="text-2xl">{sector.icon}</span>
+                  <span className={`text-[10px] font-bold leading-tight text-center ${
+                    active ? colors.text : 'text-gray-700'
+                  }`}>
+                    {sector.name}
+                  </span>
+                  {count > 0 && (
+                    <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                      active ? colors.badgeSolid : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {count}
+                    </span>
+                  )}
+                  {active && (
+                    <span className={`absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full ${colors.badgeSolid} flex items-center justify-center`}>
+                      <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                      </svg>
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
