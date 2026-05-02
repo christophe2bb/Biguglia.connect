@@ -38,7 +38,7 @@ export const DEFAULT_FORM: EventForm = {
   title: '',
   subtitle: '',
   description: '',
-  category: 'fete',
+  category: 'fete_locale',
   event_date: '',
   event_end_date: '',
   start_time: '18:00',
