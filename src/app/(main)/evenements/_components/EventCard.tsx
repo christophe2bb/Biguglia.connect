@@ -68,7 +68,7 @@ export default function EventCard({
         {/* Photo cover cliquable */}
         {event.cover_photo && !isPastEvent && (
           <Link href={`/evenements/${event.id}`} className="block relative h-28 overflow-hidden">
-            <Image src={event.cover_photo} alt={event.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover hover:scale-105 transition-transform duration-300" />
+            <Image src={event.cover_photo} alt={event.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" loading="lazy" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
           </Link>
         )}
@@ -185,14 +185,14 @@ export default function EventCard({
   // ── Full card ─────────────────────────────────────────────────────────────
   return (
     <div className={cn(
-      'bg-white rounded-2xl border shadow-sm hover:shadow-md transition-[color,border-color,box-shadow,transform] duration-300 hover:-translate-y-0.5 overflow-hidden group',
+      'bg-white rounded-2xl border shadow-sm hover:shadow-lg transition-[color,border-color,box-shadow] duration-300 overflow-hidden group',
       isUrgent && !isAnnule ? 'border-purple-200' : isAnnule ? 'border-red-100 opacity-75' : isReporte ? 'border-amber-200' : 'border-gray-100',
     )}>
       {/* Zone photo */}
       <div className="relative h-44 overflow-hidden">
         {event.cover_photo ? (
           <div className="relative w-full h-full cursor-pointer" role="button" tabIndex={0} onClick={() => setLightboxOpen(true)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightboxOpen(true); } }}>
-            <Image src={event.cover_photo} alt={event.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover group-hover:scale-105 transition-transform duration-500" />
+            <Image src={event.cover_photo} alt={event.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" loading="lazy" />
           </div>
         ) : (
           <div className={cn('w-full h-full flex items-center justify-center', cat.bg)}>

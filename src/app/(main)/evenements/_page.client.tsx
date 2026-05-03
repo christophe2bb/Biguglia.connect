@@ -73,7 +73,9 @@ export default function EvenementsPage() {
   return (
     <div className="min-h-screen relative">
       <SectionTracker section="evenements" />
-      {/* Background — <img> natif pour éviter le tremblement Next/Image + position:fixed */}
+      {/* Background — <img> natif + transform:translateZ(0) pour créer un layer GPU isolé
+          évite que les transitions des cartes (shadow, scale) ne provoquent un repaint
+          du fond fixe (shimmer/gel visible lors du changement d'onglet). */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         aria-hidden="true"
@@ -89,7 +91,8 @@ export default function EvenementsPage() {
           opacity: 0.2,
           zIndex: 0,
           pointerEvents: 'none',
-          willChange: 'auto',
+          transform: 'translateZ(0)',
+          backfaceVisibility: 'hidden',
         }}
       />
 
@@ -206,12 +209,13 @@ export default function EvenementsPage() {
 
           <div className="flex gap-8 items-start">
             {/* Colonne principale —
-                style={{ display: 'none' }} est utilisé (et non className="hidden")
-                pour garantir que le masquage ne peut pas être écrasé par un style
-                enfant, tout en gardant les composants montés (pas de shimmer image). */}
+                • display:none inline (non className="hidden") → masquage non écrasable par les enfants.
+                • contain:"layout style" → chaque panneau crée un contexte de mise en page isolé,
+                  les repaints (shadow, transition) ne se propagent pas au fond fixe → plus de shimmer.
+                • Les 3 onglets statiques restent montés ; le Forum est lazy-monté. */}
             <div className="flex-1 min-w-0">
               {/* Calendrier */}
-              <div style={activeTab !== 'agenda' ? { display: 'none' } : undefined}>
+              <div style={activeTab !== 'agenda' ? { display: 'none' } : { contain: 'layout style' }}>
                 <TabAgenda events={events} userId={profile?.id} loading={loadingEvents}
                   onJoin={handleJoin} onStatusChange={handleEventStatusChange} profile={profile}
                   sectorCounts={sectorCounts} filterSector={filterSector}
@@ -222,7 +226,7 @@ export default function EvenementsPage() {
               </div>
 
               {/* Cette semaine */}
-              <div style={activeTab !== 'semaine' ? { display: 'none' } : undefined}>
+              <div style={activeTab !== 'semaine' ? { display: 'none' } : { contain: 'layout style' }}>
                 <TabSemaine loading={loadingEvents} thisWeekDays={thisWeekDays} thisWeekByDay={thisWeekByDay}
                   thisWeekEvents={thisWeekEvents} today={today} userId={profile?.id}
                   onJoin={handleJoin} onStatusChange={handleEventStatusChange}
@@ -233,7 +237,7 @@ export default function EvenementsPage() {
               </div>
 
               {/* Tout voir */}
-              <div style={activeTab !== 'liste' ? { display: 'none' } : undefined}>
+              <div style={activeTab !== 'liste' ? { display: 'none' } : { contain: 'layout style' }}>
                 <TabListe
                   loading={loadingEvents} filteredEvents={filteredWithSaved} activeFiltersCount={showSavedOnly ? activeFiltersCount + 1 : activeFiltersCount}
                   filterCat={filterCat} setFilterCat={setFilterCat}
@@ -257,7 +261,7 @@ export default function EvenementsPage() {
 
               {/* Forum — monté une seule fois après la 1ère visite */}
               {mountedTabs.has('forum') && (
-                <div style={activeTab !== 'forum' ? { display: 'none' } : undefined}>
+                <div style={activeTab !== 'forum' ? { display: 'none' } : { contain: 'layout style' }}>
                   <TabForum loading={loadingForum} forumPosts={forumPosts} forumCategoryId={forumCategoryId}
                     showPostForm={showPostForm} setShowPostForm={setShowPostForm}
                     postForm={postForm} setPostForm={setPostForm}
