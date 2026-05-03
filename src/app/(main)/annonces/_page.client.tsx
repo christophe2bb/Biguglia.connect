@@ -169,15 +169,6 @@ export default function AnnoncesPage() {
           {/* ── Main column ── */}
           <div className="flex-1 min-w-0">
 
-            {/* Sector filter (mobile/compact) */}
-            <div className="bg-white rounded-2xl border border-gray-100 px-4 pt-3 pb-2 mb-4">
-              <SectorFilter
-                value={filters.filterSector}
-                onChange={v => { setFilterSector(v); setCurrentPage(1); }}
-                compact label="Secteur" allowCitywide
-              />
-            </div>
-
             {/* Search + chips */}
             <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-4">
               <div className="relative mb-3">
