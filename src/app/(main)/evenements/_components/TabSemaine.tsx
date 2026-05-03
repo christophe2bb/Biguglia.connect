@@ -94,7 +94,7 @@ export default function TabSemaine({
                   <div className="flex-1 h-px bg-gray-100" />
                   <span className="text-xs text-gray-400 font-semibold">{dayEvs.length} événement{dayEvs.length > 1 ? 's' : ''}</span>
                 </div>
-                <div className="grid sm:grid-cols-2 gap-3">
+                <div className="grid sm:grid-cols-2 lg:grid-cols-2 gap-4">
                   {dayEvs.map(ev => (
                     <EventCard key={ev.id} event={ev} userId={userId} onJoin={onJoin} onStatusChange={onStatusChange} onToggleSave={onToggleSave} savedEvents={savedEvents} />
                   ))}
