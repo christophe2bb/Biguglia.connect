@@ -5,6 +5,7 @@ import { CalendarDays, Calendar, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import EventCard from './EventCard';
 import SectorExplorer from './SectorExplorer';
+import { localDateStr } from '../_utils';
 import type { LocalEvent } from '../_types';
 
 interface Props {
@@ -33,7 +34,7 @@ export default function TabSemaine({
   const getTomorrowKey = () => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
-    return d.toISOString().split('T')[0];
+    return localDateStr(d); // toISOString() décalerait en UTC+2
   };
 
   return (

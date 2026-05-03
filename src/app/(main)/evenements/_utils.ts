@@ -1,6 +1,19 @@
 import { EVENT_CATEGORIES } from './_constants';
 
 // ─── Helpers dates ────────────────────────────────────────────────────────────
+
+/**
+ * Retourne la date locale du jour au format YYYY-MM-DD.
+ * NE PAS utiliser new Date().toISOString().split('T')[0] qui retourne
+ * la date UTC — en Corse (UTC+2) cela décale tout d'un jour à minuit.
+ */
+export function localDateStr(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export function formatEventDate(dateStr: string) {
   const d = new Date(dateStr + 'T00:00:00');
   const day = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });

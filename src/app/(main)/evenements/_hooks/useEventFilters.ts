@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { isThisWeekend } from '../_utils';
+import { isThisWeekend, localDateStr } from '../_utils';
 import type { LocalEvent, QuickFilter } from '../_types';
 
 export function useEventFilters(events: LocalEvent[]) {
@@ -14,7 +14,8 @@ export function useEventFilters(events: LocalEvent[]) {
   const [filterInscription, setFilterInscription] = useState(false);
   const [filterFree, setFilterFree]             = useState(false);
 
-  const today = useMemo(() => new Date().toISOString().split('T')[0], []);
+  // localDateStr() évite le décalage UTC (toISOString donne hier soir en UTC+2)
+  const today = useMemo(() => localDateStr(), []);
 
   const upcomingEvents = useMemo(
     () => events.filter(e => e.event_date >= today && ['a_venir','complet','reporte','active','publie'].includes(e.status)),

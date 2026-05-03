@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { JOURS, MOIS_FR, CAT_PASTEL } from '../_constants';
-import { getCat, formatEventDate, daysUntil } from '../_utils';
+import { getCat, formatEventDate, daysUntil, localDateStr } from '../_utils';
 import AnimatedEventCell from './AnimatedEventCell';
 import EventCard from './EventCard';
 import type { LocalEvent } from '../_types';
@@ -16,7 +16,9 @@ interface Props {
 }
 
 export default function CalendarView({ events, userId, onJoin, onStatusChange }: Props) {
-  const today = new Date(); today.setHours(0,0,0,0);
+  // localDateStr() évite le décalage UTC (toISOString donne hier en UTC+2)
+  const todayStr = localDateStr();
+  const today = new Date(todayStr + 'T00:00:00');
   const [curYear, setCurYear]         = useState(today.getFullYear());
   const [curMonth, setCurMonth]       = useState(today.getMonth());
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -38,7 +40,7 @@ export default function CalendarView({ events, userId, onJoin, onStatusChange }:
 
   const selectedEvents    = selectedDay ? (evByDay[selectedDay] ?? []) : [];
   const totalMonthEvents  = cells.filter(d => d).reduce((acc, d) => {
-    const key = d!.toISOString().split('T')[0];
+    const key = localDateStr(d!);
     return acc + (evByDay[key]?.length ?? 0);
   }, 0);
 
@@ -91,9 +93,9 @@ export default function CalendarView({ events, userId, onJoin, onStatusChange }:
           <div className="cal-grid">
             {cells.map((d, i) => {
               if (!d) return <div key={i} className="cal-empty-cell" />;
-              const key          = d.toISOString().split('T')[0];
+              const key          = localDateStr(d);
               const isPast       = d < today;
-              const isTod        = d.getTime() === today.getTime();
+              const isTod        = key === todayStr;
               const isWeekendDay = d.getDay() === 0 || d.getDay() === 6;
               return (
                 <div key={i} className={isWeekendDay && !isPast ? 'bg-purple-50/[0.03]' : undefined}>
