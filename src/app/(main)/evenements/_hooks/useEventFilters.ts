@@ -97,7 +97,9 @@ export function useEventFilters(events: LocalEvent[]) {
   const thisWeekDays = useMemo(() => Object.keys(thisWeekByDay).sort(), [thisWeekByDay]);
 
   const activeFiltersCount = [
-    filterCat !== 'all', filterStatus !== 'a_venir', !!filterSector,
+    filterCat !== 'all',
+    ['complet', 'reporte', 'annule', 'passe'].includes(filterStatus), // 'all' et 'a_venir' = pas un filtre actif
+    !!filterSector,
     !!quickFilter, !!searchQuery.trim(), filterInscription, filterFree,
   ].filter(Boolean).length;
 
