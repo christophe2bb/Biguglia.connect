@@ -18,7 +18,7 @@ export function useEventFilters(events: LocalEvent[]) {
   const today = useMemo(() => localDateStr(), []);
 
   const upcomingEvents = useMemo(
-    () => events.filter(e => e.event_date >= today && ['a_venir','complet','reporte','active','publie'].includes(e.status)),
+    () => events.filter(e => e.event_date >= today && !['annule','archive','passe'].includes(e.status)),
     [events, today],
   );
   const todayEvents    = useMemo(() => events.filter(e => e.event_date === today), [events, today]);
@@ -66,9 +66,10 @@ export function useEventFilters(events: LocalEvent[]) {
   const thisWeekEvents = useMemo(() => {
     const sevenDaysLater = new Date();
     sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+    sevenDaysLater.setHours(23, 59, 59, 999); // inclure toute la journée J+7
     return upcomingEvents.filter(e => {
       const d = new Date(e.event_date + 'T00:00:00');
-      if (!(d >= new Date(today) && d <= sevenDaysLater)) return false;
+      if (!(d >= new Date(today + 'T00:00:00') && d <= sevenDaysLater)) return false;
       if (filterSector) {
         if (filterSector === 'ville') return !e.sector_id;
         return e.sector_id === filterSector;
@@ -81,9 +82,10 @@ export function useEventFilters(events: LocalEvent[]) {
   const thisWeekEventsAll = useMemo(() => {
     const sevenDaysLater = new Date();
     sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+    sevenDaysLater.setHours(23, 59, 59, 999);
     return upcomingEvents.filter(e => {
       const d = new Date(e.event_date + 'T00:00:00');
-      return d >= new Date(today) && d <= sevenDaysLater;
+      return d >= new Date(today + 'T00:00:00') && d <= sevenDaysLater;
     });
   }, [upcomingEvents, today]);
 

@@ -16,7 +16,11 @@ export function useEvents(profileId?: string) {
   const fetchEvents = useCallback(async () => {
     setLoadingEvents(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
+      // localDateStr() évite le décalage UTC+2 (toISOString donne hier soir en Corse)
+      const y = new Date().getFullYear();
+      const mo = String(new Date().getMonth() + 1).padStart(2, '0');
+      const dy = String(new Date().getDate()).padStart(2, '0');
+      const today = `${y}-${mo}-${dy}`;
       let data: LocalEvent[] | null = null;
       let error: unknown = null;
 
@@ -24,7 +28,7 @@ export function useEvents(profileId?: string) {
       const { data: evData, error: evErr } = await supabase
         .from('events')
         .select(`*, author:profiles(full_name, avatar_url), participants:event_participants(count), participants_list:event_participants(user_id, user:profiles(full_name, avatar_url))`)
-        .in('status', ['a_venir', 'complet', 'reporte'])
+        .in('status', ['a_venir', 'complet', 'reporte', 'publie', 'active'])
         .gte('event_date', today)
         .order('event_date', { ascending: true });
 
@@ -108,12 +112,12 @@ export function useEvents(profileId?: string) {
 
       // Comptages par secteur (requête légère sans filtre secteur)
       try {
-        const today2 = new Date().toISOString().split('T')[0];
+        const today2 = today;
         const { data: sectorData } = await supabase
           .from('events')
           .select('sector_id')
           .not('sector_id', 'is', null)
-          .in('status', ['a_venir', 'complet', 'reporte'])
+          .in('status', ['a_venir', 'complet', 'reporte', 'publie', 'active'])
           .gte('event_date', today2);
         const counts: Record<string, number> = {};
         (sectorData || []).forEach((row: { sector_id: string }) => {
