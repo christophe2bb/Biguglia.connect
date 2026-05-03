@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import {
   PartyPopper, Calendar, CalendarDays, ListFilter, MessageSquare, Plus,
@@ -74,11 +73,25 @@ export default function EvenementsPage() {
   return (
     <div className="min-h-screen relative">
       <SectionTracker section="evenements" />
-      {/* Background — wrapper div gère le positionnement fixed ; Image fill ne peut pas avoir style.position */}
-      <div aria-hidden="true" className="fixed inset-0 z-0 opacity-20 pointer-events-none">
-        <Image src="/images/biguglia-etang.webp" alt="" fill sizes="100vw"
-          className="object-cover object-top" />
-      </div>
+      {/* Background — <img> natif pour éviter le tremblement Next/Image + position:fixed */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        aria-hidden="true"
+        src="/images/biguglia-etang.webp"
+        alt=""
+        style={{
+          position: 'fixed',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          objectPosition: 'top',
+          opacity: 0.2,
+          zIndex: 0,
+          pointerEvents: 'none',
+          willChange: 'auto',
+        }}
+      />
 
       <div className="relative z-[1]">
         {!dbReady && (
