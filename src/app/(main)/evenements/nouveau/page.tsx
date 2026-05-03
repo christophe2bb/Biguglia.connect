@@ -19,7 +19,7 @@ export default function NouvelEvenementPage() {
     step, stepIndex, goNext, goBack, goToStep,
     form, setField,
     photoInputRef, photos, photoPreviews, handlePhotoSelect, removePhoto,
-    submitting, handleSubmit,
+    submitting, handleSubmit, submitForm,
   } = useNewEventForm(profile?.id, profile?.full_name, profile?.home_sector_id);
 
   // ── Auth gate ─────────────────────────────────────────────────────────────
@@ -77,8 +77,8 @@ export default function NouvelEvenementPage() {
           ))}
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit}>
+        {/* Form — pas de <form> pour éviter submit implicite sur Enter */}
+        <div>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
 
             {step === 'essentiel' && (
@@ -124,7 +124,8 @@ export default function NouvelEvenementPage() {
               </button>
             ) : (
               <button
-                type="submit"
+                type="button"
+                onClick={submitForm}
                 disabled={submitting || !form.title || !form.event_date}
                 className="flex items-center gap-2 bg-purple-600 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-purple-700 disabled:opacity-50 transition-colors"
               >
@@ -134,7 +135,7 @@ export default function NouvelEvenementPage() {
               </button>
             )}
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

@@ -213,6 +213,7 @@ export default function ModifierEvenementPage() {
       }
 
       toast.success('✅ Événement mis à jour !');
+      router.refresh(); // invalide le cache SSR pour que les nouvelles photos apparaissent
       router.push(`/evenements/${id}`);
     } catch (err) {
       console.error(err);

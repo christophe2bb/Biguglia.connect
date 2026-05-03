@@ -24,6 +24,7 @@ export interface UseNewEventFormReturn {
   removePhoto: (i: number) => void;
   submitting: boolean;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
+  submitForm: () => Promise<void>;
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
@@ -87,8 +88,8 @@ export function useNewEventForm(
 
   // ── Submit ────────────────────────────────────────────────────────────────
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
+  // ── Core submit logic (appelable sans event DOM) ─────────────────────────
+  const submitForm = useCallback(async () => {
     if (!profileId) { toast.error('Connectez-vous pour créer un événement'); return; }
     if (!form.title.trim()) { toast.error('Le titre est requis'); return; }
     if (!form.event_date)   { toast.error('La date est requise');  return; }
@@ -180,10 +181,16 @@ export function useNewEventForm(
     }
   }, [profileId, profileName, form, photos, router]);
 
+  // Wrapper pour compatibilité <form onSubmit> si besoin
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitForm();
+  }, [submitForm]);
+
   return {
     step, stepIndex, goNext, goBack, goToStep,
     form, setField,
     photoInputRef, photos, photoPreviews, handlePhotoSelect, removePhoto,
-    submitting, handleSubmit,
+    submitting, handleSubmit, submitForm,
   };
 }
