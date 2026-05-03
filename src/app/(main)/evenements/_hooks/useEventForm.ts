@@ -12,7 +12,7 @@ const EMPTY_FORM: NewEventForm = {
   event_date: '',
   event_time: '18:00',
   location: '',
-  category: 'fete',
+  category: 'fete_locale',
   organizer_name: '',
   max_participants: '',
   is_free: true,
@@ -26,9 +26,9 @@ const EMPTY_FORM: NewEventForm = {
 export function useEventForm(profileId: string | undefined, onSuccess: () => void) {
   const supabase = createClient();
 
-  const [newEvent, setNewEvent]                   = useState<NewEventForm>(EMPTY_FORM);
-  const [submittingEvent, setSubmittingEvent]     = useState(false);
-  const [eventPhotos, setEventPhotos]             = useState<File[]>([]);
+  const [newEvent, setNewEvent]                     = useState<NewEventForm>(EMPTY_FORM);
+  const [submittingEvent, setSubmittingEvent]       = useState(false);
+  const [eventPhotos, setEventPhotos]               = useState<File[]>([]);
   const [eventPhotoPreviews, setEventPhotoPreviews] = useState<string[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
@@ -53,14 +53,12 @@ export function useEventForm(profileId: string | undefined, onSuccess: () => voi
     if (eventPhotos.length === 0) return;
     for (let i = 0; i < eventPhotos.length; i++) {
       const file = eventPhotos[i];
-      const ext = safeImageExt(file.name);
-      const path = `events/${eventId}/${Date.now()}_${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
+      const ext  = safeImageExt(file.name);
+      const path = `events/${eventId}/${Date.now()}_${i}.${ext}`; // nosec CWE-22
       try {
         const publicUrl = await uploadFile(file, 'photos', path, profileId);
         await supabase.from('event_photos').insert({
-          event_id: eventId,
-          url: publicUrl,
-          display_order: i,
+          event_id: eventId, url: publicUrl, display_order: i,
         });
       } catch (err) {
         toast.error(`Photo ${i + 1} : ${err instanceof Error ? err.message : 'Erreur upload'}`);
@@ -87,98 +85,39 @@ export function useEventForm(profileId: string | undefined, onSuccess: () => voi
       ? newEvent.tags.split(',').map(t => t.trim()).filter(Boolean)
       : [];
 
-    const eventPayload: Record<string, unknown> = {
-      author_id: profileId,
-      title: newEvent.title.trim(),
-      description: newEvent.description.trim(),
-      event_date: newEvent.event_date,
-      event_time: newEvent.event_time,
-      start_time: newEvent.event_time,
-      location: newEvent.location.trim() || 'Biguglia',
-      category: newEvent.category,
-      organizer_name: newEvent.organizer_name.trim() || null,
-      max_participants: newEvent.max_participants ? parseInt(newEvent.max_participants) : null,
-      capacity: newEvent.max_participants ? parseInt(newEvent.max_participants) : null,
-      is_unlimited: !newEvent.max_participants,
-      is_free: newEvent.is_free,
-      price_type: newEvent.is_free ? 'gratuit' : 'payant',
-      price: !newEvent.is_free && newEvent.price ? parseFloat(newEvent.price) : null,
-      price_amount: !newEvent.is_free && newEvent.price ? parseFloat(newEvent.price) : null,
-      status: 'a_venir',
-      registration_open: true,
+    // Payload unique — toutes les colonnes existent dans le schéma
+    const payload: Record<string, unknown> = {
+      author_id:            profileId,
+      title:                newEvent.title.trim(),
+      description:          newEvent.description.trim() || null,
+      event_date:           newEvent.event_date,
+      start_time:           newEvent.event_time || '18:00',
+      location:             newEvent.location.trim() || 'Biguglia',
+      category:             newEvent.category,
+      organizer_name:       newEvent.organizer_name.trim() || null,
+      capacity:             newEvent.max_participants ? parseInt(newEvent.max_participants) : null,
+      is_unlimited:         !newEvent.max_participants,
+      is_free:              newEvent.is_free,
+      price_type:           newEvent.is_free ? 'gratuit' : 'payant',
+      price_amount:         !newEvent.is_free && newEvent.price ? parseFloat(newEvent.price) : null,
+      registration_open:    true,
       registration_required: newEvent.registration_required,
-      audience: newEvent.audience || 'Tout public',
-      tags: parsedTags,
+      tags:                 parsedTags,
+      status:               'a_venir',
     };
-    if (newEvent.sector_id) eventPayload.sector_id = newEvent.sector_id;
+    if (newEvent.sector_id) payload.sector_id = newEvent.sector_id;
 
     const { data: inserted, error } = await supabase
       .from('events')
-      .insert(eventPayload)
+      .insert(payload)
       .select('id')
       .single();
 
     if (error) {
-      const isPriceColMissing = error.message?.includes('price_amount')
-        || error.message?.includes('price_type');
-
-      // Attempt 2: without price_amount/price_type if those columns are missing
-      const fallbackPayload: Record<string, unknown> = {
-        author_id: profileId,
-        title: newEvent.title.trim(),
-        description: newEvent.description.trim(),
-        event_date: newEvent.event_date,
-        event_time: newEvent.event_time,
-        location: newEvent.location.trim() || 'Biguglia',
-        category: newEvent.category,
-        organizer_name: newEvent.organizer_name.trim() || null,
-        max_participants: newEvent.max_participants ? parseInt(newEvent.max_participants) : null,
-        is_free: newEvent.is_free,
-        price: !newEvent.is_free && newEvent.price ? parseFloat(newEvent.price) : null,
-        tags: parsedTags,
-        status: 'a_venir',
-      };
-      if (!isPriceColMissing) {
-        fallbackPayload.price_type   = newEvent.is_free ? 'gratuit' : 'payant';
-        fallbackPayload.price_amount = !newEvent.is_free && newEvent.price ? parseFloat(newEvent.price) : null;
-      }
-      if (newEvent.sector_id) fallbackPayload.sector_id = newEvent.sector_id;
-
-      const { data: ins2, error: e2 } = await supabase
-        .from('events').insert(fallbackPayload).select('id').single();
-
-      if (e2) {
-        // Attempt 3: absolute minimal — only guaranteed core columns
-        const { data: ins3, error: e3 } = await supabase.from('events').insert({
-          author_id: profileId,
-          title: newEvent.title.trim(),
-          description: newEvent.description.trim(),
-          event_date: newEvent.event_date,
-          location: newEvent.location.trim() || 'Biguglia',
-          category: newEvent.category,
-          is_free: newEvent.is_free,
-          tags: parsedTags,
-          status: 'a_venir',
-        }).select('id').single();
-        if (e3) { toast.error(`Erreur : ${e3.message}`); setSubmittingEvent(false); return; }
-        if (ins3) {
-          await uploadEventPhotos(ins3.id);
-          toast.success('🎉 Événement publié !', { duration: 4000 });
-          resetForm();
-          onSuccess();
-          setSubmittingEvent(false);
-          return;
-        }
-      }
-
-      if (ins2) {
-        await uploadEventPhotos(ins2.id);
-        toast.success('🎉 Événement publié !', { duration: 4000 });
-        resetForm();
-        onSuccess();
-        setSubmittingEvent(false);
-        return;
-      }
+      console.error('[useEventForm] Erreur Supabase :', error);
+      toast.error(`Erreur : ${error.message}`);
+      setSubmittingEvent(false);
+      return;
     }
 
     if (inserted?.id) {

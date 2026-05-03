@@ -184,20 +184,11 @@ export default function ModifierEvenementPage() {
         updated_at: new Date().toISOString(),
       };
 
-      // Try full update first; if price columns missing, retry without them
       const { error: e1 } = await supabase.from('events').update(baseUpdates).eq('id', id);
       if (e1) {
-        const isPriceColMissing = e1.message?.includes('price_amount') || e1.message?.includes('price_type');
-        if (isPriceColMissing) {
-          // Retry without price columns (schema hasn't been migrated yet)
-          const { price_type: _pt, price_amount: _pa, ...updatesNoPriceCol } = baseUpdates as Record<string, unknown> & { price_type: unknown; price_amount: unknown };
-          void _pt; void _pa;
-          const { error: e1b } = await supabase.from('events').update(updatesNoPriceCol).eq('id', id);
-          if (e1b) { toast.error('Erreur lors de la mise à jour'); return; }
-        } else {
-          const { error: e2 } = await supabase.from('local_events').update(baseUpdates).eq('id', id);
-          if (e2) { toast.error('Erreur lors de la mise à jour'); return; }
-        }
+        console.error('[modifier] Erreur Supabase :', e1);
+        toast.error(`Erreur : ${e1.message}`);
+        return;
       }
 
       // Upload new photos — via /api/upload (magic-bytes validation côté serveur)
