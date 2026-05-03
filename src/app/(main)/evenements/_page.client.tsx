@@ -13,7 +13,6 @@ import { cn } from '@/lib/utils';
 import { useEvents }       from './_hooks/useEvents';
 import { useForum }        from './_hooks/useForum';
 import { useSavedEvents }  from './_hooks/useSavedEvents';
-import { useEventForm }    from './_hooks/useEventForm';
 import { useEventFilters } from './_hooks/useEventFilters';
 
 import dynamic from 'next/dynamic';
@@ -22,7 +21,6 @@ import TabSemaine  from './_components/TabSemaine';
 import TabListe    from './_components/TabListe';
 // Tabs non-initiaux — lazy loaded pour réduire le bundle initial (~15 KB)
 const TabForum    = dynamic(() => import('./_components/TabForum'),    { ssr: false });
-const TabCreer    = dynamic(() => import('./_components/TabCreer'),    { ssr: false });
 const EventSidebar = dynamic(() => import('./_components/EventSidebar'), { ssr: false });
 
 import type { ActiveTab } from './_types';
@@ -58,10 +56,6 @@ export default function EvenementsPage() {
   } = useEventFilters(events);
 
   const [activeTab, setActiveTab] = React.useState<ActiveTab>('agenda');
-
-  const { newEvent, setNewEvent, submittingEvent, eventPhotos, eventPhotoPreviews,
-    photoInputRef, handlePhotoSelect, handlePhotoRemove, handleCreateEvent, resetForm,
-  } = useEventForm(profile?.id, () => { fetchEvents(); setActiveTab('agenda'); });
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
   useEffect(() => { if (activeTab === 'forum') fetchForum(); }, [activeTab, fetchForum]);
@@ -152,23 +146,10 @@ export default function EvenementsPage() {
               </div>
 
               {/* CTA créer */}
-              {profile ? (
-                <div className="flex-shrink-0 flex flex-col gap-2">
-                  <Link href="/evenements/nouveau"
-                    className="inline-flex items-center gap-2 bg-white text-purple-700 font-black px-6 py-3 rounded-2xl hover:bg-purple-50 transition-transform shadow-lg hover:-translate-y-0.5 text-sm">
-                    <Plus className="w-4 h-4" /> Proposer un événement
-                  </Link>
-                  <button onClick={() => setActiveTab('creer')}
-                    className="inline-flex items-center justify-center gap-2 bg-white/15 border border-white/30 text-white font-semibold px-5 py-2 rounded-xl hover:bg-white/25 transition-colors text-sm">
-                    <Plus className="w-3.5 h-3.5" /> Formulaire rapide
-                  </button>
-                </div>
-              ) : (
-                <Link href="/connexion"
-                  className="flex-shrink-0 inline-flex items-center gap-2 bg-white text-purple-700 font-black px-6 py-3 rounded-2xl hover:bg-purple-50 transition-transform shadow-lg hover:-translate-y-0.5 text-sm">
-                  <Plus className="w-4 h-4" /> Je propose un événement
-                </Link>
-              )}
+              <Link href={profile ? '/evenements/nouveau' : '/connexion'}
+                className="flex-shrink-0 inline-flex items-center gap-2 bg-white text-purple-700 font-black px-6 py-3 rounded-2xl hover:bg-purple-50 transition-transform shadow-lg hover:-translate-y-0.5 text-sm">
+                <Plus className="w-4 h-4" /> Proposer un événement
+              </Link>
             </div>
           </div>
         </div>
@@ -183,7 +164,6 @@ export default function EvenementsPage() {
               { id: 'semaine', label: 'Cette semaine',  icon: CalendarDays,  count: thisWeekEventsAll.length },
               { id: 'liste',   label: 'Tout voir',      icon: ListFilter,    count: 0 },
               { id: 'forum',   label: 'Forum',          icon: MessageSquare, count: 0 },
-              { id: 'creer',   label: 'Créer',          icon: Plus,          count: 0 },
             ] as { id: ActiveTab; label: string; icon: React.ElementType; count: number }[]).map(({ id, label, icon: Icon, count }) => (
               <button key={id} onClick={() => setActiveTab(id)}
                 className={cn(
@@ -243,7 +223,7 @@ export default function EvenementsPage() {
                   savedEvents={savedEvents} userId={profile?.id}
                   onJoin={handleJoin} onStatusChange={handleEventStatusChange}
                   onToggleSave={toggleSaved} profile={profile}
-                  onCreateClick={() => setActiveTab('creer')}
+                  onCreateClick={() => window.location.href = '/evenements/nouveau'}
                   onResetFilters={() => { resetFilters(); setShowSavedOnly(() => false); }}
                 />
               )}
@@ -253,13 +233,6 @@ export default function EvenementsPage() {
                   postForm={postForm} setPostForm={setPostForm}
                   submittingPost={submittingPost} profile={profile}
                   onSubmit={handlePostSubmit} />
-              )}
-              {activeTab === 'creer' && (
-                <TabCreer profile={profile} newEvent={newEvent} setNewEvent={setNewEvent}
-                  submittingEvent={submittingEvent} eventPhotos={eventPhotos}
-                  eventPhotoPreviews={eventPhotoPreviews} photoInputRef={photoInputRef}
-                  onPhotoSelect={handlePhotoSelect} onPhotoRemove={handlePhotoRemove}
-                  onSubmit={handleCreateEvent} onCancel={resetForm} />
               )}
             </div>
 

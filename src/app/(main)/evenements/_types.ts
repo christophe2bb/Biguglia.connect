@@ -57,7 +57,7 @@ export type EventComment = {
 
 export type QuickFilter = 'aujourd_hui' | 'ce_weekend' | 'famille' | 'gratuit' | 'officiel' | null;
 
-export type ActiveTab = 'agenda' | 'liste' | 'semaine' | 'forum' | 'creer';
+export type ActiveTab = 'agenda' | 'liste' | 'semaine' | 'forum';
 
 export type NewEventForm = {
   title: string;
