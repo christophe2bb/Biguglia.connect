@@ -34,7 +34,14 @@ export function useForum() {
         .eq('is_closed', false)
         .order('created_at', { ascending: false })
         .limit(20);
-      setForumPosts((data as unknown as ForumPost[]) || []);
+      // Supabase retourne comment_count comme [{count: N}] — normaliser en entier
+      const normalized = (data ?? []).map((p: Record<string, unknown>) => ({
+        ...p,
+        comment_count: Array.isArray(p.comment_count)
+          ? ((p.comment_count as { count: number }[])[0]?.count ?? 0)
+          : (p.comment_count ?? 0),
+      }));
+      setForumPosts(normalized as unknown as ForumPost[]);
     } catch (err) {
       console.error('fetchForum:', err);
     }
