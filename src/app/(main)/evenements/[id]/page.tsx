@@ -14,10 +14,9 @@
 
 import type { Metadata } from 'next';
 import Image from 'next/image';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
-  ArrowLeft, Calendar, Clock, MapPin, Euro,
+  Calendar, Clock, MapPin, Euro,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import {
@@ -29,6 +28,7 @@ import {
 import StatusBadge from '@/components/ui/StatusBadge';
 import Avatar from '@/components/ui/Avatar';
 import EvenementInteractiveClient from './EvenementDetailClient';
+import BackButton from './_components/BackButton';
 import type { EventDetail } from './_types';
 import { JsonLd, breadcrumbSchema, eventSchema } from '@/components/seo/JsonLd';
 
@@ -166,13 +166,8 @@ export default async function EventDetailPage({ params }: Props) {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
-        {/* Back */}
-        <Link
-          href="/evenements"
-          className="absolute top-4 left-4 flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white px-3 py-2 rounded-xl text-sm font-semibold hover:bg-white/30 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </Link>
+        {/* Back — smart: goes back in history or falls back to /evenements */}
+        <BackButton />
 
         {/* Status badge (top-right) */}
         <div className="absolute top-4 right-4">

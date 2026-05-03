@@ -38,6 +38,13 @@ export default function EventCard({
   const _CatIcon   = cat.icon;
   const dateLabel = formatEventDate(event.event_date);
   const countdown = daysUntil(event.event_date);
+
+  // Helper: format price safely (never shows "null €")
+  const priceLabel = event.is_free
+    ? '🎟️ Gratuit'
+    : event.price != null && event.price > 0
+      ? `${event.price} €`
+      : 'Payant';
   const fillPct   = event.max_participants && event.participants_count !== undefined
     ? Math.round((event.participants_count / event.max_participants) * 100) : null;
   const isFull    = event.max_participants !== null && (event.participants_count ?? 0) >= event.max_participants;
@@ -58,30 +65,61 @@ export default function EventCard({
         isPastEvent ? 'opacity-50 grayscale border-gray-100' : isUrgent ? 'border-purple-200' : 'border-gray-100',
         isAnnule && 'opacity-60',
       )}>
+        {/* Photo cover cliquable */}
         {event.cover_photo && !isPastEvent && (
-          <div className="relative h-28 cursor-pointer" role="button" tabIndex={0} onClick={() => setLightboxOpen(true)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightboxOpen(true); } }}>
-            <Image src={event.cover_photo} alt={event.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" />
-          </div>
+          <Link href={`/evenements/${event.id}`} className="block relative h-28 overflow-hidden">
+            <Image src={event.cover_photo} alt={event.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover hover:scale-105 transition-transform duration-300" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+          </Link>
         )}
+
         <div className="p-3">
+          {/* Catégorie + countdown */}
           <div className="flex items-center gap-1.5 mb-1.5">
             <span className={cn('w-2 h-2 rounded-full flex-shrink-0', cat.dot)} />
-            <span className={cn('text-xs font-bold', cat.color)}>{cat.label}</span>
+            <span className={cn('text-xs font-bold', cat.color)}>{cat.emoji} {cat.label}</span>
             {isPastEvent
               ? <span className="ml-auto text-xs text-gray-400 italic">Terminé</span>
               : countdown && (
-                <span className={cn('ml-auto text-xs font-semibold', isUrgent ? 'text-red-500' : 'text-gray-400')}>
+                <span className={cn('ml-auto text-xs font-semibold px-1.5 py-0.5 rounded-full', isUrgent ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500')}>
                   {countdown}
                 </span>
               )}
           </div>
-          <p className="font-bold text-gray-900 text-sm line-clamp-1 mb-1">{event.title}</p>
-          <div className="flex items-center gap-1 text-xs text-gray-500 mb-2">
-            <Clock className="w-3 h-3 flex-shrink-0" />{event.event_time}
-            <span className="mx-1">·</span>
-            <MapPin className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate">{event.location}</span>
+
+          {/* Titre — cliquable vers la page détail */}
+          <Link href={`/evenements/${event.id}`} className="block hover:text-purple-700 transition-colors mb-1">
+            <p className="font-bold text-gray-900 text-sm line-clamp-2 leading-snug">{event.title}</p>
+          </Link>
+
+          {/* Description courte */}
+          {event.description && (
+            <p className="text-xs text-gray-500 line-clamp-2 mb-2 leading-relaxed">{event.description}</p>
+          )}
+
+          {/* Date + heure + lieu */}
+          <div className="space-y-1 mb-2">
+            <div className="flex items-center gap-1.5 text-xs text-gray-600">
+              <Calendar className="w-3 h-3 text-purple-400 flex-shrink-0" />
+              <span>{dateLabel}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-gray-600">
+              <Clock className="w-3 h-3 text-sky-400 flex-shrink-0" />
+              <span>{event.event_time}</span>
+              {event.organizer_name && (
+                <>
+                  <span className="text-gray-300">·</span>
+                  <span className="text-gray-500 truncate">Par {event.organizer_name}</span>
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-gray-600">
+              <MapPin className="w-3 h-3 text-rose-400 flex-shrink-0" />
+              <span className="truncate">{event.location}</span>
+            </div>
           </div>
+
+          {/* Participants */}
           <div className={cn(
             'flex items-center gap-1.5 text-xs mb-2 px-2 py-1.5 rounded-lg',
             participantCount > 0 ? 'bg-purple-50 text-purple-700' : 'bg-gray-50 text-gray-400',
@@ -89,39 +127,54 @@ export default function EventCard({
             <Users className="w-3 h-3 flex-shrink-0" />
             {participantCount > 0
               ? <span className="font-semibold">{participantCount} participant{participantCount > 1 ? 's' : ''}{event.max_participants ? ` / ${event.max_participants}` : ''}</span>
-              : <span>Soyez le premier</span>}
+              : <span>Soyez le premier à participer !</span>}
             {isFull && <span className="ml-auto font-bold text-red-500">Complet</span>}
           </div>
+
+          {/* Prix + actions */}
           {!isPastEvent && (
-            <div className="flex items-center justify-between pt-2 border-t border-gray-50">
-              <span className={cn('text-xs font-bold', event.is_free ? 'text-emerald-600' : 'text-purple-600')}>
-                {event.is_free ? '🎟️ Gratuit' : `${event.price} €`}
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100 gap-2">
+              <span className={cn('text-xs font-bold flex-shrink-0', event.is_free ? 'text-emerald-600' : 'text-purple-600')}>
+                {priceLabel}
               </span>
-              {userId ? (
-                <button
-                  onClick={() => onJoin(event.id, !!event.user_joined)}
-                  disabled={isFull && !event.user_joined}
-                  className={cn(
-                    'text-xs font-bold px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50',
-                    event.user_joined ? 'bg-gray-100 text-gray-600' : `${cat.bg} ${cat.color} border ${cat.border}`,
-                  )}
+              <div className="flex items-center gap-1.5">
+                <Link
+                  href={`/evenements/${event.id}`}
+                  className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-600 transition-colors"
                 >
-                  {event.user_joined ? '✓ Inscrit' : isFull ? 'Complet' : 'Participer'}
-                </button>
-              ) : (
-                <Link href="/connexion" className={cn('text-xs font-bold px-2.5 py-1 rounded-lg', cat.bg, cat.color, `border ${cat.border}`)}>
-                  Participer
+                  <ArrowRight className="w-3 h-3" /> Voir
                 </Link>
-              )}
+                {userId ? (
+                  <button
+                    onClick={() => onJoin(event.id, !!event.user_joined)}
+                    disabled={isFull && !event.user_joined}
+                    className={cn(
+                      'text-xs font-bold px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50',
+                      event.user_joined ? 'bg-gray-100 text-gray-600' : `${cat.bg} ${cat.color} border ${cat.border}`,
+                    )}
+                  >
+                    <Bell className="w-3 h-3 inline mr-1" />
+                    {event.user_joined ? 'Inscrit ✓' : isFull ? 'Complet' : 'Participer'}
+                  </button>
+                ) : (
+                  <Link href="/connexion" className={cn('inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg', cat.bg, cat.color, `border ${cat.border}`)}>
+                    <Bell className="w-3 h-3" /> Participer
+                  </Link>
+                )}
+              </div>
             </div>
           )}
+
+          {/* Post-event rating */}
           {isPastEvent && (
-            <div className="mt-2 pt-2 border-t border-gray-50">
+            <div className="mt-2 pt-2 border-t border-gray-100">
               <RatingWidget targetType="event" targetId={event.id} authorId={event.author_id} userId={userId} compact />
             </div>
           )}
+
           <EventMiniForum eventId={event.id} userId={userId} catColor={cat.color} catBg={cat.bg} catBorder={cat.border} />
         </div>
+
         {lightboxOpen && photoItems.length > 0 && (
           <PhotoViewer photos={photoItems} initialIndex={0} onClose={() => setLightboxOpen(false)} title={event.title} />
         )}
@@ -279,7 +332,7 @@ export default function EventCard({
 
         <div className="flex items-center justify-between pt-3 border-t border-gray-50">
           <span className={cn('text-sm font-black', event.is_free ? 'text-emerald-600' : 'text-purple-600')}>
-            {event.is_free ? '🎟️ Gratuit' : `${event.price} €`}
+            {priceLabel}
           </span>
           <div className="flex items-center gap-2 flex-wrap">
             {onToggleSave && (
