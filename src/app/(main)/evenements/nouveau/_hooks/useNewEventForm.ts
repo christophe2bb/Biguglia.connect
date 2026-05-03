@@ -105,7 +105,7 @@ export function useNewEventForm(
       const payload: Record<string, unknown> = {
         author_id:         profileId,
         title:             form.title.trim(),
-        description:       form.description.trim() || null,
+        description:       form.description.trim() || '',
         category:          form.category,
         event_date:        form.event_date,
         start_time:        form.start_time || '18:00',

@@ -89,7 +89,7 @@ export function useEventForm(profileId: string | undefined, onSuccess: () => voi
     const payload: Record<string, unknown> = {
       author_id:            profileId,
       title:                newEvent.title.trim(),
-      description:          newEvent.description.trim() || null,
+      description:          newEvent.description.trim() || '',
       event_date:           newEvent.event_date,
       start_time:           newEvent.event_time || '18:00',
       location:             newEvent.location.trim() || 'Biguglia',
