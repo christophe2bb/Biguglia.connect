@@ -52,14 +52,72 @@
  *   // Chemin entité-scopé — ownerId obligatoire :
  *   const url = await uploadFile(photo, 'photos', `listings/${listingId}/${Date.now()}.jpg`, userId);
  */
+/**
+ * Compresse une image côté client via Canvas avant l'upload.
+ * - Redimensionne à max 1920px (grande dimension)
+ * - Qualité JPEG 0.82 → ~300-800 KB pour une photo de téléphone
+ * - Ne touche pas aux GIF/AVIF (pas supportés par canvas.toBlob JPEG)
+ * - Retourne le fichier original si la compression échoue ou si déjà petit
+ */
+export async function compressImage(
+  file: File,
+  maxPx = 1920,
+  quality = 0.82,
+): Promise<File> {
+  // Ne pas compresser si déjà sous 1.5 MB ou format non compressible
+  if (file.size <= 1.5 * 1024 * 1024) return file;
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return file;
+
+  return new Promise<File>((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxPx || height > maxPx) {
+        if (width >= height) { height = Math.round(height * maxPx / width); width = maxPx; }
+        else                 { width  = Math.round(width  * maxPx / height); height = maxPx; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width  = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { resolve(file); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob || blob.size >= file.size) { resolve(file); return; }
+          // Garder le nom original mais extension .jpg (canvas produit JPEG)
+          const newName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+          resolve(new File([blob], newName, { type: 'image/jpeg', lastModified: Date.now() }));
+        },
+        'image/jpeg',
+        quality,
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 export async function uploadFile(
   file: File | Blob,
   bucket: 'photos' | 'job-documents' | 'documents',
   path: string,
   ownerId?: string,
 ): Promise<string> {
+  // Compression automatique pour les photos (bucket 'photos' uniquement)
+  let fileToUpload = file;
+  if (bucket === 'photos' && file instanceof File) {
+    fileToUpload = await compressImage(file);
+    // Adapter le path si l'extension a changé (.jpg après compression)
+    if (fileToUpload !== file && path.match(/\.(png|webp)$/i)) {
+      path = path.replace(/\.[^.]+$/, '.jpg');
+    }
+  }
+
   const form = new FormData();
-  form.append('file',   file);
+  form.append('file',   fileToUpload);
   form.append('bucket', bucket);
   form.append('path',   path);
   if (ownerId) form.append('ownerId', ownerId);
@@ -122,10 +180,11 @@ const ALLOWED_IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif']
 export const ACCEPTED_IMAGE_TYPES = 'image/jpeg,image/png,image/webp,image/gif,image/avif';
 
 /**
- * Taille maximale d'une photo (en Mo), alignée sur la limite serveur
- * (MAX_SIZE_BY_BUCKET['photos'] dans /api/upload/route.ts).
+ * Taille maximale d'une photo acceptée côté client avant compression (en Mo).
+ * La compression ramène automatiquement les fichiers sous 5 MB avant l'upload.
+ * On accepte jusqu'à 20 MB bruts — cas réels : photos iPhone 12 MP ≈ 8-12 MB.
  */
-export const MAX_PHOTO_MB = 5;
+export const MAX_PHOTO_MB = 20;
 
 /**
  * Vérifie que le type MIME d'un fichier est accepté par le serveur.
