@@ -3,11 +3,12 @@
 /**
  * EvenementDetailClient — Partie interactive uniquement.
  * Reçoit l'événement pré-chargé côté serveur (initialEvent).
- * Gère : inscription, partage, onglets (participants/discussion/historique),
- *        modaux (transition statut, suppression), lightbox photos.
  *
- * Le rendu statique (hero, meta-strip, description, organisateur) est fait
- * dans page.tsx côté serveur pour un LCP optimal.
+ * Rendu :
+ *  • Sur mobile  : EventActions en haut, EventTabs en dessous (colonne unique)
+ *  • Sur desktop : EventTabs à gauche (colonne principale), EventActions à droite (sidebar sticky)
+ *
+ * Le hero, la barre de navigation et le meta-strip sont rendus côté serveur (page.tsx).
  */
 
 import { useAuthStore } from '@/lib/auth-store';
@@ -36,41 +37,61 @@ export default function EvenementDetailClient({ initialEvent }: Props) {
   const isAdmin  = profile?.role === 'admin' || profile?.role === 'moderator';
   const allPhotos = event.photos ?? [];
 
+  const actionsPanel = (
+    <EventActions
+      event={event}
+      profile={profile}
+      joiningEvent={ctx.joiningEvent}
+      onJoin={ctx.handleJoinWithWaitlist}
+      onOpenTransition={t => {
+        ctx.setPendingTransition(t);
+        ctx.setShowTransitionModal(true);
+      }}
+      onOpenDelete={() => ctx.setShowDeleteConfirm(true)}
+    />
+  );
+
+  const tabsPanel = (
+    <EventTabs
+      event={event}
+      profile={profile}
+      activeTab={ctx.activeTab}
+      onTabChange={ctx.setActiveTab}
+      participants={ctx.participants}
+      comments={ctx.comments}
+      statusHistory={ctx.statusHistory}
+      commentText={ctx.commentText}
+      commenting={ctx.commenting}
+      onCommentChange={ctx.setCommentText}
+      onCommentSubmit={ctx.handleComment}
+      onDeleteComment={ctx.handleDeleteComment}
+      onMarkAttendance={ctx.handleMarkAttendance}
+      isAuthor={isAuthor}
+      isAdmin={isAdmin}
+    />
+  );
+
   return (
     <>
-      {/* CTA inscription + panneau organisateur */}
-      <EventActions
-        event={event}
-        profile={profile}
-        joiningEvent={ctx.joiningEvent}
-        onJoin={ctx.handleJoinWithWaitlist}
-        onOpenTransition={t => {
-          ctx.setPendingTransition(t);
-          ctx.setShowTransitionModal(true);
-        }}
-        onOpenDelete={() => ctx.setShowDeleteConfirm(true)}
-      />
+      {/* ── Layout deux colonnes ──────────────────────────────────────────── */}
+      <div className="lg:grid lg:grid-cols-[1fr_300px] lg:gap-6 lg:items-start">
 
-      {/* Onglets : info / participants / discussion / historique */}
-      <EventTabs
-        event={event}
-        profile={profile}
-        activeTab={ctx.activeTab}
-        onTabChange={ctx.setActiveTab}
-        participants={ctx.participants}
-        comments={ctx.comments}
-        statusHistory={ctx.statusHistory}
-        commentText={ctx.commentText}
-        commenting={ctx.commenting}
-        onCommentChange={ctx.setCommentText}
-        onCommentSubmit={ctx.handleComment}
-        onDeleteComment={ctx.handleDeleteComment}
-        onMarkAttendance={ctx.handleMarkAttendance}
-        isAuthor={isAuthor}
-        isAdmin={isAdmin}
-      />
+        {/* Colonne principale : onglets (info / participants / discussion / historique) */}
+        <div>
+          {/* Sur mobile : CTA d'inscription en haut */}
+          <div className="lg:hidden mb-4">{actionsPanel}</div>
 
-      {/* Modal changement de statut */}
+          {tabsPanel}
+        </div>
+
+        {/* Sidebar desktop : CTA inscription + actions organisateur */}
+        <div className="hidden lg:block sticky top-16 space-y-0">
+          {actionsPanel}
+        </div>
+
+      </div>
+
+      {/* ── Modaux ───────────────────────────────────────────────────────── */}
       <TransitionModal
         open={ctx.showTransitionModal}
         pending={ctx.pendingTransition}
@@ -88,7 +109,6 @@ export default function EvenementDetailClient({ initialEvent }: Props) {
         }}
       />
 
-      {/* Modal suppression */}
       <DeleteModal
         open={ctx.showDeleteConfirm}
         onConfirm={ctx.handleDelete}

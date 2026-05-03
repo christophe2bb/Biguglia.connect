@@ -4,14 +4,14 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 /**
- * BackButton — Uses router.back() if there's browser history (came from our app),
+ * BackButton — Uses router.back() if there's browser history,
  * otherwise falls back to /evenements.
+ * Compact style to fit in the sticky nav bar.
  */
 export default function BackButton() {
   const router = useRouter();
 
   const handleBack = () => {
-    // If we have a previous history entry within the app, go back
     if (window.history.length > 1) {
       router.back();
     } else {
@@ -22,9 +22,11 @@ export default function BackButton() {
   return (
     <button
       onClick={handleBack}
-      className="flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white px-3 py-2 rounded-xl text-sm font-semibold hover:bg-white/30 transition-colors"
+      className="flex items-center gap-1.5 text-gray-600 hover:text-purple-700 font-semibold text-sm transition-colors px-2 py-1 rounded-lg hover:bg-purple-50 flex-shrink-0"
+      aria-label="Retour aux événements"
     >
-      <ArrowLeft className="w-4 h-4" /> Retour
+      <ArrowLeft className="w-4 h-4" />
+      <span className="hidden sm:inline">Retour</span>
     </button>
   );
 }
