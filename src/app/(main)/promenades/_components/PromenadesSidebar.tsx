@@ -61,28 +61,6 @@ export default function PromenadesSidebar({
         </div>
       </div>
 
-      {/* Actions rapides */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-        <h3 className="text-sm font-black text-gray-800 mb-4 flex items-center gap-2">
-          <Compass className="w-4 h-4 text-emerald-500" /> Actions rapides
-        </h3>
-        <div className="space-y-1.5">
-          {[
-            { onClick: () => { setActiveTab('itineraires'); setShowForm(true); }, icon: Plus, label: 'Partager un itinéraire', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-            { onClick: () => { setActiveTab('agenda'); setShowOutingForm(true); }, icon: Users, label: 'Organiser une sortie', color: 'text-teal-600', bg: 'bg-teal-50', border: 'border-teal-100' },
-            { onClick: () => { setActiveTab('forum'); setShowPostForm(true); }, icon: MessageSquare, label: 'Poser une question', color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-100' },
-          ].map(({ onClick, icon: I, label, color, bg, border }) => (
-            <button key={label}
-              onClick={() => { if (!profileId) { window.location.href = '/connexion'; return; } onClick?.(); }} // nosec — hardcoded path '/connexion', no open redirect
-              className={cn('flex items-center gap-3 p-3 rounded-xl transition-colors group border w-full text-left', bg, border, 'hover:shadow-sm')}>
-              <I className={cn('w-4 h-4 flex-shrink-0', color)} />
-              <span className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 flex-1">{label}</span>
-              <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500 transition-colors" />
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Explorer par type */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
         <h3 className="text-sm font-black text-gray-800 mb-4 flex items-center gap-2">
