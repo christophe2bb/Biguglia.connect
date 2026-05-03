@@ -176,7 +176,7 @@ export default function EventSidebar({
             })}
           </div>
           {upcomingEvents.length > 6 && (
-            <button onClick={() => onSetActiveTab('liste')}
+            <button onClick={onShowSemaine}
               className="mt-3 w-full text-xs text-purple-600 font-semibold py-2 border border-purple-100 rounded-xl hover:bg-purple-50 transition-colors flex items-center justify-center gap-1">
               Voir tout <ChevronRight className="w-3 h-3" />
             </button>
@@ -192,10 +192,10 @@ export default function EventSidebar({
         <div className="grid grid-cols-2 gap-2">
           {EVENT_CATEGORIES.slice(0, 7).map(c => {
             const count    = upcomingEvents.filter(e => e.category === c.id).length;
-            const isActive = filterCat === c.id && activeTab === 'liste';
+            const isActive = filterCat === c.id;
             return (
               <button key={c.id}
-                onClick={() => { onSetFilterCat(filterCat === c.id && activeTab === 'liste' ? 'all' : c.id); onSetActiveTab('liste'); }}
+                onClick={() => { onSetFilterCat(filterCat === c.id ? 'all' : c.id); }}
                 className={cn(
                   'flex flex-col items-center gap-1 p-3 rounded-xl border text-center transition-colors hover:shadow-sm text-xs font-bold',
                   isActive ? `${c.bg} ${c.color} ${c.border}` : 'bg-gray-50 border-gray-100 text-gray-500 hover:bg-white hover:border-gray-200',

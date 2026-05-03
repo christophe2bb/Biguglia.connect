@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import {
-  PartyPopper, Calendar, CalendarDays, ListFilter, MessageSquare, Plus,
+  PartyPopper, Calendar, CalendarDays, MessageSquare, Plus,
   Users, Star, Zap, CheckCircle2, AlertCircle,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
@@ -17,8 +17,7 @@ import { useEventFilters } from './_hooks/useEventFilters';
 import dynamic from 'next/dynamic';
 import TabAgenda   from './_components/TabAgenda';
 import TabSemaine  from './_components/TabSemaine';
-import TabListe    from './_components/TabListe';
-// Tabs non-initiaux — lazy loaded pour réduire le bundle initial (~15 KB)
+// Tabs non-initiaux — lazy loaded pour réduire le bundle initial
 const TabForum     = dynamic(() => import('./_components/TabForum'),    { ssr: false });
 const EventSidebar = dynamic(() => import('./_components/EventSidebar'), { ssr: false });
 
@@ -55,7 +54,7 @@ export default function EvenementsPage() {
   } = useEventFilters(events);
 
   const [activeTab, setActiveTab] = React.useState<ActiveTab>('agenda');
-  // Track which tabs have been mounted at least once (avoids lazy-loading TabForum until needed)
+  // Track which tabs have been mounted at least once (lazy-loading TabForum)
   const [mountedTabs, setMountedTabs] = React.useState<Set<ActiveTab>>(new Set(['agenda']));
   const handleTabChange = React.useCallback((tab: ActiveTab) => {
     setActiveTab(tab);
@@ -66,9 +65,8 @@ export default function EvenementsPage() {
   useEffect(() => { if (activeTab === 'forum') fetchForum(); }, [activeTab, fetchForum]);
 
   // Computed
-  const filteredWithSaved = showSavedOnly ? filteredEvents.filter(e => savedEvents.has(e.id)) : filteredEvents;
-  const totalCount        = upcomingEvents.length;
-  const featuredEvent     = upcomingEvents[0] ?? null;
+  const totalCount    = upcomingEvents.length;
+  const featuredEvent = upcomingEvents[0] ?? null;
 
   return (
     <div className="min-h-screen relative">
@@ -143,7 +141,7 @@ export default function EvenementsPage() {
                   ))}
                 </div>
 
-                {/* Raccourcis rapides */}
+                {/* Raccourcis rapides — filtrent le calendrier via filterSector/filterCat */}
                 <div className="flex flex-wrap gap-2">
                   {([
                     { id: 'aujourd_hui', label: "Aujourd'hui", emoji: '⚡',  count: todayEvents.length },
@@ -153,7 +151,7 @@ export default function EvenementsPage() {
                     { id: 'officiel',    label: 'Officiel',    emoji: '🏛️', count: officialEvents.length },
                   ] as const).map(({ id, label, emoji, count }) => (
                     <button key={id}
-                      onClick={() => { setQuickFilter(quickFilter === id ? null : id); handleTabChange('liste'); }}
+                      onClick={() => setQuickFilter(quickFilter === id ? null : id)}
                       className={cn(
                         'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold border transition-colors',
                         quickFilter === id ? 'bg-white text-purple-700 border-white shadow-md' : 'bg-white/15 text-white border-white/30 hover:bg-white/25',
@@ -182,10 +180,9 @@ export default function EvenementsPage() {
           {/* Onglets */}
           <div className="flex flex-wrap gap-2 mb-6 bg-white rounded-2xl border border-gray-100 p-1.5 w-fit shadow-sm">
             {([
-              { id: 'agenda',  label: 'Calendrier',    icon: Calendar,      count: 0 },
-              { id: 'semaine', label: 'Cette semaine',  icon: CalendarDays,  count: thisWeekEventsAll.length },
-              { id: 'liste',   label: 'Tout voir',      icon: ListFilter,    count: 0 },
-              { id: 'forum',   label: 'Forum',          icon: MessageSquare, count: 0 },
+              { id: 'agenda',  label: 'Calendrier',   icon: Calendar,      count: 0 },
+              { id: 'semaine', label: 'Cette semaine', icon: CalendarDays,  count: thisWeekEventsAll.length },
+              { id: 'forum',   label: 'Forum',         icon: MessageSquare, count: 0 },
             ] as { id: ActiveTab; label: string; icon: React.ElementType; count: number }[]).map(({ id, label, icon: Icon, count }) => (
               <button key={id} onClick={() => handleTabChange(id)}
                 className={cn(
@@ -195,9 +192,6 @@ export default function EvenementsPage() {
                 <Icon className="w-4 h-4" /> {label}
                 {id === 'semaine' && count > 0 && (
                   <span className={cn('text-[10px] font-black px-1.5 py-0.5 rounded-full', activeTab === 'semaine' ? 'bg-white/25' : 'bg-purple-100 text-purple-700')}>{count}</span>
-                )}
-                {id === 'liste' && activeFiltersCount > 0 && (
-                  <span className="w-5 h-5 bg-purple-500 text-white text-[10px] font-black rounded-full flex items-center justify-center">{activeFiltersCount}</span>
                 )}
               </button>
             ))}
@@ -209,10 +203,9 @@ export default function EvenementsPage() {
 
           <div className="flex gap-8 items-start">
             {/* Colonne principale —
-                • display:none inline (non className="hidden") → masquage non écrasable par les enfants.
-                • contain:"layout style" → chaque panneau crée un contexte de mise en page isolé,
-                  les repaints (shadow, transition) ne se propagent pas au fond fixe → plus de shimmer.
-                • Les 3 onglets statiques restent montés ; le Forum est lazy-monté. */}
+                • display:none inline → masquage non écrasable par les enfants.
+                • contain:"layout style" → repaints confinés, pas de shimmer sur le fond fixe.
+                • Agenda + Semaine montés dès le départ ; Forum lazy-monté. */}
             <div className="flex-1 min-w-0">
               {/* Calendrier */}
               <div style={activeTab !== 'agenda' ? { display: 'none' } : { contain: 'layout style' }}>
@@ -234,29 +227,6 @@ export default function EvenementsPage() {
                   onShowAgenda={() => handleTabChange('agenda')}
                   sectorCounts={sectorCounts} filterSector={filterSector}
                   setFilterSector={setFilterSector} totalFiltered={thisWeekEvents.length} />
-              </div>
-
-              {/* Tout voir */}
-              <div style={activeTab !== 'liste' ? { display: 'none' } : { contain: 'layout style' }}>
-                <TabListe
-                  loading={loadingEvents} filteredEvents={filteredWithSaved} activeFiltersCount={showSavedOnly ? activeFiltersCount + 1 : activeFiltersCount}
-                  filterCat={filterCat} setFilterCat={setFilterCat}
-                  filterStatus={filterStatus} setFilterStatus={setFilterStatus}
-                  filterSector={filterSector} setFilterSector={setFilterSector}
-                  sectorCounts={sectorCounts}
-                  totalFiltered={filteredWithSaved.length}
-                  searchQuery={searchQuery} setSearchQuery={setSearchQuery}
-                  quickFilter={quickFilter} setQuickFilter={setQuickFilter}
-                  showAdvFilters={showAdvFilters} setShowAdvFilters={setShowAdvFilters}
-                  filterInscription={filterInscription} setFilterInscription={setFilterInscription}
-                  filterFree={filterFree} setFilterFree={setFilterFree}
-                  showSavedOnly={showSavedOnly} setShowSavedOnly={setShowSavedOnly}
-                  savedEvents={savedEvents} userId={profile?.id}
-                  onJoin={handleJoin} onStatusChange={handleEventStatusChange}
-                  onToggleSave={toggleSaved} profile={profile}
-                  onCreateClick={() => window.location.href = '/evenements/nouveau'}
-                  onResetFilters={() => { resetFilters(); setShowSavedOnly(() => false); }}
-                />
               </div>
 
               {/* Forum — monté une seule fois après la 1ère visite */}
@@ -283,7 +253,7 @@ export default function EvenementsPage() {
               onSetFilterCat={cat => { setFilterCat(cat); }}
               onSetActiveTab={t => handleTabChange(t as ActiveTab)}
               onShowSemaine={() => handleTabChange('semaine')}
-              onShowSavedOnly={() => { setShowSavedOnly(() => true); handleTabChange('liste'); }}
+              onShowSavedOnly={() => handleTabChange('semaine')}
             />
           </div>
         </div>
