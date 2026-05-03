@@ -116,13 +116,21 @@ export default function EventTabs({
             )}
 
             {/* Photos gallery */}
-            {allPhotos.length > 1 && (
+            {allPhotos.length > 0 && (
               <div>
-                <h3 className="font-bold text-gray-900 mb-2">Photos</h3>
+                <h3 className="font-bold text-gray-900 mb-2">
+                  Photos {allPhotos.length > 1 && <span className="text-xs text-gray-400 font-normal">({allPhotos.length})</span>}
+                </h3>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                  {allPhotos.map((p, _i) => (
-                    <div key={p.id} className="aspect-square rounded-xl overflow-hidden border border-gray-100">
-                      <Image src={p.url} alt="" fill className="object-cover" />
+                  {allPhotos.map((p) => (
+                    /* position:relative obligatoire pour next/image fill */
+                    <div key={p.id} className="relative aspect-square rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
+                      <Image src={p.url} alt="" fill sizes="(max-width: 640px) 33vw, 25vw" className="object-cover" />
+                      {p.is_cover && (
+                        <span className="absolute bottom-1 left-1 text-[9px] font-bold bg-black/50 text-white px-1.5 py-0.5 rounded-full">
+                          Cover
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>

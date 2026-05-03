@@ -149,28 +149,32 @@ export default async function EventDetailPage({ params }: Props) {
     <div className="min-h-screen bg-gray-50">
 
       {/* ── Hero (server-rendered) ────────────────────────────────────────── */}
-      <div className="relative h-64 sm:h-80 bg-gradient-to-br from-purple-600 to-violet-700 overflow-hidden">
-        {coverPhoto ? (
+      <div className="relative h-56 sm:h-72 bg-gradient-to-br from-purple-600 to-violet-700 overflow-hidden">
+        {/* Photo de couverture — hauteur fixe, ne déborde pas */}
+        {coverPhoto && (
           <Image
             src={coverPhoto}
             alt={event.title}
             fill
             priority
             sizes="100vw"
-            className="object-cover opacity-60"
+            className="object-cover object-center"
+            style={{ opacity: 0.55 }}
           />
-        ) : (
+        )}
+        {!coverPhoto && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-8xl opacity-30">{cat.icon}</span>
+            <span className="text-8xl opacity-20">{cat.icon}</span>
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+        {/* Dégradé assombri pour lisibilité des textes et boutons */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-black/10" />
 
-        {/* Back — smart: goes back in history or falls back to /evenements */}
-        <BackButton />
-
-        {/* Status badge (top-right) */}
-        <div className="absolute top-4 right-4">
+        {/* Boutons haut — z-10 pour passer au-dessus de l'image */}
+        <div className="absolute top-4 left-4 z-10">
+          <BackButton />
+        </div>
+        <div className="absolute top-4 right-4 z-10">
           <StatusBadge
             status={event.status}
             contentType="event"
@@ -178,14 +182,14 @@ export default async function EventDetailPage({ params }: Props) {
           />
         </div>
 
-        {/* Title overlay */}
-        <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8">
+        {/* Titre bas — z-10 */}
+        <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8 z-10">
           <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold mb-2 ${cat.bg} ${cat.color} border ${cat.border}`}>
             <span>{cat.icon}</span> {cat.label}
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white leading-tight">{event.title}</h1>
+          <h1 className="text-2xl sm:text-3xl font-black text-white leading-tight drop-shadow">{event.title}</h1>
           {event.subtitle && (
-            <p className="text-white/80 text-sm mt-1">{event.subtitle}</p>
+            <p className="text-white/80 text-sm mt-1 drop-shadow">{event.subtitle}</p>
           )}
         </div>
       </div>

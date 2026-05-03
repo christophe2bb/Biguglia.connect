@@ -22,7 +22,7 @@ export default function BackButton() {
   return (
     <button
       onClick={handleBack}
-      className="absolute top-4 left-4 flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white px-3 py-2 rounded-xl text-sm font-semibold hover:bg-white/30 transition-colors"
+      className="flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white px-3 py-2 rounded-xl text-sm font-semibold hover:bg-white/30 transition-colors"
     >
       <ArrowLeft className="w-4 h-4" /> Retour
     </button>
