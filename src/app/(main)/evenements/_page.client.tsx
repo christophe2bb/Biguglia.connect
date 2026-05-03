@@ -193,13 +193,12 @@ export default function EvenementsPage() {
 
           <div className="flex gap-8 items-start">
             {/* Colonne principale —
-                Les 3 onglets statiques (agenda/semaine/liste) sont TOUJOURS montés et
-                masqués par CSS (hidden) pour éviter le shimmer des images Next.js
-                lors des transitions d'onglets (remount → replay blur placeholder).
-                TabForum est monté une seule fois après la 1ère visite (lazy). */}
+                style={{ display: 'none' }} est utilisé (et non className="hidden")
+                pour garantir que le masquage ne peut pas être écrasé par un style
+                enfant, tout en gardant les composants montés (pas de shimmer image). */}
             <div className="flex-1 min-w-0">
               {/* Calendrier */}
-              <div className={activeTab === 'agenda' ? undefined : 'hidden'}>
+              <div style={activeTab !== 'agenda' ? { display: 'none' } : undefined}>
                 <TabAgenda events={events} userId={profile?.id} loading={loadingEvents}
                   onJoin={handleJoin} onStatusChange={handleEventStatusChange} profile={profile}
                   sectorCounts={sectorCounts} filterSector={filterSector}
@@ -210,7 +209,7 @@ export default function EvenementsPage() {
               </div>
 
               {/* Cette semaine */}
-              <div className={activeTab === 'semaine' ? undefined : 'hidden'}>
+              <div style={activeTab !== 'semaine' ? { display: 'none' } : undefined}>
                 <TabSemaine loading={loadingEvents} thisWeekDays={thisWeekDays} thisWeekByDay={thisWeekByDay}
                   thisWeekEvents={thisWeekEvents} today={today} userId={profile?.id}
                   onJoin={handleJoin} onStatusChange={handleEventStatusChange}
@@ -221,7 +220,7 @@ export default function EvenementsPage() {
               </div>
 
               {/* Tout voir */}
-              <div className={activeTab === 'liste' ? undefined : 'hidden'}>
+              <div style={activeTab !== 'liste' ? { display: 'none' } : undefined}>
                 <TabListe
                   loading={loadingEvents} filteredEvents={filteredWithSaved} activeFiltersCount={showSavedOnly ? activeFiltersCount + 1 : activeFiltersCount}
                   filterCat={filterCat} setFilterCat={setFilterCat}
@@ -245,7 +244,7 @@ export default function EvenementsPage() {
 
               {/* Forum — monté une seule fois après la 1ère visite */}
               {mountedTabs.has('forum') && (
-                <div className={activeTab === 'forum' ? undefined : 'hidden'}>
+                <div style={activeTab !== 'forum' ? { display: 'none' } : undefined}>
                   <TabForum loading={loadingForum} forumPosts={forumPosts} forumCategoryId={forumCategoryId}
                     showPostForm={showPostForm} setShowPostForm={setShowPostForm}
                     postForm={postForm} setPostForm={setPostForm}
