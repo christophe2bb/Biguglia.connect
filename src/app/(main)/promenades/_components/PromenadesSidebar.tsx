@@ -110,38 +110,6 @@ export default function PromenadesSidebar({
         </div>
       </div>
 
-      {/* Explorer par secteur */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-        <h3 className="text-sm font-black text-gray-800 mb-4 flex items-center gap-2">
-          <MapPin className="w-4 h-4 text-emerald-500" /> Explorer par secteur
-        </h3>
-        <div className="space-y-1.5">
-          <button
-            onClick={() => { setFilterSector(null); setActiveTab('itineraires'); }}
-            className={cn('flex items-center gap-2 w-full px-3 py-2 rounded-xl text-xs font-bold border transition-colors',
-              !filterSector ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50')}>
-            <span className="text-base">🗺️</span>
-            <span>Tous les secteurs</span>
-            <span className={cn('ml-auto text-[10px] font-semibold', !filterSector ? 'text-emerald-500' : 'text-gray-400')}>{promenades.length}</span>
-          </button>
-          {SECTORS.map(sector => {
-            const colors = SECTOR_COLORS[sector.color];
-            const count = promenades.filter(p => p.sector_id === sector.id).length;
-            const isActive = filterSector === sector.id;
-            return (
-              <button key={sector.id}
-                onClick={() => { setFilterSector(isActive ? null : sector.id); setActiveTab('itineraires'); }}
-                className={cn('flex items-center gap-2 w-full px-3 py-2 rounded-xl text-xs font-bold border transition-colors',
-                  isActive ? `${colors.bg} ${colors.text} ${colors.border}` : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50')}>
-                <span className="text-base">{sector.icon}</span>
-                <span className="flex-1 text-left truncate">{sector.name}</span>
-                {count > 0 && <span className={cn('text-[10px] font-semibold', isActive ? colors.text : 'text-gray-400')}>{count}</span>}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Conseils saisonniers */}
       <div className="bg-amber-50 rounded-2xl border border-amber-100 p-5 shadow-sm">
         <h3 className="text-sm font-black text-amber-800 mb-3 flex items-center gap-2">

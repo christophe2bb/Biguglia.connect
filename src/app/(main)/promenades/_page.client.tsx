@@ -329,8 +329,6 @@ export default function PromenadePage() {
           {/* Filtres (itinéraires seulement) */}
           {activeTab === 'itineraires' && (
             <div className="flex-1 flex items-center gap-3 flex-wrap">
-              <SectorFilter value={filterSector} onChange={setFilterSector} showAll compact label="Secteur" />
-
               <button onClick={() => setShowAdvanced(!showAdvanced)}
                 className={cn('inline-flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl border transition-colors',
                   showAdvanced || activeFiltersCount > 0
