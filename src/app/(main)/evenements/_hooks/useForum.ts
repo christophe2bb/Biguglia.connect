@@ -12,7 +12,7 @@ export function useForum() {
   const [forumCategoryId, setForumCategoryId] = useState<string | null>(null);
   const [loadingForum, setLoadingForum]       = useState(false);
   const [showPostForm, setShowPostForm]       = useState(false);
-  const [postForm, setPostForm]               = useState({ title: '', content: '' });
+  const [postForm, setPostForm]               = useState({ title: '', content: '', sector_id: '' });
   const [submittingPost, setSubmittingPost]   = useState(false);
 
   const fetchForum = useCallback(async () => {
@@ -66,17 +66,19 @@ export function useForum() {
       return;
     }
 
-    const { error } = await supabase.from('forum_posts').insert({
+    const payload: Record<string, unknown> = {
       category_id: catId,
       author_id: profileId,
       title: postForm.title.trim(),
       content: postForm.content.trim(),
-    });
+    };
+    if (postForm.sector_id) payload.sector_id = postForm.sector_id;
+    const { error } = await supabase.from('forum_posts').insert(payload);
     if (error) {
       toast.error(`Erreur : ${error.message}`);
     } else {
       toast.success('🎉 Sujet publié !', { duration: 4000 });
-      setPostForm({ title: '', content: '' });
+      setPostForm({ title: '', content: '', sector_id: '' });
       setShowPostForm(false);
       fetchForum();
     }

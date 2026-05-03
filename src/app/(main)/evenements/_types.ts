@@ -34,6 +34,7 @@ export type ForumPost = {
   author?: { full_name: string; avatar_url?: string } | null;
   created_at: string;
   comment_count?: number;
+  sector_id?: string | null;
 };
 
 export type EventCat = {

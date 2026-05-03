@@ -232,7 +232,9 @@ export default function EvenementsPage() {
                   showPostForm={showPostForm} setShowPostForm={setShowPostForm}
                   postForm={postForm} setPostForm={setPostForm}
                   submittingPost={submittingPost} profile={profile}
-                  onSubmit={handlePostSubmit} />
+                  onSubmit={handlePostSubmit}
+                  sectorCounts={sectorCounts} filterSector={filterSector}
+                  setFilterSector={setFilterSector} />
               )}
             </div>
 
