@@ -20,7 +20,7 @@ import TabAgenda   from './_components/TabAgenda';
 import TabSemaine  from './_components/TabSemaine';
 import TabListe    from './_components/TabListe';
 // Tabs non-initiaux — lazy loaded pour réduire le bundle initial (~15 KB)
-const TabForum    = dynamic(() => import('./_components/TabForum'),    { ssr: false });
+const TabForum     = dynamic(() => import('./_components/TabForum'),    { ssr: false });
 const EventSidebar = dynamic(() => import('./_components/EventSidebar'), { ssr: false });
 
 import type { ActiveTab } from './_types';
@@ -56,6 +56,12 @@ export default function EvenementsPage() {
   } = useEventFilters(events);
 
   const [activeTab, setActiveTab] = React.useState<ActiveTab>('agenda');
+  // Track which tabs have been mounted at least once (avoids lazy-loading TabForum until needed)
+  const [mountedTabs, setMountedTabs] = React.useState<Set<ActiveTab>>(new Set(['agenda']));
+  const handleTabChange = React.useCallback((tab: ActiveTab) => {
+    setActiveTab(tab);
+    setMountedTabs(prev => { const s = new Set(prev); s.add(tab); return s; });
+  }, []);
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
   useEffect(() => { if (activeTab === 'forum') fetchForum(); }, [activeTab, fetchForum]);
@@ -131,7 +137,7 @@ export default function EvenementsPage() {
                     { id: 'officiel',    label: 'Officiel',    emoji: '🏛️', count: officialEvents.length },
                   ] as const).map(({ id, label, emoji, count }) => (
                     <button key={id}
-                      onClick={() => { setQuickFilter(quickFilter === id ? null : id); setActiveTab('liste'); }}
+                      onClick={() => { setQuickFilter(quickFilter === id ? null : id); handleTabChange('liste'); }}
                       className={cn(
                         'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold border transition-colors',
                         quickFilter === id ? 'bg-white text-purple-700 border-white shadow-md' : 'bg-white/15 text-white border-white/30 hover:bg-white/25',
@@ -165,7 +171,7 @@ export default function EvenementsPage() {
               { id: 'liste',   label: 'Tout voir',      icon: ListFilter,    count: 0 },
               { id: 'forum',   label: 'Forum',          icon: MessageSquare, count: 0 },
             ] as { id: ActiveTab; label: string; icon: React.ElementType; count: number }[]).map(({ id, label, icon: Icon, count }) => (
-              <button key={id} onClick={() => setActiveTab(id)}
+              <button key={id} onClick={() => handleTabChange(id)}
                 className={cn(
                   'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors',
                   activeTab === id ? 'bg-purple-600 text-white shadow-md' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50',
@@ -186,9 +192,14 @@ export default function EvenementsPage() {
           </div>
 
           <div className="flex gap-8 items-start">
-            {/* Colonne principale */}
+            {/* Colonne principale —
+                Les 3 onglets statiques (agenda/semaine/liste) sont TOUJOURS montés et
+                masqués par CSS (hidden) pour éviter le shimmer des images Next.js
+                lors des transitions d'onglets (remount → replay blur placeholder).
+                TabForum est monté une seule fois après la 1ère visite (lazy). */}
             <div className="flex-1 min-w-0">
-              {activeTab === 'agenda' && (
+              {/* Calendrier */}
+              <div className={activeTab === 'agenda' ? undefined : 'hidden'}>
                 <TabAgenda events={events} userId={profile?.id} loading={loadingEvents}
                   onJoin={handleJoin} onStatusChange={handleEventStatusChange} profile={profile}
                   sectorCounts={sectorCounts} filterSector={filterSector}
@@ -196,17 +207,21 @@ export default function EvenementsPage() {
                   totalFiltered={filterSector
                     ? events.filter(e => filterSector === 'ville' ? !e.sector_id : e.sector_id === filterSector).length
                     : events.length} />
-              )}
-              {activeTab === 'semaine' && (
+              </div>
+
+              {/* Cette semaine */}
+              <div className={activeTab === 'semaine' ? undefined : 'hidden'}>
                 <TabSemaine loading={loadingEvents} thisWeekDays={thisWeekDays} thisWeekByDay={thisWeekByDay}
                   thisWeekEvents={thisWeekEvents} today={today} userId={profile?.id}
                   onJoin={handleJoin} onStatusChange={handleEventStatusChange}
                   onToggleSave={toggleSaved} savedEvents={savedEvents}
-                  onShowAgenda={() => setActiveTab('agenda')}
+                  onShowAgenda={() => handleTabChange('agenda')}
                   sectorCounts={sectorCounts} filterSector={filterSector}
                   setFilterSector={setFilterSector} totalFiltered={thisWeekEvents.length} />
-              )}
-              {activeTab === 'liste' && (
+              </div>
+
+              {/* Tout voir */}
+              <div className={activeTab === 'liste' ? undefined : 'hidden'}>
                 <TabListe
                   loading={loadingEvents} filteredEvents={filteredWithSaved} activeFiltersCount={showSavedOnly ? activeFiltersCount + 1 : activeFiltersCount}
                   filterCat={filterCat} setFilterCat={setFilterCat}
@@ -226,15 +241,19 @@ export default function EvenementsPage() {
                   onCreateClick={() => window.location.href = '/evenements/nouveau'}
                   onResetFilters={() => { resetFilters(); setShowSavedOnly(() => false); }}
                 />
-              )}
-              {activeTab === 'forum' && (
-                <TabForum loading={loadingForum} forumPosts={forumPosts} forumCategoryId={forumCategoryId}
-                  showPostForm={showPostForm} setShowPostForm={setShowPostForm}
-                  postForm={postForm} setPostForm={setPostForm}
-                  submittingPost={submittingPost} profile={profile}
-                  onSubmit={handlePostSubmit}
-                  sectorCounts={sectorCounts} filterSector={filterSector}
-                  setFilterSector={setFilterSector} />
+              </div>
+
+              {/* Forum — monté une seule fois après la 1ère visite */}
+              {mountedTabs.has('forum') && (
+                <div className={activeTab === 'forum' ? undefined : 'hidden'}>
+                  <TabForum loading={loadingForum} forumPosts={forumPosts} forumCategoryId={forumCategoryId}
+                    showPostForm={showPostForm} setShowPostForm={setShowPostForm}
+                    postForm={postForm} setPostForm={setPostForm}
+                    submittingPost={submittingPost} profile={profile}
+                    onSubmit={handlePostSubmit}
+                    sectorCounts={sectorCounts} filterSector={filterSector}
+                    setFilterSector={setFilterSector} />
+                </div>
               )}
             </div>
 
@@ -246,9 +265,9 @@ export default function EvenementsPage() {
               freeEvents={freeEvents} officialEvents={officialEvents}
               filterCat={filterCat} activeTab={activeTab} savedEvents={savedEvents} profile={profile}
               onSetFilterCat={cat => { setFilterCat(cat); }}
-              onSetActiveTab={t => setActiveTab(t as ActiveTab)}
-              onShowSemaine={() => setActiveTab('semaine')}
-              onShowSavedOnly={() => { setShowSavedOnly(() => true); setActiveTab('liste'); }}
+              onSetActiveTab={t => handleTabChange(t as ActiveTab)}
+              onShowSemaine={() => handleTabChange('semaine')}
+              onShowSavedOnly={() => { setShowSavedOnly(() => true); handleTabChange('liste'); }}
             />
           </div>
         </div>

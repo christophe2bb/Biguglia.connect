@@ -76,7 +76,11 @@ export default function EventSidebar({
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold bg-white/20 px-2.5 py-1 rounded-full">
-                {featuredEvent.is_free ? '🎟️ Gratuit' : `${featuredEvent.price} €`}
+                {featuredEvent.is_free
+                  ? '🎟️ Gratuit'
+                  : featuredEvent.price != null && featuredEvent.price > 0
+                    ? `${featuredEvent.price} €`
+                    : 'Payant'}
               </span>
               <Link href={`/evenements/${featuredEvent.id}`}
                 className="text-xs font-bold bg-white/90 text-purple-700 px-3 py-1.5 rounded-xl hover:bg-white transition-colors">
