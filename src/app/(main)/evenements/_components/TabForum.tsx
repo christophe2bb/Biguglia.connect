@@ -187,10 +187,11 @@ function NewPostForm({
 
         {/* Titre */}
         <div>
-          <label className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+          <label htmlFor="forum-title" className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
             <Hash className="w-3 h-3 text-purple-400" /> Titre du sujet *
           </label>
           <input
+            id="forum-title"
             type="text"
             placeholder="Ex : Qui organise la fête de la musique cette année ?"
             required
@@ -204,10 +205,11 @@ function NewPostForm({
 
         {/* Message */}
         <div>
-          <label className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+          <label htmlFor="forum-content" className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
             <MessageSquare className="w-3 h-3 text-purple-400" /> Votre message *
           </label>
           <textarea
+            id="forum-content"
             placeholder="Décrivez votre question, proposition ou retour en détail…"
             required
             rows={5}
@@ -221,10 +223,10 @@ function NewPostForm({
 
         {/* Sélecteur secteur */}
         <div>
-          <label className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+          <p className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
             <MapPin className="w-3 h-3 text-purple-400" /> Quartier concerné
             <span className="font-normal text-gray-300 normal-case tracking-normal">(optionnel)</span>
-          </label>
+          </p>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
