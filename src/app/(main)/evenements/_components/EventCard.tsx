@@ -192,7 +192,7 @@ export default function EventCard({
     )}>
 
       {/* ── Zone photo hero (grande) ── */}
-      <div className="relative overflow-hidden" style={{ aspectRatio: '16/9', minHeight: '180px' }}>
+      <div className="relative overflow-hidden" style={{ height: '320px' }}>
         {event.cover_photo ? (
           <div
             className="relative w-full h-full cursor-pointer"
