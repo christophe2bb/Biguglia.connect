@@ -210,14 +210,18 @@ export default function EvenementsPage() {
             <div className="flex-1 min-w-0">
               {activeTab === 'agenda' && (
                 <TabAgenda events={events} userId={profile?.id} loading={loadingEvents}
-                  onJoin={handleJoin} onStatusChange={handleEventStatusChange} profile={profile} />
+                  onJoin={handleJoin} onStatusChange={handleEventStatusChange} profile={profile}
+                  sectorCounts={sectorCounts} filterSector={filterSector}
+                  setFilterSector={setFilterSector} totalFiltered={filteredEvents.length} />
               )}
               {activeTab === 'semaine' && (
                 <TabSemaine loading={loadingEvents} thisWeekDays={thisWeekDays} thisWeekByDay={thisWeekByDay}
                   thisWeekEvents={thisWeekEvents} today={today} userId={profile?.id}
                   onJoin={handleJoin} onStatusChange={handleEventStatusChange}
                   onToggleSave={toggleSaved} savedEvents={savedEvents}
-                  onShowAgenda={() => setActiveTab('agenda')} />
+                  onShowAgenda={() => setActiveTab('agenda')}
+                  sectorCounts={sectorCounts} filterSector={filterSector}
+                  setFilterSector={setFilterSector} totalFiltered={thisWeekEvents.length} />
               )}
               {activeTab === 'liste' && (
                 <TabListe

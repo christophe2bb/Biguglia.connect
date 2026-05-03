@@ -4,6 +4,7 @@ import React from 'react';
 import { CalendarDays, Calendar, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import EventCard from './EventCard';
+import SectorExplorer from './SectorExplorer';
 import type { LocalEvent } from '../_types';
 
 interface Props {
@@ -18,11 +19,16 @@ interface Props {
   onToggleSave: (id: string) => void;
   savedEvents: Set<string>;
   onShowAgenda: () => void;
+  sectorCounts: Record<string, number>;
+  filterSector: string | null;
+  setFilterSector: (v: string | null) => void;
+  totalFiltered: number;
 }
 
 export default function TabSemaine({
   loading, thisWeekDays, thisWeekByDay, thisWeekEvents, today,
   userId, onJoin, onStatusChange, onToggleSave, savedEvents, onShowAgenda,
+  sectorCounts, filterSector, setFilterSector, totalFiltered,
 }: Props) {
   const getTomorrowKey = () => {
     const d = new Date();
@@ -32,6 +38,12 @@ export default function TabSemaine({
 
   return (
     <div>
+      <SectorExplorer
+        sectorCounts={sectorCounts}
+        filterSector={filterSector}
+        setFilterSector={setFilterSector}
+        totalFiltered={totalFiltered}
+      />
       <div className="flex items-center justify-between mb-5">
         <div>
           <h2 className="text-lg font-black text-gray-900 flex items-center gap-2">
