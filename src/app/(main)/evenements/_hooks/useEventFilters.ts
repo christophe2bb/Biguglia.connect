@@ -67,6 +67,21 @@ export function useEventFilters(events: LocalEvent[]) {
     sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
     return upcomingEvents.filter(e => {
       const d = new Date(e.event_date + 'T00:00:00');
+      if (!(d >= new Date(today) && d <= sevenDaysLater)) return false;
+      if (filterSector) {
+        if (filterSector === 'ville') return !e.sector_id;
+        return e.sector_id === filterSector;
+      }
+      return true;
+    });
+  }, [upcomingEvents, today, filterSector]);
+
+  // thisWeekEvents sans filtre secteur — pour le compteur du badge onglet
+  const thisWeekEventsAll = useMemo(() => {
+    const sevenDaysLater = new Date();
+    sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+    return upcomingEvents.filter(e => {
+      const d = new Date(e.event_date + 'T00:00:00');
       return d >= new Date(today) && d <= sevenDaysLater;
     });
   }, [upcomingEvents, today]);
@@ -115,6 +130,7 @@ export function useEventFilters(events: LocalEvent[]) {
     officialEvents,
     freeEvents,
     thisWeekEvents,
+    thisWeekEventsAll,
     thisWeekByDay,
     thisWeekDays,
     activeFiltersCount,

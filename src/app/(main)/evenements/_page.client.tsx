@@ -53,7 +53,7 @@ export default function EvenementsPage() {
     quickFilter, setQuickFilter, showAdvFilters, setShowAdvFilters,
     filterInscription, setFilterInscription, filterFree, setFilterFree,
     today, filteredEvents, upcomingEvents, todayEvents, weekendEvents,
-    officialEvents, freeEvents, thisWeekEvents, thisWeekByDay, thisWeekDays,
+    officialEvents, freeEvents, thisWeekEvents, thisWeekEventsAll, thisWeekByDay, thisWeekDays,
     activeFiltersCount, resetFilters,
   } = useEventFilters(events);
 
@@ -180,7 +180,7 @@ export default function EvenementsPage() {
           <div className="flex flex-wrap gap-2 mb-6 bg-white rounded-2xl border border-gray-100 p-1.5 w-fit shadow-sm">
             {([
               { id: 'agenda',  label: 'Calendrier',    icon: Calendar,      count: 0 },
-              { id: 'semaine', label: 'Cette semaine',  icon: CalendarDays,  count: thisWeekEvents.length },
+              { id: 'semaine', label: 'Cette semaine',  icon: CalendarDays,  count: thisWeekEventsAll.length },
               { id: 'liste',   label: 'Tout voir',      icon: ListFilter,    count: 0 },
               { id: 'forum',   label: 'Forum',          icon: MessageSquare, count: 0 },
               { id: 'creer',   label: 'Créer',          icon: Plus,          count: 0 },
@@ -212,7 +212,10 @@ export default function EvenementsPage() {
                 <TabAgenda events={events} userId={profile?.id} loading={loadingEvents}
                   onJoin={handleJoin} onStatusChange={handleEventStatusChange} profile={profile}
                   sectorCounts={sectorCounts} filterSector={filterSector}
-                  setFilterSector={setFilterSector} totalFiltered={filteredEvents.length} />
+                  setFilterSector={setFilterSector}
+                  totalFiltered={filterSector
+                    ? events.filter(e => filterSector === 'ville' ? !e.sector_id : e.sector_id === filterSector).length
+                    : events.length} />
               )}
               {activeTab === 'semaine' && (
                 <TabSemaine loading={loadingEvents} thisWeekDays={thisWeekDays} thisWeekByDay={thisWeekByDay}
