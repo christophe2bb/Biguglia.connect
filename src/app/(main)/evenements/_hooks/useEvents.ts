@@ -36,7 +36,7 @@ export function useEvents(profileId?: string) {
         data = evData.map((e: Record<string, unknown>) => ({
           ...e,
           is_free: e.price_type === 'gratuit',
-          event_time: e.start_time ?? '18:00',
+          event_time: ((e.start_time ?? '18:00') as string).slice(0, 5), // '18:00:00' → '18:00'
           max_participants: e.capacity ?? null,
         })) as LocalEvent[];
       } else {

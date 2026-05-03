@@ -68,7 +68,7 @@ export default function EventSidebar({
                 <Calendar className="w-3 h-3" />{formatEventDate(featuredEvent.event_date)}
               </p>
               <p className="text-xs text-purple-100 flex items-center gap-1.5">
-                <Clock className="w-3 h-3" />{featuredEvent.event_time}
+                <Clock className="w-3 h-3" />{(featuredEvent.event_time ?? '').slice(0, 5)}
               </p>
               <p className="text-xs text-purple-100 flex items-center gap-1.5">
                 <MapPin className="w-3 h-3" />{featuredEvent.location}
@@ -125,7 +125,7 @@ export default function EventSidebar({
                         <div className="min-w-0 flex-1">
                           <p className="text-[11px] font-bold text-gray-800 line-clamp-1 group-hover:text-purple-600">{ev.title}</p>
                           <p className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
-                            <Clock className="w-2.5 h-2.5" />{ev.event_time}
+                            <Clock className="w-2.5 h-2.5" />{(ev.event_time ?? '').slice(0, 5)}
                             {ev.is_free && <span className="text-emerald-500 font-semibold ml-1">Gratuit</span>}
                           </p>
                         </div>

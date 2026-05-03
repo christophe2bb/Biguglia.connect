@@ -38,6 +38,8 @@ export default function EventCard({
   const _CatIcon   = cat.icon;
   const dateLabel = formatEventDate(event.event_date);
   const countdown = daysUntil(event.event_date);
+  // Tronquer '18:00:00' → '18:00' (format PostgreSQL time)
+  const timeLabel = (event.event_time ?? '').slice(0, 5);
 
   // Helper: format price safely (never shows "null €")
   const priceLabel = event.is_free
@@ -105,7 +107,7 @@ export default function EventCard({
             </div>
             <div className="flex items-center gap-1.5 text-xs text-gray-600">
               <Clock className="w-3 h-3 text-sky-400 flex-shrink-0" />
-              <span>{event.event_time}</span>
+              <span>{timeLabel}</span>
               {event.organizer_name && (
                 <>
                   <span className="text-gray-300">·</span>
@@ -247,7 +249,7 @@ export default function EventCard({
             <Calendar className="w-3.5 h-3.5 text-purple-500 flex-shrink-0" /><span>{dateLabel}</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-gray-600">
-            <Clock className="w-3.5 h-3.5 text-sky-500 flex-shrink-0" /><span>{event.event_time}</span>
+            <Clock className="w-3.5 h-3.5 text-sky-500 flex-shrink-0" /><span>{timeLabel}</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-gray-600">
             <MapPin className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
