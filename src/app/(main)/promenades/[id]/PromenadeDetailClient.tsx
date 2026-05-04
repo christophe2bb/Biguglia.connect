@@ -128,15 +128,23 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
 
     // Étape 2 : upload des nouvelles photos + insert via API route (bypass RLS client)
     const baseOrder = p.photos?.length ?? 0;
+    console.log('[DEBUG] Nombre de photos à uploader :', newPhotos.length);
+    console.log('[DEBUG] promenade id :', p.id);
+    console.log('[DEBUG] profile.id :', profile.id);
+
     for (let i = 0; i < newPhotos.length; i++) {
       const photo    = newPhotos[i];
       const ext      = safeImageExt(photo.name);
       const fileName = `promenades/${p.id}/${Date.now()}_${i}.${ext}`; // nosec
+      console.log(`[DEBUG] Photo ${i + 1} — fileName: ${fileName}`);
       try {
         // Upload du fichier via /api/upload (magic-bytes validation)
+        console.log(`[DEBUG] Photo ${i + 1} — Début uploadFile...`);
         const publicUrl = await uploadFile(photo, 'photos', fileName, profile.id);
+        console.log(`[DEBUG] Photo ${i + 1} — uploadFile OK, url: ${publicUrl}`);
 
         // Insert dans promenade_photos via API route serveur (client admin, pas de RLS client)
+        console.log(`[DEBUG] Photo ${i + 1} — Début insert /api/promenade-photos...`);
         const insertRes = await fetch('/api/promenade-photos', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -146,14 +154,19 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
             display_order: baseOrder + i,
           }),
         });
+        console.log(`[DEBUG] Photo ${i + 1} — insert status: ${insertRes.status}`);
         if (!insertRes.ok) {
           const body = await insertRes.json().catch(() => ({})) as { error?: string };
+          console.error(`[DEBUG] Photo ${i + 1} — insert ERREUR:`, body);
           throw new Error(body.error ?? `HTTP ${insertRes.status}`);
         }
+        console.log(`[DEBUG] Photo ${i + 1} — insert OK ✅`);
       } catch (err) {
+        console.error(`[DEBUG] Photo ${i + 1} — CATCH:`, err);
         toast.error(`Photo ${i + 1} : ${err instanceof Error ? err.message : 'Erreur upload'}`);
       }
     }
+    console.log('[DEBUG] Toutes les photos traitées, rechargement dans 800ms...');
 
     // Nettoyage aperçus locaux
     newPreviews.forEach(u => URL.revokeObjectURL(u));
@@ -580,6 +593,28 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Galerie photos */}
+            {p.photos && p.photos.length > 1 && (
+              <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+                <h2 className="text-base font-black text-gray-900 mb-4 flex items-center gap-2">
+                  <Camera className="w-5 h-5 text-emerald-500" /> Photos ({p.photos.length})
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {p.photos.map((photo, idx) => (
+                    <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-gray-100">
+                      <Image
+                        src={photo.url}
+                        alt={`Photo ${idx + 1} — ${p.title}`}
+                        fill
+                        className="object-cover hover:scale-105 transition-transform duration-300"
+                        sizes="(max-width: 640px) 50vw, 33vw"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
