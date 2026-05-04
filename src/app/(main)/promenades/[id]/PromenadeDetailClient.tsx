@@ -62,6 +62,7 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
   });
   const [newPhotos, setNewPhotos]         = useState<File[]>([]);
   const [newPreviews, setNewPreviews]     = useState<string[]>([]);
+  const [deletedPhotoUrls, setDeletedPhotoUrls] = useState<string[]>([]);
 
   // ── Helpers visuels ────────────────────────────────────────────────────────
   const diff    = DIFF_CONFIG[p.difficulty];
@@ -126,25 +127,21 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
       return;
     }
 
+    // Étape 1b : supprimer les photos marquées
+    for (const url of deletedPhotoUrls) {
+      await supabase.from('promenade_photos').delete().eq('promenade_id', p.id).eq('url', url);
+    }
+
     // Étape 2 : upload des nouvelles photos + insert via API route (bypass RLS client)
-    const baseOrder = p.photos?.length ?? 0;
-    console.log('[DEBUG] Nombre de photos à uploader :', newPhotos.length);
-    console.log('[DEBUG] promenade id :', p.id);
-    console.log('[DEBUG] profile.id :', profile.id);
+    const remainingCount = (p.photos?.length ?? 0) - deletedPhotoUrls.length;
+    const baseOrder = remainingCount < 0 ? 0 : remainingCount;
 
     for (let i = 0; i < newPhotos.length; i++) {
       const photo    = newPhotos[i];
       const ext      = safeImageExt(photo.name);
       const fileName = `promenades/${p.id}/${Date.now()}_${i}.${ext}`; // nosec
-      console.log(`[DEBUG] Photo ${i + 1} — fileName: ${fileName}`);
       try {
-        // Upload du fichier via /api/upload (magic-bytes validation)
-        console.log(`[DEBUG] Photo ${i + 1} — Début uploadFile...`);
         const publicUrl = await uploadFile(photo, 'photos', fileName, profile.id);
-        console.log(`[DEBUG] Photo ${i + 1} — uploadFile OK, url: ${publicUrl}`);
-
-        // Insert dans promenade_photos via API route serveur (client admin, pas de RLS client)
-        console.log(`[DEBUG] Photo ${i + 1} — Début insert /api/promenade-photos...`);
         const insertRes = await fetch('/api/promenade-photos', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -154,24 +151,20 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
             display_order: baseOrder + i,
           }),
         });
-        console.log(`[DEBUG] Photo ${i + 1} — insert status: ${insertRes.status}`);
         if (!insertRes.ok) {
           const body = await insertRes.json().catch(() => ({})) as { error?: string };
-          console.error(`[DEBUG] Photo ${i + 1} — insert ERREUR:`, body);
           throw new Error(body.error ?? `HTTP ${insertRes.status}`);
         }
-        console.log(`[DEBUG] Photo ${i + 1} — insert OK ✅`);
       } catch (err) {
-        console.error(`[DEBUG] Photo ${i + 1} — CATCH:`, err);
         toast.error(`Photo ${i + 1} : ${err instanceof Error ? err.message : 'Erreur upload'}`);
       }
     }
-    console.log('[DEBUG] Toutes les photos traitées, rechargement dans 800ms...');
 
-    // Nettoyage aperçus locaux
+    // Nettoyage
     newPreviews.forEach(u => URL.revokeObjectURL(u));
     setNewPhotos([]);
     setNewPreviews([]);
+    setDeletedPhotoUrls([]);
 
     toast.success('✅ Itinéraire mis à jour !');
     setEditing(false);
@@ -452,6 +445,33 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
                 />
               </div>
 
+              {/* Photos existantes + suppression */}
+              {p.photos && p.photos.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold text-gray-600 mb-2">Photos actuelles</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {p.photos
+                      .filter(ph => !deletedPhotoUrls.includes(ph.url))
+                      .map((ph, i) => (
+                        <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border-2 border-gray-200 group">
+                          <Image src={ph.url} alt="" fill className="object-cover" unoptimized />
+                          <button
+                            type="button"
+                            onClick={() => setDeletedPhotoUrls(prev => [...prev, ph.url])}
+                            className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"
+                          >
+                            <Trash2 className="w-5 h-5 text-white" />
+                          </button>
+                        </div>
+                      ))
+                    }
+                  </div>
+                  {deletedPhotoUrls.length > 0 && (
+                    <p className="text-xs text-red-500 mt-1">{deletedPhotoUrls.length} photo(s) sera supprimée(s) à l&apos;enregistrement</p>
+                  )}
+                </div>
+              )}
+
               {/* Nouvelles photos */}
               <div>
                 <p className="text-xs font-bold text-gray-600 mb-2">Ajouter des photos</p>
@@ -470,7 +490,7 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
                   ))}
                   <label className="w-20 h-20 rounded-xl border-2 border-dashed border-emerald-300 flex flex-col items-center justify-center text-emerald-400 hover:bg-emerald-50 cursor-pointer transition-colors">
                     <Camera className="w-5 h-5" />
-                    <span className="text-xs mt-1">Photo</span>
+                    <span className="text-xs mt-1">Ajouter</span>
                     <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple className="hidden"
                       onChange={e => {
                         const files = Array.from(e.target.files || []);
