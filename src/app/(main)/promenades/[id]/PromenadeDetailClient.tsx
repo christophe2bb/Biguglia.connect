@@ -259,258 +259,355 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
-            FORMULAIRE DE MODIFICATION
+            FORMULAIRE DE MODIFICATION — VERSION IMMERSIVE
         ══════════════════════════════════════════════════════════════════ */}
         {isOwner && editing && (
-          <form onSubmit={handleSave} className="bg-white rounded-2xl border-2 border-emerald-200 shadow-sm overflow-hidden">
-            {/* En-tête */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-emerald-100 bg-emerald-50">
-              <h2 className="font-black text-emerald-800 flex items-center gap-2">
-                <Pencil className="w-4 h-4" /> Modifier l&apos;itinéraire
-              </h2>
-              <button type="button" onClick={() => setEditing(false)} className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
-                <X className="w-4 h-4" />
-              </button>
+          <form onSubmit={handleSave} className="space-y-5">
+
+            {/* ── Bannière d'en-tête ── */}
+            <div className={`relative rounded-3xl overflow-hidden bg-gradient-to-br ${type.gradient} p-6 shadow-lg`}>
+              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_30%_50%,white,transparent)]" />
+              <div className="relative flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-2xl">{type.emoji}</span>
+                    <span className="text-white/80 text-sm font-bold uppercase tracking-widest">{type.label}</span>
+                  </div>
+                  <p className="text-white text-lg font-black leading-tight mb-1">Donnez vie à votre aventure</p>
+                  <p className="text-white/70 text-xs">Chaque détail compte pour inspirer les explorateurs</p>
+                </div>
+                <button type="button" onClick={() => setEditing(false)}
+                  className="flex-shrink-0 w-9 h-9 rounded-2xl bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
-            <div className="p-6 space-y-4">
-              {/* Titre */}
-              <div>
-                <p className="text-xs font-bold text-gray-600 mb-1">Titre *</p>
-                <input
-                  type="text" required
-                  value={editForm.title}
-                  onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                />
+            {/* ── SECTION 1 : L'essentiel ── */}
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-50 bg-gradient-to-r from-gray-50 to-white">
+                <p className="text-xs font-black text-gray-400 uppercase tracking-widest">01 — L&apos;essentiel</p>
               </div>
+              <div className="p-5 space-y-4">
 
-              {/* Type + Difficulté */}
-              <div className="grid grid-cols-2 gap-3">
+                {/* Titre */}
                 <div>
-                  <p className="text-xs font-bold text-gray-600 mb-1">Type d&apos;activité</p>
-                  <select
-                    value={editForm.type}
-                    onChange={e => setEditForm(f => ({ ...f, type: e.target.value as 'balade' | 'randonnee' | 'velo' | 'plage' | 'nature' | 'photo' | 'famille' | 'moto' }))}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300 bg-white"
-                  >
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5 block">Nom de l&apos;itinéraire *</label>
+                  <input
+                    type="text" required
+                    placeholder="Un titre qui fait rêver…"
+                    value={editForm.title}
+                    onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
+                    className="w-full border-2 border-gray-100 focus:border-emerald-400 rounded-2xl px-4 py-3 text-base font-bold text-gray-900 focus:outline-none transition-colors placeholder:font-normal placeholder:text-gray-300"
+                  />
+                </div>
+
+                {/* Type d'activité — cartes visuelles */}
+                <div>
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2 block">Type d&apos;activité</label>
+                  <div className="grid grid-cols-4 gap-2">
                     {Object.entries(TYPE_CONFIG).map(([k, v]) => (
-                      <option key={k} value={k}>{v.emoji} {v.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-600 mb-1">Difficulté</p>
-                  <div className="flex gap-1.5">
-                    {(['facile', 'moyen', 'difficile'] as const).map(d => (
-                      <button key={d} type="button" onClick={() => setEditForm(f => ({ ...f, difficulty: d }))}
-                        className={cn('flex-1 py-2.5 rounded-xl text-xs font-bold border transition-colors',
-                          editForm.difficulty === d
-                            ? d === 'facile' ? 'bg-emerald-500 text-white border-emerald-500'
-                              : d === 'moyen' ? 'bg-amber-400 text-white border-amber-400'
-                              : 'bg-red-500 text-white border-red-500'
-                            : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                      <button key={k} type="button"
+                        onClick={() => setEditForm(f => ({ ...f, type: k as typeof editForm.type }))}
+                        className={cn(
+                          'flex flex-col items-center gap-1 py-3 rounded-2xl border-2 text-xs font-bold transition-all',
+                          editForm.type === k
+                            ? `bg-gradient-to-br ${v.gradient} text-white border-transparent shadow-md scale-[1.03]`
+                            : 'bg-gray-50 text-gray-500 border-gray-100 hover:border-gray-200'
                         )}>
-                        {d === 'facile' ? '🟢' : d === 'moyen' ? '🟡' : '🔴'}
+                        <span className="text-xl">{v.emoji}</span>
+                        <span className="leading-tight text-center">{v.label.split(' ')[0]}</span>
                       </button>
                     ))}
                   </div>
                 </div>
-              </div>
 
-              {/* Distance + Durée */}
-              <div className="grid grid-cols-2 gap-3">
+                {/* Difficulté */}
                 <div>
-                  <p className="text-xs font-bold text-gray-600 mb-1">Distance (km)</p>
-                  <input type="number" step="0.1" min="0" placeholder="ex: 3.5"
-                    value={editForm.distance_km}
-                    onChange={e => setEditForm(f => ({ ...f, distance_km: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                  />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-600 mb-1">Durée (min)</p>
-                  <input type="number" min="0" placeholder="ex: 45"
-                    value={editForm.duration_min}
-                    onChange={e => setEditForm(f => ({ ...f, duration_min: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                  />
-                </div>
-              </div>
-
-              {/* Point de départ */}
-              <div>
-                <p className="text-xs font-bold text-gray-600 mb-1">Point de départ</p>
-                <input type="text" placeholder="ex: Parking du lac de Biguglia"
-                  value={editForm.start_point}
-                  onChange={e => setEditForm(f => ({ ...f, start_point: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                />
-              </div>
-
-              {/* Secteur */}
-              <div>
-                <p className="text-xs font-bold text-gray-600 mb-1">Secteur géographique</p>
-                <SectorFilter value={editForm.sector_id || null} onChange={v => setEditForm(f => ({ ...f, sector_id: v || '' }))} showAll compact label="" />
-              </div>
-
-              {/* Description */}
-              <div>
-                <p className="text-xs font-bold text-gray-600 mb-1">Description *</p>
-                <textarea required rows={4}
-                  value={editForm.description}
-                  onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                />
-              </div>
-
-              {/* Caractéristiques */}
-              <div>
-                <p className="text-xs font-bold text-gray-600 mb-2">Caractéristiques</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {[
-                    { key: 'dogs_allowed',      label: '🐕 Chiens',    cls: 'amber' },
-                    { key: 'stroller_friendly', label: '🍼 Poussette', cls: 'pink' },
-                    { key: 'parking_available', label: '🅿️ Parking',   cls: 'blue' },
-                    { key: 'water_access',      label: "💧 Eau",        cls: 'sky' },
-                    { key: 'route_loop',        label: '🔄 Boucle',    cls: 'gray' },
-                  ].map(({ key, label, cls }) => (
-                    <button key={key} type="button" onClick={() => toggleBool(key)}
-                      className={cn('flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors',
-                        (editForm as Record<string, unknown>)[key]
-                          ? `bg-${cls}-100 text-${cls}-700 border-${cls}-300`
-                          : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                      )}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Ombre */}
-              <div>
-                <p className="text-xs font-bold text-gray-600 mb-2">Niveau d&apos;ombre</p>
-                <div className="flex gap-2">
-                  {([{ val: 'none', label: '☀️ Exposé' }, { val: 'partial', label: '⛅ Partiel' }, { val: 'full', label: '🌳 Ombragé' }] as const).map(s => (
-                    <button key={s.val} type="button" onClick={() => setEditForm(f => ({ ...f, shade_level: s.val }))}
-                      className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-colors',
-                        editForm.shade_level === s.val ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                      )}>
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Meilleur moment */}
-              <div>
-                <p className="text-xs font-bold text-gray-600 mb-2">Meilleur moment</p>
-                <div className="flex gap-2">
-                  {([{ val: 'morning', label: '🌄 Matin' }, { val: 'anytime', label: '🕑 Toute heure' }, { val: 'sunset', label: '🌅 Coucher soleil' }] as const).map(t => (
-                    <button key={t.val} type="button" onClick={() => setEditForm(f => ({ ...f, best_time_of_day: t.val }))}
-                      className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-colors',
-                        editForm.best_time_of_day === t.val ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                      )}>
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Conseils + Sécurité */}
-              <div>
-                <p className="text-xs font-bold text-gray-600 mb-1">Conseils pratiques</p>
-                <textarea rows={2} placeholder="Équipement, parking, transport…"
-                  value={editForm.practical_tips}
-                  onChange={e => setEditForm(f => ({ ...f, practical_tips: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-gray-600 mb-1">⚠️ Notes de sécurité</p>
-                <textarea rows={2} placeholder="Passages délicats, zones sensibles…"
-                  value={editForm.safety_notes}
-                  onChange={e => setEditForm(f => ({ ...f, safety_notes: e.target.value }))}
-                  className="w-full border border-orange-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 bg-orange-50/30"
-                />
-              </div>
-
-              {/* Tags */}
-              <div>
-                <p className="text-xs font-bold text-gray-600 mb-1">Tags (séparés par virgules)</p>
-                <input type="text" placeholder="ex: étang, coucher-soleil, chien"
-                  value={editForm.tags}
-                  onChange={e => setEditForm(f => ({ ...f, tags: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                />
-              </div>
-
-              {/* Photos existantes + suppression */}
-              {p.photos && p.photos.length > 0 && (
-                <div>
-                  <p className="text-xs font-bold text-gray-600 mb-2">Photos actuelles</p>
-                  <div className="flex gap-2 flex-wrap">
-                    {p.photos
-                      .filter(ph => !deletedPhotoUrls.includes(ph.url))
-                      .map((ph, i) => (
-                        <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border-2 border-gray-200 group">
-                          <Image src={ph.url} alt="" fill className="object-cover" unoptimized />
-                          <button
-                            type="button"
-                            onClick={() => setDeletedPhotoUrls(prev => [...prev, ph.url])}
-                            className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"
-                          >
-                            <Trash2 className="w-5 h-5 text-white" />
-                          </button>
-                        </div>
-                      ))
-                    }
-                  </div>
-                  {deletedPhotoUrls.length > 0 && (
-                    <p className="text-xs text-red-500 mt-1">{deletedPhotoUrls.length} photo(s) sera supprimée(s) à l&apos;enregistrement</p>
-                  )}
-                </div>
-              )}
-
-              {/* Nouvelles photos */}
-              <div>
-                <p className="text-xs font-bold text-gray-600 mb-2">Ajouter des photos</p>
-                <div className="flex gap-2 flex-wrap">
-                  {newPreviews.map((src, i) => (
-                    <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200">
-                      <Image src={src} alt="" fill className="object-cover" />
-                      <button type="button" onClick={() => {
-                        URL.revokeObjectURL(src);
-                        setNewPhotos(p => p.filter((_, idx) => idx !== i));
-                        setNewPreviews(p => p.filter((_, idx) => idx !== i));
-                      }} className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-5 h-5 flex items-center justify-center">
-                        <X className="w-3 h-3" />
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2 block">Niveau de difficulté</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { val: 'facile',    emoji: '🟢', label: 'Facile',    desc: 'Tout public',       bg: 'from-emerald-400 to-green-500' },
+                      { val: 'moyen',     emoji: '🟡', label: 'Moyen',     desc: 'Bonne condition',   bg: 'from-amber-400 to-orange-400' },
+                      { val: 'difficile', emoji: '🔴', label: 'Difficile', desc: 'Sportif confirmé',  bg: 'from-red-400 to-rose-500' },
+                    ] as const).map(d => (
+                      <button key={d.val} type="button" onClick={() => setEditForm(f => ({ ...f, difficulty: d.val }))}
+                        className={cn(
+                          'flex flex-col items-center gap-1 py-3 px-2 rounded-2xl border-2 transition-all',
+                          editForm.difficulty === d.val
+                            ? `bg-gradient-to-br ${d.bg} text-white border-transparent shadow-md`
+                            : 'bg-gray-50 text-gray-500 border-gray-100 hover:border-gray-200'
+                        )}>
+                        <span className="text-xl">{d.emoji}</span>
+                        <span className="text-xs font-black">{d.label}</span>
+                        <span className={cn('text-[10px]', editForm.difficulty === d.val ? 'text-white/80' : 'text-gray-400')}>{d.desc}</span>
                       </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Distance + Durée */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
+                    <label className="text-xs font-black text-emerald-600 uppercase tracking-wider mb-2 flex items-center gap-1 block">
+                      <MapPin className="w-3 h-3" /> Distance
+                    </label>
+                    <div className="flex items-baseline gap-1">
+                      <input type="number" step="0.1" min="0" placeholder="0"
+                        value={editForm.distance_km}
+                        onChange={e => setEditForm(f => ({ ...f, distance_km: e.target.value }))}
+                        className="w-full bg-transparent text-2xl font-black text-emerald-700 focus:outline-none placeholder:text-emerald-200"
+                      />
+                      <span className="text-sm font-bold text-emerald-500">km</span>
                     </div>
-                  ))}
-                  <label className="w-20 h-20 rounded-xl border-2 border-dashed border-emerald-300 flex flex-col items-center justify-center text-emerald-400 hover:bg-emerald-50 cursor-pointer transition-colors">
-                    <Camera className="w-5 h-5" />
-                    <span className="text-xs mt-1">Ajouter</span>
-                    <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple className="hidden"
-                      onChange={e => {
-                        const files = Array.from(e.target.files || []);
-                        setNewPhotos(prev => [...prev, ...files]);
-                        setNewPreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))]);
-                      }}
-                    />
-                  </label>
+                  </div>
+                  <div className="bg-sky-50 rounded-2xl p-4 border border-sky-100">
+                    <label className="text-xs font-black text-sky-600 uppercase tracking-wider mb-2 flex items-center gap-1 block">
+                      <Clock className="w-3 h-3" /> Durée
+                    </label>
+                    <div className="flex items-baseline gap-1">
+                      <input type="number" min="0" placeholder="0"
+                        value={editForm.duration_min}
+                        onChange={e => setEditForm(f => ({ ...f, duration_min: e.target.value }))}
+                        className="w-full bg-transparent text-2xl font-black text-sky-700 focus:outline-none placeholder:text-sky-200"
+                      />
+                      <span className="text-sm font-bold text-sky-500">min</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Actions formulaire */}
-            <div className="flex gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50">
+            {/* ── SECTION 2 : Localisation ── */}
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-50 bg-gradient-to-r from-gray-50 to-white">
+                <p className="text-xs font-black text-gray-400 uppercase tracking-widest">02 — Localisation</p>
+              </div>
+              <div className="p-5 space-y-4">
+                <div>
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1 block">
+                    <MapPin className="w-3 h-3" /> Point de départ
+                  </label>
+                  <input type="text" placeholder="ex : Parking du lac de Biguglia, plage de la Marana…"
+                    value={editForm.start_point}
+                    onChange={e => setEditForm(f => ({ ...f, start_point: e.target.value }))}
+                    className="w-full border-2 border-gray-100 focus:border-emerald-400 rounded-2xl px-4 py-3 text-sm text-gray-800 focus:outline-none transition-colors placeholder:text-gray-300"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5 block">Secteur</label>
+                  <SectorFilter value={editForm.sector_id || null} onChange={v => setEditForm(f => ({ ...f, sector_id: v || '' }))} showAll compact label="" />
+                </div>
+              </div>
+            </div>
+
+            {/* ── SECTION 3 : Description ── */}
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-50 bg-gradient-to-r from-gray-50 to-white">
+                <p className="text-xs font-black text-gray-400 uppercase tracking-widest">03 — Faites rêver</p>
+              </div>
+              <div className="p-5 space-y-4">
+                <div>
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5 block">Description *</label>
+                  <textarea required rows={5}
+                    placeholder="Décrivez les paysages, les sensations, ce qu'on y découvre… Donnez envie de partir !"
+                    value={editForm.description}
+                    onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+                    className="w-full border-2 border-gray-100 focus:border-emerald-400 rounded-2xl px-4 py-3 text-sm text-gray-800 resize-none focus:outline-none transition-colors placeholder:text-gray-300 leading-relaxed"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5 block">Conseils pratiques</label>
+                  <textarea rows={2}
+                    placeholder="Équipement recommandé, parking, transport, meilleure saison…"
+                    value={editForm.practical_tips}
+                    onChange={e => setEditForm(f => ({ ...f, practical_tips: e.target.value }))}
+                    className="w-full border-2 border-gray-100 focus:border-sky-400 rounded-2xl px-4 py-3 text-sm text-gray-800 resize-none focus:outline-none transition-colors placeholder:text-gray-300"
+                  />
+                </div>
+                <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4">
+                  <label className="text-xs font-black text-amber-600 uppercase tracking-wider mb-1.5 flex items-center gap-1 block">
+                    <AlertTriangle className="w-3 h-3" /> Notes de sécurité
+                  </label>
+                  <textarea rows={2}
+                    placeholder="Passages délicats, zones à éviter, précautions particulières…"
+                    value={editForm.safety_notes}
+                    onChange={e => setEditForm(f => ({ ...f, safety_notes: e.target.value }))}
+                    className="w-full bg-transparent text-sm text-amber-800 resize-none focus:outline-none placeholder:text-amber-300"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5 block">Tags</label>
+                  <input type="text" placeholder="étang, coucher-soleil, chien, famille…"
+                    value={editForm.tags}
+                    onChange={e => setEditForm(f => ({ ...f, tags: e.target.value }))}
+                    className="w-full border-2 border-gray-100 focus:border-emerald-400 rounded-2xl px-4 py-3 text-sm text-gray-800 focus:outline-none transition-colors placeholder:text-gray-300"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ── SECTION 4 : Caractéristiques ── */}
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-50 bg-gradient-to-r from-gray-50 to-white">
+                <p className="text-xs font-black text-gray-400 uppercase tracking-widest">04 — Caractéristiques</p>
+              </div>
+              <div className="p-5 space-y-5">
+
+                {/* Équipements */}
+                <div>
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-3 block">Équipements & accès</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {([
+                      { key: 'dogs_allowed',      emoji: '🐕', label: 'Chiens bienvenus',  on: 'bg-amber-400 text-white border-amber-400' },
+                      { key: 'stroller_friendly', emoji: '🍼', label: 'Poussette OK',       on: 'bg-pink-400 text-white border-pink-400' },
+                      { key: 'parking_available', emoji: '🅿️', label: 'Parking',            on: 'bg-blue-500 text-white border-blue-500' },
+                      { key: 'water_access',      emoji: '💧', label: "Point d'eau",        on: 'bg-sky-400 text-white border-sky-400' },
+                      { key: 'route_loop',        emoji: '🔄', label: 'Circuit boucle',     on: 'bg-gray-600 text-white border-gray-600' },
+                    ] as const).map(({ key, emoji, label, on }) => (
+                      <button key={key} type="button" onClick={() => toggleBool(key)}
+                        className={cn(
+                          'flex items-center gap-2 px-3 py-2.5 rounded-2xl border-2 text-xs font-bold transition-all',
+                          (editForm as Record<string, unknown>)[key] ? on : 'bg-gray-50 text-gray-400 border-gray-100 hover:border-gray-200'
+                        )}>
+                        <span className="text-base">{emoji}</span> {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Ombre */}
+                <div>
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2 block">Niveau d&apos;ombre</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { val: 'none',    emoji: '☀️', label: 'Très exposé',  desc: 'Pensez crème !', bg: 'from-yellow-400 to-orange-400' },
+                      { val: 'partial', emoji: '⛅', label: 'Mi-ombragé',   desc: 'Confortable',    bg: 'from-sky-400 to-blue-400' },
+                      { val: 'full',    emoji: '🌳', label: 'Ombragé',      desc: 'Frais et agréable', bg: 'from-emerald-500 to-teal-500' },
+                    ] as const).map(s => (
+                      <button key={s.val} type="button" onClick={() => setEditForm(f => ({ ...f, shade_level: s.val }))}
+                        className={cn(
+                          'flex flex-col items-center gap-1 py-3 rounded-2xl border-2 transition-all',
+                          editForm.shade_level === s.val
+                            ? `bg-gradient-to-br ${s.bg} text-white border-transparent shadow-md`
+                            : 'bg-gray-50 text-gray-500 border-gray-100 hover:border-gray-200'
+                        )}>
+                        <span className="text-xl">{s.emoji}</span>
+                        <span className="text-xs font-black">{s.label}</span>
+                        <span className={cn('text-[10px]', editForm.shade_level === s.val ? 'text-white/80' : 'text-gray-400')}>{s.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Meilleur moment */}
+                <div>
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2 block">Meilleur moment</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { val: 'morning', emoji: '🌄', label: 'Le matin',       desc: 'Fraîcheur & calme', bg: 'from-sky-400 to-blue-500' },
+                      { val: 'anytime', emoji: '🕑', label: 'Toute heure',    desc: 'Flexible',          bg: 'from-violet-400 to-purple-500' },
+                      { val: 'sunset',  emoji: '🌅', label: 'Coucher soleil', desc: 'Magie garantie',    bg: 'from-orange-400 to-rose-500' },
+                    ] as const).map(t => (
+                      <button key={t.val} type="button" onClick={() => setEditForm(f => ({ ...f, best_time_of_day: t.val }))}
+                        className={cn(
+                          'flex flex-col items-center gap-1 py-3 rounded-2xl border-2 transition-all',
+                          editForm.best_time_of_day === t.val
+                            ? `bg-gradient-to-br ${t.bg} text-white border-transparent shadow-md`
+                            : 'bg-gray-50 text-gray-500 border-gray-100 hover:border-gray-200'
+                        )}>
+                        <span className="text-xl">{t.emoji}</span>
+                        <span className="text-xs font-black">{t.label}</span>
+                        <span className={cn('text-[10px]', editForm.best_time_of_day === t.val ? 'text-white/80' : 'text-gray-400')}>{t.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── SECTION 5 : Photos ── */}
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-50 bg-gradient-to-r from-gray-50 to-white">
+                <p className="text-xs font-black text-gray-400 uppercase tracking-widest">05 — Photos</p>
+              </div>
+              <div className="p-5 space-y-4">
+
+                {/* Photos existantes */}
+                {p.photos && p.photos.length > 0 && (
+                  <div>
+                    <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2 block">Photos actuelles</label>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {p.photos.filter(ph => !deletedPhotoUrls.includes(ph.url)).map((ph, i) => (
+                        <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border-2 border-gray-100 group shadow-sm">
+                          <Image src={ph.url} alt="" fill className="object-cover" unoptimized />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all rounded-2xl flex items-center justify-center">
+                            <button type="button"
+                              onClick={() => setDeletedPhotoUrls(prev => [...prev, ph.url])}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 hover:bg-red-600 text-white rounded-xl p-2 shadow-lg">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {deletedPhotoUrls.length > 0 && (
+                      <div className="mt-2 flex items-center gap-2 text-xs text-red-500 font-semibold bg-red-50 rounded-xl px-3 py-2">
+                        <Trash2 className="w-3 h-3" />
+                        {deletedPhotoUrls.length} photo(s) supprimée(s) à l&apos;enregistrement
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Ajouter de nouvelles photos */}
+                <div>
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2 block">Ajouter des photos</label>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    {newPreviews.map((src, i) => (
+                      <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border-2 border-emerald-200 shadow-sm">
+                        <Image src={src} alt="" fill className="object-cover" />
+                        <button type="button" onClick={() => {
+                          URL.revokeObjectURL(src);
+                          setNewPhotos(p => p.filter((_, idx) => idx !== i));
+                          setNewPreviews(p => p.filter((_, idx) => idx !== i));
+                        }} className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded-full w-6 h-6 flex items-center justify-center transition-colors">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                    <label className="aspect-square rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/50 flex flex-col items-center justify-center text-emerald-400 hover:bg-emerald-50 hover:border-emerald-400 cursor-pointer transition-all">
+                      <Camera className="w-6 h-6 mb-1" />
+                      <span className="text-xs font-bold">Ajouter</span>
+                      <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple className="hidden"
+                        onChange={e => {
+                          const files = Array.from(e.target.files || []);
+                          setNewPhotos(prev => [...prev, ...files]);
+                          setNewPreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))]);
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Boutons d'action ── */}
+            <div className="flex gap-3">
               <button type="submit" disabled={saving}
-                className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors disabled:opacity-60 shadow-sm">
-                {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Enregistrement…</> : <><Save className="w-4 h-4" /> Enregistrer</>}
+                className={cn(
+                  'flex-1 flex items-center justify-center gap-2 font-black py-4 rounded-2xl text-sm transition-all shadow-lg',
+                  saving
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : `bg-gradient-to-r ${type.gradient} text-white hover:shadow-xl hover:scale-[1.01]`
+                )}>
+                {saving
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Enregistrement…</>
+                  : <><Save className="w-4 h-4" /> Enregistrer l&apos;itinéraire</>
+                }
               </button>
               <button type="button" onClick={() => setEditing(false)}
-                className="px-5 py-2.5 rounded-xl text-sm font-bold text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors">
+                className="px-5 py-4 rounded-2xl text-sm font-bold text-gray-500 bg-white border-2 border-gray-100 hover:border-gray-200 transition-colors">
                 Annuler
               </button>
             </div>
