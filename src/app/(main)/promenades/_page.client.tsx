@@ -304,26 +304,82 @@ export default function PromenadePage() {
 
         {/* ── Barre filtres / navigation ── */}
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          {/* Onglets */}
-          <div className="flex gap-1 bg-white rounded-2xl border border-gray-100 p-1.5 shadow-sm flex-shrink-0">
-            {[
-              { id: 'itineraires', label: 'Itinéraires',      icon: Footprints,    count: totalCount > 0 ? totalCount : undefined },
-              { id: 'forum',       label: 'Échanges',         icon: MessageSquare, count: forumPosts.length > 0 ? forumPosts.length : undefined },
-              { id: 'agenda',      label: 'Sorties groupées', icon: Users,         count: outings.length > 0 ? outings.length : undefined },
-            ].map(({ id, label, icon: Icon, count }) => (
-              <button key={id} onClick={() => setActiveTab(id as typeof activeTab)}
-                className={cn('flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-colors relative',
-                  activeTab === id
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-200'
-                    : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50')}>
-                <Icon className="w-4 h-4" /> {label}
-                {count !== undefined && (
-                  <span className={cn('text-[10px] font-black px-1.5 py-0.5 rounded-full', activeTab === id ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-500')}>
-                    {count}
-                  </span>
-                )}
-              </button>
-            ))}
+
+          {/* ── Onglets avec identité visuelle distincte ── */}
+          <div className="flex gap-2 flex-shrink-0 flex-wrap">
+
+            {/* 🗺️ Itinéraires — vert, fiches statiques */}
+            <button
+              onClick={() => setActiveTab('itineraires')}
+              className={cn(
+                'flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-sm font-bold transition-all border-2',
+                activeTab === 'itineraires'
+                  ? 'bg-emerald-500 text-white border-emerald-500 shadow-md shadow-emerald-100'
+                  : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
+              )}
+            >
+              <span className="text-lg">🗺️</span>
+              <div className="text-left">
+                <div className="text-xs font-black leading-tight">Itinéraires</div>
+                <div className={cn('text-[10px] leading-tight font-medium', activeTab === 'itineraires' ? 'text-emerald-100' : 'text-emerald-500')}>
+                  Parcours &amp; balades
+                </div>
+              </div>
+              {totalCount > 0 && (
+                <span className={cn('text-[10px] font-black px-1.5 py-0.5 rounded-full ml-1', activeTab === 'itineraires' ? 'bg-white/30 text-white' : 'bg-emerald-100 text-emerald-700')}>
+                  {totalCount}
+                </span>
+              )}
+            </button>
+
+            {/* 📅 Sorties groupées — orange, événements avec date */}
+            <button
+              onClick={() => setActiveTab('agenda')}
+              className={cn(
+                'flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-sm font-bold transition-all border-2',
+                activeTab === 'agenda'
+                  ? 'bg-orange-500 text-white border-orange-500 shadow-md shadow-orange-100'
+                  : 'bg-white text-orange-700 border-orange-200 hover:bg-orange-50'
+              )}
+            >
+              <span className="text-lg">📅</span>
+              <div className="text-left">
+                <div className="text-xs font-black leading-tight">Sorties groupées</div>
+                <div className={cn('text-[10px] leading-tight font-medium', activeTab === 'agenda' ? 'text-orange-100' : 'text-orange-500')}>
+                  Rendez-vous &amp; dates
+                </div>
+              </div>
+              {outings.length > 0 && (
+                <span className={cn('text-[10px] font-black px-1.5 py-0.5 rounded-full ml-1', activeTab === 'agenda' ? 'bg-white/30 text-white' : 'bg-orange-100 text-orange-700')}>
+                  {outings.length}
+                </span>
+              )}
+            </button>
+
+            {/* 💬 Échanges — bleu, forum */}
+            <button
+              onClick={() => setActiveTab('forum')}
+              className={cn(
+                'flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-sm font-bold transition-all border-2',
+                activeTab === 'forum'
+                  ? 'bg-sky-500 text-white border-sky-500 shadow-md shadow-sky-100'
+                  : 'bg-white text-sky-700 border-sky-200 hover:bg-sky-50'
+              )}
+            >
+              <span className="text-lg">💬</span>
+              <div className="text-left">
+                <div className="text-xs font-black leading-tight">Échanges</div>
+                <div className={cn('text-[10px] leading-tight font-medium', activeTab === 'forum' ? 'text-sky-100' : 'text-sky-500')}>
+                  Questions &amp; conseils
+                </div>
+              </div>
+              {forumPosts.length > 0 && (
+                <span className={cn('text-[10px] font-black px-1.5 py-0.5 rounded-full ml-1', activeTab === 'forum' ? 'bg-white/30 text-white' : 'bg-sky-100 text-sky-700')}>
+                  {forumPosts.length}
+                </span>
+              )}
+            </button>
+
           </div>
 
           {/* Filtres (itinéraires seulement) */}

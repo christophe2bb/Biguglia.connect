@@ -62,28 +62,73 @@ export default function TabItineraires({
 
   return (
     <div>
-      {/* En-tête résultats + bouton ajouter */}
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h2 className="text-lg font-black text-gray-900">
-            {loadingPromenades ? 'Chargement…' : totalCount > 0 ? `${totalCount} itinéraire${totalCount > 1 ? 's' : ''}` : 'Itinéraires'}
-          </h2>
-          {activeFiltersCount > 0 && !loadingPromenades && (
-            <p className="text-xs text-emerald-600 font-semibold mt-0.5 flex items-center gap-1">
-              <Filter className="w-3 h-3" />{activeFiltersCount} filtre{activeFiltersCount > 1 ? 's' : ''} actif{activeFiltersCount > 1 ? 's' : ''}
-            </p>
+
+      {/* ── En-tête distinctif vert "Fiche parcours" ── */}
+      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl p-5 mb-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-4">
+            {/* Icône carte */}
+            <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md shadow-emerald-200">
+              <TreePine className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <h2 className="text-lg font-black text-gray-900">Itinéraires</h2>
+                <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
+                  🗺️ Fiche parcours
+                </span>
+              </div>
+              <p className="text-sm text-gray-500">
+                Des <strong className="text-emerald-600">fiches permanentes</strong> partagées par la communauté — consultez-les quand vous voulez, sans date ni inscription.
+              </p>
+              {/* Infos clés d'un itinéraire */}
+              <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
+                <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-emerald-400" /> Distance &amp; durée</span>
+                <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-emerald-400" /> Niveau de difficulté</span>
+                <span className="flex items-center gap-1"><Heart className="w-3 h-3 text-emerald-400" /> Aimer &amp; sauvegarder</span>
+              </div>
+            </div>
+          </div>
+
+          {profileId && (
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className={cn(
+                'inline-flex items-center gap-2 font-bold px-4 py-2.5 rounded-xl transition-colors text-sm flex-shrink-0',
+                showForm
+                  ? 'bg-gray-100 text-gray-600 border border-gray-200'
+                  : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm shadow-emerald-200'
+              )}
+            >
+              {showForm ? <><X className="w-4 h-4" /> Annuler</> : <><Plus className="w-4 h-4" /> Partager un itinéraire</>}
+            </button>
           )}
         </div>
-        {profileId && (
-          <button onClick={() => setShowForm(!showForm)}
-            className={cn(
-              'inline-flex items-center gap-2 font-bold px-4 py-2.5 rounded-xl transition-colors text-sm shadow-sm',
-              showForm
-                ? 'bg-gray-100 text-gray-600 border border-gray-200'
-                : 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 shadow-emerald-200'
-            )}>
-            {showForm ? <><X className="w-4 h-4" /> Annuler</> : <><Plus className="w-4 h-4" /> Partager</>}
-          </button>
+
+        {/* Comparaison avec sortie groupée */}
+        <div className="mt-4 pt-4 border-t border-emerald-100 grid grid-cols-2 gap-3">
+          <div className="bg-white/70 rounded-xl p-3 border border-emerald-100">
+            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-wider mb-1">🗺️ Itinéraire (ici)</p>
+            <p className="text-xs text-gray-600">Sentier de l&apos;étang, 3 km, facile — fiche <strong>permanente</strong> à consulter quand vous voulez, sans date.</p>
+          </div>
+          <div className="bg-white/70 rounded-xl p-3 border border-orange-100">
+            <p className="text-[10px] font-black text-orange-600 uppercase tracking-wider mb-1">📅 Sortie groupée (onglet orange)</p>
+            <p className="text-xs text-gray-600">Balade <strong>dimanche 10 mai à 9h</strong> — rendez-vous fixé, places limitées, inscription requise.</p>
+          </div>
+        </div>
+
+        {/* Compteur résultats */}
+        {!loadingPromenades && (
+          <div className="mt-3 flex items-center gap-2">
+            <span className="text-sm font-black text-emerald-700">
+              {totalCount > 0 ? `${totalCount} itinéraire${totalCount > 1 ? 's' : ''}` : 'Aucun itinéraire'}
+            </span>
+            {activeFiltersCount > 0 && (
+              <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
+                <Filter className="w-3 h-3" /> {activeFiltersCount} filtre{activeFiltersCount > 1 ? 's' : ''} actif{activeFiltersCount > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
         )}
       </div>
 

@@ -1,10 +1,11 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useState } from 'react';
 import {
   MapPin, Clock, Info, Bookmark, Heart, Eye, Share2, Flag,
-  Star, CheckCircle2, AlertTriangle, ChevronDown, ChevronUp, Compass,
+  Star, CheckCircle2, AlertTriangle, ChevronDown, ChevronUp, Compass, ArrowRight,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import ReportButton from '@/components/ui/ReportButton';
@@ -150,7 +151,7 @@ export default function PromenadeCard({ p, userId, onLike, onSave }: Props) {
         <p className="text-gray-500 text-sm leading-relaxed mb-3 line-clamp-2 flex-1">{p.description}</p>
 
         {/* Infos pratiques expandable */}
-        {(p.practical_tips || p.safety_notes || p.meeting_point_label) && (
+        {(p.practical_tips || p.safety_notes || p.start_point) && (
           <div className="mb-3">
             <button
               onClick={() => setExpanded(!expanded)}
@@ -162,10 +163,10 @@ export default function PromenadeCard({ p, userId, onLike, onSave }: Props) {
             </button>
             {expanded && (
               <div className="mt-2 space-y-1.5 bg-emerald-50/60 rounded-xl p-3 border border-emerald-100">
-                {p.meeting_point_label && (
+                {p.start_point && (
                   <p className="text-xs text-gray-600 flex items-start gap-1.5">
                     <Compass className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <span><span className="font-semibold">Départ :</span> {p.meeting_point_label}</span>
+                    <span><span className="font-semibold">Départ :</span> {p.start_point}</span>
                   </p>
                 )}
                 {p.practical_tips && (
@@ -241,8 +242,18 @@ export default function PromenadeCard({ p, userId, onLike, onSave }: Props) {
         </div>
       </div>
 
+      {/* ── Bouton Voir l'itinéraire ── */}
+      <div className="px-4 pb-4">
+        <Link
+          href={`/promenades/${p.id}`}
+          className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm py-2.5 rounded-xl transition-colors shadow-sm shadow-emerald-100"
+        >
+          Voir l&apos;itinéraire <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+
       {/* ── Pied de carte ── */}
-      <div className="px-4 pb-3 flex items-center justify-between">
+      <div className="px-4 pb-3 flex items-center justify-between border-t border-gray-50 pt-2">
         <div className="flex items-center gap-2">
           {userId && (
             <ReportButton targetType="promenade" targetId={p.id} targetTitle={p.title} variant="mini" />

@@ -105,6 +105,9 @@ export async function uploadFile(
   bucket: 'photos' | 'job-documents' | 'documents',
   path: string,
   ownerId?: string,
+  /** Bearer token Supabase (access_token) — à passer pour garantir l'auth
+   *  même si les cookies sont expirés (ex. après timeout AuthProvider). */
+  accessToken?: string,
 ): Promise<string> {
   // Compression automatique pour les photos (bucket 'photos' uniquement)
   let fileToUpload = file;
@@ -122,7 +125,10 @@ export async function uploadFile(
   form.append('path',   path);
   if (ownerId) form.append('ownerId', ownerId);
 
-  const res = await fetch('/api/upload', { method: 'POST', body: form });
+  const headers: Record<string, string> = {};
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+
+  const res = await fetch('/api/upload', { method: 'POST', body: form, headers });
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({})) as { error?: string; detected?: string };

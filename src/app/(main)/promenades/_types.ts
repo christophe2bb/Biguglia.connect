@@ -26,7 +26,7 @@ export type Promenade = {
   best_season?: string;
   safety_notes?: string;
   practical_tips?: string;
-  meeting_point_label?: string;
+  start_point?: string;
   route_loop?: boolean;
   sector_id?: string;
   avg_rating?: number;
