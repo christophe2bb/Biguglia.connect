@@ -6,6 +6,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import {
   TreePine, Footprints, MessageSquare, Users, Star, X,
   Plus, SlidersHorizontal, Filter, AlertCircle, MapPin,
+  Zap, ArrowRight,
 } from 'lucide-react';
 import { SECTORS, SECTOR_COLORS } from '@/lib/sectors';
 import { cn } from '@/lib/utils';
@@ -65,7 +66,7 @@ export default function PromenadePage() {
   // ── Computed ─────────────────────────────────────────────────────────────
   const { promenades, loadingPromenades, dbReady } = promenadHook;
   const { outings } = outingsHook;
-  const { forumPosts, allForumPosts, allThemes, activeTheme, applyThemeFilter, themeCounts, addCustomTheme } = forumHook;
+  const { forumPosts, allForumPosts, allThemes, activeTheme, applyThemeFilter, themeCounts, addCustomTheme, forumSort, setForumSort } = forumHook;
 
   const totalCount  = promenades.length;
 
@@ -321,6 +322,98 @@ export default function PromenadePage() {
           </div>
         </div>
       </div>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          BANDEAU ACTIVITÉ COMMUNAUTÉ — live pulse
+      ══════════════════════════════════════════════════════════════════════ */}
+      {(promenades.length > 0 || outings.length > 0 || allForumPosts.length > 0) && (
+        <div className="bg-gradient-to-r from-emerald-600/95 via-teal-600/95 to-sky-600/95 border-b border-white/10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex items-center gap-3 overflow-x-auto scrollbar-none">
+              {/* Indicateur live */}
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-200" />
+                </span>
+                <span className="text-[11px] font-black text-white/80 uppercase tracking-widest">Live</span>
+              </div>
+
+              <span className="text-white/20 text-sm flex-shrink-0">|</span>
+
+              {/* Dernière activité : itinéraires */}
+              {promenades.length > 0 && (
+                <button
+                  onClick={() => setActiveTab('itineraires')}
+                  className="flex items-center gap-2 flex-shrink-0 group"
+                >
+                  <span className="w-6 h-6 rounded-lg bg-white/15 flex items-center justify-center flex-shrink-0">
+                    <Footprints className="w-3.5 h-3.5 text-white" />
+                  </span>
+                  <span className="text-xs text-white/80 group-hover:text-white transition-colors">
+                    <strong className="text-white font-black">{totalCount}</strong> itinéraire{totalCount !== 1 ? 's' : ''} partagé{totalCount !== 1 ? 's' : ''}
+                  </span>
+                  <ArrowRight className="w-3 h-3 text-white/40 group-hover:text-white/80 transition-colors" />
+                </button>
+              )}
+
+              {/* Sorties */}
+              {outings.length > 0 && (
+                <>
+                  <span className="text-white/20 text-sm flex-shrink-0">·</span>
+                  <button
+                    onClick={() => setActiveTab('agenda')}
+                    className="flex items-center gap-2 flex-shrink-0 group"
+                  >
+                    <span className="w-6 h-6 rounded-lg bg-white/15 flex items-center justify-center flex-shrink-0">
+                      <Users className="w-3.5 h-3.5 text-white" />
+                    </span>
+                    <span className="text-xs text-white/80 group-hover:text-white transition-colors">
+                      <strong className="text-white font-black">{outings.length}</strong> sortie{outings.length !== 1 ? 's' : ''} à venir
+                    </span>
+                    <ArrowRight className="w-3 h-3 text-white/40 group-hover:text-white/80 transition-colors" />
+                  </button>
+                </>
+              )}
+
+              {/* Forum */}
+              {allForumPosts.length > 0 && (
+                <>
+                  <span className="text-white/20 text-sm flex-shrink-0">·</span>
+                  <button
+                    onClick={() => setActiveTab('forum')}
+                    className="flex items-center gap-2 flex-shrink-0 group"
+                  >
+                    <span className="w-6 h-6 rounded-lg bg-white/15 flex items-center justify-center flex-shrink-0">
+                      <MessageSquare className="w-3.5 h-3.5 text-white" />
+                    </span>
+                    <span className="text-xs text-white/80 group-hover:text-white transition-colors">
+                      <strong className="text-white font-black">{allForumPosts.length}</strong> échange{allForumPosts.length !== 1 ? 's' : ''} en cours
+                    </span>
+                    <ArrowRight className="w-3 h-3 text-white/40 group-hover:text-white/80 transition-colors" />
+                  </button>
+                </>
+              )}
+
+              {/* Dernier sujet forum */}
+              {allForumPosts.length > 0 && allForumPosts[0] && (
+                <>
+                  <span className="text-white/20 text-sm flex-shrink-0 hidden sm:block">|</span>
+                  <button
+                    onClick={() => { setActiveTab('forum'); setTimeout(() => window.scrollTo({ top: 600, behavior: 'smooth' }), 100); }}
+                    className="hidden sm:flex items-center gap-1.5 flex-shrink-0 group min-w-0"
+                  >
+                    <Zap className="w-3 h-3 text-amber-300 flex-shrink-0" />
+                    <span className="text-[11px] text-white/60 group-hover:text-white/90 transition-colors truncate max-w-[220px]">
+                      Dernier sujet : <em className="not-italic font-bold text-white/80">{allForumPosts[0].title}</em>
+                    </span>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════════════
           BLOC EXPLORER — adaptatif selon l'onglet actif
@@ -898,6 +991,8 @@ export default function PromenadePage() {
                 onPostDeleted={forumHook.fetchForum}
                 activeTheme={activeTheme}
                 allThemes={allThemes}
+                forumSort={forumSort}
+                setForumSort={setForumSort}
               />
             )}
 
@@ -943,7 +1038,7 @@ export default function PromenadePage() {
             setShowForm={promenadHook.setShowForm}
             setShowOutingForm={outingsHook.setShowOutingForm}
             setShowPostForm={forumHook.setShowPostForm}
-            onForumTheme={(themeId) => switchToForum(themeId)}
+            applyThemeFilter={(themeId) => switchToForum(themeId ?? undefined)}
           />
         </div>
       </div>

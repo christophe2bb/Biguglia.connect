@@ -7,6 +7,7 @@ import { formatRelative } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import type { ForumPost } from '../_types';
+import type { ForumTheme } from '../_hooks/useForum';
 
 type ForumComment = {
   id: string;
@@ -21,11 +22,12 @@ interface Props {
   profileId?: string;
   profileName?: string;
   profileAvatar?: string | null;
+  allThemes?: ForumTheme[];
   onBack: () => void;
   onDeleted: () => void;
 }
 
-export default function ForumPostDetail({ post, profileId, profileName, profileAvatar, onBack, onDeleted }: Props) {
+export default function ForumPostDetail({ post, profileId, profileName, profileAvatar, allThemes, onBack, onDeleted }: Props) {
   const [comments, setComments]     = useState<ForumComment[]>([]);
   const [loading, setLoading]       = useState(true);
   const [text, setText]             = useState('');
@@ -35,6 +37,9 @@ export default function ForumPostDetail({ post, profileId, profileName, profileA
   const [deletingPost, setDeletingPost]     = useState(false);
 
   const isAuthor = !!profileId && profileId === post.author_id;
+
+  // Thème du post
+  const postTheme = allThemes?.find(t => t.id === post.theme);
 
   const fetchComments = useCallback(async () => {
     setLoading(true);
@@ -99,20 +104,43 @@ export default function ForumPostDetail({ post, profileId, profileName, profileA
   return (
     <div className="space-y-4">
 
-      {/* ── Bouton retour ── */}
-      <button
-        onClick={onBack}
-        className="inline-flex items-center gap-2 text-sm font-bold text-sky-600 hover:text-sky-800 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" /> Retour aux échanges
-      </button>
+      {/* ── Fil de navigation ── */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 text-sm font-bold text-sky-600 hover:text-sky-800 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" /> Échanges
+        </button>
+        {postTheme && (
+          <>
+            <span className="text-gray-300 text-sm">/</span>
+            <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border
+              bg-sky-50 text-sky-600 border-sky-200">
+              {postTheme.emoji} {postTheme.label}
+            </span>
+          </>
+        )}
+      </div>
 
       {/* ── Post principal ── */}
       <div className="bg-white rounded-2xl border border-sky-100 shadow-sm overflow-hidden">
         {/* Header coloré */}
         <div className="bg-gradient-to-r from-sky-50 to-teal-50 border-b border-sky-100 px-5 py-4">
           <div className="flex items-start justify-between gap-3">
-            <h2 className="font-black text-gray-900 text-lg leading-tight flex-1">{post.title}</h2>
+            <div className="flex-1 min-w-0">
+              {/* Badge thème dans la vue détail */}
+              {postTheme && postTheme.id !== 'general' && (
+                <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full border mb-2
+                  ${postTheme.custom
+                    ? 'bg-violet-50 text-violet-600 border-violet-200'
+                    : 'bg-sky-100 text-sky-700 border-sky-200'
+                  }`}>
+                  {postTheme.emoji} {postTheme.label}
+                </span>
+              )}
+              <h2 className="font-black text-gray-900 text-lg leading-tight">{post.title}</h2>
+            </div>
             {/* Supprimer le post — auteur seulement */}
             {isAuthor && (
               <button
@@ -162,10 +190,14 @@ export default function ForumPostDetail({ post, profileId, profileName, profileA
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
-            {comments.map(c => {
+            {comments.map((c, idx) => {
               const isOwn = !!profileId && profileId === c.author_id;
               return (
                 <div key={c.id} className="flex items-start gap-3 px-5 py-4 group hover:bg-gray-50/50 transition-colors">
+                  {/* Numéro de réponse */}
+                  <div className="w-6 flex-shrink-0 pt-0.5 text-center">
+                    <span className="text-[10px] font-black text-gray-300">#{idx + 1}</span>
+                  </div>
                   <Avatar src={c.author?.avatar_url} name={c.author?.full_name || 'Membre'} size="sm" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
