@@ -49,33 +49,7 @@ export function ForumSidebar({
   return (
     <aside className="hidden lg:flex flex-col gap-5 w-72 flex-shrink-0 sticky top-8 self-start max-h-[calc(100vh-4rem)] overflow-y-auto pb-8">
 
-      {/* ── CTA créer / rejoindre ── */}
-      {profile ? (
-        <div className="relative bg-gradient-to-br from-violet-600 to-indigo-700 rounded-2xl p-5 text-white shadow-lg overflow-hidden">
-          <div className="absolute inset-0 opacity-[0.07] rounded-2xl bg-dot-grid-sm" />
-          <div className="relative z-10">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-3">
-              <MessageSquare className="w-5 h-5" />
-            </div>
-            <h3 className="font-black text-base mb-1">Lancez la discussion</h3>
-            <p className="text-violet-100 text-xs mb-4 leading-relaxed">Posez votre question, signalez un problème, partagez une info utile à vos voisins.</p>
-            <button
-              onClick={() => router.push('/forum/nouveau')}
-              className="inline-flex items-center gap-2 bg-white text-violet-700 font-black px-5 py-2.5 rounded-xl text-sm hover:bg-violet-50 transition-colors shadow-sm w-full justify-center"
-            >
-              <Plus className="w-4 h-4" /> Nouveau sujet
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-gradient-to-br from-violet-600 to-indigo-700 rounded-2xl p-5 text-white shadow-lg">
-          <h3 className="font-black text-base mb-1">Rejoignez la conversation</h3>
-          <p className="text-violet-100 text-xs mb-4 leading-relaxed">Connectez-vous pour participer aux échanges locaux.</p>
-          <Link href="/connexion" className="inline-flex items-center gap-2 bg-white text-violet-700 font-black px-5 py-2.5 rounded-xl text-sm hover:bg-violet-50 transition-colors shadow-sm w-full justify-center">
-            Se connecter
-          </Link>
-        </div>
-      )}
+      {/* CTA retiré — boutons déjà présents dans le hero */}
 
       {/* ── Sujets urgents ── */}
       {topics.some(t => (t as ForumTopic & { urgency?: string }).urgency === 'haute') && (
