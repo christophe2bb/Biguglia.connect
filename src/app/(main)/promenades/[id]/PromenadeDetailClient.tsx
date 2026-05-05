@@ -660,36 +660,93 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
         {/* ── Vue normale (non-édition) ── */}
         {!editing && (
           <>
-            {/* Stats */}
+            {/* ── Galerie photos immersive (dès 1 photo) ── */}
+            {p.photos && p.photos.length > 0 && (
+              (() => {
+                const allPhotos = p.photos!;
+                const main = allPhotos[0];
+                const rest = allPhotos.slice(1, 5); // max 4 vignettes
+                const extra = allPhotos.length - 5;
+                return (
+                  <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+                    {allPhotos.length === 1 ? (
+                      /* Une seule photo : pleine largeur */
+                      <div className="relative w-full aspect-[16/9]">
+                        <Image src={main.url} alt={p.title} fill className="object-cover" sizes="100vw" />
+                      </div>
+                    ) : (
+                      /* 2+ photos : layout magazine */
+                      <div className="grid grid-cols-3 gap-0.5">
+                        {/* Grande photo à gauche */}
+                        <div className="col-span-2 relative aspect-[4/3]">
+                          <Image src={main.url} alt={p.title} fill className="object-cover" sizes="66vw" />
+                        </div>
+                        {/* Vignettes à droite */}
+                        <div className="flex flex-col gap-0.5">
+                          {rest.map((ph, i) => (
+                            <div key={i} className="relative flex-1" style={{ minHeight: 0 }}>
+                              <Image src={ph.url} alt={`Photo ${i + 2}`} fill className="object-cover" sizes="33vw" />
+                              {/* Overlay "+N" sur la dernière vignette si il y a plus de 5 photos */}
+                              {i === rest.length - 1 && extra > 0 && (
+                                <div className="absolute inset-0 bg-black/55 flex items-center justify-center">
+                                  <span className="text-white font-black text-lg">+{extra}</span>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          {/* Remplissage si moins de 4 vignettes (pour garder la même hauteur) */}
+                          {rest.length < 4 && Array.from({ length: 4 - rest.length }).map((_, i) => (
+                            <div key={`empty-${i}`} className="flex-1 bg-gray-100" style={{ minHeight: 0 }} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {/* Badge compteur si plusieurs photos */}
+                    {allPhotos.length > 1 && (
+                      <div className="bg-white px-4 py-2 flex items-center gap-2 text-xs text-gray-500 border-t border-gray-100">
+                        <Camera className="w-3.5 h-3.5 text-emerald-500" />
+                        <span className="font-semibold">{allPhotos.length} photos</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()
+            )}
+
+            {/* ── Stats 3 colonnes ── */}
             <div className="grid grid-cols-3 gap-3">
               {[
-                { icon: MapPin, val: p.distance_km != null ? `${p.distance_km} km` : '—',           label: 'Distance',      color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                { icon: Clock,  val: p.duration_min != null ? formatDuration(p.duration_min) : '—', label: 'Durée',         color: 'text-sky-600',     bg: 'bg-sky-50' },
-                { icon: Users,  val: `${p.likes_count ?? 0} ❤️`,                                    label: 'Appréciations', color: 'text-rose-600',    bg: 'bg-rose-50' },
-              ].map(({ icon: Icon, val, label, color, bg }) => (
-                <div key={label} className={cn('rounded-2xl p-4 text-center border border-gray-100', bg)}>
-                  <Icon className={cn('w-5 h-5 mx-auto mb-1', color)} />
-                  <p className={cn('text-lg font-black', color)}>{val}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+                { icon: MapPin, val: p.distance_km != null ? `${p.distance_km} km` : '—',           label: 'Distance',      color: 'text-emerald-600', bg: 'bg-emerald-50',  border: 'border-emerald-100' },
+                { icon: Clock,  val: p.duration_min != null ? formatDuration(p.duration_min) : '—', label: 'Durée',         color: 'text-sky-600',     bg: 'bg-sky-50',      border: 'border-sky-100' },
+                { icon: Heart,  val: `${p.likes_count ?? 0}`,                                        label: 'J\'aime',       color: 'text-rose-500',    bg: 'bg-rose-50',     border: 'border-rose-100' },
+              ].map(({ icon: Icon, val, label, color, bg, border }) => (
+                <div key={label} className={cn('rounded-2xl p-4 text-center border', bg, border)}>
+                  <Icon className={cn('w-5 h-5 mx-auto mb-1.5', color)} />
+                  <p className={cn('text-xl font-black leading-none', color)}>{val}</p>
+                  <p className="text-xs text-gray-400 mt-1 font-medium">{label}</p>
                 </div>
               ))}
             </div>
 
-            {/* Description */}
+            {/* ── Description ── */}
             <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-              <h2 className="text-base font-black text-gray-900 mb-3 flex items-center gap-2">
-                <TreePine className="w-5 h-5 text-emerald-500" /> Description
-              </h2>
-              <p className="text-gray-600 leading-relaxed">{p.description}</p>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1 h-5 rounded-full bg-emerald-400" />
+                <h2 className="text-base font-black text-gray-900">Description du parcours</h2>
+              </div>
+              <p className="text-gray-600 leading-relaxed text-[15px]">{p.description}</p>
             </div>
 
-            {/* Caractéristiques */}
+            {/* ── Caractéristiques ── */}
             {badges.length > 0 && (
               <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-                <h2 className="text-base font-black text-gray-900 mb-4">✅ Caractéristiques</h2>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-1 h-5 rounded-full bg-sky-400" />
+                  <h2 className="text-base font-black text-gray-900">Caractéristiques</h2>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {badges.map(b => (
-                    <span key={b.label} className={cn('inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full border', b.cls)}>
+                    <span key={b.label} className={cn('inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border', b.cls)}>
                       {b.emoji} {b.label}
                     </span>
                   ))}
@@ -697,88 +754,80 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
               </div>
             )}
 
-            {/* Infos pratiques */}
+            {/* ── Infos pratiques ── */}
             {(p.practical_tips || p.safety_notes || p.start_point) && (
-              <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm space-y-4">
-                <h2 className="text-base font-black text-gray-900">ℹ️ Infos pratiques</h2>
-                {p.start_point && (
-                  <div className="flex items-start gap-3">
-                    <MapPin className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-bold text-gray-700 mb-0.5">Point de départ</p>
-                      <p className="text-sm text-gray-600">{p.start_point}</p>
+              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+                <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
+                  <div className="w-1 h-5 rounded-full bg-amber-400" />
+                  <h2 className="text-base font-black text-gray-900">Infos pratiques</h2>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {p.start_point && (
+                    <div className="flex items-start gap-4 px-6 py-4">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                        <MapPin className="w-4 h-4 text-emerald-500" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-0.5">Point de départ</p>
+                        <p className="text-sm text-gray-700 font-medium">{p.start_point}</p>
+                      </div>
                     </div>
-                  </div>
-                )}
-                {p.practical_tips && (
-                  <div className="flex items-start gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-sky-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-bold text-gray-700 mb-0.5">Conseils pratiques</p>
-                      <p className="text-sm text-gray-600">{p.practical_tips}</p>
+                  )}
+                  {p.practical_tips && (
+                    <div className="flex items-start gap-4 px-6 py-4">
+                      <div className="w-9 h-9 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0">
+                        <CheckCircle2 className="w-4 h-4 text-sky-500" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-0.5">Conseils</p>
+                        <p className="text-sm text-gray-700 leading-relaxed">{p.practical_tips}</p>
+                      </div>
                     </div>
-                  </div>
-                )}
-                {p.safety_notes && (
-                  <div className="flex items-start gap-3 bg-amber-50 rounded-xl p-4 border border-amber-100">
-                    <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-bold text-amber-700 mb-0.5">Notes de sécurité</p>
-                      <p className="text-sm text-amber-700">{p.safety_notes}</p>
+                  )}
+                  {p.safety_notes && (
+                    <div className="flex items-start gap-4 px-6 py-4 bg-amber-50/60">
+                      <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                        <AlertTriangle className="w-4 h-4 text-amber-500" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black text-amber-500 uppercase tracking-wider mb-0.5">Sécurité</p>
+                        <p className="text-sm text-amber-700 leading-relaxed">{p.safety_notes}</p>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Galerie photos */}
-            {p.photos && p.photos.length > 1 && (
-              <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-                <h2 className="text-base font-black text-gray-900 mb-4 flex items-center gap-2">
-                  <Camera className="w-5 h-5 text-emerald-500" /> Photos ({p.photos.length})
-                </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {p.photos.map((photo, idx) => (
-                    <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-gray-100">
-                      <Image
-                        src={photo.url}
-                        alt={`Photo ${idx + 1} — ${p.title}`}
-                        fill
-                        className="object-cover hover:scale-105 transition-transform duration-300"
-                        sizes="(max-width: 640px) 50vw, 33vw"
-                      />
-                    </div>
-                  ))}
+                  )}
                 </div>
               </div>
             )}
 
-            {/* Tags */}
+            {/* ── Tags ── */}
             {p.tags && p.tags.length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-                <h2 className="text-base font-black text-gray-900 mb-3">🏷️ Tags</h2>
-                <div className="flex flex-wrap gap-2">
-                  {p.tags.map(t => (
-                    <span key={t} className="text-sm bg-gray-100 text-gray-600 px-3 py-1 rounded-full"># {t}</span>
-                  ))}
-                </div>
+              <div className="flex flex-wrap gap-2 px-1">
+                {p.tags.map(t => (
+                  <span key={t} className="text-xs font-bold bg-white text-gray-500 border border-gray-200 px-3 py-1.5 rounded-full hover:bg-gray-50 transition-colors">
+                    # {t}
+                  </span>
+                ))}
               </div>
             )}
 
-            {/* Barre actions */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <Eye className="w-4 h-4" /> {p.views ?? 0} vues
-                <span className="mx-1">·</span>
-                <Heart className="w-4 h-4 text-rose-400" /> {p.likes_count ?? 0} j&apos;aime
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <button onClick={share} className="inline-flex items-center gap-2 text-sm font-bold text-gray-600 border border-gray-200 bg-gray-50 hover:bg-gray-100 px-4 py-2 rounded-xl transition-colors">
-                  <Share2 className="w-4 h-4" /> Partager
-                </button>
-                <Link href="/promenades" className="inline-flex items-center gap-2 text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-4 py-2 rounded-xl transition-colors">
-                  <ArrowLeft className="w-4 h-4" /> Retour
-                </Link>
+            {/* ── Barre actions ── */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-3 text-xs text-gray-400 font-medium">
+                  <span className="flex items-center gap-1"><Eye className="w-3.5 h-3.5" /> {p.views ?? 0} vues</span>
+                  <span>·</span>
+                  <span className="flex items-center gap-1"><Heart className="w-3.5 h-3.5 text-rose-400" /> {p.likes_count ?? 0} j&apos;aime</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={share}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 border border-gray-200 bg-white hover:bg-gray-50 px-3 py-2 rounded-xl transition-colors">
+                    <Share2 className="w-3.5 h-3.5" /> Partager
+                  </button>
+                  <Link href="/promenades"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-3 py-2 rounded-xl transition-colors">
+                    <ArrowLeft className="w-3.5 h-3.5" /> Retour
+                  </Link>
+                </div>
               </div>
             </div>
           </>
