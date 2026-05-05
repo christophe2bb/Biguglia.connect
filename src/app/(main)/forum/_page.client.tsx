@@ -10,6 +10,7 @@ import {
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import { cn } from '@/lib/utils';
+import { SECTORS, SECTOR_COLORS } from '@/lib/sectors';
 
 import { useForumPage } from './useForumPage';
 import { HERO_SHORTCUTS } from './_config';
@@ -120,35 +121,80 @@ function ForumPageInner() {
             </div>
           </div>
 
-          {/* Secteurs pills */}
+          {/* Secteurs — grille identique à la page Promenades */}
           <div className="mt-8 pt-6 border-t border-white/15">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-sm font-black text-white flex items-center gap-2">
-                🗺️ Explorer par quartier
-              </p>
+              <p className="text-sm font-black text-white">🗺️ Explorer par quartier</p>
               {selectedSector && (
                 <button onClick={() => setSelectedSector(null)} className="text-xs text-white/50 hover:text-white flex items-center gap-1 transition-colors">
                   <X className="w-3 h-3" /> Tout afficher
                 </button>
               )}
             </div>
-            <p className="text-xs text-violet-200/70 mb-3">Cliquez sur un secteur pour filtrer les sujets</p>
-            <div className="flex flex-wrap gap-2 pb-6">
-              <button onClick={() => setSelectedSector(null)}
-                className={cn('inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-full transition-colors border backdrop-blur-sm',
-                  !selectedSector ? 'bg-white text-violet-700 border-white shadow-lg' : 'bg-white/12 border-white/25 text-white hover:bg-white/22')}>
-                🗺️ Toute la ville
-                <span className="text-xs opacity-70">({topics.length})</span>
+            <p className="text-xs text-violet-200/70 mb-4">Cliquez sur un secteur pour filtrer les sujets</p>
+
+            <div className="grid grid-cols-4 sm:grid-cols-9 gap-2 pb-6">
+
+              {/* Toute la ville */}
+              <button
+                type="button"
+                onClick={() => setSelectedSector(null)}
+                className={cn(
+                  'flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3 transition-all duration-200',
+                  !selectedSector
+                    ? 'bg-white/20 border-white shadow-md scale-105'
+                    : 'bg-white/8 border-white/20 hover:bg-white/15 hover:border-white/40'
+                )}
+              >
+                <span className="text-2xl">🗺️</span>
+                <span className={cn('text-[10px] font-bold leading-tight text-center',
+                  !selectedSector ? 'text-white' : 'text-white/80'
+                )}>
+                  Toute la ville
+                </span>
+                <span className={cn('text-[10px] font-black px-1.5 py-0.5 rounded-full',
+                  !selectedSector ? 'bg-white text-violet-700' : 'bg-white/20 text-white'
+                )}>
+                  {topics.length}
+                </span>
               </button>
-              {sectors.map(s => {
-                const isActive = selectedSector === s.id || selectedSector === s.slug;
+
+              {SECTORS.map(sector => {
+                const sectorTopicCount = topics.filter(t =>
+                  t.sector_id === sector.id || (t as unknown as { sector?: { id: string } }).sector?.id === sector.id
+                ).length;
+                const colors  = SECTOR_COLORS[sector.color];
+                const isActive = selectedSector === sector.id || selectedSector === sector.slug;
                 return (
-                  <button key={s.id}
-                    onClick={() => setSelectedSector(isActive ? null : (s.id || s.slug))}
-                    className={cn('inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-full transition-colors border backdrop-blur-sm',
-                      isActive ? 'bg-white text-violet-700 border-white shadow-lg' : 'bg-white/12 border-white/25 text-white hover:bg-white/22')}>
-                    <span>{s.icon}</span> {s.name}
-                    {s.topic_count ? <span className="text-xs opacity-70">({s.topic_count})</span> : null}
+                  <button
+                    key={sector.id}
+                    type="button"
+                    onClick={() => setSelectedSector(isActive ? null : sector.id)}
+                    className={cn(
+                      'relative flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3 transition-all duration-200',
+                      isActive
+                        ? 'bg-white/20 border-white shadow-md scale-105'
+                        : 'bg-white/8 border-white/20 hover:bg-white/15 hover:border-white/40'
+                    )}
+                  >
+                    <span className="text-2xl">{sector.icon}</span>
+                    <span className="text-[10px] font-bold leading-tight text-center text-white/90">
+                      {sector.name}
+                    </span>
+                    <span className={cn('text-[10px] font-black px-1.5 py-0.5 rounded-full',
+                      isActive
+                        ? 'bg-white text-violet-700'
+                        : sectorTopicCount > 0 ? 'bg-white/20 text-white' : 'bg-white/10 text-white/40'
+                    )}>
+                      {sectorTopicCount > 0 ? sectorTopicCount : '–'}
+                    </span>
+                    {isActive && (
+                      <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-white rounded-full flex items-center justify-center">
+                        <svg className="w-2.5 h-2.5 text-violet-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </span>
+                    )}
                   </button>
                 );
               })}
