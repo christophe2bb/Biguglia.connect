@@ -122,9 +122,9 @@ function ForumPageInner() {
 
           {/* Secteurs pills */}
           <div className="mt-8 pt-6 border-t border-white/15">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-black text-violet-200 uppercase tracking-widest flex items-center gap-2">
-                <MapPin className="w-3.5 h-3.5" /> Mon quartier
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-sm font-black text-white flex items-center gap-2">
+                🗺️ Explorer par quartier
               </p>
               {selectedSector && (
                 <button onClick={() => setSelectedSector(null)} className="text-xs text-white/50 hover:text-white flex items-center gap-1 transition-colors">
@@ -132,11 +132,13 @@ function ForumPageInner() {
                 </button>
               )}
             </div>
+            <p className="text-xs text-violet-200/70 mb-3">Cliquez sur un secteur pour filtrer les sujets</p>
             <div className="flex flex-wrap gap-2 pb-6">
               <button onClick={() => setSelectedSector(null)}
                 className={cn('inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-full transition-colors border backdrop-blur-sm',
                   !selectedSector ? 'bg-white text-violet-700 border-white shadow-lg' : 'bg-white/12 border-white/25 text-white hover:bg-white/22')}>
-                🗺️ Tous les secteurs
+                🗺️ Toute la ville
+                <span className="text-xs opacity-70">({topics.length})</span>
               </button>
               {sectors.map(s => {
                 const isActive = selectedSector === s.id || selectedSector === s.slug;
