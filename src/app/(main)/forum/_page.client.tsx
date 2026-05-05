@@ -10,7 +10,7 @@ import {
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import { cn } from '@/lib/utils';
-import { SECTOR_COLORS } from './_config';
+import { SECTOR_COLORS, SECTORS_DEFAULT } from './_config';
 
 import { useForumPage } from './useForumPage';
 import { HERO_SHORTCUTS } from './_config';
@@ -163,7 +163,9 @@ function ForumPageInner() {
                 </span>
               </button>
 
-              {sectors.map(sector => {
+              {sectors
+                .filter(s => SECTORS_DEFAULT.some(d => d.id === s.id || d.slug === s.slug))
+                .map(sector => {
                 const sectorTopicCount = topics.filter(t =>
                   t.sector_id === sector.id || (t as unknown as { sector?: { id: string } }).sector?.id === sector.id
                 ).length;
