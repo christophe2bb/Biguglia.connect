@@ -757,153 +757,157 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
         {/* ── Vue normale (non-édition) ── */}
         {!editing && (
           <>
-            {/* ── Galerie photos immersive (dès 1 photo) ── */}
-            {allPhotos.length > 0 && (
-              (() => {
-                const main = allPhotos[0];
-                const rest = allPhotos.slice(1, 5);
-                const extra = allPhotos.length - 5;
-                return (
-                  <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
-                    {allPhotos.length === 1 ? (
-                      <button
-                        type="button"
-                        onClick={() => openLightbox(0)}
-                        className="relative w-full aspect-[16/9] block cursor-zoom-in"
-                      >
-                        <Image src={main.url} alt={p.title} fill className="object-cover" sizes="100vw" />
-                      </button>
-                    ) : (
-                      <div className="grid grid-cols-3 gap-0.5">
-                        {/* Grande photo à gauche — cliquable */}
-                        <button
-                          type="button"
-                          onClick={() => openLightbox(0)}
-                          className="col-span-2 relative aspect-[4/3] cursor-zoom-in"
-                        >
-                          <Image src={main.url} alt={p.title} fill className="object-cover hover:brightness-90 transition-all" sizes="66vw" />
-                        </button>
-                        {/* Vignettes à droite — cliquables */}
-                        <div className="flex flex-col gap-0.5">
-                          {rest.map((ph, i) => (
-                            <button
-                              key={i}
-                              type="button"
-                              onClick={() => openLightbox(i + 1)}
-                              className="relative flex-1 cursor-zoom-in"
-                              style={{ minHeight: 0 }}
-                            >
-                              <Image src={ph.url} alt={`Photo ${i + 2}`} fill className="object-cover hover:brightness-90 transition-all" sizes="33vw" />
-                              {i === rest.length - 1 && extra > 0 && (
-                                <div className="absolute inset-0 bg-black/55 hover:bg-black/40 transition-colors flex flex-col items-center justify-center gap-1">
-                                  <span className="text-white font-black text-xl">+{extra}</span>
-                                  <span className="text-white/80 text-xs font-semibold">photos</span>
-                                </div>
-                              )}
-                            </button>
-                          ))}
-                          {rest.length < 4 && Array.from({ length: 4 - rest.length }).map((_, i) => (
-                            <div key={`empty-${i}`} className="flex-1 bg-gray-100" style={{ minHeight: 0 }} />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {/* Barre basse : compteur + "Voir toutes" */}
-                    <button
-                      type="button"
-                      onClick={() => openLightbox(0)}
-                      className="w-full bg-white hover:bg-gray-50 transition-colors px-4 py-2.5 flex items-center justify-between gap-2 border-t border-gray-100"
-                    >
-                      <div className="flex items-center gap-1.5 text-xs text-gray-500 font-semibold">
-                        <Camera className="w-3.5 h-3.5 text-emerald-500" />
-                        {allPhotos.length} photo{allPhotos.length > 1 ? 's' : ''}
-                      </div>
-                      <span className="text-xs text-emerald-600 font-bold">Voir toutes →</span>
+
+            {/* ══ GALERIE MAGAZINE ══════════════════════════════════════════════ */}
+            {allPhotos.length > 0 && (() => {
+              const main = allPhotos[0];
+              const rest = allPhotos.slice(1, 5);
+              const extra = allPhotos.length - 5;
+              return (
+                <div className="rounded-3xl overflow-hidden shadow-md">
+                  {allPhotos.length === 1 ? (
+                    <button type="button" onClick={() => openLightbox(0)}
+                      className="relative w-full aspect-video block cursor-zoom-in group">
+                      <Image src={main.url} alt={p.title} fill className="object-cover group-hover:scale-[1.02] transition-transform duration-500" sizes="100vw" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
                     </button>
-                  </div>
-                );
-              })()
-            )}
-
-            {/* ── Stats 3 colonnes ── */}
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { icon: MapPin, val: p.distance_km != null ? `${p.distance_km} km` : '—',           label: 'Distance',      color: 'text-emerald-600', bg: 'bg-emerald-50',  border: 'border-emerald-100' },
-                { icon: Clock,  val: p.duration_min != null ? formatDuration(p.duration_min) : '—', label: 'Durée',         color: 'text-sky-600',     bg: 'bg-sky-50',      border: 'border-sky-100' },
-                { icon: Heart,  val: `${p.likes_count ?? 0}`,                                        label: 'J\'aime',       color: 'text-rose-500',    bg: 'bg-rose-50',     border: 'border-rose-100' },
-              ].map(({ icon: Icon, val, label, color, bg, border }) => (
-                <div key={label} className={cn('rounded-2xl p-4 text-center border', bg, border)}>
-                  <Icon className={cn('w-5 h-5 mx-auto mb-1.5', color)} />
-                  <p className={cn('text-xl font-black leading-none', color)}>{val}</p>
-                  <p className="text-xs text-gray-400 mt-1 font-medium">{label}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* ── Description ── */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-1 h-5 rounded-full bg-emerald-400" />
-                <h2 className="text-base font-black text-gray-900">Description du parcours</h2>
-              </div>
-              <p className="text-gray-600 leading-relaxed text-[15px]">{p.description}</p>
-            </div>
-
-            {/* ── Caractéristiques ── */}
-            {badges.length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-1 h-5 rounded-full bg-sky-400" />
-                  <h2 className="text-base font-black text-gray-900">Caractéristiques</h2>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {badges.map(b => (
-                    <span key={b.label} className={cn('inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border', b.cls)}>
-                      {b.emoji} {b.label}
+                  ) : (
+                    <div className="grid grid-cols-3 gap-0.5 bg-gray-900">
+                      <button type="button" onClick={() => openLightbox(0)}
+                        className="col-span-2 relative aspect-[4/3] overflow-hidden cursor-zoom-in group">
+                        <Image src={main.url} alt={p.title} fill className="object-cover group-hover:scale-[1.03] transition-transform duration-500" sizes="66vw" />
+                      </button>
+                      <div className="flex flex-col gap-0.5">
+                        {rest.map((ph, i) => (
+                          <button key={i} type="button" onClick={() => openLightbox(i + 1)}
+                            className="relative flex-1 overflow-hidden cursor-zoom-in group" style={{ minHeight: 0 }}>
+                            <Image src={ph.url} alt="" fill className="object-cover group-hover:scale-[1.05] transition-transform duration-500" sizes="33vw" />
+                            {i === rest.length - 1 && extra > 0 && (
+                              <div className="absolute inset-0 bg-black/60 group-hover:bg-black/45 transition-colors flex flex-col items-center justify-center gap-0.5">
+                                <span className="text-white font-black text-2xl leading-none">+{extra}</span>
+                                <span className="text-white/70 text-[10px] font-semibold uppercase tracking-wider">photos</span>
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                        {rest.length < 4 && Array.from({ length: 4 - rest.length }).map((_, i) => (
+                          <div key={i} className="flex-1 bg-gray-800" style={{ minHeight: 0 }} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <button type="button" onClick={() => openLightbox(0)}
+                    className="w-full bg-gray-900 hover:bg-gray-800 transition-colors px-5 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-gray-300 text-xs font-semibold">
+                      <Camera className="w-3.5 h-3.5 text-emerald-400" />
+                      {allPhotos.length} photo{allPhotos.length > 1 ? 's' : ''}
+                    </div>
+                    <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
+                      Voir toutes <ArrowLeft className="w-3 h-3 rotate-180" />
                     </span>
+                  </button>
+                </div>
+              );
+            })()}
+
+            {/* ══ BLOC STATS + AUTEUR ═══════════════════════════════════════════ */}
+            <div className={`rounded-3xl bg-gradient-to-br ${type.gradient} p-5 shadow-lg text-white`}>
+              {/* Auteur */}
+              {p.author?.full_name && (
+                <div className="flex items-center gap-2 mb-4 pb-4 border-b border-white/20">
+                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-black">
+                    {p.author.full_name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-white/60 font-semibold uppercase tracking-wider">Créé par</p>
+                    <p className="text-sm font-bold text-white leading-none">{p.author.full_name}</p>
+                  </div>
+                  <div className="ml-auto flex items-center gap-1 bg-white/15 rounded-full px-3 py-1">
+                    <Eye className="w-3 h-3 text-white/70" />
+                    <span className="text-xs font-bold text-white/90">{p.views ?? 0}</span>
+                  </div>
+                </div>
+              )}
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { emoji: '📍', val: p.distance_km != null ? `${p.distance_km} km` : '—', label: 'Distance' },
+                  { emoji: '⏱️', val: p.duration_min != null ? formatDuration(p.duration_min) : '—', label: 'Durée' },
+                  { emoji: '❤️', val: `${p.likes_count ?? 0}`, label: 'J\'aime' },
+                ].map(({ emoji, val, label }) => (
+                  <div key={label} className="bg-white/15 rounded-2xl p-3 text-center backdrop-blur-sm">
+                    <div className="text-xl mb-1">{emoji}</div>
+                    <div className="text-base font-black leading-none">{val}</div>
+                    <div className="text-[10px] text-white/70 mt-0.5 font-semibold">{label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ══ DESCRIPTION ══════════════════════════════════════════════════ */}
+            <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+              <div className={`h-1.5 bg-gradient-to-r ${type.gradient}`} />
+              <div className="p-6">
+                <h2 className="text-base font-black text-gray-900 mb-3 flex items-center gap-2">
+                  <span className="text-lg">{type.emoji}</span> À propos de ce parcours
+                </h2>
+                <p className="text-gray-600 leading-relaxed text-[15px]">{p.description}</p>
+              </div>
+            </div>
+
+            {/* ══ CARACTÉRISTIQUES — grille de chips ═══════════════════════════ */}
+            {badges.length > 0 && (
+              <div className="bg-white rounded-3xl p-5 shadow-sm">
+                <h2 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">Ce parcours offre</h2>
+                <div className="grid grid-cols-2 gap-2">
+                  {badges.map(b => (
+                    <div key={b.label}
+                      className={cn('flex items-center gap-2.5 px-3 py-2.5 rounded-2xl border font-semibold text-sm', b.cls)}>
+                      <span className="text-base">{b.emoji}</span>
+                      <span>{b.label}</span>
+                    </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* ── Infos pratiques ── */}
-            {(p.practical_tips || p.safety_notes || p.start_point) && (
-              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-                <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
-                  <div className="w-1 h-5 rounded-full bg-amber-400" />
-                  <h2 className="text-base font-black text-gray-900">Infos pratiques</h2>
+            {/* ══ INFOS PRATIQUES ══════════════════════════════════════════════ */}
+            {(p.start_point || p.practical_tips || p.safety_notes) && (
+              <div className="bg-white rounded-3xl overflow-hidden shadow-sm">
+                <div className="px-5 pt-5 pb-1">
+                  <h2 className="text-sm font-black text-gray-400 uppercase tracking-widest">Infos pratiques</h2>
                 </div>
-                <div className="divide-y divide-gray-50">
+                <div className="p-3 space-y-2">
                   {p.start_point && (
-                    <div className="flex items-start gap-4 px-6 py-4">
-                      <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
-                        <MapPin className="w-4 h-4 text-emerald-500" />
+                    <div className="flex items-start gap-3 bg-emerald-50 rounded-2xl p-4">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <MapPin className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-0.5">Point de départ</p>
-                        <p className="text-sm text-gray-700 font-medium">{p.start_point}</p>
+                        <p className="text-xs font-black text-emerald-600 uppercase tracking-wide mb-0.5">Départ</p>
+                        <p className="text-sm text-emerald-900 font-semibold">{p.start_point}</p>
                       </div>
                     </div>
                   )}
                   {p.practical_tips && (
-                    <div className="flex items-start gap-4 px-6 py-4">
-                      <div className="w-9 h-9 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0">
-                        <CheckCircle2 className="w-4 h-4 text-sky-500" />
+                    <div className="flex items-start gap-3 bg-sky-50 rounded-2xl p-4">
+                      <div className="w-10 h-10 rounded-xl bg-sky-500 flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <CheckCircle2 className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-0.5">Conseils</p>
-                        <p className="text-sm text-gray-700 leading-relaxed">{p.practical_tips}</p>
+                        <p className="text-xs font-black text-sky-600 uppercase tracking-wide mb-0.5">Conseils</p>
+                        <p className="text-sm text-sky-900 leading-relaxed">{p.practical_tips}</p>
                       </div>
                     </div>
                   )}
                   {p.safety_notes && (
-                    <div className="flex items-start gap-4 px-6 py-4 bg-amber-50/60">
-                      <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-                        <AlertTriangle className="w-4 h-4 text-amber-500" />
+                    <div className="flex items-start gap-3 bg-amber-50 rounded-2xl p-4 border border-amber-100">
+                      <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <AlertTriangle className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <p className="text-xs font-black text-amber-500 uppercase tracking-wider mb-0.5">Sécurité</p>
-                        <p className="text-sm text-amber-700 leading-relaxed">{p.safety_notes}</p>
+                        <p className="text-xs font-black text-amber-600 uppercase tracking-wide mb-0.5">Sécurité</p>
+                        <p className="text-sm text-amber-800 leading-relaxed">{p.safety_notes}</p>
                       </div>
                     </div>
                   )}
@@ -911,36 +915,28 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
               </div>
             )}
 
-            {/* ── Tags ── */}
+            {/* ══ TAGS ═════════════════════════════════════════════════════════ */}
             {p.tags && p.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 px-1">
+              <div className="flex flex-wrap gap-2">
                 {p.tags.map(t => (
-                  <span key={t} className="text-xs font-bold bg-white text-gray-500 border border-gray-200 px-3 py-1.5 rounded-full hover:bg-gray-50 transition-colors">
-                    # {t}
+                  <span key={t}
+                    className="text-xs font-bold bg-white text-gray-500 border border-gray-200 px-3 py-1.5 rounded-full shadow-sm hover:bg-gray-50 transition-colors">
+                    #{t}
                   </span>
                 ))}
               </div>
             )}
 
-            {/* ── Barre actions ── */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-3 text-xs text-gray-400 font-medium">
-                  <span className="flex items-center gap-1"><Eye className="w-3.5 h-3.5" /> {p.views ?? 0} vues</span>
-                  <span>·</span>
-                  <span className="flex items-center gap-1"><Heart className="w-3.5 h-3.5 text-rose-400" /> {p.likes_count ?? 0} j&apos;aime</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={share}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 border border-gray-200 bg-white hover:bg-gray-50 px-3 py-2 rounded-xl transition-colors">
-                    <Share2 className="w-3.5 h-3.5" /> Partager
-                  </button>
-                  <Link href="/promenades"
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-3 py-2 rounded-xl transition-colors">
-                    <ArrowLeft className="w-3.5 h-3.5" /> Retour
-                  </Link>
-                </div>
-              </div>
+            {/* ══ BARRE ACTIONS ════════════════════════════════════════════════ */}
+            <div className="flex gap-3 pb-4">
+              <button onClick={share}
+                className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-bold bg-white border-2 border-gray-100 text-gray-600 hover:border-gray-200 hover:bg-gray-50 shadow-sm transition-all">
+                <Share2 className="w-4 h-4" /> Partager
+              </button>
+              <Link href="/promenades"
+                className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-bold text-white bg-gradient-to-r ${type.gradient} shadow-md hover:shadow-lg hover:scale-[1.01] transition-all`}>
+                <ArrowLeft className="w-4 h-4" /> Retour
+              </Link>
             </div>
           </>
         )}
