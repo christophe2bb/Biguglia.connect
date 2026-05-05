@@ -6,7 +6,8 @@ import Avatar from '@/components/ui/Avatar';
 import { formatRelative } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import type { ForumPost } from '../_types';
-import { FORUM_THEMES } from '../_hooks/useForum';
+import type { ForumTheme } from '../_hooks/useForum';
+import { SYSTEM_THEMES } from '../_hooks/useForum';
 import ForumPostDetail from './ForumPostDetail';
 
 interface Props {
@@ -25,19 +26,23 @@ interface Props {
   onPostDeleted?: () => void;
   /** Filtre thème actif (null = tous) */
   activeTheme?: string | null;
+  /** Liste complète des thèmes (système + custom) */
+  allThemes?: ForumTheme[];
 }
 
 export default function TabForum({
   forumPosts, loadingForum, forumCategoryId,
   showPostForm, setShowPostForm, postForm, setPostForm, submittingPost, handlePostSubmit,
   profileId, profileName, profileAvatar, onPostDeleted,
-  activeTheme,
+  activeTheme, allThemes,
 }: Props) {
 
   // ── Vue détail inline ────────────────────────────────────────────────────
   const [selectedPost, setSelectedPost] = useState<ForumPost | null>(null);
 
-  const activeThemeConfig = FORUM_THEMES.find(t => t.id === activeTheme);
+  // Thèmes disponibles : custom injectés depuis le parent, sinon thèmes système
+  const themes: ForumTheme[] = allThemes ?? [...SYSTEM_THEMES];
+  const activeThemeConfig = themes.find(t => t.id === activeTheme);
 
   if (selectedPost) {
     return (
@@ -104,7 +109,7 @@ export default function TabForum({
               <Tag className="w-3.5 h-3.5" /> Thème du sujet
             </label>
             <div className="flex flex-wrap gap-1.5">
-              {FORUM_THEMES.filter(t => t.id !== 'general').map(t => (
+              {themes.filter(t => t.id !== 'general').map(t => (
                 <button
                   key={t.id}
                   type="button"
@@ -206,7 +211,7 @@ export default function TabForum({
           {forumPosts.map(post => {
             const comments = (post.comment_count as unknown as { count: number }[])?.[0]?.count ?? 0;
             const isHot    = comments >= 5;
-            const theme    = FORUM_THEMES.find(t => t.id === (post.theme || 'general'));
+            const theme    = themes.find(t => t.id === (post.theme || 'general'));
 
             return (
               <button

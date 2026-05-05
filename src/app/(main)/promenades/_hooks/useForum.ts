@@ -5,34 +5,82 @@ import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import type { ForumPost } from '../_types';
 
-// ─── Thèmes prédéfinis ────────────────────────────────────────────────────────
-export const FORUM_THEMES = [
-  { id: 'general',    emoji: '💬', label: 'Général',        sub: 'Tous les sujets' },
-  { id: 'itineraires',emoji: '🗺️', label: 'Itinéraires',    sub: 'Partage de parcours' },
-  { id: 'nature',     emoji: '🌿', label: 'Nature & faune',  sub: 'Observations terrain' },
-  { id: 'alertes',    emoji: '⚠️', label: 'Alertes terrain', sub: 'Chemins, météo' },
-  { id: 'chien',      emoji: '🐕', label: 'Balades chien',   sub: 'Conseils & spots' },
-  { id: 'famille',    emoji: '👨‍👩‍👧', label: 'Famille',        sub: 'Sorties enfants' },
-  { id: 'photo',      emoji: '📸', label: 'Spots photo',     sub: 'Bons plans photo' },
-  { id: 'velo',       emoji: '🚴', label: 'Vélo & VTT',      sub: 'Circuits cyclables' },
-  { id: 'questions',  emoji: '❓', label: 'Questions',       sub: 'Aide & conseils' },
+// ─── Thèmes système (fixes) ───────────────────────────────────────────────────
+export const SYSTEM_THEMES = [
+  { id: 'itineraires', emoji: '🗺️', label: 'Itinéraires',    sub: 'Partage de parcours'   },
+  { id: 'nature',      emoji: '🌿', label: 'Nature & faune',  sub: 'Observations terrain'  },
+  { id: 'alertes',     emoji: '⚠️', label: 'Alertes terrain', sub: 'Chemins, météo'        },
+  { id: 'chien',       emoji: '🐕', label: 'Balades chien',   sub: 'Conseils & spots'      },
+  { id: 'famille',     emoji: '👨‍👩‍👧', label: 'Famille',        sub: 'Sorties enfants'       },
+  { id: 'photo',       emoji: '📸', label: 'Spots photo',     sub: 'Bons plans photo'      },
+  { id: 'velo',        emoji: '🚴', label: 'Vélo & VTT',      sub: 'Circuits cyclables'    },
+  { id: 'questions',   emoji: '❓', label: 'Questions',       sub: 'Aide & conseils'       },
 ] as const;
 
-export type ForumThemeId = typeof FORUM_THEMES[number]['id'];
+export type SystemThemeId = typeof SYSTEM_THEMES[number]['id'];
+
+// Thème générique partagé entre système et custom
+export type ForumTheme = {
+  id:     string;
+  emoji:  string;
+  label:  string;
+  sub:    string;
+  custom?: boolean;   // true = créé par l'utilisateur
+};
+
+// Liste plate utilisable dans les widgets (système + custom)
+// Les thèmes custom sont injectés via le state `customThemes`
+export const FORUM_THEMES: ForumTheme[] = [...SYSTEM_THEMES];
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 export function useForum(profile: { id: string } | null | undefined) {
   const supabase = useMemo(() => createClient(), []);
 
   const [forumPosts,      setForumPosts]      = useState<ForumPost[]>([]);
-  const [allForumPosts,   setAllForumPosts]   = useState<ForumPost[]>([]);   // cache complet
+  const [allForumPosts,   setAllForumPosts]   = useState<ForumPost[]>([]);
   const [loadingForum,    setLoadingForum]    = useState(false);
   const [forumCategoryId, setForumCategoryId] = useState<string | null>(null);
-  const [activeTheme,     setActiveTheme]     = useState<string | null>(null); // null = tous
+  const [activeTheme,     setActiveTheme]     = useState<string | null>(null);
+
+  // ── Thèmes personnalisés créés par l'utilisateur (session courante) ─────────
+  const [customThemes, setCustomThemes] = useState<ForumTheme[]>([]);
 
   const [showPostForm,   setShowPostForm]   = useState(false);
   const [postForm,       setPostForm]       = useState({ title: '', content: '', theme: 'general' });
   const [submittingPost, setSubmittingPost] = useState(false);
+
+  // ── Liste complète des thèmes = système + custom ────────────────────────────
+  const allThemes = useMemo<ForumTheme[]>(() => {
+    // Déduit aussi les thèmes custom présents dans les posts existants
+    // (posts avec un slug inconnu des SYSTEM_THEMES → thème custom existant)
+    const knownIds = new Set([
+      ...SYSTEM_THEMES.map(t => t.id),
+      ...customThemes.map(t => t.id),
+      'general',
+    ]);
+    const discoveredThemes: ForumTheme[] = [];
+    for (const p of allForumPosts) {
+      const t = p.theme;
+      if (t && !knownIds.has(t)) {
+        knownIds.add(t);
+        discoveredThemes.push({ id: t, emoji: '💬', label: t, sub: 'Thème personnalisé', custom: true });
+      }
+    }
+    return [...SYSTEM_THEMES, ...customThemes, ...discoveredThemes];
+  }, [customThemes, allForumPosts]);
+
+  // ── Ajouter un thème custom (appelé depuis le modal) ─────────────────────────
+  const addCustomTheme = useCallback((theme: ForumTheme) => {
+    setCustomThemes(prev => {
+      // Éviter les doublons
+      if (prev.some(t => t.id === theme.id)) return prev;
+      return [...prev, { ...theme, custom: true }];
+    });
+    // Pré-sélectionner ce thème dans le formulaire de post
+    setPostForm(f => ({ ...f, theme: theme.id }));
+    // Activer le filtre sur ce nouveau thème
+    setActiveTheme(theme.id);
+  }, []);
 
   // ── Comptage par thème ──────────────────────────────────────────────────────
   const themeCounts = useMemo<Record<string, number>>(() => {
@@ -44,14 +92,12 @@ export function useForum(profile: { id: string } | null | undefined) {
     return counts;
   }, [allForumPosts]);
 
-  // ── Filtrage client-side par thème ─────────────────────────────────────────
+  // ── Filtrage client-side ────────────────────────────────────────────────────
   const filteredPosts = useMemo<ForumPost[]>(() => {
     if (!activeTheme) return allForumPosts;
     return allForumPosts.filter(p => (p.theme || 'general') === activeTheme);
   }, [allForumPosts, activeTheme]);
 
-  // ── Appliquer filteredPosts → forumPosts (state partagé avec TabForum) ─────
-  // (On synchronise forumPosts à chaque changement de filtre)
   const applyThemeFilter = useCallback((theme: string | null) => {
     setActiveTheme(theme);
   }, []);
@@ -118,8 +164,11 @@ export function useForum(profile: { id: string } | null | undefined) {
   };
 
   return {
-    forumPosts: filteredPosts,   // toujours le résultat filtré
+    forumPosts: filteredPosts,
     allForumPosts,
+    allThemes,           // système + custom + découverts dans les posts
+    customThemes,
+    addCustomTheme,
     loadingForum,
     forumCategoryId,
     activeTheme,

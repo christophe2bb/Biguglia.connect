@@ -5,17 +5,17 @@ import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import {
   TreePine, Footprints, MessageSquare, Users, Star, X, Zap, ArrowRight,
-  Plus, SlidersHorizontal, Filter, AlertCircle, MapPin, Sparkles,
+  Plus, SlidersHorizontal, Filter, AlertCircle, MapPin,
 } from 'lucide-react';
-import SectorFilter from '@/components/ui/SectorFilter';
 import { SECTORS, SECTOR_COLORS } from '@/lib/sectors';
 import { cn } from '@/lib/utils';
 import { QUICK_FILTERS, DEFAULT_ADV_FILTERS } from './_constants';
 import { usePromenades } from './_hooks/usePromenades';
-import { useForum, FORUM_THEMES } from './_hooks/useForum';
+import { useForum } from './_hooks/useForum';
 import { useOutings } from './_hooks/useOutings';
 import dynamic from 'next/dynamic';
 import TabItineraires from './_components/TabItineraires';
+import CreateThemeModal from './_components/CreateThemeModal';
 const TabForum          = dynamic(() => import('./_components/TabForum'),          { ssr: false });
 const TabAgenda         = dynamic(() => import('./_components/TabAgenda'),         { ssr: false });
 const PromenadesSidebar = dynamic(() => import('./_components/PromenadesSidebar'), { ssr: false });
@@ -28,12 +28,13 @@ export default function PromenadePage() {
   const { profile } = useAuthStore();
   const fileInputRef = useRef<HTMLInputElement>(null) as React.RefObject<HTMLInputElement>;
 
-  const [activeTab,    setActiveTab]    = useState<Tab>('itineraires');
-  const [quickFilter,  setQuickFilter]  = useState<string | null>(null);
-  const [filterSector, setFilterSector] = useState<string | null>(null);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [viewMode,     setViewMode]     = useState<'grid' | 'list'>('grid');
-  const [advFilters,   setAdvFilters]   = useState<AdvFilters>(DEFAULT_ADV_FILTERS);
+  const [activeTab,      setActiveTab]      = useState<Tab>('itineraires');
+  const [quickFilter,    setQuickFilter]    = useState<string | null>(null);
+  const [filterSector,   setFilterSector]   = useState<string | null>(null);
+  const [showAdvanced,   setShowAdvanced]   = useState(false);
+  const [viewMode,       setViewMode]       = useState<'grid' | 'list'>('grid');
+  const [advFilters,     setAdvFilters]     = useState<AdvFilters>(DEFAULT_ADV_FILTERS);
+  const [showThemeModal, setShowThemeModal] = useState(false);
 
   // ── Lire ?tab= depuis l'URL ──────────────────────────────────────────────
   useEffect(() => {
@@ -64,7 +65,7 @@ export default function PromenadePage() {
   // ── Computed ─────────────────────────────────────────────────────────────
   const { promenades, loadingPromenades, dbReady } = promenadHook;
   const { outings } = outingsHook;
-  const { forumPosts, allForumPosts, activeTheme, applyThemeFilter, themeCounts } = forumHook;
+  const { forumPosts, allForumPosts, allThemes, activeTheme, applyThemeFilter, themeCounts, addCustomTheme } = forumHook;
 
   const totalCount  = promenades.length;
   const nextOuting  = outings[0];
@@ -130,6 +131,20 @@ export default function PromenadePage() {
   // ── RENDER ────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50">
+
+      {/* ── Modal création thème custom ── */}
+      {showThemeModal && (
+        <CreateThemeModal
+          onClose={() => setShowThemeModal(false)}
+          onCreated={(theme) => {
+            addCustomTheme(theme);
+            setShowThemeModal(false);
+            // Ouvrir le formulaire de post avec ce thème pré-sélectionné
+            forumHook.setShowPostForm(true);
+            setTimeout(() => window.scrollTo({ top: 800, behavior: 'smooth' }), 150);
+          }}
+        />
+      )}
 
       {/* ── BANNER DB manquante ── */}
       {!dbReady && (
@@ -481,8 +496,8 @@ export default function PromenadePage() {
                 </div>
               </button>
 
-              {/* Widgets par thème */}
-              {FORUM_THEMES.filter(t => t.id !== 'general').map(theme => {
+              {/* Widgets par thème — système + custom */}
+              {allThemes.filter(t => t.id !== 'general').map(theme => {
                 const count    = themeCounts[theme.id] || 0;
                 const isActive = activeTheme === theme.id;
                 return (
@@ -494,18 +509,23 @@ export default function PromenadePage() {
                       'relative flex items-center gap-2.5 rounded-2xl border-2 px-4 py-3 transition-all duration-200 text-left',
                       isActive
                         ? 'bg-sky-500 border-sky-500 text-white shadow-md scale-[1.02]'
-                        : 'bg-white border-gray-100 hover:bg-sky-50 hover:border-sky-200'
+                        : theme.custom
+                          ? 'bg-violet-50 border-violet-100 hover:bg-violet-100 hover:border-violet-300'
+                          : 'bg-white border-gray-100 hover:bg-sky-50 hover:border-sky-200'
                     )}
                   >
                     <span className="text-xl flex-shrink-0">{theme.emoji}</span>
                     <div className="min-w-0 flex-1">
                       <p className={cn('text-xs font-black leading-tight truncate',
-                        isActive ? 'text-white' : 'text-gray-800'
+                        isActive ? 'text-white' : theme.custom ? 'text-violet-800' : 'text-gray-800'
                       )}>
                         {theme.label}
+                        {theme.custom && !isActive && (
+                          <span className="ml-1 text-[9px] bg-violet-200 text-violet-600 rounded-full px-1 font-bold align-middle">perso</span>
+                        )}
                       </p>
                       <p className={cn('text-[10px] leading-tight truncate',
-                        isActive ? 'text-sky-100' : 'text-gray-400'
+                        isActive ? 'text-sky-100' : theme.custom ? 'text-violet-400' : 'text-gray-400'
                       )}>
                         {theme.sub}
                       </p>
@@ -522,40 +542,36 @@ export default function PromenadePage() {
                   </button>
                 );
               })}
+
+              {/* Bouton "+ Nouveau thème" — visible seulement si connecté */}
+              {profile && (
+                <button
+                  type="button"
+                  onClick={() => setShowThemeModal(true)}
+                  className="flex items-center gap-2.5 rounded-2xl border-2 border-dashed border-gray-200 px-4 py-3 transition-all duration-200 text-left hover:border-violet-300 hover:bg-violet-50 group"
+                >
+                  <span className="text-xl flex-shrink-0 w-7 h-7 rounded-xl bg-gray-100 group-hover:bg-violet-100 flex items-center justify-center text-gray-400 group-hover:text-violet-500 transition-colors">
+                    <Plus className="w-4 h-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-black leading-tight text-gray-400 group-hover:text-violet-700 transition-colors">Nouveau thème</p>
+                    <p className="text-[10px] leading-tight text-gray-300 group-hover:text-violet-400 transition-colors">Personnalisé</p>
+                  </div>
+                </button>
+              )}
             </div>
 
             {/* Bandeau thème actif */}
             {activeTheme && (
               <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-sky-50 text-sky-700 border border-sky-200 rounded-xl text-xs font-semibold">
-                <span>{FORUM_THEMES.find(t => t.id === activeTheme)?.emoji}</span>
+                <span>{allThemes.find(t => t.id === activeTheme)?.emoji}</span>
                 <span>
                   Thème&nbsp;
-                  <strong>{FORUM_THEMES.find(t => t.id === activeTheme)?.label}</strong>&nbsp;—&nbsp;
+                  <strong>{allThemes.find(t => t.id === activeTheme)?.label}</strong>&nbsp;—&nbsp;
                   {forumPosts.length} sujet{forumPosts.length !== 1 ? 's' : ''}
                 </span>
-              </div>
-            )}
-
-            {/* ── Proposition création de thème personnalisé ── */}
-            {profile && (
-              <div className="mt-4 flex items-center gap-3 bg-gradient-to-r from-sky-50 to-teal-50 border border-sky-100 rounded-2xl px-4 py-3">
-                <div className="w-8 h-8 bg-sky-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Sparkles className="w-4 h-4 text-sky-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-black text-sky-800">Créer un nouveau thème</p>
-                  <p className="text-[11px] text-sky-600">
-                    Vous pouvez proposer un thème personnalisé lors de la création de votre prochain sujet.
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    forumHook.setShowPostForm(true);
-                    setTimeout(() => window.scrollTo({ top: 800, behavior: 'smooth' }), 100);
-                  }}
-                  className="flex-shrink-0 inline-flex items-center gap-1 text-xs font-bold text-sky-600 hover:text-sky-800 transition-colors"
-                >
-                  Créer <ArrowRight className="w-3 h-3" />
+                <button onClick={() => applyThemeFilter(null)} className="ml-auto text-sky-400 hover:text-red-500 transition-colors">
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}
@@ -864,6 +880,7 @@ export default function PromenadePage() {
                 profileAvatar={profile?.avatar_url}
                 onPostDeleted={forumHook.fetchForum}
                 activeTheme={activeTheme}
+                allThemes={allThemes}
               />
             )}
 
