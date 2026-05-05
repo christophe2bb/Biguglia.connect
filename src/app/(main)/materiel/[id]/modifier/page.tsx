@@ -31,7 +31,8 @@ const NOTICE_HOURS = [0, 2, 4, 12, 24, 48] as const;
 export default function ModifierMaterielPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { profile, loading: authLoading } = useAuthStore();
+  const { profile, phase } = useAuthStore();
+  const authReady = phase !== 'initializing';
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [categories, setCategories]         = useState<Category[]>([]);
@@ -69,7 +70,7 @@ export default function ModifierMaterielPage() {
   // ── Chargement ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (authLoading) return;
+    if (!authReady) return;
     if (!profile) { router.push('/connexion'); return; }
 
     const fetchData = async () => {
@@ -118,7 +119,7 @@ export default function ModifierMaterielPage() {
       setLoading(false);
     };
     fetchData();
-  }, [id, profile, authLoading, router]);
+  }, [id, profile, authReady, router]);
 
   // ── Sauvegarde ───────────────────────────────────────────────────────────────
 

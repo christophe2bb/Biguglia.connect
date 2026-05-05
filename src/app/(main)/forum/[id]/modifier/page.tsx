@@ -17,7 +17,8 @@ interface Category { id: string; name: string; icon: string; }
 export default function ModifierForumPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { profile, loading: authLoading } = useAuthStore();
+  const { profile, phase } = useAuthStore();
+  const authReady = phase !== 'initializing';
 
   // Mémorise si le topic vient de forum_topics (v2) ou forum_posts (v1)
   const isV2Ref = useRef(false);
@@ -32,7 +33,7 @@ export default function ModifierForumPage() {
   });
 
   useEffect(() => {
-    if (authLoading) return;
+    if (!authReady) return;
     if (!profile) { router.push('/connexion'); return; }
 
     const fetchData = async () => {
@@ -99,7 +100,7 @@ export default function ModifierForumPage() {
     };
 
     fetchData();
-  }, [id, profile, authLoading, router]);
+  }, [id, profile, authReady, router]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -59,7 +59,8 @@ function DeleteConfirmDialog({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ForumTopicClient({ initialData }: Props) {
-  const { profile, isModerator, loading: authLoading } = useAuthStore();
+  const { profile, isModerator, phase } = useAuthStore();
+  const authReady = phase !== 'initializing';
 
   // ── Dialog state (remplace window.confirm() bloquant) ─────────────────────
   const [confirmDeleteTopic, setConfirmDeleteTopic] = useState(false);
@@ -90,9 +91,9 @@ export default function ForumTopicClient({ initialData }: Props) {
   if (!topic) return null;
 
   // ── Derived flags ──────────────────────────────────────────────────────────
-  const canDelete  = !authLoading && !!profile && (profile.id === topic.author_id || isModerator());
-  const canEdit    = !authLoading && !!profile && profile.id === topic.author_id;
-  const isMod      = !authLoading && isModerator();
+  const canDelete  = authReady && !!profile && (profile.id === topic.author_id || isModerator());
+  const canEdit    = authReady && !!profile && profile.id === topic.author_id;
+  const isMod      = authReady && isModerator();
   const isLocked   = topic.status === 'verrouille' || topic.status === 'archive';
 
   return (

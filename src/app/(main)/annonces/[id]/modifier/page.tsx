@@ -35,7 +35,8 @@ const CONDITION_OPTIONS = [
 export default function ModifierAnnoncePage() {
   const { id } = useParams();
   const router = useRouter();
-  const { profile, loading: authLoading } = useAuthStore();
+  const { profile, phase } = useAuthStore();
+  const authReady = phase !== 'initializing';
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [categories, setCategories] = useState<ListingCategory[]>([]);
@@ -63,7 +64,7 @@ export default function ModifierAnnoncePage() {
   });
 
   useEffect(() => {
-    if (authLoading) return;
+    if (!authReady) return;
     if (!profile) { router.push('/connexion'); return; }
 
     const fetchData = async () => {
@@ -117,7 +118,7 @@ export default function ModifierAnnoncePage() {
     };
 
     fetchData();
-  }, [id, profile, authLoading, router]);
+  }, [id, profile, authReady, router]);
 
   const addNewPhotos = (files: File[]) => {
     const total = existingPhotos.length + newPhotos.length;
