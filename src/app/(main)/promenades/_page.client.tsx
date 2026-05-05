@@ -649,6 +649,9 @@ export default function PromenadePage() {
                 submittingPost={forumHook.submittingPost}
                 handlePostSubmit={forumHook.handlePostSubmit}
                 profileId={profile?.id}
+                profileName={profile?.full_name}
+                profileAvatar={profile?.avatar_url}
+                onPostDeleted={forumHook.fetchForum}
               />
             )}
 
