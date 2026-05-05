@@ -534,9 +534,11 @@ export default async function OffreDetailPage({ params }: PageProps) {
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Publiée par</p>
                   <div className="flex items-center gap-3">
                     {offer.author_profile.avatar_url ? (
-                      <Image src={offer.author_profile.avatar_url} alt={offer.author_profile.display_name} fill className="rounded-full object-cover" />
+                      <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+                        <Image src={offer.author_profile.avatar_url} alt={offer.author_profile.display_name} fill sizes="48px" className="rounded-full object-cover" />
+                      </div>
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-lg">
+                      <div className="w-12 h-12 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-lg flex-shrink-0">
                         {offer.author_profile.display_name[0].toUpperCase()}
                       </div>
                     )}

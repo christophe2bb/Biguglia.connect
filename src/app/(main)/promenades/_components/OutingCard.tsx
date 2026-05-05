@@ -96,7 +96,7 @@ export default function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit
       {/* ── Zone photo ── */}
       <div className="relative h-48 overflow-hidden">
         {outing.cover_photo ? (
-          <div className="w-full h-full cursor-pointer" role="button" tabIndex={0} onClick={() => setLightboxOpen(true)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightboxOpen(true); } }}>
+          <div className="relative w-full h-full cursor-pointer" role="button" tabIndex={0} onClick={() => setLightboxOpen(true)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightboxOpen(true); } }}>
             <Image
               src={outing.cover_photo}
               alt={outing.title}

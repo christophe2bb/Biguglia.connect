@@ -141,7 +141,7 @@ export function useTopicPage(initialData?: InitialTopicData): UseTopicPageReturn
       const supabase = createClient();
       const { data: followData } = await supabase
         .from('forum_follows').select('id')
-        .eq('topic_id', topicId).eq('user_id', profile.id).single();
+        .eq('topic_id', topicId).eq('user_id', profile.id).maybeSingle();
       setIsFollowing(!!followData);
     })();
   }, [profile?.id, topicId]);
