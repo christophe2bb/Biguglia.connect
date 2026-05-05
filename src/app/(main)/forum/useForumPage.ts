@@ -52,27 +52,9 @@ export function useForumPage(): UseForumPageReturn {
     const catList = (catData && catData.length > 0 ? catData : DEFAULT_CATEGORIES) as ForumCategory[];
     setCategories(catList);
 
-    // Statistiques — enveloppées dans try/catch car les requêtes HEAD COUNT
-    // peuvent échouer si la RLS Supabase bloque les visiteurs anonymes.
-    // En cas d'échec on affiche des compteurs à 0 (non bloquant pour l'UI).
-    try {
-      const results = await Promise.allSettled([
-        supabase.from('forum_topics').select('*', { count: 'exact', head: true }),
-        supabase.from('forum_replies').select('*', { count: 'exact', head: true }),
-        supabase.from('forum_topics').select('author_id', { count: 'exact', head: true }).not('author_id', 'is', null),
-        supabase.from('forum_topics').select('*', { count: 'exact', head: true }).eq('status', 'closed'),
-      ]);
-      const getCount = (r: PromiseSettledResult<{ count: number | null }>) =>
-        r.status === 'fulfilled' ? (r.value.count ?? 0) : 0;
-      setStats({
-        topics:   getCount(results[0] as PromiseSettledResult<{ count: number | null }>),
-        replies:  getCount(results[1] as PromiseSettledResult<{ count: number | null }>),
-        members:  getCount(results[2] as PromiseSettledResult<{ count: number | null }>),
-        resolved: getCount(results[3] as PromiseSettledResult<{ count: number | null }>),
-      });
-    } catch {
-      // Stats non critiques — on garde les valeurs par défaut à 0
-    }
+    // Statistiques — calculées après le chargement des topics (pas de requêtes HEAD
+    // séparées qui échouent avec la RLS Supabase pour les visiteurs anonymes).
+    // setStats() est appelé plus bas, après topicList.
 
     // Topics principaux
     let topicList: ForumTopic[] = [];
@@ -122,6 +104,19 @@ export function useForumPage(): UseForumPageReturn {
     setTopics(topicList);
     setHotTopics([...topicList].sort((a, b) => (b.reply_count ?? 0) - (a.reply_count ?? 0)).slice(0, 5));
     setRecentlyResolved(topicList.filter(t => (t as ForumTopic & { status?: string }).status === 'closed').slice(0, 3));
+
+    // Statistiques calculées localement depuis topicList — évite les requêtes
+    // HEAD COUNT qui échouent avec la RLS Supabase pour les visiteurs anonymes.
+    const uniqueAuthors = new Set(topicList.map(t => (t as ForumTopic & { author_id?: string }).author_id).filter(Boolean));
+    const resolvedCount = topicList.filter(t => (t as ForumTopic & { status?: string }).status === 'closed').length;
+    const totalReplies  = topicList.reduce((acc, t) => acc + (t.reply_count ?? 0), 0);
+    setStats({
+      topics:   topicList.length,
+      replies:  totalReplies,
+      members:  uniqueAuthors.size,
+      resolved: resolvedCount,
+    });
+
     setLoading(false);
   }, [selectedSector, selectedCategory, sortMode, statusFilter, searchQuery]);
 
