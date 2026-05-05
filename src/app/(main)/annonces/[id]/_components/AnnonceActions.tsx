@@ -95,7 +95,7 @@ function DeleteConfirmDialog({
 
 export default function AnnonceActions({ listing, variant = 'topbar' }: Props) {
   const router = useRouter();
-  const { profile, userId } = useAuthStore();
+  const { profile, userId, phase } = useAuthStore();
   // Stable Supabase client — une seule instance au montage (pas de re-création par render)
   const supabaseRef = useRef(createClient());
   const supabase = supabaseRef.current;
@@ -107,7 +107,9 @@ export default function AnnonceActions({ listing, variant = 'topbar' }: Props) {
   // Dialog suppression (remplace window.confirm() bloquant)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
-  const isOwner = !!profile && profile.id === listing.user_id;
+  // authReady : true dès que Zustand a résolu INITIAL_SESSION (authenticated ou unauthenticated)
+  const authReady = phase !== 'initializing';
+  const isOwner   = authReady && !!profile && profile.id === listing.user_id;
 
   // ── Load saved state from localStorage ────────────────────────────────────
   useEffect(() => {
@@ -291,8 +293,10 @@ export default function AnnonceActions({ listing, variant = 'topbar' }: Props) {
           )}
         </div>
 
-        {/* Owner: edit link */}
-        {isOwner && (
+        {/* Owner: edit link — skeleton pendant init, bouton quand owner confirmé */}
+        {!authReady ? (
+          <div className="w-20 h-8 bg-gray-100 animate-pulse rounded-xl" />
+        ) : isOwner ? (
           <Link
             href={`/annonces/${listing.id}/modifier`}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-gray-700 transition-colors"
@@ -300,13 +304,24 @@ export default function AnnonceActions({ listing, variant = 'topbar' }: Props) {
             <Pencil className="w-4 h-4" />
             <span className="hidden sm:inline">Modifier</span>
           </Link>
-        )}
+        ) : null}
       </>
     );
   }
 
   // OWNER PANEL: gestion statut + suppression (sidebar)
   if (variant === 'owner-panel') {
+    // Pendant l'initialisation auth : skeleton pour éviter le flash "boutons invisibles"
+    if (!authReady) {
+      return (
+        <div className="space-y-2 mt-2 animate-pulse">
+          <div className="h-8 bg-gray-100 rounded-xl" />
+          <div className="h-20 bg-gray-100 rounded-xl" />
+          <div className="h-10 bg-gray-100 rounded-xl" />
+        </div>
+      );
+    }
+    // Auth résolue mais pas propriétaire → rien
     if (!isOwner) return null;
     return (
       <>
@@ -349,6 +364,8 @@ export default function AnnonceActions({ listing, variant = 'topbar' }: Props) {
 
   // REPORT BUTTON (visitors only)
   if (variant === 'report') {
+    // Pendant init : rien (pas de flash de bouton signalement)
+    if (!authReady) return null;
     if (isOwner || !profile?.id) return null;
     return (
       <button
