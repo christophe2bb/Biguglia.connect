@@ -94,10 +94,11 @@ function StepSector({
 
       <div className="mt-4 pt-4 border-t border-gray-100">
         <button
-          onClick={() => { setForm(f => ({ ...f, sector_id: 'general' })); setStep(2); }}
-          className="w-full py-2.5 text-sm text-gray-500 hover:text-violet-600 hover:bg-violet-50 rounded-xl transition-colors font-medium"
+          onClick={() => { setForm(f => ({ ...f, sector_id: '' })); setStep(2); }}
+          className="w-full py-2.5 text-sm text-gray-500 hover:text-violet-600 hover:bg-violet-50 rounded-xl transition-colors font-medium flex items-center justify-center gap-2"
         >
-          🗺️ Toute la commune — sujet général
+          <span>🗺️</span>
+          <span>Mon sujet concerne toute la commune (pas de secteur spécifique)</span>
         </button>
       </div>
     </div>
