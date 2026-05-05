@@ -143,6 +143,7 @@ export function useOutings(profile: { id: string } | null | undefined) {
 
     const fullPayload: Record<string, unknown> = {
       organizer_id: profile.id,
+      status: 'ouverte',                            // ← requis par la contrainte CHECK
       title: outingForm.title.trim(),
       description: outingForm.description.trim() || null,
       outing_date: outingForm.outing_date,
@@ -160,6 +161,7 @@ export function useOutings(profile: { id: string } | null | undefined) {
 
     const minPayload: Record<string, unknown> = {
       organizer_id: profile.id,
+      status: 'ouverte',                            // ← requis par la contrainte CHECK
       title: outingForm.title.trim(),
       description: outingForm.description.trim() || null,
       outing_date: outingForm.outing_date,
