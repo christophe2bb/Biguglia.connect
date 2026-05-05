@@ -132,14 +132,16 @@ export default function PromenadePage() {
     <div className="min-h-screen bg-gray-50">
 
       {/* ── Modal création thème custom ── */}
-      {showThemeModal && (
+      {showThemeModal && profile?.id && forumHook.forumCategoryId && (
         <CreateThemeModal
+          profileId={profile.id}
+          forumCategoryId={forumHook.forumCategoryId}
           onClose={() => setShowThemeModal(false)}
           onCreated={(theme) => {
             addCustomTheme(theme);
             setShowThemeModal(false);
-            // Ouvrir le formulaire de post avec ce thème pré-sélectionné
-            forumHook.setShowPostForm(true);
+            // Rafraîchir le forum pour que le nouveau post/thème apparaisse
+            forumHook.fetchForum();
             setTimeout(() => window.scrollTo({ top: 800, behavior: 'smooth' }), 150);
           }}
         />
@@ -529,7 +531,13 @@ export default function PromenadePage() {
               {profile && (
                 <button
                   type="button"
-                  onClick={() => setShowThemeModal(true)}
+                  onClick={async () => {
+                    // Si la catégorie n'est pas encore chargée, la chercher d'abord
+                    if (!forumHook.forumCategoryId) {
+                      await forumHook.fetchForum();
+                    }
+                    setShowThemeModal(true);
+                  }}
                   className="flex items-center gap-2.5 rounded-2xl border-2 border-dashed border-gray-200 px-4 py-3 transition-all duration-200 text-left hover:border-violet-300 hover:bg-violet-50 group"
                 >
                   <span className="text-xl flex-shrink-0 w-7 h-7 rounded-xl bg-gray-100 group-hover:bg-violet-100 flex items-center justify-center text-gray-400 group-hover:text-violet-500 transition-colors">
