@@ -3,17 +3,16 @@
 import { ForumSector, ForumCategory, ForumTopic } from '@/types';
 import {
   Plus, MessageSquare, AlertTriangle, Flame,
-  CheckCircle2, Zap, ArrowRight, MapPin, Star, Bell, BookOpen, Shield, Clock,
+  CheckCircle2, Zap, ArrowRight, MapPin, Shield,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   SECTOR_COLORS,
   MODULE_LINKS,
   SECTORS_DEFAULT,
 } from '../_config';
-import { SortMode } from '../_types';
+
 import { TopicCard } from './TopicCard';
 
 interface Props {
@@ -29,9 +28,6 @@ interface Props {
   setSelectedSector:   (v: string | null) => void;
   setSelectedCategory: (v: string | null) => void;
   setSelectedType:     (v: string | null) => void;
-  setSortMode:         (v: SortMode) => void;
-  setStatusFilter:     (v: 'all' | 'ouvert' | 'resolu') => void;
-  setUrgencyFilter:    (v: 'all' | 'haute') => void;
 }
 
 export function ForumSidebar({
@@ -39,9 +35,7 @@ export function ForumSidebar({
   sectors, categories,
   selectedSector, selectedCategory, selectedType,
   setSelectedSector, setSelectedCategory, setSelectedType,
-  setSortMode, setStatusFilter, setUrgencyFilter,
 }: Props) {
-  const router = useRouter();
 
   return (
     <aside className="hidden lg:flex flex-col gap-5 w-72 flex-shrink-0 sticky top-8 self-start max-h-[calc(100vh-4rem)] overflow-y-auto pb-8">
@@ -127,29 +121,6 @@ export function ForumSidebar({
               </button>
             );
           })}
-        </div>
-      </div>
-
-      {/* ── Accès rapide ── */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-        <h3 className="text-sm font-black text-gray-800 mb-4 flex items-center gap-2">
-          <Star className="w-4 h-4 text-violet-500" /> Accès rapide
-        </h3>
-        <div className="space-y-1">
-          {[
-            { icon: Flame,         label: 'Sujets actifs',  action: () => setSortMode('hot')              },
-            { icon: Clock,         label: 'Plus récents',   action: () => setSortMode('recent')           },
-            { icon: CheckCircle2,  label: 'Résolus',        action: () => setStatusFilter('resolu')       },
-            { icon: AlertTriangle, label: 'Urgents',        action: () => setUrgencyFilter('haute')       },
-            { icon: Bell,          label: 'Mes suivis',     action: () => router.push('/dashboard/forum') },
-            { icon: BookOpen,      label: 'Mes sujets',     action: () => router.push('/dashboard/forum') },
-          ].map(item => (
-            <button key={item.label} onClick={item.action}
-              className="w-full text-left px-3 py-2 rounded-xl text-sm text-gray-600 hover:bg-violet-50 hover:text-violet-700 transition-colors flex items-center gap-2.5 font-medium">
-              <item.icon className="w-3.5 h-3.5 text-gray-400" />
-              {item.label}
-            </button>
-          ))}
         </div>
       </div>
 

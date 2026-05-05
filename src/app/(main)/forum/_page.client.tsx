@@ -295,9 +295,6 @@ function ForumPageInner() {
             setSelectedSector={setSelectedSector}
             setSelectedCategory={setSelectedCategory}
             setSelectedType={setSelectedType}
-            setSortMode={setSortMode}
-            setStatusFilter={setStatusFilter}
-            setUrgencyFilter={setUrgencyFilter}
           />
         </div>
       </div>
