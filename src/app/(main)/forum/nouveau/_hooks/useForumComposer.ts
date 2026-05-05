@@ -56,7 +56,8 @@ export function useForumComposer() {
       const supabase = createClient();
       const { data: sectorData } = await supabase
         .from('forum_sectors').select('*').order('display_order');
-      setSectors(sectorData && sectorData.length > 0 ? sectorData : SECTORS_DEFAULT);
+      const rawSectors = sectorData && sectorData.length > 0 ? sectorData : SECTORS_DEFAULT;
+      setSectors(rawSectors.filter(s => SECTORS_DEFAULT.some(d => d.id === s.id || d.slug === s.slug)));
 
       const { data: catData } = await supabase
         .from('forum_categories').select('*').order('display_order');
