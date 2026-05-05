@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import {
   SECTOR_COLORS,
   MODULE_LINKS,
+  SECTORS_DEFAULT,
 } from '../_config';
 import { SortMode } from '../_types';
 import { TopicCard } from './TopicCard';
@@ -109,7 +110,9 @@ export function ForumSidebar({
           <MapPin className="w-4 h-4 text-violet-500" /> Secteurs de Biguglia
         </h3>
         <div className="space-y-1.5">
-          {sectors.map(s => {
+          {sectors
+            .filter(s => SECTORS_DEFAULT.some(d => d.id === s.id || d.slug === s.slug))
+            .map(s => {
             const c = SECTOR_COLORS[s.color || 'gray'];
             const isActive = selectedSector === s.id || selectedSector === s.slug;
             return (
