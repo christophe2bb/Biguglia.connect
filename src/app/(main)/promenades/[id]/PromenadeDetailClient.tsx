@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   ArrowLeft, MapPin, Clock, Heart, Eye, Share2,
   CheckCircle2, AlertTriangle, Star, Users, TreePine,
@@ -63,6 +63,27 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
   const [newPhotos, setNewPhotos]         = useState<File[]>([]);
   const [newPreviews, setNewPreviews]     = useState<string[]>([]);
   const [deletedPhotoUrls, setDeletedPhotoUrls] = useState<string[]>([]);
+
+  // ── Lightbox ───────────────────────────────────────────────────────────────
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  const allPhotos = p.photos ?? [];
+
+  const openLightbox  = (idx: number) => setLightboxIdx(idx);
+  const closeLightbox = useCallback(() => setLightboxIdx(null), []);
+  const prevPhoto     = useCallback(() => setLightboxIdx(i => i !== null ? (i - 1 + allPhotos.length) % allPhotos.length : null), [allPhotos.length]);
+  const nextPhoto     = useCallback(() => setLightboxIdx(i => i !== null ? (i + 1) % allPhotos.length : null), [allPhotos.length]);
+
+  // Navigation clavier
+  useEffect(() => {
+    if (lightboxIdx === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft')  prevPhoto();
+      if (e.key === 'ArrowRight') nextPhoto();
+      if (e.key === 'Escape')     closeLightbox();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightboxIdx, prevPhoto, nextPhoto, closeLightbox]);
 
   // ── Helpers visuels ────────────────────────────────────────────────────────
   const diff    = DIFF_CONFIG[p.difficulty];
@@ -657,57 +678,148 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
           </div>
         )}
 
+        {/* ══════════════════════════════════════════════════════════════════
+            LIGHTBOX
+        ══════════════════════════════════════════════════════════════════ */}
+        {lightboxIdx !== null && allPhotos.length > 0 && (
+          <div
+            className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
+            onClick={closeLightbox}
+          >
+            {/* Fermer */}
+            <button
+              onClick={closeLightbox}
+              className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Compteur */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-black/50 text-white text-sm font-bold px-4 py-1.5 rounded-full">
+              {lightboxIdx + 1} / {allPhotos.length}
+            </div>
+
+            {/* Flèche gauche */}
+            {allPhotos.length > 1 && (
+              <button
+                onClick={e => { e.stopPropagation(); prevPhoto(); }}
+                className="absolute left-3 sm:left-6 z-10 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
+
+            {/* Image principale */}
+            <div
+              className="relative w-full h-full max-w-4xl mx-auto px-16 flex items-center justify-center"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="relative w-full" style={{ maxHeight: '85vh', aspectRatio: 'auto' }}>
+                <img
+                  src={allPhotos[lightboxIdx].url}
+                  alt={`Photo ${lightboxIdx + 1}`}
+                  className="max-w-full max-h-[85vh] w-auto h-auto mx-auto rounded-xl shadow-2xl object-contain"
+                  style={{ display: 'block' }}
+                />
+              </div>
+            </div>
+
+            {/* Flèche droite */}
+            {allPhotos.length > 1 && (
+              <button
+                onClick={e => { e.stopPropagation(); nextPhoto(); }}
+                className="absolute right-3 sm:right-6 z-10 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5 rotate-180" />
+              </button>
+            )}
+
+            {/* Bande vignettes en bas */}
+            {allPhotos.length > 1 && (
+              <div className="absolute bottom-4 left-0 right-0 z-10 flex justify-center gap-2 px-4 overflow-x-auto">
+                {allPhotos.map((ph, i) => (
+                  <button
+                    key={i}
+                    onClick={e => { e.stopPropagation(); setLightboxIdx(i); }}
+                    className={cn(
+                      'flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-all',
+                      i === lightboxIdx ? 'border-white scale-110' : 'border-transparent opacity-60 hover:opacity-100'
+                    )}
+                  >
+                    <img src={ph.url} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── Vue normale (non-édition) ── */}
         {!editing && (
           <>
             {/* ── Galerie photos immersive (dès 1 photo) ── */}
-            {p.photos && p.photos.length > 0 && (
+            {allPhotos.length > 0 && (
               (() => {
-                const allPhotos = p.photos!;
                 const main = allPhotos[0];
-                const rest = allPhotos.slice(1, 5); // max 4 vignettes
+                const rest = allPhotos.slice(1, 5);
                 const extra = allPhotos.length - 5;
                 return (
                   <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
                     {allPhotos.length === 1 ? (
-                      /* Une seule photo : pleine largeur */
-                      <div className="relative w-full aspect-[16/9]">
+                      <button
+                        type="button"
+                        onClick={() => openLightbox(0)}
+                        className="relative w-full aspect-[16/9] block cursor-zoom-in"
+                      >
                         <Image src={main.url} alt={p.title} fill className="object-cover" sizes="100vw" />
-                      </div>
+                      </button>
                     ) : (
-                      /* 2+ photos : layout magazine */
                       <div className="grid grid-cols-3 gap-0.5">
-                        {/* Grande photo à gauche */}
-                        <div className="col-span-2 relative aspect-[4/3]">
-                          <Image src={main.url} alt={p.title} fill className="object-cover" sizes="66vw" />
-                        </div>
-                        {/* Vignettes à droite */}
+                        {/* Grande photo à gauche — cliquable */}
+                        <button
+                          type="button"
+                          onClick={() => openLightbox(0)}
+                          className="col-span-2 relative aspect-[4/3] cursor-zoom-in"
+                        >
+                          <Image src={main.url} alt={p.title} fill className="object-cover hover:brightness-90 transition-all" sizes="66vw" />
+                        </button>
+                        {/* Vignettes à droite — cliquables */}
                         <div className="flex flex-col gap-0.5">
                           {rest.map((ph, i) => (
-                            <div key={i} className="relative flex-1" style={{ minHeight: 0 }}>
-                              <Image src={ph.url} alt={`Photo ${i + 2}`} fill className="object-cover" sizes="33vw" />
-                              {/* Overlay "+N" sur la dernière vignette si il y a plus de 5 photos */}
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => openLightbox(i + 1)}
+                              className="relative flex-1 cursor-zoom-in"
+                              style={{ minHeight: 0 }}
+                            >
+                              <Image src={ph.url} alt={`Photo ${i + 2}`} fill className="object-cover hover:brightness-90 transition-all" sizes="33vw" />
                               {i === rest.length - 1 && extra > 0 && (
-                                <div className="absolute inset-0 bg-black/55 flex items-center justify-center">
-                                  <span className="text-white font-black text-lg">+{extra}</span>
+                                <div className="absolute inset-0 bg-black/55 hover:bg-black/40 transition-colors flex flex-col items-center justify-center gap-1">
+                                  <span className="text-white font-black text-xl">+{extra}</span>
+                                  <span className="text-white/80 text-xs font-semibold">photos</span>
                                 </div>
                               )}
-                            </div>
+                            </button>
                           ))}
-                          {/* Remplissage si moins de 4 vignettes (pour garder la même hauteur) */}
                           {rest.length < 4 && Array.from({ length: 4 - rest.length }).map((_, i) => (
                             <div key={`empty-${i}`} className="flex-1 bg-gray-100" style={{ minHeight: 0 }} />
                           ))}
                         </div>
                       </div>
                     )}
-                    {/* Badge compteur si plusieurs photos */}
-                    {allPhotos.length > 1 && (
-                      <div className="bg-white px-4 py-2 flex items-center gap-2 text-xs text-gray-500 border-t border-gray-100">
+                    {/* Barre basse : compteur + "Voir toutes" */}
+                    <button
+                      type="button"
+                      onClick={() => openLightbox(0)}
+                      className="w-full bg-white hover:bg-gray-50 transition-colors px-4 py-2.5 flex items-center justify-between gap-2 border-t border-gray-100"
+                    >
+                      <div className="flex items-center gap-1.5 text-xs text-gray-500 font-semibold">
                         <Camera className="w-3.5 h-3.5 text-emerald-500" />
-                        <span className="font-semibold">{allPhotos.length} photos</span>
+                        {allPhotos.length} photo{allPhotos.length > 1 ? 's' : ''}
                       </div>
-                    )}
+                      <span className="text-xs text-emerald-600 font-bold">Voir toutes →</span>
+                    </button>
                   </div>
                 );
               })()
