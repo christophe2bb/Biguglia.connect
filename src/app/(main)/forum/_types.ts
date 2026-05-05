@@ -15,7 +15,6 @@ export interface ForumFiltersState {
   showFilters:      boolean;
   statusFilter:     'all' | 'ouvert' | 'resolu';
   urgencyFilter:    'all' | 'haute';
-  showCategoryGrid: boolean;
 }
 
 /** Data fetched from Supabase */
@@ -41,7 +40,6 @@ export interface UseForumPageReturn extends ForumFiltersState, ForumPageData {
   setShowFilters:      (v: boolean | ((prev: boolean) => boolean)) => void;
   setStatusFilter:     (v: 'all' | 'ouvert' | 'resolu') => void;
   setUrgencyFilter:    (v: 'all' | 'haute') => void;
-  setShowCategoryGrid: (v: boolean | ((prev: boolean) => boolean)) => void;
   handleSearch:        (e: React.FormEvent) => void;
   clearFilters:        () => void;
   fetchData:           () => Promise<void>;

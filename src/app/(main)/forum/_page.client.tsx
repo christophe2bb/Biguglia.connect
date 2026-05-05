@@ -35,11 +35,11 @@ function ForumPageInner() {
     selectedSector, selectedCategory,
     sortMode, searchInput, searchQuery,
     viewMode, showFilters, statusFilter, urgencyFilter,
-    showCategoryGrid, activeFiltersCount, selectedType,
+    activeFiltersCount, selectedType,
     // setters
     setSelectedSector, setSelectedCategory, setSelectedType,
     setSortMode, setSearchInput, setViewMode,
-    setShowFilters, setStatusFilter, setUrgencyFilter, setShowCategoryGrid,
+    setShowFilters, setStatusFilter, setUrgencyFilter,
     // actions
     handleSearch, clearFilters, fetchData,
   } = forum;
@@ -290,14 +290,12 @@ function ForumPageInner() {
             selectedSector={selectedSector}
             selectedCategory={selectedCategory}
             selectedType={selectedType}
-            showCategoryGrid={showCategoryGrid}
             setSelectedSector={setSelectedSector}
             setSelectedCategory={setSelectedCategory}
             setSelectedType={setSelectedType}
             setSortMode={setSortMode}
             setStatusFilter={setStatusFilter}
             setUrgencyFilter={setUrgencyFilter}
-            setShowCategoryGrid={setShowCategoryGrid}
           />
         </div>
       </div>

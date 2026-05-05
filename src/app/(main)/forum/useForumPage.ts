@@ -25,7 +25,6 @@ export function useForumPage(): UseForumPageReturn {
   const [showFilters,      setShowFilters]      = useState(false);
   const [statusFilter,     setStatusFilter]     = useState<'all' | 'ouvert' | 'resolu'>('all');
   const [urgencyFilter,    setUrgencyFilter]    = useState<'all' | 'haute'>('all');
-  const [showCategoryGrid, setShowCategoryGrid] = useState(false);
 
   // ── data state ──────────────────────────────────────────────────────────────
   const [sectors,          setSectors]          = useState<ForumSector[]>([]);
@@ -144,7 +143,7 @@ export function useForumPage(): UseForumPageReturn {
     // filter state
     selectedSector, selectedCategory, selectedType,
     sortMode, searchQuery, searchInput,
-    viewMode, showFilters, statusFilter, urgencyFilter, showCategoryGrid,
+    viewMode, showFilters, statusFilter, urgencyFilter,
     // data
     sectors, categories, topics, hotTopics, recentlyResolved, stats, loading,
     // derived
@@ -152,7 +151,7 @@ export function useForumPage(): UseForumPageReturn {
     // setters
     setSelectedSector, setSelectedCategory, setSelectedType,
     setSortMode, setSearchInput, setViewMode,
-    setShowFilters, setStatusFilter, setUrgencyFilter, setShowCategoryGrid,
+    setShowFilters, setStatusFilter, setUrgencyFilter,
     // actions
     handleSearch, clearFilters, fetchData,
   };

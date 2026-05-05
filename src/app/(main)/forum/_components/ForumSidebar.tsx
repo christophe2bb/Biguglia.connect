@@ -2,17 +2,15 @@
 
 import { ForumSector, ForumCategory, ForumTopic } from '@/types';
 import {
-  Plus, MessageSquare, AlertTriangle, Flame, Filter, Tag, ChevronDown,
+  Plus, MessageSquare, AlertTriangle, Flame,
   CheckCircle2, Zap, ArrowRight, MapPin, Star, Bell, BookOpen, Shield, Clock,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
-  POST_TYPE_CONFIG,
   SECTOR_COLORS,
   MODULE_LINKS,
-  getCatConfig,
 } from '../_config';
 import { SortMode } from '../_types';
 import { TopicCard } from './TopicCard';
@@ -27,22 +25,20 @@ interface Props {
   selectedSector:   string | null;
   selectedCategory: string | null;
   selectedType:     string | null;
-  showCategoryGrid: boolean;
   setSelectedSector:   (v: string | null) => void;
   setSelectedCategory: (v: string | null) => void;
   setSelectedType:     (v: string | null) => void;
   setSortMode:         (v: SortMode) => void;
   setStatusFilter:     (v: 'all' | 'ouvert' | 'resolu') => void;
   setUrgencyFilter:    (v: 'all' | 'haute') => void;
-  setShowCategoryGrid: (v: boolean | ((prev: boolean) => boolean)) => void;
 }
 
 export function ForumSidebar({
   profile, topics, hotTopics, recentlyResolved,
   sectors, categories,
-  selectedSector, selectedCategory, selectedType, showCategoryGrid,
+  selectedSector, selectedCategory, selectedType,
   setSelectedSector, setSelectedCategory, setSelectedType,
-  setSortMode, setStatusFilter, setUrgencyFilter, setShowCategoryGrid,
+  setSortMode, setStatusFilter, setUrgencyFilter,
 }: Props) {
   const router = useRouter();
 
@@ -77,56 +73,6 @@ export function ForumSidebar({
           </div>
         </div>
       )}
-
-      {/* ── Explorer par type ── */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-        <h3 className="text-sm font-black text-gray-800 mb-4 flex items-center gap-2">
-          <Filter className="w-4 h-4 text-violet-500" /> Explorer par type
-        </h3>
-        <div className="flex flex-wrap gap-1.5">
-          {Object.entries(POST_TYPE_CONFIG).map(([key, cfg]) => {
-            const I = cfg.icon;
-            const isActive = selectedType === key;
-            return (
-              <button key={key}
-                onClick={() => setSelectedType(isActive ? null : key)}
-                className={cn('inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border font-semibold transition-colors',
-                  isActive ? cn(cfg.bg, cfg.color, cfg.border) : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-white')}>
-                <I className="w-3 h-3" /> {cfg.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Catégories visuelles ── */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-        <h3 className="text-sm font-black text-gray-800 mb-4 flex items-center gap-2 justify-between">
-          <span className="flex items-center gap-2"><Tag className="w-4 h-4 text-violet-500" /> Explorer par thème</span>
-          <button onClick={() => setShowCategoryGrid(v => !v)} className="text-gray-400 hover:text-gray-600">
-            <ChevronDown className={cn('w-4 h-4 transition-transform', showCategoryGrid && 'rotate-180')} />
-          </button>
-        </h3>
-        <div className={cn('grid grid-cols-2 gap-2 transition-colors', !showCategoryGrid && 'max-h-48 overflow-hidden')}>
-          {categories.map(cat => {
-            const cfg = getCatConfig(cat.slug);
-            const isActive = selectedCategory === cat.id;
-            return (
-              <button key={cat.id} onClick={() => setSelectedCategory(isActive ? null : cat.id)}
-                className={cn('flex flex-col items-center gap-1.5 p-3 rounded-xl border text-center transition-colors hover:shadow-sm',
-                  isActive ? cn(cfg.bg, cfg.border, cfg.color) : 'bg-gray-50 border-gray-100 text-gray-500 hover:bg-white hover:border-gray-200')}>
-                <span className="text-xl leading-none">{cat.icon}</span>
-                <span className="text-[11px] font-bold leading-tight">{cat.name}</span>
-              </button>
-            );
-          })}
-        </div>
-        {categories.length > 6 && (
-          <button onClick={() => setShowCategoryGrid(v => !v)} className="mt-2 w-full text-xs text-violet-600 hover:text-violet-800 font-semibold py-1">
-            {showCategoryGrid ? '↑ Réduire' : `+ ${categories.length - 6} autres thèmes`}
-          </button>
-        )}
-      </div>
 
       {/* ── Récemment résolus ── */}
       {recentlyResolved.length > 0 && (
