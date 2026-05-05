@@ -38,11 +38,12 @@ export function useTopicPage(initialData?: InitialTopicData): UseTopicPageReturn
     let topicData: TopicExtended | null = null;
     let isV2 = false;
 
+    // maybeSingle() au lieu de single() : évite le 406 quand la ligne n'existe pas
     const { data: topicV2 } = await supabase
       .from('forum_topics')
       .select(`*, sector:forum_sectors(id, name, slug, icon, color), category:forum_categories(id, name, icon, slug)`)
       .eq('id', topicId)
-      .single();
+      .maybeSingle();
 
     if (topicV2) {
       isV2 = true;
@@ -52,7 +53,7 @@ export function useTopicPage(initialData?: InitialTopicData): UseTopicPageReturn
         .from('forum_posts')
         .select('*, category:forum_categories(*)')
         .eq('id', topicId)
-        .single();
+        .maybeSingle();
 
       if (!postData) { router.push('/forum'); return; }
 
@@ -230,9 +231,12 @@ export function useTopicPage(initialData?: InitialTopicData): UseTopicPageReturn
     if (action === 'epingler')      updates.is_pinned = !topic?.is_pinned;
 
     await supabase.from('forum_topics').update(updates).eq('id', topicId);
-    if (action === 'verrouiller')   await supabase.from('forum_posts').update({ is_closed: true }).eq('id', topicId);
-    if (action === 'deverrouiller') await supabase.from('forum_posts').update({ is_closed: false }).eq('id', topicId);
-    if (action === 'epingler')      await supabase.from('forum_posts').update({ is_pinned: !topic?.is_pinned }).eq('id', topicId);
+    // Mise à jour forum_posts seulement si le topic est en schéma v1 (isV2Ref.current = false)
+    if (!isV2Ref.current) {
+      if (action === 'verrouiller')   await supabase.from('forum_posts').update({ is_closed: true }).eq('id', topicId);
+      if (action === 'deverrouiller') await supabase.from('forum_posts').update({ is_closed: false }).eq('id', topicId);
+      if (action === 'epingler')      await supabase.from('forum_posts').update({ is_pinned: !topic?.is_pinned }).eq('id', topicId);
+    }
 
     setTopic(prev => prev ? {
       ...prev,

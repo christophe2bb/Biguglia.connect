@@ -22,12 +22,12 @@ async function fetchTopicData(id: string): Promise<InitialTopicData | null> {
   try {
     const supabase = await createClient();
 
-    // Try v2 forum_topics first
+    // Try v2 forum_topics first — maybeSingle() évite le 406 si la ligne n'existe pas
     const { data: topicV2 } = await supabase
       .from('forum_topics')
       .select('*, sector:forum_sectors(id, name, slug, icon, color), category:forum_categories(id, name, icon, slug)')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
     let topicData: TopicExtended | null = null;
     let isV2 = false;
@@ -40,7 +40,7 @@ async function fetchTopicData(id: string): Promise<InitialTopicData | null> {
         .from('forum_posts')
         .select('*, category:forum_categories(*)')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
       if (!postData) return null;
 

@@ -52,18 +52,27 @@ export function useForumPage(): UseForumPageReturn {
     const catList = (catData && catData.length > 0 ? catData : DEFAULT_CATEGORIES) as ForumCategory[];
     setCategories(catList);
 
-    // Statistiques
-    // Note : on ne compte plus les profiles directement (RLS durcissée —
-    // email/phone ne doivent pas être exposés aux visiteurs non connectés).
-    // Le compteur "membres" est estimé à partir des auteurs uniques du forum
-    // via forum_topics, ce qui reste une approximation suffisante pour l'UI.
-    const [{ count: tc }, { count: rc }, { count: mc }, { count: resc }] = await Promise.all([
-      supabase.from('forum_topics').select('*', { count: 'exact', head: true }),
-      supabase.from('forum_replies').select('*', { count: 'exact', head: true }),
-      supabase.from('forum_topics').select('author_id', { count: 'exact', head: true }).not('author_id', 'is', null),
-      supabase.from('forum_topics').select('*', { count: 'exact', head: true }).eq('status', 'closed'),
-    ]);
-    setStats({ topics: tc || 0, replies: rc || 0, members: mc || 0, resolved: resc || 0 });
+    // Statistiques — enveloppées dans try/catch car les requêtes HEAD COUNT
+    // peuvent échouer si la RLS Supabase bloque les visiteurs anonymes.
+    // En cas d'échec on affiche des compteurs à 0 (non bloquant pour l'UI).
+    try {
+      const results = await Promise.allSettled([
+        supabase.from('forum_topics').select('*', { count: 'exact', head: true }),
+        supabase.from('forum_replies').select('*', { count: 'exact', head: true }),
+        supabase.from('forum_topics').select('author_id', { count: 'exact', head: true }).not('author_id', 'is', null),
+        supabase.from('forum_topics').select('*', { count: 'exact', head: true }).eq('status', 'closed'),
+      ]);
+      const getCount = (r: PromiseSettledResult<{ count: number | null }>) =>
+        r.status === 'fulfilled' ? (r.value.count ?? 0) : 0;
+      setStats({
+        topics:   getCount(results[0] as PromiseSettledResult<{ count: number | null }>),
+        replies:  getCount(results[1] as PromiseSettledResult<{ count: number | null }>),
+        members:  getCount(results[2] as PromiseSettledResult<{ count: number | null }>),
+        resolved: getCount(results[3] as PromiseSettledResult<{ count: number | null }>),
+      });
+    } catch {
+      // Stats non critiques — on garde les valeurs par défaut à 0
+    }
 
     // Topics principaux
     let topicList: ForumTopic[] = [];
