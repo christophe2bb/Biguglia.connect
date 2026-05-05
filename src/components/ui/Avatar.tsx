@@ -8,7 +8,16 @@ interface AvatarProps {
   className?: string;
 }
 
-const sizes = {
+// Tailles en px — doivent correspondre aux classes Tailwind ci-dessous
+const sizePx: Record<NonNullable<AvatarProps['size']>, number> = {
+  xs: 24,
+  sm: 32,
+  md: 40,
+  lg: 48,
+  xl: 64,
+};
+
+const sizeClass: Record<NonNullable<AvatarProps['size']>, string> = {
   xs: 'w-6 h-6 text-xs',
   sm: 'w-8 h-8 text-xs',
   md: 'w-10 h-10 text-sm',
@@ -17,17 +26,34 @@ const sizes = {
 };
 
 export default function Avatar({ src, name, size = 'md', className }: AvatarProps) {
-  const sizeClass = sizes[size];
+  const cls  = sizeClass[size];
+  const px   = sizePx[size];
 
   if (src) {
     return (
-      <div className={cn('relative rounded-full overflow-hidden flex-shrink-0', sizeClass, className)}>
-        <Image src={src} alt={name} fill className="object-cover" />
+      // Le conteneur a des dimensions fixes + overflow-hidden + flex-shrink-0
+      // On N'utilise PAS fill pour éviter que l'image déborde hors du cercle
+      <div
+        className={cn(
+          'relative rounded-full overflow-hidden flex-shrink-0 inline-flex',
+          cls,
+          className
+        )}
+        style={{ width: px, height: px, minWidth: px, minHeight: px }}
+      >
+        <Image
+          src={src}
+          alt={name}
+          width={px}
+          height={px}
+          className="object-cover w-full h-full rounded-full"
+          unoptimized={src.startsWith('blob:') || src.startsWith('data:')}
+        />
       </div>
     );
   }
 
-  // Couleur basée sur le nom
+  // Fallback initiales
   const colors = [
     'bg-brand-100 text-brand-700',
     'bg-green-100 text-green-700',
@@ -38,12 +64,15 @@ export default function Avatar({ src, name, size = 'md', className }: AvatarProp
   const colorIndex = name.charCodeAt(0) % colors.length;
 
   return (
-    <div className={cn(
-      'rounded-full flex items-center justify-center font-semibold flex-shrink-0',
-      colors[colorIndex],
-      sizeClass,
-      className
-    )}>
+    <div
+      className={cn(
+        'rounded-full flex items-center justify-center font-semibold flex-shrink-0 inline-flex',
+        colors[colorIndex],
+        cls,
+        className
+      )}
+      style={{ width: px, height: px, minWidth: px, minHeight: px }}
+    >
       {getInitials(name)}
     </div>
   );
