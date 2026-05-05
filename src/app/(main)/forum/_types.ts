@@ -44,4 +44,5 @@ export interface UseForumPageReturn extends ForumFiltersState, ForumPageData {
   setShowCategoryGrid: (v: boolean | ((prev: boolean) => boolean)) => void;
   handleSearch:        (e: React.FormEvent) => void;
   clearFilters:        () => void;
+  fetchData:           () => Promise<void>;
 }

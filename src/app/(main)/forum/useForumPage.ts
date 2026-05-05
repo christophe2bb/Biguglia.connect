@@ -154,6 +154,6 @@ export function useForumPage(): UseForumPageReturn {
     setSortMode, setSearchInput, setViewMode,
     setShowFilters, setStatusFilter, setUrgencyFilter, setShowCategoryGrid,
     // actions
-    handleSearch, clearFilters,
+    handleSearch, clearFilters, fetchData,
   };
 }

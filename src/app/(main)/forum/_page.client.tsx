@@ -1,10 +1,10 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Plus, MessageCircle, Search,
-  MapPin, Users, TrendingUp, CheckCheck,
+  Plus, MessageCircle, Sparkles,
+  Users, TrendingUp, CheckCheck,
   MessageSquare, X,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -17,12 +17,14 @@ import { HERO_SHORTCUTS } from './_config';
 import { ForumFilters } from './_components/ForumFilters';
 import { ForumFeed } from './_components/ForumFeed';
 import { ForumSidebar } from './_components/ForumSidebar';
+import ForumCreateThemeModal from './_components/ForumCreateThemeModal';
 import SectionTracker from '@/components/ui/SectionTracker';
 
 // ─── Page inner ───────────────────────────────────────────────────────────────
 function ForumPageInner() {
   const { profile } = useAuthStore();
   const router = useRouter();
+  const [showThemeModal, setShowThemeModal] = useState(false);
 
   const forum = useForumPage();
 
@@ -39,7 +41,7 @@ function ForumPageInner() {
     setSortMode, setSearchInput, setViewMode,
     setShowFilters, setStatusFilter, setUrgencyFilter, setShowCategoryGrid,
     // actions
-    handleSearch, clearFilters,
+    handleSearch, clearFilters, fetchData,
   } = forum;
 
   return (
@@ -104,20 +106,22 @@ function ForumPageInner() {
             {/* CTAs */}
             <div className="flex flex-col gap-3 flex-shrink-0 w-full lg:w-auto">
               {profile ? (
-                <button onClick={() => router.push('/forum/nouveau')}
-                  className="inline-flex items-center justify-center gap-2 bg-white text-violet-700 font-black px-7 py-3.5 rounded-2xl hover:bg-violet-50 transition-transform shadow-xl hover:-translate-y-0.5 text-sm w-full lg:w-auto">
-                  <Plus className="w-5 h-5" /> Nouveau sujet
-                </button>
+                <>
+                  <button onClick={() => router.push('/forum/nouveau')}
+                    className="inline-flex items-center justify-center gap-2 bg-white text-violet-700 font-black px-7 py-3.5 rounded-2xl hover:bg-violet-50 transition-transform shadow-xl hover:-translate-y-0.5 text-sm w-full lg:w-auto">
+                    <Plus className="w-5 h-5" /> Nouveau sujet
+                  </button>
+                  <button onClick={() => setShowThemeModal(true)}
+                    className="inline-flex items-center justify-center gap-2 bg-white/15 border border-white/30 text-white font-bold px-7 py-3 rounded-2xl hover:bg-white/25 transition-colors text-sm w-full lg:w-auto">
+                    <Sparkles className="w-4 h-4" /> Créer un thème
+                  </button>
+                </>
               ) : (
                 <Link href="/connexion"
                   className="inline-flex items-center justify-center gap-2 bg-white text-violet-700 font-black px-7 py-3.5 rounded-2xl hover:bg-violet-50 transition-colors shadow-xl text-sm w-full lg:w-auto">
                   <Plus className="w-5 h-5" /> Rejoindre la discussion
                 </Link>
               )}
-              <Link href="/recherche?q=forum"
-                className="inline-flex items-center justify-center gap-2 bg-white/15 border border-white/30 text-white font-bold px-7 py-3 rounded-2xl hover:bg-white/25 transition-colors text-sm w-full lg:w-auto">
-                <Search className="w-4 h-4" /> Recherche avancée
-              </Link>
             </div>
           </div>
 
@@ -297,6 +301,19 @@ function ForumPageInner() {
           />
         </div>
       </div>
+
+      {/* ── Modal création de thème ── */}
+      {showThemeModal && profile && (
+        <ForumCreateThemeModal
+          profileId={profile.id}
+          categories={categories}
+          onClose={() => setShowThemeModal(false)}
+          onCreated={() => {
+            setShowThemeModal(false);
+            fetchData();
+          }}
+        />
+      )}
     </div>
   );
 }
