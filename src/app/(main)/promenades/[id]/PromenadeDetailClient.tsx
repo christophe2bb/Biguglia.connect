@@ -96,6 +96,10 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
 
     const supabase = createClient();
 
+    // Récupérer le Bearer token pour authentifier les appels API serveur
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token ?? '';
+
     const tags = editForm.tags ? editForm.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
     const payload: Record<string, unknown> = {
       title:             editForm.title.trim(),
@@ -127,9 +131,20 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
       return;
     }
 
-    // Étape 1b : supprimer les photos marquées
-    for (const url of deletedPhotoUrls) {
-      await supabase.from('promenade_photos').delete().eq('promenade_id', p.id).eq('url', url);
+    // Étape 1b : supprimer les photos marquées via API serveur (bypass RLS)
+    for (const photoUrl of deletedPhotoUrls) {
+      try {
+        await fetch('/api/promenade-photos', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
+          },
+          body: JSON.stringify({ promenade_id: p.id, url: photoUrl }),
+        });
+      } catch {
+        // On continue même si une suppression échoue
+      }
     }
 
     // Étape 2 : upload des nouvelles photos + insert via API route (bypass RLS client)
@@ -141,10 +156,13 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
       const ext      = safeImageExt(photo.name);
       const fileName = `promenades/${p.id}/${Date.now()}_${i}.${ext}`; // nosec
       try {
-        const publicUrl = await uploadFile(photo, 'photos', fileName, profile.id);
+        const publicUrl = await uploadFile(photo, 'photos', fileName, profile.id, accessToken);
         const insertRes = await fetch('/api/promenade-photos', {
           method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
+          },
           body:    JSON.stringify({
             promenade_id:  p.id,
             url:           publicUrl,
