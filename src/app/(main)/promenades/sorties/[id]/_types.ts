@@ -104,6 +104,9 @@ export type UseOutingDetailReturn = {
   handleDeleteOuting: () => Promise<void>;
   activeParticipantsCount: number;
 
+  // Refresh
+  fetchOuting: () => Promise<void>;
+
   // Transition modal
   showModal: boolean;
   pendingTo: OutingStatus | null;

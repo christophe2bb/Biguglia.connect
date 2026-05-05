@@ -74,6 +74,7 @@ export default function OutingDetailClient() {
           setCommentText={d.setCommentText}
           sendingComment={d.sendingComment}
           onSendComment={d.handleSendComment}
+          onPhotosChanged={d.fetchOuting}
         />
 
         {/* ── Footer ── */}

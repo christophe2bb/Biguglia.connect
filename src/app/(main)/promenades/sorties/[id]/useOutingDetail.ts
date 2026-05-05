@@ -325,6 +325,8 @@ export function useOutingDetail(): UseOutingDetailReturn {
     // Deletion
     handleDeleteOuting,
     activeParticipantsCount,
+    // Refresh
+    fetchOuting,
     // Transition modal
     showModal,
     pendingTo,
