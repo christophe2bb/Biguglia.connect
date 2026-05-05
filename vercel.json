@@ -16,7 +16,7 @@
   },
   "git": {
     "deploymentEnabled": {
-      "main": true,
+      "main": false,
       "genspark_ai_developer": false
     }
   }
