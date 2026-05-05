@@ -68,12 +68,37 @@ export default function PromenadePage() {
   const totalCount = promenades.length;
   const nextOuting = outings[0];
 
-  // Comptage par secteur (toutes les promenades, sans filtre secteur)
+  // Comptage par secteur — Itinéraires
   const allSectorCounts = promenades.reduce<Record<string, number>>((acc, p) => {
     if (p.sector_id) acc[p.sector_id] = (acc[p.sector_id] || 0) + 1;
     return acc;
   }, {});
   const totalGeolocated = Object.values(allSectorCounts).reduce((a, b) => a + b, 0);
+
+  // Comptage par secteur — Sorties groupées (filtre client sur sector_id)
+  const outingSectorCounts = outings.reduce<Record<string, number>>((acc, o) => {
+    if (o.sector_id) acc[o.sector_id] = (acc[o.sector_id] || 0) + 1;
+    return acc;
+  }, {});
+
+  // Sorties filtrées par secteur (client-side, pas de re-fetch)
+  const filteredOutings = filterSector
+    ? outings.filter(o => o.sector_id === filterSector)
+    : outings;
+
+  // Compteurs dynamiques selon l'onglet actif
+  const activeSectorCounts   = activeTab === 'agenda' ? outingSectorCounts : allSectorCounts;
+  const activeTotalForSector = activeTab === 'agenda' ? outings.length : totalCount;
+  const activeTotalGeolocated = activeTab === 'agenda'
+    ? Object.values(outingSectorCounts).reduce((a, b) => a + b, 0)
+    : totalGeolocated;
+
+  // Label dynamique du bloc Explorer
+  const explorerLabel = activeTab === 'itineraires'
+    ? { title: '🗺️ Explorer par quartier', sub: 'Cliquez sur un secteur pour filtrer les itinéraires', geo: `${totalGeolocated} itinéraire${totalGeolocated !== 1 ? 's' : ''} géolocalisé${totalGeolocated !== 1 ? 's' : ''}` }
+    : activeTab === 'agenda'
+    ? { title: '📍 Sorties par secteur', sub: 'Filtrez les sorties groupées par quartier', geo: `${outings.length} sortie${outings.length !== 1 ? 's' : ''} à venir` }
+    : null; // Forum : pas de bloc secteur
 
   const activeFiltersCount = [
     quickFilter,
@@ -224,78 +249,156 @@ export default function PromenadePage() {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          EXPLORER PAR QUARTIER
+          EXPLORER — adaptatif selon l'onglet actif
       ══════════════════════════════════════════════════════════════════════ */}
-      <div className="bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-base font-black text-gray-900">🗺️ Explorer par quartier</h2>
-              <p className="text-xs text-gray-500 mt-0.5">Cliquez sur un secteur pour filtrer les itinéraires</p>
-            </div>
-            <span className="text-xs text-gray-400 hidden sm:block">
-              {totalGeolocated} itinéraire{totalGeolocated !== 1 ? 's' : ''} géolocalisé{totalGeolocated !== 1 ? 's' : ''}
-            </span>
-          </div>
-          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-            {/* Toute la ville */}
-            <button
-              type="button"
-              onClick={() => setFilterSector(null)}
-              className={`
-                flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3
-                transition-all duration-200 cursor-pointer
-                ${!filterSector
-                  ? 'bg-emerald-50 border-emerald-300 shadow-md scale-105'
-                  : 'bg-white border-gray-100 hover:bg-emerald-50 hover:border-emerald-200'
-                }
-              `}
-            >
-              <span className="text-2xl">🗺️</span>
-              <span className={`text-[10px] font-bold leading-tight text-center ${
-                !filterSector ? 'text-emerald-700' : 'text-gray-700'
-              }`}>Toute la ville</span>
-              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
-                !filterSector ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-500'
-              }`}>{totalCount}</span>
-            </button>
 
-            {SECTORS.map(sector => {
-              const count  = allSectorCounts[sector.id] || 0;
-              const colors = SECTOR_COLORS[sector.color];
-              const active = filterSector === sector.id;
-              return (
-                <button
-                  key={sector.id}
-                  type="button"
-                  onClick={() => setFilterSector(active ? null : sector.id)}
-                  className={`
-                    relative flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3
-                    transition-all duration-200 cursor-pointer select-none
-                    ${active
-                      ? `${colors.bg} ${colors.border} shadow-md scale-105`
-                      : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200 hover:shadow-sm'
-                    }
-                  `}
-                >
-                  <span className="text-2xl">{sector.icon}</span>
-                  <span className={`text-[10px] font-bold leading-tight text-center ${
-                    active ? colors.text : 'text-gray-700'
-                  }`}>{sector.name}</span>
-                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
-                    active ? colors.badgeSolid : count > 0 ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 text-gray-300'
-                  }`}>{count > 0 ? count : '–'}</span>
-                  {active && (
-                    <span className={`absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full ${colors.badgeSolid} flex items-center justify-center`}>
-                      <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+      {/* Itinéraires + Sorties → bloc secteur géographique */}
+      {explorerLabel && (
+        <div className="bg-white border-b border-gray-100">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-base font-black text-gray-900">{explorerLabel.title}</h2>
+                <p className="text-xs text-gray-500 mt-0.5">{explorerLabel.sub}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                {filterSector && (
+                  <button
+                    onClick={() => setFilterSector(null)}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-red-500 transition-colors border border-gray-200 rounded-xl px-3 py-1.5 bg-white hover:border-red-200 hover:bg-red-50"
+                  >
+                    <X className="w-3 h-3" /> Tout afficher
+                  </button>
+                )}
+                <span className="text-xs text-gray-400 hidden sm:block">
+                  {explorerLabel.geo}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+              {/* Toute la ville */}
+              <button
+                type="button"
+                onClick={() => setFilterSector(null)}
+                className={`
+                  flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3
+                  transition-all duration-200 cursor-pointer
+                  ${!filterSector
+                    ? activeTab === 'agenda'
+                      ? 'bg-orange-50 border-orange-300 shadow-md scale-105'
+                      : 'bg-emerald-50 border-emerald-300 shadow-md scale-105'
+                    : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200'
+                  }
+                `}
+              >
+                <span className="text-2xl">🗺️</span>
+                <span className={`text-[10px] font-bold leading-tight text-center ${
+                  !filterSector
+                    ? activeTab === 'agenda' ? 'text-orange-700' : 'text-emerald-700'
+                    : 'text-gray-700'
+                }`}>Toute la ville</span>
+                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                  !filterSector
+                    ? activeTab === 'agenda' ? 'bg-orange-600 text-white' : 'bg-emerald-600 text-white'
+                    : 'bg-gray-100 text-gray-500'
+                }`}>{activeTotalForSector}</span>
+              </button>
+
+              {SECTORS.map(sector => {
+                const count  = activeSectorCounts[sector.id] || 0;
+                const colors = SECTOR_COLORS[sector.color];
+                const active = filterSector === sector.id;
+                return (
+                  <button
+                    key={sector.id}
+                    type="button"
+                    onClick={() => {
+                      setFilterSector(active ? null : sector.id);
+                      // Sur sorties : rester sur l'onglet agenda
+                      // Sur itinéraires : rester sur itinéraires
+                    }}
+                    className={`
+                      relative flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3
+                      transition-all duration-200 cursor-pointer select-none
+                      ${active
+                        ? `${colors.bg} ${colors.border} shadow-md scale-105`
+                        : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200 hover:shadow-sm'
+                      }
+                    `}
+                  >
+                    <span className="text-2xl">{sector.icon}</span>
+                    <span className={`text-[10px] font-bold leading-tight text-center ${
+                      active ? colors.text : 'text-gray-700'
+                    }`}>{sector.name}</span>
+                    <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                      active ? colors.badgeSolid : count > 0 ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 text-gray-300'
+                    }`}>{count > 0 ? count : '–'}</span>
+                    {active && (
+                      <span className={`absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full ${colors.badgeSolid} flex items-center justify-center`}>
+                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Bandeau de contexte filtré */}
+            {filterSector && (
+              <div className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold ${
+                activeTab === 'agenda'
+                  ? 'bg-orange-50 text-orange-700 border border-orange-200'
+                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              }`}>
+                <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>
+                  Secteur&nbsp;<strong>{SECTORS.find(s => s.id === filterSector)?.name}</strong>&nbsp;—&nbsp;
+                  {activeTab === 'agenda'
+                    ? `${filteredOutings.length} sortie${filteredOutings.length !== 1 ? 's' : ''} trouvée${filteredOutings.length !== 1 ? 's' : ''}`
+                    : `${promenades.length} itinéraire${promenades.length !== 1 ? 's' : ''} trouvé${promenades.length !== 1 ? 's' : ''}`
+                  }
+                </span>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Forum → bloc thèmes de discussion */}
+      {activeTab === 'forum' && (
+        <div className="bg-white border-b border-gray-100">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+            <div className="mb-4">
+              <h2 className="text-base font-black text-gray-900">💬 Explorer par thème</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Sujets de discussion de la communauté</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { emoji: '🗺️', label: 'Itinéraires',      sub: 'Partage de parcours' },
+                { emoji: '🌿', label: 'Nature & faune',    sub: 'Observations terrain' },
+                { emoji: '⚠️', label: 'Alertes terrain',  sub: 'Chemins, météo' },
+                { emoji: '🐕', label: 'Balades chien',     sub: 'Conseils & spots' },
+                { emoji: '👨‍👩‍👧', label: 'Famille',          sub: 'Sorties enfants' },
+                { emoji: '📸', label: 'Spots photo',       sub: 'Bons plans photo' },
+                { emoji: '🚴', label: 'Vélo & VTT',        sub: 'Circuits cyclables' },
+                { emoji: '❓', label: 'Questions',          sub: 'Aide & conseils' },
+              ].map(({ emoji, label, sub }) => (
+                <div
+                  key={label}
+                  className="flex items-center gap-2.5 bg-sky-50 border border-sky-100 rounded-2xl px-4 py-2.5 hover:bg-sky-100 hover:border-sky-200 transition-colors cursor-default"
+                >
+                  <span className="text-xl">{emoji}</span>
+                  <div>
+                    <p className="text-xs font-black text-sky-800 leading-tight">{label}</p>
+                    <p className="text-[10px] text-sky-500 leading-tight">{sub}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════════════
           CONTENU PRINCIPAL
@@ -551,7 +654,7 @@ export default function PromenadePage() {
 
             {activeTab === 'agenda' && (
               <TabAgenda
-                outings={outings}
+                outings={filteredOutings}
                 loadingOutings={outingsHook.loadingOutings}
                 showOutingForm={outingsHook.showOutingForm}
                 setShowOutingForm={outingsHook.setShowOutingForm}
