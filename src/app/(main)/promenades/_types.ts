@@ -43,6 +43,7 @@ export type ForumPost = {
   author?: { full_name: string; avatar_url?: string } | null;
   created_at: string;
   comment_count?: number;
+  theme?: string;
 };
 
 export type GroupOuting = {
