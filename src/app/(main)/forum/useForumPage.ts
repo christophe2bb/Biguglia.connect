@@ -70,7 +70,7 @@ export function useForumPage(): UseForumPageReturn {
     try {
       let query = supabase
         .from('forum_topics')
-        .select(`*, author:profiles!forum_topics_author_id_fkey(id, full_name, avatar_url, role), sector:forum_sectors(id, name, slug, icon, color), category:forum_categories(id, name, icon, slug)`)
+        .select(`*, author:profiles!forum_topics_author_id_fkey(id, full_name, avatar_url, role), sector:forum_sectors(id, name, slug, icon, color), category:forum_categories(id, name, icon, slug), photos:forum_topic_photos(url, display_order)`)
         .not('status', 'eq', 'masque')
         .order('is_pinned', { ascending: false });
 
@@ -95,7 +95,7 @@ export function useForumPage(): UseForumPageReturn {
     if (topicList.length === 0) {
       let q2 = supabase
         .from('forum_posts')
-        .select(`*, author:profiles!forum_posts_author_id_fkey(id, full_name, avatar_url, role), category:forum_categories(id, name, icon, slug)`)
+        .select(`*, author:profiles!forum_posts_author_id_fkey(id, full_name, avatar_url, role), category:forum_categories(id, name, icon, slug), photos:forum_topic_photos(url, display_order)`)
         .order('is_pinned', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(40);
