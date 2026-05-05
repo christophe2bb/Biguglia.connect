@@ -85,6 +85,10 @@ export default function CreateThemeModal({ profileId, forumCategoryId, onClose, 
       title:       postTitle.trim(),
       content:     postContent.trim(),
       theme:       slug,
+      // Métadonnées du thème custom — permettent la découverte riche après rechargement
+      theme_label: label.trim(),
+      theme_emoji: emoji,
+      theme_sub:   sub.trim() || 'Thème personnalisé',
     });
 
     if (insertErr) {

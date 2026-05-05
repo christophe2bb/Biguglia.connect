@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, X, Loader2, MessageSquare, Tag } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, X, Loader2, MessageSquare, Tag, Search, TrendingUp, Clock, ArrowUpDown } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import { formatRelative } from '@/lib/utils';
 import { cn } from '@/lib/utils';
@@ -30,6 +30,8 @@ interface Props {
   allThemes?: ForumTheme[];
 }
 
+type SortMode = 'recent' | 'active';
+
 export default function TabForum({
   forumPosts, loadingForum, forumCategoryId,
   showPostForm, setShowPostForm, postForm, setPostForm, submittingPost, handlePostSubmit,
@@ -40,9 +42,41 @@ export default function TabForum({
   // ── Vue détail inline ────────────────────────────────────────────────────
   const [selectedPost, setSelectedPost] = useState<ForumPost | null>(null);
 
+  // ── Sort & Search ────────────────────────────────────────────────────────
+  const [sortMode,   setSortMode]   = useState<SortMode>('recent');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch,  setShowSearch]  = useState(false);
+
   // Thèmes disponibles : custom injectés depuis le parent, sinon thèmes système
   const themes: ForumTheme[] = allThemes ?? [...SYSTEM_THEMES];
   const activeThemeConfig = themes.find(t => t.id === activeTheme);
+
+  // ── Filtered + sorted posts ───────────────────────────────────────────────
+  const displayPosts = useMemo(() => {
+    let list = [...forumPosts];
+
+    // Filtre recherche textuelle
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(p =>
+        p.title.toLowerCase().includes(q) ||
+        p.content.toLowerCase().includes(q) ||
+        (p.author?.full_name?.toLowerCase().includes(q))
+      );
+    }
+
+    // Tri
+    if (sortMode === 'active') {
+      list = list.sort((a, b) => {
+        const ca = (a.comment_count as unknown as { count: number }[])?.[0]?.count ?? 0;
+        const cb = (b.comment_count as unknown as { count: number }[])?.[0]?.count ?? 0;
+        return cb - ca;
+      });
+    }
+    // 'recent' = déjà triés par created_at desc depuis le hook
+
+    return list;
+  }, [forumPosts, sortMode, searchQuery]);
 
   if (selectedPost) {
     return (
@@ -64,8 +98,8 @@ export default function TabForum({
   return (
     <div>
       {/* ── En-tête ── */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+        <div className="min-w-0">
           <h2 className="text-lg font-black text-gray-900 flex items-center gap-2">
             {activeThemeConfig
               ? <><span>{activeThemeConfig.emoji}</span> {activeThemeConfig.label}</>
@@ -77,15 +111,81 @@ export default function TabForum({
               : 'Partagez vos expériences, posez des questions, donnez des tuyaux'}
           </p>
         </div>
-        {profileId && (
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Bouton recherche */}
           <button
-            onClick={() => setShowPostForm(!showPostForm)}
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-sky-500 to-teal-600 text-white font-bold px-5 py-2.5 rounded-xl hover:from-sky-600 hover:to-teal-700 transition-colors text-sm shadow-sm"
+            onClick={() => { setShowSearch(v => !v); if (showSearch) setSearchQuery(''); }}
+            className={cn(
+              'p-2 rounded-xl border transition-colors',
+              showSearch
+                ? 'bg-sky-50 border-sky-200 text-sky-600'
+                : 'bg-white border-gray-200 text-gray-400 hover:text-gray-600'
+            )}
+            title="Rechercher"
           >
-            <Plus className="w-4 h-4" /> Nouveau sujet
+            <Search className="w-4 h-4" />
           </button>
-        )}
+
+          {/* Tri */}
+          <div className="flex items-center bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <button
+              onClick={() => setSortMode('recent')}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-2 text-xs font-bold transition-colors',
+                sortMode === 'recent'
+                  ? 'bg-sky-500 text-white'
+                  : 'text-gray-500 hover:bg-gray-50'
+              )}
+            >
+              <Clock className="w-3 h-3" /> Récents
+            </button>
+            <button
+              onClick={() => setSortMode('active')}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-2 text-xs font-bold transition-colors',
+                sortMode === 'active'
+                  ? 'bg-sky-500 text-white'
+                  : 'text-gray-500 hover:bg-gray-50'
+              )}
+            >
+              <TrendingUp className="w-3 h-3" /> Actifs
+            </button>
+          </div>
+
+          {profileId && (
+            <button
+              onClick={() => setShowPostForm(!showPostForm)}
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-sky-500 to-teal-600 text-white font-bold px-4 py-2 rounded-xl hover:from-sky-600 hover:to-teal-700 transition-colors text-sm shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Nouveau sujet</span>
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* ── Barre de recherche ── */}
+      {showSearch && (
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            autoFocus
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Chercher dans les échanges…"
+            className="w-full border border-sky-200 rounded-xl pl-9 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300 bg-sky-50/30"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Formulaire nouveau sujet ── */}
       {showPostForm && profileId && (
@@ -183,20 +283,24 @@ export default function TabForum({
           </p>
         </div>
 
-      ) : forumPosts.length === 0 ? (
+      ) : displayPosts.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
           <MessageSquare className="w-10 h-10 text-gray-200 mx-auto mb-3" />
           <p className="text-gray-600 font-bold mb-1">
-            {activeTheme
-              ? `Aucun échange dans « ${activeThemeConfig?.label ?? activeTheme} »`
-              : 'Aucun échange pour l\'instant'}
+            {searchQuery
+              ? `Aucun résultat pour « ${searchQuery} »`
+              : activeTheme
+                ? `Aucun échange dans « ${activeThemeConfig?.label ?? activeTheme} »`
+                : 'Aucun échange pour l\'instant'}
           </p>
           <p className="text-gray-400 text-sm mb-5">
-            {activeTheme
-              ? 'Soyez le premier à lancer une discussion sur ce thème !'
-              : 'Posez une question ou partagez votre expérience !'}
+            {searchQuery
+              ? 'Essayez des mots-clés différents.'
+              : activeTheme
+                ? 'Soyez le premier à lancer une discussion sur ce thème !'
+                : 'Posez une question ou partagez votre expérience !'}
           </p>
-          {profileId && (
+          {!searchQuery && profileId && (
             <button
               onClick={() => setShowPostForm(true)}
               className="inline-flex items-center gap-2 bg-sky-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-sky-600 transition-colors"
@@ -204,73 +308,115 @@ export default function TabForum({
               <Plus className="w-4 h-4" /> Premier message
             </button>
           )}
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="inline-flex items-center gap-2 text-sky-600 font-bold px-4 py-2 rounded-xl text-sm hover:bg-sky-50 border border-sky-200 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" /> Effacer la recherche
+            </button>
+          )}
         </div>
 
       ) : (
-        <div className="space-y-3">
-          {forumPosts.map(post => {
-            const comments = (post.comment_count as unknown as { count: number }[])?.[0]?.count ?? 0;
-            const isHot    = comments >= 5;
-            const theme    = themes.find(t => t.id === (post.theme || 'general'));
-
-            return (
-              <button
-                key={post.id}
-                type="button"
-                onClick={() => setSelectedPost(post)}
-                className="w-full text-left flex items-start gap-4 bg-white rounded-2xl border border-gray-100 p-5 hover:border-sky-200 hover:shadow-sm transition-all group"
-              >
-                {/* Icône thème ou flamme */}
-                <div className={cn(
-                  'w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm text-xl',
-                  isHot ? 'bg-amber-100' : 'bg-sky-50'
-                )}>
-                  {isHot ? <MessageSquare className="w-5 h-5 text-amber-500" /> : (theme?.emoji ?? '💬')}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start gap-2 mb-1 flex-wrap">
-                    <h3 className="font-bold text-gray-900 group-hover:text-sky-700 transition-colors line-clamp-1 flex-1">
-                      {post.title}
-                    </h3>
-                    {/* Badge thème (affiché si on ne filtre pas déjà sur ce thème) */}
-                    {theme && theme.id !== 'general' && (
-                      <span className="text-[10px] bg-sky-50 text-sky-600 border border-sky-100 px-2 py-0.5 rounded-full font-bold flex-shrink-0 hidden sm:inline-flex items-center gap-0.5">
-                        {theme.emoji} {theme.label}
-                      </span>
-                    )}
-                    {isHot && (
-                      <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-black flex-shrink-0">
-                        🔥 Actif
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-gray-500 text-sm mb-2 line-clamp-2 text-left">{post.content}</p>
-                  <div className="flex items-center justify-between text-xs text-gray-400">
-                    <span className="flex items-center gap-1.5">
-                      {post.author && (
-                        <Avatar src={post.author.avatar_url} name={post.author.full_name} size="xs" />
-                      )}
-                      {post.author?.full_name ?? 'Membre'} · {formatRelative(post.created_at)}
-                    </span>
-                    <span className="flex items-center gap-1 font-semibold text-sky-500">
-                      <MessageSquare className="w-3 h-3" />
-                      {comments} réponse{comments > 1 ? 's' : ''}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Flèche */}
-                <svg
-                  className="w-4 h-4 text-gray-300 group-hover:text-sky-400 flex-shrink-0 mt-1 transition-colors"
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+        <>
+          {/* Indicateur résultats si recherche active */}
+          {searchQuery && (
+            <div className="flex items-center gap-2 mb-3 text-xs text-sky-600 font-semibold">
+              <Search className="w-3.5 h-3.5" />
+              {displayPosts.length} résultat{displayPosts.length !== 1 ? 's' : ''} pour «&nbsp;{searchQuery}&nbsp;»
+              <button onClick={() => setSearchQuery('')} className="ml-auto text-gray-400 hover:text-red-500 flex items-center gap-1">
+                <X className="w-3 h-3" /> Effacer
               </button>
-            );
-          })}
-        </div>
+            </div>
+          )}
+
+          {/* Indicateur tri actif */}
+          {sortMode === 'active' && !searchQuery && (
+            <div className="flex items-center gap-2 mb-3 text-xs text-teal-600 font-semibold">
+              <ArrowUpDown className="w-3.5 h-3.5" />
+              Triés par activité (le plus commenté en premier)
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {displayPosts.map(post => {
+              const comments = (post.comment_count as unknown as { count: number }[])?.[0]?.count ?? 0;
+              const isHot    = comments >= 5;
+              const theme    = themes.find(t => t.id === (post.theme || 'general'));
+
+              return (
+                <button
+                  key={post.id}
+                  type="button"
+                  onClick={() => setSelectedPost(post)}
+                  className="w-full text-left flex items-start gap-4 bg-white rounded-2xl border border-gray-100 p-5 hover:border-sky-200 hover:shadow-sm transition-all group"
+                >
+                  {/* Icône thème ou flamme */}
+                  <div className={cn(
+                    'w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm text-xl',
+                    isHot ? 'bg-amber-100' : (theme?.custom ? 'bg-violet-50' : 'bg-sky-50')
+                  )}>
+                    {isHot ? '🔥' : (theme?.emoji ?? '💬')}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start gap-2 mb-1 flex-wrap">
+                      <h3 className="font-bold text-gray-900 group-hover:text-sky-700 transition-colors line-clamp-1 flex-1">
+                        {post.title}
+                      </h3>
+                      {/* Badge thème */}
+                      {theme && theme.id !== 'general' && (
+                        <span className={cn(
+                          'text-[10px] px-2 py-0.5 rounded-full font-bold flex-shrink-0 hidden sm:inline-flex items-center gap-0.5 border',
+                          theme.custom
+                            ? 'bg-violet-50 text-violet-600 border-violet-200'
+                            : 'bg-sky-50 text-sky-600 border-sky-100'
+                        )}>
+                          {theme.emoji} {theme.label}
+                        </span>
+                      )}
+                      {isHot && (
+                        <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-black flex-shrink-0">
+                          🔥 Actif
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-gray-500 text-sm mb-2 line-clamp-2 text-left">{post.content}</p>
+                    <div className="flex items-center justify-between text-xs text-gray-400">
+                      <span className="flex items-center gap-1.5">
+                        {post.author && (
+                          <Avatar src={post.author.avatar_url} name={post.author.full_name} size="xs" />
+                        )}
+                        {post.author?.full_name ?? 'Membre'} · {formatRelative(post.created_at)}
+                      </span>
+                      {/* Compteur de réponses — pill colorée si actif */}
+                      <span className={cn(
+                        'flex items-center gap-1 font-semibold px-2 py-0.5 rounded-full',
+                        comments > 0
+                          ? isHot
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-sky-50 text-sky-600'
+                          : 'text-gray-300'
+                      )}>
+                        <MessageSquare className="w-3 h-3" />
+                        {comments > 0 ? `${comments} réponse${comments > 1 ? 's' : ''}` : 'Aucune réponse'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Flèche */}
+                  <svg
+                    className="w-4 h-4 text-gray-300 group-hover:text-sky-400 flex-shrink-0 mt-1 transition-colors"
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {/* ── Invite connexion ── */}

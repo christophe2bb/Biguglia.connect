@@ -2,14 +2,23 @@
 
 import Link from 'next/link';
 import {
-  TreePine, Compass, Map, MapPin, Sun, Shield, Sparkles, Plus, TrendingUp,
-  Footprints, Users, MessageSquare, ArrowRight, CheckCircle2,
+  TreePine, Map, Sun, Shield, Sparkles, Plus, TrendingUp,
+  Footprints, Users, MessageSquare, CheckCircle2,
   Thermometer, Droplets, Wind, CloudRain,
+  Compass, Calendar,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SECTORS, SECTOR_COLORS } from '@/lib/sectors';
 import { TYPE_CONFIG } from '../_constants';
 import type { Promenade } from '../_types';
+
+// Les 5 thèmes forum les plus utiles à mettre en avant
+const FORUM_THEME_SHORTCUTS = [
+  { id: 'itineraires', emoji: '🗺️', label: 'Itinéraires' },
+  { id: 'alertes',     emoji: '⚠️', label: 'Alertes'     },
+  { id: 'nature',      emoji: '🌿', label: 'Nature'       },
+  { id: 'chien',       emoji: '🐕', label: 'Chiens'       },
+  { id: 'questions',   emoji: '❓', label: 'Questions'    },
+] as const;
 
 interface Props {
   promenades: Promenade[];
@@ -26,15 +35,122 @@ interface Props {
   setShowForm: (v: boolean) => void;
   setShowOutingForm: (v: boolean) => void;
   setShowPostForm: (v: boolean) => void;
+  /** Appelé quand l'utilisateur clique sur un raccourci de thème forum */
+  onForumTheme?: (themeId: string) => void;
 }
 
 export default function PromenadesSidebar({
-  promenades, outingsCount, forumPostsCount, totalCount,
-  quickFilter, filterSector, activeTab, profileId,
-  setActiveTab, setQuickFilter, setFilterSector, setShowForm, setShowOutingForm, setShowPostForm,
+  promenades: _promenades, outingsCount, forumPostsCount, totalCount,
+  quickFilter, filterSector: _filterSector, activeTab, profileId,
+  setActiveTab, setQuickFilter, setFilterSector: _setFilterSector,
+  setShowForm, setShowOutingForm, setShowPostForm,
+  onForumTheme,
 }: Props) {
   return (
     <aside className="hidden lg:flex flex-col gap-5 w-72 flex-shrink-0">
+
+      {/* ── Navigation rapide par onglet ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+        <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-3">Navigation</h3>
+        <div className="space-y-1.5">
+          {[
+            {
+              tab: 'itineraires' as const,
+              emoji: '🗺️',
+              label: 'Itinéraires',
+              count: totalCount,
+              color: 'bg-emerald-500',
+              hoverBg: 'hover:bg-emerald-50',
+              activeBg: 'bg-emerald-50',
+              activeText: 'text-emerald-700',
+              activeBorder: 'border-emerald-200',
+            },
+            {
+              tab: 'agenda' as const,
+              emoji: '📅',
+              label: 'Sorties groupées',
+              count: outingsCount,
+              color: 'bg-orange-500',
+              hoverBg: 'hover:bg-orange-50',
+              activeBg: 'bg-orange-50',
+              activeText: 'text-orange-700',
+              activeBorder: 'border-orange-200',
+            },
+            {
+              tab: 'forum' as const,
+              emoji: '💬',
+              label: 'Échanges',
+              count: forumPostsCount,
+              color: 'bg-sky-500',
+              hoverBg: 'hover:bg-sky-50',
+              activeBg: 'bg-sky-50',
+              activeText: 'text-sky-700',
+              activeBorder: 'border-sky-200',
+            },
+          ].map(({ tab, emoji, label, count, hoverBg, activeBg, activeText, activeBorder }) => {
+            const isActive = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={cn(
+                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors border',
+                  isActive
+                    ? cn(activeBg, activeText, activeBorder)
+                    : cn('bg-transparent border-transparent text-gray-600', hoverBg)
+                )}
+              >
+                <span className="text-base leading-none">{emoji}</span>
+                <span className="text-sm font-bold flex-1">{label}</span>
+                {count > 0 && (
+                  <span className={cn(
+                    'text-[10px] font-black px-1.5 py-0.5 rounded-full',
+                    isActive ? cn(activeText, 'bg-white/60') : 'bg-gray-100 text-gray-500'
+                  )}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* CTAs contextuels selon onglet actif */}
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          {activeTab === 'itineraires' && profileId && (
+            <button
+              onClick={() => { setActiveTab('itineraires'); setShowForm(true); setTimeout(() => window.scrollTo({ top: 500, behavior: 'smooth' }), 100); }}
+              className="w-full inline-flex items-center justify-center gap-2 bg-emerald-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs hover:bg-emerald-600 transition-colors shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5" /> Partager un itinéraire
+            </button>
+          )}
+          {activeTab === 'agenda' && profileId && (
+            <button
+              onClick={() => { setShowOutingForm(true); setTimeout(() => window.scrollTo({ top: 500, behavior: 'smooth' }), 100); }}
+              className="w-full inline-flex items-center justify-center gap-2 bg-orange-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs hover:bg-orange-600 transition-colors shadow-sm"
+            >
+              <Calendar className="w-3.5 h-3.5" /> Créer une sortie groupée
+            </button>
+          )}
+          {activeTab === 'forum' && profileId && (
+            <button
+              onClick={() => { setShowPostForm(true); setTimeout(() => window.scrollTo({ top: 500, behavior: 'smooth' }), 100); }}
+              className="w-full inline-flex items-center justify-center gap-2 bg-sky-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs hover:bg-sky-600 transition-colors shadow-sm"
+            >
+              <MessageSquare className="w-3.5 h-3.5" /> Nouveau sujet
+            </button>
+          )}
+          {!profileId && (
+            <Link
+              href="/connexion"
+              className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold px-4 py-2.5 rounded-xl text-xs hover:from-emerald-600 hover:to-teal-700 transition-colors shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5" /> Se connecter & contribuer
+            </Link>
+          )}
+        </div>
+      </div>
 
       {/* 🌿 Réserve naturelle spotlight */}
       <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-emerald-600 via-teal-600 to-sky-600 p-5 text-white shadow-lg">
@@ -88,6 +204,30 @@ export default function PromenadesSidebar({
         </div>
       </div>
 
+      {/* 💬 Raccourcis forum thèmes */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+        <h3 className="text-sm font-black text-gray-800 mb-3 flex items-center gap-2">
+          <MessageSquare className="w-4 h-4 text-sky-500" /> Thèmes forum
+        </h3>
+        <div className="space-y-1.5">
+          {FORUM_THEME_SHORTCUTS.map(t => (
+            <button
+              key={t.id}
+              onClick={() => {
+                setActiveTab('forum');
+                onForumTheme?.(t.id);
+                setTimeout(() => window.scrollTo({ top: 500, behavior: 'smooth' }), 100);
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-sky-50 hover:text-sky-700 transition-colors group border border-transparent hover:border-sky-100"
+            >
+              <span className="text-base leading-none">{t.emoji}</span>
+              <span className="text-sm font-semibold text-gray-600 group-hover:text-sky-700 transition-colors">{t.label}</span>
+              <Compass className="w-3.5 h-3.5 ml-auto text-gray-200 group-hover:text-sky-400 transition-colors" />
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Conseils saisonniers */}
       <div className="bg-amber-50 rounded-2xl border border-amber-100 p-5 shadow-sm">
         <h3 className="text-sm font-black text-amber-800 mb-3 flex items-center gap-2">
@@ -128,22 +268,7 @@ export default function PromenadesSidebar({
         </ul>
       </div>
 
-      {/* CTA contribuer */}
-      {!profileId && (
-        <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-5 text-white shadow-lg">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-3">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <h3 className="text-sm font-black mb-1">Contribuez à la carte</h3>
-          <p className="text-xs text-emerald-100 mb-4 leading-relaxed">Partagez vos balades préférées et aidez les habitants à découvrir Biguglia.</p>
-          <Link href="/connexion"
-            className="inline-flex items-center gap-2 bg-white text-emerald-700 font-bold px-4 py-2.5 rounded-xl text-xs hover:bg-emerald-50 transition-colors w-full justify-center shadow-sm">
-            <Plus className="w-3.5 h-3.5" /> Se connecter &amp; contribuer
-          </Link>
-        </div>
-      )}
-
-      {/* Statistiques communauté */}
+      {/* Statistiques communauté (si connecté) */}
       {profileId && (
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
           <h3 className="text-sm font-black text-gray-800 mb-4 flex items-center gap-2">
@@ -166,6 +291,21 @@ export default function PromenadesSidebar({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* CTA contribuer (si non connecté) */}
+      {!profileId && (
+        <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-5 text-white shadow-lg">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-3">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <h3 className="text-sm font-black mb-1">Contribuez à la carte</h3>
+          <p className="text-xs text-emerald-100 mb-4 leading-relaxed">Partagez vos balades préférées et aidez les habitants à découvrir Biguglia.</p>
+          <Link href="/connexion"
+            className="inline-flex items-center gap-2 bg-white text-emerald-700 font-bold px-4 py-2.5 rounded-xl text-xs hover:bg-emerald-50 transition-colors w-full justify-center shadow-sm">
+            <Plus className="w-3.5 h-3.5" /> Se connecter &amp; contribuer
+          </Link>
         </div>
       )}
     </aside>

@@ -257,8 +257,35 @@ export default function PromenadePage() {
             </div>
           </div>
 
+          {/* ── Bandeau activité récente ── */}
+          {(promenades.length > 0 || outings.length > 0 || allForumPosts.length > 0) && (
+            <div className="mt-6 flex flex-wrap gap-3">
+              {promenades[0] && (
+                <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-3 py-2 text-xs text-white/90">
+                  <span className="w-5 h-5 rounded-lg bg-emerald-400/30 flex items-center justify-center text-[10px]">🗺️</span>
+                  <span className="font-medium opacity-80">Dernier itinéraire :</span>
+                  <span className="font-bold truncate max-w-[140px]">{promenades[0].title}</span>
+                </div>
+              )}
+              {outings[0] && (
+                <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-3 py-2 text-xs text-white/90">
+                  <span className="w-5 h-5 rounded-lg bg-orange-400/30 flex items-center justify-center text-[10px]">📅</span>
+                  <span className="font-medium opacity-80">Prochaine sortie :</span>
+                  <span className="font-bold truncate max-w-[140px]">{outings[0].title}</span>
+                </div>
+              )}
+              {allForumPosts[0] && (
+                <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-3 py-2 text-xs text-white/90">
+                  <span className="w-5 h-5 rounded-lg bg-sky-400/30 flex items-center justify-center text-[10px]">💬</span>
+                  <span className="font-medium opacity-80">Dernier échange :</span>
+                  <span className="font-bold truncate max-w-[140px]">{allForumPosts[0].title}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ── Filtres rapides ── */}
-          <div className="mt-8 pt-6 border-t border-white/15">
+          <div className="mt-6 pt-6 border-t border-white/15">
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs font-black text-emerald-200 uppercase tracking-widest">
                 Je cherche…
@@ -916,6 +943,7 @@ export default function PromenadePage() {
             setShowForm={promenadHook.setShowForm}
             setShowOutingForm={outingsHook.setShowOutingForm}
             setShowPostForm={forumHook.setShowPostForm}
+            onForumTheme={(themeId) => switchToForum(themeId)}
           />
         </div>
       </div>

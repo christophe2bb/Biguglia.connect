@@ -53,6 +53,8 @@ export function useForum(profile: { id: string } | null | undefined) {
   const allThemes = useMemo<ForumTheme[]>(() => {
     // Déduit aussi les thèmes custom présents dans les posts existants
     // (posts avec un slug inconnu des SYSTEM_THEMES → thème custom existant)
+    // Les posts enrichis avec theme_label / theme_emoji / theme_sub permettent
+    // d'afficher le vrai nom & emoji du thème, même après rechargement.
     const knownIds = new Set([
       ...SYSTEM_THEMES.map(t => t.id),
       ...customThemes.map(t => t.id),
@@ -63,7 +65,14 @@ export function useForum(profile: { id: string } | null | undefined) {
       const t = p.theme;
       if (t && !knownIds.has(t)) {
         knownIds.add(t);
-        discoveredThemes.push({ id: t, emoji: '💬', label: t, sub: 'Thème personnalisé', custom: true });
+        // Utilise les métadonnées stockées sur le post si elles existent
+        discoveredThemes.push({
+          id:     t,
+          emoji:  p.theme_emoji  || '💬',
+          label:  p.theme_label  || t,
+          sub:    p.theme_sub    || 'Thème personnalisé',
+          custom: true,
+        });
       }
     }
     return [...SYSTEM_THEMES, ...customThemes, ...discoveredThemes];
@@ -113,7 +122,7 @@ export function useForum(profile: { id: string } | null | undefined) {
 
     const { data } = await supabase
       .from('forum_posts')
-      .select(`*, theme, author:profiles!forum_posts_author_id_fkey(full_name, avatar_url), comment_count:forum_comments(count)`)
+      .select(`*, theme, theme_label, theme_emoji, theme_sub, author:profiles!forum_posts_author_id_fkey(full_name, avatar_url), comment_count:forum_comments(count)`)
       .eq('category_id', catId)
       .eq('is_closed', false)
       .order('created_at', { ascending: false })

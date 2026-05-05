@@ -44,6 +44,10 @@ export type ForumPost = {
   created_at: string;
   comment_count?: number;
   theme?: string;
+  /** Metadata for custom themes (stored on the post row) */
+  theme_label?: string | null;
+  theme_emoji?: string | null;
+  theme_sub?:   string | null;
 };
 
 export type GroupOuting = {
