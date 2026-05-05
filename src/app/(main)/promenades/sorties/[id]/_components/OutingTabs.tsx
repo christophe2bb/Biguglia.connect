@@ -2,8 +2,10 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useState } from 'react';
 import { Camera, User, MapPin, Users, MessageSquare, History, Clock,
-         ParkingSquare, Baby, Dog, AlertCircle, Send, Loader2 } from 'lucide-react';
+         ParkingSquare, Baby, Dog, AlertCircle, Send, Loader2,
+         X, ChevronLeft, ChevronRight } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import RatingWidget from '@/components/ui/RatingWidget';
 import { formatRelative } from '@/lib/utils';
@@ -46,6 +48,14 @@ export default function OutingTabs({
 }: Props) {
   // Build visible tabs
   const visibleTabs = TABS.filter(t => !t.managerOnly || canManage);
+
+  // ── Lightbox state ────────────────────────────────────────────────────────
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const photos = outing.photos || [];
+  const openLightbox = (i: number) => setLightboxIndex(i);
+  const closeLightbox = () => setLightboxIndex(null);
+  const prevPhoto = () => setLightboxIndex(i => i !== null ? (i - 1 + photos.length) % photos.length : 0);
+  const nextPhoto = () => setLightboxIndex(i => i !== null ? (i + 1) % photos.length : 0);
 
   return (
     <>
@@ -177,16 +187,132 @@ export default function OutingTabs({
           )}
 
           {/* Photo gallery */}
-          {outing.photos && outing.photos.length > 1 && (
+          {photos.length > 0 && (
             <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
               <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                <Camera className="w-4 h-4 text-emerald-500" /> Photos
+                <Camera className="w-4 h-4 text-emerald-500" />
+                Photos
+                <span className="ml-auto text-xs text-gray-400 font-normal">{photos.length} photo{photos.length > 1 ? 's' : ''}</span>
               </h3>
-              <div className="grid grid-cols-3 gap-2">
-                {outing.photos.map((photo, i) => (
-                  <Image src={photo.url} alt="" key={i} fill className="w-full object-cover rounded-xl" />
-                ))}
+
+              {/* Magazine layout: 1 photo = full-width, 2+ = grande + thumbnails */}
+              {photos.length === 1 ? (
+                <button
+                  onClick={() => openLightbox(0)}
+                  className="relative w-full h-56 rounded-xl overflow-hidden block hover:opacity-90 transition-opacity"
+                >
+                  <Image src={photos[0].url} alt="" fill className="object-cover" />
+                </button>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {/* Grande photo à gauche */}
+                  <button
+                    onClick={() => openLightbox(0)}
+                    className="relative col-span-2 h-48 rounded-xl overflow-hidden hover:opacity-90 transition-opacity"
+                  >
+                    <Image src={photos[0].url} alt="" fill className="object-cover" />
+                  </button>
+                  {/* Thumbnails à droite */}
+                  <div className="flex flex-col gap-2">
+                    {photos.slice(1, 3).map((photo, i) => (
+                      <button
+                        key={i + 1}
+                        onClick={() => openLightbox(i + 1)}
+                        className="relative h-[90px] rounded-xl overflow-hidden hover:opacity-90 transition-opacity"
+                      >
+                        <Image src={photo.url} alt="" fill className="object-cover" />
+                        {/* Overlay +N sur le dernier thumbnail si > 3 photos */}
+                        {i === 1 && photos.length > 3 && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-xl">
+                            <span className="text-white font-bold text-lg">+{photos.length - 3}</span>
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {photos.length > 3 && (
+                <button
+                  onClick={() => openLightbox(0)}
+                  className="mt-2 w-full text-center text-xs text-emerald-600 font-semibold hover:underline"
+                >
+                  Voir toutes les photos →
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* ── Lightbox ──────────────────────────────────────────────────── */}
+          {lightboxIndex !== null && (
+            <div
+              className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center"
+              onClick={closeLightbox}
+            >
+              {/* Fermer */}
+              <button
+                onClick={closeLightbox}
+                className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              {/* Compteur */}
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white/70 text-sm font-medium bg-black/40 px-4 py-1.5 rounded-full">
+                {lightboxIndex + 1} / {photos.length}
               </div>
+
+              {/* Navigation gauche */}
+              {photos.length > 1 && (
+                <button
+                  onClick={e => { e.stopPropagation(); prevPhoto(); }}
+                  className="absolute left-4 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+              )}
+
+              {/* Image principale */}
+              <div
+                className="relative max-w-4xl max-h-[80vh] w-full mx-16 aspect-[4/3]"
+                onClick={e => e.stopPropagation()}
+              >
+                <Image
+                  src={photos[lightboxIndex].url}
+                  alt=""
+                  fill
+                  className="object-contain"
+                  sizes="(max-width: 768px) 100vw, 80vw"
+                />
+              </div>
+
+              {/* Navigation droite */}
+              {photos.length > 1 && (
+                <button
+                  onClick={e => { e.stopPropagation(); nextPhoto(); }}
+                  className="absolute right-4 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              )}
+
+              {/* Bande de thumbnails */}
+              {photos.length > 1 && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 px-4 overflow-x-auto max-w-full">
+                  {photos.map((photo, i) => (
+                    <button
+                      key={i}
+                      onClick={e => { e.stopPropagation(); setLightboxIndex(i); }}
+                      className={`relative flex-shrink-0 w-14 h-10 rounded-lg overflow-hidden border-2 transition-all ${
+                        i === lightboxIndex ? 'border-white scale-110' : 'border-transparent opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      <Image src={photo.url} alt="" fill className="object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

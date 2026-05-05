@@ -198,12 +198,16 @@ export function useOutings(profile: { id: string } | null | undefined) {
     }
 
     if (outingPhotos.length > 0 && outingId) {
+      // Récupérer le token pour l'upload sécurisé
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token ?? '';
+
       for (let i = 0; i < outingPhotos.length; i++) {
         const file = outingPhotos[i];
         const ext = safeImageExt(file.name);
-        const path = `outings/${outingId}/${Date.now()}_${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
+        const path = `outings/${outingId}/${Date.now()}_${i}.${ext}`;  // nosec CWE-22
         try {
-          const publicUrl = await uploadFile(file, 'photos', path, profile?.id);
+          const publicUrl = await uploadFile(file, 'photos', path, profile?.id, accessToken);
           await supabase.from('outing_photos').insert({ outing_id: outingId, url: publicUrl, display_order: i });
         } catch (err) {
           toast.error(`Photo ${i + 1} : ${err instanceof Error ? err.message : 'Erreur upload'}`);
