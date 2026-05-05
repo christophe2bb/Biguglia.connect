@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import {
-  TreePine, Footprints, MessageSquare, Users, Star, X, Zap, ArrowRight,
+  TreePine, Footprints, MessageSquare, Users, Star, X,
   Plus, SlidersHorizontal, Filter, AlertCircle, MapPin,
 } from 'lucide-react';
 import { SECTORS, SECTOR_COLORS } from '@/lib/sectors';
@@ -68,7 +68,6 @@ export default function PromenadePage() {
   const { forumPosts, allForumPosts, allThemes, activeTheme, applyThemeFilter, themeCounts, addCustomTheme } = forumHook;
 
   const totalCount  = promenades.length;
-  const nextOuting  = outings[0];
 
   // Comptage par secteur — Itinéraires
   const allSectorCounts = promenades.reduce<Record<string, number>>((acc, p) => {
@@ -216,24 +215,7 @@ export default function PromenadePage() {
                 ))}
               </div>
 
-              {/* Prochaine sortie */}
-              {nextOuting && (
-                <div className="inline-flex items-center gap-3 bg-white/15 backdrop-blur-sm border border-white/25 rounded-2xl px-4 py-3 mb-2">
-                  <div className="w-8 h-8 bg-amber-400 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
-                    <Zap className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-emerald-200 font-semibold">Prochaine sortie groupée</p>
-                    <p className="text-sm font-black">{nextOuting.title}</p>
-                  </div>
-                  <button
-                    onClick={() => { setActiveTab('agenda'); setTimeout(() => window.scrollTo({ top: 500, behavior: 'smooth' }), 100); }}
-                    className="ml-2 text-xs font-bold text-white/70 hover:text-white flex items-center gap-1 transition-colors"
-                  >
-                    Rejoindre <ArrowRight className="w-3 h-3" />
-                  </button>
-                </div>
-              )}
+
             </div>
 
             {/* CTA hero */}
