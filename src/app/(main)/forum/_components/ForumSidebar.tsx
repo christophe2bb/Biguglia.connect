@@ -47,7 +47,7 @@ export function ForumSidebar({
   const router = useRouter();
 
   return (
-    <aside className="hidden lg:flex flex-col gap-5 w-72 flex-shrink-0">
+    <aside className="hidden lg:flex flex-col gap-5 w-72 flex-shrink-0 sticky top-8 self-start max-h-[calc(100vh-4rem)] overflow-y-auto pb-8">
 
       {/* ── CTA créer / rejoindre ── */}
       {profile ? (
