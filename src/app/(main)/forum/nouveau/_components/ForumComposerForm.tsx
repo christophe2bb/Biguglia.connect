@@ -318,8 +318,8 @@ function StepWrite({
           {photoPreviews.length > 0 && (
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-3">
               {photoPreviews.map((src, i) => (
-                <div key={i} className="relative group aspect-square">
-                  <Image src={src} alt="" fill className="object-cover rounded-xl border border-gray-200" />
+                <div key={i} className="relative group aspect-square w-full overflow-hidden rounded-xl">
+                  <Image src={src} alt="" fill sizes="(max-width: 640px) 33vw, 20vw" className="object-cover rounded-xl border border-gray-200" />
                   {i === 0 && (
                     <span className="absolute bottom-1 left-1 bg-violet-600/80 text-white text-[10px] px-1.5 py-0.5 rounded-md">
                       Couverture

@@ -23,8 +23,8 @@ function PhotoGrid({
   if (photos.length === 0) return null;
   if (photos.length === 1) {
     return (
-      <button onClick={() => onOpen(0)} className="block w-full rounded-xl overflow-hidden border border-gray-100 mb-5">
-        <Image src={photos[0].url} alt={topicTitle ?? 'Photo'} fill className="w-full max- object-cover hover:opacity-95 transition-opacity" />
+      <button onClick={() => onOpen(0)} className="relative block w-full h-64 rounded-xl overflow-hidden border border-gray-100 mb-5">
+        <Image src={photos[0].url} alt={topicTitle ?? 'Photo'} fill sizes="(max-width: 640px) 100vw, 700px" className="object-cover hover:opacity-95 transition-opacity" />
       </button>
     );
   }
@@ -33,8 +33,8 @@ function PhotoGrid({
     <div className={`grid gap-2 mb-5 ${cols}`}>
       {photos.slice(0, Math.min(photos.length, 4)).map((photo, i) => (
         <button key={i} onClick={() => onOpen(i)}
-          className={`relative overflow-hidden rounded-xl border border-gray-100 ${i === 0 && photos.length >= 3 ? 'col-span-2 row-span-1' : ''}`}>
-          <Image src={photo.url} alt="" fill className="w-full object-cover hover:opacity-90 transition-opacity" />
+          className={`relative overflow-hidden rounded-xl border border-gray-100 ${i === 0 && photos.length >= 3 ? 'col-span-2 h-48' : 'h-36'}`}>
+          <Image src={photo.url} alt="" fill sizes="(max-width: 640px) 50vw, 350px" className="object-cover hover:opacity-90 transition-opacity" />
           {i === 3 && photos.length > 4 && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-xl font-bold">
               +{photos.length - 4}
@@ -94,10 +94,10 @@ function Lightbox({
         aria-modal="true"
         aria-label={`Photo ${index + 1} sur ${photos.length}`}
         tabIndex={-1}
-        className="relative max-w-4xl w-full outline-none"
+        className="relative max-w-4xl w-full h-[80vh] outline-none"
         onClick={e => e.stopPropagation()}
       >
-        <Image src={photos[index].url} alt={topicTitle ? `${topicTitle} — photo ${index + 1}${photos.length > 1 ? ` sur ${photos.length}` : ''}` : `Photo ${index + 1}${photos.length > 1 ? ` sur ${photos.length}` : ''}`} fill className="max-h-[80vh] w-full object-contain rounded-xl" />
+        <Image src={photos[index].url} alt={topicTitle ? `${topicTitle} — photo ${index + 1}${photos.length > 1 ? ` sur ${photos.length}` : ''}` : `Photo ${index + 1}${photos.length > 1 ? ` sur ${photos.length}` : ''}`} fill sizes="100vw" className="object-contain rounded-xl" />
         <div className="absolute top-3 right-3 flex gap-2">
           {photos.length > 1 && (
             <span className="bg-black/60 text-white text-xs px-2 py-1 rounded-full" aria-live="polite">{index + 1} / {photos.length}</span>
