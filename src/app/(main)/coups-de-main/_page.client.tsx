@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Loader2, Plus, HandHeart, ArrowRight, Users, Shield, AlertCircle, X, Trash2, AlertTriangle } from 'lucide-react';
+import { SECTORS } from '@/lib/sectors';
+import { cn } from '@/lib/utils';
 import Modal from '@/components/ui/Modal';
 import { SECURITY_TIPS } from './_constants';
 import { useCoupsDeMain } from './_hooks/useCoupsDeMain';
@@ -170,6 +172,80 @@ export default function CoupsDeMainPage() {
               </Link>
             )}
           </div>
+
+          {/* ── Explorer par quartier ── */}
+          <div className="mt-8 pt-6 border-t border-white/15">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-sm font-black text-white">🗺️ Explorer par quartier</p>
+              {filters.filterSector && (
+                <button onClick={() => setFilterSector(null)} className="text-xs text-white/50 hover:text-white flex items-center gap-1 transition-colors">
+                  <X className="w-3 h-3" /> Tout afficher
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-amber-200/70 mb-4">Cliquez sur un secteur pour filtrer les annonces</p>
+
+            <div className="grid grid-cols-4 sm:grid-cols-9 gap-2 pb-2">
+              {/* Toute la ville */}
+              <button
+                type="button"
+                onClick={() => setFilterSector(null)}
+                className={cn(
+                  'flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3 transition-all duration-200',
+                  !filters.filterSector
+                    ? 'bg-white/20 border-white shadow-md scale-105'
+                    : 'bg-white/8 border-white/20 hover:bg-white/15 hover:border-white/40'
+                )}
+              >
+                <span className="text-2xl">🗺️</span>
+                <span className={cn('text-[10px] font-bold leading-tight text-center',
+                  !filters.filterSector ? 'text-white' : 'text-white/80'
+                )}>Toute la ville</span>
+                <span className={cn('text-[10px] font-black px-1.5 py-0.5 rounded-full',
+                  !filters.filterSector ? 'bg-white text-orange-600' : 'bg-white/20 text-white'
+                )}>
+                  {items.filter(i => i.status === 'active').length}
+                </span>
+              </button>
+
+              {/* 7 secteurs */}
+              {SECTORS.map(sector => {
+                const count = items.filter(i => i.sector_id === sector.id && i.status === 'active').length;
+                const isActive = filters.filterSector === sector.id;
+                return (
+                  <button
+                    key={sector.id}
+                    type="button"
+                    onClick={() => setFilterSector(isActive ? null : sector.id)}
+                    className={cn(
+                      'relative flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3 transition-all duration-200',
+                      isActive
+                        ? 'bg-white/20 border-white shadow-md scale-105'
+                        : 'bg-white/8 border-white/20 hover:bg-white/15 hover:border-white/40'
+                    )}
+                  >
+                    <span className="text-2xl">{sector.icon}</span>
+                    <span className="text-[10px] font-bold leading-tight text-center text-white/90">{sector.name}</span>
+                    <span className={cn('text-[10px] font-black px-1.5 py-0.5 rounded-full',
+                      isActive
+                        ? 'bg-white text-orange-600'
+                        : count > 0 ? 'bg-white/20 text-white' : 'bg-white/10 text-white/40'
+                    )}>
+                      {count > 0 ? count : '–'}
+                    </span>
+                    {isActive && (
+                      <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-white rounded-full flex items-center justify-center">
+                        <svg className="w-2.5 h-2.5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
         </div>
       </div>
 

@@ -5,22 +5,22 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * Composant principal de la page Notifications.
  *
- * Responsabilités :
- *   • État React (notifications, compteurs, pagination, onglet actif)
- *   • Fetchs Supabase + Realtime avec reconnexion exponentielle
- *   • Actions (marquer lu, tout lire, supprimer)
- *   • Orchestration du rendu
- *
- * Découpage :
- *   notif-config.ts      — config statique, types, utilitaires purs
- *   NotifRow.tsx         — ligne individuelle d'une notification
- *   NotifEmptyState.tsx  — état vide (onglet vide / recherche sans résultat)
+ * Onglets :
+ *   all        — toutes les notifications
+ *   unread     — non lues
+ *   messages   — messages directs
+ *   activity   — activité (reviews, réservations…)
+ *   system     — système / modération
+ *   reminders  — rappels
+ *   follows    — abonnements aux associations (NOUVEAU)
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import {
   Bell, CheckCheck, BellOff,
   Search, RefreshCw, X, ChevronDown,
+  Handshake, Loader2, ExternalLink, Trash2,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
@@ -36,6 +36,31 @@ import {
 import { NotifRow }        from './NotifRow';
 import { NotifEmptyState } from './NotifEmptyState';
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface AssoFollow {
+  id: string;
+  asso_id: string;
+  created_at: string;
+  association?: {
+    id: string;
+    name: string;
+    category: string;
+    status: string;
+    description_short: string;
+    sector_id?: string | null;
+  } | null;
+}
+
+// ─── Onglets complets (inclut "Abonnements") ─────────────────────────────────
+
+const ALL_TABS: { id: TabId | 'follows'; label: string; icon: React.ElementType }[] = [
+  ...TABS,
+  { id: 'follows', label: 'Abonnements', icon: Handshake },
+];
+
+type AnyTabId = TabId | 'follows';
+
 // ─── Valeur initiale des compteurs ────────────────────────────────────────────
 const EMPTY_COUNTERS: TabCounters = {
   all: 0, unread: 0,
@@ -47,15 +72,21 @@ const EMPTY_COUNTERS: TabCounters = {
 export default function NotificationsClient() {
   const { profile } = useAuthStore();
 
+  // ── État notifications ─────────────────────────────────────────────────────
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [counters, setCounters]           = useState<TabCounters>(EMPTY_COUNTERS);
   const [loading, setLoading]             = useState(true);
   const [loadingMore, setLoadingMore]     = useState(false);
-  const [activeTab, setActiveTab]         = useState<TabId>('all');
+  const [activeTab, setActiveTab]         = useState<AnyTabId>('all');
   const [deletingId, setDeletingId]       = useState<string | null>(null);
   const [searchQuery, setSearchQuery]     = useState('');
   const [cursor, setCursor]               = useState<string | null>(null);
   const [hasMore, setHasMore]             = useState(false);
+
+  // ── État abonnements associations ──────────────────────────────────────────
+  const [follows, setFollows]             = useState<AssoFollow[]>([]);
+  const [followsLoading, setFollowsLoading] = useState(false);
+  const [unfollowingId, setUnfollowingId] = useState<string | null>(null);
 
   const channelRef   = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -95,7 +126,68 @@ export default function NotificationsClient() {
     });
   }, [profile]);
 
-  // ── Chargement d'une page ─────────────────────────────────────────────────
+  // ── Chargement abonnements associations ───────────────────────────────────
+  const fetchFollows = useCallback(async () => {
+    if (!profile) return;
+    setFollowsLoading(true);
+    try {
+      const { data, error } = await createClient()
+        .from('asso_follows')
+        .select(`
+          id,
+          asso_id,
+          created_at,
+          association:asso_id (
+            id, name, category, status, description_short, sector_id
+          )
+        `)
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false });
+
+      if (!mountedRef.current) return;
+      if (error) {
+        console.error('fetchFollows error:', error);
+        return;
+      }
+      // Supabase retourne association comme tableau — on normalise
+      const normalized = (data ?? []).map((row: {
+        id: string;
+        asso_id: string;
+        created_at: string;
+        association: { id: string; name: string; category: string; status: string; description_short: string; sector_id?: string | null }[] | null;
+      }): AssoFollow => ({
+        id: row.id,
+        asso_id: row.asso_id,
+        created_at: row.created_at,
+        association: Array.isArray(row.association) ? (row.association[0] ?? null) : row.association,
+      }));
+      setFollows(normalized);
+    } finally {
+      if (mountedRef.current) setFollowsLoading(false);
+    }
+  }, [profile]);
+
+  // ── Désabonnement d'une association ──────────────────────────────────────
+  const unfollow = useCallback(async (followId: string, assoName: string) => {
+    setUnfollowingId(followId);
+    try {
+      const { error } = await createClient()
+        .from('asso_follows')
+        .delete()
+        .eq('id', followId);
+
+      if (error) throw error;
+      setFollows(prev => prev.filter(f => f.id !== followId));
+      toast.success(`Alertes désactivées pour « ${assoName} »`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erreur réseau';
+      toast.error(`Impossible de désabonner : ${msg}`);
+    } finally {
+      setUnfollowingId(null);
+    }
+  }, []);
+
+  // ── Chargement d'une page de notifications ───────────────────────────────
   const fetchPage = useCallback(async (
     tabId: TabId, query: string, afterCursor: string | null, append: boolean,
   ) => {
@@ -147,13 +239,17 @@ export default function NotificationsClient() {
   const loadMore = useCallback(async () => {
     if (!cursor || loadingMore) return;
     setLoadingMore(true);
-    await fetchPage(activeTab, searchQuery, cursor, true);
+    await fetchPage(activeTab as TabId, searchQuery, cursor, true);
     if (mountedRef.current) setLoadingMore(false);
   }, [cursor, loadingMore, fetchPage, activeTab, searchQuery]);
 
   const refresh = useCallback(async () => {
-    await Promise.all([loadTab(activeTab, searchQuery), fetchCounters()]);
-  }, [loadTab, activeTab, searchQuery, fetchCounters]);
+    if (activeTab === 'follows') {
+      await fetchFollows();
+    } else {
+      await Promise.all([loadTab(activeTab as TabId, searchQuery), fetchCounters()]);
+    }
+  }, [loadTab, activeTab, searchQuery, fetchCounters, fetchFollows]);
 
   // ── Realtime ──────────────────────────────────────────────────────────────
   const connectRealtime = useCallback(() => {
@@ -168,7 +264,7 @@ export default function NotificationsClient() {
         (payload) => {
           if (!mountedRef.current) return;
           const n     = payload.new as Notification;
-          const types = tabTypes(activeTab);
+          const types = tabTypes(activeTab as TabId);
           const ok    = activeTab === 'all'
             || (activeTab === 'unread' && !n.is_read)
             || (types?.includes(n.type) ?? false);
@@ -206,15 +302,20 @@ export default function NotificationsClient() {
   useEffect(() => {
     mountedRef.current = true;
     if (!profile) return;
-    loadTab(activeTab, searchQuery);
+    loadTab('all', '');
     fetchCounters();
+    fetchFollows();
     connectRealtime();
     window.dispatchEvent(new Event('new-notification'));
 
     const handleVis = () => {
       if (document.visibilityState === 'visible') {
-        loadTab(activeTab, searchQuery);
-        fetchCounters();
+        if (activeTab === 'follows') {
+          fetchFollows();
+        } else {
+          loadTab(activeTab as TabId, searchQuery);
+          fetchCounters();
+        }
         window.dispatchEvent(new Event('new-notification'));
       }
     };
@@ -231,7 +332,11 @@ export default function NotificationsClient() {
 
   useEffect(() => {
     if (!profile) return;
-    loadTab(activeTab, searchQuery);
+    if (activeTab === 'follows') {
+      fetchFollows();
+    } else {
+      loadTab(activeTab as TabId, searchQuery);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, searchQuery]);
 
@@ -268,15 +373,24 @@ export default function NotificationsClient() {
   // ── Données dérivées ──────────────────────────────────────────────────────
   const groups = groupByDate(notifications);
 
-  const tabCounts: Record<TabId, number> = {
+  const tabCounts: Record<AnyTabId, number> = {
     all: counters.all, unread: counters.unread,
     messages: counters.messages, activity: counters.activity,
     system: counters.system, reminders: counters.reminders,
+    follows: follows.length,
   };
-  const tabUnread: Record<TabId, number> = {
-    all: counters.unread,         unread: counters.unread,
+  const tabUnread: Record<AnyTabId, number> = {
+    all: counters.unread,              unread: counters.unread,
     messages: counters.messagesUnread, activity: counters.activityUnread,
     system: counters.systemUnread,     reminders: counters.remindersUnread,
+    follows: 0,
+  };
+
+  // ── Catégorie emoji rapide ─────────────────────────────────────────────────
+  const CAT_EMOJI: Record<string, string> = {
+    sport: '⚽', culture: '🎭', solidarite: '🤝', jeunesse: '🌱',
+    environnement: '🌿', loisirs: '🎲', animaux: '🐾', patrimoine: '🏛️',
+    sante: '❤️', education: '📚', seniors: '👴', autre: '🏛️',
   };
 
   // ── Rendu ─────────────────────────────────────────────────────────────────
@@ -302,7 +416,7 @@ export default function NotificationsClient() {
             )}
           </div>
           <div>
-            <h1 className="text-xl font-black text-gray-900">Notifications</h1>
+            <h1 className="text-xl font-black text-gray-900">Notifications & Alertes</h1>
             <p className="text-sm text-gray-500">
               {counters.unread > 0
                 ? <span className="text-red-500 font-semibold">{counters.unread} non lue{counters.unread > 1 ? 's' : ''} — votre attention est requise</span>
@@ -311,11 +425,11 @@ export default function NotificationsClient() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={refresh} aria-label="Actualiser les notifications"
+          <button onClick={refresh} aria-label="Actualiser"
             className="p-2 rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
             <RefreshCw className="w-4 h-4" aria-hidden="true" />
           </button>
-          {counters.unread > 0 && (
+          {counters.unread > 0 && activeTab !== 'follows' && (
             <button onClick={markAllRead} aria-label="Marquer toutes les notifications comme lues"
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-50 text-brand-700 hover:bg-brand-100 text-sm font-semibold transition-colors">
               <CheckCheck className="w-4 h-4" aria-hidden="true" />
@@ -325,27 +439,29 @@ export default function NotificationsClient() {
         </div>
       </div>
 
-      {/* Barre de recherche */}
-      <div className="relative mb-5">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-        <input
-          type="text"
-          placeholder="Rechercher une notification…"
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-brand-400 focus:bg-white transition-colors"
-        />
-        {searchQuery && (
-          <button onClick={() => setSearchQuery('')} aria-label="Effacer la recherche"
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-            <X className="w-4 h-4" aria-hidden="true" />
-          </button>
-        )}
-      </div>
+      {/* Barre de recherche (cachée sur l'onglet follows) */}
+      {activeTab !== 'follows' && (
+        <div className="relative mb-5">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Rechercher une notification…"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-brand-400 focus:bg-white transition-colors"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} aria-label="Effacer la recherche"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <X className="w-4 h-4" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Onglets */}
       <div className="flex items-center gap-1 mb-6 bg-gray-100 p-1 rounded-2xl overflow-x-auto no-scrollbar">
-        {TABS.map(tab => {
+        {ALL_TABS.map(tab => {
           const isActive = activeTab === tab.id;
           const unread   = tabUnread[tab.id];
           const count    = tabCounts[tab.id];
@@ -360,7 +476,15 @@ export default function NotificationsClient() {
               )}>
               <TabIcon className="w-3.5 h-3.5" />
               <span>{tab.label}</span>
-              {unread > 0 && tab.id !== 'unread' && (
+              {tab.id === 'follows' && count > 0 && (
+                <span className={cn(
+                  'min-w-[16px] h-4 text-[9px] font-black rounded-full inline-flex items-center justify-center px-1',
+                  isActive ? 'bg-emerald-500 text-white' : 'bg-emerald-400 text-white',
+                )}>
+                  {count}
+                </span>
+              )}
+              {unread > 0 && tab.id !== 'unread' && tab.id !== 'follows' && (
                 <span className={cn(
                   'min-w-[16px] h-4 text-[9px] font-black rounded-full inline-flex items-center justify-center px-1',
                   isActive ? 'bg-red-500 text-white' : 'bg-red-400 text-white',
@@ -373,53 +497,212 @@ export default function NotificationsClient() {
         })}
       </div>
 
-      {/* Contenu */}
-      {loading ? (
-        <div className="space-y-3">
-          {[...Array(6)].map((_, i) => <div key={i} className="h-20 bg-gray-100 rounded-2xl animate-pulse" />)}
-        </div>
-      ) : notifications.length === 0 ? (
-        <NotifEmptyState activeTab={activeTab} searchQuery={searchQuery} onClear={() => setSearchQuery('')} />
+      {/* ── Onglet Abonnements ─────────────────────────────────────────────── */}
+      {activeTab === 'follows' ? (
+        <FollowsTab
+          follows={follows}
+          loading={followsLoading}
+          unfollowingId={unfollowingId}
+          onUnfollow={unfollow}
+          catEmoji={CAT_EMOJI}
+        />
       ) : (
-        <div className="space-y-6">
-          {groups.map(({ label, items }) => (
-            <div key={label}>
-              <div className="flex items-center gap-3 mb-3">
-                <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">{label}</p>
-                <div className="flex-1 h-px bg-gray-100" />
-                <span className="text-[11px] text-gray-400">{items.length}</span>
-              </div>
-              <div className="space-y-1.5">
-                {items.map(notif => (
-                  <NotifRow
-                    key={notif.id}
-                    notif={notif}
-                    isDeleting={deletingId === notif.id}
-                    onRead={markOneRead}
-                    onDelete={deleteNotif}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-
-          {/* Pagination */}
-          <div className="flex flex-col items-center gap-3 py-2">
-            <p className="text-xs text-gray-400">
-              {notifications.length} notification{notifications.length > 1 ? 's' : ''} affichée{notifications.length > 1 ? 's' : ''}
-            </p>
-            {hasMore && (
-              <button onClick={loadMore} disabled={loadingMore}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed">
-                {loadingMore
-                  ? <span className="w-4 h-4 border-2 border-gray-300 border-t-brand-500 rounded-full animate-spin" />
-                  : <ChevronDown className="w-4 h-4" aria-hidden="true" />}
-                {loadingMore ? 'Chargement…' : `Voir ${PAGE_SIZE} de plus`}
-              </button>
-            )}
+        /* ── Onglets notifications standards ─────────────────────────────── */
+        loading ? (
+          <div className="space-y-3">
+            {[...Array(6)].map((_, i) => <div key={i} className="h-20 bg-gray-100 rounded-2xl animate-pulse" />)}
           </div>
-        </div>
+        ) : notifications.length === 0 ? (
+          <NotifEmptyState activeTab={activeTab as TabId} searchQuery={searchQuery} onClear={() => setSearchQuery('')} />
+        ) : (
+          <div className="space-y-6">
+            {groups.map(({ label, items }) => (
+              <div key={label}>
+                <div className="flex items-center gap-3 mb-3">
+                  <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">{label}</p>
+                  <div className="flex-1 h-px bg-gray-100" />
+                  <span className="text-[11px] text-gray-400">{items.length}</span>
+                </div>
+                <div className="space-y-1.5">
+                  {items.map(notif => (
+                    <NotifRow
+                      key={notif.id}
+                      notif={notif}
+                      isDeleting={deletingId === notif.id}
+                      onRead={markOneRead}
+                      onDelete={deleteNotif}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            {/* Pagination */}
+            <div className="flex flex-col items-center gap-3 py-2">
+              <p className="text-xs text-gray-400">
+                {notifications.length} notification{notifications.length > 1 ? 's' : ''} affichée{notifications.length > 1 ? 's' : ''}
+              </p>
+              {hasMore && (
+                <button onClick={loadMore} disabled={loadingMore}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed">
+                  {loadingMore
+                    ? <span className="w-4 h-4 border-2 border-gray-300 border-t-brand-500 rounded-full animate-spin" />
+                    : <ChevronDown className="w-4 h-4" aria-hidden="true" />}
+                  {loadingMore ? 'Chargement…' : `Voir ${PAGE_SIZE} de plus`}
+                </button>
+              )}
+            </div>
+          </div>
+        )
       )}
     </div>
   );
 }
+
+// ─── Sous-composant : onglet Abonnements associations ─────────────────────────
+
+interface FollowsTabProps {
+  follows: AssoFollow[];
+  loading: boolean;
+  unfollowingId: string | null;
+  onUnfollow: (followId: string, assoName: string) => Promise<void>;
+  catEmoji: Record<string, string>;
+}
+
+function FollowsTab({ follows, loading, unfollowingId, onUnfollow, catEmoji }: FollowsTabProps) {
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-24 bg-gray-100 rounded-2xl animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (follows.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-5">
+          <Handshake className="w-9 h-9 text-emerald-300" />
+        </div>
+        <h3 className="font-bold text-gray-800 text-lg mb-2">Aucun abonnement</h3>
+        <p className="text-sm text-gray-500 mb-5 max-w-xs mx-auto">
+          Suivez des associations pour être alerté de leurs nouveaux besoins et événements.
+        </p>
+        <Link
+          href="/associations"
+          className="inline-flex items-center gap-2 bg-emerald-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-700 transition-colors shadow-sm"
+        >
+          <Handshake className="w-4 h-4" />
+          Découvrir les associations
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Bandeau informatif */}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3 flex items-start gap-3">
+        <Bell className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-xs font-bold text-emerald-800">
+            Vous suivez {follows.length} association{follows.length > 1 ? 's' : ''}
+          </p>
+          <p className="text-xs text-emerald-600 mt-0.5">
+            Vous recevez une notification à chaque mise à jour, nouveau besoin ou événement.
+          </p>
+        </div>
+      </div>
+
+      {/* Liste des associations suivies */}
+      <div className="space-y-2">
+        {follows.map(follow => {
+          const asso        = follow.association;
+          const name        = asso?.name ?? '—';
+          const cat         = asso?.category ?? '';
+          const emoji       = catEmoji[cat] ?? '🏛️';
+          const isActive    = asso?.status === 'active';
+          const isUnfollowing = unfollowingId === follow.id;
+
+          return (
+            <div
+              key={follow.id}
+              className="group bg-white rounded-2xl border border-gray-100 p-4 shadow-sm hover:border-emerald-200 hover:shadow-md transition-all duration-200"
+            >
+              <div className="flex items-start gap-3">
+                {/* Icône catégorie */}
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0 text-lg">
+                  {emoji}
+                </div>
+
+                {/* Infos association */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                    <p className="text-sm font-bold text-gray-900 truncate">{name}</p>
+                    <span className={cn(
+                      'text-[10px] font-black px-2 py-0.5 rounded-full',
+                      isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500',
+                    )}>
+                      {isActive ? '✅ Active' : '⏸️ Inactive'}
+                    </span>
+                  </div>
+                  {asso?.description_short && (
+                    <p className="text-xs text-gray-500 line-clamp-1 mb-1.5">
+                      {asso.description_short}
+                    </p>
+                  )}
+                  <p className="text-[10px] text-gray-400">
+                    Abonné depuis le{' '}
+                    {new Date(follow.created_at).toLocaleDateString('fr-FR', {
+                      day: 'numeric', month: 'long', year: 'numeric',
+                    })}
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {asso?.id && (
+                    <Link
+                      href={`/associations/${asso.id}`}
+                      title="Voir la fiche"
+                      className="p-2 rounded-xl text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => onUnfollow(follow.id, name)}
+                    disabled={isUnfollowing}
+                    title="Se désabonner"
+                    className="p-2 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+                    aria-label={`Se désabonner de ${name}`}
+                  >
+                    {isUnfollowing
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <Trash2 className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* CTA bas de page */}
+      <div className="pt-2 text-center">
+        <Link
+          href="/associations"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-800 transition-colors"
+        >
+          <Handshake className="w-4 h-4" />
+          Découvrir d&apos;autres associations
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// ─── Import manquant pour Bell dans FollowsTab ────────────────────────────────
+// (Bell est déjà importé en haut du fichier)

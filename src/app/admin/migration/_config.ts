@@ -37,6 +37,8 @@ export const TABLES_TO_CHECK: TableCheck[] = [
   { name: 'help_requests',          label: 'Coups de main',               theme: '🤝 Coups de main' },
   { name: 'help_photos',            label: 'Photos coups de main',        theme: '🤝 Coups de main' },
   { name: 'help_comments',          label: 'Commentaires coups de main',  theme: '🤝 Coups de main' },
+  { name: 'asso_follows',           label: 'Abonnements associations',   theme: '🔔 Notifications' },
+  { name: 'notifications',          label: 'Notifications',               theme: '🔔 Notifications' },
   { name: 'moderation_queue',       label: 'File de modération',          theme: '🛡️ Modération' },
   { name: 'item_ratings',           label: 'Notes & Avis (universel)',     theme: '⭐ Notation' },
   { name: 'admin_action_logs',      label: 'Journal des actions admin',   theme: '📋 Traçabilité' },
