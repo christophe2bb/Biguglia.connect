@@ -55,7 +55,7 @@ export function useHelpRequestDetail(initialItem: HelpRequest): UseHelpDetailRet
     setLoading(true);
     const { data, error } = await supabase
       .from('help_requests')
-      .select(`*, author:profiles(full_name, avatar_url, created_at), photos:help_photos(url, display_order, caption)`)
+      .select(`*, author:profiles(full_name, avatar_url, created_at), photos:help_photos(url, display_order)`)
       .eq('id', id)
       .single();
     if (error || !data) { setNotFound(true); setLoading(false); return; }

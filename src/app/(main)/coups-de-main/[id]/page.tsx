@@ -35,7 +35,7 @@ async function fetchHelpRequest(id: string): Promise<HelpRequest | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('help_requests')
-    .select('*, author:profiles(full_name, avatar_url, created_at), photos:help_photos(url, display_order, caption)')
+    .select('*, author:profiles(full_name, avatar_url, created_at), photos:help_photos(url, display_order)')
     .eq('id', id)
     .single();
   if (error || !data) return null;
