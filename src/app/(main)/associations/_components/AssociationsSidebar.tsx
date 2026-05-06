@@ -36,6 +36,48 @@ interface AssociationsSidebarProps {
   profile: { id: string; full_name: string } | null;
 }
 
+// ── Bloc "Rester informé" global (page liste, pas d'asso_id spécifique) ──────
+// On redirige vers /notifications (gestion des préférences générales).
+// Si l'utilisateur n'est pas connecté, on redirige vers /connexion.
+function GlobalFollowBlock({ profile }: { profile: { id: string } | null }) {
+  if (!profile) {
+    return (
+      <div className="bg-emerald-50 rounded-2xl border border-emerald-200 p-5 shadow-sm">
+        <h3 className="text-sm font-black text-emerald-800 mb-2 flex items-center gap-2">
+          <Bell className="w-4 h-4 text-emerald-500" /> Rester informé
+        </h3>
+        <p className="text-xs text-emerald-700 mb-3">
+          Connectez-vous pour être alerté des nouveaux besoins et événements associatifs.
+        </p>
+        <Link href="/connexion"
+          className="w-full text-xs font-bold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 py-2 rounded-xl transition-colors flex items-center justify-center gap-1.5">
+          <Bell className="w-3.5 h-3.5" /> Se connecter pour les alertes
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-emerald-50 rounded-2xl border border-emerald-200 p-5 shadow-sm">
+      <h3 className="text-sm font-black text-emerald-800 mb-2 flex items-center gap-2">
+        <Bell className="w-4 h-4 text-emerald-500" /> Rester informé
+      </h3>
+      <p className="text-xs text-emerald-700 mb-3">
+        Gérez vos abonnements aux associations depuis votre centre de notifications.
+        Vous serez alerté à chaque nouveau besoin ou événement.
+      </p>
+      <Link href="/notifications"
+        className="w-full text-xs font-bold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 py-2 rounded-xl transition-colors flex items-center justify-center gap-1.5">
+        <Bell className="w-3.5 h-3.5" /> Gérer mes alertes
+      </Link>
+      <p className="text-[10px] text-emerald-500 mt-2 text-center">
+        Pour suivre une association précise, ouvrez sa fiche et cliquez sur{' '}
+        <span className="font-semibold">« Activer les alertes »</span>.
+      </p>
+    </div>
+  );
+}
+
 export default function AssociationsSidebar({
   assos, filterCat, setFilterCat, filterSector, setFilterSector,
   savedAssos, showSavedOnly: _showSavedOnly, setShowSavedOnly, setShowAdvFilters,
@@ -219,17 +261,8 @@ export default function AssociationsSidebar({
         </div>
       )}
 
-      {/* Notification nouveaux besoins */}
-      <div className="bg-emerald-50 rounded-2xl border border-emerald-200 p-5 shadow-sm">
-        <h3 className="text-sm font-black text-emerald-800 mb-2 flex items-center gap-2">
-          <Bell className="w-4 h-4 text-emerald-500" /> Rester informé
-        </h3>
-        <p className="text-xs text-emerald-700 mb-3">Activez les notifications pour être alerté des nouveaux besoins et événements associatifs.</p>
-        <Link href={profile ? '/notifications' : '/connexion'}
-          className="w-full text-xs font-bold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 py-2 rounded-xl transition-colors flex items-center justify-center gap-1.5">
-          <Bell className="w-3.5 h-3.5" /> {profile ? 'Gérer mes alertes' : 'Se connecter pour les alertes'}
-        </Link>
-      </div>
+      {/* Rester informé — logique réelle */}
+      <GlobalFollowBlock profile={profile} />
 
     </aside>
   );
