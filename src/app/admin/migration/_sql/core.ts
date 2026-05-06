@@ -706,14 +706,13 @@ CREATE INDEX IF NOT EXISTS notifications_user_idx     ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS notifications_unread_idx   ON notifications(user_id, is_read) WHERE is_read = false;
 CREATE INDEX IF NOT EXISTS notifications_created_idx  ON notifications(user_id, created_at DESC);
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='notifications' AND policyname='notifications_select') THEN
-    CREATE POLICY "notifications_select" ON notifications FOR SELECT  USING (auth.uid() = user_id);
-    CREATE POLICY "notifications_update" ON notifications FOR UPDATE  USING (auth.uid() = user_id);
-    CREATE POLICY "notifications_delete" ON notifications FOR DELETE  USING (auth.uid() = user_id);
-    -- INSERT réservé aux fonctions backend (service_role) ; pas de policy INSERT côté client
-  END IF;
-END $$;
+DROP POLICY IF EXISTS "notifications_select" ON notifications;
+DROP POLICY IF EXISTS "notifications_update" ON notifications;
+DROP POLICY IF EXISTS "notifications_delete" ON notifications;
+CREATE POLICY "notifications_select" ON notifications FOR SELECT  USING (auth.uid() = user_id);
+CREATE POLICY "notifications_update" ON notifications FOR UPDATE  USING (auth.uid() = user_id);
+CREATE POLICY "notifications_delete" ON notifications FOR DELETE  USING (auth.uid() = user_id);
+-- INSERT réservé aux fonctions backend (service_role) ; pas de policy INSERT côté client
 
 -- Recharge le cache PostgREST (OBLIGATOIRE après création de tables)
 NOTIFY pgrst, 'reload schema';`;
