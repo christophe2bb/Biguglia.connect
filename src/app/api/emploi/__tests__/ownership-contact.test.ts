@@ -53,6 +53,8 @@ vi.mock('@/lib/supabase/server',      () => ({ createAdminClient: vi.fn() }));
 vi.mock('@/lib/supabase/auth-helper', () => ({
   getUserFromRequest:    vi.fn(),
   getUserIdBearerFirst:  vi.fn(),
+  // assertCsrfSafe : retourne null par défaut (pas d'erreur CSRF) dans les tests
+  assertCsrfSafe:       vi.fn().mockReturnValue(null),
 }));
 
 import { createAdminClient }                              from '@/lib/supabase/server';

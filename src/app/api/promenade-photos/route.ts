@@ -26,6 +26,27 @@ export const dynamic = 'force-dynamic';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * Valide que l'URL appartient bien au Storage Supabase du projet.
+ * Protège contre le stockage d'URLs arbitraires (SSRF, open redirect).
+ */
+function isValidSupabaseStorageUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
+      ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
+      : null;
+    if (!supabaseHost) return false;
+    return (
+      parsed.protocol === 'https:' &&
+      parsed.hostname === supabaseHost &&
+      parsed.pathname.startsWith('/storage/v1/object/')
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   // ① CSRF
   const csrfError = assertCsrfSafe(req);
@@ -51,8 +72,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!promenade_id || !UUID_RE.test(promenade_id)) {
     return NextResponse.json({ error: 'promenade_id invalide' }, { status: 400 });
   }
-  if (!url || typeof url !== 'string' || !url.startsWith('https://')) {
-    return NextResponse.json({ error: 'url invalide' }, { status: 400 });
+  if (!url || typeof url !== 'string' || !isValidSupabaseStorageUrl(url)) {
+    return NextResponse.json({ error: 'url invalide — doit appartenir au Storage Supabase du projet' }, { status: 400 });
   }
   if (typeof display_order !== 'number') {
     return NextResponse.json({ error: 'display_order invalide' }, { status: 400 });
@@ -117,8 +138,8 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
   if (!promenade_id || !UUID_RE.test(promenade_id)) {
     return NextResponse.json({ error: 'promenade_id invalide' }, { status: 400 });
   }
-  if (!url || typeof url !== 'string' || !url.startsWith('https://')) {
-    return NextResponse.json({ error: 'url invalide' }, { status: 400 });
+  if (!url || typeof url !== 'string' || !isValidSupabaseStorageUrl(url)) {
+    return NextResponse.json({ error: 'url invalide — doit appartenir au Storage Supabase du projet' }, { status: 400 });
   }
 
   const supabase = createAdminClient();
