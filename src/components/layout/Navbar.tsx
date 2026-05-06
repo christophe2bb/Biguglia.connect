@@ -171,6 +171,7 @@ export default function Navbar() {
               <div className="flex items-center gap-2">
                 <Link
                   href="/artisans/demande"
+                  prefetch={false}
                   className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-brand-500 to-brand-600 text-white text-sm font-bold rounded-xl hover:from-brand-600 hover:to-brand-700 transition-[color,border-color,box-shadow,transform] shadow-sm hover:shadow-md hover:-translate-y-px"
                 >
                   <PenLine className="w-4 h-4" /> Déposer une demande

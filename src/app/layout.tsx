@@ -88,9 +88,9 @@ export const metadata: Metadata = {
     apple:   '/favicon.svg',
     shortcut:'/favicon.ico',
   },
-  // manifest is intentionally omitted here — Next.js 14 hardcodes crossOrigin="use-credentials"
-  // on the generated <link rel="manifest"> which breaks PWA installs.
-  // The tag is added manually in the <head> below without the crossOrigin attribute.
+  // manifest is handled by src/app/manifest.ts (Next.js 15 convention).
+  // This avoids the contentscript.js extension issue AND the crossOrigin="use-credentials"
+  // problem that broke PWA installs with the old manual <link rel="manifest"> approach.
 };
 
 export const viewport: Viewport = {
@@ -113,9 +113,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="fr">
       <head>
-        {/* Manifest sans crossOrigin — Next.js 14 hardcode crossOrigin="use-credentials"
-            via l'API metadata, ce qui empêche le chargement du manifest hors iframe. */}
-        <link rel="manifest" href="/manifest.json" />
+        {/* manifest.json est géré par src/app/manifest.ts (Next.js 15 convention) :
+            génère automatiquement <link rel="manifest"> sans crossOrigin ni credentials.
+            Corrige : contentscript.js extensions qui suppriment le manifest manuel. */}
 
         {/* ── Hints réseau ─────────────────────────────────────────────────────
             RÈGLE DE CADRAGES (Lighthouse "Origines préconnectées") :

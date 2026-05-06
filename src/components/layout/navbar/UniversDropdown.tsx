@@ -102,6 +102,9 @@ export default function UniversDropdown({ univers, isOpen, onToggle, onClose, is
                     key={`${item.href}-${item.label}`}
                     href={item.href}
                     onClick={onClose}
+                    // prefetch=false sur les pages auth-gated (redirect côté client)
+                    // évite les erreurs RSC prefetch ?_rsc= sur /artisans/demande
+                    prefetch={item.href === '/artisans/demande' ? false : undefined}
                     className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition-colors duration-150 group"
                   >
                     <div className={cn(

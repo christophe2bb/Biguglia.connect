@@ -110,7 +110,7 @@ export default function MobileNav({ profile, pathname, unread, onClose }: Props)
             className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
             <Search className="w-4 h-4 text-gray-400" /> Rechercher
           </Link>
-          <Link href="/artisans/demande" onClick={onClose}
+          <Link href="/artisans/demande" onClick={onClose} prefetch={false}
             className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-brand-500 to-brand-600">
             <PenLine className="w-4 h-4" /> Déposer une demande
           </Link>
