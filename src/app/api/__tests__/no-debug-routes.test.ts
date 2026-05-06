@@ -72,6 +72,11 @@ const SECRET_LEAK_WHITELIST = [
   // Expose uniquement des métadonnées non-sensibles (version, env, latence DB).
   // L'URL et anon key Supabase sont des variables PUBLIQUES (NEXT_PUBLIC_) — pas des secrets.
   join(process.cwd(), 'src', 'app', 'api', 'health', 'route.ts'),
+  // Routes photos promenade/sortie : utilisent NEXT_PUBLIC_SUPABASE_URL pour valider
+  // que les URLs uploadées appartiennent bien au Storage Supabase du projet (protection SSRF).
+  // NEXT_PUBLIC_SUPABASE_URL est une variable PUBLIQUE — pas un secret.
+  join(process.cwd(), 'src', 'app', 'api', 'promenade-photos', 'route.ts'),
+  join(process.cwd(), 'src', 'app', 'api', 'outing-photos', 'route.ts'),
 ];
 
 /** Patterns qui indiquent une fuite potentielle de secrets. */
