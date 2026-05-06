@@ -20,7 +20,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/server';
-import { getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
+import { getUserIdBearerFirst, assertCsrfSafe } from '@/lib/supabase/auth-helper';
 
 // ── Schéma de validation ────────────────────────────────────────────────────
 
@@ -56,6 +56,10 @@ type ProfileRow = {
 // ── Handler ─────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest): Promise<Response> {
+  /* 0. CSRF guard — protège contre les requêtes cross-site avec cookies */
+  const csrfError = assertCsrfSafe(req);
+  if (csrfError) return csrfError;
+
   /* 1. Valider le body */
   let raw: unknown;
   try {

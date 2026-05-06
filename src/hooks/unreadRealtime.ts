@@ -17,7 +17,17 @@
 //     s'arrête et le canal orphelin est immédiatement supprimé.
 //   - connectingRef supprimé : le verrou n'est plus nécessaire — le signal
 //     garantit que seule la dernière invocation prend effet.
+//
+// Fix performance violations ('message' handler 248 ms, 'setTimeout' 193 ms) :
+//   Les callbacks Realtime s'exécutent dans le handler WebSocket « message »
+//   sur le thread principal. Appeler setCounts() directement déclenche un
+//   re-render React synchrone dans ce handler — Chrome le signale comme
+//   violation de performance.
+//   Correction : envelopper les mises à jour React dans startTransition pour
+//   les rendre non-urgentes et permettre au navigateur de les différer après
+//   avoir rendu le frame courant.
 
+import { startTransition } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { isSystem, totalUnreadMsgs } from './unreadHelpers';
 import { fetchCounts, type UnreadRefs } from './unreadFetch';
@@ -154,7 +164,11 @@ export function connectRealtime(
 
           const n = totalUnreadMsgs(refs.unreadMapRef.current);
           if (refs.mountedRef.current) {
-            setCounts(prev => ({ messages: n, notifications: prev.notifications, total: n + prev.notifications }));
+            // startTransition : mise à jour non-urgente → sort du handler WS
+            // « message » synchrone → élimine la violation de performance 248 ms.
+            startTransition(() => {
+              setCounts(prev => ({ messages: n, notifications: prev.notifications, total: n + prev.notifications }));
+            });
           }
         })
 
@@ -163,7 +177,9 @@ export function connectRealtime(
           event: 'INSERT', schema: 'public', table: 'notifications',
           filter: `user_id=eq.${userId}`,
         }, () => {
-          setCounts(prev => ({ ...prev, notifications: prev.notifications + 1, total: prev.total + 1 }));
+          startTransition(() => {
+            setCounts(prev => ({ ...prev, notifications: prev.notifications + 1, total: prev.total + 1 }));
+          });
         })
 
         // ── Notification mise à jour (ex. lu) → refetch debounced ───────────

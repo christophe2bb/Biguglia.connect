@@ -28,8 +28,14 @@
  *   avant que le second mount ne lance connectRealtime — garantissant qu'un seul
  *   canal actif existe à la fois sans aucune condition de course.
  *
- * ── Dépendances de l'effet intentionnellement limitées à [profileId] ──────────
- *   L'effet ne dépend que de `profileId` car :
+ * ── Guard phase 'initializing' ──────────────────────────────────────────────
+ *   L'effet dépend de [profileId] ET de [phase]. Quand phase === 'initializing',
+ *   on ne lance ni fetch ni realtime : l'état auth n'est pas encore connu et
+ *   déclencher un appel API ou une connexion WS avec un profileId=null prématuré
+ *   génèrerait des requêtes inutiles / des erreurs 401 silencieuses.
+ *
+ * ── Dépendances de l'effet intentionnellement limitées à [profileId, phase] ───
+ *   L'effet dépend de [profileId, phase] car :
  *   - `scheduleFetch` est définie inline dans l'effet → stable, pas besoin de
  *     l'extraire en useCallback (évite une dépendance circulaire).
  *   - Les refs (channelRef, reconnectRef, etc.) sont des objets stables par
@@ -46,6 +52,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { fetchCounts, invalidateBearerCache } from './unreadFetch';
 import { connectRealtime }                     from './unreadRealtime';
 import { totalUnreadMsgs }                     from './unreadHelpers';
+import type { AuthPhase }                      from '@/lib/auth-store';
 
 interface UnreadCounts {
   messages:      number;
@@ -62,7 +69,7 @@ const DEBOUNCE_MS = 500;
 const ZERO: UnreadCounts = { messages: 0, notifications: 0, total: 0 };
 
 export function useUnreadCounts(): UnreadCounts {
-  const { profile } = useAuthStore();
+  const { profile, phase } = useAuthStore();
   const profileId = profile?.id ?? null;
   const [counts, setCounts] = useState<UnreadCounts>(ZERO);
 
@@ -92,7 +99,8 @@ export function useUnreadCounts(): UnreadCounts {
     }, DEBOUNCE_MS);
   };
 
-  // Dépendance unique : profileId.
+  // Dépendances : [profileId, phase].
+  // phase est inclus pour éviter de démarrer fetch/realtime pendant 'initializing'.
   // Voir le JSDoc du module pour la justification complète.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -102,6 +110,9 @@ export function useUnreadCounts(): UnreadCounts {
     readMapRef.current    = {};
     unreadMapRef.current  = {};
 
+    // Pendant 'initializing', l'état auth n'est pas encore connu :
+    // ne pas lancer de fetch ni ouvrir de canal Realtime.
+    if ((phase as AuthPhase) === 'initializing') { setCounts(ZERO); return; }
     if (!profileId) { setCounts(ZERO); return; }
 
     const supabase = createClient();
@@ -214,7 +225,7 @@ export function useUnreadCounts(): UnreadCounts {
       // Invalide le cache token pour le prochain utilisateur
       invalidateBearerCache();
     };
-  }, [profileId]); // dépendance unique — voir JSDoc du module
+  }, [profileId, phase]); // voir JSDoc du module
 
   return counts;
 }

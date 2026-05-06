@@ -42,16 +42,50 @@ try {
   throw err;
 }
 
+// ── Singleton navigateur ──────────────────────────────────────────────────────
+//
+// PROBLÈME résolu : chaque appel à createBrowserClient() crée un objet client
+// avec sa propre connexion WebSocket Supabase Realtime. Si plusieurs composants
+// (Navbar, useUnreadCounts, handleSignOut…) appellent createClient()
+// indépendamment, plusieurs sockets WS sont ouvertes simultanément → storm
+// de reconnexions « WebSocket is closed before the connection is established ».
+//
+// SOLUTION : mémoriser l'instance au niveau du module. Tous les appels à
+// createClient() reçoivent le même objet — une seule connexion WS globale.
+//
+// SÉCURITÉ SSR : le singleton n'est créé que si window est défini (navigateur).
+// Côté serveur (SSR/RSC), chaque appel retourne un client frais — le cache
+// module-level serait partagé entre les requêtes et constituerait une fuite.
+//
+// TEST : les tests unitaires tournent dans jsdom (window défini) ou Node
+// (window absent). Dans les deux cas le comportement est correct :
+//   - jsdom  → singleton partagé entre les tests du même fichier (mock reset OK)
+//   - Node   → pas de singleton, chaque test reçoit un client frais
+//
+let _browserClientSingleton: ReturnType<typeof createBrowserClient> | null = null;
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Crée et retourne un client Supabase navigateur.
+ * Retourne le client Supabase navigateur (singleton côté browser).
  *
- * Les variables d'environnement ont été validées et nettoyées au chargement
- * du module — aucune re-validation n'est effectuée ici.
+ * ── Garanties ────────────────────────────────────────────────────────────────
+ *  • Browser  : même instance partagée → une seule connexion WebSocket.
+ *  • SSR/RSC  : nouvelle instance à chaque appel (pas de fuite inter-requêtes).
+ *  • Env      : variables validées et nettoyées au chargement du module.
  */
 export function createClient() {
   // _bootEnv est garanti non-null si le module a été initialisé sans erreur.
   const { url, anonKey } = _bootEnv!;
-  return createBrowserClient(url, anonKey);
+
+  // Côté serveur (SSR/RSC) : toujours un client frais pour éviter les fuites.
+  if (typeof window === 'undefined') {
+    return createBrowserClient(url, anonKey);
+  }
+
+  // Côté navigateur : retourner le singleton (une seule connexion WS).
+  if (!_browserClientSingleton) {
+    _browserClientSingleton = createBrowserClient(url, anonKey);
+  }
+  return _browserClientSingleton;
 }
