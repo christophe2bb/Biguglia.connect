@@ -1,7 +1,6 @@
 'use client';
 
-import { Search, Filter, RefreshCw, X, Flame, Bookmark, MapPin, CheckCircle2 } from 'lucide-react';
-import { SECTORS, SECTOR_COLORS } from '@/lib/sectors';
+import { Search, Filter, RefreshCw, X, Flame, Bookmark } from 'lucide-react';
 import { CATEGORIES, URGENCY_CONFIG } from '../_constants';
 import type { HelpFilters, HelpType, UrgencyLevel } from '../_types';
 
@@ -73,57 +72,6 @@ export default function HelpFilters({
           className="p-2.5 rounded-xl border border-gray-200 bg-white text-gray-500 hover:text-orange-600 transition-colors">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
-      </div>
-
-      {/* 🗺️ Explorer par quartier — visible tous écrans */}
-      <div className="mb-3">
-        <div className="flex items-center gap-1.5 mb-2">
-          <MapPin className="w-3.5 h-3.5 text-orange-500" />
-          <span className="text-xs font-black text-gray-700">Explorer par quartier</span>
-          {filterSector && (
-            <button type="button" onClick={() => onSetFilterSector(null)}
-              className="ml-auto text-[10px] text-gray-400 hover:text-gray-600 font-semibold flex items-center gap-0.5">
-              <X className="w-3 h-3" /> Tout
-            </button>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {/* Toute la ville */}
-          <button
-            type="button"
-            onClick={() => onSetFilterSector(null)}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-colors ${
-              !filterSector
-                ? 'bg-orange-500 text-white border-orange-500'
-                : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-white hover:border-gray-300'
-            }`}
-          >
-            <span>🗺️</span>
-            <span>Tous</span>
-            {!filterSector && <CheckCircle2 className="w-3 h-3" />}
-          </button>
-          {/* 7 secteurs */}
-          {SECTORS.map(sector => {
-            const isActive = filterSector === sector.id;
-            const colors = SECTOR_COLORS[sector.color];
-            return (
-              <button
-                key={sector.id}
-                type="button"
-                onClick={() => onSetFilterSector(isActive ? null : sector.id)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-colors ${
-                  isActive
-                    ? `${colors.bg} ${colors.text} border-transparent`
-                    : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-white hover:border-gray-300'
-                }`}
-              >
-                <span>{sector.icon}</span>
-                <span>{sector.name}</span>
-                {isActive && <CheckCircle2 className="w-3 h-3" />}
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       {/* Quick filters */}
