@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, Camera, Trash2, Upload } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
-import { safeImageExt, uploadFile, isAcceptedImageType } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile, isAcceptedImageType, safeStoragePath } from '@/lib/upload-utils';
 import toast from 'react-hot-toast';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -170,9 +170,8 @@ export default function ModifierForumPage() {
     // Suppression des photos retirées
     for (const url of deletedPhotoUrls) {
       await supabase.from('forum_topic_photos').delete().eq('topic_id', topicId).eq('url', url);
-      // Supprimer du storage (chemin relatif après /photos/)
-      const match = url.match(/photos\/(.+)$/);
-      if (match) await supabase.storage.from('photos').remove([match[1]]);
+      const storagePath = safeStoragePath(url, 'photos');
+      if (storagePath) await supabase.storage.from('photos').remove([storagePath]);
     }
 
     // Upload des nouvelles photos
