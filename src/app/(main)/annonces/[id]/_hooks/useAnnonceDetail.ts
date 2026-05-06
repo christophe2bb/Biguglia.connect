@@ -191,12 +191,14 @@ export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
     setConfirmDeleteOpen(false);
 
     // ── Diagnostic : log userId vs listing.user_id ──────────────────────────
-    console.log('[handleDelete] START', {
-      listingId: listing.id,
-      listingUserId: listing.user_id,
-      zustandUserId: userId,
-      match: listing.user_id === userId,
-    });
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[handleDelete] START', {
+        listingId: listing.id,
+        listingUserId: listing.user_id,
+        zustandUserId: userId,
+        match: listing.user_id === userId,
+      });
+    }
 
     // 1. Supprimer les photos du storage (ne pas bloquer sur erreur)
     const photos = listing.photos as Array<{ id: string; url: string }> | undefined;
@@ -220,11 +222,13 @@ export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
       .eq('id', listing.id)
       .select('id');
 
-    console.log('[handleDelete] DELETE result:', {
-      deleted,
-      error,
-      deletedCount: deleted?.length ?? 0,
-    });
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[handleDelete] DELETE result:', {
+        deleted,
+        error,
+        deletedCount: deleted?.length ?? 0,
+      });
+    }
 
     if (error) {
       console.error('[handleDelete] Supabase error:', error);

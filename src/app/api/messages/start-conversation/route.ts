@@ -224,8 +224,10 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const { ownerId, subject, relatedType, relatedId, initialMsg } = parsed.data;
 
-  // Log de diagnostic (visible dans Vercel Functions logs)
-  console.log('[start-conversation] payload reçu:', { userId, ownerId, relatedType, relatedId: relatedId ?? null, subject });
+  // Log de diagnostic (dev uniquement)
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[start-conversation] payload reçu:', { userId, ownerId, relatedType, relatedId: relatedId ?? null, subject });
+  }
 
   // Empêcher une conversation avec soi-même
   if (ownerId === userId) {
@@ -253,9 +255,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const existingId = await findExistingConversation(
     admin, userId, ownerId, relatedType ?? null, relatedId ?? null
   );
-  console.log('[start-conversation] existingId trouvé:', existingId ?? 'aucun');
   if (existingId) {
-    console.log('[start-conversation] → retour conv existante:', existingId);
     return NextResponse.json({ conversationId: existingId, isNew: false });
   }
 

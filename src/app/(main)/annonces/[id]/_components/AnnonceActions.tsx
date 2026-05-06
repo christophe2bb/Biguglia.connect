@@ -172,12 +172,14 @@ export default function AnnonceActions({ listing, variant = 'topbar' }: Props) {
     setDeleting(true);
     setConfirmDeleteOpen(false);
 
-    console.log('[AnnonceActions] handleDelete START', {
-      listingId: listing.id,
-      listingUserId: listing.user_id,
-      zustandUserId: userId,
-      match: listing.user_id === userId,
-    });
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[AnnonceActions] handleDelete START', {
+        listingId: listing.id,
+        listingUserId: listing.user_id,
+        zustandUserId: userId,
+        match: listing.user_id === userId,
+      });
+    }
 
     // 1. Supprimer les photos du storage
     const photos = listing.photos as Array<{ id: string; url: string }> | undefined;
@@ -198,7 +200,9 @@ export default function AnnonceActions({ listing, variant = 'topbar' }: Props) {
       .eq('id', listing.id)
       .select('id');
 
-    console.log('[AnnonceActions] DELETE result:', { deleted, error });
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[AnnonceActions] DELETE result:', { deleted, error });
+    }
 
     if (error) {
       toast.error(`Erreur : ${error.message}`, { duration: 8000 });

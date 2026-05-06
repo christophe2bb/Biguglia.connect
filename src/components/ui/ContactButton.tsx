@@ -167,7 +167,7 @@ export default function ContactButton({
   const handleContact = async () => {
     if (loading) return;
     setLoading(true);
-    console.log('[ContactButton] handleContact start — ownerId:', ownerId, 'userId:', userId);
+
     try {
       // Récupérer le token Bearer depuis la session locale Supabase.
       // getSession() lit d'abord le cache en mémoire (pas de réseau si token encore valide).
@@ -177,7 +177,7 @@ export default function ContactButton({
       try {
         const { data: { session } } = await supabase.auth.getSession();
         token = session?.access_token;
-        console.log('[ContactButton] session:', session ? 'ok' : 'null', '| token:', token ? 'présent' : 'absent');
+
       } catch (sessionErr) {
         console.warn('[ContactButton] getSession() erreur (non bloquant):', sessionErr);
         // token reste undefined → pas de Bearer → l'API utilisera les cookies SSR en fallback
@@ -191,7 +191,7 @@ export default function ContactButton({
             : `Bonjour${sourceTitle ? ` ${sourceTitle.split(' ')[0]}` : ''}, je vous contacte via Biguglia Connect.`
         );
 
-      console.log('[ContactButton] fetch POST start-conversation — Bearer:', token ? 'oui' : 'non');
+
       const res = await fetch('/api/messages/start-conversation', {
         method: 'POST',
         headers: {
@@ -210,7 +210,7 @@ export default function ContactButton({
         return null;
       });
 
-      console.log('[ContactButton] fetch résultat — status:', res?.status ?? 'null (réseau)');
+
 
       if (!res) {
         toast.error('Erreur réseau — réessayez');
@@ -228,14 +228,13 @@ export default function ContactButton({
       }
 
       const responseData = await res.json();
-      console.log('[ContactButton] réponse API:', responseData);
       const { conversationId } = responseData;
       if (!conversationId) {
         toast.error('Impossible d\'ouvrir la conversation');
         return;
       }
 
-      console.log('[ContactButton] redirection vers /messages/' + conversationId);
+
       onConversationReady?.(conversationId);
       router.push(`/messages/${conversationId}`);
 
