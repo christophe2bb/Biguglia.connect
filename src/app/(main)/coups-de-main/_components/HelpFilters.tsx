@@ -1,7 +1,6 @@
 'use client';
 
 import { Search, Filter, RefreshCw, X, Flame, Bookmark } from 'lucide-react';
-import SectorFilter from '@/components/ui/SectorFilter';
 import { CATEGORIES, URGENCY_CONFIG } from '../_constants';
 import type { HelpFilters, HelpType, UrgencyLevel } from '../_types';
 
@@ -74,9 +73,6 @@ export default function HelpFilters({
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
-
-      {/* Secteur — toujours visible */}
-      <SectorFilter value={filterSector} onChange={onSetFilterSector} showAll compact label="Secteur" className="mb-3" />
 
       {/* Quick filters */}
       <div className="flex flex-wrap gap-2 mb-3">
