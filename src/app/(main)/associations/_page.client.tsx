@@ -8,6 +8,8 @@ import dynamic from 'next/dynamic';
 import AssociationCard from './_components/AssociationCard';
 import AssociationFilters from './_components/AssociationFilters';
 import AssociationsSidebar from './_components/AssociationsSidebar';
+import { cn } from '@/lib/utils';
+import { SECTORS } from '@/lib/sectors';
 
 // Lazy : le formulaire n’est visible qu’après clic "Créer" — économie ~15 KB
 const AssociationForm = dynamic(() => import('./_components/AssociationForm'), {
@@ -111,6 +113,86 @@ export default function AssociationsPage() {
               </button>
             )}
           </div>
+
+          {/* ── Explorer par quartier ── */}
+          <div className="mt-8 pt-6 border-t border-white/15">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-sm font-black text-white">🗺️ Explorer par quartier</p>
+              {filterSector && (
+                <button onClick={() => setFilterSector(null)} className="text-xs text-white/50 hover:text-white flex items-center gap-1 transition-colors">
+                  <X className="w-3 h-3" /> Tout afficher
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-violet-200/70 mb-4">Cliquez sur un secteur pour filtrer les associations</p>
+
+            <div className="grid grid-cols-4 sm:grid-cols-9 gap-2 pb-6">
+              {/* Toute la ville */}
+              <button
+                type="button"
+                onClick={() => setFilterSector(null)}
+                className={cn(
+                  'flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3 transition-all duration-200',
+                  !filterSector
+                    ? 'bg-white/20 border-white shadow-md scale-105'
+                    : 'bg-white/8 border-white/20 hover:bg-white/15 hover:border-white/40'
+                )}
+              >
+                <span className="text-2xl">🗺️</span>
+                <span className={cn('text-[10px] font-bold leading-tight text-center',
+                  !filterSector ? 'text-white' : 'text-white/80'
+                )}>
+                  Toute la ville
+                </span>
+                <span className={cn('text-[10px] font-black px-1.5 py-0.5 rounded-full',
+                  !filterSector ? 'bg-white text-violet-700' : 'bg-white/20 text-white'
+                )}>
+                  {assos.length}
+                </span>
+              </button>
+
+              {/* Secteurs */}
+              {SECTORS.map(sector => {
+                const count = assos.filter(a =>
+                  a.sector_id === sector.id || a.sector_id === sector.slug
+                ).length;
+                const isActive = filterSector === sector.id || filterSector === sector.slug;
+                return (
+                  <button
+                    key={sector.id}
+                    type="button"
+                    onClick={() => setFilterSector(isActive ? null : sector.id)}
+                    className={cn(
+                      'relative flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3 transition-all duration-200',
+                      isActive
+                        ? 'bg-white/20 border-white shadow-md scale-105'
+                        : 'bg-white/8 border-white/20 hover:bg-white/15 hover:border-white/40'
+                    )}
+                  >
+                    <span className="text-2xl">{sector.icon}</span>
+                    <span className="text-[10px] font-bold leading-tight text-center text-white/90">
+                      {sector.name}
+                    </span>
+                    <span className={cn('text-[10px] font-black px-1.5 py-0.5 rounded-full',
+                      isActive
+                        ? 'bg-white text-violet-700'
+                        : count > 0 ? 'bg-white/20 text-white' : 'bg-white/10 text-white/40'
+                    )}>
+                      {count > 0 ? count : '–'}
+                    </span>
+                    {isActive && (
+                      <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-white rounded-full flex items-center justify-center">
+                        <svg className="w-2.5 h-2.5 text-violet-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
         </div>
       </div>
 
