@@ -672,8 +672,9 @@ DO $$ BEGIN
     CREATE POLICY "help_comments_select" ON help_comments FOR SELECT USING (true);
     CREATE POLICY "help_comments_insert" ON help_comments FOR INSERT WITH CHECK (auth.uid() = author_id);
     CREATE POLICY "help_comments_delete" ON help_comments FOR DELETE USING (
-      auth.uid() = author_id OR
-      auth.uid() IN (SELECT id FROM profiles WHERE role IN ('admin','moderator'))
+      auth.uid() = author_id
+      OR EXISTS (SELECT 1 FROM help_requests WHERE id = help_id AND author_id = auth.uid())
+      OR auth.uid() IN (SELECT id FROM profiles WHERE role IN ('admin','moderator'))
     );
   END IF;
 END $$;
