@@ -52,11 +52,8 @@ export function useForumPage(): UseForumPageReturn {
     const catList = (catData && catData.length > 0 ? catData : DEFAULT_CATEGORIES) as ForumCategory[];
     setCategories(catList);
 
-    // Statistiques — calculées après le chargement des topics (pas de requêtes HEAD
-    // séparées qui échouent avec la RLS Supabase pour les visiteurs anonymes).
-    // setStats() est appelé plus bas, après topicList.
-
-    // Topics principaux
+    // Topics principaux — on charge plus large pour permettre le filtre client
+    // (post_type et urgency ne sont pas des colonnes de forum_topics, filtrage JS)
     let topicList: ForumTopic[] = [];
     try {
       let query = supabase
@@ -65,32 +62,37 @@ export function useForumPage(): UseForumPageReturn {
         .not('status', 'eq', 'masque')
         .order('is_pinned', { ascending: false });
 
-      if (selectedSector)           query = query.eq('sector_id', selectedSector);
-      if (selectedCategory)         query = query.eq('category_id', selectedCategory);
-      // post_type/is_resolved/urgency n'existent pas sur forum_topics
-      // status 'closed' = résolu, 'open' = ouvert
-      if (statusFilter === 'resolu') query = query.eq('status', 'closed');
-      else if (statusFilter === 'ouvert') query = query.not('status', 'eq', 'closed');
-      if (searchQuery.trim())        query = query.ilike('title', `%${searchQuery.trim()}%`);
+      if (selectedSector)   query = query.eq('sector_id', selectedSector);
+      if (selectedCategory) query = query.eq('category_id', selectedCategory);
 
-      if (sortMode === 'views') query = query.order('views', { ascending: false });
+      // Filtre statut — valeurs réelles du schéma : 'ouvert' | 'verrouille' | 'archive'
+      // 'resolu' est affiché côté UI mais stocké comme 'verrouille' ou 'archive'
+      if (statusFilter === 'ouvert') {
+        query = query.eq('status', 'ouvert');
+      } else if (statusFilter === 'resolu') {
+        query = query.in('status', ['verrouille', 'archive']);
+      }
+
+      if (searchQuery.trim()) query = query.ilike('title', `%${searchQuery.trim()}%`);
+
+      if (sortMode === 'views')                          query = query.order('views',        { ascending: false });
       else if (sortMode === 'hot' || sortMode === 'replies') query = query.order('reply_count', { ascending: false });
-      else query = query.order('created_at', { ascending: false });
+      else                                               query = query.order('created_at',   { ascending: false });
 
-      query = query.limit(40);
+      query = query.limit(100); // large pour que le filtre client ait assez de données
       const { data } = await query;
       if (data && data.length > 0) topicList = data as unknown as ForumTopic[];
     } catch { /* ignore */ }
 
-    // Fallback vers forum_posts
+    // Fallback vers forum_posts (schéma v1)
     if (topicList.length === 0) {
       let q2 = supabase
         .from('forum_posts')
         .select(`*, author:profiles!forum_posts_author_id_fkey(id, full_name, avatar_url, role), category:forum_categories(id, name, icon, slug), photos:forum_topic_photos(url, display_order)`)
         .order('is_pinned', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(40);
-      if (selectedCategory) q2 = q2.eq('category_id', selectedCategory);
+        .limit(100);
+      if (selectedCategory)   q2 = q2.eq('category_id', selectedCategory);
       if (searchQuery.trim()) q2 = q2.ilike('title', `%${searchQuery.trim()}%`);
       const { data: postsData } = await q2;
       topicList = (postsData || []).map((p: Record<string, unknown>) => ({
@@ -101,15 +103,39 @@ export function useForumPage(): UseForumPageReturn {
       } as unknown as ForumTopic));
     }
 
+    // ── Filtres client (colonnes absentes de forum_topics) ──────────────────
+    // post_type : stocké dans les tags[] au format "type:<valeur>" lors de la création
+    // urgency   : stocké dans les tags[] au format "urgence:haute" si urgence haute
+    // Ces deux champs ne sont pas de vraies colonnes SQL — on filtre sur les tags.
+    type TopicWithTags = ForumTopic & { tags?: string[] };
+
+    if (selectedType) {
+      topicList = topicList.filter(t =>
+        ((t as TopicWithTags).tags ?? []).includes(`type:${selectedType}`)
+      );
+    }
+    if (urgencyFilter === 'haute') {
+      topicList = topicList.filter(t =>
+        ((t as TopicWithTags).tags ?? []).includes('urgence:haute')
+      );
+    }
+
     setTopics(topicList);
     setHotTopics([...topicList].sort((a, b) => (b.reply_count ?? 0) - (a.reply_count ?? 0)).slice(0, 5));
-    setRecentlyResolved(topicList.filter(t => (t as ForumTopic & { status?: string }).status === 'closed').slice(0, 3));
+    setRecentlyResolved(
+      topicList.filter(t => {
+        const s = (t as ForumTopic & { status?: string }).status;
+        return s === 'verrouille' || s === 'archive';
+      }).slice(0, 3)
+    );
 
-    // Statistiques calculées localement depuis topicList — évite les requêtes
-    // HEAD COUNT qui échouent avec la RLS Supabase pour les visiteurs anonymes.
+    // Statistiques — calculées localement (évite les requêtes HEAD qui échouent en RLS)
     const uniqueAuthors = new Set(topicList.map(t => (t as ForumTopic & { author_id?: string }).author_id).filter(Boolean));
-    const resolvedCount = topicList.filter(t => (t as ForumTopic & { status?: string }).status === 'closed').length;
-    const totalReplies  = topicList.reduce((acc, t) => acc + (t.reply_count ?? 0), 0);
+    const resolvedCount = topicList.filter(t => {
+      const s = (t as ForumTopic & { status?: string }).status;
+      return s === 'verrouille' || s === 'archive';
+    }).length;
+    const totalReplies = topicList.reduce((acc, t) => acc + (t.reply_count ?? 0), 0);
     setStats({
       topics:   topicList.length,
       replies:  totalReplies,
@@ -118,7 +144,7 @@ export function useForumPage(): UseForumPageReturn {
     });
 
     setLoading(false);
-  }, [selectedSector, selectedCategory, sortMode, statusFilter, searchQuery]);
+  }, [selectedSector, selectedCategory, sortMode, statusFilter, urgencyFilter, selectedType, searchQuery]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

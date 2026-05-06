@@ -168,7 +168,14 @@ export function useForumComposer() {
     const supabase = createClient();
     let topicId: string | null = null;
 
-    // Note: post_type et urgency n'existent pas sur forum_topics (colonnes absentes du schéma)
+    // post_type et urgency n'existent pas comme colonnes sur forum_topics.
+    // On les encode dans le tableau tags : "type:<valeur>" et "urgence:haute"
+    // pour permettre le filtrage côté client dans useForumPage.
+    const systemTags: string[] = [];
+    if (form.post_type)         systemTags.push(`type:${form.post_type}`);
+    if (form.urgency === 'haute') systemTags.push('urgence:haute');
+    const allTags = [...systemTags, ...form.tags];
+
     const { data: topicData, error } = await supabase
       .from('forum_topics')
       .insert({
@@ -179,7 +186,7 @@ export function useForumComposer() {
         content:        form.content.trim(),
         status:         'ouvert',
         visibility:     form.visibility,
-        tags:           form.tags,
+        tags:           allTags,
         is_pinned:      false,
         is_hot:         false,
         views:          0,
