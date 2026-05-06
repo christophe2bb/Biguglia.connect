@@ -314,13 +314,13 @@ export default function HelpCard({
                 >
                   {isPaused ? <Play className="w-4 h-4 text-white" /> : <Pause className="w-4 h-4 text-white" />}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onEdit(item)}
-                  className="p-1.5 bg-white/20 hover:bg-white/35 rounded-lg transition-colors backdrop-blur-sm"
+                <Link
+                  href={`/coups-de-main/${item.id}/modifier`}
+                  title="Modifier"
+                  className="p-1.5 bg-white/20 hover:bg-white/35 rounded-lg transition-colors backdrop-blur-sm inline-flex items-center"
                 >
                   <Pencil className="w-4 h-4 text-white" />
-                </button>
+                </Link>
                 <button
                   type="button"
                   onClick={() => onDelete(item.id)}
@@ -667,36 +667,59 @@ export default function HelpCard({
         )}
       </div>
 
-      {/* ── PIED : LIEN DÉTAIL + NOTATION ──────────────────────────────────── */}
-      <div className="border-t border-gray-100 px-4 py-3 bg-gray-50 flex items-center justify-between gap-3">
-        <Link
-          href={`/coups-de-main/${item.id}`}
-          className="flex items-center gap-1.5 text-xs font-semibold text-orange-600 hover:text-orange-700 transition-colors"
-        >
-          <ExternalLink className="w-3.5 h-3.5" />
-          Voir l&apos;annonce complète
-        </Link>
+      {/* ── PIED : LIEN DÉTAIL + BOUTONS AUTEUR + NOTATION ─────────────────── */}
+      <div className="border-t border-gray-100 px-4 py-3 bg-gray-50 space-y-2">
 
-        <div className="flex-shrink-0">
-          {item.status === 'resolved' ? (
-            <RatingWidget
-              targetType="help_request"
-              targetId={item.id}
-              authorId={item.author_id}
-              userId={userId}
-              compact={false}
-              showPoll
-            />
-          ) : (
-            <RatingWidget
-              targetType="help_request"
-              targetId={item.id}
-              authorId={item.author_id}
-              userId={userId}
-              compact
-            />
-          )}
+        {/* Ligne principale : lien détail + notation */}
+        <div className="flex items-center justify-between gap-3">
+          <Link
+            href={`/coups-de-main/${item.id}`}
+            className="flex items-center gap-1.5 text-xs font-semibold text-orange-600 hover:text-orange-700 transition-colors"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            Voir l&apos;annonce complète
+          </Link>
+
+          <div className="flex-shrink-0">
+            {item.status === 'resolved' ? (
+              <RatingWidget
+                targetType="help_request"
+                targetId={item.id}
+                authorId={item.author_id}
+                userId={userId}
+                compact={false}
+                showPoll
+              />
+            ) : (
+              <RatingWidget
+                targetType="help_request"
+                targetId={item.id}
+                authorId={item.author_id}
+                userId={userId}
+                compact
+              />
+            )}
+          </div>
         </div>
+
+        {/* Ligne auteur : Modifier + Supprimer */}
+        {isAuthor && (
+          <div className="flex items-center gap-2 pt-1 border-t border-gray-200">
+            <Link
+              href={`/coups-de-main/${item.id}/modifier`}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" /> Modifier
+            </Link>
+            <button
+              type="button"
+              onClick={() => onDelete(item.id)}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Supprimer
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Lightbox */}
