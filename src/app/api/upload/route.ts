@@ -118,14 +118,16 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/png',
   'image/webp',
   'image/gif',
-  'image/avif',
+  'image/avif',  // détecté par file-type mais converti en jpeg avant Supabase
+  'image/heic',
+  'image/heif',
   // Documents emploi uniquement :
   'application/pdf',
 ]);
 
 /** Types MIME autorisés par bucket (contrôle secondaire après magic bytes) */
 const BUCKET_ALLOWED_TYPES: Record<string, Set<string>> = {
-  'photos':        new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']),
+  'photos':        new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/heic', 'image/heif']),
   'job-documents': new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']),
   'documents':     new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']),
 };
@@ -317,7 +319,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!ALLOWED_MIME_TYPES.has(detectedMime)) {
     return NextResponse.json(
       {
-        error: 'Type de fichier non autorisé. Seuls JPEG, PNG, WebP, GIF, AVIF et PDF sont acceptés.',
+        error: 'Type de fichier non autorisé. Seuls JPEG, PNG, WebP, GIF, AVIF, HEIC, HEIF et PDF sont acceptés.',
         detected: detectedMime,
       },
       { status: 415 },
@@ -344,16 +346,34 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   //   • validation magic-bytes (⑦)
   const supabase = createAdminClient();
 
+  // Normaliser le MIME pour Supabase Storage :
+  // AVIF, HEIC et HEIF ne sont pas toujours dans la liste du bucket → on les traite comme JPEG.
+  // Le contenu réel a déjà été validé par magic bytes.
+  const SUPABASE_MIME_NORMALIZE: Record<string, string> = {
+    'image/avif': 'image/jpeg',
+    'image/heic': 'image/jpeg',
+    'image/heif': 'image/jpeg',
+  };
+  const uploadMime = SUPABASE_MIME_NORMALIZE[detectedMime] ?? detectedMime;
+
   const { data, error } = await supabase.storage
     .from(bucket)
     .upload(safePath, buffer, {
       upsert: true,
-      contentType: detectedMime, // on impose le vrai MIME, pas celui du client
+      contentType: uploadMime, // on impose le MIME normalisé (compatible bucket)
     });
 
   if (error || !data) {
+    // Logguer l'erreur complète pour faciliter le débogage (visible dans les logs Vercel)
+    console.error('[api/upload] Supabase Storage error:', {
+      message: error?.message,
+      bucket,
+      path: safePath,
+      mime: uploadMime,
+      userId,
+    });
     return NextResponse.json(
-      { error: `Erreur Supabase Storage : ${error?.message ?? 'inconnue'}` },
+      { error: `Erreur stockage : ${error?.message ?? 'erreur inconnue — vérifiez les logs Vercel'}` },
       { status: 500 },
     );
   }

@@ -64,9 +64,15 @@ export async function compressImage(
   maxPx = 1920,
   quality = 0.82,
 ): Promise<File> {
-  // Ne pas compresser si déjà sous 1.5 MB ou format non compressible
-  if (file.size <= 1.5 * 1024 * 1024) return file;
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return file;
+  // Forcer la conversion en JPEG pour les formats non supportés par Supabase bucket :
+  // AVIF, HEIC, HEIF → on les convertit via Canvas même s'ils sont petits.
+  const MUST_CONVERT = ['image/avif', 'image/heic', 'image/heif'];
+  const mustConvert = MUST_CONVERT.includes(file.type);
+
+  // Ne pas compresser si déjà sous 1.5 MB et format compatible (sauf MUST_CONVERT)
+  if (!mustConvert && file.size <= 1.5 * 1024 * 1024) return file;
+  // Ne pas tenter de compresser les GIF (animations) sauf conversion forcée
+  if (!mustConvert && !['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/heic', 'image/heif'].includes(file.type)) return file;
 
   return new Promise<File>((resolve) => {
     const img = new Image();
@@ -86,7 +92,10 @@ export async function compressImage(
       ctx.drawImage(img, 0, 0, width, height);
       canvas.toBlob(
         (blob) => {
-          if (!blob || blob.size >= file.size) { resolve(file); return; }
+          // Pour les formats à conversion forcée (AVIF/HEIC/HEIF), on accepte même
+          // si le blob est plus grand — l'important est d'avoir un format compatible.
+          if (!blob) { resolve(file); return; }
+          if (!mustConvert && blob.size >= file.size) { resolve(file); return; }
           // Garder le nom original mais extension .jpg (canvas produit JPEG)
           const newName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
           resolve(new File([blob], newName, { type: 'image/jpeg', lastModified: Date.now() }));
