@@ -72,6 +72,7 @@ export type AssoComment = {
   id: string;
   content: string;
   created_at: string;
+  author_id?: string;
   author?: { full_name?: string } | null;
 };
 

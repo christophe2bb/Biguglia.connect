@@ -517,8 +517,28 @@ DO $$ BEGIN
     CREATE POLICY "asso_comments_insert" ON asso_comments FOR INSERT WITH CHECK (auth.uid() = author_id);
     CREATE POLICY "asso_comments_delete" ON asso_comments FOR DELETE USING (
       auth.uid() = author_id
+      OR EXISTS (SELECT 1 FROM associations WHERE id = asso_id AND author_id = auth.uid())
       OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','moderator'))
     );
+  END IF;
+END $$;
+
+-- ── Abonnements aux associations (asso_follows) ──────────────────────────────
+CREATE TABLE IF NOT EXISTS asso_follows (
+  id         UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id    UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  asso_id    UUID REFERENCES associations(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, asso_id)
+);
+CREATE INDEX IF NOT EXISTS asso_follows_user_idx ON asso_follows(user_id);
+CREATE INDEX IF NOT EXISTS asso_follows_asso_idx ON asso_follows(asso_id);
+ALTER TABLE asso_follows ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='asso_follows' AND policyname='asso_follows_select') THEN
+    CREATE POLICY "asso_follows_select" ON asso_follows FOR SELECT USING (auth.uid() = user_id);
+    CREATE POLICY "asso_follows_insert" ON asso_follows FOR INSERT WITH CHECK (auth.uid() = user_id);
+    CREATE POLICY "asso_follows_delete" ON asso_follows FOR DELETE USING (auth.uid() = user_id);
   END IF;
 END $$;
 

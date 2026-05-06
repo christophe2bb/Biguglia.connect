@@ -16,7 +16,7 @@ import {
   Clock, Mail, Globe, Phone, MessageSquare, CheckCircle2,
   Pencil, Trash2, Share2, ChevronDown, ChevronUp, Loader2,
   Send, Calendar, MapPin, Accessibility, Baby, Dog, ParkingSquare,
-  Bookmark, BookmarkCheck, ArrowRight, ChevronRight,
+  Bookmark, BookmarkCheck, ArrowRight, ChevronRight, X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
@@ -75,11 +75,25 @@ export default function AssociationCard({
 
   const fetchComments = useCallback(async () => {
     const { data } = await supabase.from('asso_comments')
-      .select('id, content, created_at, author:profiles(full_name)')
+      .select('id, content, created_at, author_id, author:profiles(full_name)')
       .eq('asso_id', asso.id).order('created_at', { ascending: true }).limit(50);
     setComments((data ?? []) as AssoComment[]);
     setChatCount((data ?? []).length);
   }, [asso.id, supabase]);
+
+  const handleDeleteComment = useCallback(async (commentId: string) => {
+    if (!userId) return;
+    const { error } = await supabase
+      .from('asso_comments')
+      .delete()
+      .eq('id', commentId);
+    if (error) {
+      toast.error('Impossible de supprimer ce message');
+    } else {
+      toast.success('Message supprimé');
+      await fetchComments();
+    }
+  }, [supabase, userId, fetchComments]);
 
   const handleOpenChat = () => {
     const will = !openChat;
@@ -382,20 +396,33 @@ export default function AssociationCard({
               <p className="text-xs text-gray-400 text-center py-2 italic">Aucun message — soyez le premier !</p>
             ) : (
               <div className="flex flex-col gap-2 max-h-52 overflow-y-auto">
-                {comments.map(c => (
-                  <div key={c.id} className="flex items-start gap-2">
-                    <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-black text-white btn-gradient-violet">
-                      {c.author?.full_name?.[0]?.toUpperCase() ?? '?'}
+                {comments.map(c => {
+                  const canDelete = !!userId && (c.author_id === userId || isAuthor);
+                  return (
+                    <div key={c.id} className="flex items-start gap-2 group/msg">
+                      <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-black text-white btn-gradient-violet">
+                        {c.author?.full_name?.[0]?.toUpperCase() ?? '?'}
+                      </div>
+                      <div className="flex-1 bg-gray-50 rounded-lg px-2 py-1.5 relative">
+                        <p className="text-xs font-bold text-gray-700">
+                          {c.author?.full_name ?? 'Anonyme'}
+                          <span className="font-normal text-gray-400 ml-1.5">{formatRelative(c.created_at)}</span>
+                        </p>
+                        <p className="text-xs text-gray-600 mt-0.5 whitespace-pre-wrap break-words">{c.content}</p>
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteComment(c.id)}
+                            title="Supprimer ce message"
+                            className="absolute top-1 right-1 opacity-0 group-hover/msg:opacity-100 transition-opacity p-0.5 rounded text-gray-300 hover:text-red-500 hover:bg-red-50"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-1 bg-gray-50 rounded-lg px-2 py-1.5">
-                      <p className="text-xs font-bold text-gray-700">
-                        {c.author?.full_name ?? 'Anonyme'}
-                        <span className="font-normal text-gray-400 ml-1.5">{formatRelative(c.created_at)}</span>
-                      </p>
-                      <p className="text-xs text-gray-600 mt-0.5 whitespace-pre-wrap break-words">{c.content}</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
             {userId ? (
