@@ -679,6 +679,38 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- ── Participants aux coups de main ───────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS help_request_participants (
+  id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  help_request_id  uuid REFERENCES help_requests(id) ON DELETE CASCADE NOT NULL,
+  user_id          uuid REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  role             text NOT NULL DEFAULT 'helper',
+  state            text NOT NULL DEFAULT 'pending',
+  message          text,
+  created_at       timestamptz DEFAULT now(),
+  UNIQUE (help_request_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS hrp_help_idx ON help_request_participants(help_request_id);
+CREATE INDEX IF NOT EXISTS hrp_user_idx ON help_request_participants(user_id);
+ALTER TABLE help_request_participants ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='help_request_participants' AND policyname='hrp_select') THEN
+    CREATE POLICY "hrp_select" ON help_request_participants FOR SELECT USING (
+      auth.uid() = user_id
+      OR EXISTS (SELECT 1 FROM help_requests WHERE id = help_request_id AND author_id = auth.uid())
+    );
+    CREATE POLICY "hrp_insert" ON help_request_participants FOR INSERT WITH CHECK (auth.uid() = user_id);
+    CREATE POLICY "hrp_update" ON help_request_participants FOR UPDATE USING (
+      auth.uid() = user_id
+      OR EXISTS (SELECT 1 FROM help_requests WHERE id = help_request_id AND author_id = auth.uid())
+    );
+    CREATE POLICY "hrp_delete" ON help_request_participants FOR DELETE USING (
+      auth.uid() = user_id
+      OR EXISTS (SELECT 1 FROM help_requests WHERE id = help_request_id AND author_id = auth.uid())
+    );
+  END IF;
+END $$;
+
 -- Étendre le type de related_type pour les nouvelles conversations
 DO $$ BEGIN
   ALTER TABLE conversations DROP CONSTRAINT IF EXISTS conversations_related_type_check;
