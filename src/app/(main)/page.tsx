@@ -137,13 +137,13 @@ export default function HomePage() {
       <section className="relative min-h-[60vh] sm:min-h-[70vh] flex items-end">
         <div className="absolute inset-0 overflow-hidden">
           <Image
-            src="/images/biguglia-hero.jpg"
+            src="/images/biguglia-hero-village.jpg"
             alt="Biguglia — village de Haute-Corse"
             fill
             priority
             fetchPriority="high"
             sizes="100vw"
-            quality={90}
+            quality={95}
             className="object-cover object-center"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-gray-900/75 via-gray-900/20 to-transparent" />
