@@ -30,6 +30,7 @@ async function getDemand(slug: string): Promise<JobDemandSearchResult | null> {
   }
 }
 import OwnerActions from '@/components/jobs/OwnerActions';
+import ContactBlock from '@/components/jobs/ContactBlock';
 import {
   CONTRACT_TYPE_LABELS,
   JOB_CATEGORY_LABELS,
@@ -38,7 +39,7 @@ import {
   formatSalaryRange,
   SECTOR_LABELS,
 } from '@/types/jobs/constants';
-import ProtectedContact from '@/components/jobs/ProtectedContact';
+
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 
@@ -350,19 +351,15 @@ export default async function DemandDetailPage({ params }: PageProps) {
               </div>
             )}
 
-            {/* CTA mobile */}
-            <div className="lg:hidden bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl border-0 shadow-sm p-5">
-              <h3 className="text-base font-bold text-white mb-1">Contacter ce candidat</h3>
-              {/* contact_email/phone/mode n'existent pas sur job_demands — l'API
-                  récupère automatiquement email+phone depuis profiles */}
-              <ProtectedContact
+            {/* CTA mobile — se masque automatiquement si propriétaire */}
+            <div className="lg:hidden">
+              <ContactBlock
                 type="demand"
                 slug={demand.slug}
-                hasEmail={true}
-                hasPhone={true}
-                colorScheme="purple"
+                cvUrl={demand.cv_url}
                 jobTitle={demand.title}
-                ctaLabel="Voir les coordonnées"
+                colorScheme="purple"
+                title="Contacter ce candidat"
               />
             </div>
           </div>
@@ -371,29 +368,15 @@ export default async function DemandDetailPage({ params }: PageProps) {
           <div className="lg:col-span-1">
             <div className="sticky top-20 space-y-5">
 
-              {/* CTA Contact */}
-              <div className="bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl p-6 text-white shadow-lg">
-                <h3 className="text-lg font-bold mb-2">Intéressé(e) par ce profil ?</h3>
-                {/* contact_email/phone/mode n'existent pas sur job_demands — l'API
-                    récupère automatiquement email+phone depuis profiles */}
-                <ProtectedContact
-                  type="demand"
-                  slug={demand.slug}
-                  hasEmail={true}
-                  hasPhone={true}
-                  colorScheme="purple"
-                  jobTitle={demand.title}
-                  ctaLabel="Voir les coordonnées"
-                />
-                {demand.cv_url && (
-                  <div className="mt-3">
-                    <a href={demand.cv_url} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-2 w-full px-4 py-3 bg-white/20 text-white font-semibold rounded-xl border border-white/30 hover:bg-white/30 transition-colors justify-center">
-                      <FileText className="w-4 h-4" /> Voir le CV
-                    </a>
-                  </div>
-                )}
-              </div>
+              {/* CTA Contact — se masque automatiquement si propriétaire */}
+              <ContactBlock
+                type="demand"
+                slug={demand.slug}
+                cvUrl={demand.cv_url}
+                jobTitle={demand.title}
+                colorScheme="purple"
+                title="Intéressé(e) par ce profil ?"
+              />
 
               {/* Fiche candidat */}
               <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
