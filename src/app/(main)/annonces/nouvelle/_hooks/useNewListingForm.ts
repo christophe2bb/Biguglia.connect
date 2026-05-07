@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { useModeration } from '@/hooks/useModeration';
 import { type ModerationStatus } from '@/lib/moderation';
+import { checkBannedWords } from '@/lib/moderation/spam';
 import { ListingCategory } from '@/types';
 import { safeImageExt, uploadFile, isAcceptedImageType, MAX_PHOTO_MB } from '@/lib/upload-utils';
 import toast from 'react-hot-toast';
@@ -206,6 +207,14 @@ export function useNewListingForm(): UseNewListingFormReturn {
     if (!profile) return;
     if (!asDraft && (!form.check_sincere || !form.check_legal || !form.check_available)) {
       toast.error("Veuillez cocher toutes les cases d'engagement");
+      return;
+    }
+
+    // ── Vérification mots interdits ───────────────────────────────────────────
+    const textToCheck = [form.title, form.description, form.exchange_preferences, form.pickup_notes].join(' ');
+    const bannedCheck = checkBannedWords(textToCheck);
+    if (bannedCheck.blocked) {
+      toast.error(bannedCheck.message, { duration: 6000 });
       return;
     }
 

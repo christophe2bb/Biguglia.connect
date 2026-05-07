@@ -1,8 +1,66 @@
 /**
  * moderation/spam.ts
- * Détection de contenu suspect / spam.
+ * Détection de contenu suspect / spam + mots absolument interdits.
  */
 import type { SpamCheckResult } from './types';
+
+// ─── Mots absolument interdits — bloquent la publication ─────────────────────
+// Ces mots/expressions entraînent un refus immédiat, quel que soit le contexte.
+export const BANNED_WORDS: string[] = [
+  // Armes
+  'arme', 'armes', 'pistolet', 'revolver', 'fusil', 'kalashnikov', 'ak47', 'ak-47',
+  'carabine', 'mitraillette', 'sniper', 'silencieux', 'munitions', 'balle calibre',
+  'grenade', 'explosif', 'dynamite', 'détonateur', 'couteau cran', 'couteau papillon',
+  'matraque', 'taser', 'électrochoc', 'bombe artisanale', 'arme à feu',
+  // Drogues
+  'drogue', 'drogues', 'cannabis', 'marijuana', 'weed', 'shit', 'beuh',
+  'cocaïne', 'cocaine', 'coke', 'crack', 'héroïne', 'heroine', 'opium',
+  'ecstasy', 'mdma', 'lsd', 'champignon magique', 'champignons magiques',
+  'speed', 'amphétamine', 'crystal meth', 'méthamphétamine', 'ketamine',
+  'tramadol', 'fentanyl', 'acheter drogue', 'vendre drogue',
+  // Contenu adulte / exploitation
+  'pornographie', 'pornographique', 'porno', 'xxx', 'escort', 'escorte',
+  'prostituée', 'prostitution', 'call girl', 'massage érotique', 'nu intégral',
+  'vidéo intime', 'contenu adulte', 'onlyfans vente',
+  // Contrefaçon / faux documents
+  'faux passeport', 'faux permis', 'faux papiers', 'carte identité fausse',
+  'document falsifié', 'diplôme faux', 'certificat faux', 'contrefaçon',
+  // Activités illégales
+  'blanchiment', 'blanchir argent', 'financement terrorisme',
+  'hawala', 'dark web', 'darkweb', 'tor browser vente',
+  'données volées', 'carte bancaire volée', 'compte piraté',
+  'hacker service', 'piratage compte',
+];
+
+// ─── BannedCheckResult ────────────────────────────────────────────────────────
+export interface BannedCheckResult {
+  blocked: boolean;
+  foundWords: string[];
+  message: string;
+}
+
+/**
+ * checkBannedWords — vérifie si un texte contient des mots absolument interdits.
+ * Retourne { blocked: true, foundWords, message } si trouvé.
+ * À appeler AVANT tout insert en base, côté client ET serveur.
+ */
+export function checkBannedWords(text: string): BannedCheckResult {
+  const lower = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const foundWords = BANNED_WORDS.filter(word => {
+    const normalizedWord = word.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return lower.includes(normalizedWord);
+  });
+
+  if (foundWords.length === 0) {
+    return { blocked: false, foundWords: [], message: '' };
+  }
+
+  return {
+    blocked: true,
+    foundWords,
+    message: `Ce contenu contient des termes interdits sur Biguglia Connect et ne peut pas être publié.`,
+  };
+}
 
 // ─── Mots/expressions suspects ────────────────────────────────────────────────
 const SPAM_WORDS = [

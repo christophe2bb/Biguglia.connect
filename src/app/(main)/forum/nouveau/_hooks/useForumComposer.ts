@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { SECTORS_DEFAULT, CATEGORIES_DEFAULT } from '../_config';
 import type { Step, FormState, ForumSector, ForumCategory, SimilarTopic } from '../_types';
 import { safeImageExt, uploadFile } from '@/lib/upload-utils';
+import { checkBannedWords } from '@/lib/moderation/spam';
 
 // ─── Hook principal ───────────────────────────────────────────────────────────
 
@@ -164,6 +165,15 @@ export function useForumComposer() {
   // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = useCallback(async () => {
     if (!profile) return;
+
+    // ── Vérification mots interdits ───────────────────────────────────────────
+    const textToCheck = [form.title, form.content].join(' ');
+    const bannedCheck = checkBannedWords(textToCheck);
+    if (bannedCheck.blocked) {
+      toast.error(bannedCheck.message, { duration: 6000 });
+      return;
+    }
+
     setLoading(true);
     const supabase = createClient();
     let topicId: string | null = null;
