@@ -6,8 +6,12 @@ import Link from 'next/link';
 import {
   Activity, AlertTriangle, CheckCircle, Info, XCircle,
   TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp,
-  Zap, Flame, Sprout, Wrench,
+  Zap, Flame, Sprout, Wrench, History,
 } from 'lucide-react';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, ReferenceLine, Area, AreaChart,
+} from 'recharts';
 import { SectionTitle } from './SectionTitle';
 import type { AllStats, WeeklyComparison } from '../_types';
 import {
@@ -320,6 +324,97 @@ function InsightCard({ insight }: { insight: Insight }) {
   );
 }
 
+// ─── Timeline historique score santé ─────────────────────────────────────────
+
+function HealthTimeline({ stats }: { stats: AllStats }) {
+  if (!stats.healthHistory || stats.healthHistory.length === 0) return null;
+
+  const data = stats.healthHistory;
+  const current = data[data.length - 1]?.value ?? 0;
+  const oldest  = data[0]?.value ?? 0;
+  const trend   = current - oldest;
+
+  const thresholds = [
+    { y: 80, label: 'Excellent', color: '#22c55e', dash: '4 4' },
+    { y: 60, label: 'Bon',       color: '#3b82f6', dash: '4 4' },
+    { y: 35, label: 'Passable',  color: '#f59e0b', dash: '4 4' },
+  ];
+
+  const areaColor = current >= 80 ? '#22c55e' : current >= 60 ? '#3b82f6' : current >= 35 ? '#f59e0b' : '#ef4444';
+
+  const CustomTooltip = ({ active, payload, label }: {
+    active?: boolean; payload?: Array<{ value: number }>; label?: string;
+  }) => {
+    if (!active || !payload?.length) return null;
+    const v = payload[0].value;
+    const level = v >= 80 ? 'Excellent' : v >= 60 ? 'Bon' : v >= 35 ? 'Passable' : 'Critique';
+    const lvlColor = v >= 80 ? 'text-emerald-600' : v >= 60 ? 'text-blue-600' : v >= 35 ? 'text-amber-600' : 'text-red-600';
+    return (
+      <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-lg text-xs">
+        <p className="text-gray-500 mb-1">Semaine du {label}</p>
+        <p className="text-lg font-black text-gray-900">{v}<span className="text-xs font-normal text-gray-400">/100</span></p>
+        <p className={`font-semibold ${lvlColor}`}>{level}</p>
+      </div>
+    );
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-6">
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+          <History className="w-4 h-4 text-gray-400" />
+          Historique du score — 12 semaines
+        </h3>
+        <div className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+          trend > 0  ? 'bg-emerald-50 text-emerald-700' :
+          trend < 0  ? 'bg-red-50 text-red-700' :
+          'bg-gray-50 text-gray-600'
+        }`}>
+          {trend > 0 ? `+${trend}` : trend < 0 ? `${trend}` : '→'} pts sur 12 sem.
+        </div>
+      </div>
+      <p className="text-xs text-gray-400 mb-4">Évolution rétrospective calculée semaine par semaine</p>
+
+      <ResponsiveContainer width="100%" height={200}>
+        <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <defs>
+            <linearGradient id="healthGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="10%" stopColor={areaColor} stopOpacity={0.25} />
+              <stop offset="95%" stopColor={areaColor} stopOpacity={0.03} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={1} />
+          <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
+          <Tooltip content={<CustomTooltip />} />
+          {thresholds.map(t => (
+            <ReferenceLine
+              key={t.y} y={t.y}
+              stroke={t.color} strokeDasharray={t.dash} strokeOpacity={0.6}
+              label={{ value: t.label, position: 'right', fontSize: 9, fill: t.color }}
+            />
+          ))}
+          <Area
+            type="monotone" dataKey="value" stroke={areaColor} strokeWidth={2.5}
+            fill="url(#healthGrad)" dot={{ fill: areaColor, r: 3 }}
+            activeDot={{ r: 5, fill: areaColor }} name="Score santé"
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+
+      {/* Légende des seuils */}
+      <div className="flex flex-wrap gap-3 mt-3 justify-center">
+        {thresholds.map(t => (
+          <div key={t.y} className="flex items-center gap-1.5 text-xs text-gray-500">
+            <div className="w-4 h-0.5 rounded" style={{ backgroundColor: t.color }} />
+            ≥{t.y} : {t.label}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Comparaisons S/S ─────────────────────────────────────────────────────────
 
 function WeeklyCard({ item }: { item: WeeklyComparison }) {
@@ -394,6 +489,11 @@ export function SectionHealth({ stats }: { stats: AllStats }) {
             )}
           </div>
         </div>
+      </section>
+
+      {/* ── Timeline historique score santé ──────────────────── */}
+      <section>
+        <HealthTimeline stats={stats} />
       </section>
 
       {/* ── Insights contextuels ─────────────────────────────── */}
