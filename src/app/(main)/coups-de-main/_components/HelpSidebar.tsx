@@ -119,22 +119,32 @@ export default function HelpSidebar({
         <h3 className="text-sm font-black text-gray-800 mb-4 flex items-center gap-2">
           <Filter className="w-4 h-4 text-orange-500" /> Explorer par catégorie
         </h3>
-        <div className="space-y-1.5">
-          {CATEGORIES.slice(0, 8).map(cat => {
+        <div className="space-y-1">
+          {CATEGORIES.map(cat => {
             const count = items.filter(i => i.category === cat.value && i.status === 'active').length;
-            if (count === 0) return null;
             const Icon = cat.icon;
+            const isActive = filterCat === cat.value;
             return (
               <button key={cat.value} type="button"
-                onClick={() => onSetFilterCat(filterCat === cat.value ? 'all' : cat.value)}
+                onClick={() => onSetFilterCat(isActive ? 'all' : cat.value)}
                 className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors text-left ${
-                  filterCat === cat.value
+                  isActive
                     ? 'bg-orange-100 text-orange-700 font-bold'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}>
+                    : count > 0
+                      ? 'text-gray-700 hover:bg-gray-50'
+                      : 'text-gray-300 cursor-default'
+                }`}
+                disabled={count === 0 && !isActive}
+              >
                 <Icon className="w-4 h-4 flex-shrink-0" />
-                <span className="flex-1">{cat.label}</span>
-                <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${filterCat === cat.value ? 'bg-orange-200 text-orange-800' : 'bg-gray-100 text-gray-500'}`}>
+                <span className="flex-1 text-xs">{cat.label}</span>
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
+                  isActive
+                    ? 'bg-orange-200 text-orange-800'
+                    : count > 0
+                      ? 'bg-gray-100 text-gray-600'
+                      : 'bg-gray-50 text-gray-300'
+                }`}>
                   {count}
                 </span>
               </button>
