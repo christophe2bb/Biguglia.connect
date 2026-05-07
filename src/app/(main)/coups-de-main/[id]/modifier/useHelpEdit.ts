@@ -171,16 +171,16 @@ export function useHelpEdit(item: HelpRequest) {
 
     if (currentPhotos && currentPhotos.length > 0) {
       // b) Supprimer celles qui ont été retirées par l'utilisateur
-      const toDelete = currentPhotos.filter(p => !existingPhotoUrls.includes(p.url));
+      const toDelete = currentPhotos.filter((p: { id: string; url: string }) => !existingPhotoUrls.includes(p.url));
       if (toDelete.length > 0) {
         await supabase
           .from('help_photos')
           .delete()
-          .in('id', toDelete.map(p => p.id));
+          .in('id', toDelete.map((p: { id: string; url: string }) => p.id));
       }
       // c) Renuméroter les photos conservées
       for (let i = 0; i < existingPhotoUrls.length; i++) {
-        const match = currentPhotos.find(p => p.url === existingPhotoUrls[i]);
+        const match = currentPhotos.find((p: { id: string; url: string }) => p.url === existingPhotoUrls[i]);
         if (match) {
           await supabase
             .from('help_photos')

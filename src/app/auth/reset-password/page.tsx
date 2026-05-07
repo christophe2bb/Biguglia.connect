@@ -23,13 +23,13 @@ function ResetPasswordForm() {
     // Supabase envoie le token dans l'URL hash (#access_token=...)
     // Le client Supabase gère automatiquement l'échange du token via onAuthStateChange
     const supabase = createClient();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: import('@supabase/supabase-js').AuthChangeEvent) => {
       if (event === 'PASSWORD_RECOVERY') {
         setSessionReady(true);
       }
     });
     // Aussi vérifier si déjà en session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: import('@supabase/supabase-js').Session | null } }) => {
       if (session) setSessionReady(true);
     });
     return () => subscription.unsubscribe();

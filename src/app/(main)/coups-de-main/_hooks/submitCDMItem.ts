@@ -65,17 +65,17 @@ export async function submitCDMItem(
 
     if (currentPhotos && currentPhotos.length > 0) {
       // Photos à supprimer = celles en base qui ne sont plus dans existingPhotoUrls
-      const toDelete = currentPhotos.filter(p => !existingPhotoUrls.includes(p.url));
+      const toDelete = currentPhotos.filter((p: { id: string; url: string }) => !existingPhotoUrls.includes(p.url));
       if (toDelete.length > 0) {
         await supabase
           .from('help_photos')
           .delete()
-          .in('id', toDelete.map(p => p.id));
+          .in('id', toDelete.map((p: { id: string; url: string }) => p.id));
       }
 
       // Renuméroter les photos conservées selon leur nouvel ordre
       for (let i = 0; i < existingPhotoUrls.length; i++) {
-        const match = currentPhotos.find(p => p.url === existingPhotoUrls[i]);
+        const match = currentPhotos.find((p: { id: string; url: string }) => p.url === existingPhotoUrls[i]);
         if (match) {
           await supabase
             .from('help_photos')

@@ -166,7 +166,7 @@ export function useUnreadCounts(): UnreadCounts {
         readMapRef.current[convId]   = effective;
         unreadMapRef.current[convId] = new Set();
         // Persister via l'API admin (bypass RLS) — fire & forget
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        supabase.auth.getSession().then(({ data: { session } }: { data: { session: import('@supabase/supabase-js').Session | null } }) => {
           fetch('/api/messages/unread', {
             method: 'PATCH',
             headers: {

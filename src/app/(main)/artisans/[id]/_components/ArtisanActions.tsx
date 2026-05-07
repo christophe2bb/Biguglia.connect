@@ -44,7 +44,7 @@ export default function ArtisanActions({ artisan, variant }: Props) {
       .eq('target_id', artisan.id)
       .eq('target_type', 'artisan')
       .maybeSingle()
-      .then(({ data }) => setIsFavorite(!!data));
+      .then(({ data }: { data: unknown }) => setIsFavorite(!!data));
   }, [profile?.id, artisan.id]);
 
   // ── Toggle favorite ────────────────────────────────────────────────────────

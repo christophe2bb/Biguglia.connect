@@ -38,7 +38,7 @@ export default function CommunityJoinButton({
       .eq('user_id', userId)
       .eq('theme_slug', themeSlug)
       .eq('status', 'active')
-      .then(({ count }) => {
+      .then(({ count }: { count: number | null }) => {
         setIsMember((count ?? 0) > 0);
         setLoading(false);
       });

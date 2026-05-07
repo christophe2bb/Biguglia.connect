@@ -101,7 +101,7 @@ export default function DashboardPromenadePage() {
 
     if (!myOutings?.length) { setPendingParticipants([]); return; }
 
-    const outingIds = myOutings.map(o => o.id);
+    const outingIds = myOutings.map((o: { id: string }) => o.id);
     const { data } = await supabase
       .from('outing_participants')
       .select(`

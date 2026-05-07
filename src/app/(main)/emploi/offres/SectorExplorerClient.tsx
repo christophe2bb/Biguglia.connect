@@ -37,7 +37,7 @@ export function SectorExplorerClient({ totalOffers, currentSectorId, currentPara
       .select('sector_id')
       .eq('status', 'published')
       .limit(500)
-      .then(({ data }) => {
+      .then(({ data }: { data: Array<{ sector_id?: string | null }> | null }) => {
         const counts: Record<string, number> = {};
         for (const row of (data || []) as Array<{ sector_id?: string | null }>) {
           if (row.sector_id) counts[row.sector_id] = (counts[row.sector_id] || 0) + 1;

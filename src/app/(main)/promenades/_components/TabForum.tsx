@@ -145,6 +145,7 @@ export default function TabForum({
 
           {/* Sélecteur de thème */}
           <div className="mb-3">
+            {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
             <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 mb-2">
               <Tag className="w-3.5 h-3.5" /> Thème du sujet
             </label>

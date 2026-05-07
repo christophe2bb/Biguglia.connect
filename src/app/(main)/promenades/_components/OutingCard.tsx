@@ -56,7 +56,7 @@ export default function OutingCard({ outing, userId, isOrganizer, onJoin, onEdit
   useEffect(() => {
     let cancelled = false;
     supabase.from('outing_comments').select('id', { count: 'exact', head: true }).eq('outing_id', outing.id)
-      .then(({ count: c, error }) => {
+      .then(({ count: c, error }: { count: number | null; error: unknown }) => {
         if (cancelled) return;
         if (error) { setTableOk(false); } else { setTableOk(true); setChatCount(c ?? 0); }
       });

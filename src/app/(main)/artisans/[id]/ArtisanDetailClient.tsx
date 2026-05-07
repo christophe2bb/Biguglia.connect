@@ -563,9 +563,9 @@ export default function ArtisanDetailClient() {
                       .eq('moderation_status', 'visible')
                       .order('created_at', { ascending: false })
                       .limit(10)
-                      .then(({ data }) => {
+                      .then(({ data }: { data: Record<string, unknown>[] | null }) => {
                         if (data) {
-                          setReviews(data.map(r => ({
+                          setReviews(data.map((r: Record<string, unknown>) => ({
                             ...r,
                             reviewer: (r as unknown as { author: { full_name: string; avatar_url?: string } }).author,
                           })) as unknown as Review[]);

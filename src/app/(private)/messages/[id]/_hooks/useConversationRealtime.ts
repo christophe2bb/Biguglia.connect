@@ -151,7 +151,7 @@ export function useConversationRealtime(
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'messages',
         filter: `conversation_id=eq.${conversationId}`,
-      }, async (payload) => {
+      }, async (payload: import('@supabase/realtime-js').RealtimePostgresChangesPayload<Record<string, unknown>>) => {
         if (!mountedRef.current) return;
         const newMsg = payload.new as MessageWithSender;
         setMessages(prev => {
@@ -168,7 +168,7 @@ export function useConversationRealtime(
         if (newMsg.sender_id !== profile.id) await markAsRead();
         scrollToBottom();
       })
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         if (!mountedRef.current) return;
         if (status === 'SUBSCRIBED') {
           setRealtimeOk(true);

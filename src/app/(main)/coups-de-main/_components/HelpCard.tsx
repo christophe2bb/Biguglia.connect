@@ -153,11 +153,11 @@ export default function HelpCard({
     supabase.from('help_comments')
       .select('id', { count: 'exact', head: true })
       .eq('help_id', item.id)
-      .then(({ count }) => setChatCount(count ?? 0));
+      .then(({ count }: { count: number | null }) => setChatCount(count ?? 0));
     supabase.from('help_request_participants')
       .select('id', { count: 'exact', head: true })
       .eq('help_request_id', item.id).eq('role', 'helper')
-      .then(({ count }) => setHelperCount(count ?? 0));
+      .then(({ count }: { count: number | null }) => setHelperCount(count ?? 0));
     const handler = (e: MouseEvent) => {
       if (shareRef.current && !shareRef.current.contains(e.target as Node)) setOpenShare(false);
     };

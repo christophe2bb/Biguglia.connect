@@ -40,7 +40,7 @@ export function useOutings(profile: { id: string } | null | undefined) {
     }));
 
     if (enriched.length > 0) {
-      const ids = enriched.map(o => o.id);
+      const ids = enriched.map((o: { id: string }) => o.id);
       const { data: photosData } = await supabase
         .from('outing_photos').select('outing_id, url, display_order')
         .in('outing_id', ids).order('display_order', { ascending: true });
@@ -48,16 +48,18 @@ export function useOutings(profile: { id: string } | null | undefined) {
       (photosData || []).forEach((p: { outing_id: string; url: string }) => {
         if (!photoMap[p.outing_id]) photoMap[p.outing_id] = p.url;
       });
-      enriched.forEach(o => { o.cover_photo = photoMap[o.id] ?? null; });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      enriched.forEach((o: any) => { o.cover_photo = photoMap[o.id] ?? null; });
     }
 
     if (profile && enriched.length > 0) {
-      const ids = enriched.map(o => o.id);
+      const ids = enriched.map((o: { id: string }) => o.id);
       const { data: joins } = await supabase
         .from('outing_participants').select('outing_id')
         .in('outing_id', ids).eq('user_id', profile.id);
       const joinedSet = new Set((joins || []).map((j: { outing_id: string }) => j.outing_id));
-      setOutings(enriched.map(o => ({ ...o, user_joined: joinedSet.has(o.id) })));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setOutings(enriched.map((o: any) => ({ ...o, user_joined: joinedSet.has(o.id) })) as GroupOuting[]);
     } else {
       setOutings(enriched);
     }

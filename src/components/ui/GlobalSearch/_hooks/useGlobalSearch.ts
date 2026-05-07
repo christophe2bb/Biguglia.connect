@@ -186,7 +186,7 @@ export function useGlobalSearch({ initialValue = '', onSearch }: UseGlobalSearch
 
         // ── Map raw rows → QuickResult ────────────────────────────────────
         const mapped: QuickResult[] = [
-          ...(artisans ?? []).map((a) => ({
+          ...(artisans ?? []).map((a: Record<string, unknown>) => ({
             id: `artisan-${a.id}`,
             title: a.business_name || 'Artisan',
             subtitle: (a.trade_category as { name?: string } | null)?.name ?? a.service_area,
@@ -197,7 +197,7 @@ export function useGlobalSearch({ initialValue = '', onSearch }: UseGlobalSearch
             themeBg: THEME_CONFIG.artisan.bg,
             icon: THEME_CONFIG.artisan.icon,
           })),
-          ...(listings ?? []).map((l) => ({
+          ...(listings ?? []).map((l: Record<string, unknown>) => ({
             id: `listing-${l.id}`,
             title: l.title,
             subtitle: l.price ? `${l.price} €` : l.location,
@@ -208,7 +208,7 @@ export function useGlobalSearch({ initialValue = '', onSearch }: UseGlobalSearch
             themeBg: THEME_CONFIG.annonce.bg,
             icon: THEME_CONFIG.annonce.icon,
           })),
-          ...(equipment ?? []).map((e) => ({
+          ...(equipment ?? []).map((e: Record<string, unknown>) => ({
             id: `equip-${e.id}`,
             title: e.title,
             subtitle: e.is_free ? 'Gratuit' : e.pickup_location,
@@ -219,7 +219,7 @@ export function useGlobalSearch({ initialValue = '', onSearch }: UseGlobalSearch
             themeBg: THEME_CONFIG.materiel.bg,
             icon: THEME_CONFIG.materiel.icon,
           })),
-          ...(helps ?? []).map((h) => ({
+          ...(helps ?? []).map((h: Record<string, unknown>) => ({
             id: `help-${h.id}`,
             title: h.title,
             subtitle: 'Coup de main',
@@ -230,7 +230,7 @@ export function useGlobalSearch({ initialValue = '', onSearch }: UseGlobalSearch
             themeBg: THEME_CONFIG.aide.bg,
             icon: THEME_CONFIG.aide.icon,
           })),
-          ...(outings ?? []).map((o) => ({
+          ...(outings ?? []).map((o: Record<string, unknown>) => ({
             id: `outing-${o.id}`,
             title: o.title,
             subtitle: o.meeting_point,
@@ -241,7 +241,7 @@ export function useGlobalSearch({ initialValue = '', onSearch }: UseGlobalSearch
             themeBg: THEME_CONFIG.promenade.bg,
             icon: THEME_CONFIG.promenade.icon,
           })),
-          ...(events ?? []).map((e) => ({
+          ...(events ?? []).map((e: Record<string, unknown>) => ({
             id: `event-${e.id}`,
             title: e.title,
             subtitle: e.location,
@@ -252,7 +252,7 @@ export function useGlobalSearch({ initialValue = '', onSearch }: UseGlobalSearch
             themeBg: THEME_CONFIG.evenement.bg,
             icon: THEME_CONFIG.evenement.icon,
           })),
-          ...(forumTopics ?? []).map((f) => ({
+          ...(forumTopics ?? []).map((f: Record<string, unknown>) => ({
             id: `forum-${f.id}`,
             title: f.title,
             subtitle: 'Discussion',
@@ -263,7 +263,7 @@ export function useGlobalSearch({ initialValue = '', onSearch }: UseGlobalSearch
             themeBg: THEME_CONFIG.forum.bg,
             icon: THEME_CONFIG.forum.icon,
           })),
-          ...(associations ?? []).map((a) => ({
+          ...(associations ?? []).map((a: Record<string, unknown>) => ({
             id: `asso-${a.id}`,
             title: a.name,
             subtitle: a.location,
@@ -274,7 +274,7 @@ export function useGlobalSearch({ initialValue = '', onSearch }: UseGlobalSearch
             themeBg: THEME_CONFIG.association.bg,
             icon: THEME_CONFIG.association.icon,
           })),
-          ...(lostFound ?? []).map((l) => ({
+          ...(lostFound ?? []).map((l: Record<string, unknown>) => ({
             id: `lf-${l.id}`,
             title: l.title,
             subtitle: l.type === 'lost' || l.type === 'perdu' ? '🔴 Perdu' : '🟢 Trouvé',

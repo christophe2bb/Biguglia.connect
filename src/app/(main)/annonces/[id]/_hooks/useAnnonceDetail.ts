@@ -75,7 +75,7 @@ export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
         .eq('target_id', id)
         .eq('target_type', 'listing')
         .maybeSingle()
-        .then(({ data }) => setIsSaved(!!data));
+        .then(({ data }: { data: unknown }) => setIsSaved(!!data));
     } else {
       // Non connecté : localStorage
       setIsSaved(lsRead().includes(id));

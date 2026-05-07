@@ -91,7 +91,7 @@ export function useFavorites(): UseFavoritesReturn {
         lsClear(); // localStorage nettoyé après migration
       }
 
-      setSavedIds(new Set(dbIds));
+      setSavedIds(new Set(dbIds) as Set<string>);
     })();
   }, [userId]);
 

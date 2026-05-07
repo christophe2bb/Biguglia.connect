@@ -155,7 +155,7 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
       .from('listing_categories')
       .select('*')
       .order('display_order')
-      .then(({ data }) => {
+      .then(({ data }: { data: ListingCategory[] | null }) => {
         const cats = data || [];
         categoriesRef.current = cats; // keep ref in sync for fetchData
         setCategories(cats);

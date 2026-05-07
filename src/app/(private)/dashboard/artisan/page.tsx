@@ -103,7 +103,7 @@ function ArtisanDashboardContent() {
 
       setRequests((reqs as ServiceRequest[]) || []);
       // Normaliser pour le ReviewsPanel qui attend review.reviewer
-      const normalizedRevs = (revs || []).map(r => ({
+      const normalizedRevs = (revs || []).map((r: Record<string, unknown> & { rating: number }) => ({
         ...r,
         reviewer: (r as unknown as { author: { full_name: string; avatar_url?: string } }).author,
       }));
@@ -111,11 +111,11 @@ function ArtisanDashboardContent() {
 
       const totalRequests = allReqs?.length || 0;
       // En attente = demandes pas encore traitées
-      const pendingRequests = allReqs?.filter(r => ['submitted', 'viewed'].includes(r.status)).length || 0;
+      const pendingRequests = allReqs?.filter((r: { status: string }) => ['submitted', 'viewed'].includes(r.status)).length || 0;
       // Terminées = completed uniquement
-      const completedRequests = allReqs?.filter(r => r.status === 'completed').length || 0;
+      const completedRequests = allReqs?.filter((r: { status: string }) => r.status === 'completed').length || 0;
       const avgRating = revs?.length
-        ? revs.reduce((sum, r) => sum + r.rating, 0) / revs.length
+        ? revs.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / revs.length
         : 0;
 
       setStats({

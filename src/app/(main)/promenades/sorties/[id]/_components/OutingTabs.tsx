@@ -633,6 +633,7 @@ export default function OutingTabs({
           Utilise <img> standard (pas <Image fill>) pour éviter le bug plein écran
       ══════════════════════════════════════════════════════════════════════ */}
       {lightboxIndex !== null && photos.length > 0 && (
+        // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
         <div
           className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center"
           onClick={closeLightbox}
@@ -661,10 +662,12 @@ export default function OutingTabs({
           )}
 
           {/* Image principale — <img> standard pour éviter le bug fill */}
+          {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
           <div
             className="relative w-full h-full max-w-4xl mx-auto px-16 flex items-center justify-center"
             onClick={e => e.stopPropagation()}
           >
+            {/* eslint-disable-next-line jsx-a11y/img-redundant-alt */}
             <img
               src={photos[lightboxIndex].url}
               alt={`Photo ${lightboxIndex + 1}`}

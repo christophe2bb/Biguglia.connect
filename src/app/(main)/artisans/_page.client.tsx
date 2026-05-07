@@ -239,7 +239,7 @@ function ArtisansContent() {
         .order('is_featured', { ascending: false })
         .limit(200);
 
-      const enriched = ((data || []).filter(a => {
+      const enriched = ((data || []).filter((a: Record<string, unknown>) => {
         const role = (a.profile as { role?: string } | null)?.role;
         return (a as { is_verified?: boolean }).is_verified === true || role === 'artisan_verified';
       })) as unknown as EnrichedArtisan[];

@@ -141,7 +141,7 @@ export function useCollectionItemForm(id: string) {
   // ── Chargement des catégories ─────────────────────────────────────────────
   useEffect(() => {
     if (!id) return;
-    supabase.from('collection_categories').select('*').order('display_order').then(({ data }) => {
+    supabase.from('collection_categories').select('*').order('display_order').then(({ data }: { data: unknown[] | null }) => {
       if (data?.length) setCategories(data as CollectionCategory[]);
     });
   }, [id, supabase]);

@@ -362,9 +362,9 @@ export default function FavorisClient() {
       .select('id, title, price, location, listing_type, status, created_at, cover_url, is_urgent, sector_id, category:listing_categories(id, name, slug, icon), photos:listing_photos(url, display_order)')
       .in('id', listingFavIds)
       .neq('status', 'archived')
-      .then(({ data }) => {
+      .then(({ data }: { data: unknown[] | null }) => {
         // Preserve order of listingFavIds
-        const map = new Map((data || []).map(l => [l.id, l]));
+        const map = new Map((data as Record<string, unknown>[] || []).map((l: Record<string, unknown>) => [(l.id as string), l]));
         const ordered = (listingFavIds
           .map(id => map.get(id))
           .filter(Boolean) as unknown) as ListingExt[];
@@ -397,7 +397,7 @@ export default function FavorisClient() {
       .eq('user_id', userId)
       .eq('target_type', 'artisan')
       .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
+      .then(({ data, error }: { data: unknown[] | null; error: unknown }) => {
         if (error) {
           console.error('Favorites artisans error:', error);
           setArtisanFavs([]);

@@ -65,7 +65,7 @@ export default function AssociationCard({
   useEffect(() => {
     supabase.from('asso_comments').select('id', { count: 'exact', head: true })
       .eq('asso_id', asso.id)
-      .then(({ count }) => setChatCount(count ?? 0));
+      .then(({ count }: { count: number | null }) => setChatCount(count ?? 0));
     const handler = (e: MouseEvent) => {
       if (shareRef.current && !shareRef.current.contains(e.target as Node)) setOpenShare(false);
     };
