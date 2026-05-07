@@ -79,7 +79,9 @@ export type AdminActionKind =
   | 'badge_award'
   // Signalements
   | 'report_status_set'
-  | 'report_ban_user';
+  | 'report_ban_user'
+  | 'report_delete_content'
+  | 'report_send_message';
 
 /**
  * Paramètres d'un événement de log.

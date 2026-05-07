@@ -29,7 +29,8 @@ const SignalementRow = dynamic(() => import('./_components/SignalementRow'), {
 type FilterStatus = 'pending' | 'reviewed' | 'resolved' | 'dismissed' | 'all';
 
 export default function AdminSignalementsPage() {
-  useAuthStore();
+  const { profile } = useAuthStore();
+  const isAdmin = profile?.role === 'admin';
 
   const [reports,      setReports]      = useState<ReportEntry[]>([]);
   const [loading,      setLoading]      = useState(true);
@@ -62,6 +63,7 @@ export default function AdminSignalementsPage() {
 
   useEffect(() => { fetchReports(); }, [fetchReports]);
 
+  // ── Changer le statut d'un signalement ────────────────────────────────────
   const updateReport = async (reportId: string, status: 'resolved' | 'dismissed' | 'reviewed') => {
     setProcessing(reportId);
     const res = await adminFetch(`/api/admin/reports/${reportId}`, {
@@ -93,8 +95,8 @@ export default function AdminSignalementsPage() {
     setProcessing(null);
   };
 
+  // ── Suspendre un utilisateur ───────────────────────────────────────────────
   const banUser = async (targetId: string, targetType: string) => {
-    // ⚠️ Appelé APRÈS confirmation dans l'UI.
     if (targetType !== 'user') {
       toast.error('Pour suspendre un utilisateur, allez dans Admin → Utilisateurs');
       return;
@@ -112,7 +114,59 @@ export default function AdminSignalementsPage() {
     toast.success('🔒 Utilisateur suspendu');
   };
 
-  // Group reports by target for multi-report badge
+  // ── Supprimer le contenu signalé (admin uniquement) ───────────────────────
+  const deleteContent = async (reportId: string) => {
+    setProcessing(reportId);
+    const res = await adminFetch(`/api/admin/reports/${reportId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete_content' }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error('Erreur : ' + (data.error ?? res.statusText));
+      setProcessing(null);
+      return;
+    }
+    toast.success('🗑️ Contenu supprimé — signalement résolu');
+    // Retirer le signalement de la liste (il passe en "resolved")
+    setReports(prev =>
+      filterStatus === 'all'
+        ? prev.map(r => r.id === reportId ? { ...r, status: 'resolved' as const } : r)
+        : prev.filter(r => r.id !== reportId)
+    );
+    setStats(s => ({
+      ...s,
+      pending:  Math.max(0, s.pending - 1),
+      resolved: s.resolved + 1,
+    }));
+    setProcessing(null);
+  };
+
+  // ── Envoyer un message au créateur du contenu ──────────────────────────────
+  const sendMessage = async (reportId: string, message: string) => {
+    const res = await adminFetch(`/api/admin/reports/${reportId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'send_message', message }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error('Erreur : ' + (data.error ?? res.statusText));
+      return;
+    }
+    toast.success('✉️ Message envoyé au créateur');
+    // Passer le signalement en "reviewed" s'il était en attente
+    setReports(prev =>
+      prev.map(r =>
+        r.id === reportId && r.status === 'pending'
+          ? { ...r, status: 'reviewed' as const }
+          : r
+      )
+    );
+  };
+
+  // ── Grouper par cible (badge doublons) ────────────────────────────────────
   const grouped = reports.reduce<Record<string, number>>((acc, r) => {
     const key = `${r.target_type}:${r.target_id}`;
     acc[key] = (acc[key] ?? 0) + 1;
@@ -139,7 +193,7 @@ export default function AdminSignalementsPage() {
           )}
         </div>
 
-        {/* Stats — lightweight, eager */}
+        {/* Stats */}
         <SignalementStats stats={stats} />
 
         {/* Filtres */}
@@ -175,8 +229,11 @@ export default function AdminSignalementsPage() {
                 report={report}
                 duplicateCount={grouped[`${report.target_type}:${report.target_id}`] ?? 1}
                 processing={processing === report.id}
+                isAdmin={isAdmin}
                 onUpdate={updateReport}
                 onBan={banUser}
+                onDeleteContent={deleteContent}
+                onSendMessage={sendMessage}
               />
             ))}
           </div>
