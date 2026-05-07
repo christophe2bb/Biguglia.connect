@@ -366,9 +366,12 @@ export default function AdminMessagesPage() {
   // Reset page quand filtres changent
   useEffect(() => { setPage(0); }, [search, typeFilter, sortField, sortDir]);
 
-  // Types présents
+  // Types présents — on itère sur les clés fixes de RELATED_LABELS
+  // pour éviter les doublons dus aux related_type null → tous mappés en 'general'
   const presentTypes = useMemo(
-    () => [...new Set(conversations.map(c => c.related_type ?? 'general'))].sort(),
+    () => Object.keys(RELATED_LABELS).filter(type =>
+      conversations.some(c => (c.related_type ?? 'general') === type)
+    ),
     [conversations],
   );
 
