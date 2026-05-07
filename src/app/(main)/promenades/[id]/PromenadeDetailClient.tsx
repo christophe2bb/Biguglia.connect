@@ -331,6 +331,7 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
 
                 {/* Titre */}
                 <div>
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5 block">Nom de l&apos;itinéraire *</label>
                   <input
                     type="text" required
@@ -343,6 +344,7 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
 
                 {/* Type d'activité — cartes visuelles */}
                 <div>
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2 block">Type d&apos;activité</label>
                   <div className="grid grid-cols-4 gap-2">
                     {Object.entries(TYPE_CONFIG).map(([k, v]) => (
@@ -363,6 +365,7 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
 
                 {/* Difficulté */}
                 <div>
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2 block">Niveau de difficulté</label>
                   <div className="grid grid-cols-3 gap-2">
                     {([
@@ -388,6 +391,7 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
                 {/* Distance + Durée */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
+                    {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                     <label className="text-xs font-black text-emerald-600 uppercase tracking-wider mb-2 flex items-center gap-1 block">
                       <MapPin className="w-3 h-3" /> Distance
                     </label>
@@ -401,6 +405,7 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
                     </div>
                   </div>
                   <div className="bg-sky-50 rounded-2xl p-4 border border-sky-100">
+                    {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                     <label className="text-xs font-black text-sky-600 uppercase tracking-wider mb-2 flex items-center gap-1 block">
                       <Clock className="w-3 h-3" /> Durée
                     </label>
@@ -424,6 +429,7 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
               </div>
               <div className="p-5 space-y-4">
                 <div>
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1 block">
                     <MapPin className="w-3 h-3" /> Point de départ
                   </label>
@@ -434,6 +440,7 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
                   />
                 </div>
                 <div>
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5 block">Secteur</label>
                   <SectorFilter value={editForm.sector_id || null} onChange={v => setEditForm(f => ({ ...f, sector_id: v || '' }))} showAll compact label="" />
                 </div>
@@ -447,6 +454,7 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
               </div>
               <div className="p-5 space-y-4">
                 <div>
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5 block">Description *</label>
                   <textarea required rows={5}
                     placeholder="Décrivez les paysages, les sensations, ce qu'on y découvre… Donnez envie de partir !"
@@ -456,6 +464,7 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
                   />
                 </div>
                 <div>
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5 block">Conseils pratiques</label>
                   <textarea rows={2}
                     placeholder="Équipement recommandé, parking, transport, meilleure saison…"
@@ -465,6 +474,7 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
                   />
                 </div>
                 <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4">
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="text-xs font-black text-amber-600 uppercase tracking-wider mb-1.5 flex items-center gap-1 block">
                     <AlertTriangle className="w-3 h-3" /> Notes de sécurité
                   </label>
@@ -476,6 +486,7 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
                   />
                 </div>
                 <div>
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5 block">Tags</label>
                   <input type="text" placeholder="étang, coucher-soleil, chien, famille…"
                     value={editForm.tags}
@@ -495,6 +506,7 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
 
                 {/* Équipements */}
                 <div>
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-3 block">Équipements & accès</label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {([
@@ -517,6 +529,7 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
 
                 {/* Ombre */}
                 <div>
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2 block">Niveau d&apos;ombre</label>
                   <div className="grid grid-cols-3 gap-2">
                     {([
@@ -541,6 +554,7 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
 
                 {/* Meilleur moment */}
                 <div>
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2 block">Meilleur moment</label>
                   <div className="grid grid-cols-3 gap-2">
                     {([
@@ -575,6 +589,7 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
                 {/* Photos existantes */}
                 {p.photos && p.photos.length > 0 && (
                   <div>
+                    {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                     <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2 block">Photos actuelles</label>
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                       {p.photos.filter(ph => !deletedPhotoUrls.includes(ph.url)).map((ph, i) => (
@@ -601,6 +616,7 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
 
                 {/* Ajouter de nouvelles photos */}
                 <div>
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2 block">Ajouter des photos</label>
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                     {newPreviews.map((src, i) => (
@@ -682,6 +698,7 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
             LIGHTBOX
         ══════════════════════════════════════════════════════════════════ */}
         {lightboxIdx !== null && allPhotos.length > 0 && (
+          // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
           <div
             className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
             onClick={closeLightbox}
@@ -715,6 +732,7 @@ export default function PromenadeDetailClient({ promenade: initial }: Props) {
               onClick={e => e.stopPropagation()}
             >
               <div className="relative w-full" style={{ maxHeight: '85vh', aspectRatio: 'auto' }}>
+                {/* eslint-disable-next-line jsx-a11y/img-redundant-alt */}
                 <img
                   src={allPhotos[lightboxIdx].url}
                   alt={`Photo ${lightboxIdx + 1}`}

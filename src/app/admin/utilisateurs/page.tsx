@@ -80,10 +80,10 @@ export default function AdminUtilisateursPage() {
           job_offers:       0,
           job_demands:      0,
         },
-        updated_at:      u.updated_at,
+        updated_at:      u.updated_at ?? '',
         legal_consent:   u.legal_consent,
         legal_consent_at: u.legal_consent_at ?? undefined,
-        home_sector_id:  null,
+        home_sector_id:  null as string | null,
       }));
 
       setUsers(profiles);

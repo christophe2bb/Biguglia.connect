@@ -166,6 +166,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
     const supabase = createClient();
     let mounted = true;
+    // eslint-disable-next-line prefer-const
     let timeoutId: ReturnType<typeof setTimeout>;
 
     // ── fetchProfile ──────────────────────────────────────────────────────────
