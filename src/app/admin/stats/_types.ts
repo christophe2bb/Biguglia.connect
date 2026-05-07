@@ -1,4 +1,4 @@
-// ─── Types partagés — admin/stats ──────────────────────────────────────────
+// ─── Types partagés — admin/stats v4.0 ─────────────────────────────────────
 
 export interface DailyPoint { date: string; value: number }
 export interface KV { name: string; value: number; color?: string }
@@ -35,14 +35,14 @@ export interface ArtisanScore {
   tradeCategory: string;
   artisanType:   string;
   // métriques brutes
-  totalRequests:    number;
-  completedRequests:number;
-  cancelledRequests:number;
-  pendingRequests:  number;
-  totalReviews:     number;
-  avgRating:        number;
-  responseRate:     number;   // % demandes répondues
-  completionRate:   number;   // % demandes terminées
+  totalRequests:     number;
+  completedRequests: number;
+  cancelledRequests: number;
+  pendingRequests:   number;
+  totalReviews:      number;
+  avgRating:         number;
+  responseRate:      number;   // % demandes répondues
+  completionRate:    number;   // % demandes terminées
   // score composite 0-100
   score:        number;
   scoreLevel:   'excellent' | 'good' | 'fair' | 'poor';
@@ -50,66 +50,119 @@ export interface ArtisanScore {
   // tendances
   requestsLast30:   number;
   requestsLast7:    number;
-  lastActivityDays: number;  // jours depuis dernière activité (null = jamais)
+  lastActivityDays: number;
+  // NOUVEAU : tendance du score sur 2 périodes
+  scoreTrend:       'up' | 'down' | 'flat';
+  churnRisk:        'high' | 'medium' | 'low';  // risque de désengagement
 }
 
 // ─── Heatmap activité 7 jours × 24 heures ────────────────────────────────────
 export interface HeatmapCell {
   day:   number;  // 0=lun … 6=dim
   hour:  number;  // 0-23
-  value: number;  // nombre d'actions
+  value: number;
 }
 
 // ─── Données prédictives ──────────────────────────────────────────────────────
 export interface PredictionPoint {
-  date:       string;
-  actual:     number | null;
-  predicted:  number;
-  lower:      number;  // intervalle de confiance bas
-  upper:      number;  // intervalle de confiance haut
+  date:      string;
+  actual:    number | null;
+  predicted: number;
+  lower:     number;
+  upper:     number;
 }
 
 export interface Prediction {
   metric:     string;
-  horizon:    number;     // jours dans le futur
+  horizon:    number;
   points:     PredictionPoint[];
   trend:      'up' | 'down' | 'flat';
-  confidence: number;     // 0-100
+  confidence: number;
   insight:    string;
+  // NOUVEAU
+  momentumScore:  number;   // -100 à +100, accélération de la tendance
+  ewma7:          number;   // moyenne mobile exponentielle 7j
+  ewma30:         number;   // moyenne mobile exponentielle 30j
 }
 
 // ─── Benchmark ────────────────────────────────────────────────────────────────
 export interface BenchmarkItem {
-  metric:     string;
-  platform:   number;   // valeur Biguglia Connect
-  benchmark:  number;   // valeur de référence secteur civic-tech
-  unit:       string;
-  status:     'above' | 'at' | 'below';
-  gap:        number;   // écart absolu
-  gapPct:     number;   // écart en %
-  context:    string;   // explication textuelle
+  metric:    string;
+  platform:  number;
+  benchmark: number;
+  unit:      string;
+  status:    'above' | 'at' | 'below';
+  gap:       number;
+  gapPct:    number;
+  context:   string;
 }
 
-// ─── AllStats étendu ──────────────────────────────────────────────────────────
+// ─── NOUVEAU : Anomalie statistique (Z-score) ─────────────────────────────────
+export interface AnomalyPoint {
+  date:    string;
+  metric:  string;
+  value:   number;
+  zscore:  number;       // score Z (nb d'écarts-types de la moyenne)
+  mean:    number;
+  stddev:  number;
+  level:   'critical' | 'warning' | 'normal';  // |z|>3 critique, |z|>2 warning
+  direction: 'spike' | 'drop' | 'normal';
+}
+
+// ─── NOUVEAU : Cohorte de rétention ──────────────────────────────────────────
+export interface CohortRetention {
+  cohortLabel:  string;   // ex: "Avr 2025"
+  cohortSize:   number;
+  retDay7:      number;   // % retenus à J+7
+  retDay14:     number;   // % retenus à J+14
+  retDay30:     number;   // % retenus à J+30
+}
+
+// ─── NOUVEAU : Métriques EWMA ─────────────────────────────────────────────────
+export interface EwmaMetrics {
+  messagesEwma7:  number;
+  messagesEwma30: number;
+  postsEwma7:     number;
+  postsEwma30:    number;
+  usersEwma7:     number;
+  usersEwma30:    number;
+  // momentum = (ewma7 - ewma30) / ewma30 * 100  → % accélération
+  messagesMomentum: number;
+  postsMomentum:    number;
+  usersMomentum:    number;
+}
+
+// ─── NOUVEAU : Métriques engagement avancées ──────────────────────────────────
+export interface EngagementMetrics {
+  dauMauRatio:          number;   // DAU/MAU × 100 (%)  — cible > 20%
+  weeklyActiveRate:     number;   // % actifs 7j / total
+  stickiness:           number;   // DAU/WAU — fidélité quotidienne
+  avgSessionsPerUser:   number;   // estimé via msgs/user actif
+  newUserActivation7d:  number;   // % nouveaux inscrits actifs en 7j
+  churnRisk30d:         number;   // % membres risquant l'abandon (30j sans action)
+  virality:             number;   // nouveaux via invitations (estimé)
+  nps:                  number;   // Net Promoter Score estimé (avis 5★ − avis 1-2★)
+}
+
+// ─── AllStats étendu v4.0 ─────────────────────────────────────────────────────
 export interface AllStats {
   // Utilisateurs
-  totalUsers:           number;
-  residents:            number;
-  artisansPending:      number;
-  artisansVerified:     number;
-  artisansPro:          number;
-  artisansParticulier:  number;
-  newUsersLast7:        number;
-  newUsersLast30:       number;
-  newUsersLast90:       number;
+  totalUsers:          number;
+  residents:           number;
+  artisansPending:     number;
+  artisansVerified:    number;
+  artisansPro:         number;
+  artisansParticulier: number;
+  newUsersLast7:       number;
+  newUsersLast30:      number;
+  newUsersLast90:      number;
 
   // Engagement
-  activeUsersLast30:       number;
-  activationRate:          number;
-  dauEstimate:             number;
-  avgMsgsPerConversation:  number;
-  avgCommentsPerPost:      number;
-  artisanResponseRate:     number;
+  activeUsersLast30:      number;
+  activationRate:         number;
+  dauEstimate:            number;
+  avgMsgsPerConversation: number;
+  artisanResponseRate:    number;
 
   // Messages & conversations
   totalMessages:       number;
@@ -119,13 +172,13 @@ export interface AllStats {
   messagesPrev7:       number;
 
   // Annonces
-  totalListings:       number;
-  activeListings:      number;
-  listingViews:        number;
-  listingCategories:   KV[];
-  listingsLast7:       number;
-  listingsPrev7:       number;
-  listingActiveRate:   number;
+  totalListings:     number;
+  activeListings:    number;
+  listingViews:      number;
+  listingCategories: KV[];
+  listingsLast7:     number;
+  listingsPrev7:     number;
+  listingActiveRate: number;
 
   // Forum
   totalPosts:          number;
@@ -136,49 +189,50 @@ export interface AllStats {
   postsLast7:          number;
   postsPrev7:          number;
   forumResolutionRate: number;
+  avgCommentsPerPost:  number;  // commentaires moyens par post forum
 
   // Demandes artisans
-  totalRequests:             number;
-  requestsByStatus:          KV[];
-  requestCompletionRate:     number;
-  requestCancellationRate:   number;
-  pendingRequests:           number;
+  totalRequests:           number;
+  requestsByStatus:        KV[];
+  requestCompletionRate:   number;
+  requestCancellationRate: number;
+  pendingRequests:         number;
 
   // Avis
-  totalReviews:        number;
-  avgRating:           number;
-  ratingDistribution:  KV[];
-  positiveReviews:     number;
-  negativeReviews:     number;
+  totalReviews:       number;
+  avgRating:          number;
+  ratingDistribution: KV[];
+  positiveReviews:    number;
+  negativeReviews:    number;
 
   // Matériel
-  totalEquipment:      number;
-  availableEquipment:  number;
-  totalBorrows:        number;
-  equipmentUsageRate:  number;
+  totalEquipment:    number;
+  availableEquipment:number;
+  totalBorrows:      number;
+  equipmentUsageRate:number;
 
   // Signalements
-  pendingReports:        number;
-  totalReports:          number;
-  resolvedReports:       number;
-  reportResolutionRate:  number;
+  pendingReports:       number;
+  totalReports:         number;
+  resolvedReports:      number;
+  reportResolutionRate: number;
 
   // Notifications
-  totalNotifications:   number;
-  unreadNotifications:  number;
-  notifReadRate:        number;
+  totalNotifications:  number;
+  unreadNotifications: number;
+  notifReadRate:       number;
 
   // Séries temporelles (30 jours)
-  dailyUsers:     DailyPoint[];
-  dailyMessages:  DailyPoint[];
-  dailyPosts:     DailyPoint[];
-  dailyListings:  DailyPoint[];
-  dailyRequests:  DailyPoint[];
+  dailyUsers:    DailyPoint[];
+  dailyMessages: DailyPoint[];
+  dailyPosts:    DailyPoint[];
+  dailyListings: DailyPoint[];
+  dailyRequests: DailyPoint[];
 
   // Répartition
-  roleDistribution:  KV[];
-  tradeCategories:   KV[];
-  activityByHour:    { hour: string; messages: number; posts: number }[];
+  roleDistribution: KV[];
+  tradeCategories:  KV[];
+  activityByHour:   { hour: string; messages: number; posts: number }[];
 
   // Santé plateforme
   healthScore:     number;
@@ -195,8 +249,8 @@ export interface AllStats {
   artisanFunnel: FunnelStep[];
 
   // Croissance
-  userGrowthRate:   number;
-  monthlyNewUsers:  number;
+  userGrowthRate:  number;
+  monthlyNewUsers: number;
 
   // Autres contenus
   totalHelpRequests: number;
@@ -204,33 +258,45 @@ export interface AllStats {
   totalLostFound:    number;
   totalEvents:       number;
 
-  // ── NOUVEAU : Heatmap 7 jours × 24 heures ────────────────────────────────
+  // Heatmap 7j × 24h
   heatmap7x24: HeatmapCell[];
 
-  // ── NOUVEAU : Scores individuels artisans ────────────────────────────────
+  // Scores artisans
   artisanScores: ArtisanScore[];
 
-  // ── NOUVEAU : Prédictions 14 jours ───────────────────────────────────────
+  // Prédictions 14j
   predictions: Prediction[];
 
-  // ── NOUVEAU : Benchmarks secteur civic-tech ──────────────────────────────
+  // Benchmarks secteur
   benchmarks: BenchmarkItem[];
 
-  // ── NOUVEAU : Métriques rétention avancées ───────────────────────────────
-  /** Membres inscrits il y a > 30j sans aucune activité */
-  ghostUsers:         number;
-  /** Taux de rétention = membres actifs parmi ceux inscrits > 30j */
-  retentionRate:      number;
-  /** Vitesse moyenne de réponse artisan (jours, approx) */
-  avgResponseDays:    number;
-  /** Score de vélocité contenu (actions/jour lissées sur 7j) */
-  contentVelocity:    number;
-  /** Jours depuis la dernière publication de contenu */
+  // Métriques rétention
+  ghostUsers:           number;
+  retentionRate:        number;
+  avgResponseDays:      number;
+  contentVelocity:      number;
   daysSinceLastContent: number;
-  /** Pic d'activité horaire (heure 0-23) */
-  peakHour:           number;
-  /** Pic d'activité journalier (0=lun … 6=dim) */
-  peakDayOfWeek:      number;
-  /** Série temporelle score de santé (12 semaines, calculé rétrospectivement) */
-  healthHistory:      DailyPoint[];
+  peakHour:             number;
+  peakDayOfWeek:        number;
+  healthHistory:        DailyPoint[];
+
+  // ── NOUVEAU v4.0 : Algorithmes avancés ───────────────────────────────────
+
+  /** Anomalies statistiques détectées (z-score > 2σ) sur les 7 derniers jours */
+  anomalies: AnomalyPoint[];
+
+  /** Analyse EWMA et momentum par série */
+  ewmaMetrics: EwmaMetrics;
+
+  /** Engagement avancé : DAU/MAU, stickiness, churn, NPS */
+  engagementMetrics: EngagementMetrics;
+
+  /** Cohortes de rétention (3 derniers mois) */
+  cohortRetention: CohortRetention[];
+
+  /** Score de momentum global plateforme (-100 à +100) */
+  platformMomentum: number;
+
+  /** Timestamp ISO de génération des stats */
+  generatedAt: string;
 }

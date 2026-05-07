@@ -189,29 +189,37 @@ function exportCSV(stats: NonNullable<ReturnType<typeof useAdminStats>['stats']>
 // ─── Indicateur LIVE ──────────────────────────────────────────────────────────
 
 function LiveIndicator({
-  isLive,
-  countdown,
-  onToggle,
-  lastRefresh,
+  isLive, countdown, onToggle, lastRefresh, liveMode, latency, sseRetries,
 }: {
   isLive:      boolean;
   countdown:   number;
   onToggle:    () => void;
   lastRefresh: Date;
+  liveMode:    import('./_hooks/useAdminStats').LiveMode;
+  latency:     number;
+  sseRetries:  number;
 }) {
+  const isSSE     = liveMode === 'sse';
+  const isPolling = liveMode === 'polling';
+
   return (
     <button
       onClick={onToggle}
-      title={isLive ? `Auto-refresh actif — prochain refresh dans ${countdown}s` : 'Auto-refresh désactivé'}
+      title={isSSE ? 'SSE actif — push temps réel du serveur' : isPolling ? `Polling actif — prochain refresh dans ${countdown}s` : 'Auto-refresh désactivé'}
       className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-        isLive
-          ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+        isSSE    ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' :
+        isPolling ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' :
+                   'bg-gray-100 text-gray-500 hover:bg-gray-200'
       }`}
     >
       <Radio className={`w-3.5 h-3.5 ${isLive ? 'animate-pulse' : ''}`} />
-      {isLive ? (
-        <span>LIVE · {countdown}s</span>
+      {isSSE ? (
+        <span className="flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          SSE LIVE
+        </span>
+      ) : isPolling ? (
+        <span>POLL · {countdown}s</span>
       ) : (
         <span>LIVE OFF</span>
       )}
@@ -244,7 +252,7 @@ export default function AdminStatsPage() {
   const { phase, profile, isAdmin } = useAuthStore();
   const {
     stats, loading, lastRefresh, fetchAllStats,
-    isLive, toggleLive, countdown,
+    isLive, toggleLive, countdown, liveMode, latency, sseRetries,
   } = useAdminStats();
 
   if (phase === 'initializing') {
@@ -284,6 +292,9 @@ export default function AdminStatsPage() {
             countdown={countdown}
             onToggle={toggleLive}
             lastRefresh={lastRefresh}
+            liveMode={liveMode}
+            latency={latency}
+            sseRetries={sseRetries}
           />
 
           {/* Export CSV */}
@@ -385,9 +396,14 @@ export default function AdminStatsPage() {
           {/* ── Footer ─────────────────────────────────────────── */}
           <div className="border-t border-gray-100 pt-6 flex items-center justify-between flex-wrap gap-3 text-xs text-gray-400">
             <div className="flex items-center gap-3">
-              <span className={`flex items-center gap-1 ${isLive ? 'text-emerald-600' : 'text-gray-400'}`}>
+              <span className={`flex items-center gap-1 ${
+                liveMode === 'sse' ? 'text-emerald-600' :
+                liveMode === 'polling' ? 'text-blue-600' : 'text-gray-400'
+              }`}>
                 <Radio className={`w-3 h-3 ${isLive ? 'animate-pulse' : ''}`} />
-                {isLive ? 'Auto-refresh actif' : 'Auto-refresh désactivé'}
+                {liveMode === 'sse' ? 'SSE temps réel' :
+                 liveMode === 'polling' ? `Polling (${countdown}s)` : 'Auto-refresh désactivé'}
+                {latency > 0 && <span className="text-gray-400 ml-1">· {latency}ms</span>}
               </span>
               <span>
                 Dernière maj :{' '}
