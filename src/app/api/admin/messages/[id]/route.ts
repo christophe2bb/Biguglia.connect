@@ -82,3 +82,57 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest, { params }: RouteParams) {
+  const { id: conversationId } = await params;
+
+  const guard = await getAdminUser(req);
+  if (!guard.ok) return guard.response;
+
+  // Seul l'admin (pas le modérateur) peut supprimer une conversation
+  if (guard.actor.role !== 'admin') {
+    return NextResponse.json({ error: 'Réservé aux administrateurs' }, { status: 403 });
+  }
+
+  const { adminClient } = guard;
+
+  try {
+    // Supprimer d'abord tous les messages de la conversation
+    const { error: msgErr } = await adminClient
+      .from('messages')
+      .delete()
+      .eq('conversation_id', conversationId);
+
+    if (msgErr) {
+      console.error('[admin/messages/id DELETE] messages error:', msgErr);
+      return NextResponse.json({ error: msgErr.message }, { status: 500 });
+    }
+
+    // Supprimer les participants
+    const { error: partErr } = await adminClient
+      .from('conversation_participants')
+      .delete()
+      .eq('conversation_id', conversationId);
+
+    if (partErr) {
+      console.error('[admin/messages/id DELETE] participants error:', partErr);
+      return NextResponse.json({ error: partErr.message }, { status: 500 });
+    }
+
+    // Supprimer la conversation
+    const { error: convErr } = await adminClient
+      .from('conversations')
+      .delete()
+      .eq('id', conversationId);
+
+    if (convErr) {
+      console.error('[admin/messages/id DELETE] conversation error:', convErr);
+      return NextResponse.json({ error: convErr.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error('[admin/messages/id DELETE] unexpected error:', err);
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+  }
+}

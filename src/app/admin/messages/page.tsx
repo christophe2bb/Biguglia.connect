@@ -12,8 +12,9 @@ import {
   MessageSquare, Search, RefreshCw, X, ArrowLeft,
   Users, ShoppingBag, HandHeart, MapPin, Package,
   Clock, ChevronRight, SortAsc, SortDesc, Filter,
-  Hash, Calendar, BarChart2,
+  Hash, Calendar, BarChart2, Trash2,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { adminFetch } from '@/lib/admin-fetch';
 import { formatDistanceToNow, format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -161,7 +162,15 @@ function ConvSkeleton() {
 
 // ── Carte conversation ────────────────────────────────────────────────────────
 
-function ConversationRow({ conv }: { conv: AdminConversation }) {
+function ConversationRow({
+  conv,
+  onDelete,
+  isDeleting,
+}: {
+  conv: AdminConversation;
+  onDelete: (id: string) => void;
+  isDeleting: boolean;
+}) {
   const cfg   = getCfg(conv.related_type);
   const Icon  = cfg.Icon;
   const names = conv.participants.map(getParticipantName);
@@ -176,62 +185,76 @@ function ConversationRow({ conv }: { conv: AdminConversation }) {
   const hasMessages = conv.message_count > 0;
 
   return (
-    <Link
-      href={`/admin/messages/${conv.id}`}
-      className="flex items-center gap-4 px-5 py-4 border-b border-gray-100 hover:bg-gray-50/80 transition-colors group"
-    >
-      {/* Avatars empilés */}
-      <div className="flex -space-x-2 flex-shrink-0">
-        <div className="relative">
-          <ParticipantAvatar profile={conv.participants[0]?.profile} size={10} />
-        </div>
-        {conv.participants[1] && (
-          <div className="relative ring-2 ring-white rounded-full">
-            <ParticipantAvatar profile={conv.participants[1]?.profile} size={6} />
+    <div className="flex items-center gap-2 border-b border-gray-100 hover:bg-gray-50/80 transition-colors group pr-3">
+      <Link
+        href={`/admin/messages/${conv.id}`}
+        className="flex items-center gap-4 px-5 py-4 flex-1 min-w-0"
+      >
+        {/* Avatars empilés */}
+        <div className="flex -space-x-2 flex-shrink-0">
+          <div className="relative">
+            <ParticipantAvatar profile={conv.participants[0]?.profile} size={10} />
           </div>
-        )}
-      </div>
-
-      {/* Contenu principal */}
-      <div className="flex-1 min-w-0">
-        {/* Ligne 1 : noms + badge type */}
-        <div className="flex items-center gap-2 mb-1 min-w-0">
-          <span className="font-semibold text-gray-900 text-sm truncate">
-            {names.join(' & ')}
-          </span>
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${cfg.bg} ${cfg.color} flex-shrink-0 border ${cfg.border}`}>
-            <Icon className="w-2.5 h-2.5" />
-            {cfg.label}
-          </span>
+          {conv.participants[1] && (
+            <div className="relative ring-2 ring-white rounded-full">
+              <ParticipantAvatar profile={conv.participants[1]?.profile} size={6} />
+            </div>
+          )}
         </div>
 
-        {/* Ligne 2 : sujet ou aperçu message */}
-        {conv.subject && (
-          <p className="text-xs font-medium text-gray-600 truncate mb-0.5">
-            📌 {conv.subject}
-          </p>
-        )}
-        {preview && (
-          <p className="text-xs text-gray-400 truncate italic">{preview}</p>
-        )}
-      </div>
+        {/* Contenu principal */}
+        <div className="flex-1 min-w-0">
+          {/* Ligne 1 : noms + badge type */}
+          <div className="flex items-center gap-2 mb-1 min-w-0">
+            <span className="font-semibold text-gray-900 text-sm truncate">
+              {names.join(' & ')}
+            </span>
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${cfg.bg} ${cfg.color} flex-shrink-0 border ${cfg.border}`}>
+              <Icon className="w-2.5 h-2.5" />
+              {cfg.label}
+            </span>
+          </div>
 
-      {/* Méta droite */}
-      <div className="flex flex-col items-end gap-1.5 flex-shrink-0 min-w-[80px]">
-        <span className="text-[10px] text-gray-400 whitespace-nowrap" title={shortDate(conv.updated_at)}>
-          {relativeDate(conv.updated_at)}
-        </span>
-        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-          hasMessages
-            ? 'bg-brand-50 text-brand-700'
-            : 'bg-gray-100 text-gray-400'
-        }`}>
-          <Hash className="w-2.5 h-2.5" />
-          {conv.message_count} msg
-        </span>
-        <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition-colors" />
-      </div>
-    </Link>
+          {/* Ligne 2 : sujet ou aperçu message */}
+          {conv.subject && (
+            <p className="text-xs font-medium text-gray-600 truncate mb-0.5">
+              📌 {conv.subject}
+            </p>
+          )}
+          {preview && (
+            <p className="text-xs text-gray-400 truncate italic">{preview}</p>
+          )}
+        </div>
+
+        {/* Méta droite */}
+        <div className="flex flex-col items-end gap-1.5 flex-shrink-0 min-w-[80px]">
+          <span className="text-[10px] text-gray-400 whitespace-nowrap" title={shortDate(conv.updated_at)}>
+            {relativeDate(conv.updated_at)}
+          </span>
+          <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+            hasMessages
+              ? 'bg-brand-50 text-brand-700'
+              : 'bg-gray-100 text-gray-400'
+          }`}>
+            <Hash className="w-2.5 h-2.5" />
+            {conv.message_count} msg
+          </span>
+          <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition-colors" />
+        </div>
+      </Link>
+
+      {/* Bouton supprimer */}
+      <button
+        onClick={() => onDelete(conv.id)}
+        disabled={isDeleting}
+        title="Supprimer cette conversation"
+        className="flex-shrink-0 p-2 rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        {isDeleting
+          ? <RefreshCw className="w-4 h-4 animate-spin" />
+          : <Trash2 className="w-4 h-4" />}
+      </button>
+    </div>
   );
 }
 
@@ -297,6 +320,8 @@ export default function AdminMessagesPage() {
   const [sortField, setSortField]         = useState<SortField>('date');
   const [sortDir, setSortDir]             = useState<SortDir>('desc');
   const [page, setPage]                   = useState(0);
+  const [deletingId, setDeletingId]       = useState<string | null>(null);
+  const [confirmId, setConfirmId]         = useState<string | null>(null);
 
   const fetchConversations = useCallback(async () => {
     setLoading(true);
@@ -313,6 +338,30 @@ export default function AdminMessagesPage() {
   }, []);
 
   useEffect(() => { void fetchConversations(); }, [fetchConversations]);
+
+  const handleDeleteClick = useCallback((id: string) => {
+    setConfirmId(id);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!confirmId) return;
+    setDeletingId(confirmId);
+    setConfirmId(null);
+    try {
+      const res = await adminFetch(`/api/admin/messages/${confirmId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setConversations(prev => prev.filter(c => c.id !== confirmId));
+        toast.success('Conversation supprimée');
+      } else {
+        const body = await res.json().catch(() => ({}));
+        toast.error(body.error ?? 'Erreur lors de la suppression');
+      }
+    } catch {
+      toast.error('Erreur réseau');
+    } finally {
+      setDeletingId(null);
+    }
+  }, [confirmId]);
 
   // Reset page quand filtres changent
   useEffect(() => { setPage(0); }, [search, typeFilter, sortField, sortDir]);
@@ -530,7 +579,14 @@ export default function AdminMessagesPage() {
                 Activité
               </div>
             </div>
-            {paginated.map(conv => <ConversationRow key={conv.id} conv={conv} />)}
+            {paginated.map(conv => (
+              <ConversationRow
+                key={conv.id}
+                conv={conv}
+                onDelete={handleDeleteClick}
+                isDeleting={deletingId === conv.id}
+              />
+            ))}
           </>
         )}
       </div>
@@ -552,6 +608,45 @@ export default function AdminMessagesPage() {
           )}
         </div>
       )}
+
+      {/* Modal confirmation suppression */}
+      {confirmId && (() => {
+        const conv = conversations.find(c => c.id === confirmId);
+        const names = conv?.participants.map(getParticipantName).join(' & ') ?? '…';
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <Trash2 className="w-5 h-5 text-red-500" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-gray-900 text-base">Supprimer la conversation</h2>
+                  <p className="text-xs text-gray-500">{names}</p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 mb-5">
+                Cette action est <span className="font-semibold text-red-600">irréversible</span>.
+                Tous les messages seront définitivement supprimés.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setConfirmId(null)}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition-colors"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Note légale */}
       <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
