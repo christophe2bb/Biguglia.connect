@@ -63,7 +63,7 @@ export function ListingCard({ listing, currentUserId, isSaved, onToggleSave }: L
   const typeColor  = ALL_TYPE_COLORS[listing.listing_type]  || 'bg-gray-100 text-gray-700';
   const typeLabel  = ALL_TYPE_LABELS[listing.listing_type]  || listing.listing_type;
   const typeEmoji  = ALL_TYPE_EMOJIS[listing.listing_type]  || '📦';
-  const ownerId    = lExt.user_id || lExt.author_id;
+  const ownerId    = lExt.user_id ?? lExt.author_id ?? null;
   const priceLabel = listing.listing_type === 'free' ? '🎁 Gratuit' : listing.price ? formatPrice(listing.price) : 'Prix libre';
 
   return (
@@ -148,7 +148,7 @@ export function ListingCard({ listing, currentUserId, isSaved, onToggleSave }: L
             {lExt.sector_id ? (
               <SectorBadge sectorId={lExt.sector_id} size="xs" />
             ) : <span />}
-            {currentUserId && currentUserId !== ownerId && (
+            {currentUserId && ownerId && currentUserId !== ownerId && (
               <ReportButton targetType="listing" targetId={listing.id} targetTitle={listing.title} variant="icon" />
             )}
           </div>
