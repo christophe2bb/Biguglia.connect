@@ -9,7 +9,7 @@ import { Listing, ListingCategory } from '@/types';
 export const ITEMS_PER_PAGE = 12;
 
 /** Debounce delay for the search input (ms). */
-const SEARCH_DEBOUNCE_MS = 300;
+const SEARCH_DEBOUNCE_MS = 400;
 
 // ── Filter state ─────────────────────────────────────────────────────────────
 
@@ -73,70 +73,48 @@ export interface UseListingsPageReturn {
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
-
-/**
- * Centralises all filter state, data fetching from Supabase, and derived
- * computations for the /annonces listing page.
- *
- * Performance fixes applied:
- *
- *  #1  (2026-04-27) Photos join limited to 1 row per listing — was fetching ALL
- *      photos for every listing (potentially 500 × N rows over the wire).
- *
- *  #1b (2026-04-28) JOIN listing_photos éliminé complètement : on lit désormais
- *      `cover_url` directement sur `listings` (colonne dénormalisée maintenue par
- *      le trigger `trg_listing_photos_cover`, migration 20260428_listings_cover_url).
- *      Économie : 0 ligne listing_photos transférée en liste (vs N × 200 avant).
- *
- *  #2  Categories fetched ONCE at mount (empty deps []) — was re-fetched on
- *      every server-filter change because it shared the same fetchData callback.
- *
- *  #3  currentPage reset folded into fetchData — eliminated the second
- *      useEffect whose deps overlapped with fetchData’s, causing double renders
- *      and a stale-closure risk on every server-filter change.
- *
- *  #4  filtered / paginated / stats / counts wrapped in useMemo — previously
- *      recalculated on every render even when listings and filters hadn’t changed.
- *
- *  #5  Search input debounced (300 ms) — was re-filtering 500 listings on
- *      every keystroke without any delay.
- */
+//
+// ARCHITECTURE : pagination côté serveur
+// ─────────────────────────────────────
+// Au lieu de charger 200 annonces d'un coup et de paginer côté client, on
+// envoie directement à Supabase le range (from, to) correspondant à la page
+// courante.  Seules les 12 annonces affichées transitent sur le réseau.
+//
+// Cas particuliers gérés côté client (car ils nécessitent des données locales) :
+//   - showFavoritesOnly : les IDs sauvegardés sont dans le localStorage
+//   - showUrgentOnly / showFreeOnly : colonnes booléennes → filtrées côté serveur
+//   - search (debounced) : ilike Supabase sur title + fallback client
+//
+// Stats (total, sale, free, exchange) : requête COUNT séparée, légère.
+//
 export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
-  const [listings, setListings]   = useState<Listing[]>([]);
-  const [categories, setCategories] = useState<ListingCategory[]>([]);
-  // Ref mirror so fetchData can read the latest categories without being
-  // listed as a dependency (categories don't change after the initial fetch).
-  const categoriesRef = useRef<ListingCategory[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  // Sector counts WITHOUT the sector filter applied — so window badges
-  // stay visible even when a sector is selected (FIX #6).
+  const [listings, setListings]         = useState<Listing[]>([]);
+  const [categories, setCategories]     = useState<ListingCategory[]>([]);
+  const categoriesRef                   = useRef<ListingCategory[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [currentPage, setCurrentPage]   = useState(1);
+  const [totalCount, setTotalCount]     = useState(0);   // total côté serveur
   const [allSectorCounts, setAllSectorCounts] = useState<Record<string, number>>({});
+  const [stats, setStats]               = useState({ total: 0, sale: 0, free: 0, urgent: 0, exchange: 0 });
 
-  // Single filter state object with individual setters for ergonomics in JSX
-  const [filters, setFilters] = useState<ListingsFilters>(DEFAULT_FILTERS);
-
-  // ── Debounced search term ──────────────────────────────────────────────────
-  // `filters.search` is the raw input value (updates every keystroke for UI).
-  // `debouncedSearch` is the value actually used for filtering (delayed).
+  const [filters, setFilters]           = useState<ListingsFilters>(DEFAULT_FILTERS);
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debounceRef                     = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ── Setters ───────────────────────────────────────────────────────────────
   const setSearch = useCallback((v: string) => {
     setFilters(f => ({ ...f, search: v }));
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => setDebouncedSearch(v), SEARCH_DEBOUNCE_MS);
   }, []);
 
-  // Cleanup debounce timer on unmount
   useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
-  // ── Stable setters ─────────────────────────────────────────────────────────
-  const setSelectedCategory    = useCallback((v: string)       => setFilters(f => ({ ...f, selectedCategory: v })), []);
-  const setSelectedType        = useCallback((v: string)       => setFilters(f => ({ ...f, selectedType: v })), []);
-  const setSelectedStatus      = useCallback((v: string)       => setFilters(f => ({ ...f, selectedStatus: v })), []);
-  const setSortBy              = useCallback((v: string)       => setFilters(f => ({ ...f, sortBy: v })), []);
-  const setFilterSector        = useCallback((v: string|null)  => setFilters(f => ({ ...f, filterSector: v })), []);
+  const setSelectedCategory    = useCallback((v: string)      => setFilters(f => ({ ...f, selectedCategory: v })), []);
+  const setSelectedType        = useCallback((v: string)      => setFilters(f => ({ ...f, selectedType: v })), []);
+  const setSelectedStatus      = useCallback((v: string)      => setFilters(f => ({ ...f, selectedStatus: v })), []);
+  const setSortBy              = useCallback((v: string)      => setFilters(f => ({ ...f, sortBy: v })), []);
+  const setFilterSector        = useCallback((v: string|null) => setFilters(f => ({ ...f, filterSector: v })), []);
   const setShowFavoritesOnly   = useCallback((v: (p: boolean) => boolean) => setFilters(f => ({ ...f, showFavoritesOnly: v(f.showFavoritesOnly) })), []);
   const setShowUrgentOnly      = useCallback((v: (p: boolean) => boolean) => setFilters(f => ({ ...f, showUrgentOnly: v(f.showUrgentOnly) })), []);
   const setShowFreeOnly        = useCallback((v: (p: boolean) => boolean) => setFilters(f => ({ ...f, showFreeOnly: v(f.showFreeOnly) })), []);
@@ -148,25 +126,47 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
     setCurrentPage(1);
   }, []);
 
-  // ── FIX #2 — categories fetched ONCE at mount ──────────────────────────────
+  // ── Catégories (chargées une seule fois) ──────────────────────────────────
   useEffect(() => {
-    const supabase = createClient();
-    supabase
+    createClient()
       .from('listing_categories')
       .select('*')
       .order('display_order')
       .then(({ data }: { data: ListingCategory[] | null }) => {
         const cats = data || [];
-        categoriesRef.current = cats; // keep ref in sync for fetchData
+        categoriesRef.current = cats;
         setCategories(cats);
       });
   }, []);
 
-  // ── FIX #6 — allSectorCounts: fetch sector distribution ignoring filterSector ──
-  // Runs only when the non-sector filters change; keeps window badges visible
-  // even when a sector is active.
-  const { selectedCategory, selectedType, selectedStatus, sortBy, filterSector } = filters;
+  // ── Helpers : construire les filtres Supabase ─────────────────────────────
+  const { selectedCategory, selectedType, selectedStatus, sortBy, filterSector, showUrgentOnly, showFreeOnly } = filters;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const applyBaseFilters = useCallback((q: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let r: any = q;
+    if (selectedStatus === 'active')        r = r.eq('status', 'active');
+    else if (selectedStatus === 'reserved') r = r.eq('status', 'reserved');
+    else if (selectedStatus === 'sold')     r = r.in('status', ['sold', 'given', 'exchanged']);
+    else if (selectedStatus === 'expired')  r = r.eq('status', 'expired');
+    else if (selectedStatus === 'archived') r = r.eq('status', 'archived');
+    else                                    r = r.neq('status', 'archived');
+
+    if (selectedCategory) {
+      const cat = categoriesRef.current.find(c => c.slug === selectedCategory);
+      if (cat) r = r.eq('category_id', cat.id);
+    }
+    if (selectedType)   r = r.eq('listing_type', selectedType);
+    if (filterSector)   r = r.eq('sector_id', filterSector);
+    if (showUrgentOnly) r = r.eq('is_urgent', true);
+    if (showFreeOnly)   r = r.or('listing_type.eq.free,price.eq.0');
+    if (debouncedSearch) r = r.ilike('title', `%${debouncedSearch}%`);
+
+    return r;
+  }, [selectedCategory, selectedType, selectedStatus, filterSector, showUrgentOnly, showFreeOnly, debouncedSearch]);
+
+  // ── Compteurs secteurs (sans filtre secteur actif) ────────────────────────
   const fetchAllSectorCounts = useCallback(async () => {
     const supabase = createClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -176,14 +176,14 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
     else if (selectedStatus === 'sold')     q = q.in('status', ['sold', 'given', 'exchanged']);
     else if (selectedStatus === 'expired')  q = q.eq('status', 'expired');
     else if (selectedStatus === 'archived') q = q.eq('status', 'archived');
-    else q = q.neq('status', 'archived');
+    else                                    q = q.neq('status', 'archived');
+    if (selectedType) q = q.eq('listing_type', selectedType);
     if (selectedCategory) {
       const cat = categoriesRef.current.find(c => c.slug === selectedCategory);
       if (cat) q = q.eq('category_id', cat.id);
     }
-    if (selectedType) q = q.eq('listing_type', selectedType);
-    // NOTE: filterSector intentionally NOT applied here
-    const { data } = await q.limit(500);
+    // filterSector intentionnellement ignoré ici
+    const { data } = await q.limit(1000);
     const counts: Record<string, number> = {};
     for (const row of (data || []) as Array<{ sector_id?: string }>) {
       if (row.sector_id) counts[row.sector_id] = (counts[row.sector_id] || 0) + 1;
@@ -193,56 +193,97 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
 
   useEffect(() => { fetchAllSectorCounts(); }, [fetchAllSectorCounts]);
 
-  // ── FIX #1 + #3 — fetchData: photos limited + page reset folded in ─────────
-  // Destructure only the server-side filter fields so useCallback deps stay minimal.
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    // FIX #3: reset page to 1 here — eliminates the second useEffect that
-    // previously caused double renders on every server-filter change.
-    setCurrentPage(1);
-
+  // ── Stats globales (COUNT léger) ──────────────────────────────────────────
+  const fetchStats = useCallback(async () => {
     const supabase = createClient();
+    const base = () => supabase.from('listings').select('*', { count: 'exact', head: true }).eq('status', 'active');
+    const [total, sale, free, urgent, exchange] = await Promise.all([
+      base(),
+      base().eq('listing_type', 'sale'),
+      base().eq('listing_type', 'free'),
+      base().eq('is_urgent', true),
+      base().eq('listing_type', 'exchange'),
+    ]);
+    setStats({
+      total:    total.count    ?? 0,
+      sale:     sale.count     ?? 0,
+      free:     free.count     ?? 0,
+      urgent:   urgent.count   ?? 0,
+      exchange: exchange.count ?? 0,
+    });
+  }, []);
 
-    // FIX #1b (2026-04-28) : cover_url est une colonne dénormalisée sur `listings`
-    // (migration 20260428_listings_cover_url — trigger trg_listing_photos_cover).
-    // Si la migration n'est pas encore appliquée, fallback vers listing_photos.
+  useEffect(() => { fetchStats(); }, [fetchStats]);
+
+  // ── Pagination côté serveur ───────────────────────────────────────────────
+  // Cas spécial : showFavoritesOnly — on ne peut pas filtrer sur savedIds côté
+  // serveur. On bascule en mode client pour cet onglet uniquement (charge max
+  // 200 annonces en mémoire, uniquement quand les favoris sont actifs).
+  const isFavMode = filters.showFavoritesOnly;
+
+  const fetchPage = useCallback(async (page: number) => {
+    setLoading(true);
+    const supabase = createClient();
     const BASE_FIELDS = 'id, title, price, location, listing_type, status, created_at, is_urgent, sector_id, category_id, user_id, author_id';
-    const CAT_JOIN   = 'category:listing_categories(id, name, slug, icon)';
+    const CAT_JOIN    = 'category:listing_categories(id, name, slug, icon)';
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const applyFiltersAndSort = (q: any) => {
+    if (isFavMode) {
+      // Mode favoris : charge tout côté client, filtre sur savedIds
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let r: any = q;
-      if (selectedStatus === 'active')        r = r.eq('status', 'active');
-      else if (selectedStatus === 'reserved') r = r.eq('status', 'reserved');
-      else if (selectedStatus === 'sold')     r = r.in('status', ['sold', 'given', 'exchanged']);
-      else if (selectedStatus === 'expired')  r = r.eq('status', 'expired');
-      else if (selectedStatus === 'archived') r = r.eq('status', 'archived');
-      else r = r.neq('status', 'archived');
-      if (selectedCategory) {
-        // Read from ref — avoids adding `categories` as a fetchData dependency
-        const cat = categoriesRef.current.find(c => c.slug === selectedCategory);
-        if (cat) r = r.eq('category_id', cat.id);
+      let q: any = applyBaseFilters(
+        supabase.from('listings').select(`${BASE_FIELDS}, cover_url, ${CAT_JOIN}`)
+      );
+      q = q.limit(500);
+      let { data, error } = await q;
+      if (error?.message?.includes('cover_url') || error?.message?.includes('column')) {
+        ({ data, error } = await applyBaseFilters(
+          supabase.from('listings').select(`${BASE_FIELDS}, photos:listing_photos(url, display_order), ${CAT_JOIN}`)
+        ).limit(500));
+        if (data) {
+          data = (data as Record<string, unknown>[]).map(row => {
+            const photos = (row.photos as Array<{ url: string; display_order?: number }> | undefined) || [];
+            const sorted = [...photos].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+            return { ...row, cover_url: sorted[0]?.url ?? null };
+          });
+        }
       }
-      if (selectedType)  r = r.eq('listing_type', selectedType);
-      if (filterSector)  r = r.eq('sector_id', filterSector);
-      if (sortBy === 'price_asc')       r = r.order('price', { ascending: true,  nullsFirst: false });
-      else if (sortBy === 'price_desc') r = r.order('price', { ascending: false, nullsFirst: false });
-      else                              r = r.order('created_at', { ascending: false });
-      return r.limit(200);
+      setListings((data as unknown as Listing[]) || []);
+      setTotalCount((data as unknown[])?.length ?? 0);
+      setLoading(false);
+      return;
+    }
+
+    // Mode normal : pagination serveur avec range()
+    const from = (page - 1) * ITEMS_PER_PAGE;
+    const to   = from + ITEMS_PER_PAGE - 1;
+
+    // Appliquer tri
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const applySort = (q: any) => {
+      if (sortBy === 'price_asc')       return q.order('price', { ascending: true,  nullsFirst: false });
+      if (sortBy === 'price_desc')      return q.order('price', { ascending: false, nullsFirst: false });
+      return q.order('created_at', { ascending: false });
     };
 
-    // Tentative 1 — cover_url dénormalisée (migration appliquée)
-    let { data, error } = await applyFiltersAndSort(
-      supabase.from('listings').select(`${BASE_FIELDS}, cover_url, ${CAT_JOIN}`)
+    // Requête COUNT (total pour pagination)
+    const { count } = await applyBaseFilters(
+      supabase.from('listings').select('*', { count: 'exact', head: true })
     );
+    setTotalCount(count ?? 0);
 
-    // Tentative 2 — fallback listing_photos si cover_url absent (migration non appliquée)
+    // Requête DATA (seulement la page courante)
+    let q = applySort(applyBaseFilters(
+      supabase.from('listings').select(`${BASE_FIELDS}, cover_url, ${CAT_JOIN}`)
+    )).range(from, to);
+
+    let { data, error } = await q;
+
+    // Fallback si cover_url absent
     if (error?.message?.includes('cover_url') || error?.message?.includes('column')) {
-      ({ data, error } = await applyFiltersAndSort(
+      q = applySort(applyBaseFilters(
         supabase.from('listings').select(`${BASE_FIELDS}, photos:listing_photos(url, display_order), ${CAT_JOIN}`)
-      ));
+      )).range(from, to);
+      ({ data, error } = await q);
       if (data) {
         data = (data as Record<string, unknown>[]).map(row => {
           const photos = (row.photos as Array<{ url: string; display_order?: number }> | undefined) || [];
@@ -254,13 +295,41 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
 
     setListings((data as unknown as Listing[]) || []);
     setLoading(false);
-  }, [selectedCategory, selectedType, selectedStatus, sortBy, filterSector]);
+  }, [applyBaseFilters, sortBy, isFavMode]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  // Quand les filtres changent → reset page 1 + rechargement
+  const filtersKey = `${selectedCategory}|${selectedType}|${selectedStatus}|${sortBy}|${filterSector}|${showUrgentOnly}|${showFreeOnly}|${debouncedSearch}|${isFavMode}`;
+  const prevFiltersKey = useRef(filtersKey);
 
-  // ── FIX #4 — memoised derived values ──────────────────────────────────────
-  // Previously recalculated on EVERY render (including those triggered by
-  // unrelated state changes like savedIds reference updates).
+  useEffect(() => {
+    if (prevFiltersKey.current !== filtersKey) {
+      prevFiltersKey.current = filtersKey;
+      setCurrentPage(1);
+      fetchPage(1);
+    } else {
+      fetchPage(currentPage);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtersKey, currentPage]);
+
+  // ── Données dérivées ──────────────────────────────────────────────────────
+
+  // En mode favoris : filtre sur savedIds côté client
+  const filtered = useMemo(() => {
+    if (!isFavMode) return listings; // déjà filtrés par le serveur
+    return listings.filter(l => savedIds.has(l.id));
+  }, [listings, isFavMode, savedIds]);
+
+  // En mode favoris : pagination client
+  const totalPages = useMemo(() => {
+    if (isFavMode) return Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+    return Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE));
+  }, [isFavMode, filtered.length, totalCount]);
+
+  const paginated = useMemo(() => {
+    if (isFavMode) return filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    return listings; // déjà la bonne page (range serveur)
+  }, [isFavMode, filtered, listings, currentPage]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -280,37 +349,6 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
     return counts;
   }, [listings]);
 
-  const stats = useMemo(() => ({
-    total:    listings.length,
-    sale:     listings.filter(l => l.listing_type === 'sale').length,
-    free:     listings.filter(l => l.listing_type === 'free').length,
-    urgent:   listings.filter(l => (l as Listing & { is_urgent?: boolean }).is_urgent).length,
-    exchange: listings.filter(l => l.listing_type === 'exchange').length,
-  }), [listings]);
-
-  // FIX #5: filter uses debouncedSearch instead of filters.search
-  const filtered = useMemo(() => listings.filter(l => {
-    if (filters.showFavoritesOnly && !savedIds.has(l.id)) return false;
-    if (filters.showUrgentOnly    && !(l as Listing & { is_urgent?: boolean }).is_urgent) return false;
-    if (filters.showFreeOnly      && l.listing_type !== 'free' && l.price !== 0) return false;
-    if (!debouncedSearch) return true;
-    const q = debouncedSearch.toLowerCase();
-    const catName  = l.category?.name?.toLowerCase() ?? '';
-    const sectorId = (l as Listing & { sector_id?: string }).sector_id ?? '';
-    return (
-      l.title?.toLowerCase().includes(q) ||
-      l.location?.toLowerCase().includes(q) ||
-      catName.includes(q) ||
-      sectorId.includes(q)
-    );
-  }), [listings, debouncedSearch, filters.showFavoritesOnly, filters.showUrgentOnly, filters.showFreeOnly, savedIds]);
-
-  const totalPages = useMemo(() => Math.ceil(filtered.length / ITEMS_PER_PAGE), [filtered.length]);
-  const paginated  = useMemo(
-    () => filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
-    [filtered, currentPage],
-  );
-
   const activeFiltersCount = useMemo(() => [
     filters.selectedType,
     filters.selectedCategory,
@@ -321,11 +359,14 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
     filters.selectedStatus !== 'active',
   ].filter(Boolean).length, [filters]);
 
+  // `filtered` exposé = listings (le serveur a déjà filtré), sauf mode favoris
+  const filteredForCount = isFavMode ? filtered : { length: totalCount } as unknown as Listing[];
+
   return {
     listings,
     categories,
     loading,
-    filtered,
+    filtered: filteredForCount as Listing[],
     paginated,
     totalPages,
     currentPage,
