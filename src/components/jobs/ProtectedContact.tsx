@@ -24,6 +24,8 @@ interface ProtectedContactProps {
   colorScheme?: 'brand' | 'purple';
   jobTitle?: string;
   ctaLabel?: string;
+  /** Callback appelé quand l'utilisateur est propriétaire — permet au parent de se masquer */
+  onOwner?: () => void;
 }
 
 interface ContactData {
@@ -42,6 +44,7 @@ export default function ProtectedContact({
   hasPhone = false,
   colorScheme = 'brand',
   jobTitle = '',
+  onOwner,
 }: ProtectedContactProps) {
   const [uiState, setUiState]   = useState<UIState>('loading');
   const [contact, setContact]   = useState<ContactData | null>(null);
@@ -117,6 +120,7 @@ export default function ProtectedContact({
       switch (apiStatus) {
         case 'owner':
           setUiState('owner');
+          onOwner?.();
           break;
         case 'revealed': {
           const d = json as unknown as ContactData;
@@ -161,14 +165,9 @@ export default function ProtectedContact({
     );
   }
 
-  /* ── Propriétaire de l'annonce ── */
+  /* ── Propriétaire de l'annonce — bloc contact masqué (onOwner cache le parent) ── */
   if (uiState === 'owner') {
-    return (
-      <div className="flex items-center gap-2 text-sm text-white/80 bg-white/10 rounded-xl px-4 py-3">
-        <UserCheck className="w-4 h-4 flex-shrink-0" />
-        <span>Vous gérez cette annonce</span>
-      </div>
-    );
+    return null;
   }
 
   /* ── Non connecté ── */
