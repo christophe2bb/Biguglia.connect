@@ -28,6 +28,69 @@ export interface WeeklyComparison {
   trend: 'up' | 'down' | 'flat';
 }
 
+// ─── Score individuel artisan ─────────────────────────────────────────────────
+export interface ArtisanScore {
+  userId:        string;
+  displayName:   string;
+  tradeCategory: string;
+  artisanType:   string;
+  // métriques brutes
+  totalRequests:    number;
+  completedRequests:number;
+  cancelledRequests:number;
+  pendingRequests:  number;
+  totalReviews:     number;
+  avgRating:        number;
+  responseRate:     number;   // % demandes répondues
+  completionRate:   number;   // % demandes terminées
+  // score composite 0-100
+  score:        number;
+  scoreLevel:   'excellent' | 'good' | 'fair' | 'poor';
+  badge:        string;  // emoji badge
+  // tendances
+  requestsLast30:   number;
+  requestsLast7:    number;
+  lastActivityDays: number;  // jours depuis dernière activité (null = jamais)
+}
+
+// ─── Heatmap activité 7 jours × 24 heures ────────────────────────────────────
+export interface HeatmapCell {
+  day:   number;  // 0=lun … 6=dim
+  hour:  number;  // 0-23
+  value: number;  // nombre d'actions
+}
+
+// ─── Données prédictives ──────────────────────────────────────────────────────
+export interface PredictionPoint {
+  date:       string;
+  actual:     number | null;
+  predicted:  number;
+  lower:      number;  // intervalle de confiance bas
+  upper:      number;  // intervalle de confiance haut
+}
+
+export interface Prediction {
+  metric:     string;
+  horizon:    number;     // jours dans le futur
+  points:     PredictionPoint[];
+  trend:      'up' | 'down' | 'flat';
+  confidence: number;     // 0-100
+  insight:    string;
+}
+
+// ─── Benchmark ────────────────────────────────────────────────────────────────
+export interface BenchmarkItem {
+  metric:     string;
+  platform:   number;   // valeur Biguglia Connect
+  benchmark:  number;   // valeur de référence secteur civic-tech
+  unit:       string;
+  status:     'above' | 'at' | 'below';
+  gap:        number;   // écart absolu
+  gapPct:     number;   // écart en %
+  context:    string;   // explication textuelle
+}
+
+// ─── AllStats étendu ──────────────────────────────────────────────────────────
 export interface AllStats {
   // Utilisateurs
   totalUsers:           number;
@@ -140,4 +203,34 @@ export interface AllStats {
   totalOutings:      number;
   totalLostFound:    number;
   totalEvents:       number;
+
+  // ── NOUVEAU : Heatmap 7 jours × 24 heures ────────────────────────────────
+  heatmap7x24: HeatmapCell[];
+
+  // ── NOUVEAU : Scores individuels artisans ────────────────────────────────
+  artisanScores: ArtisanScore[];
+
+  // ── NOUVEAU : Prédictions 14 jours ───────────────────────────────────────
+  predictions: Prediction[];
+
+  // ── NOUVEAU : Benchmarks secteur civic-tech ──────────────────────────────
+  benchmarks: BenchmarkItem[];
+
+  // ── NOUVEAU : Métriques rétention avancées ───────────────────────────────
+  /** Membres inscrits il y a > 30j sans aucune activité */
+  ghostUsers:         number;
+  /** Taux de rétention = membres actifs parmi ceux inscrits > 30j */
+  retentionRate:      number;
+  /** Vitesse moyenne de réponse artisan (jours, approx) */
+  avgResponseDays:    number;
+  /** Score de vélocité contenu (actions/jour lissées sur 7j) */
+  contentVelocity:    number;
+  /** Jours depuis la dernière publication de contenu */
+  daysSinceLastContent: number;
+  /** Pic d'activité horaire (heure 0-23) */
+  peakHour:           number;
+  /** Pic d'activité journalier (0=lun … 6=dim) */
+  peakDayOfWeek:      number;
+  /** Série temporelle score de santé (12 semaines, calculé rétrospectivement) */
+  healthHistory:      DailyPoint[];
 }
