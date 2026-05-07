@@ -162,7 +162,7 @@ export default function HomePage() {
             </span>
           </h1>
 
-          <p className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black mb-8 leading-tight mx-auto bg-gradient-to-r from-sky-200 via-blue-200 to-indigo-200 bg-clip-text text-transparent">
+          <p className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-black mb-8 leading-tight mx-auto bg-gradient-to-r from-sky-200 via-blue-200 to-indigo-200 bg-clip-text text-transparent">
             Toute la vie de Biguglia
           </p>
 
