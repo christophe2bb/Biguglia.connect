@@ -1,18 +1,23 @@
 'use client';
 
 /**
- * UserDrawer — Panneau admin complet pour un utilisateur.
+ * UserDrawer — Fiche modérateur exhaustive d'un utilisateur.
  *
  * Onglets :
- *   Profil      — infos, rôle, CGU, actions (Suspendre / Réinit. MDP / Supprimer)
- *   Messages    — derniers messages envoyés
- *   Annonces    — listings publiés
- *   Forum       — sujets créés
- *   Demandes    — demandes de service
+ *   Profil        — infos complètes, rôle, CGU, actions (Suspendre / Réinit. MDP / Supprimer)
+ *   Messages      — derniers messages envoyés
+ *   Annonces      — listings publiés (avec action Supprimer)
+ *   Forum         — sujets créés (avec action Fermer/Rouvrir)
+ *   Demandes      — demandes de service artisan
+ *   Communauté    — coups de main, perdu/trouvé, événements, sorties, matériel, promenades
+ *   Avis          — avis laissés sur des artisans
+ *   Signalements  — signalements émis
+ *   Emploi        — offres et demandes d'emploi
+ *   Notifs        — 10 dernières notifications reçues
  *
  * Droits :
- *   admin       — tout : voir + changer rôle + suspendre + supprimer
- *   moderator   — voir + suspendre uniquement (pas changer rôle, pas supprimer)
+ *   admin     — tout : voir + changer rôle + suspendre + supprimer + actions sur contenu
+ *   moderator — voir + suspendre uniquement (pas changer rôle, pas supprimer compte)
  */
 
 import { useEffect, useRef, useId, useState, useCallback } from 'react';
@@ -21,12 +26,15 @@ import {
   UserX, UserCheck, Trash2, AlertTriangle,
   KeyRound, MessageSquare, Package, FileText,
   Wrench, CheckCircle2, ShieldCheck, Lock,
-  ExternalLink, Clock, Tag, ChevronRight,
+  ExternalLink, Clock, Tag, Star, Flag,
+  Bike, Heart, Briefcase, Bell, HandHelping,
+  Search, Calendar, ChevronDown, ChevronUp,
+  Hammer, MapPin, CheckCheck,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import { ROLE_LABELS, formatDate, formatRelative } from '@/lib/utils';
 import { adminFetch } from '@/lib/admin-fetch';
-import type { UserWithActivity } from './types';
+import type { UserWithActivity, UserActivity } from './types';
 
 /* ─────────────────────────── constantes ─────────────────────────────────── */
 
@@ -45,22 +53,9 @@ const ROLE_BADGE: Record<string, string> = {
   admin:            'bg-red-100 text-red-800',
 };
 
-type Tab = 'profil' | 'messages' | 'annonces' | 'forum' | 'demandes';
+type Tab = 'profil' | 'messages' | 'annonces' | 'forum' | 'demandes'
+         | 'communaute' | 'avis' | 'signalements' | 'emploi' | 'notifs';
 type ConfirmStep = 'suspend' | 'delete' | 'reset' | null;
-
-/* ─────────────────────────── types activité ─────────────────────────────── */
-
-interface ActivityMessage  { id: string; content: string; created_at: string; conversation_id: string; }
-interface ActivityListing  { id: string; title: string; status: string; listing_type: string; price: number | null; created_at: string; }
-interface ActivityPost     { id: string; title: string; content: string; is_closed: boolean; views: number; created_at: string; category?: { name: string; icon: string } | null; }
-interface ActivityRequest  { id: string; title: string; status: string; urgency: string; created_at: string; category?: { name: string; icon: string } | null; }
-
-interface UserActivity {
-  messages:          ActivityMessage[];
-  listings:          ActivityListing[];
-  forum_posts:       ActivityPost[];
-  service_requests:  ActivityRequest[];
-}
 
 /* ─────────────────────────── props ──────────────────────────────────────── */
 
@@ -88,6 +83,7 @@ export default function UserDrawer({
   const [confirm, setConfirm] = useState<ConfirmStep>(null);
   const [activity, setActivity] = useState<UserActivity | null>(null);
   const [loadingActivity, setLoadingActivity] = useState(false);
+  const [deletingItem, setDeletingItem] = useState<string | null>(null);
 
   const isAdmin     = actorRole === 'admin';
   const isSuspended = user.status === 'suspended';
@@ -109,7 +105,7 @@ export default function UserDrawer({
   /* charger activité dès l'ouverture */
   useEffect(() => { fetchActivity(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ── Escape : confirmation → fermer ── */
+  /* ── Escape ── */
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
@@ -131,7 +127,7 @@ export default function UserDrawer({
     };
   }, []);
 
-  /* ── exécution action après confirmation ── */
+  /* ── action confirmation ── */
   const executeConfirm = () => {
     if (confirm === 'suspend') { onSuspend(user.id, user.status); }
     else if (confirm === 'delete') { onDelete(user.id, displayName); onClose(); }
@@ -139,14 +135,52 @@ export default function UserDrawer({
     setConfirm(null);
   };
 
-  /* ── compteurs pour badges onglets ── */
+  /* ── action suppression item (annonce, sujet forum…) ── */
+  const deleteItem = async (table: string, id: string) => {
+    if (!isAdmin) return;
+    setDeletingItem(id);
+    try {
+      await adminFetch(`/api/admin/content/${table}/${id}`, { method: 'DELETE' });
+      // Rafraîchir l'activité localement
+      if (activity) {
+        setActivity(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            listings:        prev.listings.filter(x => x.id !== id),
+            forum_posts:     prev.forum_posts.filter(x => x.id !== id),
+            help_requests:   prev.help_requests.filter(x => x.id !== id),
+            lost_found:      prev.lost_found.filter(x => x.id !== id),
+            events:          prev.events.filter(x => x.id !== id),
+            group_outings:   prev.group_outings.filter(x => x.id !== id),
+            equipment_items: prev.equipment_items.filter(x => x.id !== id),
+            promenades:      prev.promenades.filter(x => x.id !== id),
+            job_offers:      prev.job_offers.filter(x => x.id !== id),
+            job_demands:     prev.job_demands.filter(x => x.id !== id),
+          };
+        });
+      }
+    } finally {
+      setDeletingItem(null);
+    }
+  };
+
+  /* ── compteurs onglets ── */
+  const c = activity;
   const counts = user._counts;
-  const tabDef: { id: Tab; label: string; icon: typeof MessageSquare; count: number }[] = [
-    { id: 'profil',   label: 'Profil',    icon: Info,           count: 0 },
-    { id: 'messages', label: 'Messages',  icon: MessageSquare,  count: counts?.messages         ?? 0 },
-    { id: 'annonces', label: 'Annonces',  icon: Package,        count: counts?.listings         ?? 0 },
-    { id: 'forum',    label: 'Forum',     icon: FileText,       count: counts?.forum_posts      ?? 0 },
-    { id: 'demandes', label: 'Demandes',  icon: Wrench,         count: counts?.service_requests ?? 0 },
+
+  type TabDef = { id: Tab; label: string; icon: typeof MessageSquare; count: number };
+  const tabDef: TabDef[] = [
+    { id: 'profil',       label: 'Profil',        icon: Info,          count: 0 },
+    { id: 'messages',     label: 'Messages',       icon: MessageSquare, count: counts?.messages ?? c?.messages.length ?? 0 },
+    { id: 'annonces',     label: 'Annonces',       icon: Package,       count: counts?.listings ?? c?.listings.length ?? 0 },
+    { id: 'forum',        label: 'Forum',          icon: FileText,      count: counts?.forum_posts ?? c?.forum_posts.length ?? 0 },
+    { id: 'demandes',     label: 'Demandes',       icon: Wrench,        count: counts?.service_requests ?? c?.service_requests.length ?? 0 },
+    { id: 'communaute',   label: 'Communauté',     icon: HandHelping,   count: (counts?.help_requests ?? 0) + (counts?.lost_found ?? 0) + (counts?.events ?? 0) + (counts?.group_outings ?? 0) + (counts?.equipment_items ?? 0) + (counts?.promenades ?? 0) },
+    { id: 'avis',         label: 'Avis',           icon: Star,          count: counts?.reviews ?? c?.reviews.length ?? 0 },
+    { id: 'signalements', label: 'Signalements',   icon: Flag,          count: counts?.reports_sent ?? c?.reports_sent.length ?? 0 },
+    { id: 'emploi',       label: 'Emploi',         icon: Briefcase,     count: (counts?.job_offers ?? 0) + (counts?.job_demands ?? 0) },
+    { id: 'notifs',       label: 'Notifs',         icon: Bell,          count: c?.notifications.filter(n => !n.is_read).length ?? 0 },
   ];
 
   /* ═══════════════════ rendu ═══════════════════════════════════════════════ */
@@ -160,7 +194,6 @@ export default function UserDrawer({
         aria-hidden
       />
 
-      {/* conteneur de positionnement — pointer-events-none pour que l'overlay reste cliquable */}
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div
         className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 pointer-events-none"
@@ -172,15 +205,15 @@ export default function UserDrawer({
           aria-modal="true"
           aria-labelledby={titleId}
           tabIndex={-1}
-          className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col outline-none pointer-events-auto"
+          className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[94vh] flex flex-col outline-none pointer-events-auto"
         >
 
           {/* ══════════════ EN-TÊTE ══════════════ */}
-          <div className={`flex items-start gap-4 px-6 py-5 rounded-t-2xl border-b border-gray-200 flex-shrink-0 ${isSuspended ? 'bg-red-50' : 'bg-gray-50'}`}>
+          <div className={`flex items-start gap-4 px-6 py-4 rounded-t-2xl border-b border-gray-200 flex-shrink-0 ${isSuspended ? 'bg-red-50' : 'bg-gray-50'}`}>
             <Avatar src={user.avatar_url} name={displayName} size="lg" />
 
             <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+              <div className="flex flex-wrap items-center gap-2 mb-1">
                 <h2 id={titleId} className="text-lg font-bold text-gray-900 leading-tight">
                   {displayName}
                 </h2>
@@ -193,7 +226,6 @@ export default function UserDrawer({
                   </span>
                 )}
               </div>
-
               <div className="flex flex-col gap-0.5 text-sm text-gray-600">
                 <a href={`mailto:${user.email}`} className="hover:text-blue-600 transition-colors truncate font-medium">
                   {user.email}
@@ -203,6 +235,10 @@ export default function UserDrawer({
                     {user.phone}
                   </a>
                 )}
+                <span className="text-xs text-gray-400">
+                  Inscrit le {user.created_at ? formatDate(user.created_at) : '—'}
+                  {' · '}ID&nbsp;<span className="font-mono">{user.id.slice(0, 8)}…</span>
+                </span>
               </div>
             </div>
 
@@ -216,7 +252,7 @@ export default function UserDrawer({
           </div>
 
           {/* ══════════════ ONGLETS ══════════════ */}
-          <div className="flex border-b border-gray-200 bg-white flex-shrink-0 overflow-x-auto">
+          <div className="flex border-b border-gray-200 bg-white flex-shrink-0 overflow-x-auto scrollbar-none">
             {tabDef.map(t => {
               const Icon = t.icon;
               const active = tab === t.id;
@@ -224,13 +260,13 @@ export default function UserDrawer({
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
-                  className={`flex items-center gap-1.5 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors flex-shrink-0 ${
+                  className={`flex items-center gap-1.5 px-3 py-3 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors flex-shrink-0 ${
                     active
                       ? 'border-blue-600 text-blue-600 bg-blue-50/50'
                       : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-3.5 h-3.5" />
                   {t.label}
                   {t.count > 0 && (
                     <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${active ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
@@ -242,18 +278,16 @@ export default function UserDrawer({
             })}
           </div>
 
-          {/* ══════════════ CONTENU ONGLET ══════════════ */}
+          {/* ══════════════ CONTENU ══════════════ */}
           <div className="flex-1 overflow-y-auto">
 
-            {/* ── ONGLET PROFIL ── */}
+            {/* ─── PROFIL ─────────────────────────────────────────────────── */}
             {tab === 'profil' && (
               <div className="divide-y divide-gray-100">
 
                 {/* Modifier le rôle */}
                 <div className="px-6 py-5">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                    <Crown className="w-3.5 h-3.5" /> Modifier le rôle
-                  </p>
+                  <SectionTitle icon={<Crown className="w-3.5 h-3.5" />} label="Modifier le rôle" />
                   {isAdmin ? (
                     <div className="grid grid-cols-2 gap-2">
                       {ROLE_OPTIONS.map(opt => (
@@ -275,50 +309,22 @@ export default function UserDrawer({
                   ) : (
                     <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-500">
                       <Lock className="w-4 h-4 flex-shrink-0 text-gray-400" />
-                      <span>Seul un <strong>administrateur</strong> peut modifier les rôles. Votre compte est modérateur.</span>
+                      <span>Seul un <strong>administrateur</strong> peut modifier les rôles.</span>
                     </div>
                   )}
                 </div>
 
                 {/* Informations */}
                 <div className="px-6 py-5">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                    <Info className="w-3.5 h-3.5" /> Informations
-                  </p>
+                  <SectionTitle icon={<Info className="w-3.5 h-3.5" />} label="Informations" />
                   <div className="grid grid-cols-2 gap-2.5">
                     {[
-                      {
-                        label: 'Statut compte',
-                        value: isSuspended ? '⛔ Suspendu' : '✅ Actif',
-                        cls: isSuspended ? 'text-red-700 font-bold' : 'text-green-700 font-bold',
-                      },
-                      {
-                        label: 'Inscription',
-                        value: user.created_at ? formatDate(user.created_at) : '—',
-                        cls: '',
-                      },
-                      {
-                        label: 'Dernière mise à jour',
-                        value: user.updated_at ? formatDate(user.updated_at) : '—',
-                        cls: 'text-gray-500',
-                      },
-                      {
-                        label: 'CGU acceptées',
-                        value: user.legal_consent
-                          ? `✅ Oui${user.legal_consent_at ? ` — ${formatDate(user.legal_consent_at)}` : ''}`
-                          : '❌ Non',
-                        cls: user.legal_consent ? 'text-green-700' : 'text-red-600',
-                      },
-                      {
-                        label: 'Téléphone',
-                        value: user.phone || '—',
-                        cls: '',
-                      },
-                      {
-                        label: 'ID utilisateur',
-                        value: user.id,
-                        cls: 'font-mono text-gray-400 text-xs break-all',
-                      },
+                      { label: 'Statut compte',       value: isSuspended ? '⛔ Suspendu' : '✅ Actif',  cls: isSuspended ? 'text-red-700 font-bold' : 'text-green-700 font-bold' },
+                      { label: 'Inscription',         value: user.created_at ? formatDate(user.created_at) : '—', cls: '' },
+                      { label: 'Dernière MAJ',        value: user.updated_at ? formatDate(user.updated_at) : '—', cls: 'text-gray-500' },
+                      { label: 'CGU acceptées',       value: user.legal_consent ? `✅ Oui${user.legal_consent_at ? ` — ${formatDate(user.legal_consent_at)}` : ''}` : '❌ Non', cls: user.legal_consent ? 'text-green-700' : 'text-red-600' },
+                      { label: 'Téléphone',           value: user.phone || '—', cls: '' },
+                      { label: 'ID utilisateur',      value: user.id, cls: 'font-mono text-gray-400 text-xs break-all' },
                     ].map(({ label, value, cls }) => (
                       <div key={label} className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3">
                         <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">{label}</span>
@@ -328,12 +334,32 @@ export default function UserDrawer({
                   </div>
                 </div>
 
+                {/* Résumé activité */}
+                <div className="px-6 py-5">
+                  <SectionTitle icon={<CheckCheck className="w-3.5 h-3.5" />} label="Résumé activité" />
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { label: 'Messages',   value: counts?.messages ?? c?.messages.length ?? '…', color: 'text-blue-600' },
+                      { label: 'Annonces',   value: counts?.listings ?? c?.listings.length ?? '…', color: 'text-purple-600' },
+                      { label: 'Forum',      value: counts?.forum_posts ?? c?.forum_posts.length ?? '…', color: 'text-teal-600' },
+                      { label: 'Demandes',   value: counts?.service_requests ?? c?.service_requests.length ?? '…', color: 'text-indigo-600' },
+                      { label: 'Coups de main', value: c?.help_requests.length ?? '…', color: 'text-orange-600' },
+                      { label: 'Perdu/trouvé', value: c?.lost_found.length ?? '…', color: 'text-rose-600' },
+                      { label: 'Évén.',      value: c?.events.length ?? '…', color: 'text-green-600' },
+                      { label: 'Avis',       value: c?.reviews.length ?? '…', color: 'text-amber-600' },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="bg-gray-50 rounded-xl border border-gray-100 px-3 py-3 text-center">
+                        <div className={`text-2xl font-black ${color}`}>{value}</div>
+                        <div className="text-xs text-gray-500 mt-0.5">{label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Profil artisan */}
                 {isArtisan && user.artisan_profile && (
                   <div className="px-6 py-5">
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                      <HardHat className="w-3.5 h-3.5" /> Profil artisan
-                    </p>
+                    <SectionTitle icon={<HardHat className="w-3.5 h-3.5" />} label="Profil artisan" />
                     <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
                       <div className="flex items-center gap-3">
                         {user.artisan_profile.artisan_type === 'professionnel'
@@ -347,149 +373,429 @@ export default function UserDrawer({
                           </div>
                         </div>
                       </div>
-                      <a
-                        href="/admin/artisans"
-                        className="text-xs font-semibold text-blue-600 hover:underline px-3 py-1.5 bg-white rounded-lg border border-blue-200"
-                      >
+                      <a href="/admin/artisans" className="text-xs font-semibold text-blue-600 hover:underline px-3 py-1.5 bg-white rounded-lg border border-blue-200">
                         Gérer →
                       </a>
                     </div>
                   </div>
                 )}
 
-                {/* Badge modérateur */}
                 {user.role === 'moderator' && (
                   <div className="px-6 py-5">
                     <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-xl px-4 py-3 text-sm text-purple-700 font-medium">
                       <ShieldCheck className="w-4 h-4 flex-shrink-0" />
-                      Ce compte dispose des droits de modération sur la plateforme.
+                      Ce compte dispose des droits de modération.
                     </div>
                   </div>
                 )}
               </div>
             )}
 
-            {/* ── ONGLET MESSAGES ── */}
+            {/* ─── MESSAGES ───────────────────────────────────────────────── */}
             {tab === 'messages' && (
               <ActivityList
                 loading={loadingActivity}
                 items={activity?.messages ?? []}
                 empty="Aucun message envoyé"
-                renderItem={(m: ActivityMessage) => (
-                  <div key={m.id} className="flex items-start gap-3 px-6 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                    <MessageSquare className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-800 leading-snug line-clamp-2">{m.content}</p>
-                      <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> {formatRelative(m.created_at)}
-                      </p>
-                    </div>
-                    <a
-                      href={`/admin/messages`}
-                      className="text-xs text-blue-500 hover:text-blue-700 flex items-center gap-0.5 flex-shrink-0"
-                      title="Voir dans messages"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
+                renderItem={(m) => (
+                  <ItemRow key={m.id}
+                    icon={<MessageSquare className="w-4 h-4 text-blue-400" />}
+                    date={m.created_at}
+                    action={
+                      <a href={`/admin`} className="text-blue-400 hover:text-blue-600" title="Voir messages">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    }
+                  >
+                    <p className="text-sm text-gray-800 leading-snug line-clamp-2">{m.content}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 font-mono">conv. {m.conversation_id.slice(0,8)}…</p>
+                  </ItemRow>
                 )}
               />
             )}
 
-            {/* ── ONGLET ANNONCES ── */}
+            {/* ─── ANNONCES ───────────────────────────────────────────────── */}
             {tab === 'annonces' && (
               <ActivityList
                 loading={loadingActivity}
                 items={activity?.listings ?? []}
                 empty="Aucune annonce publiée"
-                renderItem={(l: ActivityListing) => (
-                  <div key={l.id} className="flex items-start gap-3 px-6 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                    <Package className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">{l.title}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <StatusBadge status={l.status} />
-                        <span className="text-xs text-gray-400">{l.listing_type}</span>
-                        {l.price != null && (
-                          <span className="text-xs font-semibold text-gray-600">
-                            {l.price === 0 ? 'Gratuit' : `${l.price} €`}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> {formatRelative(l.created_at)}
-                      </p>
+                renderItem={(l) => (
+                  <ItemRow key={l.id}
+                    icon={<Package className="w-4 h-4 text-purple-400" />}
+                    date={l.created_at}
+                    action={isAdmin ? (
+                      <DeleteBtn id={l.id} deleting={deletingItem} onDelete={() => deleteItem('listings', l.id)} label="annonce" />
+                    ) : undefined}
+                  >
+                    <p className="text-sm font-semibold text-gray-800 truncate">{l.title}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <StatusBadge status={l.status} />
+                      <span className="text-xs text-gray-400">{l.listing_type}</span>
+                      {l.price != null && (
+                        <span className="text-xs font-semibold text-gray-600">
+                          {l.price === 0 ? 'Gratuit' : `${l.price} €`}
+                        </span>
+                      )}
                     </div>
-                  </div>
+                  </ItemRow>
                 )}
               />
             )}
 
-            {/* ── ONGLET FORUM ── */}
+            {/* ─── FORUM ──────────────────────────────────────────────────── */}
             {tab === 'forum' && (
               <ActivityList
                 loading={loadingActivity}
                 items={activity?.forum_posts ?? []}
                 empty="Aucun sujet forum créé"
-                renderItem={(p: ActivityPost) => (
-                  <div key={p.id} className="flex items-start gap-3 px-6 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                    <FileText className="w-4 h-4 text-teal-400 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">{p.title}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        {p.category && (
-                          <span className="text-xs text-gray-500 flex items-center gap-0.5">
-                            <Tag className="w-3 h-3" /> {p.category.icon} {p.category.name}
-                          </span>
-                        )}
-                        {p.is_closed && <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">Fermé</span>}
-                        <span className="text-xs text-gray-400">{p.views} vues</span>
-                      </div>
-                      <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> {formatRelative(p.created_at)}
-                      </p>
+                renderItem={(p) => (
+                  <ItemRow key={p.id}
+                    icon={<FileText className="w-4 h-4 text-teal-400" />}
+                    date={p.created_at}
+                    action={isAdmin ? (
+                      <DeleteBtn id={p.id} deleting={deletingItem} onDelete={() => deleteItem('forum_posts', p.id)} label="sujet" />
+                    ) : undefined}
+                  >
+                    <p className="text-sm font-semibold text-gray-800 truncate">{p.title}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {p.category && (
+                        <span className="text-xs text-gray-500 flex items-center gap-0.5">
+                          <Tag className="w-3 h-3" /> {p.category.icon} {p.category.name}
+                        </span>
+                      )}
+                      {p.is_closed && <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">Fermé</span>}
+                      <span className="text-xs text-gray-400">{p.views} vues</span>
                     </div>
-                  </div>
+                  </ItemRow>
                 )}
               />
             )}
 
-            {/* ── ONGLET DEMANDES ── */}
+            {/* ─── DEMANDES SERVICE ───────────────────────────────────────── */}
             {tab === 'demandes' && (
               <ActivityList
                 loading={loadingActivity}
                 items={activity?.service_requests ?? []}
                 empty="Aucune demande de service"
-                renderItem={(r: ActivityRequest) => (
-                  <div key={r.id} className="flex items-start gap-3 px-6 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                    <Wrench className="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">{r.title}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <StatusBadge status={r.status} />
-                        <UrgencyBadge urgency={r.urgency} />
-                        {r.category && (
-                          <span className="text-xs text-gray-500">
-                            {r.category.icon} {r.category.name}
-                          </span>
+                renderItem={(r) => (
+                  <ItemRow key={r.id}
+                    icon={<Wrench className="w-4 h-4 text-indigo-400" />}
+                    date={r.created_at}
+                  >
+                    <p className="text-sm font-semibold text-gray-800 truncate">{r.title}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <StatusBadge status={r.status} />
+                      <UrgencyBadge urgency={r.urgency} />
+                      {r.category && <span className="text-xs text-gray-500">{r.category.icon} {r.category.name}</span>}
+                    </div>
+                  </ItemRow>
+                )}
+              />
+            )}
+
+            {/* ─── COMMUNAUTÉ ─────────────────────────────────────────────── */}
+            {tab === 'communaute' && (
+              <div className="divide-y divide-gray-100">
+
+                {/* Coups de main */}
+                <CollapsibleSection
+                  title="Coups de main"
+                  icon={<HandHelping className="w-4 h-4 text-orange-500" />}
+                  count={activity?.help_requests.length ?? 0}
+                  loading={loadingActivity}
+                >
+                  {(activity?.help_requests ?? []).length === 0 ? (
+                    <EmptyState label="Aucun coup de main" />
+                  ) : (activity?.help_requests ?? []).map(h => (
+                    <ItemRow key={h.id}
+                      icon={<HandHelping className="w-4 h-4 text-orange-400" />}
+                      date={h.created_at}
+                      action={isAdmin ? (
+                        <DeleteBtn id={h.id} deleting={deletingItem} onDelete={() => deleteItem('help_requests', h.id)} label="coup de main" />
+                      ) : undefined}
+                    >
+                      <p className="text-sm font-semibold text-gray-800 truncate">{h.title}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <HelpTypeBadge type={h.help_type} />
+                        <StatusBadge status={h.status} />
+                        <span className="text-xs text-gray-400">{h.category}</span>
+                      </div>
+                    </ItemRow>
+                  ))}
+                </CollapsibleSection>
+
+                {/* Perdu / Trouvé */}
+                <CollapsibleSection
+                  title="Perdu / Trouvé"
+                  icon={<Search className="w-4 h-4 text-rose-500" />}
+                  count={activity?.lost_found.length ?? 0}
+                  loading={loadingActivity}
+                >
+                  {(activity?.lost_found ?? []).length === 0 ? (
+                    <EmptyState label="Aucun objet signalé" />
+                  ) : (activity?.lost_found ?? []).map(lf => (
+                    <ItemRow key={lf.id}
+                      icon={<Search className="w-4 h-4 text-rose-400" />}
+                      date={lf.created_at}
+                      action={isAdmin ? (
+                        <DeleteBtn id={lf.id} deleting={deletingItem} onDelete={() => deleteItem('lost_found_items', lf.id)} label="signalement" />
+                      ) : undefined}
+                    >
+                      <p className="text-sm font-semibold text-gray-800 truncate">{lf.title}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${lf.type === 'perdu' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                          {lf.type === 'perdu' ? '🔴 Perdu' : '🟢 Trouvé'}
+                        </span>
+                        <StatusBadge status={lf.status} />
+                        <span className="text-xs text-gray-400">{lf.category}</span>
+                      </div>
+                    </ItemRow>
+                  ))}
+                </CollapsibleSection>
+
+                {/* Événements */}
+                <CollapsibleSection
+                  title="Événements organisés"
+                  icon={<Calendar className="w-4 h-4 text-green-600" />}
+                  count={activity?.events.length ?? 0}
+                  loading={loadingActivity}
+                >
+                  {(activity?.events ?? []).length === 0 ? (
+                    <EmptyState label="Aucun événement organisé" />
+                  ) : (activity?.events ?? []).map(ev => (
+                    <ItemRow key={ev.id}
+                      icon={<Calendar className="w-4 h-4 text-green-500" />}
+                      date={ev.created_at}
+                      action={isAdmin ? (
+                        <DeleteBtn id={ev.id} deleting={deletingItem} onDelete={() => deleteItem('events', ev.id)} label="événement" />
+                      ) : undefined}
+                    >
+                      <p className="text-sm font-semibold text-gray-800 truncate">{ev.title}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <StatusBadge status={ev.status} />
+                        {ev.location && <span className="text-xs text-gray-400 flex items-center gap-0.5"><MapPin className="w-3 h-3" />{ev.location}</span>}
+                        {ev.start_date && <span className="text-xs text-gray-400">{formatDate(ev.start_date)}</span>}
+                      </div>
+                    </ItemRow>
+                  ))}
+                </CollapsibleSection>
+
+                {/* Sorties groupées */}
+                <CollapsibleSection
+                  title="Sorties groupées"
+                  icon={<Bike className="w-4 h-4 text-cyan-600" />}
+                  count={activity?.group_outings.length ?? 0}
+                  loading={loadingActivity}
+                >
+                  {(activity?.group_outings ?? []).length === 0 ? (
+                    <EmptyState label="Aucune sortie organisée" />
+                  ) : (activity?.group_outings ?? []).map(o => (
+                    <ItemRow key={o.id}
+                      icon={<Bike className="w-4 h-4 text-cyan-500" />}
+                      date={o.created_at}
+                      action={isAdmin ? (
+                        <DeleteBtn id={o.id} deleting={deletingItem} onDelete={() => deleteItem('group_outings', o.id)} label="sortie" />
+                      ) : undefined}
+                    >
+                      <p className="text-sm font-semibold text-gray-800 truncate">{o.title}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <StatusBadge status={o.status} />
+                        {o.max_participants && <span className="text-xs text-gray-400">{o.max_participants} places max</span>}
+                        {o.outing_date && <span className="text-xs text-gray-400">{formatDate(o.outing_date)}</span>}
+                      </div>
+                    </ItemRow>
+                  ))}
+                </CollapsibleSection>
+
+                {/* Matériel en prêt */}
+                <CollapsibleSection
+                  title="Matériel mis en prêt"
+                  icon={<Hammer className="w-4 h-4 text-yellow-600" />}
+                  count={activity?.equipment_items.length ?? 0}
+                  loading={loadingActivity}
+                >
+                  {(activity?.equipment_items ?? []).length === 0 ? (
+                    <EmptyState label="Aucun équipement proposé" />
+                  ) : (activity?.equipment_items ?? []).map(eq => (
+                    <ItemRow key={eq.id}
+                      icon={<Hammer className="w-4 h-4 text-yellow-500" />}
+                      date={eq.created_at}
+                      action={isAdmin ? (
+                        <DeleteBtn id={eq.id} deleting={deletingItem} onDelete={() => deleteItem('equipment_items', eq.id)} label="équipement" />
+                      ) : undefined}
+                    >
+                      <p className="text-sm font-semibold text-gray-800 truncate">{eq.title}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <StatusBadge status={eq.status} />
+                        {eq.category && <span className="text-xs text-gray-400">{eq.category}</span>}
+                        {eq.deposit_amount != null && eq.deposit_amount > 0 && (
+                          <span className="text-xs text-gray-500">Caution {eq.deposit_amount} €</span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> {formatRelative(r.created_at)}
-                      </p>
+                    </ItemRow>
+                  ))}
+                </CollapsibleSection>
+
+                {/* Promenades */}
+                <CollapsibleSection
+                  title="Promenades publiées"
+                  icon={<Heart className="w-4 h-4 text-pink-500" />}
+                  count={activity?.promenades.length ?? 0}
+                  loading={loadingActivity}
+                >
+                  {(activity?.promenades ?? []).length === 0 ? (
+                    <EmptyState label="Aucune promenade publiée" />
+                  ) : (activity?.promenades ?? []).map(p => (
+                    <ItemRow key={p.id}
+                      icon={<Heart className="w-4 h-4 text-pink-400" />}
+                      date={p.created_at}
+                      action={isAdmin ? (
+                        <DeleteBtn id={p.id} deleting={deletingItem} onDelete={() => deleteItem('promenades', p.id)} label="promenade" />
+                      ) : undefined}
+                    >
+                      <p className="text-sm font-semibold text-gray-800 truncate">{p.title}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <DifficultyBadge difficulty={p.difficulty} />
+                        {p.distance_km && <span className="text-xs text-gray-400">{p.distance_km} km</span>}
+                        <span className="text-xs text-gray-400">{p.views} vues</span>
+                      </div>
+                    </ItemRow>
+                  ))}
+                </CollapsibleSection>
+
+              </div>
+            )}
+
+            {/* ─── AVIS ───────────────────────────────────────────────────── */}
+            {tab === 'avis' && (
+              <ActivityList
+                loading={loadingActivity}
+                items={activity?.reviews ?? []}
+                empty="Aucun avis laissé"
+                renderItem={(r) => (
+                  <ItemRow key={r.id}
+                    icon={<Star className="w-4 h-4 text-amber-400" />}
+                    date={r.created_at}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-0.5">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star key={i} className={`w-3.5 h-3.5 ${i < r.rating ? 'text-amber-400 fill-amber-400' : 'text-gray-200 fill-gray-200'}`} />
+                        ))}
+                      </div>
+                      {r.artisan && (
+                        <span className="text-xs font-semibold text-gray-600">{r.artisan.business_name}</span>
+                      )}
                     </div>
-                  </div>
+                    {r.comment && <p className="text-sm text-gray-600 mt-1 line-clamp-2">{r.comment}</p>}
+                  </ItemRow>
+                )}
+              />
+            )}
+
+            {/* ─── SIGNALEMENTS ───────────────────────────────────────────── */}
+            {tab === 'signalements' && (
+              <ActivityList
+                loading={loadingActivity}
+                items={activity?.reports_sent ?? []}
+                empty="Aucun signalement émis"
+                renderItem={(r) => (
+                  <ItemRow key={r.id}
+                    icon={<Flag className="w-4 h-4 text-red-400" />}
+                    date={r.created_at}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-mono">{r.target_type}</span>
+                      <StatusBadge status={r.status} />
+                    </div>
+                    <p className="text-sm text-gray-700 mt-1 line-clamp-2">{r.reason}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 font-mono">cible {r.target_id.slice(0,8)}…</p>
+                  </ItemRow>
+                )}
+              />
+            )}
+
+            {/* ─── EMPLOI ─────────────────────────────────────────────────── */}
+            {tab === 'emploi' && (
+              <div className="divide-y divide-gray-100">
+                <CollapsibleSection
+                  title="Offres d'emploi"
+                  icon={<Briefcase className="w-4 h-4 text-blue-600" />}
+                  count={activity?.job_offers.length ?? 0}
+                  loading={loadingActivity}
+                >
+                  {(activity?.job_offers ?? []).length === 0 ? (
+                    <EmptyState label="Aucune offre d'emploi" />
+                  ) : (activity?.job_offers ?? []).map(j => (
+                    <ItemRow key={j.id}
+                      icon={<Briefcase className="w-4 h-4 text-blue-400" />}
+                      date={j.created_at}
+                      action={isAdmin ? (
+                        <DeleteBtn id={j.id} deleting={deletingItem} onDelete={() => deleteItem('job_offers', j.id)} label="offre" />
+                      ) : undefined}
+                    >
+                      <p className="text-sm font-semibold text-gray-800 truncate">{j.title}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <StatusBadge status={j.status} />
+                        {j.contract_type && <span className="text-xs text-gray-400">{j.contract_type}</span>}
+                      </div>
+                    </ItemRow>
+                  ))}
+                </CollapsibleSection>
+
+                <CollapsibleSection
+                  title="Demandes d'emploi"
+                  icon={<Users className="w-4 h-4 text-indigo-600" />}
+                  count={activity?.job_demands.length ?? 0}
+                  loading={loadingActivity}
+                >
+                  {(activity?.job_demands ?? []).length === 0 ? (
+                    <EmptyState label="Aucune demande d'emploi" />
+                  ) : (activity?.job_demands ?? []).map(j => (
+                    <ItemRow key={j.id}
+                      icon={<Users className="w-4 h-4 text-indigo-400" />}
+                      date={j.created_at}
+                      action={isAdmin ? (
+                        <DeleteBtn id={j.id} deleting={deletingItem} onDelete={() => deleteItem('job_demands', j.id)} label="demande" />
+                      ) : undefined}
+                    >
+                      <p className="text-sm font-semibold text-gray-800 truncate">{j.title}</p>
+                      <StatusBadge status={j.status} />
+                    </ItemRow>
+                  ))}
+                </CollapsibleSection>
+              </div>
+            )}
+
+            {/* ─── NOTIFICATIONS ──────────────────────────────────────────── */}
+            {tab === 'notifs' && (
+              <ActivityList
+                loading={loadingActivity}
+                items={activity?.notifications ?? []}
+                empty="Aucune notification"
+                renderItem={(n) => (
+                  <ItemRow key={n.id}
+                    icon={<Bell className={`w-4 h-4 ${n.is_read ? 'text-gray-300' : 'text-blue-400'}`} />}
+                    date={n.created_at}
+                  >
+                    <div className="flex items-center gap-2">
+                      <p className={`text-sm font-semibold truncate ${n.is_read ? 'text-gray-500' : 'text-gray-900'}`}>{n.title}</p>
+                      {!n.is_read && <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
+                    <span className="text-xs text-gray-300 font-mono">{n.type}</span>
+                  </ItemRow>
                 )}
               />
             )}
 
           </div>
 
-          {/* ══════════════ PIED — ACTIONS (onglet Profil uniquement) ══════════════ */}
+          {/* ══════════════ PIED — ACTIONS (onglet Profil) ══════════════ */}
           {tab === 'profil' && (
             <div className="border-t border-gray-200 flex-shrink-0 rounded-b-2xl overflow-hidden">
 
-              {/* Panneau de confirmation */}
               {confirm && (
                 <div className={`p-5 ${
                   confirm === 'delete'
@@ -515,19 +821,16 @@ export default function UserDrawer({
                         {confirm === 'delete'
                           ? '⚠️ Action irréversible — toutes les données seront supprimées.'
                           : confirm === 'suspend' && !isSuspended
-                            ? 'L\'utilisateur sera bloqué et recevra une notification.'
+                            ? "L'utilisateur sera bloqué et recevra une notification."
                             : confirm === 'suspend' && isSuspended
-                              ? 'L\'utilisateur pourra de nouveau se connecter.'
+                              ? "L'utilisateur pourra de nouveau se connecter."
                               : 'Un lien de réinitialisation sera envoyé par email.'
                         }
                       </p>
                     </div>
                   </div>
                   <div className="flex gap-3">
-                    <button
-                      onClick={() => setConfirm(null)}
-                      className="flex-1 py-3 px-4 rounded-xl text-sm font-semibold bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
+                    <button onClick={() => setConfirm(null)} className="flex-1 py-3 px-4 rounded-xl text-sm font-semibold bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                       Annuler
                     </button>
                     <button
@@ -540,25 +843,16 @@ export default function UserDrawer({
                             : 'bg-green-600 hover:bg-green-700'
                       }`}
                     >
-                      {confirm === 'delete'
-                        ? '🗑 Supprimer'
-                        : confirm === 'suspend' && !isSuspended
-                          ? '⛔ Suspendre'
-                          : confirm === 'suspend'
-                            ? '✅ Réactiver'
-                            : '📧 Envoyer'
-                      }
+                      {confirm === 'delete' ? '🗑 Supprimer' : confirm === 'suspend' && !isSuspended ? '⛔ Suspendre' : confirm === 'suspend' ? '✅ Réactiver' : '📧 Envoyer'}
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* Boutons principaux */}
               {!confirm && (
                 <div className="p-4 bg-gray-50">
                   <div className={`grid gap-3 ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'}`}>
 
-                    {/* Suspendre / Réactiver */}
                     <button
                       onClick={() => setConfirm('suspend')}
                       className={`flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl font-semibold text-sm transition-colors border-2 min-h-[72px] ${
@@ -573,7 +867,6 @@ export default function UserDrawer({
                       }
                     </button>
 
-                    {/* Réinit. MDP — admin seulement */}
                     {isAdmin && (
                       <button
                         onClick={() => setConfirm('reset')}
@@ -584,7 +877,6 @@ export default function UserDrawer({
                       </button>
                     )}
 
-                    {/* Supprimer — admin seulement */}
                     {isAdmin ? (
                       <button
                         onClick={() => setConfirm('delete')}
@@ -594,35 +886,14 @@ export default function UserDrawer({
                         <span>Supprimer</span>
                       </button>
                     ) : (
-                      /* Modérateur : bouton désactivé avec explication */
                       <div className="flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl text-sm bg-gray-100 text-gray-400 border-2 border-gray-200 min-h-[72px] cursor-not-allowed select-none">
                         <Lock className="w-5 h-5" />
                         <span>Admin requis</span>
                       </div>
                     )}
                   </div>
-
-                  {!isAdmin && (
-                    <p className="text-xs text-center text-gray-400 mt-2 flex items-center justify-center gap-1">
-                      <Lock className="w-3 h-3" />
-                      Réinit. MDP et Suppression réservées aux administrateurs
-                    </p>
-                  )}
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Pied minimal sur les autres onglets */}
-          {tab !== 'profil' && (
-            <div className="border-t border-gray-100 px-6 py-3 bg-gray-50 flex-shrink-0 rounded-b-2xl">
-              <button
-                onClick={() => setTab('profil')}
-                className="text-xs text-gray-500 hover:text-gray-800 flex items-center gap-1 font-medium transition-colors"
-              >
-                <ChevronRight className="w-3.5 h-3.5 rotate-180" />
-                Retour au profil et aux actions
-              </button>
             </div>
           )}
 
@@ -632,7 +903,15 @@ export default function UserDrawer({
   );
 }
 
-/* ═══════════════════════════ sous-composants ════════════════════════════════ */
+/* ═══════════════════════════ composants helpers ══════════════════════════════ */
+
+function SectionTitle({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return (
+    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+      {icon} {label}
+    </p>
+  );
+}
 
 function ActivityList<T>({
   loading, items, empty, renderItem,
@@ -644,59 +923,152 @@ function ActivityList<T>({
 }) {
   if (loading) {
     return (
-      <div className="p-6 space-y-3">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />
-        ))}
+      <div className="flex items-center justify-center py-12 text-gray-400">
+        <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin mr-3" />
+        Chargement…
       </div>
     );
   }
-  if (items.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-        <span className="text-3xl mb-2">📭</span>
-        <p className="text-sm font-medium">{empty}</p>
-      </div>
-    );
-  }
-  return <div>{items.map(item => renderItem(item))}</div>;
+  if (items.length === 0) return <EmptyState label={empty} />;
+  return <div>{items.map(renderItem)}</div>;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  active:     'bg-green-100 text-green-700',
-  published:  'bg-green-100 text-green-700',
-  submitted:  'bg-blue-100  text-blue-700',
-  viewed:     'bg-blue-100  text-blue-700',
-  replied:    'bg-purple-100 text-purple-700',
-  scheduled:  'bg-indigo-100 text-indigo-700',
-  completed:  'bg-gray-100  text-gray-600',
-  cancelled:  'bg-red-100   text-red-700',
-  draft:      'bg-gray-100  text-gray-500',
-};
+function ItemRow({
+  icon, date, action, children,
+}: {
+  icon: React.ReactNode;
+  date: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-3 px-6 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors">
+      <div className="mt-0.5 flex-shrink-0">{icon}</div>
+      <div className="flex-1 min-w-0">
+        {children}
+        <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+          <Clock className="w-3 h-3" /> {formatRelative(date)}
+        </p>
+      </div>
+      {action && <div className="flex-shrink-0 mt-0.5">{action}</div>}
+    </div>
+  );
+}
+
+function CollapsibleSection({
+  title, icon, count, loading, children,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  count: number;
+  loading: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-2 px-6 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+      >
+        {icon}
+        <span className="text-sm font-bold text-gray-700 flex-1">{title}</span>
+        {loading ? (
+          <span className="text-xs text-gray-400">…</span>
+        ) : (
+          <span className="text-xs font-bold bg-white border border-gray-200 rounded-full px-2 py-0.5 text-gray-600">{count}</span>
+        )}
+        {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+      </button>
+      {open && <div>{children}</div>}
+    </div>
+  );
+}
+
+function EmptyState({ label }: { label: string }) {
+  return (
+    <div className="py-6 text-center text-sm text-gray-400 italic px-6">
+      {label}
+    </div>
+  );
+}
+
+function DeleteBtn({
+  id, deleting, onDelete, label,
+}: {
+  id: string;
+  deleting: string | null;
+  onDelete: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onDelete}
+      disabled={deleting === id}
+      title={`Supprimer ce ${label}`}
+      className="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+    >
+      {deleting === id
+        ? <div className="w-3.5 h-3.5 border border-red-400 border-t-transparent rounded-full animate-spin" />
+        : <Trash2 className="w-3.5 h-3.5" />
+      }
+    </button>
+  );
+}
 
 function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    active:     'bg-green-100 text-green-700',
+    published:  'bg-green-100 text-green-700',
+    submitted:  'bg-blue-100 text-blue-700',
+    pending:    'bg-amber-100 text-amber-700',
+    resolved:   'bg-gray-100 text-gray-600',
+    closed:     'bg-gray-100 text-gray-600',
+    cancelled:  'bg-red-100 text-red-700',
+    suspended:  'bg-red-100 text-red-700',
+    paused:     'bg-yellow-100 text-yellow-700',
+    draft:      'bg-gray-100 text-gray-500',
+    refused:    'bg-red-100 text-red-600',
+    archived:   'bg-gray-100 text-gray-500',
+    inactive:   'bg-gray-100 text-gray-500',
+  };
   return (
-    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${STATUS_COLORS[status] ?? 'bg-gray-100 text-gray-600'}`}>
+    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${map[status] ?? 'bg-gray-100 text-gray-600'}`}>
       {status}
     </span>
   );
 }
 
-const URGENCY_COLORS: Record<string, string> = {
-  normal:      'bg-gray-100 text-gray-600',
-  urgent:      'bg-orange-100 text-orange-700',
-  tres_urgent: 'bg-red-100 text-red-700',
-};
-const URGENCY_LABELS: Record<string, string> = {
-  normal:      'Normal',
-  urgent:      '⚡ Urgent',
-  tres_urgent: '🔴 Très urgent',
-};
-
 function UrgencyBadge({ urgency }: { urgency: string }) {
-  return (
-    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${URGENCY_COLORS[urgency] ?? 'bg-gray-100 text-gray-600'}`}>
-      {URGENCY_LABELS[urgency] ?? urgency}
-    </span>
-  );
+  const map: Record<string, { label: string; cls: string }> = {
+    urgent:           { label: '🚨 Urgent',         cls: 'bg-red-100 text-red-700' },
+    rapidement:       { label: '⚡ Rapidement',     cls: 'bg-orange-100 text-orange-700' },
+    cette_semaine:    { label: '📅 Cette semaine',  cls: 'bg-yellow-100 text-yellow-700' },
+    flexible:         { label: '🌀 Flexible',       cls: 'bg-gray-100 text-gray-600' },
+  };
+  const u = map[urgency];
+  if (!u) return null;
+  return <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${u.cls}`}>{u.label}</span>;
+}
+
+function HelpTypeBadge({ type }: { type: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    demande: { label: '🙋 Demande', cls: 'bg-blue-100 text-blue-700' },
+    offre:   { label: '🤝 Offre',   cls: 'bg-green-100 text-green-700' },
+    echange: { label: '🔄 Échange', cls: 'bg-purple-100 text-purple-700' },
+  };
+  const t = map[type];
+  if (!t) return null;
+  return <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${t.cls}`}>{t.label}</span>;
+}
+
+function DifficultyBadge({ difficulty }: { difficulty: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    facile:    { label: '🟢 Facile',    cls: 'bg-green-100 text-green-700' },
+    moyen:     { label: '🟡 Moyen',     cls: 'bg-yellow-100 text-yellow-700' },
+    difficile: { label: '🔴 Difficile', cls: 'bg-red-100 text-red-700' },
+  };
+  const d = map[difficulty];
+  if (!d) return null;
+  return <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${d.cls}`}>{d.label}</span>;
 }
