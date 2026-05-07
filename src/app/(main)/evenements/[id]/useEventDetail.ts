@@ -147,7 +147,7 @@ export function useEventDetail(initialEvent: EventDetail): UseEventDetailReturn 
       .eq('event_id', id)
       .eq('user_id', profile.id)
       .maybeSingle()
-      .then(({ data: myPart }) => {
+      .then(({ data: myPart }: { data: { status: string } | null }) => {
         setEvent(prev => prev ? {
           ...prev,
           user_joined: !!myPart && myPart.status !== 'annule',

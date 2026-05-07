@@ -93,7 +93,7 @@ export function useThemePageData(themeSlug: string) {
       setMemberCount(list.length);
 
       if (profile?.id) {
-        setIsMember(list.some((m) => m.user_id === profile.id));
+        setIsMember(list.some((m: { user_id: string }) => m.user_id === profile.id));
       }
 
       if (list.length === 0) {
@@ -102,7 +102,7 @@ export function useThemePageData(themeSlug: string) {
         return;
       }
 
-      const userIds = list.map((m) => m.user_id);
+      const userIds = list.map((m: { user_id: string }) => m.user_id);
 
       // 2. User profiles
       const { data: profiles } = await supabase
@@ -132,10 +132,10 @@ export function useThemePageData(themeSlug: string) {
       }
 
       // 4. Assemble
-      const profileMap = Object.fromEntries((profiles ?? []).map((p) => [p.id, p]));
-      const tpMap = Object.fromEntries(themeProfiles.map((tp) => [tp.user_id, tp]));
+      const profileMap = Object.fromEntries((profiles ?? []).map((p: { id: string }) => [p.id, p]));
+      const tpMap = Object.fromEntries(themeProfiles.map((tp: { user_id: string }) => [tp.user_id, tp]));
 
-      const assembled: ThemeMember[] = list.map((m) => ({
+      const assembled: ThemeMember[] = list.map((m: { id: string; user_id: string; joined_at: string }) => ({
         id: m.id,
         user_id: m.user_id,
         joined_at: m.joined_at,
@@ -181,13 +181,13 @@ export function useThemePageData(themeSlug: string) {
       }
 
       // Load authors
-      const authorIds = Array.from(new Set(items.map((d) => d.author_id)));
+      const authorIds = Array.from(new Set<string>(items.map((d: { id: string; author_id: string; content: string; created_at: string; is_pinned: boolean; likes_count: number }) => d.author_id)));
       const { data: authors } = await supabase
         .from('profiles')
         .select('id, full_name, avatar_url')
         .in('id', authorIds);
 
-      const authorMap = Object.fromEntries((authors ?? []).map((a) => [a.id, a]));
+      const authorMap = Object.fromEntries((authors ?? []).map((a: { id: string }) => [a.id, a]));
 
       // My likes (if connected)
       let myLikes: string[] = [];
@@ -196,12 +196,12 @@ export function useThemePageData(themeSlug: string) {
           .from('theme_discussion_likes')
           .select('discussion_id')
           .eq('user_id', profile.id)
-          .in('discussion_id', items.map((d) => d.id));
-        myLikes = (likes ?? []).map((l) => l.discussion_id);
+          .in('discussion_id', items.map((d: { id: string }) => d.id));
+        myLikes = (likes ?? []).map((l: { discussion_id: string }) => l.discussion_id);
       }
 
       setDiscussions(
-        items.map((d) => ({
+        items.map((d: { id: string; author_id: string; content: string; created_at: string; is_pinned: boolean; likes_count: number }) => ({
           ...d,
           author: authorMap[d.author_id] ?? null,
           my_like: myLikes.includes(d.id),

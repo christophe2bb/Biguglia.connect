@@ -77,7 +77,7 @@ export default function DashboardEvenementsPage() {
           .select('id, title, category, event_date, event_time, location, status, max_participants, created_at')
           .eq('author_id', profile.id)
           .order('event_date', { ascending: false });
-        rawEvents = (legData ?? []).map(e => ({
+        rawEvents = (legData ?? []).map((e: Record<string, unknown> & { event_time?: string | null; max_participants?: number | null }) => ({
           ...e,
           subtitle: '',
           start_time: e.event_time ?? '18:00',
@@ -88,7 +88,7 @@ export default function DashboardEvenementsPage() {
       }
 
       const enriched: MyEvent[] = await Promise.all(
-        rawEvents.map(async (ev) => {
+        rawEvents.map(async (ev: Record<string, unknown> & { id: string }) => {
           const { count } = await supabase
             .from('event_participants')
             .select('id', { count: 'exact', head: true })
@@ -102,10 +102,11 @@ export default function DashboardEvenementsPage() {
             .eq('status', 'confirme');
 
           const pCount = count ?? 0;
-          const remaining = !ev.is_unlimited && ev.capacity
-            ? Math.max(0, ev.capacity - pCount) : null;
-          const fillPct = !ev.is_unlimited && ev.capacity && ev.capacity > 0
-            ? Math.round((pCount / ev.capacity) * 100) : null;
+          const evCapacity = (ev.capacity as number | null) ?? null;
+          const remaining = !ev.is_unlimited && evCapacity
+            ? Math.max(0, evCapacity - pCount) : null;
+          const fillPct = !ev.is_unlimited && evCapacity && evCapacity > 0
+            ? Math.round((pCount / evCapacity) * 100) : null;
 
           return {
             ...ev,

@@ -261,7 +261,7 @@ export default function NotificationsClient() {
       .channel(`notifications-page-${profile.id}-${Date.now()}`)
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${profile.id}` },
-        (payload) => {
+        (payload: import('@supabase/realtime-js').RealtimePostgresChangesPayload<Record<string, unknown>>) => {
           if (!mountedRef.current) return;
           const n     = payload.new as Notification;
           const types = tabTypes(activeTab as TabId);
@@ -275,15 +275,16 @@ export default function NotificationsClient() {
       )
       .on('postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${profile.id}` },
-        (payload) => {
+        (payload: import('@supabase/realtime-js').RealtimePostgresChangesPayload<Record<string, unknown>>) => {
           if (!mountedRef.current) return;
+          const newData = payload.new as Record<string, unknown>;
           setNotifications(prev =>
-            prev.map(n => n.id === payload.new.id ? { ...n, ...payload.new } as Notification : n),
+            prev.map(n => n.id === (newData.id as string) ? { ...n, ...newData } as Notification : n),
           );
           fetchCounters();
         },
       )
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         if (!mountedRef.current) return;
         if (status === 'SUBSCRIBED') {
           reconnectIdx.current = 0;

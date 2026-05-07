@@ -144,12 +144,12 @@ export function useConversationFetch(
           .select('id, full_name, avatar_url, email')
           .in('id', Array.from(missingProfileIds));
         if (fallbackProfiles?.length) {
-          const fbMap = new Map(fallbackProfiles.map(fp => [fp.id, fp as Profile]));
-          valid = valid.map(c =>
+          const fbMap = new Map(fallbackProfiles.map((fp: Profile) => [fp.id, fp]));
+          valid = (valid.map(c =>
             !c.other_user && c._other_participant_id && fbMap.has(c._other_participant_id)
               ? { ...c, other_user: fbMap.get(c._other_participant_id)! }
               : c
-          );
+          ) as ConvWithTemp[]);
         }
       } catch { /* ignore — profils resteront null */ }
     }

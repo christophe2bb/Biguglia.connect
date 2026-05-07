@@ -57,7 +57,7 @@ export function useForumComposer() {
       const { data: sectorData } = await supabase
         .from('forum_sectors').select('*').order('display_order');
       const rawSectors = sectorData && sectorData.length > 0 ? sectorData : SECTORS_DEFAULT;
-      setSectors(rawSectors.filter(s => SECTORS_DEFAULT.some(d => d.id === s.id || d.slug === s.slug)));
+      setSectors(rawSectors.filter((s: { id?: string; slug?: string }) => SECTORS_DEFAULT.some(d => d.id === s.id || d.slug === s.slug)));
 
       const { data: catData } = await supabase
         .from('forum_categories').select('*').order('display_order');
@@ -83,7 +83,7 @@ export function useForumComposer() {
         .order('created_at', { ascending: false })
         .limit(3);
 
-      setSimilarTopics((data || []).filter(t => t.title !== title));
+      setSimilarTopics((data || []).filter((t: { id: string; title: string; created_at: string }) => t.title !== title));
     } catch {
       setSimilarTopics([]);
     } finally {

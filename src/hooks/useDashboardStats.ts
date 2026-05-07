@@ -261,7 +261,7 @@ export function useDashboardStats(): UseDashboardStatsResult {
       const profileScore = profileData ? computeProfileScore(profileData as Record<string, unknown>) : 0;
       const ratingValues = (reviews || []).map((r: Record<string, unknown>) => r.rating as number);
       const avgRating    = ratingValues.length > 0
-        ? Math.round((ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length) * 10) / 10
+        ? Math.round((ratingValues.reduce((a: number, b: number) => a + b, 0) / ratingValues.length) * 10) / 10
         : null;
 
       setListingsRaw(rawListings);

@@ -74,13 +74,13 @@ export function useRatingWidget({
       const pVotes = [0, 0, 0, 0];
       let sum = 0, myR: number | null = null, myP: number | null = null;
 
-      (rows || []).forEach(r => {
-        if (r.rating >= 1 && r.rating <= 5) { dist[r.rating - 1]++; sum += r.rating; }
-        if (r.poll_choice !== null && r.poll_choice >= 0 && r.poll_choice < 4) pVotes[r.poll_choice]++;
-        if (r.user_id === userId) { myR = r.rating || null; myP = r.poll_choice; }
+      (rows || []).forEach((r: Record<string, unknown>) => {
+        if ((r.rating as number) >= 1 && (r.rating as number) <= 5) { dist[(r.rating as number) - 1]++; sum += (r.rating as number); }
+        if (r.poll_choice !== null && (r.poll_choice as number) >= 0 && (r.poll_choice as number) < 4) pVotes[r.poll_choice as number]++;
+        if (r.user_id === userId) { myR = (r.rating as number) || null; myP = r.poll_choice as number | null; }
       });
 
-      const count = (rows || []).filter(r => r.rating >= 1 && r.rating <= 5).length;
+      const count = (rows || []).filter((r: Record<string, unknown>) => (r.rating as number) >= 1 && (r.rating as number) <= 5).length;
       setData({ avg: count > 0 ? sum / count : 0, count, myRating: myR, distribution: dist });
       setPollVotes(pVotes);
       setMyVote(myP);
@@ -94,7 +94,7 @@ export function useRatingWidget({
   useEffect(() => {
     load();
     if (!userId) { setEligible(false); return; }
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: import('@supabase/supabase-js').Session | null } }) => {
       checkEligibility(supabase, targetType, targetId, userId, authorId, session?.access_token ?? null)
         .then(setEligible);
     });

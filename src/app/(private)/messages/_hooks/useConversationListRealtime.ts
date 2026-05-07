@@ -120,9 +120,9 @@ export function useConversationListRealtime(
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload) => handleInsert(payload.new as RealtimeMsg),
+        (payload: import('@supabase/realtime-js').RealtimePostgresChangesPayload<Record<string, unknown>>) => handleInsert(payload.new as RealtimeMsg),
       )
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         // Si le signal a été déclenché (cleanup avant SUBSCRIBED), retirer le
         // canal orphelin et ne rien faire d'autre.
         if (signal.aborted) {

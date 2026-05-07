@@ -33,7 +33,7 @@ export default function EventMiniForum({ eventId, userId, catColor, catBg, catBo
     let cancelled = false;
     supabase.from('event_comments').select('id', { count: 'exact', head: true })
       .eq('event_id', eventId)
-      .then(({ count: c, error }) => {
+      .then(({ count: c, error }: { count: number | null; error: unknown }) => {
         if (cancelled) return;
         if (error) { setTableOk(false); }
         else { setTableOk(true); setCount(c ?? 0); }

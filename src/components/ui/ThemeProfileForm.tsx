@@ -136,15 +136,15 @@ export default function ThemeProfileForm({
       .eq('user_id', userId)
       .eq('theme_slug', themeSlug)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data }: { data: Record<string, unknown> | null }) => {
         if (data) {
-          setBio(data.bio ?? '');
-          setLevel(data.level ?? '');
-          setOffering(data.offering ?? '');
-          setLookingFor(data.looking_for ?? '');
-          setAvailability(data.availability ?? '');
-          setLocationZone(data.location_zone ?? '');
-          setTags(data.tags ?? []);
+          setBio((data.bio as string) ?? '');
+          setLevel((data.level as string) ?? '');
+          setOffering((data.offering as string) ?? '');
+          setLookingFor((data.looking_for as string) ?? '');
+          setAvailability((data.availability as string) ?? '');
+          setLocationZone((data.location_zone as string) ?? '');
+          setTags((data.tags as string[]) ?? []);
         }
         setLoading(false);
       });

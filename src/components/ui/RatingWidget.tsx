@@ -167,13 +167,13 @@ export function UserRatingBadge({
       .eq('target_id', artisanId)
       .gte('rating', 1)
       .order('created_at', { ascending: false })
-      .then(({ data }) => {
+      .then(({ data }: { data: Record<string, unknown>[] | null }) => {
         if (!data?.length) return;
-        const sum = data.reduce((s, r) => s + r.rating, 0);
+        const sum = data.reduce((s: number, r: Record<string, unknown>) => s + (r.rating as number), 0);
         setAvg(sum / data.length);
         setCount(data.length);
         setRaters(
-          data.map(r => {
+          data.map((r: Record<string, unknown>) => {
             const raterRaw = r.rater as unknown as { full_name: string | null; avatar_url: string | null } | { full_name: string | null; avatar_url: string | null }[] | null;
             const rater = Array.isArray(raterRaw) ? (raterRaw[0] ?? null) : raterRaw;
             return {

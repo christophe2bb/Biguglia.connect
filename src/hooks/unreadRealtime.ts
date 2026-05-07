@@ -142,7 +142,7 @@ export function connectRealtime(
         .channel(`unread-counts-${userId}-${Date.now()}`)
 
         // ── Nouveau message ────────────────────────────────────────────────
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload: import('@supabase/realtime-js').RealtimePostgresChangesPayload<Record<string, unknown>>) => {
           const msg = payload.new as {
             id: string; sender_id: string; conversation_id: string;
             content: string; created_at: string;
@@ -191,7 +191,7 @@ export function connectRealtime(
         })
 
         // ── Statut du canal ────────────────────────────────────────────────
-        .subscribe(status => {
+        .subscribe((status: string) => {
           // Signal déclenché entre la création du canal et la réponse Realtime :
           // retirer le canal orphelin immédiatement.
           if (signal?.aborted) {

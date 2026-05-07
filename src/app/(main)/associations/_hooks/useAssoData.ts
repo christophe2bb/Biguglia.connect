@@ -64,7 +64,7 @@ export function useAssoData(filters: AssoDataFilters): AssoDataReturn {
     // ── Filtrage in-memory ────────────────────────────────────────────────
     if (search.trim()) {
       const q = search.toLowerCase();
-      enriched = enriched.filter(a =>
+      enriched = enriched.filter((a: Record<string, unknown> & { name: string; description_short: string; description_full?: string | null; tags: string[]; needs: string[]; activities: string[]; public_target: string[]; contact_name?: string | null }) =>
         a.name.toLowerCase().includes(q) ||
         a.description_short.toLowerCase().includes(q) ||
         (a.description_full ?? '').toLowerCase().includes(q) ||
@@ -77,7 +77,7 @@ export function useAssoData(filters: AssoDataFilters): AssoDataReturn {
     }
 
     if (filterNeed) {
-      enriched = enriched.filter(a =>
+      enriched = enriched.filter((a: Record<string, unknown> & { needs: string[]; is_accepting_volunteers?: boolean; pub_type?: string; is_accepting_donations?: boolean; is_accepting_members?: boolean; is_accepting_partners?: boolean }) =>
         a.needs.some((n: string) => n.toLowerCase().includes(filterNeed.toLowerCase())) ||
         (filterNeed === 'benevoles'   && (a.is_accepting_volunteers || a.pub_type === 'benevoles')) ||
         (filterNeed === 'dons'        && (a.is_accepting_donations  || a.pub_type === 'dons')) ||
@@ -87,7 +87,7 @@ export function useAssoData(filters: AssoDataFilters): AssoDataReturn {
     }
 
     if (filterPublic) {
-      enriched = enriched.filter(a => a.public_target.some((p: string) => p === filterPublic));
+      enriched = enriched.filter((a: Record<string, unknown> & { public_target: string[] }) => a.public_target.some((p: string) => p === filterPublic));
     }
 
     setAssos(enriched as Association[]);

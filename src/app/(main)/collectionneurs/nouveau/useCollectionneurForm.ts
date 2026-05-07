@@ -97,7 +97,7 @@ export function useCollectionneurForm(): UseCollectionneurFormReturn {
       .from('collection_categories')
       .select('*')
       .order('display_order')
-      .then(({ data }) => {
+      .then(({ data }: { data: unknown[] | null }) => {
         setCategories(data?.length ? (data as CollectionCategory[]) : FALLBACK_CATEGORIES);
       });
   }, [supabase]);

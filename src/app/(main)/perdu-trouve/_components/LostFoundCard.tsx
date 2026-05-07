@@ -83,7 +83,7 @@ export default function LostFoundCard({
     supabase.from('lf_comments')
       .select('id', { count: 'exact', head: true })
       .eq('item_id', item.id)
-      .then(({ count }) => setChatCount(count ?? 0));
+      .then(({ count }: { count: number | null }) => setChatCount(count ?? 0));
   }, [item.id, supabase]);
 
   const fetchComments = async () => {
