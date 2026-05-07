@@ -74,7 +74,8 @@ function ModerationStatsContent() {
         toast.error('Erreur de chargement : ' + (err.error ?? res.statusText));
         return;
       }
-      const data: ModerationStatsData = await res.json();
+      const json = await res.json();
+      const data: ModerationStatsData = json.stats ?? json;
       setStats(data);
     } catch (err) {
       console.error('[moderation stats] fetch error:', err);
