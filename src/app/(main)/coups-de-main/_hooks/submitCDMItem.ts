@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import type { HelpRequest, HelpFormValues } from '../_types';
 import { safeImageExt, uploadFile } from '@/lib/upload-utils';
+import { checkBannedWords } from '@/lib/moderation/spam';
 
 export async function submitCDMItem(
   form: HelpFormValues,
@@ -17,6 +18,17 @@ export async function submitCDMItem(
   resetForm: () => void,
   setSubmitting: (v: boolean) => void,
 ): Promise<void> {
+  // ── Vérification mots interdits ──────────────────────────────────────────
+  if (!isDraft) {
+    const textToCheck = [form.title, form.description, form.compensation_detail, form.conditions].join(' ');
+    const bannedCheck = checkBannedWords(textToCheck);
+    if (bannedCheck.blocked) {
+      toast.error(bannedCheck.message, { duration: 6000 });
+      setSubmitting(false);
+      return;
+    }
+  }
+
   const supabase = createClient();
 
   const payload = {

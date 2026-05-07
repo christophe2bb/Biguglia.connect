@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import { type EventForm, type FormStep, DEFAULT_FORM, STEPS } from '../_config';
 import { safeImageExt, uploadFile, isAcceptedImageType } from '@/lib/upload-utils';
+import { checkBannedWords } from '@/lib/moderation/spam';
 
 // ── Return type ───────────────────────────────────────────────────────────────
 
@@ -93,6 +94,14 @@ export function useNewEventForm(
     if (!profileId) { toast.error('Connectez-vous pour créer un événement'); return; }
     if (!form.title.trim()) { toast.error('Le titre est requis'); return; }
     if (!form.event_date)   { toast.error('La date est requise');  return; }
+
+    // ── Vérification mots interdits ─────────────────────────────────────────
+    const textToCheck = [form.title, form.description, form.subtitle].join(' ');
+    const bannedCheck = checkBannedWords(textToCheck);
+    if (bannedCheck.blocked) {
+      toast.error(bannedCheck.message, { duration: 6000 });
+      return;
+    }
 
     setSubmitting(true);
     const supabase = createClient();
