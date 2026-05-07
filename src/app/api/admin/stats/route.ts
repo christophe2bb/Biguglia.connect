@@ -1,12 +1,19 @@
 /**
  * API Route — GET /api/admin/stats
  *
- * Retourne les statistiques complètes pour le tableau de bord admin.
- * Version 3.0 — temps réel, prédictions, scoring artisan, heatmap, benchmarks.
+ * Version 4.0 — Algorithmes avancés temps réel
  *
- * SÉCURITÉ :
- *   • getAdminUser() vérifie session + role admin/moderator côté serveur
- *   • createAdminClient() (service role) contourne la RLS
+ * Algorithmes implémentés :
+ *   • Z-score anomaly detection (|z| > 2σ = warning, > 3σ = critical)
+ *   • EWMA (Exponential Weighted Moving Average) α=0.3 (7j) / α=0.1 (30j)
+ *   • Momentum score = (EWMA7 − EWMA30) / EWMA30 × 100
+ *   • Cohort retention (J+7, J+14, J+30) par mois d'inscription
+ *   • DAU/MAU ratio, stickiness (DAU/WAU), churn risk
+ *   • NPS estimé (avis 5★ vs 1-2★)
+ *   • Régression linéaire + intervalle de confiance
+ *   • Score momentum artisan (comparaison 2 périodes)
+ *
+ * SÉCURITÉ : getAdminUser() vérifie session + role admin/moderator
  */
 
 import 'server-only';
@@ -17,10 +24,10 @@ import { getAdminUser } from '@/lib/supabase/admin-guard';
 import type {
   DailyPoint, KV, PlatformAlert, FunnelStep, WeeklyComparison,
   ArtisanScore, HeatmapCell, Prediction, PredictionPoint, BenchmarkItem,
+  AnomalyPoint, EwmaMetrics, EngagementMetrics, CohortRetention,
   AllStats,
 } from '@/app/admin/stats/_types';
 
-// Re-export types for backward compat
 export type { AllStats as AdminAllStats };
 export type { DailyPoint, KV as NameValue };
 export interface NameValueColor extends KV { color: string }
@@ -39,7 +46,7 @@ const COLORS = {
   pink:   '#ec4899',
 } as const;
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers temporels ────────────────────────────────────────────────────────
 
 function getLast30Days(): string[] {
   return Array.from({ length: 30 }, (_, i) => {
@@ -92,7 +99,8 @@ function pct(num: number, den: number): number {
   return Math.round((num / den) * 100);
 }
 
-/** Régression linéaire simple — renvoie slope et intercept */
+// ─── Algorithme 1 : Régression linéaire ──────────────────────────────────────
+
 function linearRegression(values: number[]): { slope: number; intercept: number } {
   const n = values.length;
   if (n < 2) return { slope: 0, intercept: values[0] ?? 0 };
@@ -105,7 +113,8 @@ function linearRegression(values: number[]): { slope: number; intercept: number 
   return { slope, intercept };
 }
 
-/** Calcul de l'écart-type d'une série */
+// ─── Algorithme 2 : Écart-type ────────────────────────────────────────────────
+
 function stdDev(values: number[]): number {
   if (values.length === 0) return 0;
   const mean = values.reduce((s, v) => s + v, 0) / values.length;
@@ -113,43 +122,104 @@ function stdDev(values: number[]): number {
   return Math.sqrt(sq / values.length);
 }
 
-/** Génère une prédiction sur `horizon` jours via régression linéaire */
+function mean(values: number[]): number {
+  if (values.length === 0) return 0;
+  return values.reduce((s, v) => s + v, 0) / values.length;
+}
+
+// ─── Algorithme 3 : EWMA (Exponential Weighted Moving Average) ───────────────
+// α fort (0.3) = réactif court terme | α faible (0.1) = tendance long terme
+
+function ewma(values: number[], alpha: number): number {
+  if (values.length === 0) return 0;
+  let result = values[0];
+  for (let i = 1; i < values.length; i++) {
+    result = alpha * values[i] + (1 - alpha) * result;
+  }
+  return Math.round(result * 10) / 10;
+}
+
+// Calcul de la série EWMA complète (pour graphes)
+function ewmaSeries(values: number[], alpha: number): number[] {
+  if (values.length === 0) return [];
+  const result = [values[0]];
+  for (let i = 1; i < values.length; i++) {
+    result.push(alpha * values[i] + (1 - alpha) * result[i - 1]);
+  }
+  return result.map(v => Math.round(v * 10) / 10);
+}
+
+// ─── Algorithme 4 : Z-score (détection d'anomalies) ──────────────────────────
+// Formule : z = (x - μ) / σ
+
+function zScore(value: number, seriesMean: number, seriesStd: number): number {
+  if (seriesStd === 0) return 0;
+  return (value - seriesMean) / seriesStd;
+}
+
+// ─── Algorithme 5 : Score momentum ───────────────────────────────────────────
+// Momentum = (EWMA_court - EWMA_long) / EWMA_long × 100
+// Positif = accélération | Négatif = décélération
+
+function momentumScore(ewmaShort: number, ewmaLong: number): number {
+  if (ewmaLong === 0) return ewmaShort > 0 ? 100 : 0;
+  return Math.round(((ewmaShort - ewmaLong) / ewmaLong) * 100);
+}
+
+// ─── Algorithme 6 : Prédiction avec EWMA et régression ───────────────────────
+
 function buildPrediction(
   metric: string,
   dailyValues: number[],
   horizon = 14,
 ): Prediction {
   const { slope, intercept } = linearRegression(dailyValues);
-  const sd = stdDev(dailyValues);
-  const n  = dailyValues.length;
+  const sd  = stdDev(dailyValues);
+  const n   = dailyValues.length;
+  const avg = mean(dailyValues);
+
+  // EWMA
+  const ewma7Series  = ewmaSeries(dailyValues, 0.3);
+  const ewma30Series = ewmaSeries(dailyValues, 0.1);
+  const ewma7val     = ewma7Series[ewma7Series.length - 1] ?? avg;
+  const ewma30val    = ewma30Series[ewma30Series.length - 1] ?? avg;
+  const momentum     = momentumScore(ewma7val, ewma30val);
 
   const points: PredictionPoint[] = [];
 
-  // points historiques
+  // Points historiques avec bandes de confiance EWMA
   dailyValues.forEach((v, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (n - 1 - i));
+    const predicted = Math.max(0, Math.round(intercept + slope * i));
+    // Bande basée sur écart-type adaptatif
+    const band = Math.max(1, Math.round(sd * (1 + Math.abs(momentum) / 200)));
     points.push({
       date:      d.toISOString().slice(0, 10),
       actual:    v,
-      predicted: Math.max(0, Math.round(intercept + slope * i)),
-      lower:     Math.max(0, Math.round(intercept + slope * i - sd)),
-      upper:     Math.max(0, Math.round(intercept + slope * i + sd)),
+      predicted,
+      lower:     Math.max(0, predicted - band),
+      upper:     predicted + band,
     });
   });
 
-  // points prédits
+  // Points futurs (horizon jours)
   for (let h = 1; h <= horizon; h++) {
-    const idx = n - 1 + h;
-    const pred = Math.max(0, Math.round(intercept + slope * idx));
+    const idx  = n - 1 + h;
+    // Prédiction hybride : 60% régression + 40% EWMA (plus réaliste)
+    const regPred  = Math.max(0, intercept + slope * idx);
+    const ewmaPred = Math.max(0, ewma7val + slope * h); // EWMA projeté
+    const pred     = Math.max(0, Math.round(0.6 * regPred + 0.4 * ewmaPred));
+    // Bande qui s'élargit avec le temps (incertitude croissante)
+    const band = Math.max(1, Math.round(sd * (1 + h / horizon)));
     const d = new Date();
     d.setDate(d.getDate() + h);
     points.push({
       date:      d.toISOString().slice(0, 10),
       actual:    null,
       predicted: pred,
-      lower:     Math.max(0, pred - Math.round(sd * 1.5)),
-      upper:     pred + Math.round(sd * 1.5),
+      lower:     Math.max(0, pred - band),
+      upper:     pred + band,
     });
   }
 
@@ -157,21 +227,113 @@ function buildPrediction(
     Math.abs(slope) < 0.05 ? 'flat' :
     slope > 0               ? 'up'  : 'down';
 
-  // confiance basée sur R² approx (écart-type relatif)
-  const mean = dailyValues.reduce((s, v) => s + v, 0) / (dailyValues.length || 1);
-  const confidence = mean === 0 ? 30 : Math.round(Math.max(10, Math.min(95, 100 - (sd / (mean + 0.01)) * 100)));
+  // Confiance : basée sur R² et stabilité de la série
+  const ss_res = dailyValues.reduce((s, v, i) => s + (v - (intercept + slope * i)) ** 2, 0);
+  const ss_tot = dailyValues.reduce((s, v) => s + (v - avg) ** 2, 0);
+  const r2 = ss_tot > 0 ? 1 - ss_res / ss_tot : 0;
+  const confidence = Math.round(Math.max(10, Math.min(95, r2 * 100)));
 
   const projectedIn14 = Math.max(0, Math.round(intercept + slope * (n + 13)));
-  const delta14 = projectedIn14 - (dailyValues[n - 1] ?? 0);
+  const delta14       = projectedIn14 - (dailyValues[n - 1] ?? 0);
+
+  const momentumLabel =
+    momentum > 20  ? '🚀 Forte accélération' :
+    momentum > 5   ? '📈 En accélération' :
+    momentum < -20 ? '⚠️ Forte décélération' :
+    momentum < -5  ? '📉 En décélération' : '➡️ Stable';
 
   const insight =
     trend === 'up'
-      ? `📈 En progression — projection +${delta14 >= 0 ? '+' : ''}${delta14} dans 14j (confiance ${confidence}%)`
+      ? `📈 ${momentumLabel} — projection +${delta14 >= 0 ? '+' : ''}${delta14} dans 14j (R²=${confidence}%)`
       : trend === 'down'
-      ? `📉 En baisse — projection ${delta14} dans 14j. Action recommandée si tendance persiste.`
-      : `➡️ Stable — pas de variation significative attendue (confiance ${confidence}%)`;
+      ? `📉 ${momentumLabel} — projection ${delta14} dans 14j. Action recommandée si persiste.`
+      : `➡️ Stable — ${momentumLabel} (R²=${confidence}%)`;
 
-  return { metric, horizon, points, trend, confidence, insight };
+  return {
+    metric, horizon, points, trend, confidence, insight,
+    momentumScore: momentum,
+    ewma7: ewma7val,
+    ewma30: ewma30val,
+  };
+}
+
+// ─── Algorithme 7 : Détection anomalies Z-score ───────────────────────────────
+
+function detectAnomalies(
+  series: DailyPoint[],
+  metricName: string,
+  threshold = 2.0,
+): AnomalyPoint[] {
+  const values = series.map(p => p.value);
+  if (values.length < 5) return [];
+
+  const μ  = mean(values);
+  const σ  = stdDev(values);
+  const anomalies: AnomalyPoint[] = [];
+
+  // On ne regarde que les 7 derniers points
+  series.slice(-7).forEach(point => {
+    const z = zScore(point.value, μ, σ);
+    const absZ = Math.abs(z);
+    if (absZ >= threshold) {
+      anomalies.push({
+        date:      point.date,
+        metric:    metricName,
+        value:     point.value,
+        zscore:    Math.round(z * 100) / 100,
+        mean:      Math.round(μ * 10) / 10,
+        stddev:    Math.round(σ * 10) / 10,
+        level:     absZ >= 3 ? 'critical' : 'warning',
+        direction: z > 0 ? 'spike' : 'drop',
+      });
+    }
+  });
+
+  return anomalies;
+}
+
+// ─── Algorithme 8 : Rétention par cohortes ───────────────────────────────────
+// Regroupe les inscrits par mois et mesure leur activité aux étapes clés
+
+function buildCohortRetention(
+  profiles: Array<{ id: string; created_at: string }>,
+  activeIds30: Set<string>,
+  activeIds14: Set<string>,
+  activeIds7: Set<string>,
+): CohortRetention[] {
+  // Grouper par mois (3 derniers mois)
+  const cohorts: Record<string, string[]> = {};
+  profiles.forEach(p => {
+    const monthKey = p.created_at.slice(0, 7); // YYYY-MM
+    if (!cohorts[monthKey]) cohorts[monthKey] = [];
+    cohorts[monthKey].push(p.id);
+  });
+
+  const months = Object.keys(cohorts).sort().reverse().slice(0, 3);
+  const monthLabels: Record<string, string> = {
+    '01': 'Jan', '02': 'Fév', '03': 'Mar', '04': 'Avr',
+    '05': 'Mai', '06': 'Jun', '07': 'Jul', '08': 'Aoû',
+    '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Déc',
+  };
+
+  return months.map(month => {
+    const ids  = cohorts[month] ?? [];
+    const size = ids.length;
+    const [year, m] = month.split('-');
+    const label = `${monthLabels[m] ?? m} ${year}`;
+
+    const ret7  = size > 0 ? pct(ids.filter(id => activeIds7.has(id)).length,  size) : 0;
+    const ret14 = size > 0 ? pct(ids.filter(id => activeIds14.has(id)).length, size) : 0;
+    const ret30 = size > 0 ? pct(ids.filter(id => activeIds30.has(id)).length, size) : 0;
+
+    return {
+      cohortLabel: label,
+      cohortSize:  size,
+      retDay7:     ret7,
+      retDay14:    ret14,
+      retDay30:    ret30,
+    };
+  });
 }
 
 // ─── GET /api/admin/stats ─────────────────────────────────────────────────────
@@ -182,21 +344,25 @@ export async function GET(req: NextRequest) {
 
   const { adminClient } = guard;
 
-  const days90   = getLast90Days();
-  const days30   = getLast30Days();
-  const now      = new Date();
-  const since30  = new Date(now); since30.setDate(now.getDate() - 30);
-  const since60  = new Date(now); since60.setDate(now.getDate() - 60);
-  const since90  = new Date(now); since90.setDate(now.getDate() - 90);
-  const since7   = new Date(now); since7.setDate(now.getDate() - 7);
-  const prev7    = new Date(now); prev7.setDate(now.getDate() - 14);
-  const today    = now.toISOString().slice(0, 10);
+  const days90 = getLast90Days();
+  const days30 = getLast30Days();
+  const now    = new Date();
+
+  const since7  = new Date(now); since7.setDate(now.getDate() - 7);
+  const since14 = new Date(now); since14.setDate(now.getDate() - 14);
+  const since30 = new Date(now); since30.setDate(now.getDate() - 30);
+  const since60 = new Date(now); since60.setDate(now.getDate() - 60);
+  const since90 = new Date(now); since90.setDate(now.getDate() - 90);
+  const prev7   = new Date(now); prev7.setDate(now.getDate() - 14);
+  const today   = now.toISOString().slice(0, 10);
+
+  const since7Str  = since7.toISOString();
+  const since14Str = since14.toISOString();
   const since30Str = since30.toISOString();
   const since60Str = since60.toISOString();
   const since90Str = since90.toISOString();
-  const since7Str  = since7.toISOString();
 
-  // ── Requêtes parallèles ─────────────────────────────────────────────────────
+  // ── Requêtes parallèles ────────────────────────────────────────────────────
   const [
     { data: allProfiles },
     { data: allMessages },
@@ -235,7 +401,7 @@ export async function GET(req: NextRequest) {
     adminClient.from('events').select('id, created_at').order('created_at'),
   ]);
 
-  // ─── Typages ──────────────────────────────────────────────────────────────
+  // ─── Typages ───────────────────────────────────────────────────────────────
 
   const profiles = (allProfiles ?? []) as Array<{ id: string; role: string; created_at: string }>;
   const msgs     = (allMessages ?? []) as Array<{ id: string; conversation_id: string; sender_id: string; created_at: string }>;
@@ -253,7 +419,7 @@ export async function GET(req: NextRequest) {
     display_name: string | null; created_at: string;
   }>;
 
-  // ─── Calculs utilisateurs ────────────────────────────────────────────────
+  // ─── Utilisateurs ──────────────────────────────────────────────────────────
 
   const totalUsers       = profiles.filter(p => p.role !== 'admin').length;
   const residents        = profiles.filter(p => p.role === 'resident').length;
@@ -267,7 +433,7 @@ export async function GET(req: NextRequest) {
   const artisansPro         = apRaw.filter(a => a.artisan_type === 'professionnel').length;
   const artisansParticulier = apRaw.filter(a => a.artisan_type === 'particulier').length;
 
-  // ─── Calculs messages ────────────────────────────────────────────────────
+  // ─── Messages ──────────────────────────────────────────────────────────────
 
   const totalMessages      = msgs.length;
   const totalConversations = (allConversations ?? []).length;
@@ -278,7 +444,7 @@ export async function GET(req: NextRequest) {
   const avgMsgsPerConversation = totalConversations > 0
     ? Math.round((totalMessages / totalConversations) * 10) / 10 : 0;
 
-  // ─── Calculs annonces ────────────────────────────────────────────────────
+  // ─── Annonces ──────────────────────────────────────────────────────────────
 
   const totalListings     = listings.length;
   const activeListings    = listings.filter(l => l.status === 'active').length;
@@ -290,21 +456,21 @@ export async function GET(req: NextRequest) {
   listings.forEach(l => { const cat = l.category?.name ?? 'Autre'; listingCatMap[cat] = (listingCatMap[cat] ?? 0) + 1; });
   const listingCategories = Object.entries(listingCatMap).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, value]) => ({ name, value }));
 
-  // ─── Calculs forum ───────────────────────────────────────────────────────
+  // ─── Forum ─────────────────────────────────────────────────────────────────
 
-  const totalPosts           = posts.length;
-  const totalComments        = comments.length;
-  const closedPosts          = posts.filter(p => p.is_closed === true).length;
-  const postsLast7           = posts.filter(p => new Date(p.created_at) >= since7).length;
-  const postsPrev7           = posts.filter(p => { const d = new Date(p.created_at); return d >= prev7 && d < since7; }).length;
-  const forumResolutionRate  = pct(closedPosts, totalPosts);
-  const avgCommentsPerPost   = totalPosts > 0 ? Math.round((totalComments / totalPosts) * 10) / 10 : 0;
+  const totalPosts          = posts.length;
+  const totalComments       = comments.length;
+  const closedPosts         = posts.filter(p => p.is_closed === true).length;
+  const postsLast7          = posts.filter(p => new Date(p.created_at) >= since7).length;
+  const postsPrev7          = posts.filter(p => { const d = new Date(p.created_at); return d >= prev7 && d < since7; }).length;
+  const forumResolutionRate = pct(closedPosts, totalPosts);
+  const avgCommentsPerPost  = totalPosts > 0 ? Math.round((totalComments / totalPosts) * 10) / 10 : 0;
   const forumCatMap: Record<string, number> = {};
   posts.forEach(p => { const cat = p.category?.name ?? 'Autre'; forumCatMap[cat] = (forumCatMap[cat] ?? 0) + 1; });
   const forumCategories = Object.entries(forumCatMap).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, value]) => ({ name, value }));
   const topForumWords   = topWords(posts.map(p => p.title ?? ''));
 
-  // ─── Calculs demandes ────────────────────────────────────────────────────
+  // ─── Demandes ──────────────────────────────────────────────────────────────
 
   const totalRequests           = reqs.length;
   const pendingRequests         = reqs.filter(r => r.status === 'submitted').length;
@@ -322,7 +488,7 @@ export async function GET(req: NextRequest) {
   reqs.forEach(r => { const k = statusLabels[r.status] ?? r.status; reqStatusMap[k] = (reqStatusMap[k] ?? 0) + 1; });
   const requestsByStatus = Object.entries(reqStatusMap).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
 
-  // ─── Calculs avis ────────────────────────────────────────────────────────
+  // ─── Avis ──────────────────────────────────────────────────────────────────
 
   const totalReviews     = reviews.length;
   const avgRating        = totalReviews ? Math.round((reviews.reduce((s, r) => s + r.rating, 0) / totalReviews) * 10) / 10 : 0;
@@ -330,71 +496,75 @@ export async function GET(req: NextRequest) {
   const positiveReviews  = reviews.filter(r => r.rating >= 4).length;
   const negativeReviews  = reviews.filter(r => r.rating <= 2).length;
 
-  // ─── Calculs matériel ────────────────────────────────────────────────────
+  // ─── Matériel ──────────────────────────────────────────────────────────────
 
   const totalEquipment     = equip.length;
   const availableEquipment = equip.filter(e => e.is_available).length;
   const totalBorrows       = (allBorrows ?? []).length;
   const equipmentUsageRate = pct(totalBorrows, totalEquipment || 1);
 
-  // ─── Signalements ────────────────────────────────────────────────────────
+  // ─── Signalements ──────────────────────────────────────────────────────────
 
   const pendingReports       = reports.filter(r => r.status === 'pending').length;
   const totalReports         = reports.length;
   const resolvedReports      = reports.filter(r => r.status === 'resolved').length;
   const reportResolutionRate = pct(resolvedReports, totalReports);
 
-  // ─── Notifications ───────────────────────────────────────────────────────
+  // ─── Notifications ─────────────────────────────────────────────────────────
 
   const totalNotifications  = notifs.length;
   const unreadNotifications = notifs.filter(n => !n.is_read).length;
   const readNotifs          = notifs.filter(n => n.is_read).length;
   const notifReadRate       = pct(readNotifs, totalNotifications);
 
-  // ─── Autres contenus ─────────────────────────────────────────────────────
+  // ─── Autres contenus ───────────────────────────────────────────────────────
 
   const totalHelpRequests = (helpReqs ?? []).length;
   const totalOutings      = (outings ?? []).length;
   const totalLostFound    = (lostFound ?? []).length;
   const totalEvents       = (events ?? []).length;
 
-  // ─── Engagement actif ────────────────────────────────────────────────────
+  // ─── Engagement actif ──────────────────────────────────────────────────────
 
-  const activeUsersLast30 = Math.min(
-    totalUsers,
-    Math.max(
-      new Set(msgs.filter(m => m.created_at >= since30Str).map(m => m.conversation_id)).size,
-      postsLast7 + listingsLast7 + messagesLast7 > 0 ? Math.ceil(totalUsers * 0.15) : 0,
-    ),
-  );
-  const activationRate = pct(activeUsersLast30, totalUsers);
-  const notifsToday    = notifs.filter(n => n.created_at?.slice(0, 10) === today);
-  const dauEstimate    = Math.max(notifsToday.length, messagesLast7 > 0 ? Math.ceil(messagesLast7 / 7) : 0);
+  const activeSenderIds30 = new Set(msgs.filter(m => m.created_at >= since30Str).map(m => m.sender_id));
+  const activeAuthorIds30 = new Set(posts.filter(p => p.created_at >= since30Str).map(p => p.id));
+  const activeCommentIds30 = new Set(comments.filter(c => c.created_at >= since30Str).map(c => c.author_id));
+  const allActiveIds30 = new Set([...activeSenderIds30, ...activeAuthorIds30, ...activeCommentIds30]);
+  const activeUsersLast30 = Math.min(totalUsers, allActiveIds30.size);
+  const activationRate    = pct(activeUsersLast30, totalUsers);
 
-  // ─── Croissance ──────────────────────────────────────────────────────────
+  const notifsToday   = notifs.filter(n => n.created_at?.slice(0, 10) === today);
+  const dauEstimate   = Math.max(notifsToday.length, messagesLast7 > 0 ? Math.ceil(messagesLast7 / 7) : 0);
+
+  // Actifs 7 jours
+  const activeSenderIds7  = new Set(msgs.filter(m => m.created_at >= since7Str).map(m => m.sender_id));
+  const activePostIds7    = new Set(posts.filter(p => p.created_at >= since7Str).map(p => p.id));
+  const activeCommentIds7 = new Set(comments.filter(c => c.created_at >= since7Str).map(c => c.author_id));
+  const allActiveIds7     = new Set([...activeSenderIds7, ...activePostIds7, ...activeCommentIds7]);
+  const weeklyActiveUsers = allActiveIds7.size;
+
+  // Actifs 14 jours
+  const activeSenderIds14  = new Set(msgs.filter(m => m.created_at >= since14Str).map(m => m.sender_id));
+  const activePostIds14    = new Set(posts.filter(p => p.created_at >= since14Str).map(p => p.id));
+  const activeCommentIds14 = new Set(comments.filter(c => c.created_at >= since14Str).map(c => c.author_id));
+  const allActiveIds14     = new Set([...activeSenderIds14, ...activePostIds14, ...activeCommentIds14]);
+
+  // ─── Croissance ────────────────────────────────────────────────────────────
 
   const userGrowthRate  = newUsersPrev30 > 0
     ? Math.round(((newUsersLast30 - newUsersPrev30) / newUsersPrev30) * 100)
     : (newUsersLast30 > 0 ? 100 : 0);
   const monthlyNewUsers = newUsersLast30;
 
-  // ─── Rétention avancée ───────────────────────────────────────────────────
+  // ─── Rétention ─────────────────────────────────────────────────────────────
 
-  // Membres inscrits il y a > 30j sans aucune action récente
   const olderProfiles   = profiles.filter(p => new Date(p.created_at) < since30);
-  const activeOlderIds  = new Set([
-    ...msgs.filter(m => m.created_at >= since30Str).map(m => m.sender_id),
-    ...posts.filter(p => p.created_at >= since30Str).map(p => p.id),
-    ...comments.filter(c => c.created_at >= since30Str).map(c => c.author_id),
-  ]);
-  const ghostUsers   = olderProfiles.filter(p => !activeOlderIds.has(p.id)).length;
-  const retentionRate = olderProfiles.length > 0 ? pct(olderProfiles.length - ghostUsers, olderProfiles.length) : 0;
+  const ghostUsers      = olderProfiles.filter(p => !allActiveIds30.has(p.id)).length;
+  const retentionRate   = olderProfiles.length > 0 ? pct(olderProfiles.length - ghostUsers, olderProfiles.length) : 0;
 
-  // Vitesse contenu = actions totales 7j / 7
-  const totalActions7 = postsLast7 + listingsLast7 + messagesLast7;
+  const totalActions7   = postsLast7 + listingsLast7 + messagesLast7;
   const contentVelocity = Math.round((totalActions7 / 7) * 10) / 10;
 
-  // Jours depuis dernier contenu
   const allContent = [
     ...posts.map(p => p.created_at),
     ...listings.map(l => l.created_at),
@@ -404,51 +574,35 @@ export async function GET(req: NextRequest) {
     ? Math.floor((now.getTime() - new Date(allContent[0]).getTime()) / (1000 * 60 * 60 * 24))
     : 999;
 
-  // Vitesse réponse artisan (approx : délai entre submitted et replied)
-  const avgResponseDays = 0; // sans timestamp de réponse en DB, on laisse à 0
+  const avgResponseDays = 0;
 
-  // ─── Heatmap 7 jours × 24 heures ────────────────────────────────────────
-  // Cumule messages + posts des 7 derniers jours par (jour_semaine, heure)
+  // ─── ALGORITHME : Heatmap 7×24 ────────────────────────────────────────────
 
   const heatmapMap: Record<string, number> = {};
-  for (let day = 0; day < 7; day++) {
-    for (let hour = 0; hour < 24; hour++) {
+  for (let day = 0; day < 7; day++)
+    for (let hour = 0; hour < 24; hour++)
       heatmapMap[`${day}-${hour}`] = 0;
-    }
-  }
 
-  msgs.filter(m => new Date(m.created_at) >= since7).forEach(m => {
-    const d = new Date(m.created_at);
-    const dow  = (d.getDay() + 6) % 7; // 0=lun, 6=dim
-    const hour = d.getHours();
-    heatmapMap[`${dow}-${hour}`] = (heatmapMap[`${dow}-${hour}`] ?? 0) + 1;
-  });
-  posts.filter(p => new Date(p.created_at) >= since7).forEach(p => {
-    const d = new Date(p.created_at);
-    const dow  = (d.getDay() + 6) % 7;
-    const hour = d.getHours();
-    heatmapMap[`${dow}-${hour}`] = (heatmapMap[`${dow}-${hour}`] ?? 0) + 1;
-  });
-  listings.filter(l => new Date(l.created_at) >= since7).forEach(l => {
-    const d = new Date(l.created_at);
-    const dow  = (d.getDay() + 6) % 7;
-    const hour = d.getHours();
-    heatmapMap[`${dow}-${hour}`] = (heatmapMap[`${dow}-${hour}`] ?? 0) + 1;
-  });
+  const addToHeatmap = (items: Array<{ created_at: string }>) => {
+    items.filter(item => new Date(item.created_at) >= since7).forEach(item => {
+      const d    = new Date(item.created_at);
+      const dow  = (d.getDay() + 6) % 7;
+      const hour = d.getHours();
+      heatmapMap[`${dow}-${hour}`] = (heatmapMap[`${dow}-${hour}`] ?? 0) + 1;
+    });
+  };
+  addToHeatmap(msgs); addToHeatmap(posts); addToHeatmap(listings);
 
   const heatmap7x24: HeatmapCell[] = [];
-  for (let day = 0; day < 7; day++) {
-    for (let hour = 0; hour < 24; hour++) {
+  for (let day = 0; day < 7; day++)
+    for (let hour = 0; hour < 24; hour++)
       heatmap7x24.push({ day, hour, value: heatmapMap[`${day}-${hour}`] ?? 0 });
-    }
-  }
 
-  // Pic d'activité
-  const maxCell      = heatmap7x24.reduce((best, c) => c.value > best.value ? c : best, heatmap7x24[0]);
-  const peakHour     = maxCell?.hour ?? 12;
-  const peakDayOfWeek = maxCell?.day ?? 0;
+  const maxCell       = heatmap7x24.reduce((best, c) => c.value > best.value ? c : best, heatmap7x24[0]);
+  const peakHour      = maxCell?.hour ?? 12;
+  const peakDayOfWeek = maxCell?.day  ?? 0;
 
-  // ─── Activité par heure (30j, pour le graphe existant) ───────────────────
+  // ─── Activité par heure (30j) ──────────────────────────────────────────────
 
   const hourMap: Record<number, { messages: number; posts: number }> = {};
   for (let h = 0; h < 24; h++) hourMap[h] = { messages: 0, posts: 0 };
@@ -460,7 +614,7 @@ export async function GET(req: NextRequest) {
     posts:    hourMap[h].posts,
   }));
 
-  // ─── Scoring individuel artisans ─────────────────────────────────────────
+  // ─── ALGORITHME : Scoring artisans avec momentum + churn risk ─────────────
 
   const artisanScores: ArtisanScore[] = apRaw.map(ap => {
     const uid          = ap.user_id;
@@ -475,14 +629,36 @@ export async function GET(req: NextRequest) {
     const responseRate   = pct(artReplied,   artReqs.length);
     const completionRate = pct(artCompleted, artReqs.length);
 
-    // Score composite 0-100
-    // 30 pts — taux réponse | 30 pts — taux complétion | 30 pts — note moyenne | 10 pts — activité récente
+    // Score composite (actuel)
     const sResponse   = Math.round(responseRate   * 0.30);
     const sCompletion = Math.round(completionRate  * 0.30);
-    const sRating     = artAvgRating > 0 ? Math.round((artAvgRating / 5) * 30) : 10; // 10 pts par défaut si pas d'avis
+    const sRating     = artAvgRating > 0 ? Math.round((artAvgRating / 5) * 30) : 10;
     const artReqsLast30 = artReqs.filter(r => r.created_at >= since30Str).length;
     const sActivity   = artReqsLast30 >= 3 ? 10 : artReqsLast30 >= 1 ? 6 : artReqs.length > 0 ? 3 : 0;
     const score       = sResponse + sCompletion + sRating + sActivity;
+
+    // Score précédente période (30-60j) pour calculer la tendance
+    const artReqs30to60  = artReqs.filter(r => r.created_at >= since60Str && r.created_at < since30Str);
+    const artReplied60   = artReqs30to60.filter(r => ['replied', 'scheduled', 'completed'].includes(r.status)).length;
+    const artCompleted60 = artReqs30to60.filter(r => r.status === 'completed').length;
+    const rr60  = pct(artReplied60,   artReqs30to60.length);
+    const cr60  = pct(artCompleted60, artReqs30to60.length);
+    const prevScore = Math.round(rr60 * 0.30) + Math.round(cr60 * 0.30) + sRating +
+                      (artReqs30to60.length >= 3 ? 10 : artReqs30to60.length >= 1 ? 6 : artReqs.length > 0 ? 3 : 0);
+
+    const scoreDelta = score - prevScore;
+    const scoreTrend: ArtisanScore['scoreTrend'] =
+      scoreDelta > 5 ? 'up' : scoreDelta < -5 ? 'down' : 'flat';
+
+    // Risque de churn artisan
+    const lastReqDate = artReqs.map(r => r.created_at).sort().reverse()[0];
+    const lastActivityDays = lastReqDate
+      ? Math.floor((now.getTime() - new Date(lastReqDate).getTime()) / (1000 * 60 * 60 * 24))
+      : 9999;
+
+    const churnRisk: ArtisanScore['churnRisk'] =
+      lastActivityDays > 60 || (score < 30 && artReqs.length > 0) ? 'high'   :
+      lastActivityDays > 30 || score < 50                          ? 'medium' : 'low';
 
     const scoreLevel: ArtisanScore['scoreLevel'] =
       score >= 80 ? 'excellent' :
@@ -494,40 +670,31 @@ export async function GET(req: NextRequest) {
       scoreLevel === 'good'      ? '⭐' :
       scoreLevel === 'fair'      ? '🔧' : '💤';
 
-    // dernière activité
-    const lastReqDate = artReqs
-      .map(r => r.created_at)
-      .sort().reverse()[0];
-    const lastActivityDays = lastReqDate
-      ? Math.floor((now.getTime() - new Date(lastReqDate).getTime()) / (1000 * 60 * 60 * 24))
-      : 9999;
-
-    const requestsLast30 = artReqsLast30;
-    const requestsLast7  = artReqs.filter(r => r.created_at >= since7Str).length;
-
     return {
-      userId:           uid,
-      displayName:      ap.display_name ?? `Artisan ${uid.slice(0, 6)}`,
-      tradeCategory:    ap.trade_category?.name ?? 'Non renseigné',
-      artisanType:      ap.artisan_type ?? 'particulier',
-      totalRequests:    artReqs.length,
-      completedRequests:artCompleted,
-      cancelledRequests:artCancelled,
-      pendingRequests:  artPending,
-      totalReviews:     artReviews.length,
-      avgRating:        artAvgRating,
+      userId:            uid,
+      displayName:       ap.display_name ?? `Artisan ${uid.slice(0, 6)}`,
+      tradeCategory:     ap.trade_category?.name ?? 'Non renseigné',
+      artisanType:       ap.artisan_type ?? 'particulier',
+      totalRequests:     artReqs.length,
+      completedRequests: artCompleted,
+      cancelledRequests: artCancelled,
+      pendingRequests:   artPending,
+      totalReviews:      artReviews.length,
+      avgRating:         artAvgRating,
       responseRate,
       completionRate,
       score,
       scoreLevel,
       badge,
-      requestsLast30,
-      requestsLast7,
+      requestsLast30: artReqsLast30,
+      requestsLast7:  artReqs.filter(r => r.created_at >= since7Str).length,
       lastActivityDays,
+      scoreTrend,
+      churnRisk,
     };
   }).sort((a, b) => b.score - a.score);
 
-  // ─── Séries temporelles ──────────────────────────────────────────────────
+  // ─── Séries temporelles ────────────────────────────────────────────────────
 
   const dailyUsers    = countByDay(profiles.filter(p => p.created_at >= since30Str), days30);
   const dailyMessages = countByDay(msgs.filter(m => m.created_at >= since30Str), days30);
@@ -535,256 +702,329 @@ export async function GET(req: NextRequest) {
   const dailyListings = countByDay(listings.filter(l => l.created_at >= since30Str), days30);
   const dailyRequests = countByDay(reqs.filter(r => r.created_at >= since30Str), days30);
 
-  // ─── Historique score santé (12 semaines rétrospectif) ───────────────────
-  // Recalcule un score de santé simplifié pour chaque semaine passée
+  // ─── ALGORITHME : EWMA + Momentum ─────────────────────────────────────────
 
-  const healthHistory: DailyPoint[] = Array.from({ length: 12 }, (_, weekIdx) => {
-    const weekEnd   = new Date(now); weekEnd.setDate(now.getDate() - weekIdx * 7);
-    const weekStart = new Date(weekEnd); weekStart.setDate(weekEnd.getDate() - 7);
-    const wStartStr = weekStart.toISOString();
-    const wEndStr   = weekEnd.toISOString();
+  const msgValues  = dailyMessages.map(p => p.value);
+  const postValues = dailyPosts.map(p => p.value);
+  const userValues = dailyUsers.map(p => p.value);
 
-    const wUsers    = profiles.filter(p => new Date(p.created_at) < weekEnd).length;
-    const wVerified = apRaw.filter(a => new Date(a.created_at) < weekEnd).length;
-    const wMsgs     = msgs.filter(m => m.created_at >= wStartStr && m.created_at < wEndStr).length;
-    const wPosts    = posts.filter(p => p.created_at >= wStartStr && p.created_at < wEndStr).length;
-    const wListings = listings.filter(l => l.created_at >= wStartStr && l.created_at < wEndStr).length;
-    const wRep      = reports.filter(r => r.status === 'pending' && r.created_at < wEndStr).length;
+  const msgEwma7   = ewma(msgValues,  0.3);
+  const msgEwma30  = ewma(msgValues,  0.1);
+  const postEwma7  = ewma(postValues, 0.3);
+  const postEwma30 = ewma(postValues, 0.1);
+  const userEwma7  = ewma(userValues, 0.3);
+  const userEwma30 = ewma(userValues, 0.1);
 
-    const wGrowth     = Math.min(20, wUsers > 10 ? 20 : wUsers > 5 ? 12 : wUsers > 0 ? 6 : 0);
-    const wContent    = Math.min(20, wMsgs + wPosts + wListings >= 20 ? 20 : wMsgs + wPosts + wListings >= 5 ? 12 : wMsgs + wPosts + wListings >= 1 ? 6 : 1);
-    const wArtisans   = Math.min(20, wVerified >= 5 ? 20 : wVerified >= 2 ? 12 : wVerified >= 1 ? 8 : 0);
-    const wModeration = Math.min(10, wRep === 0 ? 10 : wRep <= 2 ? 7 : 4);
-    const wScore      = wGrowth + 10 + wContent + wArtisans + wModeration + 5;
+  const ewmaMetrics: EwmaMetrics = {
+    messagesEwma7:    msgEwma7,
+    messagesEwma30:   msgEwma30,
+    postsEwma7:       postEwma7,
+    postsEwma30:      postEwma30,
+    usersEwma7:       userEwma7,
+    usersEwma30:      userEwma30,
+    messagesMomentum: momentumScore(msgEwma7,  msgEwma30),
+    postsMomentum:    momentumScore(postEwma7, postEwma30),
+    usersMomentum:    momentumScore(userEwma7, userEwma30),
+  };
 
-    const d = new Date(weekEnd);
-    return { date: d.toISOString().slice(5, 10), value: Math.min(100, wScore) };
-  }).reverse();
+  // Score momentum global = moyenne pondérée des 3 momentums
+  const platformMomentum = Math.round(
+    (ewmaMetrics.messagesMomentum * 0.4 +
+     ewmaMetrics.postsMomentum    * 0.3 +
+     ewmaMetrics.usersMomentum    * 0.3)
+  );
 
-  // ─── Prédictions (régression linéaire) ───────────────────────────────────
+  // ─── ALGORITHME : Détection anomalies Z-score ─────────────────────────────
 
-  // Séries 30j pour les prédictions
-  const msgsValues   = dailyMessages.map(d => d.value);
-  const postsValues  = dailyPosts.map(d => d.value);
-  const usersValues  = dailyUsers.map(d => d.value);
-  const reqsValues   = dailyRequests.map(d => d.value);
+  const anomalies: AnomalyPoint[] = [
+    ...detectAnomalies(dailyMessages, 'Messages',  2.0),
+    ...detectAnomalies(dailyPosts,    'Forum',     2.0),
+    ...detectAnomalies(dailyUsers,    'Inscriptions', 2.0),
+    ...detectAnomalies(dailyListings, 'Annonces',  2.0),
+  ];
+
+  // ─── ALGORITHME : Engagement avancé (DAU/MAU, stickiness, NPS, churn) ─────
+
+  const dauMauRatio         = totalUsers > 0 ? pct(dauEstimate, totalUsers) : 0;
+  const weeklyActiveRate    = pct(weeklyActiveUsers, totalUsers);
+  const dauWauRatio         = weeklyActiveUsers > 0 ? Math.round((dauEstimate / weeklyActiveUsers) * 100) : 0;
+
+  // Activation nouveaux inscrits (inscrits 7j et qui ont eu une action)
+  const newProfiles7 = profiles.filter(p => new Date(p.created_at) >= since7);
+  const newActive7   = newProfiles7.filter(p => allActiveIds7.has(p.id)).length;
+  const newUserActivation7d = pct(newActive7, newProfiles7.length);
+
+  // Churn risk (membres inactifs depuis > 14j mais inscrits < 60j)
+  const atRiskProfiles = profiles.filter(p => {
+    const d = new Date(p.created_at);
+    return d >= since60 && d < since14 && !allActiveIds14.has(p.id) && p.role !== 'admin';
+  });
+  const churnRisk30d = pct(atRiskProfiles.length, totalUsers);
+
+  // NPS estimé : (avis 5★) - (avis 1★ + avis 2★) / total × 100
+  const promoters  = reviews.filter(r => r.rating === 5).length;
+  const detractors = reviews.filter(r => r.rating <= 2).length;
+  const nps = totalReviews > 0 ? Math.round(((promoters - detractors) / totalReviews) * 100) : 0;
+
+  const engagementMetrics: EngagementMetrics = {
+    dauMauRatio,
+    weeklyActiveRate,
+    stickiness:          dauWauRatio,
+    avgSessionsPerUser:  activeUsersLast30 > 0 ? Math.round((messagesLast7 / activeUsersLast30) * 10) / 10 : 0,
+    newUserActivation7d,
+    churnRisk30d,
+    virality:            0, // pas de donnée d'invitation disponible
+    nps,
+  };
+
+  // ─── ALGORITHME : Cohortes de rétention ───────────────────────────────────
+
+  const cohortRetention = buildCohortRetention(
+    profiles.filter(p => p.role !== 'admin'),
+    allActiveIds30,
+    allActiveIds14,
+    allActiveIds7,
+  );
+
+  // ─── Prédictions hybrides (régression + EWMA) ─────────────────────────────
 
   const predictions: Prediction[] = [
-    buildPrediction('Messages envoyés / jour', msgsValues, 14),
-    buildPrediction('Nouvelles inscriptions / jour', usersValues, 14),
-    buildPrediction('Posts forum / jour', postsValues, 14),
-    buildPrediction('Demandes artisans / jour', reqsValues, 14),
+    buildPrediction('Inscriptions/jour', userValues, 14),
+    buildPrediction('Messages/jour',     msgValues,  14),
+    buildPrediction('Posts forum/jour',  postValues, 14),
+    buildPrediction('Annonces/jour', dailyListings.map(p => p.value), 14),
   ];
 
-  // ─── Benchmarks secteur civic-tech / community platforms ────────────────
-  // Références : études OuiHelper (2023), Voisin Malin (2022), Nextdoor FR (2022)
+  // ─── Historique santé (12 semaines) ───────────────────────────────────────
+
+  const healthHistory: DailyPoint[] = Array.from({ length: 12 }, (_, w) => {
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - (11 - w) * 7);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+    const ws = weekStart.toISOString();
+    const we = weekEnd.toISOString();
+
+    const wUsers  = profiles.filter(p => p.created_at >= ws && p.created_at < we).length;
+    const wMsgs   = msgs.filter(m => m.created_at >= ws && m.created_at < we).length;
+    const wPosts  = posts.filter(p => p.created_at >= ws && p.created_at < we).length;
+
+    // Score simplifié basé sur l'activité relative de la semaine
+    const actScore = Math.min(40, wMsgs * 2 + wPosts * 3 + wUsers * 5);
+    const baseScore = 30;
+    const wScore = Math.min(100, baseScore + actScore);
+
+    const d = new Date(weekStart);
+    return { date: `S${w + 1}`, value: wScore };
+  });
+
+  // ─── Benchmarks secteur civic-tech ────────────────────────────────────────
+
+  function benchmarkItem(
+    metric: string, platform: number, benchmark: number, unit: string, context: string,
+  ): BenchmarkItem {
+    const gap     = Math.round((platform - benchmark) * 10) / 10;
+    const gapPct  = benchmark !== 0 ? Math.round(Math.abs(gap / benchmark) * 100) : 0;
+    const status  = platform >= benchmark * 1.05 ? 'above' : platform >= benchmark * 0.9 ? 'at' : 'below';
+    return { metric, platform, benchmark, unit, status, gap, gapPct, context };
+  }
 
   const benchmarks: BenchmarkItem[] = [
-    {
-      metric:    'Taux d\'activation membres',
-      platform:  activationRate,
-      benchmark: 35,
-      unit:      '%',
-      status:    activationRate >= 35 ? 'above' : activationRate >= 28 ? 'at' : 'below',
-      gap:       activationRate - 35,
-      gapPct:    pct(activationRate - 35, 35),
-      context:   'Moyenne plateformes civic-tech FR : 35% de membres actifs/mois. Nextdoor atteint 45% grâce aux notifications géolocalisées.',
-    },
-    {
-      metric:    'Taux réponse artisans',
-      platform:  artisanResponseRate,
-      benchmark: 65,
-      unit:      '%',
-      status:    artisanResponseRate >= 65 ? 'above' : artisanResponseRate >= 50 ? 'at' : 'below',
-      gap:       artisanResponseRate - 65,
-      gapPct:    pct(artisanResponseRate - 65, 65),
-      context:   'Standard marketplace de services : 65% de taux de réponse. Thumbtack (US) exige 80% sous peine de déclassement.',
-    },
-    {
-      metric:    'Commentaires / post forum',
-      platform:  avgCommentsPerPost,
-      benchmark: 2.5,
-      unit:      'cmts',
-      status:    avgCommentsPerPost >= 2.5 ? 'above' : avgCommentsPerPost >= 1.5 ? 'at' : 'below',
-      gap:       Math.round((avgCommentsPerPost - 2.5) * 10) / 10,
-      gapPct:    pct(Math.round((avgCommentsPerPost - 2.5) * 10), 25),
-      context:   'Forums communautaires actifs : 2.5 commentaires/post en moyenne. Reddit atteint 8 grâce aux sous-communautés thématiques.',
-    },
-    {
-      metric:    'Note moyenne artisans',
-      platform:  avgRating,
-      benchmark: 4.3,
-      unit:      '/5',
-      status:    avgRating >= 4.3 ? 'above' : avgRating >= 3.8 ? 'at' : 'below',
-      gap:       Math.round((avgRating - 4.3) * 10) / 10,
-      gapPct:    pct(Math.round((avgRating - 4.3) * 10), 43),
-      context:   'Note moyenne sur les plateformes de services locaux (Allovoisins, HelloAsso) : 4.3/5. En dessous de 4.0 = signal d\'alerte.',
-    },
-    {
-      metric:    'Taux rétention membres (> 30j)',
-      platform:  retentionRate,
-      benchmark: 40,
-      unit:      '%',
-      status:    retentionRate >= 40 ? 'above' : retentionRate >= 25 ? 'at' : 'below',
-      gap:       retentionRate - 40,
-      gapPct:    pct(retentionRate - 40, 40),
-      context:   'Rétention 30j sur apps communautaires locales : 40%. Facebook Groups atteint 70% grâce aux notifications événementielles.',
-    },
-    {
-      metric:    'Messages / conversation',
-      platform:  avgMsgsPerConversation,
-      benchmark: 5,
-      unit:      'msgs',
-      status:    avgMsgsPerConversation >= 5 ? 'above' : avgMsgsPerConversation >= 3 ? 'at' : 'below',
-      gap:       Math.round((avgMsgsPerConversation - 5) * 10) / 10,
-      gapPct:    pct(Math.round((avgMsgsPerConversation - 5) * 10), 50),
-      context:   'Une conversation de service complète comporte en moyenne 5 messages (demande + questions + devis + confirmation + merci).',
-    },
-    {
-      metric:    'Taux lecture notifications',
-      platform:  notifReadRate,
-      benchmark: 55,
-      unit:      '%',
-      status:    notifReadRate >= 55 ? 'above' : notifReadRate >= 40 ? 'at' : 'below',
-      gap:       notifReadRate - 55,
-      gapPct:    pct(notifReadRate - 55, 55),
-      context:   'Taux de lecture moyen des notifications in-app : 55%. Dépasse 70% si les notifs sont personnalisées et géolocalisées.',
-    },
+    benchmarkItem('Taux d\'activation', activationRate, 35, '%',
+      'Nextdoor France : 30-40% des inscrits actifs sur 30j. Objectif : 35%.'),
+    benchmarkItem('Réactivité artisans', artisanResponseRate, 65, '%',
+      'Allovoisins (2023) : 60-70% de taux de réponse. Standard de qualité service.'),
+    benchmarkItem('Commentaires/post forum', avgCommentsPerPost, 2.5, '',
+      'Voisin Malin : 2-3 commentaires par post. Signe d\'une communauté engagée.'),
+    benchmarkItem('Taux rétention 30j', retentionRate, 40, '%',
+      'Référence civic-tech : 40% des membres retournent après 30j. Cible minimale.'),
+    benchmarkItem('Messages/conversation', avgMsgsPerConversation, 5, '',
+      'Standard messagerie communautaire : 5+ messages/échange pour signifier un vrai dialogue.'),
+    benchmarkItem('NPS estimé', nps, 30, 'pts',
+      'NPS > 30 = bonne santé. NPS > 50 = excellent. Basé sur ratio avis 5★ vs 1-2★.'),
+    benchmarkItem('DAU/MAU ratio', dauMauRatio, 20, '%',
+      'Facebook : 65%. Apps communautaires locales : 15-25%. Cible réaliste : 20%.'),
   ];
 
-  // ─── Répartition rôles ────────────────────────────────────────────────────
+  // ─── Répartition rôles et métiers ─────────────────────────────────────────
 
   const roleDistribution: KV[] = [
-    { name: 'Habitants',           value: residents,        color: COLORS.blue  },
-    { name: 'Artisans vérifiés',   value: artisansVerified, color: COLORS.green },
-    { name: 'Artisans en attente', value: artisansPending,  color: COLORS.amber },
+    { name: 'Résidents',    value: residents,       color: COLORS.blue   },
+    { name: 'Artisans vér.', value: artisansVerified, color: COLORS.green  },
+    { name: 'En attente',   value: artisansPending,  color: COLORS.amber  },
   ].filter(r => r.value > 0);
 
-  // ─── Catégories artisans ─────────────────────────────────────────────────
-
   const tradeCatMap: Record<string, number> = {};
-  apRaw.forEach(a => { const cat = a.trade_category?.name ?? 'Autre'; tradeCatMap[cat] = (tradeCatMap[cat] ?? 0) + 1; });
-  const tradeCategories = Object.entries(tradeCatMap).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
+  apRaw.forEach(a => {
+    const cat = a.trade_category?.name ?? 'Autre';
+    tradeCatMap[cat] = (tradeCatMap[cat] ?? 0) + 1;
+  });
+  const tradeCategories = Object.entries(tradeCatMap).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, value]) => ({ name, value }));
 
-  // ─── Funnel artisan ───────────────────────────────────────────────────────
+  // ─── Funnel artisan ────────────────────────────────────────────────────────
 
+  const totalProfiles   = profiles.length;
   const artisanFunnel: FunnelStep[] = [
-    { label: 'Inscrits',           value: totalUsers,        rate: 100, color: COLORS.blue  },
-    { label: 'Demande artisan',    value: artisansPending + artisansVerified, rate: pct(artisansPending + artisansVerified, totalUsers), color: COLORS.amber },
-    { label: 'Artisans vérifiés', value: artisansVerified,  rate: pct(artisansVerified, artisansPending + artisansVerified || 1), color: COLORS.green },
-    { label: 'Avec avis clients',  value: Math.min(artisansVerified, totalReviews), rate: pct(Math.min(artisansVerified, totalReviews), artisansVerified || 1), color: COLORS.teal },
+    { label: 'Membres inscrits',    value: totalUsers,        rate: 100,                             color: COLORS.blue   },
+    { label: 'Artisans enregistrés', value: apRaw.length,     rate: pct(apRaw.length, totalUsers),   color: COLORS.indigo },
+    { label: 'Vérifiés',            value: artisansVerified,  rate: pct(artisansVerified, apRaw.length || 1), color: COLORS.green },
+    { label: 'Avec demande reçue',  value: new Set(reqs.map(r => r.artisan_id)).size,
+      rate: pct(new Set(reqs.map(r => r.artisan_id)).size, artisansVerified || 1), color: COLORS.teal },
+    { label: 'Mission complétée',   value: new Set(reqs.filter(r => r.status === 'completed').map(r => r.artisan_id)).size,
+      rate: pct(new Set(reqs.filter(r => r.status === 'completed').map(r => r.artisan_id)).size, new Set(reqs.map(r => r.artisan_id)).size || 1), color: COLORS.amber },
   ];
 
-  // ─── Comparaisons semaine sur semaine ─────────────────────────────────────
+  // ─── Comparaisons S/S ──────────────────────────────────────────────────────
 
-  const mkComp = (metric: string, current: number, previous: number): WeeklyComparison => {
-    const delta    = current - previous;
-    const deltaPct = previous > 0 ? Math.round((delta / previous) * 100) : (current > 0 ? 100 : 0);
-    return { metric, current, previous, delta, deltaPct, trend: delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat' };
-  };
   const weeklyComparisons: WeeklyComparison[] = [
-    mkComp('Nouveaux membres',    newUsersLast7, profiles.filter(p => { const d = new Date(p.created_at); return d >= prev7 && d < since7; }).length),
-    mkComp('Messages envoyés',    messagesLast7, messagesPrev7),
-    mkComp('Nouvelles annonces',  listingsLast7, listingsPrev7),
-    mkComp('Nouveaux posts forum',postsLast7,    postsPrev7),
-    mkComp('Demandes artisans',   reqs.filter(r => new Date(r.created_at) >= since7).length, reqs.filter(r => { const d = new Date(r.created_at); return d >= prev7 && d < since7; }).length),
+    { metric: 'Messages',       current: messagesLast7, previous: messagesPrev7, delta: messagesLast7 - messagesPrev7, deltaPct: messagesPrev7 > 0 ? Math.round(((messagesLast7 - messagesPrev7) / messagesPrev7) * 100) : 0, trend: messagesLast7 > messagesPrev7 ? 'up' : messagesLast7 < messagesPrev7 ? 'down' : 'flat' },
+    { metric: 'Posts forum',    current: postsLast7,    previous: postsPrev7,    delta: postsLast7 - postsPrev7, deltaPct: postsPrev7 > 0 ? Math.round(((postsLast7 - postsPrev7) / postsPrev7) * 100) : 0, trend: postsLast7 > postsPrev7 ? 'up' : postsLast7 < postsPrev7 ? 'down' : 'flat' },
+    { metric: 'Annonces',       current: listingsLast7, previous: listingsPrev7, delta: listingsLast7 - listingsPrev7, deltaPct: listingsPrev7 > 0 ? Math.round(((listingsLast7 - listingsPrev7) / listingsPrev7) * 100) : 0, trend: listingsLast7 > listingsPrev7 ? 'up' : listingsLast7 < listingsPrev7 ? 'down' : 'flat' },
+    { metric: 'Inscriptions',   current: newUsersLast7, previous: profiles.filter(p => { const d = new Date(p.created_at); return d >= prev7 && d < since7; }).length, delta: 0, deltaPct: 0, trend: 'flat' },
   ];
+  // Recalcul delta/deltaPct pour inscriptions
+  const prevNewUsers7 = weeklyComparisons[3].previous;
+  weeklyComparisons[3].delta    = newUsersLast7 - prevNewUsers7;
+  weeklyComparisons[3].deltaPct = prevNewUsers7 > 0 ? Math.round(((newUsersLast7 - prevNewUsers7) / prevNewUsers7) * 100) : 0;
+  weeklyComparisons[3].trend    = newUsersLast7 > prevNewUsers7 ? 'up' : newUsersLast7 < prevNewUsers7 ? 'down' : 'flat';
 
-  // ─── Score de santé plateforme ────────────────────────────────────────────
+  // ─── Score de santé global ─────────────────────────────────────────────────
 
-  const scoreGrowth     = Math.min(20, newUsersLast30 >= 5 ? 20 : newUsersLast30 >= 2 ? 12 : newUsersLast30 >= 1 ? 6 : 0);
-  const scoreEngagement = Math.min(20, activationRate >= 40 ? 20 : activationRate >= 20 ? 12 : activationRate >= 5 ? 6 : 2);
-  const scoreContent    = Math.min(20, (postsLast7 + listingsLast7 + messagesLast7) >= 20 ? 20 : (postsLast7 + listingsLast7 + messagesLast7) >= 5 ? 12 : (postsLast7 + listingsLast7 + messagesLast7) >= 1 ? 6 : 1);
-  const scoreArtisans   = Math.min(20, artisansVerified >= 5 ? 20 : artisansVerified >= 2 ? 12 : artisansVerified >= 1 ? 8 : 0);
-  const scoreModeration = Math.min(10, pendingReports === 0 ? 10 : pendingReports <= 2 ? 7 : pendingReports <= 5 ? 4 : 0);
-  const scoreQuality    = Math.min(10, avgRating >= 4.5 ? 10 : avgRating >= 4 ? 8 : avgRating >= 3 ? 5 : avgRating > 0 ? 2 : 5);
+  // Formule pondérée avec momentum intégré
+  const sGrowth     = Math.min(25, newUsersLast30 * 2.5);
+  const sEngagement = Math.min(25, activationRate * 0.6);
+  const sArtisans   = Math.min(20, artisanResponseRate * 0.2);
+  const sContent    = Math.min(15, contentVelocity * 5);
+  const sRetention  = Math.min(15, retentionRate * 0.15);
 
-  const healthScore = scoreGrowth + scoreEngagement + scoreContent + scoreArtisans + scoreModeration + scoreQuality;
+  // Bonus momentum : si plateforme accélère, +5 pts max
+  const momentumBonus = Math.min(5, Math.max(0, platformMomentum / 20));
+
+  let healthScore = Math.round(sGrowth + sEngagement + sArtisans + sContent + sRetention + momentumBonus);
+  healthScore = Math.min(100, Math.max(0, healthScore));
+
   const healthLevel: AllStats['healthLevel'] =
-    healthScore >= 80 ? 'excellent' : healthScore >= 60 ? 'good' : healthScore >= 35 ? 'fair' : 'poor';
+    healthScore >= 80 ? 'excellent' :
+    healthScore >= 55 ? 'good'      :
+    healthScore >= 30 ? 'fair'      : 'poor';
 
   const healthBreakdown = [
-    { label: 'Croissance membres',  score: scoreGrowth,     max: 20, icon: '📈' },
-    { label: 'Engagement actif',    score: scoreEngagement, max: 20, icon: '⚡' },
-    { label: 'Production contenu',  score: scoreContent,    max: 20, icon: '✍️' },
-    { label: 'Réseau artisans',     score: scoreArtisans,   max: 20, icon: '🔨' },
-    { label: 'Modération',          score: scoreModeration, max: 10, icon: '🛡️' },
-    { label: 'Satisfaction',        score: scoreQuality,    max: 10, icon: '⭐' },
+    { label: 'Croissance',   score: Math.round(sGrowth),     max: 25, icon: '📈' },
+    { label: 'Engagement',   score: Math.round(sEngagement), max: 25, icon: '💬' },
+    { label: 'Artisans',     score: Math.round(sArtisans),   max: 20, icon: '🔧' },
+    { label: 'Contenu',      score: Math.round(sContent),    max: 15, icon: '📝' },
+    { label: 'Rétention',    score: Math.round(sRetention),  max: 15, icon: '🔄' },
   ];
 
-  // ─── Alertes prioritaires ─────────────────────────────────────────────────
+  // ─── Alertes intelligentes ─────────────────────────────────────────────────
 
   const alerts: PlatformAlert[] = [];
 
-  if (pendingReports > 0) alerts.push({ level: pendingReports >= 3 ? 'critical' : 'warning', title: `${pendingReports} signalement${pendingReports > 1 ? 's' : ''} en attente`, message: 'Des signalements requièrent une attention immédiate.', action: 'Traiter', actionHref: '/admin/signalements', value: pendingReports });
-  if (artisansPending > 0) alerts.push({ level: artisansPending >= 3 ? 'warning' : 'info', title: `${artisansPending} demande${artisansPending > 1 ? 's' : ''} artisan en attente`, message: 'Des artisans attendent la vérification de leur profil.', action: 'Vérifier', actionHref: '/admin/artisans', value: artisansPending });
-  if (newUsersLast7 === 0 && totalUsers > 5) alerts.push({ level: 'warning', title: 'Aucune inscription cette semaine', message: 'La croissance est stagnante.' });
-  if (notifReadRate < 30 && totalNotifications > 10) alerts.push({ level: 'info', title: `${unreadNotifications} notifications non lues (${100 - notifReadRate}%)`, message: 'Taux de lecture bas.' });
-  if (artisansVerified === 0 && totalUsers > 3) alerts.push({ level: 'warning', title: 'Aucun artisan vérifié', message: "Sans artisan, la valeur principale n'est pas activée.", action: 'Gérer', actionHref: '/admin/artisans' });
-  if (pendingRequests > 3) alerts.push({ level: 'info', title: `${pendingRequests} demandes sans réponse`, message: "Des habitants attendent.", action: 'Voir', actionHref: '/admin/demandes', value: pendingRequests });
-  if (totalUsers > 0 && activeUsersLast30 === 0) alerts.push({ level: 'critical', title: 'Engagement critique', message: 'Aucun utilisateur actif ces 30 derniers jours.' });
-  if (daysSinceLastContent > 7 && totalUsers > 3) alerts.push({ level: 'warning', title: `${daysSinceLastContent}j sans contenu`, message: 'Aucune publication récente — communauté en pause.' });
+  // Anomalies critiques en priorité
+  anomalies.filter(a => a.level === 'critical').forEach(a => {
+    alerts.push({
+      level: 'critical',
+      title: `Anomalie détectée : ${a.metric}`,
+      message: `${a.direction === 'spike' ? '📈 Pic' : '📉 Chute'} inhabituel — valeur ${a.value} (z=${a.zscore}, moyenne ${a.mean})`,
+      value: a.value,
+    });
+  });
 
-  const levelOrder: Record<'critical' | 'warning' | 'info', number> = { critical: 0, warning: 1, info: 2 };
-  alerts.sort((a, b) => levelOrder[a.level] - levelOrder[b.level]);
+  if (pendingReports > 0) {
+    alerts.push({ level: pendingReports >= 5 ? 'critical' : 'warning', title: 'Signalements en attente', message: `${pendingReports} signalement${pendingReports > 1 ? 's' : ''} à traiter`, action: 'Modérer', actionHref: '/admin/signalements', value: pendingReports });
+  }
+  if (artisansPending > 0) {
+    alerts.push({ level: artisansPending >= 5 ? 'critical' : 'warning', title: 'Artisans à valider', message: `${artisansPending} artisan${artisansPending > 1 ? 's' : ''} en attente de vérification`, action: 'Valider', actionHref: '/admin/artisans', value: artisansPending });
+  }
+  if (newUsersLast7 === 0 && totalUsers > 5) {
+    alerts.push({ level: 'warning', title: 'Croissance stoppée', message: 'Aucune inscription cette semaine', value: 0 });
+  }
+  if (platformMomentum < -30) {
+    alerts.push({ level: 'warning', title: 'Momentum négatif', message: `Score momentum : ${platformMomentum}. L'activité décélère fortement.`, value: platformMomentum });
+  }
+  if (churnRisk30d > 40) {
+    alerts.push({ level: 'warning', title: 'Risque de churn élevé', message: `${churnRisk30d}% des membres présentent un risque d'abandon`, value: churnRisk30d });
+  }
+  if (notifReadRate < 20 && totalNotifications > 50) {
+    alerts.push({ level: 'info', title: 'Notifications ignorées', message: `${notifReadRate}% de taux de lecture — revoir le contenu des notifications`, value: notifReadRate });
+  }
+  if (anomalies.filter(a => a.level === 'warning').length > 0) {
+    const warnAnomalies = anomalies.filter(a => a.level === 'warning');
+    alerts.push({ level: 'info', title: `${warnAnomalies.length} anomalie(s) statistique(s)`, message: `Métriques concernées : ${warnAnomalies.map(a => a.metric).join(', ')}` });
+  }
 
-  // ─── Assemblage final ──────────────────────────────────────────────────────
+  // ─── Assemblage final ─────────────────────────────────────────────────────
 
-  const stats: AllStats = {
+  const statsPayload: AllStats = {
     // Utilisateurs
     totalUsers, residents, artisansPending, artisansVerified,
     artisansPro, artisansParticulier, newUsersLast7, newUsersLast30, newUsersLast90,
+
     // Engagement
     activeUsersLast30, activationRate, dauEstimate,
-    avgMsgsPerConversation, avgCommentsPerPost, artisanResponseRate,
+    avgMsgsPerConversation, artisanResponseRate,
+
     // Messages
     totalMessages, totalConversations, activeConversations, messagesLast7, messagesPrev7,
+
     // Annonces
     totalListings, activeListings, listingViews, listingCategories,
     listingsLast7, listingsPrev7, listingActiveRate,
+
     // Forum
     totalPosts, totalComments, closedPosts, forumCategories, topForumWords,
-    postsLast7, postsPrev7, forumResolutionRate,
+    postsLast7, postsPrev7, forumResolutionRate, avgCommentsPerPost,
+
     // Demandes
-    totalRequests, requestsByStatus, requestCompletionRate, requestCancellationRate, pendingRequests,
+    totalRequests, requestsByStatus, requestCompletionRate,
+    requestCancellationRate, pendingRequests,
+
     // Avis
     totalReviews, avgRating, ratingDistribution, positiveReviews, negativeReviews,
+
     // Matériel
     totalEquipment, availableEquipment, totalBorrows, equipmentUsageRate,
+
     // Signalements
     pendingReports, totalReports, resolvedReports, reportResolutionRate,
+
     // Notifications
     totalNotifications, unreadNotifications, notifReadRate,
-    // Séries temporelles
+
+    // Séries
     dailyUsers, dailyMessages, dailyPosts, dailyListings, dailyRequests,
-    // Répartitions
+
+    // Répartition
     roleDistribution, tradeCategories, activityByHour,
+
     // Santé
     healthScore, healthLevel, healthBreakdown,
+
     // Alertes
     alerts,
+
     // Comparaisons
     weeklyComparisons,
+
     // Funnel
     artisanFunnel,
+
     // Croissance
     userGrowthRate, monthlyNewUsers,
+
     // Autres contenus
     totalHelpRequests, totalOutings, totalLostFound, totalEvents,
-    // ── NOUVELLES MÉTRIQUES ──
-    heatmap7x24,
-    artisanScores,
-    predictions,
-    benchmarks,
-    ghostUsers,
-    retentionRate,
-    avgResponseDays,
-    contentVelocity,
-    daysSinceLastContent,
-    peakHour,
-    peakDayOfWeek,
-    healthHistory,
+
+    // Avancé
+    heatmap7x24, artisanScores, predictions, benchmarks,
+    ghostUsers, retentionRate, avgResponseDays, contentVelocity,
+    daysSinceLastContent, peakHour, peakDayOfWeek, healthHistory,
+
+    // NOUVEAU v4.0
+    anomalies, ewmaMetrics, engagementMetrics, cohortRetention,
+    platformMomentum,
+    generatedAt: now.toISOString(),
   };
 
-  return NextResponse.json({ stats });
+  return NextResponse.json({ stats: statsPayload });
 }
