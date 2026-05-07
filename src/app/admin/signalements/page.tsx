@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Flag, Loader2, ArrowLeft } from 'lucide-react';
+import { Flag, Loader2, ArrowLeft, BarChart3 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import type { AdminReportsData, ReportEntry } from '@/app/api/admin/reports/route';
 import toast from 'react-hot-toast';
@@ -192,6 +192,15 @@ export default function AdminSignalementsPage() {
             </span>
           )}
         </div>
+
+        {/* Bouton Statistiques */}
+        <Link
+          href="/admin/signalements/stats"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-semibold text-sm transition-colors border border-red-200"
+        >
+          <BarChart3 className="w-4 h-4" />
+          Statistiques
+        </Link>
 
         {/* Stats */}
         <SignalementStats stats={stats} />
