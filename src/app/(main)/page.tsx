@@ -137,16 +137,16 @@ export default function HomePage() {
       <section className="relative min-h-[60vh] sm:min-h-[70vh] flex items-end">
         <div className="absolute inset-0 overflow-hidden">
           <Image
-            src="/images/biguglia-hero.webp"
-            alt="Biguglia"
+            src="/images/biguglia-etang.jpg"
+            alt="Biguglia — étang et paysage aérien"
             fill
             priority
             fetchPriority="high"
             sizes="100vw"
-            quality={65}
-            className="object-cover object-center"
+            quality={90}
+            className="object-cover object-top"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 via-gray-900/30 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-900/75 via-gray-900/20 to-transparent" />
         </div>
 
         <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pb-12 sm:pb-16 text-center flex flex-col items-center justify-center">
