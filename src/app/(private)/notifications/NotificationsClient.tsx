@@ -363,8 +363,24 @@ export default function NotificationsClient() {
     e.preventDefault();
     e.stopPropagation();
     setDeletingId(id);
+    // Récupérer la notif avant suppression pour savoir si elle était non lue
+    const notif = notifications.find(n => n.id === id);
+    const wasUnread = notif ? !notif.is_read : false;
+    const tab = notif ? getConfig(notif.type).tab : null;
     setNotifications(prev => prev.filter(n => n.id !== id));
-    setCounters(c => ({ ...c, all: Math.max(0, c.all - 1) }));
+    setCounters(c => ({
+      ...c,
+      all:             Math.max(0, c.all - 1),
+      unread:          wasUnread ? Math.max(0, c.unread - 1) : c.unread,
+      messages:        tab === 'messages'  ? Math.max(0, c.messages  - 1) : c.messages,
+      activity:        tab === 'activity'  ? Math.max(0, c.activity  - 1) : c.activity,
+      system:          tab === 'system'    ? Math.max(0, c.system    - 1) : c.system,
+      reminders:       tab === 'reminders' ? Math.max(0, c.reminders - 1) : c.reminders,
+      messagesUnread:  wasUnread && tab === 'messages'  ? Math.max(0, c.messagesUnread  - 1) : c.messagesUnread,
+      activityUnread:  wasUnread && tab === 'activity'  ? Math.max(0, c.activityUnread  - 1) : c.activityUnread,
+      systemUnread:    wasUnread && tab === 'system'    ? Math.max(0, c.systemUnread    - 1) : c.systemUnread,
+      remindersUnread: wasUnread && tab === 'reminders' ? Math.max(0, c.remindersUnread - 1) : c.remindersUnread,
+    }));
     await new Promise(r => setTimeout(r, 250));
     await createClient().from('notifications').delete().eq('id', id);
     setDeletingId(null);
