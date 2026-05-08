@@ -88,10 +88,14 @@ export default function NotificationsClient() {
   const [followsLoading, setFollowsLoading] = useState(false);
   const [unfollowingId, setUnfollowingId] = useState<string | null>(null);
 
-  const channelRef   = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
-  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reconnectIdx = useRef(0);
-  const mountedRef   = useRef(true);
+  const channelRef        = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
+  const reconnectRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectIdx      = useRef(0);
+  const mountedRef        = useRef(true);
+  // Refs stables — évitent de recréer connectRealtime à chaque render
+  const fetchCountersRef  = useRef<() => void>(() => {});
+  const connectRealtimeRef = useRef<() => void>(() => {});
+  const activeTabRef       = useRef<AnyTabId>('all');
 
   // ── Réinitialisation ──────────────────────────────────────────────────────
   const resetPagination = useCallback(() => {
@@ -99,6 +103,9 @@ export default function NotificationsClient() {
     setCursor(null);
     setHasMore(false);
   }, []);
+
+  // Garder activeTabRef à jour pour connectRealtime (évite la dépendance instable)
+  useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
 
   // ── Compteurs légers ──────────────────────────────────────────────────────
   const fetchCounters = useCallback(async () => {
@@ -125,6 +132,9 @@ export default function NotificationsClient() {
       remindersUnread: rows.filter(r => !r.is_read && tab(r.type) === 'reminders').length,
     });
   }, [profile]);
+
+  // Garder la ref à jour sans invalider connectRealtime
+  useEffect(() => { fetchCountersRef.current = fetchCounters; }, [fetchCounters]);
 
   // ── Chargement abonnements associations ───────────────────────────────────
   const fetchFollows = useCallback(async () => {
@@ -253,20 +263,22 @@ export default function NotificationsClient() {
 
   // ── Realtime ──────────────────────────────────────────────────────────────
   const connectRealtime = useCallback(() => {
-    if (!profile) return;
+    if (!profile?.id) return;
+    const userId  = profile.id;
     const supabase = createClient();
     if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; }
 
     channelRef.current = supabase
-      .channel(`notifications-page-${profile.id}-${Date.now()}`)
+      .channel(`notifications-page-${userId}`)
       .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${profile.id}` },
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
         (payload: import('@supabase/realtime-js').RealtimePostgresChangesPayload<Record<string, unknown>>) => {
           if (!mountedRef.current) return;
           const n     = payload.new as Notification;
-          const types = tabTypes(activeTab as TabId);
-          const ok    = activeTab === 'all'
-            || (activeTab === 'unread' && !n.is_read)
+          const tab   = activeTabRef.current;
+          const types = tabTypes(tab as TabId);
+          const ok    = tab === 'all'
+            || (tab === 'unread' && !n.is_read)
             || (types?.includes(n.type) ?? false);
           if (ok) setNotifications(prev => [n, ...prev]);
           setCounters(c => ({ ...c, all: c.all + 1, unread: c.unread + (n.is_read ? 0 : 1) }));
@@ -274,14 +286,14 @@ export default function NotificationsClient() {
         },
       )
       .on('postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${profile.id}` },
+        { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
         (payload: import('@supabase/realtime-js').RealtimePostgresChangesPayload<Record<string, unknown>>) => {
           if (!mountedRef.current) return;
           const newData = payload.new as Record<string, unknown>;
           setNotifications(prev =>
             prev.map(n => n.id === (newData.id as string) ? { ...n, ...newData } as Notification : n),
           );
-          fetchCounters();
+          fetchCountersRef.current();
         },
       )
       .subscribe((status: string) => {
@@ -289,15 +301,26 @@ export default function NotificationsClient() {
         if (status === 'SUBSCRIBED') {
           reconnectIdx.current = 0;
         } else if (['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status)) {
-          const delay = RECONNECT_DELAYS[Math.min(reconnectIdx.current, RECONNECT_DELAYS.length - 1)];
-          reconnectIdx.current = Math.min(reconnectIdx.current + 1, RECONNECT_DELAYS.length - 1);
+          // Stopper la boucle si max tentatives atteint
+          if (reconnectIdx.current >= RECONNECT_DELAYS.length - 1) {
+            console.warn('[notifications] max reconnexions atteint, fallback polling');
+            fetchCountersRef.current();
+            return;
+          }
+          const delay = RECONNECT_DELAYS[reconnectIdx.current];
+          reconnectIdx.current = reconnectIdx.current + 1;
           if (reconnectRef.current) clearTimeout(reconnectRef.current);
-          reconnectRef.current = setTimeout(() => { if (mountedRef.current) connectRealtime(); }, delay);
-          fetchCounters();
+          reconnectRef.current = setTimeout(() => {
+            if (mountedRef.current) connectRealtimeRef.current();
+          }, delay);
+          fetchCountersRef.current();
         }
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile, fetchCounters]);
+  }, [profile?.id]);
+
+  // Garder connectRealtimeRef à jour
+  useEffect(() => { connectRealtimeRef.current = connectRealtime; }, [connectRealtime]);
 
   // ── Effets ────────────────────────────────────────────────────────────────
   useEffect(() => {

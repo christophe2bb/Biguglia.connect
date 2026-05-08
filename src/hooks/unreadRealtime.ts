@@ -139,7 +139,7 @@ export function connectRealtime(
 
     try {
       const channel = supabase
-        .channel(`unread-counts-${userId}-${Date.now()}`)
+        .channel(`unread-counts-${userId}`)
 
         // ── Nouveau message ────────────────────────────────────────────────
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload: import('@supabase/realtime-js').RealtimePostgresChangesPayload<Record<string, unknown>>) => {
@@ -212,9 +212,14 @@ export function connectRealtime(
             scheduleRealtimeFetch(supabase, userId, refs, setCounts);
 
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-            // Reconnexion exponentielle
-            const delay = RECONNECT_DELAYS[Math.min(refs.reconnectIdx.current, RECONNECT_DELAYS.length - 1)];
-            refs.reconnectIdx.current = Math.min(refs.reconnectIdx.current + 1, RECONNECT_DELAYS.length - 1);
+            // Reconnexion exponentielle — arrêt si max tentatives atteint
+            if (refs.reconnectIdx.current >= RECONNECT_DELAYS.length - 1) {
+              // Max reconnexions atteint : basculer uniquement sur le polling
+              console.warn('[unreadRealtime] max reconnexions atteint, fallback polling uniquement');
+              return;
+            }
+            const delay = RECONNECT_DELAYS[refs.reconnectIdx.current];
+            refs.reconnectIdx.current = refs.reconnectIdx.current + 1;
             if (refs.reconnectRef.current) clearTimeout(refs.reconnectRef.current);
             refs.reconnectRef.current = setTimeout(() => {
               if (refs.mountedRef.current) connectRealtime(supabase, userId, refs, setCounts);
