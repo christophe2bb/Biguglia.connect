@@ -12,7 +12,7 @@
  */
 
 import { useState, useRef, useCallback, MutableRefObject } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, safeRemoveChannel } from '@/lib/supabase/client';
 import { Profile } from '@/types';
 import { MessageWithSender, ConversationApiResponse } from '../_types';
 import { RECONNECT_DELAYS, FALLBACK_POLL_INTERVAL, POLL_INIT_DELAY } from '../_config';
@@ -132,7 +132,7 @@ export function useConversationRealtime(
   // ── Connexion Realtime ────────────────────────────────────────────────────
   const connect = useCallback(() => {
     if (!profile || !conversationId) return;
-    if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; }
+    if (channelRef.current) { safeRemoveChannel(supabase, channelRef.current).catch(() => null); channelRef.current = null; }
 
     // Polling de secours — démarré après POLL_INIT_DELAY pour laisser le temps
     // au canal Realtime de s'établir sans effectuer une requête inutile.
@@ -195,7 +195,10 @@ export function useConversationRealtime(
 
   // ── Nettoyage ─────────────────────────────────────────────────────────────
   const cleanup = useCallback(() => {
-    if (channelRef.current) supabase.removeChannel(channelRef.current);
+    if (channelRef.current) {
+      safeRemoveChannel(supabase, channelRef.current).catch(() => null);
+      channelRef.current = null;
+    }
     if (reconnectRef.current) clearTimeout(reconnectRef.current);
     if (pollRef.current) clearInterval(pollRef.current);
     if (pollInitRef.current) clearTimeout(pollInitRef.current);

@@ -73,6 +73,11 @@ let _browserClientSingleton: ReturnType<typeof createBrowserClient> | null = nul
  *  • Browser  : même instance partagée → une seule connexion WebSocket.
  *  • SSR/RSC  : nouvelle instance à chaque appel (pas de fuite inter-requêtes).
  *  • Env      : variables validées et nettoyées au chargement du module.
+ *
+ * ── Config Realtime ──────────────────────────────────────────────────────────
+ *  • timeout 20 s : laisse plus de temps au canal pour s'établir avant de
+ *    déclencher TIMED_OUT — réduit les faux-positifs sur connexion lente.
+ *  • eventsPerSecond 10 : throttle léger pour éviter les rafales CDC.
  */
 export function createClient() {
   // _bootEnv est garanti non-null si le module a été initialisé sans erreur.
@@ -85,7 +90,106 @@ export function createClient() {
 
   // Côté navigateur : retourner le singleton (une seule connexion WS).
   if (!_browserClientSingleton) {
-    _browserClientSingleton = createBrowserClient(url, anonKey);
+    _browserClientSingleton = createBrowserClient(url, anonKey, {
+      realtime: {
+        timeout: 20000,
+        params: { eventsPerSecond: 10 },
+      },
+    });
   }
   return _browserClientSingleton;
+}
+
+// ── safeRemoveChannel ─────────────────────────────────────────────────────────
+//
+// PROBLÈME : quand un composant se démonte pendant que le canal WebSocket est
+// encore en cours d'établissement (état « joining »), appeler removeChannel()
+// force Supabase à appeler unsubscribe() → leave() → disconnect() sur un
+// socket pas encore ouvert → erreur Chrome :
+//   « WebSocket is closed before the connection is established »
+//
+// SOLUTION : vérifier l'état interne du canal avant de l'enlever.
+//   • Si le canal est en état « joining » (connexion en vol), on attend que
+//     le statut SUBSCRIBED ou CHANNEL_ERROR arrive (max 5 s) avant d'appeler
+//     removeChannel — cela laisse le socket finir de s'ouvrir proprement.
+//   • Dans tous les autres états (joined, closed, errored, leaving),
+//     removeChannel() est appelé immédiatement.
+//   • Toutes les erreurs sont silencieusement ignorées (.catch(() => null))
+//     pour ne jamais laisser remonter une exception de cleanup vers React.
+//
+// Usage :
+//   safeRemoveChannel(supabase, channelRef.current).catch(() => null);
+//   channelRef.current = null;
+//
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Délai max (ms) avant de forcer removeChannel même si le canal est encore en joining. */
+const SAFE_REMOVE_TIMEOUT_MS = 5_000;
+
+type SupabaseChannel = ReturnType<ReturnType<typeof createBrowserClient>['channel']>;
+type SupabaseClient  = ReturnType<typeof createBrowserClient>;
+
+/**
+ * Retire un canal Supabase Realtime de manière sécurisée.
+ *
+ * Si le canal est encore en cours de connexion (état « joining »), la fonction
+ * attend que la souscription se termine (SUBSCRIBED ou erreur) avant d'appeler
+ * `removeChannel()`. Cela évite l'erreur Chrome/Safari :
+ * « WebSocket is closed before the connection is established »
+ *
+ * @param supabase - Le client Supabase singleton
+ * @param channel  - Le canal à retirer (peut être null)
+ */
+export function safeRemoveChannel(
+  supabase: SupabaseClient,
+  channel: SupabaseChannel | null,
+): Promise<void> {
+  if (!channel) return Promise.resolve();
+
+  return new Promise<void>((resolve) => {
+    // Accéder à l'état interne du canal (propriété publique de RealtimeChannel)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const state: string = (channel as unknown as Record<string, unknown>).state as string ?? 'closed';
+
+    const doRemove = () => {
+      supabase.removeChannel(channel).catch(() => null).finally(resolve);
+    };
+
+    if (state !== 'joining') {
+      // Canal déjà établi, en erreur, fermé ou en cours de fermeture :
+      // removeChannel() est sans danger, l'appeler immédiatement.
+      doRemove();
+      return;
+    }
+
+    // Canal encore en vol (joining) : attendre la réponse du serveur.
+    // On s'abonne temporairement au statut pour détecter la fin de la
+    // connexion, avec un timeout de sécurité pour ne pas bloquer indéfiniment.
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) { settled = true; doRemove(); }
+    }, SAFE_REMOVE_TIMEOUT_MS);
+
+    // subscribe() accepte un callback additionnel qui est appelé à chaque
+    // changement de statut. On l'utilise ici uniquement pour détecter la fin
+    // de la phase « joining » — peu importe si c'est SUBSCRIBED ou une erreur.
+    try {
+      channel.subscribe((status: string) => {
+        if (!settled && (
+          status === 'SUBSCRIBED'     ||
+          status === 'CHANNEL_ERROR'  ||
+          status === 'TIMED_OUT'      ||
+          status === 'CLOSED'
+        )) {
+          settled = true;
+          clearTimeout(timer);
+          doRemove();
+        }
+      });
+    } catch {
+      // subscribe() peut lever si le canal est dans un état incohérent
+      // (ex. double-invoke React Strict Mode). Forcer la suppression.
+      if (!settled) { settled = true; clearTimeout(timer); doRemove(); }
+    }
+  });
 }

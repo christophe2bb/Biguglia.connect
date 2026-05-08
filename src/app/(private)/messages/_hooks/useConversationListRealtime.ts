@@ -20,7 +20,7 @@
  */
 
 import { useRef, useCallback, MutableRefObject } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, safeRemoveChannel } from '@/lib/supabase/client';
 import { ConvWithOther } from '../_types';
 import { RECONNECT_DELAYS } from '../_config';
 import { isSystemMsg } from '../_utils';
@@ -109,7 +109,7 @@ export function useConversationListRealtime(
     if (channelRef.current) {
       const old = channelRef.current;
       channelRef.current = null;
-      supabase.removeChannel(old).catch(() => null);
+      safeRemoveChannel(supabase, old).catch(() => null);
     }
 
     // Réinitialiser pageStart à chaque (re)connexion
@@ -126,7 +126,7 @@ export function useConversationListRealtime(
         // Si le signal a été déclenché (cleanup avant SUBSCRIBED), retirer le
         // canal orphelin et ne rien faire d'autre.
         if (signal.aborted) {
-          supabase.removeChannel(channel).catch(() => null);
+          safeRemoveChannel(supabase, channel).catch(() => null);
           return;
         }
         if (!mountedRef.current) return;
@@ -160,7 +160,7 @@ export function useConversationListRealtime(
     if (channelRef.current) {
       const ch = channelRef.current;
       channelRef.current = null;
-      supabase.removeChannel(ch).catch(() => null);
+      safeRemoveChannel(supabase, ch).catch(() => null);
     }
     if (reconnectRef.current) clearTimeout(reconnectRef.current);
   }, [supabase]);

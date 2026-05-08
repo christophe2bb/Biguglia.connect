@@ -28,7 +28,7 @@
 //   avoir rendu le frame courant.
 
 import { startTransition } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, safeRemoveChannel } from '@/lib/supabase/client';
 import { isSystem, totalUnreadMsgs } from './unreadHelpers';
 import { fetchCounts, type UnreadRefs } from './unreadFetch';
 
@@ -119,13 +119,15 @@ export function connectRealtime(
   if (signal?.aborted) return;
 
   // Nettoyage du canal précédent.
-  // removeChannel() est async côté WebSocket — on null la ref immédiatement
-  // pour éviter qu'un autre chemin tente de supprimer le même canal deux fois.
+  // safeRemoveChannel() vérifie l'état interne du canal avant d'appeler
+  // removeChannel() — évite l'erreur « WebSocket is closed before the
+  // connection is established » quand le canal est encore en état « joining ».
+  // On null la ref immédiatement pour éviter un double-remove concurrent.
   const hadPreviousChannel = !!refs.channelRef.current;
   if (refs.channelRef.current) {
     const old = refs.channelRef.current;
     refs.channelRef.current = null;
-    supabase.removeChannel(old).catch(() => null);
+    safeRemoveChannel(supabase, old).catch(() => null);
   }
 
   /**
@@ -193,9 +195,9 @@ export function connectRealtime(
         // ── Statut du canal ────────────────────────────────────────────────
         .subscribe((status: string) => {
           // Signal déclenché entre la création du canal et la réponse Realtime :
-          // retirer le canal orphelin immédiatement.
+          // retirer le canal orphelin de manière sécurisée.
           if (signal?.aborted) {
-            supabase.removeChannel(channel).catch(() => null);
+            safeRemoveChannel(supabase, channel).catch(() => null);
             return;
           }
 

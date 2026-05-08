@@ -22,7 +22,7 @@ import {
   Search, RefreshCw, X, ChevronDown,
   Handshake, Loader2, ExternalLink, Trash2,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, safeRemoveChannel } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { Notification } from '@/types';
 import { cn } from '@/lib/utils';
@@ -266,7 +266,7 @@ export default function NotificationsClient() {
     if (!profile?.id) return;
     const userId  = profile.id;
     const supabase = createClient();
-    if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; }
+    if (channelRef.current) { safeRemoveChannel(supabase, channelRef.current).catch(() => null); channelRef.current = null; }
 
     channelRef.current = supabase
       .channel(`notifications-page-${userId}`)
@@ -347,7 +347,7 @@ export default function NotificationsClient() {
     return () => {
       mountedRef.current = false;
       const supabase = createClient();
-      if (channelRef.current) supabase.removeChannel(channelRef.current);
+      if (channelRef.current) { safeRemoveChannel(supabase, channelRef.current).catch(() => null); channelRef.current = null; }
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
       document.removeEventListener('visibilitychange', handleVis);
     };
