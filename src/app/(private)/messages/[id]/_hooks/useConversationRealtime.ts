@@ -147,7 +147,7 @@ export function useConversationRealtime(
     }
 
     const channel = supabase
-      .channel(`conv-${conversationId}-${Date.now()}`, { config: { broadcast: { ack: false } } })
+      .channel(`conv-${conversationId}`, { config: { broadcast: { ack: false } } })
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'messages',
         filter: `conversation_id=eq.${conversationId}`,
