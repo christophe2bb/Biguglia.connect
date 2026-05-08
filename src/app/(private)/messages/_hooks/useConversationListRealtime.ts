@@ -116,7 +116,7 @@ export function useConversationListRealtime(
     pageStartRef.current = Date.now();
 
     const channel = supabase
-      .channel(`messages-list-${profileId}-${Date.now()}`)
+      .channel(`messages-list-${profileId}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
@@ -133,8 +133,13 @@ export function useConversationListRealtime(
         if (status === 'SUBSCRIBED') {
           reconnectIdx.current = 0;
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-          const delay = RECONNECT_DELAYS[Math.min(reconnectIdx.current, RECONNECT_DELAYS.length - 1)];
-          reconnectIdx.current = Math.min(reconnectIdx.current + 1, RECONNECT_DELAYS.length - 1);
+          // Stopper la boucle si max tentatives atteint
+          if (reconnectIdx.current >= RECONNECT_DELAYS.length - 1) {
+            console.warn('[useConversationListRealtime] max reconnexions atteint, arrêt WebSocket');
+            return;
+          }
+          const delay = RECONNECT_DELAYS[reconnectIdx.current];
+          reconnectIdx.current = reconnectIdx.current + 1;
           if (reconnectRef.current) clearTimeout(reconnectRef.current);
           reconnectRef.current = setTimeout(() => { if (mountedRef.current) connect(); }, delay);
         }
