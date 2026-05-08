@@ -10,22 +10,29 @@
 //   REALTIME_POLL_MS   : 15 s — polling de secours quand le canal est DOWN
 //   (le polling de sécurité global dans useUnreadCounts est à 60 s)
 //
-// Fix BIGUGLIA-CONNECT-NEXTJS-6 (v2) :
-//   - AbortController signal : chaque invocation de connectRealtime reçoit un
-//     signal. Si le signal est déclenché (cleanup React Strict Mode, changement
-//     d'utilisateur) avant que le canal ne soit souscrit, le callback subscribe
-//     s'arrête et le canal orphelin est immédiatement supprimé.
-//   - connectingRef supprimé : le verrou n'est plus nécessaire — le signal
-//     garantit que seule la dernière invocation prend effet.
+// ── Pourquoi « cannot add postgres_changes callbacks after subscribe() » ──────
 //
-// Fix performance violations ('message' handler 248 ms, 'setTimeout' 193 ms) :
-//   Les callbacks Realtime s'exécutent dans le handler WebSocket « message »
-//   sur le thread principal. Appeler setCounts() directement déclenche un
-//   re-render React synchrone dans ce handler — Chrome le signale comme
-//   violation de performance.
-//   Correction : envelopper les mises à jour React dans startTransition pour
-//   les rendre non-urgentes et permettre au navigateur de les différer après
-//   avoir rendu le frame courant.
+// supabase.channel(name) est un REGISTRE par nom (topic). Si un canal portant
+// ce nom existe déjà dans supabase.getChannels(), il retourne le MÊME objet —
+// même s'il est encore en état « joined ». Appeler .on() sur cet objet après
+// que .subscribe() a été invoqué lève l'exception ci-dessus.
+//
+// Cela se produit lors du cycle :
+//   1. Mount 1  → canal créé + subscribe() appelé → état joined
+//   2. Cleanup  → removeChannel() lancé (async — le canal reste dans la liste
+//                 interne de Supabase jusqu'à confirmation WebSocket)
+//   3. Mount 2  → supabase.channel(même nom) → MÊME objet, déjà joined
+//               → .on() → exception
+//   4. catch    → retry dans 1 s → même situation → BOUCLE INFINIE
+//
+// Solution en 3 points :
+//   A. Vérifier via supabase.getChannels() si un canal actif (joined/joining)
+//      porte déjà le topic cible → le stocker dans channelRef sans le recréer.
+//   B. Supprimer le retry dans le catch : ce retry était la source de la boucle
+//      infinie. Sans reconnexion immédiate, l'exception est absorbée et le
+//      polling de secours prend le relais.
+//   C. Délai 200 ms (au lieu de 50) après removeChannel pour laisser Supabase
+//      retirer le canal de son registre interne avant toute tentative de recréation.
 
 import { startTransition } from 'react';
 import { createClient, safeRemoveChannel } from '@/lib/supabase/client';
@@ -39,6 +46,13 @@ const REALTIME_POLL_MS = 15_000;
 
 /** Délai de debounce pour les refetch déclenchés par événements Realtime (ms). */
 const REALTIME_DEBOUNCE_MS = 1_000;
+
+/**
+ * Délai d'attente après removeChannel() avant de tenter de recréer le canal.
+ * 200 ms > 50 ms : laisse Supabase retirer le canal de son registre interne
+ * (supabase.channels[]) après la confirmation WebSocket du leave.
+ */
+const RECREATE_DELAY_MS = 200;
 
 /** Map debounce par userId pour éviter les rafales d'événements CDC. */
 const _debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -82,31 +96,8 @@ export type RealtimeRefs = UnreadRefs & {
 /**
  * Crée (ou recrée) le canal Supabase Realtime.
  *
- * Le paramètre `signal` (AbortSignal) permet au hook appelant d'annuler la
- * souscription si le composant se démonte avant que le canal ne soit établi.
- *
- * ── Fix « cannot add postgres_changes callbacks after subscribe() » ────────────
- * Supabase lève cette exception quand `.on()` est appelé sur un canal dont
- * `.subscribe()` a déjà été invoqué. Cela arrive en React Strict Mode (double
- * invoke des effets) ou lors d'un re-montage rapide :
- *
- *   1. Mount 1  → channel A créé + subscribe() appelé
- *   2. Cleanup  → abort signal déclenché, removeChannel(A) lancé (async)
- *   3. Mount 2  → connectRealtime() tente de créer channel B
- *                 OR Supabase réutilise le même objet canal (bug interne)
- *                 → .on() après subscribe() → exception
- *
- * Solution à 3 niveaux :
- *   a. try/catch global : toute exception de la chaîne channel/on/subscribe
- *      est catchée — aucune erreur ne remonte au composant React.
- *   b. Attente async (50 ms) avant de créer le canal si un canal précédent
- *      existait — laisse Supabase finaliser removeChannel() côté WebSocket.
- *   c. Vérification signal après l'attente : si démonté entre-temps, on abandonne.
- *
- * - INSERT messages  → incrément local immédiat (sans DB round-trip)
- * - INSERT notifications → incrément notifications
- * - UPDATE notifications → refetch complet (debounced)
- * - CHANNEL_ERROR / TIMED_OUT / CLOSED → reconnexion exponentielle + polling fallback
+ * @param signal AbortSignal — si déclenché avant SUBSCRIBED, le canal orphelin
+ *               est supprimé et la souscription abandonnée silencieusement.
  */
 export function connectRealtime(
   supabase: ReturnType<typeof createClient>,
@@ -115,14 +106,33 @@ export function connectRealtime(
   setCounts: SetCounts,
   signal?: AbortSignal,
 ): void {
-  // Si le signal est déjà déclenché (ex. double appel synchrone), ne rien faire.
+  // Si le signal est déjà déclenché (cleanup React Strict Mode), ne rien faire.
   if (signal?.aborted) return;
 
-  // Nettoyage du canal précédent.
-  // safeRemoveChannel() vérifie l'état interne du canal avant d'appeler
-  // removeChannel() — évite l'erreur « WebSocket is closed before the
-  // connection is established » quand le canal est encore en état « joining ».
-  // On null la ref immédiatement pour éviter un double-remove concurrent.
+  const channelName = `unread-counts-${userId}`;
+
+  // ── Vérifier si un canal actif porte déjà ce nom ────────────────────────────
+  // supabase.channel(name) retourne TOUJOURS le même objet si le topic existe
+  // dans le registre interne. Si ce canal est déjà joined/joining, l'utiliser
+  // directement sans recréer (évite le « cannot add callbacks after subscribe() »).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const existingChannels = (supabase as unknown as { getChannels?: () => Array<{ topic: string; state?: string }> }).getChannels?.() ?? [];
+  const existingActive = existingChannels.find(
+    (c) => c.topic === `realtime:${channelName}` &&
+           (c.state === 'joined' || c.state === 'joining')
+  );
+
+  if (existingActive) {
+    // Canal actif trouvé — le stocker dans la ref et attendre SUBSCRIBED.
+    // Les callbacks sont déjà enregistrés depuis la souscription précédente.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    refs.channelRef.current = existingActive as unknown as ReturnType<ReturnType<typeof createClient>['channel']>;
+    return;
+  }
+
+  // ── Nettoyage du canal précédent ─────────────────────────────────────────────
+  // safeRemoveChannel() attend que l'état ne soit plus 'joining' avant de
+  // supprimer — évite « WebSocket is closed before the connection is established ».
   const hadPreviousChannel = !!refs.channelRef.current;
   if (refs.channelRef.current) {
     const old = refs.channelRef.current;
@@ -131,19 +141,33 @@ export function connectRealtime(
   }
 
   /**
-   * Crée effectivement le canal après un éventuel délai.
-   * Wrappé dans un try/catch pour absorber l'exception Supabase
-   * « cannot add postgres_changes callbacks after subscribe() ».
+   * Crée effectivement le canal Realtime.
+   * Le try/catch absorbe toute exception (ex. race condition résiduelle) mais
+   * NE PLANIFIE PAS de retry — le polling de secours suffit, et un retry
+   * immédiat recréerait la boucle infinie.
    */
   const doConnect = () => {
-    // Re-vérifier le signal après l'éventuelle attente async.
     if (signal?.aborted || !refs.mountedRef.current) return;
+
+    // Double-vérification : si entre le setTimeout et maintenant un canal actif
+    // a été recréé (ex. double-invoke React Strict Mode), l'utiliser.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const channels = (supabase as unknown as { getChannels?: () => Array<{ topic: string; state?: string }> }).getChannels?.() ?? [];
+    const alreadyActive = channels.find(
+      (c) => c.topic === `realtime:${channelName}` &&
+             (c.state === 'joined' || c.state === 'joining')
+    );
+    if (alreadyActive) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      refs.channelRef.current = alreadyActive as unknown as ReturnType<ReturnType<typeof createClient>['channel']>;
+      return;
+    }
 
     try {
       const channel = supabase
-        .channel(`unread-counts-${userId}`)
+        .channel(channelName)
 
-        // ── Nouveau message ────────────────────────────────────────────────
+        // ── Nouveau message ──────────────────────────────────────────────────
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload: import('@supabase/realtime-js').RealtimePostgresChangesPayload<Record<string, unknown>>) => {
           const msg = payload.new as {
             id: string; sender_id: string; conversation_id: string;
@@ -166,15 +190,13 @@ export function connectRealtime(
 
           const n = totalUnreadMsgs(refs.unreadMapRef.current);
           if (refs.mountedRef.current) {
-            // startTransition : mise à jour non-urgente → sort du handler WS
-            // « message » synchrone → élimine la violation de performance 248 ms.
             startTransition(() => {
               setCounts(prev => ({ messages: n, notifications: prev.notifications, total: n + prev.notifications }));
             });
           }
         })
 
-        // ── Nouvelle notification ──────────────────────────────────────────
+        // ── Nouvelle notification ────────────────────────────────────────────
         .on('postgres_changes', {
           event: 'INSERT', schema: 'public', table: 'notifications',
           filter: `user_id=eq.${userId}`,
@@ -184,7 +206,7 @@ export function connectRealtime(
           });
         })
 
-        // ── Notification mise à jour (ex. lu) → refetch debounced ───────────
+        // ── Notification mise à jour → refetch debounced ─────────────────────
         .on('postgres_changes', {
           event: 'UPDATE', schema: 'public', table: 'notifications',
           filter: `user_id=eq.${userId}`,
@@ -192,10 +214,9 @@ export function connectRealtime(
           scheduleRealtimeFetch(supabase, userId, refs, setCounts);
         })
 
-        // ── Statut du canal ────────────────────────────────────────────────
+        // ── Statut du canal ──────────────────────────────────────────────────
         .subscribe((status: string) => {
-          // Signal déclenché entre la création du canal et la réponse Realtime :
-          // retirer le canal orphelin de manière sécurisée.
+          // Signal déclenché avant SUBSCRIBED → retirer le canal orphelin.
           if (signal?.aborted) {
             safeRemoveChannel(supabase, channel).catch(() => null);
             return;
@@ -209,14 +230,11 @@ export function connectRealtime(
               clearInterval(refs.realtimePollRef.current);
               refs.realtimePollRef.current = null;
             }
-            // Debounce au SUBSCRIBED : évite un double-fetch si le canal se
-            // reconnecte en rafale (ex. réseau instable).
             scheduleRealtimeFetch(supabase, userId, refs, setCounts);
 
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-            // Reconnexion exponentielle — arrêt si max tentatives atteint
+            // Arrêt si max tentatives atteint → polling seul
             if (refs.reconnectIdx.current >= RECONNECT_DELAYS.length - 1) {
-              // Max reconnexions atteint : basculer uniquement sur le polling
               console.warn('[unreadRealtime] max reconnexions atteint, fallback polling uniquement');
               return;
             }
@@ -240,29 +258,27 @@ export function connectRealtime(
       refs.channelRef.current = channel;
 
     } catch (err) {
-      // Absorber l'exception Supabase « cannot add postgres_changes callbacks
-      // after subscribe() » — peut survenir lors du double-invoke React Strict
-      // Mode ou d'un re-montage rapide. Le canal sera recréé à la prochaine
-      // tentative (reconnexion exponentielle ou re-montage du composant).
-      console.warn('[unreadRealtime] connectRealtime error (ignoré, sera retenté) :', err);
+      // Absorber l'exception sans planifier de retry.
+      // IMPORTANT : ne PAS appeler setTimeout(() => connectRealtime(...)) ici —
+      // cela recrée la boucle infinie « cannot add callbacks after subscribe() ».
+      // Le polling de secours (REALTIME_POLL_MS) assure la continuité des données.
+      console.warn('[unreadRealtime] connectRealtime error (absorbé, polling actif) :', err);
 
-      // Planifier une reconnexion après un court délai pour laisser Supabase
-      // finaliser le nettoyage du canal précédent.
-      if (refs.mountedRef.current) {
-        const retryDelay = RECONNECT_DELAYS[0]; // 1 s
-        if (refs.reconnectRef.current) clearTimeout(refs.reconnectRef.current);
-        refs.reconnectRef.current = setTimeout(() => {
-          if (refs.mountedRef.current) connectRealtime(supabase, userId, refs, setCounts);
-        }, retryDelay);
+      // Activer le polling de secours si pas encore actif
+      if (refs.mountedRef.current && !refs.realtimePollRef.current) {
+        refs.realtimePollRef.current = setInterval(() => {
+          if (refs.mountedRef.current) {
+            fetchCounts(supabase, userId, refs, setCounts as Parameters<typeof fetchCounts>[3]);
+          }
+        }, REALTIME_POLL_MS);
       }
     }
   };
 
   if (hadPreviousChannel) {
-    // Laisser 50 ms à Supabase pour finaliser le removeChannel() WebSocket
-    // avant de créer un nouveau canal. Évite le « cannot add callbacks after
-    // subscribe() » lors des re-montages rapides (React Strict Mode, fast-refresh).
-    setTimeout(doConnect, 50);
+    // Délai 200 ms pour laisser Supabase retirer le canal de son registre
+    // interne (supabase.channels[]) après le leave WebSocket.
+    setTimeout(doConnect, RECREATE_DELAY_MS);
   } else {
     doConnect();
   }
