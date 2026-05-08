@@ -47,7 +47,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, safeRemoveChannel } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { fetchCounts, invalidateBearerCache } from './unreadFetch';
 import { connectRealtime }                     from './unreadRealtime';
@@ -210,10 +210,12 @@ export function useUnreadCounts(): UnreadCounts {
       const activeSafePoll     = safePollRef.current;
       const activeDebounce     = debounceRef.current;
 
-      // Nettoyage du canal actif (si la souscription était déjà établie).
+      // Nettoyage du canal actif — safeRemoveChannel() évite l'erreur
+      // « WebSocket is closed before the connection is established »
+      // quand le canal est encore en état « joining » (connexion en vol).
       if (activeChannel) {
         channelRef.current = null;
-        supabase.removeChannel(activeChannel).catch(() => null);
+        safeRemoveChannel(supabase, activeChannel).catch(() => null);
       }
       if (activeReconnect)    clearTimeout(activeReconnect);
       if (activeRealtimePoll) clearInterval(activeRealtimePoll);
