@@ -13,6 +13,11 @@ export function useTopicPage(initialData?: InitialTopicData): UseTopicPageReturn
   const { id } = useParams();
   const topicId = id as string;
   const router = useRouter();
+
+  // Ref stable pour router — évite de l'inclure dans les deps de useCallback/useEffect
+  // (router change de référence à chaque navigation RSC → boucle sinon).
+  const routerRef = useRef(router);
+  useEffect(() => { routerRef.current = router; }, [router]);
   const { profile, isModerator: _isModerator } = useAuthStore();
 
   // Seed state from server data when available
@@ -55,7 +60,7 @@ export function useTopicPage(initialData?: InitialTopicData): UseTopicPageReturn
         .eq('id', topicId)
         .maybeSingle();
 
-      if (!postData) { router.push('/forum'); return; }
+      if (!postData) { routerRef.current.replace('/forum'); return; }
 
       topicData = {
         ...postData,
@@ -128,7 +133,9 @@ export function useTopicPage(initialData?: InitialTopicData): UseTopicPageReturn
     } catch { /* Table optionnelle */ }
 
     setLoading(false);
-  }, [topicId, router]);
+  // router intentionnellement absent des deps — routerRef garantit la fraîcheur.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topicId]);
 
   // Only fetch on client if no server data was provided
   useEffect(() => {
@@ -219,7 +226,7 @@ export function useTopicPage(initialData?: InitialTopicData): UseTopicPageReturn
       if (err2) { toast.error(`Erreur : ${err2.message}`); return; }
     }
     toast.success('Sujet supprimé');
-    router.push('/forum');
+    routerRef.current.replace('/forum');
   };
 
   const moderateAction = async (action: 'verrouiller' | 'deverrouiller' | 'epingler' | 'archiver') => {
