@@ -36,7 +36,7 @@ const CATEGORY_DURATION_HINTS: Record<string, LendDurationHint> = {
 
 export default function NouveauMaterielPage() {
   const router = useRouter();
-  const { profile } = useAuthStore();
+  const { profile, phase } = useAuthStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [categories, setCategories] = useState<EquipmentCategory[]>([]);
   const [photos, setPhotos] = useState<File[]>([]);
@@ -68,16 +68,28 @@ export default function NouveauMaterielPage() {
     rules: '',
   });
 
+  // Ref stable pour router — évite de l'inclure dans les deps du useEffect
+  // (router change de référence à chaque navigation RSC → boucle sinon).
+  const routerRef = useRef(router);
+  useEffect(() => { routerRef.current = router; }, [router]);
+
   useEffect(() => {
-    if (!profile) { router.push('/connexion?redirect=/materiel/nouveau'); return; }
-    if (profile.home_sector_id) setForm(f => ({ ...f, sector_id: profile.home_sector_id ?? '' }));
+    // Attendre la résolution de la session avant tout
+    if (phase === 'initializing') return;
+    // Session absente confirmée → redirection sans empiler l'historique
+    if (phase === 'unauthenticated') {
+      routerRef.current.replace('/connexion?next=/materiel/nouveau');
+      return;
+    }
+    // Authentifié : pré-remplir le secteur + charger les catégories
+    if (profile?.home_sector_id) setForm(f => ({ ...f, sector_id: profile.home_sector_id ?? '' }));
     const fetchCats = async () => {
       const supabase = createClient();
       const { data } = await supabase.from('equipment_categories').select('*').order('display_order');
       setCategories(data || []);
     };
     fetchCats();
-  }, [profile, router]);
+  }, [phase, profile]);
 
   // Suggestion automatique de durée selon la catégorie (CDC §3.3)
   const handleCategoryChange = (catId: string) => {
@@ -175,7 +187,16 @@ export default function NouveauMaterielPage() {
     router.push(`/materiel/${item.id}`);
   };
 
-  if (!profile) return null;
+  // Pendant l'initialisation ou si non connecté → skeleton (le useEffect
+  // gère la redirection ; on n'affiche pas null pour éviter le flash blanc)
+  if (phase === 'initializing' || !profile) return (
+    <div className="max-w-2xl mx-auto px-4 py-10 animate-pulse space-y-4">
+      <div className="h-4 bg-gray-200 rounded w-24" />
+      <div className="h-8 bg-gray-200 rounded w-64" />
+      <div className="h-4 bg-gray-100 rounded w-48" />
+      <div className="h-64 bg-gray-100 rounded-2xl" />
+    </div>
+  );
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
