@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Package, CheckCircle, History, AlertCircle, Wrench } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -25,7 +25,7 @@ import { type EquipmentWithRequests } from './_widgets/EquipmentItemCard';
 type Tab = 'materiel' | 'demandes' | 'prets' | 'prets_recus' | 'historique' | 'activite';
 
 export default function DashboardMaterielPage() {
-  const { profile, loading: authLoading } = useAuthStore();
+  const { profile, phase } = useAuthStore();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('materiel');
   const [items, setItems] = useState<EquipmentWithRequests[]>([]);
@@ -84,10 +84,24 @@ export default function DashboardMaterielPage() {
     setLoading(false);
   }, [profile]);
 
+  // Ref stable pour router — évite de l'inclure dans les deps de l'effet
+  // (router change de référence à chaque navigation RSC → boucle sinon).
+  const routerRef = useRef(router);
+  useEffect(() => { routerRef.current = router; }, [router]);
+
   useEffect(() => {
-    if (!authLoading && !profile) { router.push('/connexion?redirect=/dashboard/materiel'); return; }
+    // Ne rien faire tant que Supabase n'a pas résolu la session initiale.
+    if (phase === 'initializing') return;
+    // Session confirmée absente → redirection. router.replace évite d'empiler
+    // des entrées dans l'historique (ce qui créait la boucle RSC ↔ /connexion).
+    if (phase === 'unauthenticated') {
+      routerRef.current.replace('/connexion?next=/dashboard/materiel');
+      return;
+    }
+    // phase === 'authenticated' : profile peut être null si erreur DB → on
+    // lance fetchAll uniquement quand le profil est disponible.
     if (profile) fetchAll();
-  }, [profile, authLoading, router, fetchAll]);
+  }, [phase, profile, fetchAll]);
 
   // ── Actions ──────────────────────────────────────────────────────────────
 
@@ -231,7 +245,7 @@ export default function DashboardMaterielPage() {
     totalLoans: allLoans.filter(l => l.status === 'retourne').length,
   };
 
-  if (loading || authLoading) return (
+  if (loading || phase === 'initializing') return (
     <div className="max-w-5xl mx-auto px-4 py-10 animate-pulse space-y-4">
       <div className="h-8 bg-gray-200 rounded w-64" />
       <div className="grid grid-cols-4 gap-4">{[...Array(4)].map((_, i) => <div key={i} className="h-24 bg-gray-100 rounded-2xl" />)}</div>
