@@ -49,19 +49,29 @@ export default function MaterielPage() {
 
   const catsRef = useRef<{ id: string; name: string; icon: string; slug: string }[]>([]);
 
-  const fetchData = useCallback(async (pageIndex: number, replace: boolean, catsOverride?: typeof catsRef.current) => {
+  // Stable fetch function — does NOT depend on state directly, receives all params as arguments
+  const fetchData = useCallback(async (
+    pageIndex: number,
+    replace: boolean,
+    opts: {
+      category: string;
+      status: string;
+      free: boolean;
+      sector: string | null;
+    }
+  ) => {
     if (pageIndex === 0) setLoading(true); else setLoadingMore(true);
     const supabase = createClient();
-
-    let currentCats = catsOverride ?? catsRef.current;
 
     // Fetch categories once (on first load)
     if (pageIndex === 0) {
       const { data: cats } = await supabase.from('equipment_categories').select('*').order('display_order');
-      currentCats = (cats || []) as typeof catsRef.current;
+      const currentCats = (cats || []) as typeof catsRef.current;
       catsRef.current = currentCats;
       setCategories(currentCats);
     }
+
+    const currentCats = catsRef.current;
 
     let query = supabase
       .from('equipment_items')
@@ -69,21 +79,21 @@ export default function MaterielPage() {
       .order('created_at', { ascending: false })
       .range(pageIndex * PAGE_SIZE, (pageIndex + 1) * PAGE_SIZE - 1);
 
-    if (selectedStatus !== 'all') {
-      query = query.eq('status', selectedStatus);
+    if (opts.status !== 'all') {
+      query = query.eq('status', opts.status);
     } else {
       query = query.neq('status', 'archive');
     }
 
-    if (selectedCategory) {
-      const cat = currentCats.find((c) => c.slug === selectedCategory);
+    if (opts.category) {
+      const cat = currentCats.find((c) => c.slug === opts.category);
       if (cat) query = query.eq('category_id', cat.id);
     }
 
-    if (onlyFree) query = query.eq('is_free', true);
+    if (opts.free) query = query.eq('is_free', true);
 
-    if (filterSector) {
-      try { query = query.eq('sector_id', filterSector); } catch { /* colonne optionnelle */ }
+    if (opts.sector) {
+      try { query = query.eq('sector_id', opts.sector); } catch { /* colonne optionnelle */ }
     }
 
     const { data, count } = await query;
@@ -106,13 +116,13 @@ export default function MaterielPage() {
         .from('equipment_items')
         .select('sector_id')
         .not('sector_id', 'is', null);
-      if (selectedStatus !== 'all') countQuery = countQuery.eq('status', selectedStatus);
+      if (opts.status !== 'all') countQuery = countQuery.eq('status', opts.status);
       else countQuery = countQuery.neq('status', 'archive');
-      if (selectedCategory) {
-        const cat = currentCats.find((c) => c.slug === selectedCategory);
+      if (opts.category) {
+        const cat = currentCats.find((c) => c.slug === opts.category);
         if (cat) countQuery = countQuery.eq('category_id', cat.id);
       }
-      if (onlyFree) countQuery = countQuery.eq('is_free', true);
+      if (opts.free) countQuery = countQuery.eq('is_free', true);
       const { data: sectorData } = await countQuery;
       const counts: Record<string, number> = {};
       (sectorData || []).forEach((row: { sector_id: string }) => {
@@ -122,17 +132,28 @@ export default function MaterielPage() {
     }
 
     if (pageIndex === 0) setLoading(false); else setLoadingMore(false);
-  }, [selectedCategory, selectedStatus, onlyFree, filterSector]);
+  }, []); // ← stable: aucune dépendance sur les états
 
+  // Trigger fetch whenever filters change
   useEffect(() => {
     setPage(0);
-    fetchData(0, true);
-  }, [fetchData]);
+    fetchData(0, true, {
+      category: selectedCategory,
+      status: selectedStatus,
+      free: onlyFree,
+      sector: filterSector,
+    });
+  }, [fetchData, selectedCategory, selectedStatus, onlyFree, filterSector]);
 
   const handleLoadMore = async () => {
     const nextPage = page + 1;
     setPage(nextPage);
-    await fetchData(nextPage, false);
+    await fetchData(nextPage, false, {
+      category: selectedCategory,
+      status: selectedStatus,
+      free: onlyFree,
+      sector: filterSector,
+    });
   };
 
   const filtered = items.filter(i =>
@@ -140,7 +161,7 @@ export default function MaterielPage() {
     i.title?.toLowerCase().includes(search.toLowerCase()) ||
     i.description?.toLowerCase().includes(search.toLowerCase()) ||
     i.pickup_location?.toLowerCase().includes(search.toLowerCase())
-  ).filter(i => !filterSector || (i as EquipmentItemFull & { sector_id?: string }).sector_id === filterSector);
+  );
 
   const counts = {
     disponible: items.filter(i => i.status === 'disponible').length,
@@ -211,7 +232,7 @@ export default function MaterielPage() {
             {/* Toute la ville */}
             <button
               type="button"
-              onClick={() => { setFilterSector(null); setPage(0); }}
+              onClick={() => setFilterSector(null)}
               className={`
                 flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3
                 transition-all duration-200 cursor-pointer
@@ -230,7 +251,7 @@ export default function MaterielPage() {
               <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
                 !filterSector ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-500'
               }`}>
-                {filtered.length}
+                {totalCount}
               </span>
             </button>
 
@@ -242,7 +263,7 @@ export default function MaterielPage() {
                 <button
                   key={sector.id}
                   type="button"
-                  onClick={() => { setFilterSector(active ? null : sector.id); setPage(0); }}
+                  onClick={() => setFilterSector(active ? null : sector.id)}
                   className={`
                     relative flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3
                     transition-all duration-200 cursor-pointer select-none
@@ -376,7 +397,7 @@ function EquipmentCard({ item, currentUserId }: { item: EquipmentItemFull; curre
   const photos = item.photos as Array<{ url: string }> | undefined;
   const status = (item.status as EquipmentStatus) || (item.is_available ? 'disponible' : 'indisponible');
   const cfg = EQUIPMENT_STATUS_CONFIG[status] || EQUIPMENT_STATUS_CONFIG.disponible;
-  const isOwner = currentUserId === item.owner_id;
+  const isOwner = currentUserId && currentUserId === item.owner_id;
 
   return (
     <Link href={`/materiel/${item.id}`}>
