@@ -11,9 +11,9 @@
  *   { status: 'error' }       → erreur serveur
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { Mail, Phone, EyeOff, Loader2, UserCheck, Info, RefreshCw } from 'lucide-react';
+import { Mail, Phone, EyeOff, Loader2, Info, RefreshCw } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 interface ProtectedContactProps {
@@ -49,6 +49,10 @@ export default function ProtectedContact({
   const [uiState, setUiState]   = useState<UIState>('loading');
   const [contact, setContact]   = useState<ContactData | null>(null);
   const [errorInfo, setErrorInfo] = useState<string>('');
+
+  // Ref pattern — keeps onOwner stable in load's deps array
+  const onOwnerRef = useRef(onOwner);
+  useEffect(() => { onOwnerRef.current = onOwner; }, [onOwner]);
 
   const btnPrimary =
     colorScheme === 'purple'
@@ -120,7 +124,7 @@ export default function ProtectedContact({
       switch (apiStatus) {
         case 'owner':
           setUiState('owner');
-          onOwner?.();
+          onOwnerRef.current?.();
           break;
         case 'revealed': {
           const d = json as unknown as ContactData;
