@@ -143,12 +143,30 @@ export function usePublicProfile(userId: string): UsePublicProfileReturn {
     load();
   }, [userId, supabase]);
 
-  const upcomingEvents = events.filter(e =>
-    ['a_venir', 'complet', 'reporte'].includes(e.status)
-  );
-  const pastEvents = events.filter(e =>
-    ['passe', 'annule', 'archive'].includes(e.status)
-  );
+  // Un événement est "passé" si :
+  //   – son statut est explicitement 'passe' | 'annule' | 'archive'
+  //   – OU son statut est 'a_venir' | 'complet' | 'reporte' mais sa date est déjà dépassée
+  // (les statuts en base ne sont pas mis à jour automatiquement quand la date passe)
+  const now = new Date();
+  now.setHours(0, 0, 0, 0); // comparer en jour entier
+
+  const upcomingEvents = events.filter(e => {
+    if (['passe', 'annule', 'archive'].includes(e.status)) return false;
+    // statut "actif" mais date dépassée → on le considère passé
+    if (['a_venir', 'complet', 'reporte'].includes(e.status)) {
+      return new Date(e.event_date) >= now;
+    }
+    return false;
+  });
+
+  const pastEvents = events.filter(e => {
+    if (['passe', 'annule', 'archive'].includes(e.status)) return true;
+    // statut "actif" mais date passée → passé de fait
+    if (['a_venir', 'complet', 'reporte'].includes(e.status)) {
+      return new Date(e.event_date) < now;
+    }
+    return false;
+  });
 
   return { loading, notFound, publicProfile, events, upcomingEvents, pastEvents };
 }
