@@ -10,7 +10,7 @@ import ThemeFeed from './_components/ThemeFeed';
 import ThemeDiscussions from './_components/ThemeDiscussions';
 import ThemeProfile from './_components/ThemeProfile';
 
-export default function CommunauteThemePage() {
+export default function CommunauteThemeClient() {
   const rawParams = useParams();
   const themeSlug =
     (Array.isArray(rawParams?.theme) ? rawParams.theme[0] : rawParams?.theme) ?? '';
@@ -76,7 +76,7 @@ export default function CommunauteThemePage() {
       />
 
       {/* Tab content */}
-      <div className="max-w-5xl mx-auto px-4 py-6">
+      <div className="max-w-5xl mx-auto px-4 py-8">
         {activeTab === 'membres' && (
           <ThemeFeed
             themeConfig={themeConfig}
