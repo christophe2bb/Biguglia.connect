@@ -220,11 +220,20 @@ export function useTopicPage(initialData?: InitialTopicData): UseTopicPageReturn
   // ⚠️ Appelé APRÈS confirmation dans le dialog React (pas de confirm() bloquant).
   const deleteTopic = async () => {
     const supabase = createClient();
-    const { error } = await supabase.from('forum_topics').delete().eq('id', topicId);
-    if (error) {
-      const { error: err2 } = await supabase.from('forum_posts').delete().eq('id', topicId);
-      if (err2) { toast.error(`Erreur : ${err2.message}`); return; }
-    }
+    // Supprimer dans les DEUX tables en parallèle — un sujet peut exister dans
+    // forum_topics (v2) ET forum_posts (v1, double-écriture migration).
+    // L'ancien code ne supprimait forum_posts QUE si forum_topics échouait →
+    // forum_posts survivait → le sujet réapparaissait via le fallback de useForumPage.
+    const [{ error: errV2 }, { error: errV1 }] = await Promise.all([
+      supabase.from('forum_topics').delete().eq('id', topicId),
+      supabase.from('forum_posts').delete().eq('id', topicId),
+    ]);
+    // On ignore l'erreur "row not found" (PGRST116) : normal si le sujet n'existe
+    // que dans l'une des deux tables.
+    const realError = [errV2, errV1].find(
+      e => e && !e.message?.includes('PGRST116') && e.code !== 'PGRST116'
+    );
+    if (realError) { toast.error(`Erreur : ${realError.message}`); return; }
     toast.success('Sujet supprimé');
     routerRef.current.replace('/forum');
   };
