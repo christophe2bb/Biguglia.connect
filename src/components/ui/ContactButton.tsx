@@ -26,6 +26,7 @@ import { useRouter } from 'next/navigation';
 import { MessageSquare, Loader2, ArrowRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/lib/auth-store';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 
@@ -98,6 +99,7 @@ export default function ContactButton({
   const router = useRouter();
   const supabase = createClient();
   const conf = SOURCE_CONFIG[sourceType];
+  const authPhase = useAuthStore((s) => s.phase);
 
   // ── Tailles ───────────────────────────────────────────────────────────────────
   const sizeClasses = {
@@ -131,6 +133,25 @@ export default function ContactButton({
 
   // ── Guards ────────────────────────────────────────────────────────────────────
   if (!ownerId) return null;
+
+  // Auth en cours d'initialisation → skeleton discret (évite la race condition
+  // où userId=undefined alors que l'utilisateur est bien connecté).
+  // Sans ce guard, on rendrait le <Link href="/connexion"> alors que le profil
+  // n'est pas encore chargé → clic → /connexion → redirect vers / (accueil).
+  if (authPhase === 'initializing') {
+    return (
+      <div
+        className={cn(
+          'inline-flex items-center font-bold rounded-xl opacity-50 cursor-wait',
+          sizeClasses, variantClasses, className
+        )}
+        aria-busy="true"
+      >
+        <Loader2 className={cn(iconSize, 'animate-spin')} />
+        {ctaLabel || conf.defaultLabel}
+      </div>
+    );
+  }
 
   // Non connecté → lien vers connexion
   if (!userId) {
