@@ -37,6 +37,9 @@ export interface Conversation {
     | 'lost_found'
     | 'association'
     | 'outing'
+    | 'artisan'
+    | 'event'
+    | 'community'
     | null;
   related_id?: string | null;
   created_at: string;
