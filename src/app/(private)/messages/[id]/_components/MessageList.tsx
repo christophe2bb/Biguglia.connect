@@ -136,6 +136,8 @@ function MessageContent({ content, isMe }: { content: string; isMe: boolean }) {
 
 function DateSeparator({ date }: { date: string }) {
   const d = new Date(date);
+  // Guard: Invalid Date → toLocaleDateString throws RangeError → error boundary
+  if (isNaN(d.getTime())) return null;
   const now = new Date();
   const todayStr = now.toDateString();
   const yesterday = new Date(now);
