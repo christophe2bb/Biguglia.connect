@@ -1,6 +1,7 @@
 import {
   MessageSquare, ShoppingBag, HandHeart, Dog,
   Users, MapPin, Wrench, Inbox, MailOpen, Clock,
+  HardHat, Globe,
 } from 'lucide-react';
 import { RelatedTypeConfig, TabDef } from './_types';
 
@@ -15,6 +16,8 @@ export const RELATED_CONFIG: Record<string, RelatedTypeConfig> = {
   event:           { icon: MapPin,        color: 'text-indigo-600',  bg: 'bg-indigo-50',  border: 'border-indigo-200', label: 'Événement',      tab: 'event' },
   collection_item: { icon: ShoppingBag,   color: 'text-rose-600',    bg: 'bg-rose-50',    border: 'border-rose-200',   label: 'Collectionneur', tab: 'collection_item' },
   service_request: { icon: Wrench,        color: 'text-brand-600',   bg: 'bg-brand-50',   border: 'border-brand-200',  label: 'Artisan',        tab: 'service_request' },
+  artisan:         { icon: HardHat,       color: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-200',  label: 'Artisan',        tab: 'artisan' },
+  community:       { icon: Globe,         color: 'text-cyan-600',    bg: 'bg-cyan-50',    border: 'border-cyan-200',   label: 'Communauté',     tab: 'community' },
   general:         { icon: MessageSquare, color: 'text-gray-500',    bg: 'bg-gray-50',    border: 'border-gray-200',   label: 'Message',        tab: 'general' },
 };
 

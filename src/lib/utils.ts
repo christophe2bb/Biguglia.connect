@@ -7,6 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '';
   return new Intl.DateTimeFormat('fr-FR', {
     day: 'numeric',
     month: 'long',
@@ -16,6 +17,7 @@ export function formatDate(dateStr: string): string {
 
 export function formatDateShort(dateStr: string): string {
   const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '';
   return new Intl.DateTimeFormat('fr-FR', {
     day: 'numeric',
     month: 'short',
@@ -23,8 +25,10 @@ export function formatDateShort(dateStr: string): string {
   }).format(date);
 }
 
-export function formatRelative(dateStr: string): string {
+export function formatRelative(dateStr: string | null | undefined): string {
+  if (!dateStr) return '';
   const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '';
   const now = new Date();
   const diff = now.getTime() - date.getTime();
   const seconds = Math.floor(diff / 1000);
