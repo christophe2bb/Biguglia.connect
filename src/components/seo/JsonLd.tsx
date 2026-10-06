@@ -33,6 +33,7 @@
  */
 
 import { headers } from 'next/headers';
+import { serializeJsonLd } from './serialize-jsonld';
 
 // ─── Re-export tous les helpers purs ─────────────────────────────────────────
 // Les imports existants `from '@/components/seo/JsonLd'` continuent de fonctionner.
@@ -77,24 +78,11 @@ interface JsonLdProps {
 }
 
 /**
- * Échappe les séquences dangereuses dans une chaîne JSON-LD pour éviter
- * les injections XSS par fermeture prématurée du tag <script>.
- *
- * Remplace :
- *   </script>  →  <\/script>   (fermeture de balise)
- *   <!--       →  <\!--        (ouverture de commentaire HTML)
- *   -->        →  --\>         (fermeture de commentaire HTML — défense en profondeur)
- *
- * Ces substitutions sont transparentes pour les parseurs JSON-LD
- * (les consommateurs SERPs/Schema.org ignorent l'échappement JS).
- *
- * Ref : https://cheatsheetseries.owasp.org/cheatsheets/XSS_Prevention_Cheat_Sheet.html
+ * Échappe les caractères HTML sous forme Unicode tout en conservant un JSON valide.
+ * Protège aussi les variantes de fermeture de script avec espaces ou majuscules.
  */
 function safeJsonLd(data: Record<string, unknown>): string {
-  return JSON.stringify(data, null, 0)
-    .replace(/<\/script>/gi, '<\\/script>')
-    .replace(/<!--/g,        '<\\!--')
-    .replace(/-->/g,         '--\\>');
+  return serializeJsonLd(data);
 }
 
 /**
@@ -124,9 +112,7 @@ export async function JsonLd({ data, nonce: nonceProp }: JsonLdProps) {
       // • Seul moyen d'injecter du JSON-LD dans une balise <script type="application/ld+json">
       //   (requis pour les Rich Results Google / Schema.org).
       // • La sortie est assainie par safeJsonLd() :
-      //     </script> → <\/script>   (bloque la fermeture prématurée)
-      //     <!--       → <\!--       (bloque les commentaires HTML)
-      //     -->        → --\>        (défense en profondeur)
+      //     Les caractères < sont encodés en Unicode JSON (\u003c).
       // • Le nonce est requis pour la CSP sans 'unsafe-inline' dans script-src.
       // • Confirmé faux positif par Aikido AI triage (score abaissé, AutoFix impossible).
       // • Ref OWASP : https://cheatsheetseries.owasp.org/cheatsheets/XSS_Prevention_Cheat_Sheet.html

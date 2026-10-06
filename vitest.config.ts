@@ -2,6 +2,8 @@ import { defineConfig } from 'vitest/config';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
+  // Next.js preserves JSX for its own compiler; Vite must transform it for component tests.
+  oxc: { jsx: { runtime: 'automatic' } },
   plugins: [tsconfigPaths()],
   test: {
     environment: 'node',
