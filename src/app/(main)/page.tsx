@@ -143,7 +143,7 @@ export default function HomePage() {
             priority
             fetchPriority="high"
             sizes="100vw"
-            quality={95}
+            quality={80}
             className="object-cover object-center"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-gray-900/75 via-gray-900/20 to-transparent" />
