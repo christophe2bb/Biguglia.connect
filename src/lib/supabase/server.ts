@@ -41,6 +41,17 @@ export async function createClient() {
 }
 
 /**
+ * Client anon sans cookies, pour les données publiques mises en cache.
+ * `unstable_cache` ne peut pas lire `cookies()` dans son callback.
+ */
+export function createPublicClient() {
+  const { url, anonKey } = getSupabaseEnv();
+  return createSupabaseClient(url, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
+
+/**
  * Client admin (service role key) — bypass RLS complet.
  * À utiliser UNIQUEMENT côté serveur (Server Components, API Routes).
  * Ne JAMAIS exposer côté client ni dans un Client Component.

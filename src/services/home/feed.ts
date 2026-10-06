@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { unstable_cache } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createPublicClient } from '@/lib/supabase/server';
 import type { HomeFeedItem, HomeFeedResult, HomeSection } from './types';
 import {
   helpRequestsToFeedItems,
@@ -458,9 +458,10 @@ function buildForYouSection(
 async function _getHomeFeed(
   currentUserId: string | null = null,
   userContext: UserFeedContext = {},
+  publicDataOnly = false,
 ): Promise<HomeFeedResult> {
   const { feedWeights = {}, primaryInterest } = userContext;
-  const supabase = await createClient();
+  const supabase = publicDataOnly ? createPublicClient() : await createClient();
 
   // Fetch en parallèle — tolérant aux pannes
   const [helpRaw, eventsRaw, forumRaw, lostFoundRaw, listingsRaw, outingsRaw, offersRaw, demandsRaw] =
@@ -526,7 +527,7 @@ async function _getHomeFeed(
 //   pour recevoir un feed filtré (leurs propres contenus exclus).
 // • revalidate: 60 → Vercel régénère en arrière-plan toutes les 60s.
 const _getCachedHomeFeed = unstable_cache(
-  () => _getHomeFeed(null, {}),
+  () => _getHomeFeed(null, {}, true),
   ['home-feed-anon'],
   { revalidate: 60, tags: ['home-feed'] },
 );

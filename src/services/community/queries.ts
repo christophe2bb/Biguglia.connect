@@ -14,7 +14,7 @@
  */
 
 import { unstable_cache } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createPublicClient } from '@/lib/supabase/server';
 
 // ─── Types publics ────────────────────────────────────────────────────────────
 
@@ -85,7 +85,7 @@ function daysFromNow(days: number): string {
 // 6 requêtes COUNT(*) sur des tables entières : résultat identique pour tous
 // les visiteurs. Cache 120s sur Vercel (régénération en arrière-plan).
 async function _fetchCommunityStats(): Promise<CommunityStats> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const since1Week = daysAgo(7);
 
   const [
@@ -132,7 +132,7 @@ export const fetchCommunityStats = unstable_cache(
 // ─── fetchTopArtisans — cachée 300s ─────────────────────────────────────────
 // La liste des artisans vedettes change rarement. Cache 5min.
 async function _fetchTopArtisans(limit = 4): Promise<SpotlightArtisan[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   // Artisans vérifiés — double critère pour être robuste aux données héritées
   // (is_verified pas encore synchronisé avant la migration backfill) :
@@ -233,7 +233,7 @@ export const fetchTopArtisans = unstable_cache(
 
 // cachée 60s — les coups de main récents changent parfois
 async function _fetchRecentHelpers(limit = 5): Promise<SpotlightHelper[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const since30 = daysAgo(30);
 
   const { data } = await supabase
@@ -269,7 +269,7 @@ export const fetchRecentHelpers = unstable_cache(
 
 // cachée 120s
 async function _fetchActiveMembersSpotlight(limit = 6): Promise<SpotlightMember[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   // Membres récents actifs avec trust_profile_stats
   const { data } = await supabase
@@ -317,7 +317,7 @@ export const fetchActiveMembersSpotlight = unstable_cache(
 // ─── fetchRecentEvents ────────────────────────────────────────────────────────
 
 async function _fetchRecentEvents(limit = 3): Promise<SpotlightEvent[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const today = new Date().toISOString().slice(0, 10);
   const in3Weeks = daysFromNow(21).slice(0, 10);
 
