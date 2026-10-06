@@ -111,7 +111,7 @@ const USER_ID = 'uuid-user-0001';
 
 // Instances mockées (réassignées dans makeClients)
 // eslint-disable-next-line prefer-const
-let mockSsrClientInstance: ReturnType<typeof createClient>;
+let mockSsrClientInstance: Awaited<ReturnType<typeof createClient>>;
 // eslint-disable-next-line prefer-const
 let mockAdminClientInstance: ReturnType<typeof createAdminClient>;
 
@@ -135,7 +135,7 @@ function makeSsrClient({ user, error = null }: SsrOptions) {
         error,
       }),
     },
-  } as unknown as ReturnType<typeof createClient>;
+  } as unknown as Awaited<ReturnType<typeof createClient>>;
 }
 
 function makeAdminDb({ role, dbError = false }: AdminOptions) {
@@ -154,7 +154,7 @@ function makeAdminDb({ role, dbError = false }: AdminOptions) {
 function setup(ssrOpts: SsrOptions, adminOpts: AdminOptions) {
   mockSsrClientInstance   = makeSsrClient(ssrOpts);
   mockAdminClientInstance = makeAdminDb(adminOpts);
-  mockCreateClient.mockReturnValue(mockSsrClientInstance);
+  mockCreateClient.mockResolvedValue(mockSsrClientInstance);
   mockCreateAdminClient.mockReturnValue(mockAdminClientInstance);
 }
 
@@ -296,50 +296,29 @@ describe('verifyAdminLayout()', () => {
     expect(result!.actor.role).toBe('moderator');
   });
 
-  // ── 10. actor.id = userId extrait du cookie JWT (sub), pas profileRow.id ────
-  //
-  // Depuis la refactorisation du guard (2026-04-17), l'userId est extrait
-  // directement depuis le payload JWT du cookie (champ `sub`), et non plus
-  // via getUser(). Ce test vérifie que le sub du cookie est bien retourné.
-
-  it("actor.id provient de user.id (auth), pas uniquement de profileRow", async () => {
-    const SPECIFIC_USER_ID = 'uuid-specific-9999';
-
-    // Construire un faux cookie JWT avec sub = SPECIFIC_USER_ID
-    const specificPayload = btoa(JSON.stringify({ sub: SPECIFIC_USER_ID, exp: 9999999999 }))
-      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-    const specificJwt = `eyJhbGciOiJIUzI1NiJ9.${specificPayload}.fake-sig`;
-    const specificCookieValue = JSON.stringify({ access_token: specificJwt, refresh_token: 'fake', expires_at: 9999999999 });
-
-    mockCookieGet = (name: string) =>
-      name.includes('auth-token') ? { value: specificCookieValue } : undefined;
-
-    // makeAdminDb retourne un profil avec le même ID pour que le guard réussisse
-    mockAdminClientInstance = makeAdminDb({ role: 'admin' });
-    mockCreateAdminClient.mockReturnValue(mockAdminClientInstance);
-
-    const { result } = await callGuard();
-
-    expect(result!.actor.id).toBe(SPECIFIC_USER_ID);
-  });
-
-  // ── 11. createAdminClient non appelé si pas de session ─────────────────────
-
-  it("ne charge pas le profil DB si la session est absente", async () => {
-    setup({ user: null }, { role: 'admin' });
-
-    await callGuard().catch(() => {/* redirect */});
-
+  it('ne fait pas confiance au sub du cookie si Supabase rejette la session', async () => {
+    withFakeCookie();
+    setup({ user: null, error: { message: 'Invalid JWT signature' } }, { role: 'admin' });
+    const { redirectUrl } = await callGuard();
+    expect(redirectUrl).toBe('/connexion?next=/admin');
+    expect(mockSsrClientInstance.auth.getUser).toHaveBeenCalledOnce();
     expect(mockCreateAdminClient).not.toHaveBeenCalled();
   });
 
-  // ── 12. Unicité du fichier layout ──────────────────────────────────────────
-
-  it('src/app/admin/layout.tsx existe bien (layout Server Component en place)', async () => {
-    const { existsSync } = await import('fs');
-    const { join }       = await import('path');
-    const layoutPath = join(process.cwd(), 'src/app/admin/layout.tsx');
-    expect(existsSync(layoutPath)).toBe(true);
+  it('actor.id provient du compte vérifié même si le cookie indique un autre utilisateur', async () => {
+    withFakeCookie();
+    setup({ user: { id: 'verified-user-0002' } }, { role: 'admin' });
+    const { result } = await callGuard();
+    expect(result?.actor.id).toBe('verified-user-0002');
+    const query = mockAdminClientInstance.from('profiles').select('id, role');
+    expect(query.eq).toHaveBeenCalledWith('id', 'verified-user-0002');
   });
 
+  it('redirige sans accès service-role quand la vérification de session lève une erreur', async () => {
+    setup({ user: { id: USER_ID } }, { role: 'admin' });
+    vi.mocked(mockSsrClientInstance.auth.getUser).mockRejectedValue(new Error('Network unavailable'));
+    const { redirectUrl } = await callGuard();
+    expect(redirectUrl).toBe('/connexion?next=/admin');
+    expect(mockCreateAdminClient).not.toHaveBeenCalled();
+  });
 });

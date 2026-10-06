@@ -242,7 +242,7 @@ let wrappedConfig = nextConfig;
 
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { withSentryConfig } = require('@sentry/nextjs');
+  const { withSentryConfig } = require('@sentry/nextjs/config');
 
   wrappedConfig = withSentryConfig(nextConfig, {
     // ── Organisation & projet Sentry ──────────────────────────────────────
@@ -253,6 +253,14 @@ try {
     // Uploader les source maps en silence (sans log verbose) au build.
     // Les source maps sont supprimées du déploiement public après upload.
     silent:              !isDev,
+    // Local builds do not send build telemetry or upload source maps without
+    // an explicitly configured upload token. Runtime error capture is unchanged.
+    telemetry: false,
+    sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
+    release: {
+      create: !!process.env.SENTRY_AUTH_TOKEN,
+      finalize: !!process.env.SENTRY_AUTH_TOKEN,
+    },
     // widenClientFileUpload désactivé : rallonge le build de ~60–90 s supplémentaires
     // en uploadant tous les chunks client (y compris node_modules). Le bénéfice
     // (meilleures stack traces pour les libs tierces) ne justifie pas le coût

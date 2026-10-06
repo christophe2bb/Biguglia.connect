@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSupabaseProjectRef } from '@/lib/supabase/env';
+import { withAuthTimeout } from './with-timeout';
 
 // ─── Format des cookies @supabase/ssr 0.9 ────────────────────────────────────
 //
@@ -351,32 +352,49 @@ export async function updateSession(
   const cookiePrefix = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
   purgeStaleSupabaseCookies(request, supabaseResponse, cookiePrefix);
 
-  // ── Client Supabase pour rafraîchir la session ────────────────────────────
-  const supabase = createServerClient(
-    SUPABASE_URL,
-    SUPABASE_ANON,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet: Array<{ name: string; value: string; options?: CookieOptions }>) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          supabaseResponse = NextResponse.next({
-            request: { headers: requestHeaders },
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options as Parameters<typeof supabaseResponse.cookies.set>[2])
-          );
-        },
-      },
-    }
-  );
+  // Anonymous visitors do not need a session refresh or an auth-network call.
+  if (request.cookies.getAll().some(cookie => cookie.name.startsWith(cookiePrefix))) {
+    const refreshController = new AbortController();
+    let refreshActive = true;
+    try {
+      const supabase = createServerClient(
+        SUPABASE_URL,
+        SUPABASE_ANON,
+        {
+          global: {
+            fetch: (input, init) => fetch(input, { ...init, signal: refreshController.signal }),
+          },
+          cookies: {
+            getAll() {
+              return request.cookies.getAll();
+            },
+            setAll(cookiesToSet: Array<{ name: string; value: string; options?: CookieOptions }>) {
+              if (!refreshActive) return;
+              cookiesToSet.forEach(({ name, value }) =>
+                request.cookies.set(name, value)
+              );
+              // Pass refreshed cookies downstream along with the nonce headers.
+              requestHeaders.set('cookie', request.headers.get('cookie') ?? '');
+              supabaseResponse = NextResponse.next({
+                request: { headers: requestHeaders },
+              });
+              cookiesToSet.forEach(({ name, value, options }) =>
+                supabaseResponse.cookies.set(name, value, options as Parameters<typeof supabaseResponse.cookies.set>[2])
+              );
+            },
+          },
+        }
+      );
 
-  // Rafraîchir la session côté serveur (renouvelle le cookie si expiré).
-  await supabase.auth.getSession();
+      // Rafraîchir la session côté serveur (renouvelle le cookie si expiré).
+      await withAuthTimeout(() => supabase.auth.getSession(), 5_000);
+    } catch {
+      console.warn('[Supabase/middleware] Session non rafraîchie : service de connexion indisponible.');
+    } finally {
+      refreshActive = false;
+      refreshController.abort();
+    }
+  }
 
   // ── Guard léger (sans appel réseau) ──────────────────────────────────────
   const { pathname } = request.nextUrl;
@@ -393,7 +411,9 @@ export async function updateSession(
   if (isProtected && !isAdminRoute && !hasValidToken(request)) {
     const loginUrl = new URL('/connexion', request.nextUrl.origin);
     loginUrl.searchParams.set('next', pathname);
-    return NextResponse.redirect(loginUrl);
+    const response = NextResponse.redirect(loginUrl);
+    supabaseResponse.cookies.getAll().forEach(cookie => response.cookies.set(cookie));
+    return response;
   }
 
   return supabaseResponse;

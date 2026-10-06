@@ -58,6 +58,7 @@ import { useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import type { Profile } from '@/types';
+import { withAuthTimeout } from '@/lib/supabase/with-timeout';
 
 /** Durée avant déblocage forcé de l'UI si Supabase ne répond pas */
 const AUTH_TIMEOUT_MS = 15_000; // 15s max — marge pour connexions mobiles/lentes
@@ -166,12 +167,14 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
     const supabase = createClient();
     let mounted = true;
+    let authRevision = 0;
     // eslint-disable-next-line prefer-const
     let timeoutId: ReturnType<typeof setTimeout>;
 
     // ── fetchProfile ──────────────────────────────────────────────────────────
     // Déclarée EN PREMIER pour pouvoir être appelée dans le timeout ci-dessous.
     const fetchProfile = async (userId: string) => {
+      const revision = authRevision;
       try {
         const { data, error } = await supabase
           .from('profiles')
@@ -179,7 +182,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
           .eq('id', userId)
           .maybeSingle();
 
-        if (!mounted) return;
+        if (!mounted || revision !== authRevision) return;
 
         if (!error && data) {
           setAuthRef.current('authenticated', userId, data as Profile);
@@ -190,11 +193,11 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
           setAuthRef.current('authenticated', userId, null);
         }
       } catch (e) {
-        if (!mounted) return;
+        if (!mounted || revision !== authRevision) return;
         console.error('[AuthProvider] fetchProfile exception:', e);
         setAuthRef.current('authenticated', userId, null);
       } finally {
-        if (mounted) clearTimeout(timeoutId);
+        if (mounted && revision === authRevision) clearTimeout(timeoutId);
       }
     };
 
@@ -204,10 +207,12 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     // Cela évite de bloquer les PATCH/INSERT via RLS sur réseau lent.
     timeoutId = setTimeout(async () => {
       if (!mounted) return;
+      if (useAuthStore.getState().phase !== 'initializing') return;
+      const revision = authRevision;
       console.warn(`[AuthProvider] Timeout ${AUTH_TIMEOUT_MS / 1000}s — INITIAL_SESSION non reçu. Vérification session…`);
       try {
-        const { data } = await supabase.auth.getSession();
-        if (!mounted) return;
+        const { data } = await withAuthTimeout(() => supabase.auth.getSession(), 5_000);
+        if (!mounted || revision !== authRevision) return;
         if (data.session?.user) {
           console.info('[AuthProvider] Session récupérée après timeout — utilisateur authentifié.');
           setAuthRef.current('authenticated', data.session.user.id, null);
@@ -217,7 +222,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
           setAuthRef.current('unauthenticated', null, null);
         }
       } catch {
-        if (mounted) setAuthRef.current('unauthenticated', null, null);
+        if (mounted && revision === authRevision) setAuthRef.current('unauthenticated', null, null);
       }
     }, AUTH_TIMEOUT_MS);
 
@@ -230,6 +235,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
           // ── Initialisation (émis une fois au montage) ──────────────────────
           case 'INITIAL_SESSION':
+            authRevision++;
+            clearTimeout(timeoutId);
             if (session?.user) {
               // Marquer 'authenticated' immédiatement (userId connu) avant
               // le fetch profil asynchrone. Évite un état 'initializing' prolongé
@@ -245,6 +252,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
           // ── Connexion réussie ──────────────────────────────────────────────
           case 'SIGNED_IN':
             if (session?.user) {
+              authRevision++;
+              clearTimeout(timeoutId);
               setAuthRef.current('authenticated', session.user.id, null);
               fetchProfile(session.user.id);
             }
@@ -261,6 +270,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
               // de la closure, qui serait périmé après le premier fetch)
               const storeUserId = useAuthStore.getState().userId;
               if (newUserId !== storeUserId) {
+                authRevision++;
                 // Cas exceptionnel (changement de compte) → recharger le profil
                 setAuthRef.current('authenticated', newUserId, null);
                 fetchProfile(newUserId);
@@ -272,6 +282,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
           // ── Déconnexion ────────────────────────────────────────────────────
           case 'SIGNED_OUT':
+            authRevision++;
             clearTimeout(timeoutId);
             setAuthRef.current('unauthenticated', null, null);
             break;
