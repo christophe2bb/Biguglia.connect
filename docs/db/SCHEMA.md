@@ -1,11 +1,70 @@
 # Schéma Supabase — Biguglia Connect
-> Dernière mise à jour : 2026-04-12
-> Ce document décrit les tables **réellement présentes** en base de données.
-> Mettre à jour après chaque migration SQL exécutée.
+> Index du dépôt mis à jour : 2026-10-07
+> Ce document décrit le schéma attendu d'après le snapshot et les migrations versionnées.
+> Il ne vérifie pas le schéma réellement déployé dans Supabase. Mettre à jour après chaque changement du dépôt.
 
 ---
 
 ## 📋 Index des migrations (source canonique : `supabase/migrations/`)
+
+Inventaire des 50 fichiers présents dans le dépôt à la date ci-dessus; les descriptions et les préconditions figurent dans chaque fichier SQL. L'ordre ci-dessous est alphabétique par nom et ne représente pas l'historique d'exécution d'une base.
+
+| Fichier | Date |
+|---------|------|
+| `20260407_baseline_rls_indexes.sql` | 2026-04-07 |
+| `20260408_fixes_rls_categories.sql` | 2026-04-08 |
+| `20260409_emploi_local.sql` | 2026-04-09 |
+| `20260411_annonces_cdc.sql` | 2026-04-11 |
+| `20260411_associations_cdc.sql` | 2026-04-11 |
+| `20260411_events_cdc_fields.sql` | 2026-04-11 |
+| `20260411_group_outings_enriched.sql` | 2026-04-11 |
+| `20260411_help_requests_cdc.sql` | 2026-04-11 |
+| `20260411_lost_found_cdc.sql` | 2026-04-11 |
+| `20260412_conversations_unique.sql` | 2026-04-12 |
+| `20260413_listings_all_missing_columns.sql` | 2026-04-13 |
+| `20260413_listings_optional_columns.sql` | 2026-04-13 |
+| `20260413_moderation_queue_fix.sql` | 2026-04-13 |
+| `20260414_admin_full_fix.sql` | 2026-04-14 |
+| `20260414_profiles_rls_fix.sql` | 2026-04-14 |
+| `20260416_event_comments_delete_policy.sql` | 2026-04-16 |
+| `20260416_help_participants_rls.sql` | 2026-04-16 |
+| `20260416_help_status_history_rls.sql` | 2026-04-16 |
+| `20260416_job_demands_rls_normalize.sql` | 2026-04-16 |
+| `20260416_lf_matches_rls.sql` | 2026-04-16 |
+| `20260416_listing_status_history_rls.sql` | 2026-04-16 |
+| `20260416_profiles_rls_final.sql` | 2026-04-16 |
+| `20260416_profiles_rls_hardening.sql` | 2026-04-16 |
+| `20260416_rls_security_audit_fixes.sql` | 2026-04-16 |
+| `20260417_fix_admin_access.sql` | 2026-04-17 |
+| `20260417_rls_close_open_policies.sql` | 2026-04-17 |
+| `20260417_rls_fix_real_issues.sql` | 2026-04-17 |
+| `20260418_perf_indexes.sql` | 2026-04-18 |
+| `20260421_cleanup_duplicate_policies.sql` | 2026-04-21 |
+| `20260421_unindexed_fk.sql` | 2026-04-21 |
+| `20260422_service_requests_sector_id.sql` | 2026-04-22 |
+| `20260423_listings_delete_rls_fix.sql` | 2026-04-23 |
+| `20260423_service_requests_delete_rls.sql` | 2026-04-23 |
+| `20260428_listings_cover_url.sql` | 2026-04-28 |
+| `20260430_artisan_is_verified_backfill.sql` | 2026-04-30 |
+| `20260430_artisan_profiles_missing_columns.sql` | 2026-04-30 |
+| `20260501_audit_corrections.sql` | 2026-05-01 |
+| `20260501_community_rls.sql` | 2026-05-01 |
+| `20260501_forum_advanced_rls.sql` | 2026-05-01 |
+| `20260501_misc_tables_rls.sql` | 2026-05-01 |
+| `20260501_trust_badges_rls.sql` | 2026-05-01 |
+| `20260501_users_artisans_rls.sql` | 2026-05-01 |
+| `20260502_events_category_constraint.sql` | 2026-05-02 |
+| `20260502_events_category_constraint_v2.sql` | 2026-05-02 |
+| `20260502_events_missing_columns.sql` | 2026-05-02 |
+| `20260502_missing_tables_fix.sql` | 2026-05-02 |
+| `20260502_service_requests_artisan_id.sql` | 2026-05-02 |
+| `20260502_service_requests_artisan_rls.sql` | 2026-05-02 |
+| `20260505_forum_posts_theme.sql` | 2026-05-05 |
+| `20260506_rls_moderation_kpi.sql` | 2026-05-06 |
+
+### Description historique de migrations sélectionnées
+
+Le tableau ci-dessous est un extrait historique non exhaustif, conservé pour ses notes descriptives. Il ne constitue pas une procédure d'exécution ni l'inventaire complet.
 
 | Fichier | Date | Contenu |
 |---------|------|---------|
@@ -18,7 +77,7 @@
 | `20260411_help_requests_cdc.sql` | 2026-04-11 | Module Coups de main : `help_requests`, `help_photos`, `help_comments`, `help_request_participants`, `help_request_status_history` |
 | `20260411_lost_found_cdc.sql` | 2026-04-11 | Module Perdu/Trouvé : `lost_found_items`, `lf_photos`, `lf_comments`, `lf_matches` |
 | `20260411_annonces_cdc.sql` | 2026-04-11 | Enrichissement `listings` (6 types, 10 statuts, 12 colonnes CDC) + `listing_favorites`, `listing_saved_searches`, `listing_reports`, `listing_status_history` |
-| `20260412_conversations_unique.sql` | 2026-04-12 | ⚠️ **À appliquer** — Anti-duplication messagerie : `conversation_pairs` (UNIQUE par paire canonique + contexte), trigger `trg_maintain_conversation_pairs`, extension ENUM `related_type` via `ALTER TYPE ADD VALUE`, ajout colonne `joined_at` |
+| `20260412_conversations_unique.sql` | 2026-04-12 | Anti-duplication messagerie : `conversation_pairs` (UNIQUE par paire canonique + contexte), trigger `trg_maintain_conversation_pairs`, extension ENUM `related_type` via `ALTER TYPE ADD VALUE`, ajout colonne `joined_at` |
 
 > **Règle** : `supabase/migrations/` est la **seule source de vérité**.
 > Le dossier `sql/` a été supprimé. Ne plus créer de fichiers SQL à la racine.
