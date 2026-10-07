@@ -2,18 +2,16 @@
 
 ## Organisation
 
-Toutes les migrations sont dans `supabase/migrations/` au format `YYYYMMDD_description.sql`.
-Elles sont **idempotentes** (utilisent `IF NOT EXISTS` / `IF EXISTS`) et peuvent être
-relancées sans risque.
+Toutes les migrations versionnées sont dans `supabase/migrations/` au format `YYYYMMDD_description.sql`.
+Leur présence dans le dépôt ne prouve pas qu'elles ont été appliquées à un environnement. Ne pas supposer qu'un fichier est répétable sans risque : vérifier son SQL, ses dépendances et l'état de la base cible avant exécution.
 
 ## Politique RLS (Row Level Security)
 
-**RLS activé sur toutes les tables** contenant des données utilisateur.
-100 policies versionnées dans 20 fichiers de migration (sur 33 fichiers au total — les autres ajoutent des colonnes, index ou corrections de schéma).
+Les migrations versionnent des changements RLS, mais ce dépôt ne prouve pas l'état effectif des policies sur Supabase. L'inventaire du dépôt est dans [`docs/db/SCHEMA.md`](../docs/db/SCHEMA.md); vérifier la couverture réelle sur chaque environnement avec une requête ou un audit connecté à la base.
 
-### Principes appliqués
+### Principes visés par les migrations
 
-| Principe | Implémentation |
+| Principe | Intention |
 |---|---|
 | Least privilege | Chaque rôle n'a accès qu'aux données dont il a besoin |
 | Isolation utilisateur | `auth.uid()` vérifié dans chaque policy SELECT/INSERT/UPDATE/DELETE |
@@ -39,16 +37,16 @@ relancées sans risque.
 
 ## Exécution des migrations
 
-Voir `docs/DEPLOY.md` pour la procédure complète d'exécution dans Supabase SQL Editor.
+Voir `docs/DEPLOY.md` pour les précautions de vérification avant toute exécution dans Supabase SQL Editor.
 
-**Ordre obligatoire** : les fichiers sont préfixés par date (`YYYYMMDD`) — trier par nom = ordre correct.
+**Ordre suggéré pour l'examen** : les fichiers sont préfixés par date (`YYYYMMDD`). L'ordre alphabétique aide à les lire, mais ne remplace pas la vérification de leurs dépendances et de l'historique réel de la base. Voir [`docs/DEPLOY.md`](../docs/DEPLOY.md) avant toute exécution.
 
 ## Ajouter une migration
 
 1. Créer un fichier `supabase/migrations/YYYYMMDD_description.sql`
 2. Utiliser `IF NOT EXISTS` / `IF EXISTS` pour l'idempotence
 3. Documenter le contexte en commentaire en tête de fichier
-4. Ajouter l'entrée dans `docs/DEPLOY.md` (tableau des migrations)
+4. Mettre à jour l'inventaire `docs/db/SCHEMA.md` et les consignes de `docs/DEPLOY.md`
 5. Tester en staging avant production
 
 ## Vérification de la couverture RLS

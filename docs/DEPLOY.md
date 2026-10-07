@@ -1,8 +1,10 @@
 # Guide de déploiement — Biguglia Connect
 
-## 🗄️ Étape 1 : Créer les tables Supabase
+## 🗄️ Étape 1 : Vérifier l'état de la base Supabase
 
-Exécuter les migrations dans l'ordre dans **Supabase → SQL Editor** :
+> **Attention :** la migration listée ci-dessous est un ancien extrait incomplet; le dépôt contient désormais 50 fichiers. Ne l'utilisez pas comme séquence d'exécution. Consultez l'inventaire de [`docs/db/SCHEMA.md`](db/SCHEMA.md) puis vérifiez l'historique réel et les préconditions dans chaque fichier avant d'appliquer quoi que ce soit.
+
+Le tableau suivant est un ancien extrait descriptif, conservé à titre de contexte. Il ne faut pas l'exécuter comme une séquence : il est incomplet et ne reflète pas l'historique de la base cible.
 
 | # | Fichier | Description |
 |---|---------|-------------|
@@ -40,35 +42,28 @@ Exécuter les migrations dans l'ordre dans **Supabase → SQL Editor** :
 | 32 | `supabase/migrations/20260423_listings_delete_rls_fix.sql` | ⚠️ **CRITIQUE** — **Remplace toutes les policies DELETE existantes** sur `listings` puis recrée une policy canonique unique (`listings_delete_owner_or_admin`). Corrige les suppressions silencieuses dues à une policy absente ou en doublon. |
 | 33 | `supabase/migrations/20260423_service_requests_delete_rls.sql` | ⚠️ **CRITIQUE** — Policy RLS DELETE manquante sur `service_requests` et `request_comments` : idem + policy UPDATE auteur/artisan |
 
-> **Ordre d'exécution obligatoire** : respecter impérativement le numéro `#` du tableau.
-> Les noms de fichiers commencent par une date (`YYYYMMDD`) : trier par nom = trier par ordre correct.
-> Ne pas exécuter plusieurs fichiers d'une même date dans un ordre arbitraire.
+> **Cette liste est un ancien extrait incomplet, pas un plan d'exécution.** L'ordre alphabétique par nom facilite l'examen mais ne prouve ni les dépendances complètes ni ce qui a déjà été appliqué sur la base cible.
 >
 > **Dépendances critiques** :
 > - `#11` (`20260413_listings_all_missing_columns`) et `#12` (`20260413_listings_optional_columns`)
 >   **doivent être exécutées avant** `#14` (`20260414_admin_full_fix`) — ce dernier référence
 >   des colonnes (`listing_type` enum étendu, `is_negotiable`, etc.) créées par les deux précédentes.
 >   Exécuter `#14` seul sur une base vierge produira une erreur `column does not exist`.
-> - `#32` et `#33` (**migrations 20260423**) corrigent des **suppressions silencieuses dues à RLS** :
->   sans ces migrations, un DELETE sur `listings` ou `service_requests` retourne `0 lignes supprimées`
->   **sans erreur visible** — l'UI semble fonctionner mais l'enregistrement reste en base.
->   **Ne pas déployer l'application sans avoir appliqué `#32` et `#33`.**
-> - `#32` est **destructive par conception** : elle supprime *toutes* les policies DELETE existantes
+> - `20260423_listings_delete_rls_fix.sql` et `20260423_service_requests_delete_rls.sql` documentent des corrections RLS DELETE. Vérifier le besoin et l'effet de ces changements sur la base cible; ne pas conclure qu'ils doivent être exécutés sans vérifier l'état effectif.
+> - `20260423_listings_delete_rls_fix.sql` est **destructive par conception** : elle supprime les policies DELETE existantes
 >   sur `listings` avant de recréer une policy unique canonique. Les noms historiques ciblés sont
->   `listings_delete` et `listings_delete_own` (baseline #1). Si une policy DELETE personnalisée
->   avait été ajoutée manuellement entre #1 et #32, elle sera supprimée — vérifier l'absence de
+>   `listings_delete` et `listings_delete_own` (baseline). Toute policy DELETE personnalisée
+>   présente sur la base cible peut également être supprimée — vérifier l'absence de
 >   policies DELETE inattendues dans Supabase → Authentication → Policies avant d'exécuter.
-> - Plus généralement, chaque migration suppose que toutes les précédentes ont réussi.
+> - Les préconditions et dépendances varient selon les migrations; vérifier chaque fichier avant d'établir un ordre d'exécution.
 >
-> **Idempotence** : tous les fichiers utilisent `IF NOT EXISTS` / `IF EXISTS` — ils peuvent être
-> relancés sans risque si une exécution précédente a échoué à mi-chemin.
+> **Ne supposez pas l'idempotence** : la présence de clauses `IF NOT EXISTS` / `IF EXISTS` ne garantit pas qu'un fichier puisse être relancé sans risque. Vérifiez son SQL et son état d'application avant toute exécution.
 >
-> Pour chaque fichier : copier le contenu → coller dans SQL Editor → cliquer **Run** → vérifier "Success. No rows returned."
+> Après revue et approbation de la séquence propre à l'environnement, exécuter les fichiers un à un dans SQL Editor et conserver le résultat de chaque exécution.
 
 ### Schéma de référence
 
-Pour créer la base depuis zéro, utiliser `docs/db/schema.sql` (snapshot initial).
-Les migrations ci-dessus **s'appliquent par-dessus** ce schéma.
+`docs/db/schema.sql` est un snapshot initial daté du 7 avril 2026, pas une mise à niveau à exécuter sur une base existante. Même pour une nouvelle base, vérifier la compatibilité et l'ordre des migrations avant de les appliquer.
 
 ---
 

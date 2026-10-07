@@ -1,4 +1,6 @@
 # Audit Pré-Production — Biguglia Connect
+> **Rapport historique, non valable comme décision GO/NO-GO actuelle.** Les résultats ci-dessous reflètent une revue arrêtée au 2026-04-27 sur un autre commit. Ils ne vérifient ni le commit actuel, ni les secrets/environnements, ni l'état réel de Supabase ou Vercel. Réévaluer ces éléments avant toute décision de mise en production.
+
 **Date initiale :** 2026-04-22  
 **Auditeur :** Genspark AI Developer  
 **Mis à jour :** 2026-04-27 (PRs #425–#427 — tous les P0/P1/P2/P3 résolus)  
@@ -30,22 +32,22 @@
 
 ---
 
-## 1. Résumé Exécutif
+## 1. Résumé Exécutif — état historique au 2026-04-27
 
 | Indicateur | Valeur |
 |---|---|
-| **Score global** | **100 / 100** ✅ |
-| **Maturité** | Production-ready — GO SOLID |
-| **Verdict** | ✅ **GO SOLID** — tous les domaines à 100/100 |
+| **Score global historique** | 100 / 100 (non réévalué depuis 2026-04-27) |
+| **Maturité** | Non déterminée pour le commit actuel |
+| **Verdict actuel** | Aucun GO/NO-GO ne peut être déduit de ce rapport historique |
 | **Bloquants P0** | 0 |
 | **Risques majeurs P1** | 0 (tous corrigés — PRs #425–#427) |
 | **Points d'attention P2** | 0 (tous corrigés — PRs #425–#427) |
 | **Améliorations P3/P4** | 0 (toutes traitées — PRs #425–#427) |
 | **Dernière mise à jour scores** | 2026-04-27 (PRs #425–#427) |
 
-### Résumé — Score 100/100 sur tous les domaines ✅
+### Résumé de l'évaluation historique — non revalidée
 
-Le projet est **en état GO SOLID** : TypeScript strict 0 erreur, ESLint 0 warning (toutes les règles `jsx-a11y/*`, `@typescript-eslint/no-explicit-any` et `react-hooks/exhaustive-deps` promus en `error`), **1 299 tests passent à 100 %** (35 fichiers, 5.5 s).
+L'audit d'avril déclarait TypeScript sans erreur, ESLint sans warning et 1 299 tests passants. Ces résultats ne sont pas ceux d'une vérification du commit actuel; les tests, le lint, le build et l'état de production doivent être évalués à nouveau.
 
 Tous les points P1 et P2 identifiés à l'audit initial ont été corrigés :
 
@@ -82,7 +84,7 @@ Tous les points P1 et P2 identifiés à l'audit initial ont été corrigés :
 
 ---
 
-## 3. Scorecard domaines
+## 3. Scorecard domaines — scores historiques, non revérifiés
 
 | Domaine | Score | Tendance | Verdict |
 |---|---|---|---|
@@ -471,29 +473,21 @@ Les critères suivants déclencheraient un NO-GO :
 - ❌ `SUPABASE_SERVICE_ROLE_KEY` dans le bundle public
 - ❌ Variables sensibles committées dans le repo
 
-### GO SOLID — Situation actuelle ✅
+### Résultats consignés par l'audit historique — non revérifiés
 
-- ✅ Build passe
-- ✅ TypeScript 0 erreur
-- ✅ ESLint 0 warning (toutes les règles critiques en `error`)
-- ✅ 1 299/1 299 tests passent (35 fichiers)
-- ✅ CSP Level 3 nonce + strict-dynamic (PR #425/#427)
-- ✅ Security headers complets (HSTS, X-Frame-Options, CORP, COOP, Referrer-Policy) — X-XSS-Protection retiré (obsolète, §3.5)
-- ✅ Double guard admin (middleware + layout Server Component)
-- ✅ 18+ loading.tsx — pas de CLS
-- ✅ onRouterTransitionStart — navigation Sentry active
-- ✅ maskAllInputs: true — pas de PII dans Sentry
-- ✅ Date statique confidentialité — conforme RGPD
-- ✅ E2E Playwright : smoke 8 groupes + 7 parcours utilisateur
-- ⚠️ `NEXT_PUBLIC_SITE_URL` à vérifier dans Vercel avant Go-Live
+Les points ci-dessous décrivent les affirmations du rapport d'avril et ne constituent pas des résultats actuels :
+
+- Build, TypeScript, ESLint et 1 299 tests déclarés passants
+- CSP, security headers, guards admin, Sentry et smoke tests décrits comme configurés
+- `NEXT_PUBLIC_SITE_URL` déjà identifié comme variable à vérifier dans Vercel
 
 ---
 
 ## 8. Verdict et prochaines étapes
 
-### Verdict global : ✅ GO SOLID
+### Verdict global actuel : non établi par ce document
 
-Le projet **Biguglia Connect** est en état de production-ready sur **tous les aspects** : sécurité, architecture, qualité de code, tests, SEO, accessibilité, performance et conformité RGPD sont à 100/100. Tous les points P1 et P2 initiaux ont été corrigés dans les PRs #425, #426 et #427.
+Le verdict « GO SOLID » ci-dessous était celui de l'audit d'avril 2026. Il n'est pas un verdict sur le commit ou les services actuels. Les points d'infrastructure et de base de données doivent être contrôlés dans les tableaux de bord et environnements correspondants avant tout go-live.
 
 ### Actions avant Go-Live (< 1h)
 
