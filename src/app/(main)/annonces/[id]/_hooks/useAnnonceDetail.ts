@@ -129,6 +129,7 @@ export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
           .select('*, category:listing_categories(*), photos:listing_photos(url)')
           .eq('category_id', data.category_id)
           .eq('status', 'active')
+          .eq('moderation_status', 'publie')
           .neq('id', id)
           .limit(3)
           .order('created_at', { ascending: false });
