@@ -123,7 +123,7 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
   }
 
   const sourceTable = TABLE_MAP[String(queueItem.content_type)];
-  if (!sourceTable) {
+  if (!sourceTable || queueItem.content_type === 'association') {
     return NextResponse.json(
       { error: 'Ce type de contenu ne peut pas être modéré depuis cet écran.' },
       { status: 422 },
