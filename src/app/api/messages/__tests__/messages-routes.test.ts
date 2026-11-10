@@ -546,6 +546,49 @@ describe('POST /api/messages/start-conversation', () => {
     }));
   });
 
+  it('ne transforme pas un conflit trigger 23505 en conversation utilisable sans destinataire', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    let insertCount = 0;
+    const db = {
+      from: vi.fn((table: string) => {
+        if (table === 'profiles') return makeAutoChain({
+          data: { id: USER_B, status: 'active', is_active: true }, error: null,
+        });
+        if (table === 'user_blocks') return makeAutoChain({ data: [], error: null });
+        if (table === 'conversation_participants') {
+          return {
+            select: (field: string) => field === 'user_id'
+              ? { eq: () => ({ in: async () => ({ data: [{ user_id: USER_A }], error: null }) }) }
+              : makeAutoChain({ data: [], error: null }),
+            insert: () => ({
+              select: () => ({
+                maybeSingle: async () => {
+                  insertCount += 1;
+                  return insertCount === 1
+                    ? { data: { user_id: USER_A }, error: null }
+                    : { data: null, error: { code: '23505', message: 'duplicate key conversation_pairs_pkey' } };
+                },
+              }),
+            }),
+          };
+        }
+        if (table === 'conversations') {
+          return makeAutoChain({ data: { id: CONV_ID }, error: null });
+        }
+        return makeAutoChain({ data: null, error: null });
+      }),
+    };
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'general', relatedId: null, initialMsg: 'Bonjour',
+    }) as never);
+    expect(res.status).toBe(409);
+    expect((await res.json()).conversationId).toBeUndefined();
+    expect(db.from).not.toHaveBeenCalledWith('messages');
+    expect(insertCount).toBe(2);
+  });
+
   // ── Happy path ────────────────────────────────────────────────────────────
 
   it('crée une nouvelle conversation et retourne isNew: true', async () => {
