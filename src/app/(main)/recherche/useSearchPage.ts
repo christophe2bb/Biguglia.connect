@@ -68,7 +68,7 @@ export function useSearchPage(): SearchPageState {
         supabase.from('listings')
           .select('id, title, description, listing_type, price, location, status, created_at, photos:listing_photos(url)')
           .or(`title.ilike.${pattern},description.ilike.${pattern},location.ilike.${pattern}`)
-          .in('status', ['active', 'reserved']).limit(20),
+          .in('status', ['active', 'reserved']).eq('moderation_status', 'publie').limit(20),
         supabase.from('equipment_items')
           .select('id, title, description, is_free, daily_rate, pickup_location, photos:equipment_photos(url)')
           .or(`title.ilike.${pattern},description.ilike.${pattern}`)
