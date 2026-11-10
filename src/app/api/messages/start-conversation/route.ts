@@ -255,7 +255,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   // Un blocage, dans un sens comme dans l'autre, interdit les échanges.
-  // Important : service_role contourne les règles RLS de Supabase.
+  // Important : le client administratif contourne les règles RLS de Supabase.
   const { data: existingBlocks, error: blockError } = await admin
     .from('user_blocks')
     .select('id')
