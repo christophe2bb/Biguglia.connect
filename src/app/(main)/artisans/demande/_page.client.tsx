@@ -104,7 +104,7 @@ function DemandeServiceForm() {
     };
     void fetchData();
     return () => { cancelled = true; };
-  }, [phase, profile?.id, artisanId, router, supabase]);
+  }, [phase, profile, artisanId, router, supabase]);
 
   const handlePhotoAdd = (files: FileList | null) => {
     if (!files) return;
