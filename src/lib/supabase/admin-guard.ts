@@ -92,7 +92,7 @@ export async function getAdminUser(req: Request): Promise<AdminGuardResult> {
   const adminClient = createAdminClient();
   const { data: profileRow, error } = await adminClient
     .from('profiles')
-    .select('id, role')
+    .select('id, role, status, is_active')
     .eq('id', user.id)
     .single();
 
@@ -108,6 +108,22 @@ export async function getAdminUser(req: Request): Promise<AdminGuardResult> {
       response: NextResponse.json(
         { error: 'Profil introuvable.' },
         { status: 401 },
+      ),
+    };
+  }
+
+  // Un rôle élevé ne doit jamais réactiver un compte suspendu, inactif
+  // ou un profil dont l'identité n'est pas celle de la session vérifiée.
+  if (
+    profileRow.id !== user.id ||
+    profileRow.status !== 'active' ||
+    profileRow.is_active !== true
+  ) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: 'Compte administrateur inactif ou suspendu.' },
+        { status: 403 },
       ),
     };
   }
