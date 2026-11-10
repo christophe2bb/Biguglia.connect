@@ -108,6 +108,9 @@ export default async function DemandDetailPage({ params }: PageProps) {
   const categoryIcon = JOB_CATEGORY_ICONS[demand.job_category] || '💼';
   const avail = AVAILABILITY_LABELS[demand.availability_type] ?? AVAILABILITY_LABELS.flexible;
   const hasSalary = demand.salary_expectation_min || demand.salary_expectation_max;
+  const cvHref = demand.cv_url
+    ? `/api/emploi/cv?demandId=${encodeURIComponent(demand.id)}`
+    : null;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -302,7 +305,7 @@ export default async function DemandDetailPage({ params }: PageProps) {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
                 {demand.cv_url && (
-                  <a href={demand.cv_url} target="_blank" rel="noopener noreferrer"
+                  <a href={cvHref || '#'} target="_blank" rel="noopener noreferrer"
                     className="flex flex-col items-center gap-2 p-4 bg-indigo-50 border-2 border-indigo-200 rounded-xl hover:bg-indigo-100 transition-colors">
                     <FileText className="w-8 h-8 text-indigo-500" />
                     <span className="text-xs font-bold text-indigo-800">CV disponible</span>
@@ -356,7 +359,7 @@ export default async function DemandDetailPage({ params }: PageProps) {
               <ContactBlock
                 type="demand"
                 slug={demand.slug}
-                cvUrl={demand.cv_url}
+                cvUrl={cvHref}
                 jobTitle={demand.title}
                 colorScheme="purple"
                 title="Contacter ce candidat"
@@ -372,7 +375,7 @@ export default async function DemandDetailPage({ params }: PageProps) {
               <ContactBlock
                 type="demand"
                 slug={demand.slug}
-                cvUrl={demand.cv_url}
+                cvUrl={cvHref}
                 jobTitle={demand.title}
                 colorScheme="purple"
                 title="Intéressé(e) par ce profil ?"
