@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
       pending_moderation: pendingMod        ?? 0,
     };
 
-    return NextResponse.json({ stats });
+    return NextResponse.json({ stats, actor: { role: actor.role } });
   } catch (err) {
     captureApiError(err, {
       route:  '/api/admin/dashboard',
