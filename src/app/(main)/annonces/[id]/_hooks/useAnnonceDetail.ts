@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { toPhotoItems } from '@/components/ui/photo-utils';
 import { safeStoragePath } from '@/lib/upload-utils';
+import { deletePhotoFiles } from '@/lib/delete-photo-files';
 import toast from 'react-hot-toast';
 import { Listing } from '@/types';
 import type { ExtListing, ShareMethod, AuthorProfile } from '../_types';
@@ -208,8 +209,7 @@ export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
         .map(p => safeStoragePath(p.url, 'photos'))
         .filter(Boolean) as string[];
       if (paths.length) {
-        const { error: storageErr } = await supabase.storage.from('photos').remove(paths); // nosec
-        if (storageErr) console.warn('[handleDelete] storage remove error:', storageErr);
+        await deletePhotoFiles(paths).catch(() => console.warn('[handleDelete] nettoyage photo incomplet'));
       }
       await supabase.from('listing_photos').delete().eq('listing_id', listing.id);
     }
