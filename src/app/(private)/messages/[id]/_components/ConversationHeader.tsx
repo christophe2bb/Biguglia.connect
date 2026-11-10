@@ -13,9 +13,10 @@ import { useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   ChevronLeft, Wifi, MoreVertical, UserCheck, ExternalLink,
-  Copy, Star, StarOff, Ban, Flag,
+  Copy, Star, StarOff, Ban,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
+import ReportButton from '@/components/ui/ReportButton';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { ProfileWithEmail } from '../_types';
@@ -124,7 +125,11 @@ export function ConversationHeader({
             <div
               className="absolute right-0 top-10 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 min-w-[200px]"
               // Fermer si on clique à l'extérieur
-              onBlur={() => setMenuOpen(false)}
+              onBlur={event => {
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                  setMenuOpen(false);
+                }
+              }}
             >
               <Link
                 href={`/profil/${otherUser.id}`}
@@ -183,12 +188,16 @@ export function ConversationHeader({
 
               <div className="h-px bg-gray-100 my-1" />
 
-              <button
-                onClick={() => { setMenuOpen(false); toast('Signalement envoyé — merci !'); }}
-                className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm w-full text-left text-gray-500"
-              >
-                <Flag className="w-4 h-4" /> Signaler
-              </button>
+              {/* Vrai formulaire de signalement avec INSERT RLS, plus de faux toast de succès */}
+              <div className="px-4 py-2.5 hover:bg-gray-50">
+                <ReportButton
+                  targetType="user"
+                  targetId={otherUser.id}
+                  targetTitle={getDisplayName(otherUser)}
+                  variant="text"
+                  className="w-full justify-start"
+                />
+              </div>
             </div>
           )}
         </div>
