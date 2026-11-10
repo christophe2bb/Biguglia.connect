@@ -168,6 +168,12 @@ async function findExistingConversation(
     admin.from('conversation_participants').select('conversation_id').eq('user_id', userB),
   ]);
 
+  if (resA.error || resB.error) {
+    // Une panne de lecture ne signifie jamais « aucune conversation » :
+    // cela provoquerait des doublons et des messages dans le mauvais fil.
+    throw new Error('conversation_lookup_unavailable');
+  }
+
   const idsA = new Set((resA.data ?? []).map((r: { conversation_id: string }) => r.conversation_id));
   const idsB = new Set((resB.data ?? []).map((r: { conversation_id: string }) => r.conversation_id));
 
@@ -194,7 +200,8 @@ async function findExistingConversation(
     query = query.eq('related_type', 'general');
   }
 
-  const { data } = await query.maybeSingle();
+  const { data, error } = await query.maybeSingle();
+  if (error) throw new Error('conversation_context_lookup_unavailable');
   return data?.id ?? null;
 }
 
@@ -270,9 +277,18 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // ── Garde anti-duplication (applicatif) ────────────────────────────────────
   // Couche 1 — garde applicatif. Voir section "ANTI-DUPLICATION" en tête de fichier.
-  const existingId = await findExistingConversation(
-    admin, userId, ownerId, relatedType ?? null, relatedId ?? null
-  );
+  let existingId: string | null;
+  try {
+    existingId = await findExistingConversation(
+      admin, userId, ownerId, relatedType ?? null, relatedId ?? null
+    );
+  } catch {
+    console.error('[start-conversation] recherche conversation indisponible');
+    return NextResponse.json(
+      { error: 'Recherche des conversations momentanément indisponible' },
+      { status: 503 },
+    );
+  }
   if (existingId) {
     return NextResponse.json({ conversationId: existingId, isNew: false });
   }
@@ -296,11 +312,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   // le premier message, ni le lien vers l'annonce d'origine.
   if (convError) {
     if (convError.code === '23505') {
-      const existingAfterRace = await findExistingConversation(
-        admin, userId, ownerId, relatedType ?? null, relatedId ?? null
-      );
-      if (existingAfterRace) {
-        return NextResponse.json({ conversationId: existingAfterRace, isNew: false });
+      try {
+        const existingAfterRace = await findExistingConversation(
+          admin, userId, ownerId, relatedType ?? null, relatedId ?? null
+        );
+        if (existingAfterRace) {
+          return NextResponse.json({ conversationId: existingAfterRace, isNew: false });
+        }
+      } catch {
+        console.warn('[start-conversation] recherche après conflit indisponible');
       }
       return NextResponse.json(
         { error: 'Conversation en cours de création, réessayez' },
