@@ -48,7 +48,7 @@ async function fetchArtisan(id: string) {
 
     if (error || !data) return null;
 
-    return { artisan: data as ArtisanProfile };
+    return { artisan: data as unknown as ArtisanProfile };
   } catch (err) {
     console.error('[ArtisanDetailPage] fetchArtisan error:', err);
     return null;
