@@ -118,7 +118,10 @@ export function useModeration(): UseModerationReturn {
       });
 
       // 4. Statut de modération selon confiance
-      const moderationStatus = getModerationStatus(authorTrust, profile.role);
+      // Une annonce n'est jamais auto-validée par le navigateur.
+      const moderationStatus = opts.contentType === 'listing'
+        ? 'en_attente_validation' as ModerationStatus
+        : getModerationStatus(authorTrust, profile.role);
       const isDirectPublish = moderationStatus === 'publie';
 
       // 5. Insertion dans la file de modération
@@ -151,7 +154,7 @@ export function useModeration(): UseModerationReturn {
       if (error) throw error;
 
       // 6. Mettre à jour le statut de modération dans la table source
-      if (opts.sourceTable) {
+      if (opts.sourceTable && opts.contentType !== 'listing') {
         await supabase
           .from(opts.sourceTable)
           .update({ moderation_status: moderationStatus })
