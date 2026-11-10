@@ -48,7 +48,7 @@
 import 'server-only';
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createClient as createSupabaseClient, type User } from '@supabase/supabase-js';
 import { getSupabaseEnv } from '@/lib/supabase/env';
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
@@ -163,7 +163,7 @@ export function assertCsrfSafe(req: Request): NextResponse | null {
  */
 export async function getUserFromRequest(
   req: Request
-): Promise<{ id: string; email?: string } | null> {
+): Promise<User | null> {
   // Méthode 1 : cookies SSR
   try {
     const supabase = await createServerClient();
