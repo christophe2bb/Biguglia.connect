@@ -24,7 +24,6 @@ import { TrendingUp, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import type { AdminDashboardStats } from '@/app/api/admin/dashboard/route';
 import { adminFetch } from '@/lib/admin-fetch';
-import { useAuthStore } from '@/lib/auth-store';
 
 import AdminStatsGrid from './_components/AdminStatsGrid';
 import AdminNavGrid   from './_components/AdminNavGrid';
@@ -36,7 +35,7 @@ const AdminArtisansBanner = dynamic(
 );
 
 function AdminContent() {
-  const { profile } = useAuthStore();
+  const [role, setRole] = useState<'admin' | 'moderator'>('moderator');
   const [stats, setStats]   = useState<AdminDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,8 +46,9 @@ function AdminContent() {
         console.warn('[Admin] /api/admin/dashboard →', res.status);
         return;
       }
-      const json = await res.json() as { stats: AdminDashboardStats };
+      const json = await res.json() as { stats: AdminDashboardStats; actor?: { role: 'admin' | 'moderator' } };
       setStats(json.stats);
+      setRole(json.actor?.role === 'admin' ? 'admin' : 'moderator');
     } catch (e) {
       console.warn('[Admin] fetchData error:', e);
     } finally {
@@ -78,7 +78,7 @@ function AdminContent() {
       <AdminStatsGrid stats={stats} loading={loading} />
 
       {/* Navigation */}
-      <AdminNavGrid stats={stats} role={profile?.role === 'admin' ? 'admin' : 'moderator'} />
+      <AdminNavGrid stats={stats} role={role} />
 
       {/* Bannière artisans — lazy */}
       <AdminArtisansBanner stats={stats} />
