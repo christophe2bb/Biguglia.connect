@@ -179,10 +179,15 @@ export async function POST(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await Promise.all([
+  // Le message est déjà enregistré. Une notification défaillante ne doit
+  // surtout pas renvoyer 500 et pousser l'utilisateur à envoyer un doublon.
+  const sideEffects = await Promise.allSettled([
     admin.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', conversationId),
     sendNewMessageNotifications(admin, conversationId, userId, content),
   ]);
+  if (sideEffects.some(result => result.status === 'rejected')) {
+    console.warn('[conversation POST] échec d\'une opération secondaire après enregistrement');
+  }
 
   return NextResponse.json({ message: msg });
 }
