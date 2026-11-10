@@ -30,6 +30,11 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: 'Réservé aux administrateurs.' }, { status: 403 });
   }
 
+  // Le modérateur traite les signalements sans accès généralisé aux messages privés.
+  if (guard.actor.role !== 'admin') {
+    return NextResponse.json({ error: 'Réservé aux administrateurs' }, { status: 403 });
+  }
+
   const { adminClient } = guard;
 
   try {
