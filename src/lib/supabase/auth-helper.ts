@@ -157,53 +157,51 @@ export function assertCsrfSafe(req: Request): NextResponse | null {
 // ─── Auth functions ───────────────────────────────────────────────────────────
 
 /**
- * SSR-first (cookies → Bearer).
- * Retourne l'objet user complet { id, email, … } ou null.
- * Utilisé par les routes emploi (offres, demandes, contact, ownership).
+ * Authentification des routes API :
+ * - Si un Bearer est fourni, il doit être valide. Ne JAMAIS basculer sur
+ *   les cookies lorsqu'un jeton explicite échoue : le garde CSRF traite
+ *   une requête Bearer comme une requête non-cookie.
+ * - Sans Bearer, un cookie serveur valide est autorisé.
  */
 export async function getUserFromRequest(
   req: Request
 ): Promise<{ id: string; email?: string; created_at?: string; user_metadata?: Record<string, unknown> } | null> {
-  // Méthode 1 : cookies SSR
-  try {
-    const supabase = await createServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) return user;
-  } catch { /* ignore */ }
-
-  // Méthode 2 : Bearer token
   const token = extractBearer(req);
   if (token) {
     try {
       const { data: { user } } = await anonClient().auth.getUser(token);
-      if (user) return user;
-    } catch { /* ignore */ }
+      return user || null;
+    } catch {
+      return null;
+    }
   }
 
-  return null;
+  try {
+    const supabase = await createServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    return user || null;
+  } catch {
+    return null;
+  }
 }
 
-/**
- * Bearer-first (Bearer → SSR cookies).
- * Retourne uniquement l'UUID (string | null).
- * Utilisé par les routes messages où le client envoie Authorization: Bearer <token>.
- */
+/** Identité vérifiée du porteur du jeton ou du cookie, jamais un repli entre les deux. */
 export async function getUserIdBearerFirst(req: Request): Promise<string | null> {
-  // Méthode 1 : Bearer token
   const token = extractBearer(req);
   if (token) {
     try {
       const { data: { user } } = await anonClient().auth.getUser(token);
-      if (user?.id) return user.id;
-    } catch { /* ignore */ }
+      return user?.id || null;
+    } catch {
+      return null;
+    }
   }
 
-  // Méthode 2 : cookies SSR (fallback)
   try {
     const supabase = await createServerClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (user?.id) return user.id;
-  } catch { /* ignore */ }
-
-  return null;
+    return user?.id || null;
+  } catch {
+    return null;
+  }
 }
