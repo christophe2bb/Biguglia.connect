@@ -23,7 +23,8 @@ async function getDemand(slug: string): Promise<JobDemandSearchResult | null> {
       .single();
     if (error || !data) return null;
     const d = data as Record<string, unknown>;
-    if (!['published', 'active'].includes(d.status as string)) return null;
+    // Le client administratif contourne RLS : ne jamais afficher un brouillon.
+    if (d.status !== 'published') return null;
     return d as unknown as JobDemandSearchResult;
   } catch {
     return null;
