@@ -103,7 +103,7 @@ async function _fetchCommunityStats(): Promise<CommunityStats> {
     supabase.from('events').select('*', { count: 'exact', head: true })
       .not('status', 'in', '("draft","annule","cancelled")'),
     supabase.from('listings').select('*', { count: 'exact', head: true })
-      .in('status', ['active', 'published', 'approved']),
+      .eq('status', 'active').eq('moderation_status', 'publie'),
     supabase.from('forum_topics').select('*', { count: 'exact', head: true })
       .not('status', 'in', '("archive","masque")'),
     // Activité récente : publications des 7 derniers jours
