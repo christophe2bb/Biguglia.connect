@@ -209,6 +209,13 @@ describe('POST /api/messages/start-conversation', () => {
             data: { id: USER_B, status: 'active', is_active: true }, error: null,
           });
           if (table === 'user_blocks') return makeAutoChain({ data: [], error: null });
+          if (table === 'listings') return makeAutoChain({
+            data: {
+              id: OBJ_ID, user_id: USER_B,
+              status: 'active', moderation_status: 'publie',
+            },
+            error: null,
+          });
           if (table === 'conversation_participants') {
             return makeAutoChain({ data: [], error: null });
           }
@@ -241,6 +248,13 @@ describe('POST /api/messages/start-conversation', () => {
           data: { id: USER_B, status: 'active', is_active: true }, error: null,
         });
         if (table === 'user_blocks') return makeAutoChain({ data: [], error: null });
+          if (table === 'listings') return makeAutoChain({
+            data: {
+              id: OBJ_ID, user_id: USER_B,
+              status: 'active', moderation_status: 'publie',
+            },
+            error: null,
+          });
         if (table === 'conversation_participants') return makeAutoChain({
           data: [], error: null,
         });
