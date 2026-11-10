@@ -7,6 +7,7 @@ import { ChevronLeft, Camera, Trash2, Upload } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { safeImageExt, uploadFile, isAcceptedImageType, safeStoragePath } from '@/lib/upload-utils';
+import { deletePhotoFiles } from '@/lib/delete-photo-files';
 import toast from 'react-hot-toast';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -171,7 +172,7 @@ export default function ModifierForumPage() {
     for (const url of deletedPhotoUrls) {
       await supabase.from('forum_topic_photos').delete().eq('topic_id', topicId).eq('url', url);
       const storagePath = safeStoragePath(url, 'photos');
-      if (storagePath) await supabase.storage.from('photos').remove([storagePath]);
+      if (storagePath) await deletePhotoFiles([storagePath]).catch(() => console.warn('[forum] nettoyage photo incomplet'));
     }
 
     // Upload des nouvelles photos
