@@ -163,11 +163,40 @@ describe('PATCH /api/admin/users/[id]', () => {
       profiles:      { update: () => ({ data: null, error: null }) },
       notifications: { insert: () => ({ data: null, error: null }) },
     });
+    const originalFrom = db.from.getMockImplementation()!;
+    db.from.mockImplementation((table: string) => {
+      const base = originalFrom(table);
+      if (table !== 'profiles') return base;
+      return {
+        ...base,
+        select: () => ({ eq: () => ({
+          maybeSingle: async () => ({ data: { role: 'resident' }, error: null }),
+        }) }),
+      };
+    });
     mockGuard.mockResolvedValue(makeAdminGuardOk('moderator', db, MODERATOR_ID));
     const res = await PATCH(patchReq({ action: 'set_status', status: 'active' }), makeParams());
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.status).toBe('active');
+  });
+
+  it('403 si un modérateur tente de suspendre un administrateur', async () => {
+    const update = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
+    const db = makeDb();
+    db.from.mockImplementation((table: string) => {
+      if (table === 'profiles') return {
+        select: () => ({ eq: () => ({
+          maybeSingle: async () => ({ data: { role: 'admin' }, error: null }),
+        }) }),
+        update,
+      } as ReturnType<typeof db.from>;
+      return makeDb().from(table);
+    });
+    mockGuard.mockResolvedValue(makeAdminGuardOk('moderator', db, MODERATOR_ID));
+    const res = await PATCH(patchReq({ action: 'set_status', status: 'suspended' }), makeParams());
+    expect(res.status).toBe(403);
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('500 si DB update échoue sur set_status', async () => {
