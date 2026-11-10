@@ -144,8 +144,8 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const applyBaseFilters = useCallback((q: any) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     // Aucun contenu en attente ne doit apparaître dans le catalogue public.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let r: any = q.eq('moderation_status', 'publie');
     if (selectedStatus === 'active')        r = r.eq('status', 'active');
     else if (selectedStatus === 'reserved') r = r.eq('status', 'reserved');
