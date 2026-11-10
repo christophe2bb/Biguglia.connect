@@ -292,7 +292,19 @@ function buildAdminMock(opts: AdminMockOptions = {}) {
     return generic;
   });
 
-  return { from: fromMock };
+  return {
+    from: fromMock,
+    rpc: vi.fn(() => ({
+      single: async () => ({
+        data: patchError ? null : {
+          exchange_status: 'pending_confirmation',
+          confirmed_by: [USER_A],
+          confirmed_at: null,
+        },
+        error: patchError ? { ...patchError, code: '57014' } : null,
+      }),
+    })),
+  };
 }
 
 // ─── Factories de requêtes ────────────────────────────────────────────────────
@@ -707,26 +719,34 @@ describe('PATCH /api/messages/conversation/[id]', () => {
     expect((await res.json()).error).toBe('connection lost');
   });
 
-  it('update_exchange_status → 500 si le update conversations échoue', async () => {
-    // On simule une erreur sur la mise à jour de la conversation.
-    // La participation est valide, mais le update conversations retourne une erreur.
-    const adminWithConvUpdateError = buildAdminMock();
-    // On surcharge from() : conversations.update().eq() doit retourner une erreur
-    const originalFrom = adminWithConvUpdateError.from;
-    adminWithConvUpdateError.from = vi.fn().mockImplementation((table: string) => {
-      if (table === 'conversations') {
-        const chain: Record<string, unknown> = {};
-        ['select', 'eq', 'update'].forEach(m => { chain[m] = () => chain; });
-        chain['single'] = () => Promise.resolve({ data: CONVERSATION, error: null });
-        chain['then']   = (cb: (v: unknown) => void) =>
-          cb({ data: null, error: { message: 'conversations update error' } });
-        return chain;
-      }
-      return originalFrom(table);
+  it('update_exchange_status → 503 si la RPC atomique échoue', async () => {
+    mockCreateAdmin.mockReturnValue(
+      buildAdminMock({ patchError: { message: 'RPC unavailable' } })
+      as unknown as ReturnType<typeof createAdminClient>
+    );
+    const res = await PATCH(
+      makePatchReq({ action: 'update_exchange_status', exchangeStatus: 'done' }),
+      routeParams(),
+    );
+    expect(res.status).toBe(503);
+    expect((await res.json()).ok).toBeUndefined();
+  });
+
+  it('le navigateur ne peut pas forcer done sans la deuxième confirmation', async () => {
+    const admin = buildAdminMock();
+    mockCreateAdmin.mockReturnValue(admin as unknown as ReturnType<typeof createAdminClient>);
+    const res = await PATCH(
+      makePatchReq({ action: 'update_exchange_status', exchangeStatus: 'done' }),
+      routeParams(),
+    );
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.exchangeStatus).toBe('pending_confirmation');
+    expect(body.confirmedBy).toEqual([USER_A]);
+    expect(admin.rpc).toHaveBeenCalledWith('confirm_conversation_exchange', {
+      p_conversation_id: CONV_ID,
+      p_actor_id: USER_A,
     });
-    mockCreateAdmin.mockReturnValue(adminWithConvUpdateError as unknown as ReturnType<typeof createAdminClient>);
-    const res = await PATCH(makePatchReq({ action: 'update_exchange_status', exchangeStatus: 'done' }), routeParams());
-    expect(res.status).toBe(500);
   });
 });
 
