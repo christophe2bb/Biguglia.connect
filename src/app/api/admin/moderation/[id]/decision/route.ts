@@ -115,6 +115,21 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
     return NextResponse.json({ error: 'Élément de modération introuvable.' }, { status: 404 });
   }
 
+  if (queueItem.status !== 'en_attente_validation') {
+    return NextResponse.json(
+      { error: 'Cet élément a déjà été traité ou n’est plus en attente.' },
+      { status: 409 },
+    );
+  }
+
+  const sourceTable = TABLE_MAP[String(queueItem.content_type)];
+  if (!sourceTable) {
+    return NextResponse.json(
+      { error: 'Ce type de contenu ne peut pas être modéré depuis cet écran.' },
+      { status: 422 },
+    );
+  }
+
   // ── Calculer le nouveau statut ───────────────────────────────────────────
   const newStatus =
     body.decision === 'accepter'            ? 'publie' :
@@ -137,24 +152,41 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
     updateData.correction_reason = (body as { reason: string }).reason;
   }
 
-  // ── Mettre à jour moderation_queue ──────────────────────────────────────
+  // Mettre à jour d'abord le contenu réel : une décision administrative
+  // ne doit JAMAIS afficher "réussi" si la publication/refus a échoué.
+  const { error: sourceError } = await adminClient
+    .from(sourceTable)
+    .update({ moderation_status: newStatus })
+    .eq('id', String(queueItem.content_id));
+
+  if (sourceError) {
+    console.error('[moderation] source non modifiée:', sourceError.code);
+    return NextResponse.json(
+      { error: 'Impossible de mettre à jour la publication. Décision non enregistrée.' },
+      { status: 503 },
+    );
+  }
+
+  // En cas d'échec de la queue, tentative de compensation. Sans transaction
+  // SQL unique, cette opération reste à consolider en préproduction.
   const { error: queueError } = await adminClient
     .from('moderation_queue')
     .update(updateData)
     .eq('id', queueId);
 
   if (queueError) {
-    return NextResponse.json({ error: queueError.message }, { status: 500 });
-  }
-
-  // ── Propager le statut à la table source ─────────────────────────────────
-  const sourceTable = TABLE_MAP[String(queueItem.content_type)];
-  if (sourceTable) {
-    await adminClient
+    const { error: rollbackError } = await adminClient
       .from(sourceTable)
-      .update({ moderation_status: newStatus })
+      .update({ moderation_status: 'en_attente_validation' })
       .eq('id', String(queueItem.content_id));
-    // Erreur non-fatale : la décision principale est déjà enregistrée
+    if (rollbackError) {
+      console.error('[moderation] compensation impossible:', rollbackError.code);
+    }
+    console.error('[moderation] décision non enregistrée:', queueError.code);
+    return NextResponse.json(
+      { error: 'La validation a échoué. Vérifiez le contenu avant de réessayer.' },
+      { status: 503 },
+    );
   }
 
   // ── Traçabilité ───────────────────────────────────────────────────────────
