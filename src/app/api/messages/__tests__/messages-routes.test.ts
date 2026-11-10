@@ -263,6 +263,27 @@ describe('POST /api/messages/start-conversation', () => {
     expect(db.from).not.toHaveBeenCalledWith('notifications');
   });
 
+  it('ne crée pas de conversation si la recherche des échanges échoue', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      conversation_participants: {
+        data: null, error: { code: '08006', message: 'Connexion interrompue' },
+      },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'general', relatedId: null,
+      initialMsg: 'Bonjour, est-ce disponible ?',
+    }) as never);
+    expect(res.status).toBe(503);
+    expect((await res.json()).conversationId).toBeUndefined();
+    expect(db.from).not.toHaveBeenCalledWith('conversations');
+    expect(db.from).not.toHaveBeenCalledWith('messages');
+  });
+
   // ── Conv existante (anti-duplication) ─────────────────────────────────────
 
   it('retourne isNew: false si la conversation existe déjà', async () => {
