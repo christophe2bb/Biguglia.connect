@@ -153,11 +153,16 @@ test.describe('Parcours artisan — bouton contact (visiteur)', () => {
     const response = await page.goto('/artisans', { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBe(200);
 
-    const artisanHref = await page.locator('a[href^="/artisans/"]').evaluateAll(links =>
-      links.map(link => link.getAttribute('href') || '')
-        .find(href => /^\/artisans\/[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(href))
-    );
-    expect(artisanHref, 'Le catalogue doit contenir une fiche artisan de test accessible').toBeTruthy();
+    // Le catalogue est chargé côté client : attendre la donnée réelle
+    // plutôt que lire immédiatement le HTML SSR avant hydratation.
+    let artisanHref: string | undefined;
+    await expect.poll(async () => {
+      artisanHref = await page.locator('a[href^="/artisans/"]').evaluateAll(links =>
+        links.map(link => link.getAttribute('href') || '')
+          .find(href => /^\/artisans\/[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(href))
+      );
+      return Boolean(artisanHref);
+    }, { timeout: 20_000, message: 'Fiche artisan absente après chargement du catalogue' }).toBe(true);
 
     await page.goto(artisanHref!, { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('link', { name: /envoyer un message/i })).toBeVisible({ timeout: 15_000 });
