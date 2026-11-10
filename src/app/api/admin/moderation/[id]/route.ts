@@ -1,102 +1,53 @@
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
-/**
- * API Route — /api/admin/moderation/[id]
- *
- * PATCH : décision rapide sur un élément de la file de modération
- *   body: { decision: 'accepter' | 'refuser', refusal_reason?: string }
- *
- * Sécurité :
- *   • getAdminUser() vérifie session + profil + role côté serveur
- *   • createAdminClient() pour toutes les mutations (bypass RLS)
- *   • Inputs validés par Zod
- */
 
+/**
+ * Décision rapide de modération.
+ *
+ * Le circuit rapide doit passer par la MÊME logique de propagation que la
+ * décision détaillée. Une validation qui ne modifie que moderation_queue
+ * laisse l'annonce invisible malgré un statut admin "publié".
+ */
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getAdminUser } from '@/lib/supabase/admin-guard';
-import { assertCsrfSafe } from '@/lib/supabase/auth-helper';
-import { logAdminAction } from '@/lib/admin/action-logger';
+import { PATCH as applyDetailedDecision } from './decision/route';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+interface RouteParams { params: Promise<{ id: string }> }
 
-interface RouteParams {
-  params: Promise<{ id: string }>; // moderation_queue.id
-}
-
-// ── Schéma Zod ────────────────────────────────────────────────────────────────
-
-const DECISIONS = ['accepter', 'refuser'] as const;
-
-const PatchSchema = z.object({
-  decision:       z.enum(DECISIONS),
+const Schema = z.object({
+  decision: z.enum(['accepter', 'refuser']),
   refusal_reason: z.string().max(500).optional(),
 }).strict();
 
-type PatchBody = z.infer<typeof PatchSchema>;
-
-// ── PATCH /api/admin/moderation/[id] ─────────────────────────────────────────
-
-export async function PATCH(req: Request, { params }: RouteParams): Promise<Response> {
-  const { id } = await params;
-
-  const csrfError = assertCsrfSafe(req);
-  if (csrfError) return csrfError;
-
-  const guard = await getAdminUser(req);
-  if (!guard.ok) return guard.response;
-
-  const { actor, adminClient } = guard;
-  const queueId = id;
-
-  // Parse + validate body
-  let rawBody: unknown;
-  try { rawBody = await req.json(); }
-  catch {
-    return NextResponse.json(
-      { error: 'Corps de requête invalide (JSON attendu).' },
-      { status: 400 },
-    );
+export async function PATCH(req: Request, context: RouteParams): Promise<Response> {
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Corps JSON invalide.' }, { status: 400 });
   }
 
-  const parsed = PatchSchema.safeParse(rawBody);
+  const parsed = Schema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: 'Données invalides.', fieldErrors: parsed.error.flatten().fieldErrors },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: 'Décision invalide.' }, { status: 400 });
   }
 
-  const body: PatchBody = parsed.data;
+  const decision = parsed.data.decision;
+  const reason = parsed.data.refusal_reason?.trim()
+    || 'Publication non conforme aux règles de la plateforme.';
 
-  const newStatus = body.decision === 'accepter' ? 'publie' : 'refuse';
-  const defaultReason = body.decision === 'refuser'
-    ? (body.refusal_reason ?? 'manque_informations')
-    : undefined;
+  // Conserver Authorization, Origin et cookies : la route détaillée refait
+  // la vérification JWT, le contrôle CSRF et la validation du contenu.
+  const headers = new Headers(req.headers);
+  headers.set('Content-Type', 'application/json');
+  headers.delete('Content-Length');
 
-  const { error } = await adminClient
-    .from('moderation_queue')
-    .update({
-      status:         newStatus,
-      decision:       body.decision,
-      refusal_reason: defaultReason,
-      reviewed_by:    actor.id,
-      reviewed_at:    new Date().toISOString(),
-    })
-    .eq('id', queueId);
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  // ── Traçabilité ───────────────────────────────────────────────────────────
-  await logAdminAction({
-    adminClient,
-    actor,
-    action:      'moderation_decision',
-    targetTable: 'moderation_queue',
-    targetId:    queueId,
-    reason:      body.refusal_reason,
-    meta: { decision: body.decision, new_status: newStatus },
+  const forwarded = new Request(req.url, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify(decision === 'refuser'
+      ? { decision: 'refuser', reason }
+      : { decision: 'accepter' }),
   });
-
-  return NextResponse.json({ success: true, decision: body.decision, status: newStatus });
+  return applyDetailedDecision(forwarded, context);
 }
