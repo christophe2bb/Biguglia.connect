@@ -33,6 +33,7 @@ import ContactButton from '@/components/ui/ContactButton';
 import toast from 'react-hot-toast';
 import type { ExtListing, ShareMethod } from '../_types';
 import { safeStoragePath } from '@/lib/upload-utils';
+import { deletePhotoFiles } from '@/lib/delete-photo-files';
 
 const LS_KEY = 'annonces_favorites';
 
@@ -188,7 +189,7 @@ export default function AnnonceActions({ listing, variant = 'topbar' }: Props) {
         .map(p => safeStoragePath(p.url, 'photos'))
         .filter(Boolean) as string[];
       if (paths.length) {
-        await supabase.storage.from('photos').remove(paths); // nosec
+        await deletePhotoFiles(paths).catch(() => console.warn('[annonce] nettoyage photo incomplet'));
       }
       await supabase.from('listing_photos').delete().eq('listing_id', listing.id);
     }
