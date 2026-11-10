@@ -12,13 +12,13 @@ import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Select from '@/components/ui/Select';
 import SectorFilter from '@/components/ui/SectorFilter';
-import { safeImageExt, uploadFile } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile, isAcceptedImageType, ACCEPTED_IMAGE_TYPES, MAX_PHOTO_MB } from '@/lib/upload-utils';
 
 function DemandeServiceForm() {
   const searchParams = useSearchParams();
   const artisanId = searchParams.get('artisan');
   const router = useRouter();
-  const { profile } = useAuthStore();
+  const { profile, phase } = useAuthStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Client Supabase stable — créé une seule fois, session persistée dans les cookies
   const supabaseRef = useRef(createClient());
@@ -26,6 +26,8 @@ function DemandeServiceForm() {
 
   const [categories, setCategories] = useState<TradeCategory[]>([]);
   const [artisan, setArtisan] = useState<ArtisanProfile | null>(null);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   /**
@@ -62,59 +64,90 @@ function DemandeServiceForm() {
   }, [profile?.home_sector_id]);
 
   useEffect(() => {
-    if (!profile) { router.push('/connexion?redirect=/artisans/demande'); return; }
+    if (phase === 'initializing') return;
+    if (phase === 'unauthenticated') {
+      const intended = `/artisans/demande${artisanId ? `?artisan=${encodeURIComponent(artisanId)}` : ''}`;
+      router.replace(`/connexion?next=${encodeURIComponent(intended)}`);
+      return;
+    }
+    if (!profile) { setDataLoading(false); return; }
 
+    let cancelled = false;
+    setDataLoading(true);
+    setDataError(false);
     const fetchData = async () => {
-      const { data: cats } = await supabase.from('trade_categories').select('*').order('display_order');
-      setCategories(cats || []);
+      try {
+        const { data: cats, error: categoriesError } = await supabase
+          .from('trade_categories').select('*').order('display_order');
+        if (categoriesError) throw categoriesError;
+        if (cancelled) return;
+        setCategories(cats || []);
 
-      if (artisanId) {
-        const { data: a } = await supabase
-          .from('artisan_profiles')
-          .select('*, trade_category:trade_categories(*)')
-          .eq('id', artisanId)
-          .single();
-        if (a) {
-          setArtisan(a as ArtisanProfile);
-          setForm(f => ({ ...f, category_id: a.trade_category_id || '' }));
+        if (artisanId) {
+          const { data: found, error: artisanLoadError } = await supabase
+            .from('artisan_profiles')
+            .select('*, trade_category:trade_categories(*)')
+            .eq('id', artisanId)
+            .eq('is_verified', true)
+            .single();
+          if (artisanLoadError || !found) throw artisanLoadError || new Error('Artisan introuvable');
+          if (cancelled) return;
+          setArtisan(found as ArtisanProfile);
+          setForm(f => ({ ...f, category_id: found.trade_category_id || '' }));
         }
+      } catch (error) {
+        console.error('[DemandeService] chargement impossible', error);
+        if (!cancelled) setDataError(true);
+      } finally {
+        if (!cancelled) setDataLoading(false);
       }
     };
-    fetchData();
-  }, [profile, artisanId, router, supabase]);
+    void fetchData();
+    return () => { cancelled = true; };
+  }, [phase, profile?.id, artisanId, router, supabase]);
 
   const handlePhotoAdd = (files: FileList | null) => {
     if (!files) return;
-    const newPhotos = Array.from(files).filter(f => f.type.startsWith('image/'));
-    if (photos.length + newPhotos.length > 5) {
+    const selected = Array.from(files);
+    if (selected.some(file => !isAcceptedImageType(file))) {
+      toast.error('Format non accepté. Choisissez JPG, PNG, WebP, GIF ou une photo iPhone compatible.');
+      return;
+    }
+    if (selected.some(file => file.size > MAX_PHOTO_MB * 1024 * 1024)) {
+      toast.error(`Photo trop lourde (maximum ${MAX_PHOTO_MB} Mo avant compression).`);
+      return;
+    }
+    if (photos.length + selected.length > 5) {
       toast.error('Maximum 5 photos');
       return;
     }
-    setPhotos(prev => [...prev, ...newPhotos]);
+    setPhotos(prev => [...prev, ...selected]);
   };
 
-  const uploadPhotos = async (requestId: string): Promise<string[]> => {
-    if (photos.length === 0) return [];
+  const uploadPhotos = async (requestId: string, accessToken: string): Promise<{ urls: string[]; failed: number }> => {
     const urls: string[] = [];
-
+    let failed = 0;
     for (let i = 0; i < photos.length; i++) {
       const photo = photos[i];
       const ext = safeImageExt(photo.name);
-      const fileName = `requests/${requestId}/${Date.now()}_${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
+      const fileName = `requests/${requestId}/${Date.now()}_${i}.${ext}`;
       try {
-        const publicUrl = await uploadFile(photo, 'photos', fileName, profile?.id);
+        const publicUrl = await uploadFile(photo, 'photos', fileName, profile?.id, accessToken);
         urls.push(publicUrl);
-      } catch {
-        // skip failed photo — continue with others
+      } catch (error) {
+        console.warn('[DemandeService] pièce jointe refusée', error);
+        failed++;
       }
     }
-    return urls;
+    return { urls, failed };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile) return;
-    if (!form.title || !form.description || !form.category_id) {
+    if (loading) return;
+    if (phase !== 'authenticated' || !profile) { toast.error('Connexion requise'); return; }
+    if (dataLoading || dataError || (artisanId && !artisan)) { toast.error('Fiche artisan indisponible'); return; }
+    if (!form.title.trim() || !form.description.trim() || !form.category_id || !form.address.trim()) {
       toast.error('Veuillez remplir tous les champs obligatoires.');
       return;
     }
@@ -125,7 +158,7 @@ function DemandeServiceForm() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       toast.error('Session expirée. Reconnectez-vous.');
-      router.push('/connexion?redirect=/artisans/demande');
+      router.push(`/connexion?next=${encodeURIComponent(`/artisans/demande${artisanId ? `?artisan=${artisanId}` : ''}`)}`);
       setLoading(false);
       return;
     }
@@ -162,11 +195,13 @@ function DemandeServiceForm() {
     }
 
     // Upload photos
-    const photoUrls = await uploadPhotos(request.id);
+    const { urls: photoUrls, failed: failedPhotos } = await uploadPhotos(request.id, session.access_token);
+    if (failedPhotos > 0) toast.error(`${failedPhotos} photo(s) non enregistrée(s). Votre demande est conservée.`, { duration: 6000 });
     if (photoUrls.length > 0) {
-      await supabase.from('service_request_photos').insert(
+      const { error: photoLinkError } = await supabase.from('service_request_photos').insert(
         photoUrls.map(url => ({ request_id: request.id, url }))
       );
+      if (photoLinkError) toast.error('Pièces jointes envoyées, mais liaison aux demandes impossible.', { duration: 6000 });
     }
 
     // Créer une conversation privée avec l'artisan via l'API admin (contourne RLS récursive)
@@ -179,7 +214,7 @@ function DemandeServiceForm() {
           artisanProfileId: artisan.id,
         });
         // La demande est créée, on redirige quand même avec un toast d'avertissement
-        toast.success('Demande envoyée ! Réponse dans vos messages dès que l\'artisan accepte.', { duration: 5000 });
+        toast.success('Demande enregistrée ; le destinataire n’a pas pu être identifié.', { duration: 5000 });
         toast.error('La conversation privée n\'a pas pu être créée (profil artisan incomplet).', { duration: 6000 });
         router.push(`/artisans/${artisanId}`);
         setLoading(false);
@@ -234,10 +269,8 @@ function DemandeServiceForm() {
         console.error('[DemandeService] start-conversation exception réseau', convErr);
       }
 
-      toast.success(
-        `Demande envoyée à ${artisan.business_name} ! Vous recevrez sa réponse dans vos messages.`,
-        { duration: 5000 }
-      );
+      if (conversationId) toast.success(`Demande envoyée à ${artisan.business_name} !`, { duration: 5000 });
+      else toast('Votre demande est enregistrée, mais le fil de messages n’a pas pu être ouvert.', { icon: '⚠️', duration: 7000 });
 
       // Rediriger vers la conversation privée avec l'artisan
       if (conversationId) {
@@ -254,6 +287,12 @@ function DemandeServiceForm() {
     toast.success('Demande publiée ! Les habitants peuvent maintenant vous répondre.', { duration: 5000 });
     router.push('/demandes');
   };
+
+  if (phase === 'initializing' || dataLoading) return <div role="status" className="max-w-2xl mx-auto px-4 py-10">Chargement du formulaire…</div>;
+  if (phase === 'unauthenticated') return <div role="status" className="max-w-2xl mx-auto px-4 py-10">Redirection vers la connexion…</div>;
+  if (!profile || dataError || (artisanId && !artisan)) {
+    return <div role="alert" className="max-w-2xl mx-auto px-4 py-10 text-red-700">Impossible de charger la fiche artisan ou votre profil. Revenez à la liste des artisans et réessayez.</div>;
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
@@ -362,15 +401,15 @@ function DemandeServiceForm() {
           >
             <Camera className="w-8 h-8 text-gray-400 mx-auto mb-2" />
             <p className="text-sm font-medium text-gray-600">Cliquer pour ajouter des photos</p>
-            <p className="text-xs text-gray-400 mt-1">PNG, JPG jusqu&apos;à 5 Mo chacune</p>
+            <p className="text-xs text-gray-400 mt-1">JPG, PNG, WebP, GIF, HEIC/AVIF — jusqu&apos;à 20 Mo avant compression</p>
           </button>
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+            accept={ACCEPTED_IMAGE_TYPES}
             multiple
             className="hidden"
-            onChange={(e) => handlePhotoAdd(e.target.files)}
+            onChange={(e) => { handlePhotoAdd(e.target.files); e.currentTarget.value = ''; }}
           />
 
           {/* Prévisualisation — local blob URLs (created once, revoked on update/unmount) */}
@@ -406,7 +445,7 @@ function DemandeServiceForm() {
 
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
           <p className="text-sm text-blue-700">
-            <strong>🔒 Sécurité :</strong> Vos informations ne seront partagées qu&apos;avec l&apos;artisan concerné. La plateforme facilite la mise en relation mais ne garantit pas les travaux.
+            <strong>🔒 Sécurité :</strong> La demande est accessible aux destinataires autorisés par la plateforme. Attention : les photos sont actuellement stockées sous des liens publics. Ne joignez pas de document ou de photo confidentiels. Biguglia Connect ne garantit pas les travaux.
           </p>
         </div>
 
