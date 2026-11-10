@@ -116,7 +116,8 @@ function makeDb(opts: {
                 error: null,
               }
       );
-      const eqSlug = vi.fn((col: string) => ({
+      const eqSlug = vi.fn();
+      eqSlug.mockImplementation((col: string) => ({
         maybeSingle: col === 'status' && notPublished
           ? vi.fn().mockResolvedValue({ data: null, error: null })
           : maybeSingle,
@@ -137,7 +138,8 @@ function makeDb(opts: {
             ? { data: null, error: null }
             : { data: { user_id: ownerId }, error: null }
       );
-      const eqSlug = vi.fn((col: string) => ({
+      const eqSlug = vi.fn();
+      eqSlug.mockImplementation((col: string) => ({
         maybeSingle: col === 'status' && notPublished
           ? vi.fn().mockResolvedValue({ data: null, error: null })
           : maybeSingle,
