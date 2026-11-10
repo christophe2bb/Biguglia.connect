@@ -93,20 +93,10 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
   const body: PatchBody = parsed.data;
 
   if (body.action === 'set_status') {
-    // Un modérateur peut gérer des habitants, mais jamais suspendre ou
-    // réactiver un administrateur ou un autre modérateur.
-    if (actor.role === 'moderator') {
-      const { data: target, error: targetError } = await adminClient
-        .from('profiles').select('role').eq('id', targetId).maybeSingle();
-      if (targetError) {
-        return NextResponse.json({ error: 'Vérification du compte indisponible.' }, { status: 503 });
-      }
-      if (!target) {
-        return NextResponse.json({ error: 'Compte introuvable.' }, { status: 404 });
-      }
-      if (target.role === 'admin' || target.role === 'moderator') {
-        return NextResponse.json({ error: 'Seul un administrateur peut gérer les comptes privilégiés.' }, { status: 403 });
-      }
+    // La suspension / réactivation et la gestion des comptes sont
+    // exclusivement réservées aux administrateurs de la plateforme.
+    if (actor.role !== 'admin') {
+      return NextResponse.json({ error: 'Réservé aux administrateurs' }, { status: 403 });
     }
 
     const { error } = await adminClient
