@@ -223,16 +223,16 @@ export default function InteractionButton({
       // Créer l'interaction
       const { data: created, error } = await supabase
         .from('interactions')
-        .upsert({
+        .insert({
           source_type: sourceType, source_id: sourceId,
           requester_id: userId, receiver_id: receiverId,
           interaction_type: conf.interactionType,
           status: 'requested',
           conversation_id: convId,
           status_history: [{ status: 'requested', changed_at: new Date().toISOString() }],
-        }, { onConflict: 'source_type,source_id,requester_id' })
+        })
         .select('*').single();
-      if (error) { toast.error('Erreur lors de la demande'); return; }
+      if (error) { if (error.code === '23505') { await load(); toast('Demande déjà enregistrée'); } else toast.error('Erreur lors de la demande'); return; }
       setInteraction(created as Interaction);
       onInteractionCreated?.(created as Interaction);
       toast.success('Demande envoyée !');
@@ -254,8 +254,8 @@ export default function InteractionButton({
         p_note: note || null,
       });
       if (error) {
-        // Fallback si la fonction RPC n'existe pas encore
-        await supabase.from('interactions').update({ status: newStatus }).eq('id', interaction.id);
+        toast.error('Impossible de modifier cet échange');
+        return;
       }
       await load();
       const msgs: Record<string, string> = {
@@ -279,18 +279,8 @@ export default function InteractionButton({
         p_interaction_id: interaction.id,
       });
       if (rpcErr) {
-        // Fallback simple si RPC pas encore migrée
-        const myRole = userId === interaction.requester_id ? 'requester' : 'receiver';
-        const updateData = myRole === 'requester'
-          ? { review_requester_done: true }
-          : { review_receiver_done: true };
-        await supabase.from('interactions').update(updateData).eq('id', interaction.id);
-        const { data: updated } = await supabase.from('interactions').select('*').eq('id', interaction.id).single();
-        if (updated?.review_requester_done && updated?.review_receiver_done) {
-          await supabase.from('interactions').update({
-            status: 'done', review_unlocked: true, completed_at: new Date().toISOString(),
-          }).eq('id', interaction.id);
-        }
+        toast.error('Confirmation impossible — réessayez plus tard');
+        return;
       }
       await load();
       if (rpcDone) {
