@@ -721,8 +721,7 @@ describe('PATCH /api/messages/conversation/[id]', () => {
 
   it('update_exchange_status → 503 si la RPC atomique échoue', async () => {
     mockCreateAdmin.mockReturnValue(
-      buildAdminMock({ patchError: { message: 'RPC unavailable' } })
-      as unknown as ReturnType<typeof createAdminClient>
+      buildAdminMock({ patchError: { message: 'RPC unavailable' } }) as unknown as ReturnType<typeof createAdminClient>,
     );
     const res = await PATCH(
       makePatchReq({ action: 'update_exchange_status', exchangeStatus: 'done' }),
