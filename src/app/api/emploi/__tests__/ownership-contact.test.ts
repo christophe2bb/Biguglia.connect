@@ -86,6 +86,7 @@ function makeDb(opts: {
   dbError?:       boolean;    // erreur générique sur la 1ère table
   profileError?:  boolean;    // erreur sur profiles (demand scenario)
   noProfile?:     boolean;    // profil existant mais email + phone null
+  notPublished?:  boolean;    // annonce en attente / brouillon
 } = {}) {
   const {
     ownerId      = OWNER_ID,
@@ -93,6 +94,7 @@ function makeDb(opts: {
     dbError      = false,
     profileError = false,
     noProfile    = false,
+    notPublished = false,
   } = opts;
 
   const fromMock = vi.fn((table: string) => {
@@ -114,7 +116,13 @@ function makeDb(opts: {
                 error: null,
               }
       );
-      const eqSlug = vi.fn().mockReturnValue({ maybeSingle, single: maybeSingle });
+      const eqSlug = vi.fn((col: string) => ({
+        maybeSingle: col === 'status' && notPublished
+          ? vi.fn().mockResolvedValue({ data: null, error: null })
+          : maybeSingle,
+        single: maybeSingle,
+        eq: eqSlug,
+      }));
       return {
         select: vi.fn().mockReturnValue({ eq: eqSlug }),
       };
@@ -129,7 +137,13 @@ function makeDb(opts: {
             ? { data: null, error: null }
             : { data: { user_id: ownerId }, error: null }
       );
-      const eqSlug = vi.fn().mockReturnValue({ maybeSingle, single: maybeSingle });
+      const eqSlug = vi.fn((col: string) => ({
+        maybeSingle: col === 'status' && notPublished
+          ? vi.fn().mockResolvedValue({ data: null, error: null })
+          : maybeSingle,
+        single: maybeSingle,
+        eq: eqSlug,
+      }));
       return {
         select: vi.fn().mockReturnValue({ eq: eqSlug }),
       };
@@ -391,15 +405,35 @@ describe('POST /api/emploi/contact', () => {
     expect(json.status).toBe('not_found');
   });
 
+  it('ne révèle jamais les coordonnées d’une offre non publiée', async () => {
+    asContactUser(OTHER_ID);
+    mockCreateAdmin.mockReturnValue(makeDb({ notPublished: true }));
+    const res = await postContact(
+      contactReq({ type: 'offer', slug: SLUG }) as unknown as NextRequest,
+    );
+    expect(res.status).toBe(404);
+    expect((await res.json()).status).toBe('not_found');
+  });
+
+  it('ne révèle jamais le profil d’un candidat dont la demande est non publiée', async () => {
+    asContactUser(OTHER_ID);
+    mockCreateAdmin.mockReturnValue(makeDb({ notPublished: true }));
+    const res = await postContact(
+      contactReq({ type: 'demand', slug: SLUG }) as unknown as NextRequest,
+    );
+    expect(res.status).toBe(404);
+    expect((await res.json()).status).toBe('not_found');
+  });
+
   // ── Offer : DB error ──────────────────────────────────────────────────────
 
-  it('500 si DB error sur job_offers', async () => {
+  it('503 si DB error sur job_offers', async () => {
     asContactUser(OTHER_ID);
     mockCreateAdmin.mockReturnValue(makeDb({ dbError: true }));
     const res = await postContact(
       contactReq({ type: 'offer', slug: SLUG }) as unknown as NextRequest,
     );
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(503);
   });
 
   // ── Demand : owner ────────────────────────────────────────────────────────
@@ -458,12 +492,12 @@ describe('POST /api/emploi/contact', () => {
 
   // ── Demand : DB error ─────────────────────────────────────────────────────
 
-  it('500 si DB error sur job_demands', async () => {
+  it('503 si DB error sur job_demands', async () => {
     asContactUser(OTHER_ID);
     mockCreateAdmin.mockReturnValue(makeDb({ dbError: true }));
     const res = await postContact(
       contactReq({ type: 'demand', slug: SLUG }) as unknown as NextRequest,
     );
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(503);
   });
 });
