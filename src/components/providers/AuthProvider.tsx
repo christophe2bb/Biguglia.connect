@@ -171,13 +171,35 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
     // ── fetchProfile ──────────────────────────────────────────────────────────
     // Déclarée EN PREMIER pour pouvoir être appelée dans le timeout ci-dessous.
+    const recoveryAttempted = new Set<string>();
     const fetchProfile = async (userId: string) => {
       try {
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from('profiles')
           .select('id, email, full_name, avatar_url, phone, role, status, legal_consent, legal_consent_at, created_at, updated_at, home_sector_id')
           .eq('id', userId)
           .maybeSingle();
+
+        // Une inscription Auth peut réussir même si le trigger profiles échoue.
+        // Ne jamais tenter une réparation en cas d'erreur RLS ou réseau.
+        if (!error && !data && !recoveryAttempted.has(userId)) {
+          recoveryAttempted.add(userId);
+          const { data: session } = await supabase.auth.getSession();
+          const bearer = session.session?.access_token;
+          const response = await fetch('/api/auth/ensure-profile', {
+            method: 'POST',
+            headers: bearer ? { Authorization: 'Bearer ' + bearer } : {},
+          }).catch(() => null);
+          if (response?.ok) {
+            const retry = await supabase
+              .from('profiles')
+              .select('id, email, full_name, avatar_url, phone, role, status, legal_consent, legal_consent_at, created_at, updated_at, home_sector_id')
+              .eq('id', userId)
+              .maybeSingle();
+            data = retry.data;
+            error = retry.error;
+          }
+        }
 
         if (!mounted) return;
 
