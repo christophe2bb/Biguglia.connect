@@ -348,8 +348,12 @@ describe('PATCH /api/admin/moderation/[id] (décision rapide)', () => {
   it('accepte → statut publie, retourne ok', async () => {
     mockCsrf.mockReturnValueOnce(null);
     const db = makeDb();
-    vi.spyOn(db, 'from').mockImplementation(() =>
-      makeAutoChain({ data: null, error: null }) as unknown as ReturnType<typeof db.from>
+    // Le serveur lit obligatoirement l'élément de la file AVANT
+    // d'appliquer une décision. Une fixture vide doit donner 404.
+    vi.spyOn(db, 'from').mockImplementation((table: string) =>
+      makeAutoChain(table === 'moderation_queue'
+        ? { data: { id: QUEUE_ID, content_type: 'listing', content_id: 'listing-001', status: 'en_attente_validation' }, error: null }
+        : { data: { id: 'listing-001' }, error: null }) as unknown as ReturnType<typeof db.from>
     );
     mockGuard.mockResolvedValueOnce(makeAdminGuardOk('admin', db));
 
@@ -365,8 +369,12 @@ describe('PATCH /api/admin/moderation/[id] (décision rapide)', () => {
   it('refuse → statut refuse, retourne ok', async () => {
     mockCsrf.mockReturnValueOnce(null);
     const db = makeDb();
-    vi.spyOn(db, 'from').mockImplementation(() =>
-      makeAutoChain({ data: null, error: null }) as unknown as ReturnType<typeof db.from>
+    // Le serveur lit obligatoirement l'élément de la file AVANT
+    // d'appliquer une décision. Une fixture vide doit donner 404.
+    vi.spyOn(db, 'from').mockImplementation((table: string) =>
+      makeAutoChain(table === 'moderation_queue'
+        ? { data: { id: QUEUE_ID, content_type: 'listing', content_id: 'listing-001', status: 'en_attente_validation' }, error: null }
+        : { data: { id: 'listing-001' }, error: null }) as unknown as ReturnType<typeof db.from>
     );
     mockGuard.mockResolvedValueOnce(makeAdminGuardOk('admin', db));
 
