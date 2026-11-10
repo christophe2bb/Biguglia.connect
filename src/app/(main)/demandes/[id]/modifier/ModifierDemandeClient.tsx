@@ -21,7 +21,7 @@ import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Select from '@/components/ui/Select';
 import SectorFilter from '@/components/ui/SectorFilter';
-import { safeImageExt, uploadFile } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile, isAcceptedImageType, MAX_PHOTO_MB } from '@/lib/upload-utils';
 
 // ─── Type minimal pour le chargement initial ────────────────────────────────
 type ServiceRequestRow = {
@@ -45,9 +45,9 @@ interface Props {
 
 export default function ModifierDemandeClient({ id }: Props) {
   const router = useRouter();
-  const { profile } = useAuthStore();
+  const { profile, phase } = useAuthStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const supabase = createClient();
+  const supabase = useRef(createClient()).current;
 
   // ── État du chargement ────────────────────────────────────────────────────
   const [initialLoading, setInitialLoading] = useState(true);
@@ -82,10 +82,12 @@ export default function ModifierDemandeClient({ id }: Props) {
 
   // ── Chargement initial ────────────────────────────────────────────────────
   useEffect(() => {
-    if (!profile) {
-      router.push(`/connexion?redirect=/demandes/${id}/modifier`);
+    if (phase === 'initializing') return;
+    if (phase === 'unauthenticated') {
+      router.replace(`/connexion?next=${encodeURIComponent(`/demandes/${id}/modifier`)}`);
       return;
     }
+    if (!profile) { setInitialLoading(false); return; }
 
     const load = async () => {
       // Catégories
@@ -137,12 +139,16 @@ export default function ModifierDemandeClient({ id }: Props) {
     };
 
     load();
-  }, [profile, id, router, supabase]);
+  }, [phase, profile, id, router, supabase]);
 
   // ── Ajouter de nouvelles photos ───────────────────────────────────────────
   const handlePhotoAdd = (files: FileList | null) => {
     if (!files) return;
-    const added = Array.from(files).filter(f => f.type.startsWith('image/'));
+    const added = Array.from(files);
+    if (added.some(f => !isAcceptedImageType(f) || f.size > MAX_PHOTO_MB * 1024 * 1024)) {
+      toast.error(`Photo refusée : format non accepté ou taille supérieure à ${MAX_PHOTO_MB} Mo.`);
+      return;
+    }
     const total = existingPhotos.length + newPhotos.length + added.length;
     if (total > 5) {
       toast.error(`Maximum 5 photos (${existingPhotos.length + newPhotos.length} déjà présentes)`);
@@ -167,68 +173,86 @@ export default function ModifierDemandeClient({ id }: Props) {
   };
 
   // ── Upload des nouvelles photos ───────────────────────────────────────────
-  const uploadNewPhotos = async (): Promise<string[]> => {
-    if (newPhotos.length === 0) return [];
+  const uploadNewPhotos = async (accessToken: string): Promise<{ urls: string[]; failures: number }> => {
+    if (newPhotos.length === 0) return { urls: [], failures: 0 };
     const urls: string[] = [];
+    let failures = 0;
 
     for (let i = 0; i < newPhotos.length; i++) {
       const photo = newPhotos[i];
       const ext   = safeImageExt(photo.name);
       const fileName = `requests/${id}/${Date.now()}_${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
       try {
-        const publicUrl = await uploadFile(photo, 'photos', fileName, profile?.id);
+        const publicUrl = await uploadFile(photo, 'photos', fileName, profile?.id, accessToken);
         urls.push(publicUrl);
       } catch (err) {
         console.error('Photo upload error:', err);
+        failures++;
         // On continue sur les autres photos
       }
     }
-    return urls;
+    return { urls, failures };
   };
 
   // ── Soumettre la modification ─────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile) return;
-    if (!form.title.trim() || !form.description.trim() || !form.category_id) {
+    if (saving || !profile) return;
+    if (!form.title.trim() || !form.description.trim() || !form.category_id || !form.address.trim()) {
       toast.error('Veuillez remplir tous les champs obligatoires.');
       return;
     }
 
     setSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error('Session expirée : reconnectez-vous.');
+        return;
+      }
 
-    // UPDATE de la demande
-    const { error } = await supabase
-      .from('service_requests')
-      .update({
-        title:          form.title.trim(),
-        description:    form.description.trim(),
-        category_id:    form.category_id,
-        urgency:        form.urgency,
-        preferred_date: form.preferred_date || null,
-        preferred_time: form.preferred_time || null,
-        address:        form.address,
-        sector_id:      form.sector_id || null,
-      })
-      .eq('id', id)
-      .eq('resident_id', profile.id); // sécurité côté client (RLS côté serveur aussi)
+      // UPDATE must return one row; RLS can silently update zero rows.
+      const { data: saved, error } = await supabase
+        .from('service_requests')
+        .update({
+          title: form.title.trim(),
+          description: form.description.trim(),
+          category_id: form.category_id,
+          urgency: form.urgency,
+          preferred_date: form.preferred_date || null,
+          preferred_time: form.preferred_time || null,
+          address: form.address.trim(),
+          sector_id: form.sector_id || null,
+        })
+        .eq('id', id)
+        .eq('resident_id', profile.id)
+        .select('id')
+        .maybeSingle();
+      if (error || !saved) {
+        toast.error('La demande n’a pas été modifiée. Vérifiez votre accès.');
+        return;
+      }
 
-    if (error) {
-      toast.error(`Erreur lors de la modification : ${error.message}`);
+      const { urls, failures } = await uploadNewPhotos(session.access_token);
+      let associationFailed = false;
+      if (urls.length > 0) {
+        const { error: photoError } = await supabase.from('service_request_photos').insert(
+          urls.map(url => ({ request_id: id, url })),
+        );
+        associationFailed = !!photoError;
+      }
+      if (failures || associationFailed) {
+        toast.error('Demande enregistrée, mais certaines photos n’ont pas pu être ajoutées.', { duration: 6500 });
+      } else {
+        toast.success('Demande modifiée avec succès !', { duration: 4000 });
+      }
+      router.push(`/demandes/${id}`);
+    } catch (err) {
+      console.error('[ModifierDemande] erreur', err);
+      toast.error('Enregistrement interrompu : réessayez.');
+    } finally {
       setSaving(false);
-      return;
     }
-
-    // Upload nouvelles photos et les enregistrer
-    const newUrls = await uploadNewPhotos();
-    if (newUrls.length > 0) {
-      await supabase.from('service_request_photos').insert(
-        newUrls.map(url => ({ request_id: id, url })),
-      );
-    }
-
-    toast.success('✅ Demande modifiée avec succès !', { duration: 4000 });
-    router.push(`/demandes/${id}`);
   };
 
   // ── Loading ───────────────────────────────────────────────────────────────

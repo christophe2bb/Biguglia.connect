@@ -215,6 +215,7 @@ export default function DemandesPageClient() {
   const [requests,      setRequests]      = useState<ServiceRequest[]>([]);
   const [mesDevis,      setMesDevis]      = useState<ServiceRequest[]>([]);
   const [loading,       setLoading]       = useState(true);
+  const [loadError,     setLoadError]     = useState(false);
   const [loadingDevis,  setLoadingDevis]  = useState(false);
   const [search,        setSearch]        = useState('');
   const [filterUrgency, setFilterUrgency] = useState('all');
@@ -245,17 +246,20 @@ export default function DemandesPageClient() {
 
       let { data, error } = await q;
 
-      if (error && (error as { code?: string }).code === '42703') {
-        let q2 = supabase.from('service_requests').select(SELECT)
-          .order('created_at', { ascending: false }).limit(50);
-        if (filterStatus === 'open')          q2 = q2.in('status', ['submitted', 'viewed', 'replied']);
-        else if (filterStatus === 'resolved') q2 = q2.in('status', ['completed', 'scheduled']);
-        if (filterUrgency !== 'all')          q2 = q2.eq('urgency', filterUrgency);
-        const fb = await q2; data = fb.data; error = fb.error;
+      // Never remove the artisan_id IS NULL filter as a recovery strategy:
+      // a schema error must not reveal private customer quotes in public cards.
+      if (error) {
+        console.error('[Demandes] chargement impossible:', error.code);
+        setLoadError(true);
+        setRequests([]);
+      } else {
+        setLoadError(false);
+        setRequests((data as unknown as ServiceRequest[]) || []);
       }
-
-      setRequests(error ? [] : (data as unknown as ServiceRequest[]) || []);
-    } catch { setRequests([]); }
+    } catch {
+      setRequests([]);
+      setLoadError(true);
+    }
     finally  { setLoading(false); }
   }, [supabase, filterStatus, filterUrgency]);
 
@@ -483,6 +487,10 @@ export default function DemandesPageClient() {
                     </div>
                   </div>
                 ))}
+              </div>
+            ) : loadError ? (
+              <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-8 text-red-800 text-sm text-center">
+                Impossible de charger les demandes. Réessayez après avoir vérifié votre connexion.
               </div>
             ) : filtered.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
