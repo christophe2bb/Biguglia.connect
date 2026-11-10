@@ -196,6 +196,73 @@ describe('POST /api/messages/start-conversation', () => {
     expect(db.from).not.toHaveBeenCalledWith('conversations');
   });
 
+  it.each(['23514', '22P02'])(
+    'refuse le type de conversation non pris en charge (%s), sans faux succès',
+    async (code) => {
+      mockGetUserId.mockResolvedValueOnce(USER_A);
+      const insertConversation = vi.fn().mockReturnValue(
+        makeAutoChain({ data: null, error: { code, message: 'Type incompatible' } }),
+      );
+      const db = {
+        from: vi.fn((table: string) => {
+          if (table === 'profiles') return makeAutoChain({
+            data: { id: USER_B, status: 'active', is_active: true }, error: null,
+          });
+          if (table === 'user_blocks') return makeAutoChain({ data: [], error: null });
+          if (table === 'conversation_participants') {
+            return makeAutoChain({ data: [], error: null });
+          }
+          if (table === 'conversations') return { insert: insertConversation };
+          return makeAutoChain({ data: null, error: null });
+        }),
+      };
+      mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+
+      const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+        ownerId: USER_B,
+        relatedType: 'listing', relatedId: OBJ_ID, initialMsg: 'Bonjour !',
+      }) as never);
+      expect(res.status).toBe(422);
+      expect((await res.json()).conversationId).toBeUndefined();
+      expect(insertConversation).toHaveBeenCalledTimes(1);
+      expect(db.from).not.toHaveBeenCalledWith('messages');
+    },
+  );
+
+  it('n’annonce pas un succès si le premier message échoue', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const messagesInsert = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: '42501', message: 'Message refusé' },
+    });
+    const db = {
+      from: vi.fn((table: string) => {
+        if (table === 'profiles') return makeAutoChain({
+          data: { id: USER_B, status: 'active', is_active: true }, error: null,
+        });
+        if (table === 'user_blocks') return makeAutoChain({ data: [], error: null });
+        if (table === 'conversation_participants') return makeAutoChain({
+          data: [], error: null,
+        });
+        if (table === 'conversations') return makeAutoChain({
+          data: { id: CONV_ID }, error: null,
+        });
+        if (table === 'messages') return { insert: messagesInsert };
+        return makeAutoChain({ data: null, error: null });
+      }),
+    };
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'listing', relatedId: OBJ_ID,
+      initialMsg: 'Bonjour !',
+    }) as never);
+    expect(res.status).toBe(500);
+    expect((await res.json()).conversationId).toBeUndefined();
+    expect(messagesInsert).toHaveBeenCalledTimes(1);
+    expect(db.from).not.toHaveBeenCalledWith('notifications');
+  });
+
   // ── Conv existante (anti-duplication) ─────────────────────────────────────
 
   it('retourne isNew: false si la conversation existe déjà', async () => {
