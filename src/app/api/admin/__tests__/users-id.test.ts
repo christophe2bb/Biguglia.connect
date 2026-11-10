@@ -158,16 +158,21 @@ describe('PATCH /api/admin/users/[id]', () => {
     expect(json.status).toBe('suspended');
   });
 
-  it('200 réactiver (acteur moderator)', async () => {
-    const db = makeDb({
-      profiles:      { update: () => ({ data: null, error: null }) },
-      notifications: { insert: () => ({ data: null, error: null }) },
-    });
+  it('403 un modérateur ne peut pas réactiver un compte', async () => {
+    const db = makeDb();
     mockGuard.mockResolvedValue(makeAdminGuardOk('moderator', db, MODERATOR_ID));
     const res = await PATCH(patchReq({ action: 'set_status', status: 'active' }), makeParams());
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.status).toBe('active');
+    expect(res.status).toBe(403);
+    expect(db.from).not.toHaveBeenCalled();
+  });
+
+  it('403 un modérateur ne peut pas suspendre un administrateur', async () => {
+    const db = makeDb();
+    mockGuard.mockResolvedValue(makeAdminGuardOk('moderator', db, MODERATOR_ID));
+    const res = await PATCH(patchReq({ action: 'set_status', status: 'suspended' }),
+      { params: Promise.resolve({ id: ADMIN_ID }) });
+    expect(res.status).toBe(403);
+    expect(db.from).not.toHaveBeenCalled();
   });
 
   it('500 si DB update échoue sur set_status', async () => {

@@ -93,6 +93,12 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
   const body: PatchBody = parsed.data;
 
   if (body.action === 'set_status') {
+    // La suspension / réactivation et la gestion des comptes sont
+    // exclusivement réservées aux administrateurs de la plateforme.
+    if (actor.role !== 'admin') {
+      return NextResponse.json({ error: 'Réservé aux administrateurs' }, { status: 403 });
+    }
+
     const { error } = await adminClient
       .from('profiles')
       .update({ status: body.status })

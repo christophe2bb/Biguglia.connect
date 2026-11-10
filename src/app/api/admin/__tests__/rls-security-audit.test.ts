@@ -343,7 +343,7 @@ describe('B. Escalade de privilèges — séparation admin / moderator', () => {
    * Scénario : un modérateur peut changer le statut d'un utilisateur (action permise)
    * Attendu  : 200 — set_status permis pour moderator
    */
-  it('[B6] Un modérateur PEUT modifier le statut d\'un utilisateur (set_status)', async () => {
+  it('[B6] Un modérateur NE PEUT PAS modifier le statut d\'un utilisateur (set_status)', async () => {
     mockGuard.mockResolvedValue(makeAdminGuardOk(
       'moderator',
       makeDb({
@@ -358,7 +358,7 @@ describe('B. Escalade de privilèges — séparation admin / moderator', () => {
       { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(403);
   });
 });
 
@@ -493,15 +493,17 @@ describe('C. IDOR emploi — vérification ownership', () => {
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
-                maybeSingle: vi.fn().mockResolvedValue({
-                  data: {
-                    user_id:              OWNER_ID,
-                    contact_email:        'owner@example.com',
-                    contact_phone:        null,
-                    contact_instructions: null,
-                    application_mode:     'email',
-                  },
-                  error: null,
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: {
+                      user_id:              OWNER_ID,
+                      contact_email:        'owner@example.com',
+                      contact_phone:        null,
+                      contact_instructions: null,
+                      application_mode:     'email',
+                    },
+                    error: null,
+                  }),
                 }),
               }),
             }),

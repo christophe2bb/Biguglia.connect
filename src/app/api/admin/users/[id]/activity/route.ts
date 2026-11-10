@@ -39,6 +39,11 @@ export async function GET(req: Request, { params }: RouteParams): Promise<Respon
   const guard = await getAdminUser(req);
   if (!guard.ok) return guard.response;
 
+  // Données personnelles / audit système : réservé à l'administrateur.
+  if (guard.actor.role !== 'admin') {
+    return NextResponse.json({ error: 'Réservé aux administrateurs' }, { status: 403 });
+  }
+
   const { adminClient } = guard;
 
   const [

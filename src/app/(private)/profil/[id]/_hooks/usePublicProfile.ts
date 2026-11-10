@@ -86,6 +86,8 @@ export function usePublicProfile(userId: string): UsePublicProfileReturn {
           .from('listings')
           .select('user_id')
           .eq('user_id', userId)
+          .eq('status', 'active')
+          .eq('moderation_status', 'publie')
           .limit(1)
           .maybeSingle();
         if (listingCheck) p = makeMinimalProfile(userId);

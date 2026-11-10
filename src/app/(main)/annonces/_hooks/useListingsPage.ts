@@ -144,8 +144,9 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const applyBaseFilters = useCallback((q: any) => {
+    // Aucun contenu en attente ne doit apparaître dans le catalogue public.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let r: any = q;
+    let r: any = q.eq('moderation_status', 'publie');
     if (selectedStatus === 'active')        r = r.eq('status', 'active');
     else if (selectedStatus === 'reserved') r = r.eq('status', 'reserved');
     else if (selectedStatus === 'sold')     r = r.in('status', ['sold', 'given', 'exchanged']);
@@ -170,7 +171,7 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
   const fetchAllSectorCounts = useCallback(async () => {
     const supabase = createClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let q: any = supabase.from('listings').select('sector_id');
+    let q: any = supabase.from('listings').select('sector_id').eq('moderation_status', 'publie');
     if (selectedStatus === 'active')        q = q.eq('status', 'active');
     else if (selectedStatus === 'reserved') q = q.eq('status', 'reserved');
     else if (selectedStatus === 'sold')     q = q.in('status', ['sold', 'given', 'exchanged']);
@@ -196,7 +197,7 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
   // ── Stats globales (COUNT léger) ──────────────────────────────────────────
   const fetchStats = useCallback(async () => {
     const supabase = createClient();
-    const base = () => supabase.from('listings').select('*', { count: 'exact', head: true }).eq('status', 'active');
+    const base = () => supabase.from('listings').select('*', { count: 'exact', head: true }).eq('status', 'active').eq('moderation_status', 'publie');
     const [total, sale, free, urgent, exchange] = await Promise.all([
       base(),
       base().eq('listing_type', 'sale'),

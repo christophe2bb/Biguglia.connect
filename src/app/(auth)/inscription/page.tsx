@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Mail, Lock, User, Phone } from 'lucide-react';
@@ -22,10 +22,12 @@ function InscriptionForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [consent, setConsent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const submissionLock = useRef(false);
   const router = useRouter();
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submissionLock.current) return;
 
     if (!consent) {
       toast.error('Vous devez accepter les CGU et la politique de confidentialité.');
@@ -37,7 +39,9 @@ function InscriptionForm() {
       return;
     }
 
+    submissionLock.current = true;
     setLoading(true);
+    try {
     const supabase = createClient();
 
     const { data: signUpData, error } = await supabase.auth.signUp({
@@ -61,11 +65,29 @@ function InscriptionForm() {
           : `Erreur : ${error.message}`
       );
       setLoading(false);
+      submissionLock.current = false;
       return;
     }
 
     // Vérifier si l'email doit être confirmé (pas de session immédiate)
     const needsEmailConfirm = !signUpData?.session;
+    // Pour une session immédiate, vérifier le profil créé par le trigger SQL.
+    if (signUpData?.session && signUpData?.user) {
+      const { data: existingProfile, error: profileError } = await supabase
+        .from('profiles').select('id').eq('id', signUpData.user.id).maybeSingle();
+      if (profileError || !existingProfile) {
+        const response = await fetch('/api/auth/ensure-profile', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + signUpData.session.access_token },
+        }).catch(() => null);
+        if (!response?.ok) {
+          toast.error('Compte créé, mais profil incomplet. Reconnectez-vous ou contactez le support.');
+          setLoading(false);
+          submissionLock.current = false;
+          return;
+        }
+      }
+    }
 
     if (role === 'artisan_pending') {
       if (needsEmailConfirm) {
@@ -82,9 +104,18 @@ function InscriptionForm() {
         );
         router.push('/inscription/artisan-profil');
       }
-    } else {
+    } else if (needsEmailConfirm) {
       toast.success('Compte créé ! Vérifiez votre email pour confirmer votre inscription.', { duration: 5000 });
       router.push('/inscription/confirmation');
+    } else {
+      toast.success('Compte créé ! Vous pouvez maintenant compléter votre profil.', { duration: 5000 });
+      router.push('/profil');
+    }
+    } catch (error) {
+      console.error('[inscription] requête échouée:', error instanceof Error ? error.name : 'unknown');
+      toast.error('Impossible de terminer l’inscription. Vérifiez votre connexion et réessayez.');
+      setLoading(false);
+      submissionLock.current = false;
     }
   };
 

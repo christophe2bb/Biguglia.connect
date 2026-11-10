@@ -203,7 +203,8 @@ async function fetchListings(
   let q = supabase
     .from('listings')
     .select('id, title, description, status, price, category, created_at, updated_at')
-    .in('status', ['active', 'published', 'approved', 'disponible'])
+    .eq('status', 'active')
+    .eq('moderation_status', 'publie')
     .gte('created_at', since)
     .order('created_at', { ascending: false })
     .limit(10);

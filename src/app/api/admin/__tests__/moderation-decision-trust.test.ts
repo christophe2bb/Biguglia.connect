@@ -94,7 +94,7 @@ function trustReq(body: unknown) {
  *  – <sourceTable>.update    → succès
  *  – profiles.update         → succès (pour trust)
  */
-function makeDecisionDb(contentType = 'listing', queueError = false, updateError = false) {
+function makeDecisionDb(contentType = 'listing', queueError = false, updateError = false, sourceError = false) {
   const sourceTable = contentType === 'listing' ? 'listings'
     : contentType === 'forum_post' ? 'forum_posts'
     : contentType;
@@ -128,7 +128,9 @@ function makeDecisionDb(contentType = 'listing', queueError = false, updateError
     }
 
     if (table === sourceTable || table === 'listings' || table === 'forum_posts') {
-      const eqUpdate = vi.fn().mockResolvedValue({ data: null, error: null });
+      const eqUpdate = vi.fn().mockResolvedValue(sourceError
+        ? { data: null, error: { code: '42501', message: 'source update failed' } }
+        : { data: null, error: null });
       return { update: vi.fn().mockReturnValue({ eq: eqUpdate }) };
     }
 
@@ -290,19 +292,26 @@ describe('PATCH /api/admin/moderation/[id]/decision', () => {
     expect(res.status).toBe(200);
   });
 
-  it('500 si DB update queue échoue', async () => {
+  it('503 si DB update queue échoue', async () => {
     const db = makeDecisionDb('listing', false, true /* updateError */);
     mockGuard.mockResolvedValue(makeAdminGuardOk('admin', db as ReturnType<typeof makeDb>));
     const res = await patchDecision(decisionReq({ decision: 'accepter' }), makeParams());
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(503);
   });
 
-  it('content_type inconnu → décision enregistrée mais pas de propagation (non-fatal)', async () => {
+  it('503 si mise à jour de la publication échoue, sans enregistrer la décision', async () => {
+    const db = makeDecisionDb('listing', false, false, true);
+    mockGuard.mockResolvedValue(makeAdminGuardOk('moderator', db as ReturnType<typeof makeDb>, MODERATOR_ID));
+    const res = await patchDecision(decisionReq({ decision: 'accepter' }), makeParams());
+    expect(res.status).toBe(503);
+    expect(db.from).toHaveBeenCalledWith('listings');
+  });
+
+  it('content_type inconnu → rejet pour éviter une fausse modération', async () => {
     const db = makeDecisionDb('unknown_type');
     mockGuard.mockResolvedValue(makeAdminGuardOk('admin', db as ReturnType<typeof makeDb>));
     const res = await patchDecision(decisionReq({ decision: 'accepter' }), makeParams());
-    // La route doit quand même réussir (propagation non-fatale)
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(422);
   });
 });
 

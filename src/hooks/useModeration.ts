@@ -7,7 +7,7 @@
  * Effectue les vérifications pré-publication et soumet à la file de modération.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import toast from 'react-hot-toast';
@@ -94,7 +94,9 @@ export function useModeration(): UseModerationReturn {
 
     try {
       // 1. Vérification limite quotidienne
-      if (opts.sourceTable) {
+      // Ne pas réévaluer la limite APRÈS insertion d'une annonce : elle est
+      // déjà enregistrée et le calcul pourrait alors refuser sa modération.
+      if (opts.sourceTable && opts.contentType !== 'listing') {
         const limitResult = await checkPublicationLimit(
           supabase, profile.id, profile.role,
           opts.sourceTable, opts.authorColumn,
@@ -118,7 +120,10 @@ export function useModeration(): UseModerationReturn {
       });
 
       // 4. Statut de modération selon confiance
-      const moderationStatus = getModerationStatus(authorTrust, profile.role);
+      // Une annonce n'est jamais auto-validée par le navigateur.
+      const moderationStatus = opts.contentType === 'listing'
+        ? 'en_attente_validation' as ModerationStatus
+        : getModerationStatus(authorTrust, profile.role);
       const isDirectPublish = moderationStatus === 'publie';
 
       // 5. Insertion dans la file de modération
@@ -151,7 +156,7 @@ export function useModeration(): UseModerationReturn {
       if (error) throw error;
 
       // 6. Mettre à jour le statut de modération dans la table source
-      if (opts.sourceTable) {
+      if (opts.sourceTable && opts.contentType !== 'listing') {
         await supabase
           .from(opts.sourceTable)
           .update({ moderation_status: moderationStatus })
@@ -247,7 +252,7 @@ export function useModerationStatus(
     setLoading(false);
   }, [contentType, contentId, profile]);
 
-  useState(() => { fetch(); });
+  useEffect(() => { void fetch(); }, [fetch]);
 
   return { status, queueId, reason, loading, refresh: fetch };
 }

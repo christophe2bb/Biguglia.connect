@@ -173,6 +173,9 @@ export default function ModifierAnnoncePage() {
       location:     form.location || 'Biguglia',
       sector_id:    form.sector_id || null,
       status:       form.status,
+      // Toute modification éditoriale repasse par une validation humaine.
+      // Sinon une annonce approuvée pourrait être remplacée sans contrôle.
+      moderation_status: form.status === 'draft' ? 'draft' : 'en_attente_validation',
       updated_at:   new Date().toISOString(),
     };
 
@@ -214,7 +217,7 @@ export default function ModifierAnnoncePage() {
       }
     }
 
-    toast.success('Annonce modifiée !');
+    toast.success('Annonce modifiée et renvoyée en validation. Elle sera visible après approbation.');
     router.push(`/annonces/${id}`);
   };
 

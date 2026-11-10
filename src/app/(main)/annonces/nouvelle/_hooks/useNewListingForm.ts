@@ -93,6 +93,7 @@ export function useNewListingForm(): UseNewListingFormReturn {
   const router = useRouter();
   const { submitForModeration } = useModeration();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const submissionLock = useRef(false);
 
   const [step, setStep]                   = useState(1);
   const [form, setForm]                   = useState<NewListingForm>(DEFAULT_FORM);
@@ -204,7 +205,7 @@ export function useNewListingForm(): UseNewListingFormReturn {
   // ── Submit ────────────────────────────────────────────────────────────────
 
   const handleSubmit = useCallback(async (asDraft = false) => {
-    if (!profile) return;
+    if (!profile || loading || submissionLock.current || publishedId) return;
     if (!asDraft && (!form.check_sincere || !form.check_legal || !form.check_available)) {
       toast.error("Veuillez cocher toutes les cases d'engagement");
       return;
@@ -218,6 +219,7 @@ export function useNewListingForm(): UseNewListingFormReturn {
       return;
     }
 
+    submissionLock.current = true;
     setLoading(true);
     const supabase = createClient();
 
@@ -253,6 +255,7 @@ export function useNewListingForm(): UseNewListingFormReturn {
       console.error('Publication error:', error);
       toast.error(`Erreur : ${error.message}`);
       setLoading(false);
+      submissionLock.current = false;
       return;
     }
 
@@ -309,7 +312,7 @@ export function useNewListingForm(): UseNewListingFormReturn {
     setModerationStatus(modStatus);
     setPublishedId(listing.id);
     setLoading(false);
-  }, [profile, form, photos, submitForModeration, router]);
+  }, [profile, form, photos, submitForModeration, router, loading, publishedId]);
 
   return {
     step, goNext, goBack,

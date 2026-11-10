@@ -83,6 +83,8 @@ export interface ModerationKPI {
 export interface ModerationQueueData {
   items: QueueItem[];
   kpi: ModerationKPI | null;
+  /** Nombre estimé d'annonces en attente, sans ticket correspondant. */
+  missing_queue_count: number | null;
 }
 
 // ─── GET /api/admin/moderation/queue ─────────────────────────────────────────
@@ -154,7 +156,24 @@ export async function GET(req: NextRequest) {
 
     const items = (data ?? []) as unknown as QueueItem[];
 
-    return NextResponse.json({ items, kpi } satisfies ModerationQueueData);
+    // Le module historique pouvait créer une annonce même lorsque l'insertion
+    // dans moderation_queue échouait. Afficher le nombre à récupérer au lieu
+    // de laisser croire que la modération est entièrement vide.
+    const [pendingListings, queuedListings] = await Promise.all([
+      adminClient.from('listings').select('*', { count: 'exact', head: true })
+        .eq('moderation_status', 'en_attente_validation'),
+      adminClient.from('moderation_queue').select('*', { count: 'exact', head: true })
+        .eq('content_type', 'listing').eq('status', 'en_attente_validation'),
+    ]);
+    const missingQueueCount = pendingListings.error || queuedListings.error
+      ? null
+      : Math.max(0, (pendingListings.count ?? 0) - (queuedListings.count ?? 0));
+
+    return NextResponse.json({
+      items,
+      kpi,
+      missing_queue_count: missingQueueCount,
+    } satisfies ModerationQueueData);
 
   } catch (err) {
     captureApiError(err, {

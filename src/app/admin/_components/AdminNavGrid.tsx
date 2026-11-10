@@ -8,6 +8,7 @@ import type { AdminDashboardStats } from '@/app/api/admin/dashboard/route';
 
 interface AdminNavGridProps {
   stats: AdminDashboardStats | null;
+  role: 'admin' | 'moderator';
 }
 
 interface NavItem {
@@ -120,7 +121,14 @@ function NavCard({ item, badge }: { item: NavItem; badge?: number }) {
 
 // ── Composant principal ───────────────────────────────────────────────────────
 
-export default function AdminNavGrid({ stats }: AdminNavGridProps) {
+export default function AdminNavGrid({ stats, role }: AdminNavGridProps) {
+  // Garder le tableau de bord simple et limiter l'affichage des outils sensibles.
+  const adminOnly = new Set([
+    '/admin/utilisateurs', '/admin/messages', '/admin/migration',
+    '/admin/securite', '/admin/logs', '/admin/spec',
+  ]);
+  const visible = (items: NavItem[]) =>
+    role === 'admin' ? items : items.filter(item => !adminOnly.has(item.href));
   const pendingMod = stats?.pending_moderation ?? 0;
 
   return (
@@ -130,7 +138,7 @@ export default function AdminNavGrid({ stats }: AdminNavGridProps) {
       <div>
         <SectionTitle>⚙️ Gestion quotidienne</SectionTitle>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {GESTION_ITEMS.map(item => (
+          {visible(GESTION_ITEMS).map(item => (
             <NavCard key={item.href} item={item} />
           ))}
         </div>
@@ -140,7 +148,7 @@ export default function AdminNavGrid({ stats }: AdminNavGridProps) {
       <div>
         <SectionTitle>🛡️ Modération & Sécurité</SectionTitle>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {MODERATION_ITEMS.map(item => (
+          {visible(MODERATION_ITEMS).map(item => (
             <NavCard
               key={item.href}
               item={item}
@@ -154,7 +162,7 @@ export default function AdminNavGrid({ stats }: AdminNavGridProps) {
       <div>
         <SectionTitle>📊 Analyse & Outils</SectionTitle>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {OUTILS_ITEMS.map(item => (
+          {visible(OUTILS_ITEMS).map(item => (
             <NavCard key={item.href} item={item} />
           ))}
         </div>

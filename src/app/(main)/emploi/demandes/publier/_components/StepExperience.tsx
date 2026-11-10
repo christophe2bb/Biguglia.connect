@@ -111,10 +111,10 @@ export function StepExperience({ form, set, setCvFile }: Props) {
             <span className="text-sm font-semibold text-purple-700">
               Cliquer pour sélectionner votre CV
             </span>
-            <span className="text-xs text-gray-400">PDF, DOC, DOCX · Max 5 Mo</span>
+            <span className="text-xs text-gray-400">PDF uniquement · Max 5 Mo</span>
             <input
               type="file"
-              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              accept=".pdf,application/pdf"
               onChange={e => {
                 const file = e.target.files?.[0];
                 if (file && file.size <= 5 * 1024 * 1024) {
@@ -127,8 +127,8 @@ export function StepExperience({ form, set, setCvFile }: Props) {
         )}
 
         <p className="text-xs text-gray-500">
-          Votre CV sera stocké de façon sécurisée et partagé uniquement aux employeurs qui vous
-          contactent.
+          Votre CV sera conservé dans un espace privé. Seuls les membres connectés pourront
+          le consulter via un lien temporaire depuis votre annonce.
         </p>
       </div>
     </div>

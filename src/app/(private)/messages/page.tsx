@@ -126,22 +126,23 @@ export default function MessagesPage() {
               className={cn(
                 'flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-colors',
                 typeFilter
-                  ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
+                  ? 'bg-brand-600 text-white border-brand-600 shadow-sm pr-10'
                   : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-700'
               )}
             >
               <SlidersHorizontal className="w-4 h-4" aria-hidden="true" />
               {typeFilter ? RELATED_CONFIG[typeFilter]?.label : <span className="hidden sm:inline">Filtrer</span>}
-              {typeFilter && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleSetTypeFilter(null); setShowTypeMenu(false); }}
-                  aria-label="Effacer le filtre actif"
-                  className="ml-0.5 text-white/80 hover:text-white"
-                >
-                  <X className="w-3.5 h-3.5" aria-hidden="true" />
-                </button>
-              )}
             </button>
+            {typeFilter && (
+              <button
+                type="button"
+                onClick={() => { handleSetTypeFilter(null); setShowTypeMenu(false); }}
+                aria-label="Effacer le filtre actif"
+                className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-white/80 hover:text-white"
+              >
+                <X className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
+            )}
             {showTypeMenu && presentTypes.length > 0 && (
               <div className="absolute right-0 top-11 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 min-w-[180px]">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 px-3 py-1">

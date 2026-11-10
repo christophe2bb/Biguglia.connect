@@ -57,16 +57,20 @@ export async function GET(req: NextRequest) {
       { count: totalEquip },
       { count: totalMsgs },
       { count: pendingMod },
+      { count: pendingListings },
+      { count: queuedListings },
     ] = await Promise.all([
       adminClient.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
       adminClient.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'artisan_pending'),
       adminClient.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'artisan_verified'),
       adminClient.from('listings').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-      adminClient.from('forum_posts').select('*', { count: 'exact', head: true }),
+      adminClient.from('forum_topics').select('*', { count: 'exact', head: true }),
       adminClient.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
       adminClient.from('equipment_items').select('*', { count: 'exact', head: true }).eq('is_available', true),
       adminClient.from('messages').select('*', { count: 'exact', head: true }),
       adminClient.from('moderation_queue').select('*', { count: 'exact', head: true }).eq('status', 'en_attente_validation'),
+      adminClient.from('listings').select('*', { count: 'exact', head: true }).eq('moderation_status', 'en_attente_validation'),
+      adminClient.from('moderation_queue').select('*', { count: 'exact', head: true }).eq('content_type', 'listing').eq('status', 'en_attente_validation'),
     ]);
 
     const stats: AdminDashboardStats = {
@@ -78,10 +82,11 @@ export async function GET(req: NextRequest) {
       pending_reports:    pendingReports    ?? 0,
       total_equipment:    totalEquip        ?? 0,
       total_messages:     totalMsgs         ?? 0,
-      pending_moderation: pendingMod        ?? 0,
+      // Inclure les annonces créées lorsque l'insertion dans la file a échoué.
+      pending_moderation: (pendingMod ?? 0) + Math.max(0, (pendingListings ?? 0) - (queuedListings ?? 0)),
     };
 
-    return NextResponse.json({ stats });
+    return NextResponse.json({ stats, actor: { role: actor.role } });
   } catch (err) {
     captureApiError(err, {
       route:  '/api/admin/dashboard',

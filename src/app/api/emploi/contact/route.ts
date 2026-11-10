@@ -94,11 +94,12 @@ export async function POST(req: NextRequest): Promise<Response> {
       .from('job_offers')
       .select('user_id, contact_email, contact_phone, contact_instructions, application_mode')
       .eq('slug', slug)
+      .eq('status', 'published')
       .maybeSingle<OfferContactRow>();
 
     if (error) {
       console.error('[contact API] offer DB error:', error.message);
-      return NextResponse.json({ status: 'error', error: error.message }, { status: 500 });
+      return NextResponse.json({ status: 'error', error: 'Service momentanément indisponible' }, { status: 503 });
     }
     if (!data) {
       return NextResponse.json({ status: 'not_found' }, { status: 404 });
@@ -126,11 +127,12 @@ export async function POST(req: NextRequest): Promise<Response> {
     .from('job_demands')
     .select('user_id')
     .eq('slug', slug)
+    .eq('status', 'published')
     .maybeSingle<DemandOwnerRow>();
 
   if (demandError) {
     console.error('[contact API] demand DB error:', demandError.message);
-    return NextResponse.json({ status: 'error', error: demandError.message }, { status: 500 });
+    return NextResponse.json({ status: 'error', error: 'Service momentanément indisponible' }, { status: 503 });
   }
   if (!demandRow) {
     return NextResponse.json({ status: 'not_found' }, { status: 404 });
@@ -150,7 +152,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (profileError) {
     console.error('[contact API] profile DB error:', profileError.message);
-    return NextResponse.json({ status: 'error', error: profileError.message }, { status: 500 });
+    return NextResponse.json({ status: 'error', error: 'Service momentanément indisponible' }, { status: 503 });
   }
 
   if (!profile || (!profile.email && !profile.phone)) {

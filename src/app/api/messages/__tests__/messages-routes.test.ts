@@ -179,6 +179,125 @@ describe('POST /api/messages/start-conversation', () => {
     expect(json.error).toContain('Destinataire');
   });
 
+  it('refuse une conversation si l’autre membre a bloqué le demandeur', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [{ id: OBJ_ID }], error: null },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'listing', relatedId: OBJ_ID, initialMsg: 'Bonjour',
+    }) as never);
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toContain('non autorisée');
+    expect(db.from).not.toHaveBeenCalledWith('conversations');
+  });
+
+  it.each(['23514', '22P02'])(
+    'refuse le type de conversation non pris en charge (%s), sans faux succès',
+    async (code) => {
+      mockGetUserId.mockResolvedValueOnce(USER_A);
+      const insertConversation = vi.fn().mockReturnValue(
+        makeAutoChain({ data: null, error: { code, message: 'Type incompatible' } }),
+      );
+      const db = {
+        from: vi.fn((table: string) => {
+          if (table === 'profiles') return makeAutoChain({
+            data: { id: USER_B, status: 'active', is_active: true }, error: null,
+          });
+          if (table === 'user_blocks') return makeAutoChain({ data: [], error: null });
+          if (table === 'listings') return makeAutoChain({
+            data: {
+              id: OBJ_ID, user_id: USER_B,
+              status: 'active', moderation_status: 'publie',
+            },
+            error: null,
+          });
+          if (table === 'conversation_participants') {
+            return makeAutoChain({ data: [], error: null });
+          }
+          if (table === 'conversations') return { insert: insertConversation };
+          return makeAutoChain({ data: null, error: null });
+        }),
+      };
+      mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+
+      const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+        ownerId: USER_B,
+        relatedType: 'listing', relatedId: OBJ_ID, initialMsg: 'Bonjour !',
+      }) as never);
+      expect(res.status).toBe(422);
+      expect((await res.json()).conversationId).toBeUndefined();
+      expect(insertConversation).toHaveBeenCalledTimes(1);
+      expect(db.from).not.toHaveBeenCalledWith('messages');
+    },
+  );
+
+  it('n’annonce pas un succès si le premier message échoue', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const messagesInsert = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: '42501', message: 'Message refusé' },
+    });
+    const db = {
+      from: vi.fn((table: string) => {
+        if (table === 'profiles') return makeAutoChain({
+          data: { id: USER_B, status: 'active', is_active: true }, error: null,
+        });
+        if (table === 'user_blocks') return makeAutoChain({ data: [], error: null });
+          if (table === 'listings') return makeAutoChain({
+            data: {
+              id: OBJ_ID, user_id: USER_B,
+              status: 'active', moderation_status: 'publie',
+            },
+            error: null,
+          });
+        if (table === 'conversation_participants') return makeAutoChain({
+          data: [], error: null,
+        });
+        if (table === 'conversations') return makeAutoChain({
+          data: { id: CONV_ID }, error: null,
+        });
+        if (table === 'messages') return { insert: messagesInsert };
+        return makeAutoChain({ data: null, error: null });
+      }),
+    };
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'listing', relatedId: OBJ_ID,
+      initialMsg: 'Bonjour !',
+    }) as never);
+    expect(res.status).toBe(500);
+    expect((await res.json()).conversationId).toBeUndefined();
+    expect(messagesInsert).toHaveBeenCalledTimes(1);
+    expect(db.from).not.toHaveBeenCalledWith('notifications');
+  });
+
+  it('ne crée pas de conversation si la recherche des échanges échoue', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      conversation_participants: {
+        data: null, error: { code: '08006', message: 'Connexion interrompue' },
+      },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'general', relatedId: null,
+      initialMsg: 'Bonjour, est-ce disponible ?',
+    }) as never);
+    expect(res.status).toBe(503);
+    expect((await res.json()).conversationId).toBeUndefined();
+    expect(db.from).not.toHaveBeenCalledWith('conversations');
+    expect(db.from).not.toHaveBeenCalledWith('messages');
+  });
+
   // ── Conv existante (anti-duplication) ─────────────────────────────────────
 
   it('retourne isNew: false si la conversation existe déjà', async () => {
@@ -188,7 +307,7 @@ describe('POST /api/messages/start-conversation', () => {
     const db = {
       from: vi.fn((table: string) => {
         if (table === 'profiles') {
-          return makeAutoChain({ data: { id: USER_B }, error: null });
+          return makeAutoChain({ data: { id: USER_B, status: 'active', is_active: true }, error: null });
         }
         if (table === 'conversation_participants') {
           // Les deux ont CONV_ID
@@ -211,6 +330,169 @@ describe('POST /api/messages/start-conversation', () => {
     expect(json.conversationId).toBe(CONV_ID);
   });
 
+  it('interdit de contacter un tiers au nom d’une annonce qu’il ne possède pas', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      listings: {
+        data: { id: OBJ_ID, user_id: USER_A, status: 'active', moderation_status: 'publie' },
+        error: null,
+      },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'listing', relatedId: OBJ_ID,
+      initialMsg: 'Bonjour',
+    }) as never);
+    expect(res.status).toBe(404);
+    expect(db.from).not.toHaveBeenCalledWith('conversations');
+  });
+
+  it('interdit le contact depuis une annonce encore en modération', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      listings: {
+        data: { id: OBJ_ID, user_id: USER_B, status: 'active', moderation_status: 'en_attente_validation' },
+        error: null,
+      },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'listing', relatedId: OBJ_ID,
+      initialMsg: 'Bonjour',
+    }) as never);
+    expect(res.status).toBe(404);
+    expect(db.from).not.toHaveBeenCalledWith('conversations');
+  });
+
+  it('refuse une catégorie de conversation non prise en charge sans créer un fil général trompeur', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const insertConversation = vi.fn(() => ({
+      select: () => ({ single: async () => ({
+        data: null,
+        error: { code: '23514', message: 'CHECK constraint violation' },
+      }) }),
+    }));
+    const db = {
+      from: vi.fn((table: string) => {
+        if (table === 'profiles') return makeAutoChain({
+          data: { id: USER_B, status: 'active', is_active: true }, error: null,
+        });
+        if (table === 'user_blocks' || table === 'conversation_participants') {
+          return makeAutoChain({ data: [], error: null });
+        }
+        if (table === 'listings') return makeAutoChain({
+          data: { id: OBJ_ID, user_id: USER_B, status: 'active', moderation_status: 'publie' },
+          error: null,
+        });
+        if (table === 'conversations') return { insert: insertConversation };
+        return makeAutoChain({ data: null, error: null });
+      }),
+    };
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'listing', relatedId: OBJ_ID,
+      initialMsg: 'Bonjour, cette annonce est-elle disponible ?',
+    }) as never);
+    expect(res.status).toBe(422);
+    // Ne pas cacher une erreur métier en créant un fil "general" sans message.
+    expect(insertConversation).toHaveBeenCalledTimes(1);
+  });
+
+  it('retourne une erreur et retire la conversation si le premier message échoue', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const deleteConversation = vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) }));
+    const insertMessage = vi.fn().mockResolvedValue({
+      data: null, error: { code: '42501', message: 'access denied' },
+    });
+    const db = {
+      from: vi.fn((table: string) => {
+        if (table === 'profiles') return makeAutoChain({
+          data: { id: USER_B, full_name: 'Destinataire', status: 'active', is_active: true },
+          error: null,
+        });
+        if (table === 'user_blocks') return makeAutoChain({ data: [], error: null });
+        if (table === 'listings') return makeAutoChain({
+          data: { id: OBJ_ID, user_id: USER_B, status: 'active', moderation_status: 'publie' },
+          error: null,
+        });
+        if (table === 'conversation_participants') return {
+          select: () => makeAutoChain({ data: [], error: null }),
+          insert: () => ({ select: () => ({
+            maybeSingle: async () => ({ data: { user_id: USER_A }, error: null }),
+          }) }),
+        };
+        if (table === 'conversations') return {
+          insert: () => ({ select: () => ({
+            single: async () => ({ data: { id: CONV_ID }, error: null }),
+          }) }),
+          delete: deleteConversation,
+        };
+        if (table === 'messages') return { insert: insertMessage };
+        return makeAutoChain({ data: null, error: null });
+      }),
+    };
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'listing', relatedId: OBJ_ID,
+      initialMsg: 'Bonjour depuis un autre secteur',
+    }) as never);
+    expect(res.status).toBe(500);
+    expect(insertMessage).toHaveBeenCalledWith({
+      conversation_id: CONV_ID,
+      sender_id: USER_A,
+      content: 'Bonjour depuis un autre secteur',
+    });
+    expect(deleteConversation).toHaveBeenCalledTimes(1);
+  });
+
+  it('ne bloque pas le contact entre deux secteurs géographiques distincts', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const insertMessage = vi.fn().mockResolvedValue({ error: null });
+    const db = {
+      from: vi.fn((table: string) => {
+        if (table === 'profiles') return makeAutoChain({
+          data: { id: USER_B, home_sector_id: 'casatorra', status: 'active', is_active: true },
+          error: null,
+        });
+        if (table === 'user_blocks') return makeAutoChain({ data: [], error: null });
+        if (table === 'conversation_participants') return {
+          select: () => makeAutoChain({ data: [], error: null }),
+          insert: () => ({ select: () => ({
+            maybeSingle: async () => ({ data: { user_id: USER_B }, error: null }),
+          }) }),
+        };
+        if (table === 'conversations') return {
+          insert: () => ({ select: () => ({
+            single: async () => ({ data: { id: CONV_ID }, error: null }),
+          }) }),
+        };
+        if (table === 'messages') return { insert: insertMessage };
+        if (table === 'notifications') return {
+          insert: () => Promise.resolve({ error: null }),
+        };
+        return makeAutoChain({ data: null, error: null });
+      }),
+    };
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'general', relatedId: null,
+      initialMsg: 'Bonjour depuis le Village !',
+    }) as never);
+    expect(res.status).toBe(200);
+    expect(insertMessage).toHaveBeenCalledWith({
+      conversation_id: CONV_ID,
+      sender_id: USER_A,
+      content: 'Bonjour depuis le Village !',
+    });
+  });
+
   // ── Happy path ────────────────────────────────────────────────────────────
 
   it('crée une nouvelle conversation et retourne isNew: true', async () => {
@@ -219,7 +501,7 @@ describe('POST /api/messages/start-conversation', () => {
     const db = {
       from: vi.fn((table: string) => {
         if (table === 'profiles') {
-          return makeAutoChain({ data: { id: USER_B }, error: null });
+          return makeAutoChain({ data: { id: USER_B, status: 'active', is_active: true }, error: null });
         }
         if (table === 'conversation_participants') {
           // Pas de conv partagée
@@ -249,7 +531,7 @@ describe('POST /api/messages/start-conversation', () => {
     const db = {
       from: vi.fn((table: string) => {
         if (table === 'profiles') {
-          return makeAutoChain({ data: { id: USER_B, full_name: 'Bob' }, error: null });
+          return makeAutoChain({ data: { id: USER_B, full_name: 'Bob', status: 'active', is_active: true }, error: null });
         }
         if (table === 'conversation_participants') {
           return makeAutoChain({ data: [], error: null });

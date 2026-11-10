@@ -25,6 +25,16 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   const guard = await getAdminUser(req);
   if (!guard.ok) return guard.response;
 
+  // Un modérateur de contenu ne peut pas consulter les messages privés.
+  if (guard.actor.role !== 'admin') {
+    return NextResponse.json({ error: 'Réservé aux administrateurs.' }, { status: 403 });
+  }
+
+  // Le modérateur traite les signalements sans accès généralisé aux messages privés.
+  if (guard.actor.role !== 'admin') {
+    return NextResponse.json({ error: 'Réservé aux administrateurs' }, { status: 403 });
+  }
+
   const { adminClient } = guard;
 
   try {

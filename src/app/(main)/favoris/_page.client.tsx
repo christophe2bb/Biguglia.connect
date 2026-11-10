@@ -362,6 +362,7 @@ export default function FavorisClient() {
       .select('id, title, price, location, listing_type, status, created_at, cover_url, is_urgent, sector_id, category:listing_categories(id, name, slug, icon), photos:listing_photos(url, display_order)')
       .in('id', listingFavIds)
       .neq('status', 'archived')
+      .eq('moderation_status', 'publie')
       .then(({ data }: { data: unknown[] | null }) => {
         // Preserve order of listingFavIds
         const map = new Map((data as Record<string, unknown>[] || []).map((l: Record<string, unknown>) => [(l.id as string), l]));

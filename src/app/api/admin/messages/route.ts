@@ -71,6 +71,16 @@ export async function GET(req: NextRequest) {
   const guard = await getAdminUser(req);
   if (!guard.ok) return guard.response;
 
+  // Les conversations privées ne font pas partie de la modération ordinaire.
+  if (guard.actor.role !== 'admin') {
+    return NextResponse.json({ error: 'Réservé aux administrateurs.' }, { status: 403 });
+  }
+  // La modération des signalements n'autorise pas la lecture de tous
+  // les échanges privés entre habitants.
+  if (guard.actor.role !== 'admin') {
+    return NextResponse.json({ error: 'Réservé aux administrateurs' }, { status: 403 });
+  }
+
   const { adminClient } = guard;
   const search = req.nextUrl.searchParams.get('search') ?? '';
   const limit  = Math.min(parseInt(req.nextUrl.searchParams.get('limit') ?? '100', 10), 500);

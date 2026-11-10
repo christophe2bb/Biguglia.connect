@@ -137,7 +137,7 @@ describe('getUserIdBearerFirst()', () => {
 
   // ── Bearer invalide → fallback cookies ────────────────────────────────────
 
-  it('tombe en fallback cookies si le Bearer retourne user=null', async () => {
+  it('refuse le Bearer invalide sans accepter un cookie même valide', async () => {
     mockCreateSupabaseClient.mockReturnValue(
       makeAnonClient(null) as unknown as ReturnType<typeof mockCreateSupabaseClient>
     );
@@ -145,7 +145,8 @@ describe('getUserIdBearerFirst()', () => {
       makeSSRClient({ id: USER_ID_B }) as unknown as ReturnType<typeof mockCreateServerClient>
     );
     const result = await getUserIdBearerFirst(makeReq({ bearer: `Bearer bad-token` }));
-    expect(result).toBe(USER_ID_B);
+    expect(result).toBeNull();
+    expect(mockCreateServerClient).not.toHaveBeenCalled();
   });
 
   it('retourne null si Bearer invalide ET cookies absents', async () => {
@@ -203,7 +204,7 @@ describe('getUserIdBearerFirst()', () => {
 
   // ── user.id absent ────────────────────────────────────────────────────────
 
-  it('tombe en fallback si Bearer valide mais user.id est absent', async () => {
+  it('refuse un Bearer qui ne contient pas de user.id', async () => {
     // user sans id (cas rare mais possible si Supabase retourne un user incomplet)
     mockCreateSupabaseClient.mockReturnValue(
       makeAnonClient({} as { id: string }) as unknown as ReturnType<typeof mockCreateSupabaseClient>
@@ -212,12 +213,12 @@ describe('getUserIdBearerFirst()', () => {
       makeSSRClient({ id: USER_ID_B }) as unknown as ReturnType<typeof mockCreateServerClient>
     );
     const result = await getUserIdBearerFirst(makeReq({ bearer: `Bearer ${VALID_TOKEN}` }));
-    expect(result).toBe(USER_ID_B);
+    expect(result).toBeNull();
   });
 
   // ── Exceptions ────────────────────────────────────────────────────────────
 
-  it('tombe en fallback cookies si anonClient.getUser() lève une exception', async () => {
+  it('refuse un Bearer si sa validation lève une exception', async () => {
     mockCreateSupabaseClient.mockReturnValue(
       makeAnonClient(null, true) as unknown as ReturnType<typeof mockCreateSupabaseClient>
     );
@@ -225,7 +226,8 @@ describe('getUserIdBearerFirst()', () => {
       makeSSRClient({ id: USER_ID_B }) as unknown as ReturnType<typeof mockCreateServerClient>
     );
     const result = await getUserIdBearerFirst(makeReq({ bearer: `Bearer ${VALID_TOKEN}` }));
-    expect(result).toBe(USER_ID_B);
+    expect(result).toBeNull();
+    expect(mockCreateServerClient).not.toHaveBeenCalled();
   });
 
   it('retourne null si anonClient lève + cookies lèvent une exception', async () => {
@@ -268,13 +270,16 @@ describe('getUserFromRequest()', () => {
     expect(result).toMatchObject({ id: USER_ID_A, email: EMAIL_A });
   });
 
-  it('ne tente pas le Bearer si les cookies SSR ont déjà authentifié', async () => {
+  it('ne tente pas la session cookie si un Bearer est présent', async () => {
     mockCreateServerClient.mockReturnValue(
       makeSSRClient({ id: USER_ID_A }) as unknown as ReturnType<typeof mockCreateServerClient>
     );
-    await getUserFromRequest(makeReq({ bearer: `Bearer ${VALID_TOKEN}` }));
-    // anonClient ne doit pas avoir été instancié
-    expect(mockCreateSupabaseClient).not.toHaveBeenCalled();
+    mockCreateSupabaseClient.mockReturnValue(
+      makeAnonClient({ id: USER_ID_B }) as unknown as ReturnType<typeof mockCreateSupabaseClient>
+    );
+    const result = await getUserFromRequest(makeReq({ bearer: `Bearer ${VALID_TOKEN}` }));
+    expect(result?.id).toBe(USER_ID_B);
+    expect(mockCreateServerClient).not.toHaveBeenCalled();
   });
 
   // ── Fallback Bearer quand cookies absents ──────────────────────────────────
@@ -333,7 +338,7 @@ describe('getUserFromRequest()', () => {
 
   // ── Priorité SSR sur Bearer ────────────────────────────────────────────────
 
-  it('les cookies SSR ont la priorité sur le Bearer quand les deux sont présents', async () => {
+  it('un Bearer explicite a priorité sur le cookie pour prévenir le contournement CSRF', async () => {
     mockCreateServerClient.mockReturnValue(
       makeSSRClient({ id: USER_ID_A, email: EMAIL_A }) as unknown as ReturnType<typeof mockCreateServerClient>
     );
@@ -342,8 +347,8 @@ describe('getUserFromRequest()', () => {
       makeAnonClient({ id: USER_ID_B }) as unknown as ReturnType<typeof mockCreateSupabaseClient>
     );
     const result = await getUserFromRequest(makeReq({ bearer: `Bearer ${VALID_TOKEN}` }));
-    expect(result?.id).toBe(USER_ID_A);        // cookies prioritaire
-    expect(mockCreateSupabaseClient).not.toHaveBeenCalled();
+    expect(result?.id).toBe(USER_ID_B);
+    expect(mockCreateServerClient).not.toHaveBeenCalled();
   });
 
   // ── Forme de la réponse ────────────────────────────────────────────────────

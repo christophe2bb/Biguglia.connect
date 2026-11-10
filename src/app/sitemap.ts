@@ -155,6 +155,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .from('listings')
       .select('id, updated_at')
       .eq('status', 'active')
+      .eq('moderation_status', 'publie')
       .order('updated_at', { ascending: false })
       .limit(500),
 

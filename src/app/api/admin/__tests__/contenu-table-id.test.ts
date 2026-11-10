@@ -237,10 +237,10 @@ describe('DELETE /api/admin/contenu/[table]/[id]', () => {
     expect(json.table).toBe('listings');
   });
 
-  it('200 suppression forum_post (moderator)', async () => {
+  it('403 suppression forum_post interdite au modérateur', async () => {
     mockGuard.mockResolvedValue(makeAdminGuardOk('moderator', makeOkDb(), MODERATOR_ID));
     const res = await DELETE(deleteReq('forum_posts'), makeParams('forum_posts'));
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(403);
   });
 
   it('200 suppression review', async () => {

@@ -59,6 +59,22 @@ async function fetchListing(id: string) {
 
     if (error || !data) return null;
 
+    // Les fiches brouillon / en attente / refusées ne sont pas publiques.
+    // Le propriétaire et les modérateurs peuvent toutefois les consulter.
+    const visibleToEveryone = data.moderation_status === 'publie'
+      && ['active', 'reserved', 'sold', 'given', 'exchanged'].includes(data.status);
+    if (!visibleToEveryone) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      if (user.id !== data.user_id) {
+        const { data: currentProfile } = await supabase
+          .from('profiles').select('role').eq('id', user.id).maybeSingle();
+        if (!currentProfile || !['admin', 'moderator'].includes(currentProfile.role)) {
+          return null;
+        }
+      }
+    }
+
     // Sort photos
     if (data.photos) {
       data.photos.sort(
@@ -86,6 +102,7 @@ async function fetchListing(id: string) {
         .select('*, category:listing_categories(*), photos:listing_photos(url)')
         .eq('category_id', data.category_id)
         .eq('status', 'active')
+        .eq('moderation_status', 'publie')
         .neq('id', id)
         .limit(3)
         .order('created_at', { ascending: false });

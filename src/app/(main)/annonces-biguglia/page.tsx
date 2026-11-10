@@ -79,13 +79,15 @@ async function fetchRecentAnnonces(): Promise<{ annonces: AnnonceRow[]; total: n
         .from('listings')
         .select('id, title, price, listing_type, created_at, category:listing_categories(name)', { count: 'exact' })
         .eq('status', 'active')
+        .eq('moderation_status', 'publie')
         .order('created_at', { ascending: false })
         .limit(6),
       supabase
         .from('listings')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'active')
-        .eq('listing_type', 'don'),
+        .eq('moderation_status', 'publie')
+        .eq('listing_type', 'free'),
     ]);
     const annonces: AnnonceRow[] = (data ?? []).map(r => {
       const row = r as Record<string, unknown>;
@@ -142,7 +144,7 @@ export default async function AnnoncesBigugliaPage() {
         url:     `${SITE_URL}/annonces/${a.id}`,
         offers: {
           '@type':       'Offer',
-          price:         a.listing_type === 'don' ? '0' : (a.price?.toString() ?? '0'),
+          price:         a.listing_type === 'free' ? '0' : (a.price?.toString() ?? '0'),
           priceCurrency: 'EUR',
           availability:  'https://schema.org/InStock',
           seller: {

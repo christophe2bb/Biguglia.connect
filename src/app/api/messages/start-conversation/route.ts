@@ -168,6 +168,12 @@ async function findExistingConversation(
     admin.from('conversation_participants').select('conversation_id').eq('user_id', userB),
   ]);
 
+  if (resA.error || resB.error) {
+    // Une panne de lecture ne signifie jamais « aucune conversation » :
+    // cela provoquerait des doublons et des messages dans le mauvais fil.
+    throw new Error('conversation_lookup_unavailable');
+  }
+
   const idsA = new Set((resA.data ?? []).map((r: { conversation_id: string }) => r.conversation_id));
   const idsB = new Set((resB.data ?? []).map((r: { conversation_id: string }) => r.conversation_id));
 
@@ -194,7 +200,8 @@ async function findExistingConversation(
     query = query.eq('related_type', 'general');
   }
 
-  const { data } = await query.maybeSingle();
+  const { data, error } = await query.maybeSingle();
+  if (error) throw new Error('conversation_context_lookup_unavailable');
   return data?.id ?? null;
 }
 
@@ -240,21 +247,74 @@ export async function POST(req: NextRequest): Promise<Response> {
   const admin = createAdminClient();
 
   // ── Vérification destinataire ───────────────────────────────────────────────
-  const { data: ownerProfile } = await admin
-    .from('profiles')
-    .select('id')
-    .eq('id', ownerId)
-    .maybeSingle();
-
-  if (!ownerProfile) {
+  const [{ data: ownerProfile, error: ownerError }, { data: senderProfile, error: senderError }] = await Promise.all([
+    admin.from('profiles').select('id, status, is_active').eq('id', ownerId).maybeSingle(),
+    admin.from('profiles').select('id, status, is_active').eq('id', userId).maybeSingle(),
+  ]);
+  if (ownerError || senderError) {
+    return NextResponse.json({ error: 'Vérification des profils indisponible' }, { status: 503 });
+  }
+  if (!ownerProfile || ownerProfile.status !== 'active' || !ownerProfile.is_active) {
     return NextResponse.json({ error: 'Destinataire introuvable' }, { status: 404 });
+  }
+  if (!senderProfile || senderProfile.status !== 'active' || !senderProfile.is_active) {
+    return NextResponse.json({ error: 'Profil expéditeur inactif ou incomplet' }, { status: 403 });
+  }
+
+  // Un blocage, dans un sens comme dans l'autre, interdit les échanges.
+  // Important : le client administratif contourne les règles RLS de Supabase.
+  const { data: existingBlocks, error: blockError } = await admin
+    .from('user_blocks')
+    .select('id')
+    .or(`and(user_id.eq.${userId},target_user_id.eq.${ownerId}),and(user_id.eq.${ownerId},target_user_id.eq.${userId})`)
+    .limit(1);
+  if (blockError) {
+    return NextResponse.json({ error: 'Vérification des blocages indisponible' }, { status: 503 });
+  }
+  if (existingBlocks?.length) {
+    return NextResponse.json({ error: 'Conversation non autorisée' }, { status: 403 });
+  }
+
+  // Une conversation liée à une annonce ne doit pas être associée à un
+  // utilisateur arbitraire ou à une annonce encore en modération.
+  // Cette validation s'effectue côté serveur : les valeurs client ne suffisent pas.
+  if (relatedType === 'listing') {
+    if (!relatedId) {
+      return NextResponse.json({ error: 'Annonce obligatoire' }, { status: 400 });
+    }
+    const { data: linkedListing, error: listingError } = await admin
+      .from('listings')
+      .select('id, user_id, status, moderation_status')
+      .eq('id', relatedId)
+      .maybeSingle();
+    if (listingError) {
+      console.error('[start-conversation] vérification annonce:', listingError.code);
+      return NextResponse.json({ error: 'Annonce momentanément indisponible' }, { status: 503 });
+    }
+    if (
+      !linkedListing ||
+      linkedListing.user_id !== ownerId ||
+      linkedListing.moderation_status !== 'publie' ||
+      !['active', 'reserved'].includes(linkedListing.status)
+    ) {
+      return NextResponse.json({ error: 'Annonce introuvable ou indisponible' }, { status: 404 });
+    }
   }
 
   // ── Garde anti-duplication (applicatif) ────────────────────────────────────
   // Couche 1 — garde applicatif. Voir section "ANTI-DUPLICATION" en tête de fichier.
-  const existingId = await findExistingConversation(
-    admin, userId, ownerId, relatedType ?? null, relatedId ?? null
-  );
+  let existingId: string | null;
+  try {
+    existingId = await findExistingConversation(
+      admin, userId, ownerId, relatedType ?? null, relatedId ?? null
+    );
+  } catch {
+    console.error('[start-conversation] recherche conversation indisponible');
+    return NextResponse.json(
+      { error: 'Recherche des conversations momentanément indisponible' },
+      { status: 503 },
+    );
+  }
   if (existingId) {
     return NextResponse.json({ conversationId: existingId, isNew: false });
   }
@@ -273,126 +333,37 @@ export async function POST(req: NextRequest): Promise<Response> {
     .select('id')
     .single();
 
-  // Gestion des erreurs d'insertion conversation
+  // Garder le contexte et le premier message intacts : l'ancien repli sur
+  // une conversation "general" pouvait retourner un succès sans enregistrer
+  // le premier message, ni le lien vers l'annonce d'origine.
   if (convError) {
-    // 23505 = unique_violation (race condition) — on retrouve la conv existante
     if (convError.code === '23505') {
-      const raceId = await findExistingConversation(
-        admin, userId, ownerId, relatedType ?? null, relatedId ?? null
-      );
-      if (raceId) return NextResponse.json({ conversationId: raceId, isNew: false });
-    }
-    // 23514 = check_violation (contrainte CHECK conversations_related_type_check)
-    // → la valeur relatedType n'est pas dans la liste CHECK de la colonne related_type.
-    // Solution : exécuter la migration migration_conversations_related_type.sql dans Supabase.
-    //   ALTER TABLE conversations DROP CONSTRAINT IF EXISTS conversations_related_type_check;
-    //   ALTER TABLE conversations ADD CONSTRAINT conversations_related_type_check
-    //     CHECK (related_type IN ('listing','equipment','general','help_request',
-    //       'collection_item','lost_found','association','outing','event','service_request',
-    //       'artisan','community'));
-    if (convError.code === '23514') {
-      console.error(
-        '[start-conversation] CHECK CONSTRAINT ERROR — related_type rejeté par PG:',
-        relatedType, '| message:', convError.message,
-        '| Solution: exécuter migration_conversations_related_type.sql dans Supabase SQL Editor'
-      );
-      // Fallback : réessayer avec related_type='general' pour ne pas bloquer l'utilisateur
-      const fallbackPayload23514: Record<string, unknown> = {
-        subject,
-        related_type: 'general',
-        updated_at: new Date().toISOString(),
-      };
-      const { data: fallbackConv23514, error: fallbackErr23514 } = await admin
-        .from('conversations')
-        .insert(fallbackPayload23514)
-        .select('id')
-        .single();
-      if (fallbackErr23514) {
-        console.error('[start-conversation] fallback (23514) general error:', fallbackErr23514.message);
-        return NextResponse.json(
-          { error: `Type de conversation '${relatedType}' non supporté en base — migration requise` },
-          { status: 422 }
+      try {
+        const existingAfterRace = await findExistingConversation(
+          admin, userId, ownerId, relatedType ?? null, relatedId ?? null
         );
-      }
-      if (fallbackConv23514?.id) {
-        console.warn('[start-conversation] fallback (23514) conv créée avec related_type=general, id:', fallbackConv23514.id);
-        const fallbackId23514 = fallbackConv23514.id;
-        const [insertSelfFb23514, insertOwnerFb23514] = await Promise.all([
-          admin.from('conversation_participants')
-            .insert({ conversation_id: fallbackId23514, user_id: userId,  joined_at: new Date().toISOString() })
-            .select('user_id').maybeSingle(),
-          admin.from('conversation_participants')
-            .insert({ conversation_id: fallbackId23514, user_id: ownerId, joined_at: new Date().toISOString() })
-            .select('user_id').maybeSingle(),
-        ]);
-        const selfFbOk23514 = !insertSelfFb23514.error || insertSelfFb23514.error.code === '23505';
-        if (!selfFbOk23514) {
-          await admin.from('conversations').delete().eq('id', fallbackId23514);
-          return NextResponse.json({ error: 'Impossible d\'ajouter le participant (fallback 23514)' }, { status: 500 });
+        if (existingAfterRace) {
+          return NextResponse.json({ conversationId: existingAfterRace, isNew: false });
         }
-        if (insertOwnerFb23514.error && insertOwnerFb23514.error.code !== '23505') {
-          console.warn('[start-conversation] fallback (23514) owner insert error:', insertOwnerFb23514.error.message);
-        }
-        return NextResponse.json({ conversationId: fallbackId23514, isNew: true });
+      } catch {
+        console.warn('[start-conversation] recherche après conflit indisponible');
       }
-    }
-    // 22P02 = invalid input value for enum related_type
-    // → la valeur relatedType n'existe pas encore dans l'enum PostgreSQL en production.
-    // Solution : exécuter dans Supabase SQL Editor :
-    //   ALTER TYPE related_type ADD VALUE IF NOT EXISTS '<valeur>';
-    if (convError.code === '22P02') {
-      console.error(
-        '[start-conversation] ENUM ERROR — related_type manquant dans l\'enum PG:',
-        relatedType, '| message:', convError.message,
-        '| Solution: ALTER TYPE related_type ADD VALUE IF NOT EXISTS \'' + relatedType + '\''
+      return NextResponse.json(
+        { error: 'Conversation en cours de création, réessayez' },
+        { status: 409 },
       );
-      // Fallback : réessayer avec related_type='general' pour ne pas bloquer l'utilisateur
-      const fallbackPayload: Record<string, unknown> = {
-        subject,
-        related_type: 'general',
-        updated_at: new Date().toISOString(),
-        // related_id volontairement omis : 'general' n'a pas de contexte lié
-      };
-      const { data: fallbackConv, error: fallbackErr } = await admin
-        .from('conversations')
-        .insert(fallbackPayload)
-        .select('id')
-        .single();
-      if (fallbackErr) {
-        console.error('[start-conversation] fallback general error:', fallbackErr.message);
-        return NextResponse.json(
-          { error: `Type de conversation '${relatedType}' non supporté en base — migration requise` },
-          { status: 422 }
-        );
-      }
-      if (fallbackConv?.id) {
-        // Continuer avec la conv fallback (related_type='general')
-        console.warn('[start-conversation] fallback conv créée avec related_type=general, id:', fallbackConv.id);
-        // Remplacer convId par le fallback et continuer normalement
-        const fallbackId = fallbackConv.id;
-        const [insertSelfFb, insertOwnerFb] = await Promise.all([
-          admin.from('conversation_participants')
-            .insert({ conversation_id: fallbackId, user_id: userId,  joined_at: new Date().toISOString() })
-            .select('user_id').maybeSingle(),
-          admin.from('conversation_participants')
-            .insert({ conversation_id: fallbackId, user_id: ownerId, joined_at: new Date().toISOString() })
-            .select('user_id').maybeSingle(),
-        ]);
-        const selfFbOk = !insertSelfFb.error || insertSelfFb.error.code === '23505';
-        if (!selfFbOk) {
-          await admin.from('conversations').delete().eq('id', fallbackId);
-          return NextResponse.json({ error: 'Impossible d\'ajouter le participant (fallback)' }, { status: 500 });
-        }
-        if (insertOwnerFb.error && insertOwnerFb.error.code !== '23505') {
-          console.warn('[start-conversation] fallback owner insert error:', insertOwnerFb.error.message);
-        }
-        return NextResponse.json({ conversationId: fallbackId, isNew: true });
-      }
     }
-    console.error('[start-conversation] create error:', convError.message, '| code:', convError.code);
+    if (convError.code === '23514' || convError.code === '22P02') {
+      console.error('[start-conversation] type non reconnu par la base:', convError.code);
+      return NextResponse.json(
+        { error: 'Ce type de conversation n’est pas encore pris en charge' },
+        { status: 422 },
+      );
+    }
+    console.error('[start-conversation] création refusée:', convError.code);
     return NextResponse.json(
-      { error: convError.message || 'Erreur création conversation' },
-      { status: 500 }
+      { error: 'Impossible de créer la conversation' },
+      { status: 500 },
     );
   }
 
@@ -448,14 +419,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     );
   }
 
-  // Si le destinataire ne peut pas être ajouté → conv créée mais incomplète
+  // Ne jamais annoncer une conversation créée sans destinataire.
   if (!ownerOk) {
-    console.warn('[start-conversation] destinataire non ajouté comme participant',
-      '| convId:', convId, '| ownerId:', ownerId,
-      '| erreur:', insertOwner.error?.message, '| code:', insertOwner.error?.code,
-    );
-    // On ne bloque pas : l'utilisateur courant peut accéder, le destinataire recevra une notif
-    // et pourra être ajouté ultérieurement via un autre mécanisme.
+    console.error('[start-conversation] destinataire non ajouté:', insertOwner.error?.code);
+    await admin.from('conversations').delete().eq('id', convId);
+    return NextResponse.json({ error: 'Impossible d’ajouter le destinataire' }, { status: 500 });
   }
 
   // ── Step 3 : Message initial ────────────────────────────────────────────────
@@ -465,7 +433,9 @@ export async function POST(req: NextRequest): Promise<Response> {
       .insert({ conversation_id: convId, sender_id: userId, content: initialMsg });
 
     if (msgError) {
-      console.warn('[start-conversation] initial message error:', msgError.message);
+      console.error('[start-conversation] premier message non enregistré:', msgError.code);
+      await admin.from('conversations').delete().eq('id', convId);
+      return NextResponse.json({ error: 'Le premier message n’a pas pu être enregistré' }, { status: 500 });
     }
 
     // Notification pour le destinataire

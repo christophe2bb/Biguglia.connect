@@ -58,6 +58,8 @@ function ModerationQueueContent() {
 
   const [items, setItems]             = useState<QueueItem[]>([]);
   const [kpi, setKpi]                 = useState<ModerationKPI | null>(null);
+  const [missingQueueCount, setMissingQueueCount] = useState<number | null>(null);
+  const [reconciling, setReconciling]   = useState(false);
   const [loading, setLoading]         = useState(true);
   const [processing, setProcessing]   = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<QueueItem | null>(null);
@@ -102,6 +104,7 @@ function ModerationQueueContent() {
 
       setItems(results);
       setKpi(data.kpi);
+      setMissingQueueCount(data.missing_queue_count);
       setPage(1); // reset to first page on fresh fetch
     } catch (err) {
       console.error('[moderation queue] fetch error:', err);
@@ -134,7 +137,32 @@ function ModerationQueueContent() {
     setProcessing(null);
   };
 
-  const pendingCount = kpi?.pending ?? 0;
+  const reconcileListings = async () => {
+    if (profile?.role !== 'admin' || reconciling) return;
+    setReconciling(true);
+    try {
+      const res = await adminFetch('/api/admin/moderation/reconcile', {
+        method: 'POST',
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(result.error ?? 'Impossible de récupérer les annonces.');
+      } else {
+        if (result.failed > 0) {
+          toast.error(`${result.failed} annonce(s) n’ont pas pu être récupérées.`);
+        } else {
+          toast.success(`${result.created ?? 0} annonce(s) ajoutée(s) à la modération.`);
+        }
+        await fetchQueue();
+      }
+    } catch {
+      toast.error('Erreur de connexion pendant la récupération.');
+    } finally {
+      setReconciling(false);
+    }
+  };
+
+  const pendingCount = (kpi?.pending ?? 0) + (missingQueueCount ?? 0);
 
   // Pagination (client-side slice of already-filtered server results)
   const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
@@ -188,7 +216,7 @@ function ModerationQueueContent() {
 
       {/* KPI */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8">
-        <KPICard label="En attente"    value={kpi?.pending ?? '—'}    emoji="⏳" color="text-amber-600"   highlight={(kpi?.pending ?? 0) > 0} />
+        <KPICard label="En attente"    value={pendingCount}    emoji="⏳" color="text-amber-600"   highlight={pendingCount > 0} />
         <KPICard label="Haut risque"   value={kpi?.high_risk ?? '—'}  emoji="⚠️" color="text-orange-600"  highlight={(kpi?.high_risk ?? 0) > 0} />
         <KPICard label="Publiées"      value={kpi?.published ?? '—'}  emoji="✅" color="text-emerald-600" />
         <KPICard label="Refusées"      value={kpi?.refused ?? '—'}    emoji="❌" color="text-red-600" />
@@ -200,6 +228,33 @@ function ModerationQueueContent() {
           subtext="objectif < 24h"
         />
       </div>
+
+      {/* Une annonce ne doit jamais devenir invisible pour l'administration
+          parce que son ticket de modération n'a pas été créé. */}
+      {missingQueueCount !== null && missingQueueCount > 0 && (
+        <div className="mb-6 flex flex-wrap items-center gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200">
+          <AlertCircle className="w-5 h-5 text-amber-700 flex-shrink-0" />
+          <div className="flex-1 min-w-[220px]">
+            <p className="text-sm font-semibold text-amber-900">
+              {missingQueueCount} annonce{missingQueueCount > 1 ? 's' : ''} en attente
+              {missingQueueCount > 1 ? ' ne figurent' : ' ne figure'} pas dans la file.
+            </p>
+            <p className="text-xs text-amber-800 mt-1">
+              La récupération prépare une validation manuelle. Aucune annonce ne sera publiée automatiquement.
+            </p>
+          </div>
+          {profile?.role === 'admin' && (
+            <button
+              type="button"
+              disabled={reconciling}
+              onClick={reconcileListings}
+              className="rounded-xl bg-amber-800 px-4 py-2 text-white text-sm font-semibold disabled:opacity-50"
+            >
+              {reconciling ? 'Récupération…' : 'Récupérer les annonces'}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Bannière alertes risque élevé */}
       {(kpi?.high_risk ?? 0) > 0 && (
@@ -261,7 +316,9 @@ function ModerationQueueContent() {
           <h3 className="text-lg font-semibold text-gray-900 mb-1">File vide</h3>
           <p className="text-gray-500 text-sm">
             {filterStatus === 'en_attente_validation'
-              ? 'Aucune publication en attente de validation. ✓'
+              ? missingQueueCount
+                ? 'Des annonces sont à récupérer dans la file. Voir l’alerte ci-dessus.'
+                : 'Aucune publication en attente de validation. ✓'
               : 'Aucun résultat pour ces filtres.'}
           </p>
         </div>

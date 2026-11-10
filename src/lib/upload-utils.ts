@@ -122,9 +122,18 @@ export async function uploadFile(
   let fileToUpload = file;
   if (bucket === 'photos' && file instanceof File) {
     fileToUpload = await compressImage(file);
-    // Adapter le path si l'extension a changé (.jpg après compression)
-    if (fileToUpload !== file && path.match(/\.(png|webp)$/i)) {
-      path = path.replace(/\.[^.]+$/, '.jpg');
+    // Toute conversion JPEG exige que l'extension Storage corresponde aux
+    // octets réellement envoyés (HEIC/HEIF/AVIF inclus).
+    if (fileToUpload !== file && fileToUpload.type === 'image/jpeg') {
+      path = /\.[a-z0-9]+$/i.test(path)
+        ? path.replace(/\.[^.]+$/, '.jpg')
+        : path + '.jpg';
+    }
+    if (fileToUpload === file && ['image/avif', 'image/heic', 'image/heif'].includes(file.type)) {
+      // Un navigateur qui ne sait pas décoder HEIC/AVIF n'a pas converti
+      // la photo. Mieux vaut expliquer l'erreur que publier une photo
+      // incompatible avec les navigateurs des autres habitants.
+      throw new Error('Impossible de convertir cette photo. Exportez-la en JPEG et réessayez.');
     }
   }
 
@@ -184,15 +193,15 @@ export async function uploadFileGetPath(
 }
 
 /** Extensions autorisées pour les photos. */
-const ALLOWED_IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif']);
+const ALLOWED_IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'heic', 'heif']);
 
 /**
  * Valeur à passer à l'attribut `accept` des `<input type="file">`.
  * Limite le sélecteur de fichiers aux seuls formats acceptés par le serveur,
- * empêchant les utilisateurs de sélectionner HEIC, BMP, TIFF, RAW, etc.
- * qui seraient rejetés par la validation magic-bytes côté serveur.
+ * Les photos HEIC/HEIF d'iPhone sont acceptées et converties en JPEG avant
+ * envoi. Les formats réellement non supportés restent exclus.
  */
-export const ACCEPTED_IMAGE_TYPES = 'image/jpeg,image/png,image/webp,image/gif,image/avif';
+export const ACCEPTED_IMAGE_TYPES = 'image/jpeg,image/png,image/webp,image/gif,image/avif,image/heic,image/heif';
 
 /**
  * Taille maximale d'une photo acceptée côté client avant compression (en Mo).

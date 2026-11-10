@@ -11,6 +11,7 @@ import {
 } from '@/lib/equipment';
 import type { UseMaterielDetailReturn } from './_types';
 import { safeStoragePath } from '@/lib/upload-utils';
+import { deletePhotoFiles } from '@/lib/delete-photo-files';
 
 export function useMaterielDetail(initialItem: EquipmentItemFull): UseMaterielDetailReturn {
   const { id } = useParams<{ id: string }>();
@@ -188,7 +189,7 @@ export function useMaterielDetail(initialItem: EquipmentItemFull): UseMaterielDe
     if (photos?.length) {
       for (const photo of photos) {
         const storagePath = safeStoragePath(photo.url, 'photos');
-        if (storagePath) await supabase.storage.from('photos').remove([storagePath]); // nosec
+        if (storagePath) await deletePhotoFiles([storagePath]).catch(() => console.warn('[materiel] nettoyage photo incomplet'));
       }
       await supabase.from('equipment_photos').delete().eq('item_id', item.id);
     }

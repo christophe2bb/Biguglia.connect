@@ -92,7 +92,7 @@ export async function getAdminUser(req: Request): Promise<AdminGuardResult> {
   const adminClient = createAdminClient();
   const { data: profileRow, error } = await adminClient
     .from('profiles')
-    .select('id, role')
+    .select('id, role, status, is_active')
     .eq('id', user.id)
     .single();
 
@@ -112,9 +112,30 @@ export async function getAdminUser(req: Request): Promise<AdminGuardResult> {
     };
   }
 
+  // Un rôle élevé ne doit jamais réactiver un compte suspendu, inactif
+  // ou un profil dont l'identité n'est pas celle de la session vérifiée.
+  if (
+    profileRow.id !== user.id ||
+    profileRow.status !== 'active' ||
+    profileRow.is_active !== true
+  ) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: 'Compte administrateur inactif ou suspendu.' },
+        { status: 403 },
+      ),
+    };
+  }
+
   // ── Étape 3 : vérifier le rôle ────────────────────────────────────────────
   const role = profileRow.role as string;
-  if (!ADMIN_ROLES.includes(role as AdminRole)) {
+  if (
+    profileRow.id !== user.id ||
+    profileRow.status !== 'active' ||
+    profileRow.is_active !== true ||
+    !ADMIN_ROLES.includes(role as AdminRole)
+  ) {
     // Tentative d'accès admin par un non-admin → log Sentry (niveau warning, pas error)
     captureAuthError('admin_access_denied', {
       event:    'admin_access_denied',

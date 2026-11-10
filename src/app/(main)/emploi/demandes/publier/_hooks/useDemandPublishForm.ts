@@ -19,7 +19,9 @@ import {
 } from '@/types/jobs/constants';
 import { INITIAL } from '../_config';
 import type { FormData, Step } from '../_types';
-import { safeDocExt, uploadFile } from '@/lib/upload-utils';
+import { uploadFileGetPath } from '@/lib/upload-utils';
+import { createClient } from '@/lib/supabase/client';
+import toast from 'react-hot-toast';
 
 /* ── Types du hook ────────────────────────────────────────────────────────── */
 export interface UseDemandPublishFormReturn {
@@ -106,14 +108,19 @@ export function useDemandPublishForm(): UseDemandPublishFormReturn {
 
   /* ── Upload CV vers Supabase Storage ─────────────────────────────────────── */
   const uploadCv = async (demandId: string): Promise<string | null> => {
-    if (!form.cv_file) return null;
+    if (!form.cv_file || !profile) return null;
+    if (!/\.pdf$/i.test(form.cv_file.name) || form.cv_file.size > 5 * 1024 * 1024) {
+      toast.error('Votre CV doit être un fichier PDF de 5 Mo maximum.');
+      return null;
+    }
     try {
-      const ext = safeDocExt(form.cv_file.name);
-      const path = `cv/${demandId}.${ext}`;
-      // uploadFile valide les magic bytes côté serveur (rejet PDF/image falsifié)
-      const publicUrl = await uploadFile(form.cv_file, 'job-documents', path, profile?.id);
-      return publicUrl;
-    } catch {
+      // Le bucket "documents" est privé. Ne jamais enregistrer une URL publique.
+      // Le segment demandId est requis par la vérification de propriété serveur.
+      const storagePath = `cv/${demandId}/${Date.now()}.pdf`;
+      return await uploadFileGetPath(form.cv_file, 'documents', storagePath, profile.id);
+    } catch (err) {
+      console.error('[emploi] CV refusé:', err instanceof Error ? err.name : 'unknown');
+      toast.error('Demande publiée, mais impossible de joindre le CV. Réessayez depuis votre profil.');
       return null;
     }
   };
@@ -162,18 +169,26 @@ export function useDemandPublishForm(): UseDemandPublishFormReturn {
       contact_mode:        form.contact_mode,
     });
 
-    setSubmitting(false);
-
     if (!result.success) {
+      setSubmitting(false);
       setServerError(result.error ?? 'Une erreur est survenue.');
       return;
     }
 
-    // Upload CV non-bloquant
-    if (form.cv_file && result.id) {
-      await uploadCv(result.id);
+    // CV privé, rattaché à la demande uniquement après upload vérifié.
+    if (form.cv_file && result.id && profile) {
+      const storagePath = await uploadCv(result.id);
+      if (storagePath) {
+        const { error: cvError } = await createClient().from('job_demands')
+          .update({ cv_url: storagePath }).eq('id', result.id).eq('user_id', profile.id);
+        if (cvError) {
+          console.error('[emploi] sauvegarde CV:', cvError.code);
+          toast.error('Demande créée, mais CV non associé à votre profil.');
+        }
+      }
     }
 
+    setSubmitting(false);
     setPublishedSlug(result.slug ?? null);
     setDone(true);
   };

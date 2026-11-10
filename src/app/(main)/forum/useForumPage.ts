@@ -84,24 +84,10 @@ export function useForumPage(): UseForumPageReturn {
       if (data && data.length > 0) topicList = data as unknown as ForumTopic[];
     } catch { /* ignore */ }
 
-    // Fallback vers forum_posts (schéma v1)
-    if (topicList.length === 0) {
-      let q2 = supabase
-        .from('forum_posts')
-        .select(`*, author:profiles!forum_posts_author_id_fkey(id, full_name, avatar_url, role), category:forum_categories(id, name, icon, slug), photos:forum_topic_photos(url, display_order)`)
-        .order('is_pinned', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(100);
-      if (selectedCategory)   q2 = q2.eq('category_id', selectedCategory);
-      if (searchQuery.trim()) q2 = q2.ilike('title', `%${searchQuery.trim()}%`);
-      const { data: postsData } = await q2;
-      topicList = (postsData || []).map((p: Record<string, unknown>) => ({
-        ...p,
-        status: p.is_closed ? 'verrouille' : 'ouvert',
-        reply_count: 0, reaction_count: 0, last_reply_at: null,
-        is_hot: false, sector_id: null, visibility: 'public', tags: [],
-      } as unknown as ForumTopic));
-    }
+    // Un résultat vide après un filtre est normal. Ne jamais afficher les
+    // anciens forum_posts à la place des sujets demandés : cela renvoyait des
+    // discussions hors secteur et hors catégorie. Les sujets historiques
+    // doivent être repris séparément, avec leurs commentaires, sans effacement.
 
     // ── Filtres client (colonnes absentes de forum_topics) ──────────────────
     // post_type : stocké dans les tags[] au format "type:<valeur>" lors de la création
