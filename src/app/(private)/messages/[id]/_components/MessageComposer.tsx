@@ -64,6 +64,8 @@ export function MessageComposer({
       <div className="flex items-center gap-2 border-t border-gray-100 pt-3">
         {/* Toggle réponses rapides */}
         <button
+          type="button"
+          aria-label="Réponses rapides"
           onClick={() => setShowQuickReplies(v => !v)}
           className={cn(
             'flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors',
@@ -98,6 +100,8 @@ export function MessageComposer({
 
         {/* Bouton envoi */}
         <button
+          type="button"
+          aria-label="Envoyer le message"
           onClick={() => handleSend()}
           disabled={!value.trim() || sending}
           className="w-10 h-10 bg-brand-600 text-white rounded-xl flex items-center justify-center hover:bg-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
