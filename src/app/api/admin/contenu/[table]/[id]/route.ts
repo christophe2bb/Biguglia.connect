@@ -162,6 +162,12 @@ export async function DELETE(req: Request, { params }: RouteParams) {
   const guard = await getAdminUser(req);
   if (!guard.ok) return guard.response;
 
+  // Les modérateurs peuvent masquer ou signaler des contenus ; la suppression
+  // définitive est réservée au rôle administrateur et reste journalisée.
+  if (guard.actor.role !== 'admin') {
+    return NextResponse.json({ error: 'Suppression définitive réservée aux administrateurs.' }, { status: 403 });
+  }
+
   const table = validateTable(rawTable);
   if (!table) {
     return NextResponse.json(
