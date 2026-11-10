@@ -30,6 +30,7 @@ import { EQUIPMENT_LIFECYCLE_SQL } from '@/lib/equipment';
 import { OUTINGS_LIFECYCLE_SQL }   from '@/lib/outings';
 import { EVENT_LIFECYCLE_SQL, EVENT_FIX_SQL } from '@/lib/events';
 import { safeImageExt, uploadFile } from '@/lib/upload-utils';
+import { deletePhotoFiles } from '@/lib/delete-photo-files';
 import { useAuthStore } from '@/lib/auth-store';
 
 // ─── SQL map ─────────────────────────────────────────────────────────────────
@@ -221,7 +222,7 @@ export function useMigration() {
             diag.bucketPublic = diag.testFileUrl.includes('/object/public/');
           }
           // Nettoyage : suppression du fichier de test
-          await supabase.storage.from('photos').remove([testPath]); // nosec: .remove() is a delete op, not upload
+          await deletePhotoFiles([testPath]);
         } catch (upEx: unknown) {
           diag.canUpload = false;
           const upMsg = upEx instanceof Error ? upEx.message : String(upEx);
@@ -248,7 +249,7 @@ export function useMigration() {
     try {
       const publicUrl = await uploadFile(file, 'photos', path, profile?.id);
       // Nettoyage immédiat : supprimer le fichier de test après vérification réussie
-      await supabase.storage.from('photos').remove([path]); // nosec: .remove() is a delete op
+      await deletePhotoFiles([path]);
       alert(`✅ Upload réussi !\n\nURL publique : ${publicUrl}\n\nLe bucket fonctionne correctement.`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
