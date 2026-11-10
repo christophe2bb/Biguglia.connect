@@ -493,6 +493,61 @@ describe('POST /api/messages/start-conversation', () => {
     });
   });
 
+  it('refuse de contacter un tiers au nom d’une demande de devis privée', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const artisanOwner = '00000000-0000-0000-0000-000000000003';
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      service_requests: {
+        data: { id: OBJ_ID, resident_id: USER_B, artisan_id: CONV_ID }, error: null,
+      },
+      artisan_profiles: { data: { id: CONV_ID, user_id: artisanOwner }, error: null },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'service_request', relatedId: OBJ_ID, initialMsg: 'Bonjour',
+    }) as never);
+    expect(res.status).toBe(403);
+    expect(db.from).not.toHaveBeenCalledWith('conversations');
+  });
+
+  it('autorise la création du fil pour les vrais participants du devis', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      service_requests: {
+        data: { id: OBJ_ID, resident_id: USER_B, artisan_id: CONV_ID }, error: null,
+      },
+      artisan_profiles: { data: { id: CONV_ID, user_id: USER_A }, error: null },
+      conversation_participants: { data: [], error: null },
+      conversations: { data: null, error: { code: '23514', message: 'stop after eligibility gate' } },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+    await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'service_request', relatedId: OBJ_ID, initialMsg: 'Bonjour',
+    }) as never);
+    expect(db.from).toHaveBeenCalledWith('conversations');
+  });
+
+  it('refuse d’ouvrir une demande publique vers un autre destinataire que son résident', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      service_requests: {
+        data: { id: OBJ_ID, resident_id: '00000000-0000-0000-0000-000000000003', artisan_id: null }, error: null,
+      },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'service_request', relatedId: OBJ_ID,
+    }) as never);
+    expect(res.status).toBe(403);
+    expect(db.from).not.toHaveBeenCalledWith('conversations');
+  });
+
   it('refuse de contacter un faux propriétaire depuis une fiche artisan', async () => {
     mockGetUserId.mockResolvedValueOnce(USER_A);
     const db = makeDb({

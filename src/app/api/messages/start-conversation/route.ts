@@ -321,6 +321,49 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
   }
 
+  // Une demande de devis privée appartient à son résident et à son artisan.
+  // Refuser un ownerId arbitraire : le client admin contourne les RLS.
+  if (relatedType === 'service_request') {
+    if (!relatedId) {
+      return NextResponse.json({ error: 'Demande de service obligatoire' }, { status: 400 });
+    }
+    const { data: serviceRequest, error: requestError } = await admin
+      .from('service_requests')
+      .select('id, resident_id, artisan_id')
+      .eq('id', relatedId)
+      .maybeSingle();
+    if (requestError) {
+      console.warn('[start-conversation] vérification demande indisponible:', requestError.code);
+      return NextResponse.json({ error: 'Demande momentanément indisponible' }, { status: 503 });
+    }
+    if (!serviceRequest) {
+      return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 });
+    }
+
+    if (!serviceRequest.artisan_id) {
+      // Demande publique : seul le résident propriétaire peut être le destinataire.
+      if (ownerId !== serviceRequest.resident_id) {
+        return NextResponse.json({ error: 'Destinataire de demande invalide' }, { status: 403 });
+      }
+    } else {
+      const { data: artisan, error: artisanError } = await admin
+        .from('artisan_profiles')
+        .select('id, user_id')
+        .eq('id', serviceRequest.artisan_id)
+        .maybeSingle();
+      if (artisanError) {
+        return NextResponse.json({ error: 'Vérification artisan indisponible' }, { status: 503 });
+      }
+      if (!artisan || !artisan.user_id) {
+        return NextResponse.json({ error: 'Artisan de la demande introuvable' }, { status: 404 });
+      }
+      const expected = new Set([serviceRequest.resident_id, artisan.user_id]);
+      if (expected.size !== 2 || !expected.has(userId) || !expected.has(ownerId)) {
+        return NextResponse.json({ error: 'Cette demande ne concerne pas les participants indiqués' }, { status: 403 });
+      }
+    }
+  }
+
   // ── Garde anti-duplication (applicatif) ────────────────────────────────────
   // Couche 1 — garde applicatif. Voir section "ANTI-DUPLICATION" en tête de fichier.
   let existingId: string | null;
