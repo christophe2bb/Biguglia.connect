@@ -123,7 +123,10 @@ function NavCard({ item, badge }: { item: NavItem; badge?: number }) {
 
 export default function AdminNavGrid({ stats, role }: AdminNavGridProps) {
   // Garder le tableau de bord simple et limiter l'affichage des outils sensibles.
-  const adminOnly = new Set(['/admin/messages', '/admin/migration', '/admin/securite', '/admin/logs']);
+  const adminOnly = new Set([
+    '/admin/utilisateurs', '/admin/messages', '/admin/migration',
+    '/admin/securite', '/admin/logs', '/admin/spec',
+  ]);
   const visible = (items: NavItem[]) =>
     role === 'admin' ? items : items.filter(item => !adminOnly.has(item.href));
   const pendingMod = stats?.pending_moderation ?? 0;
