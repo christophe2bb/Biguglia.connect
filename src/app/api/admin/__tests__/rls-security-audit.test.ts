@@ -493,15 +493,17 @@ describe('C. IDOR emploi — vérification ownership', () => {
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
-                maybeSingle: vi.fn().mockResolvedValue({
-                  data: {
-                    user_id:              OWNER_ID,
-                    contact_email:        'owner@example.com',
-                    contact_phone:        null,
-                    contact_instructions: null,
-                    application_mode:     'email',
-                  },
-                  error: null,
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: {
+                      user_id:              OWNER_ID,
+                      contact_email:        'owner@example.com',
+                      contact_phone:        null,
+                      contact_instructions: null,
+                      application_mode:     'email',
+                    },
+                    error: null,
+                  }),
                 }),
               }),
             }),
