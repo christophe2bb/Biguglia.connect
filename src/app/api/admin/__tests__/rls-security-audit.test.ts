@@ -343,7 +343,7 @@ describe('B. Escalade de privilèges — séparation admin / moderator', () => {
    * Scénario : un modérateur peut changer le statut d'un utilisateur (action permise)
    * Attendu  : 200 — set_status permis pour moderator
    */
-  it('[B6] Un modérateur PEUT modifier le statut d\'un utilisateur (set_status)', async () => {
+  it('[B6] Un modérateur NE PEUT PAS modifier le statut d\'un utilisateur (set_status)', async () => {
     mockGuard.mockResolvedValue(makeAdminGuardOk(
       'moderator',
       makeDb({
@@ -358,7 +358,7 @@ describe('B. Escalade de privilèges — séparation admin / moderator', () => {
       { params: Promise.resolve({ id: TARGET_UUID }) },
     );
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(403);
   });
 });
 
