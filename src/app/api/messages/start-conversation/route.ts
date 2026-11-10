@@ -240,14 +240,32 @@ export async function POST(req: NextRequest): Promise<Response> {
   const admin = createAdminClient();
 
   // ── Vérification destinataire ───────────────────────────────────────────────
-  const { data: ownerProfile } = await admin
-    .from('profiles')
-    .select('id')
-    .eq('id', ownerId)
-    .maybeSingle();
-
-  if (!ownerProfile) {
+  const [{ data: ownerProfile, error: ownerError }, { data: senderProfile, error: senderError }] = await Promise.all([
+    admin.from('profiles').select('id, status, is_active').eq('id', ownerId).maybeSingle(),
+    admin.from('profiles').select('id, status, is_active').eq('id', userId).maybeSingle(),
+  ]);
+  if (ownerError || senderError) {
+    return NextResponse.json({ error: 'Vérification des profils indisponible' }, { status: 503 });
+  }
+  if (!senderProfile || senderProfile.status !== 'active' || !senderProfile.is_active) {
+    return NextResponse.json({ error: 'Profil expéditeur inactif ou incomplet' }, { status: 403 });
+  }
+  if (!ownerProfile || ownerProfile.status !== 'active' || !ownerProfile.is_active) {
     return NextResponse.json({ error: 'Destinataire introuvable' }, { status: 404 });
+  }
+
+  // Un blocage, dans un sens comme dans l'autre, interdit les échanges.
+  // Important : service_role contourne les règles RLS de Supabase.
+  const { data: existingBlocks, error: blockError } = await admin
+    .from('user_blocks')
+    .select('id')
+    .or(`and(user_id.eq.${userId},target_user_id.eq.${ownerId}),and(user_id.eq.${ownerId},target_user_id.eq.${userId})`)
+    .limit(1);
+  if (blockError) {
+    return NextResponse.json({ error: 'Vérification des blocages indisponible' }, { status: 503 });
+  }
+  if (existingBlocks?.length) {
+    return NextResponse.json({ error: 'Conversation non autorisée' }, { status: 403 });
   }
 
   // ── Garde anti-duplication (applicatif) ────────────────────────────────────
@@ -331,7 +349,9 @@ export async function POST(req: NextRequest): Promise<Response> {
           return NextResponse.json({ error: 'Impossible d\'ajouter le participant (fallback 23514)' }, { status: 500 });
         }
         if (insertOwnerFb23514.error && insertOwnerFb23514.error.code !== '23505') {
-          console.warn('[start-conversation] fallback (23514) owner insert error:', insertOwnerFb23514.error.message);
+          console.error('[start-conversation] destinataire non ajouté:', insertOwnerFb23514.error.message);
+          await admin.from('conversations').delete().eq('id', fallbackId23514);
+          return NextResponse.json({ error: 'Impossible d’ajouter le destinataire' }, { status: 500 });
         }
         return NextResponse.json({ conversationId: fallbackId23514, isNew: true });
       }
@@ -384,7 +404,9 @@ export async function POST(req: NextRequest): Promise<Response> {
           return NextResponse.json({ error: 'Impossible d\'ajouter le participant (fallback)' }, { status: 500 });
         }
         if (insertOwnerFb.error && insertOwnerFb.error.code !== '23505') {
-          console.warn('[start-conversation] fallback owner insert error:', insertOwnerFb.error.message);
+          console.error('[start-conversation] destinataire non ajouté:', insertOwnerFb.error.message);
+          await admin.from('conversations').delete().eq('id', fallbackId);
+          return NextResponse.json({ error: 'Impossible d’ajouter le destinataire' }, { status: 500 });
         }
         return NextResponse.json({ conversationId: fallbackId, isNew: true });
       }
@@ -448,14 +470,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     );
   }
 
-  // Si le destinataire ne peut pas être ajouté → conv créée mais incomplète
+  // Ne jamais annoncer une conversation créée sans destinataire.
   if (!ownerOk) {
-    console.warn('[start-conversation] destinataire non ajouté comme participant',
-      '| convId:', convId, '| ownerId:', ownerId,
-      '| erreur:', insertOwner.error?.message, '| code:', insertOwner.error?.code,
-    );
-    // On ne bloque pas : l'utilisateur courant peut accéder, le destinataire recevra une notif
-    // et pourra être ajouté ultérieurement via un autre mécanisme.
+    console.error('[start-conversation] destinataire non ajouté:', insertOwner.error?.code);
+    await admin.from('conversations').delete().eq('id', convId);
+    return NextResponse.json({ error: 'Impossible d’ajouter le destinataire' }, { status: 500 });
   }
 
   // ── Step 3 : Message initial ────────────────────────────────────────────────
@@ -465,7 +484,9 @@ export async function POST(req: NextRequest): Promise<Response> {
       .insert({ conversation_id: convId, sender_id: userId, content: initialMsg });
 
     if (msgError) {
-      console.warn('[start-conversation] initial message error:', msgError.message);
+      console.error('[start-conversation] premier message non enregistré:', msgError.code);
+      await admin.from('conversations').delete().eq('id', convId);
+      return NextResponse.json({ error: 'Le premier message n’a pas pu être enregistré' }, { status: 500 });
     }
 
     // Notification pour le destinataire
