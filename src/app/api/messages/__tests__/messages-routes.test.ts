@@ -179,6 +179,23 @@ describe('POST /api/messages/start-conversation', () => {
     expect(json.error).toContain('Destinataire');
   });
 
+  it('refuse une conversation si l’autre membre a bloqué le demandeur', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [{ id: OBJ_ID }], error: null },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'listing', relatedId: OBJ_ID, initialMsg: 'Bonjour',
+    }) as never);
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toContain('non autorisée');
+    expect(db.from).not.toHaveBeenCalledWith('conversations');
+  });
+
   // ── Conv existante (anti-duplication) ─────────────────────────────────────
 
   it('retourne isNew: false si la conversation existe déjà', async () => {
@@ -188,7 +205,7 @@ describe('POST /api/messages/start-conversation', () => {
     const db = {
       from: vi.fn((table: string) => {
         if (table === 'profiles') {
-          return makeAutoChain({ data: { id: USER_B }, error: null });
+          return makeAutoChain({ data: { id: USER_B, status: 'active', is_active: true }, error: null });
         }
         if (table === 'conversation_participants') {
           // Les deux ont CONV_ID
@@ -219,7 +236,7 @@ describe('POST /api/messages/start-conversation', () => {
     const db = {
       from: vi.fn((table: string) => {
         if (table === 'profiles') {
-          return makeAutoChain({ data: { id: USER_B }, error: null });
+          return makeAutoChain({ data: { id: USER_B, status: 'active', is_active: true }, error: null });
         }
         if (table === 'conversation_participants') {
           // Pas de conv partagée
@@ -249,7 +266,7 @@ describe('POST /api/messages/start-conversation', () => {
     const db = {
       from: vi.fn((table: string) => {
         if (table === 'profiles') {
-          return makeAutoChain({ data: { id: USER_B, full_name: 'Bob' }, error: null });
+          return makeAutoChain({ data: { id: USER_B, full_name: 'Bob', status: 'active', is_active: true }, error: null });
         }
         if (table === 'conversation_participants') {
           return makeAutoChain({ data: [], error: null });
