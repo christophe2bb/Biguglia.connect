@@ -134,41 +134,53 @@ function ArtisanDashboardContent() {
   }, [profile, router]);
 
   const updateRequestStatus = async (requestId: string, newStatus: ServiceRequest['status']) => {
+    const previousReq = requests.find(r => r.id === requestId);
+    if (!previousReq || !artisanProfile || previousReq.status === newStatus) return;
     const supabase = createClient();
-    const { error } = await supabase
+    // SELECT après UPDATE : une requête bloquée par les RLS peut modifier
+    // zéro ligne sans retourner d'erreur. Ne jamais afficher un faux succès.
+    const { data: updated, error } = await supabase
       .from('service_requests')
       .update({ status: newStatus })
-      .eq('id', requestId);
+      .eq('id', requestId)
+      .eq('artisan_id', artisanProfile.id)
+      .select('id, status')
+      .maybeSingle();
 
-    if (error) {
-      toast.error('Erreur lors de la mise à jour');
+    if (error || !updated) {
+      toast.error('Statut non enregistré. Vérifiez vos permissions et réessayez.');
       return;
     }
 
     setRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: newStatus } : r));
-
-    // Mettre à jour le compteur Terminées en temps réel
-    if (newStatus === 'completed') {
-      setStats(prev => ({ ...prev, completedRequests: prev.completedRequests + 1 }));
-    }
+    const wasPending = ['submitted', 'viewed'].includes(previousReq.status);
+    const isPending = ['submitted', 'viewed'].includes(newStatus);
+    setStats(prev => ({
+      ...prev,
+      completedRequests: Math.max(0, prev.completedRequests
+        + Number(newStatus === 'completed') - Number(previousReq.status === 'completed')),
+      pendingRequests: Math.max(0, prev.pendingRequests
+        + Number(isPending) - Number(wasPending)),
+    }));
 
     const labels: Record<string, string> = {
       viewed:    'Marquée comme vue',
       replied:   'Marquée comme répondue',
       scheduled: 'Intervention planifiée',
       completed: 'Intervention terminée ✅',
+      cancelled: 'Demande refusée',
     };
     toast.success(labels[newStatus] || 'Statut mis à jour');
 
     // Notifier le résident
-    const req = requests.find(r => r.id === requestId);
+    const req = previousReq;
     if (req) {
       await supabase.from('notifications').insert({
         user_id: req.resident_id,
         type: 'request_update',
         title: '📋 Demande mise à jour',
         message: `Votre demande "${req.title}" est maintenant : ${STATUS_LABELS[newStatus]}`,
-        link: `/artisans/demande/${requestId}`,
+        link: `/demandes/${requestId}`,
       });
     }
 
@@ -319,14 +331,7 @@ function ArtisanDashboardContent() {
           loading={loading}
           pendingCount={stats.pendingRequests}
           onUpdateStatus={updateRequestStatus}
-          onDelete={(id) => {
-            setRequests(prev => prev.filter(r => r.id !== id));
-            setStats(prev => ({
-              ...prev,
-              totalRequests: Math.max(0, prev.totalRequests - 1),
-              pendingRequests: Math.max(0, prev.pendingRequests - 1),
-            }));
-          }}
+          userId={profile.id}
         />
 
         {/* Avis clients — lazy panel */}
