@@ -16,6 +16,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import toast from 'react-hot-toast';
 import { checkEligibility } from './_eligibility';
 import type { RatingData, RatingTargetType } from './_types';
 
@@ -105,7 +106,7 @@ export function useRatingWidget({
     if (!userId || !selectedRating || submitting || !eligible) return;
     setSubmitting(true);
     try {
-      await supabase.from('item_ratings').upsert(
+      const { error } = await supabase.from('item_ratings').upsert(
         {
           target_type: targetType,
           target_id:   targetId,
@@ -116,6 +117,11 @@ export function useRatingWidget({
         },
         { onConflict: 'target_type,target_id,user_id' },
       );
+      if (error) {
+        console.warn('[RatingWidget] enregistrement refusé', error.code);
+        toast.error('Votre avis n’a pas été enregistré. Réessayez.');
+        return;
+      }
       setSubmitted(true);
       setOpen(false);
       await load();
@@ -129,7 +135,7 @@ export function useRatingWidget({
     if (!userId || !eligible || votingPoll || myVote !== null) return;
     setVotingPoll(true);
     try {
-      await supabase.from('item_ratings').upsert(
+      const { error } = await supabase.from('item_ratings').upsert(
         {
           target_type:  targetType,
           target_id:    targetId,
@@ -140,6 +146,11 @@ export function useRatingWidget({
         },
         { onConflict: 'target_type,target_id,user_id' },
       );
+      if (error) {
+        console.warn('[RatingWidget] vote refusé', error.code);
+        toast.error('Le vote n’a pas été enregistré.');
+        return;
+      }
       setMyVote(idx);
       setPollVotes(prev => prev.map((v, i) => (i === idx ? v + 1 : v)));
     } finally {
