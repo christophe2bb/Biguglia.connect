@@ -316,6 +316,44 @@ describe('POST /api/messages/start-conversation', () => {
     expect(json.conversationId).toBe(CONV_ID);
   });
 
+  it('interdit de contacter un tiers au nom d’une annonce qu’il ne possède pas', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      listings: {
+        data: { id: OBJ_ID, user_id: USER_A, status: 'active', moderation_status: 'publie' },
+        error: null,
+      },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'listing', relatedId: OBJ_ID,
+      initialMsg: 'Bonjour',
+    }) as never);
+    expect(res.status).toBe(404);
+    expect(db.from).not.toHaveBeenCalledWith('conversations');
+  });
+
+  it('interdit le contact depuis une annonce encore en modération', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      listings: {
+        data: { id: OBJ_ID, user_id: USER_B, status: 'active', moderation_status: 'en_attente_validation' },
+        error: null,
+      },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'listing', relatedId: OBJ_ID,
+      initialMsg: 'Bonjour',
+    }) as never);
+    expect(res.status).toBe(404);
+    expect(db.from).not.toHaveBeenCalledWith('conversations');
+  });
+
   it('refuse une catégorie de conversation non prise en charge sans créer un fil général trompeur', async () => {
     mockGetUserId.mockResolvedValueOnce(USER_A);
     const insertConversation = vi.fn(() => ({
@@ -332,6 +370,10 @@ describe('POST /api/messages/start-conversation', () => {
         if (table === 'user_blocks' || table === 'conversation_participants') {
           return makeAutoChain({ data: [], error: null });
         }
+        if (table === 'listings') return makeAutoChain({
+          data: { id: OBJ_ID, user_id: USER_B, status: 'active', moderation_status: 'publie' },
+          error: null,
+        });
         if (table === 'conversations') return { insert: insertConversation };
         return makeAutoChain({ data: null, error: null });
       }),
@@ -360,6 +402,10 @@ describe('POST /api/messages/start-conversation', () => {
           error: null,
         });
         if (table === 'user_blocks') return makeAutoChain({ data: [], error: null });
+        if (table === 'listings') return makeAutoChain({
+          data: { id: OBJ_ID, user_id: USER_B, status: 'active', moderation_status: 'publie' },
+          error: null,
+        });
         if (table === 'conversation_participants') return {
           select: () => makeAutoChain({ data: [], error: null }),
           insert: () => ({ select: () => ({
