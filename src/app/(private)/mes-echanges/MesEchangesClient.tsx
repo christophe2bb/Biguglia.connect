@@ -10,6 +10,7 @@ import {
   ShoppingBag, XCircle, Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 
 import { cn, formatRelative } from '@/lib/utils';
 import ProtectedPage from '@/components/providers/ProtectedPage';
@@ -129,15 +130,21 @@ function InteractionCard({ row, userId, onStatusChange, onDelete }: {
     setActing(true);
     try {
       if (newStatus === 'done') {
-        const { error } = await supabase.rpc('confirm_interaction_done', { p_interaction_id: row.id });
-        if (error) {
-          const updateData = isRequester ? { review_requester_done: true } : { review_receiver_done: true };
-          await supabase.from('interactions').update(updateData).eq('id', row.id);
-        }
+        const { data: bothConfirmed, error } = await supabase.rpc('confirm_interaction_done', { p_interaction_id: row.id });
+        if (error) { toast.error('Impossible de confirmer cet échange'); return; }
+        onStatusChange(row.id, bothConfirmed ? 'done' : 'in_progress');
       } else {
-        await supabase.from('interactions').update({ status: newStatus }).eq('id', row.id);
+        const { error } = await supabase.rpc('add_interaction_history', {
+          p_interaction_id: row.id,
+          p_new_status: newStatus,
+          p_user_id: userId,
+          p_note: null,
+        });
+        if (error) { toast.error('Modification refusée ou momentanément indisponible'); return; }
+        onStatusChange(row.id, newStatus);
       }
-      onStatusChange(row.id, newStatus);
+    } catch {
+      toast.error('Erreur réseau — réessayez');
     } finally { setActing(false); }
   };
 
