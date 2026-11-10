@@ -24,6 +24,7 @@ import { TrendingUp, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import type { AdminDashboardStats } from '@/app/api/admin/dashboard/route';
 import { adminFetch } from '@/lib/admin-fetch';
+import { useAuthStore } from '@/lib/auth-store';
 
 import AdminStatsGrid from './_components/AdminStatsGrid';
 import AdminNavGrid   from './_components/AdminNavGrid';
@@ -35,6 +36,7 @@ const AdminArtisansBanner = dynamic(
 );
 
 function AdminContent() {
+  const { profile } = useAuthStore();
   const [stats, setStats]   = useState<AdminDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -76,7 +78,7 @@ function AdminContent() {
       <AdminStatsGrid stats={stats} loading={loading} />
 
       {/* Navigation */}
-      <AdminNavGrid stats={stats} />
+      <AdminNavGrid stats={stats} role={profile?.role === 'admin' ? 'admin' : 'moderator'} />
 
       {/* Bannière artisans — lazy */}
       <AdminArtisansBanner stats={stats} />
