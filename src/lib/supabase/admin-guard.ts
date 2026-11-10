@@ -130,7 +130,12 @@ export async function getAdminUser(req: Request): Promise<AdminGuardResult> {
 
   // ── Étape 3 : vérifier le rôle ────────────────────────────────────────────
   const role = profileRow.role as string;
-  if (!ADMIN_ROLES.includes(role as AdminRole)) {
+  if (
+    profileRow.id !== user.id ||
+    profileRow.status !== 'active' ||
+    profileRow.is_active !== true ||
+    !ADMIN_ROLES.includes(role as AdminRole)
+  ) {
     // Tentative d'accès admin par un non-admin → log Sentry (niveau warning, pas error)
     captureAuthError('admin_access_denied', {
       event:    'admin_access_denied',
