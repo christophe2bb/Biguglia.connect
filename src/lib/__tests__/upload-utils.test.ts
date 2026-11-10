@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { safeImageExt, safeDocExt, safeStoragePath, safeRelativePath } from '../upload-utils';
+import { safeImageExt, safeDocExt, safeStoragePath, safeRelativePath, ACCEPTED_IMAGE_TYPES } from '../upload-utils';
 
 // ─── safeImageExt ──────────────────────────────────────────────────────────────
 describe('safeImageExt', () => {
@@ -17,6 +17,14 @@ describe('safeImageExt', () => {
     expect(safeImageExt('img.webp')).toBe('webp');
     expect(safeImageExt('anim.gif')).toBe('gif');
     expect(safeImageExt('modern.avif')).toBe('avif');
+    expect(safeImageExt('iphone.HEIC')).toBe('heic');
+    expect(safeImageExt('iphone.HEIF')).toBe('heif');
+  });
+
+  it('propose les formats iPhone pour la sélection de photos', () => {
+    expect(ACCEPTED_IMAGE_TYPES).toContain('image/heic');
+    expect(ACCEPTED_IMAGE_TYPES).toContain('image/heif');
+    expect(ACCEPTED_IMAGE_TYPES).toContain('image/avif');
   });
 
   it('normalises extension to lowercase', () => {
