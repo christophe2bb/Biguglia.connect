@@ -110,6 +110,7 @@ export function useGlobalSearch({ initialValue = '', onSearch }: UseGlobalSearch
             .select('id, title, listing_type, price, location')
             .or(buildOrFilter(['title', 'description'], wordPatterns))
             .in('status', ['active', 'reserved'])
+            .eq('moderation_status', 'publie')
             .limit(4),
 
           supabase
