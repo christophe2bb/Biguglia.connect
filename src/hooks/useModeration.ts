@@ -7,7 +7,7 @@
  * Effectue les vérifications pré-publication et soumet à la file de modération.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import toast from 'react-hot-toast';
@@ -94,7 +94,9 @@ export function useModeration(): UseModerationReturn {
 
     try {
       // 1. Vérification limite quotidienne
-      if (opts.sourceTable) {
+      // Ne pas réévaluer la limite APRÈS insertion d'une annonce : elle est
+      // déjà enregistrée et le calcul pourrait alors refuser sa modération.
+      if (opts.sourceTable && opts.contentType !== 'listing') {
         const limitResult = await checkPublicationLimit(
           supabase, profile.id, profile.role,
           opts.sourceTable, opts.authorColumn,
@@ -250,7 +252,7 @@ export function useModerationStatus(
     setLoading(false);
   }, [contentType, contentId, profile]);
 
-  useState(() => { fetch(); });
+  useEffect(() => { void fetch(); }, [fetch]);
 
   return { status, queueId, reason, loading, refresh: fetch };
 }
