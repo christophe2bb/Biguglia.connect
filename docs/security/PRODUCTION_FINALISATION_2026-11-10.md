@@ -35,3 +35,5 @@ Vérifications de lecture seule : 99/99 tables publiques avec RLS, 3 annonces ap
 ## Limites de vérification
 
 Les tests GitHub `tsc`, lint, unitaires et Playwright utilisent des scénarios automatisés ; ils ne prouvent **pas** les droits avec deux jetons Auth de personnes distinctes sur la base de production. Ne pas déclarer une conformité App Store ou une recette métier complète sans ces tests. Ne jamais publier de jetons, données personnelles ou clés de service dans un rapport.
+
+**Déploiement logiciel** : ne supprimer le privilège direct `UPDATE` sur `public.interactions` qu'après que la version de cette PR soit confirmée sur le domaine officiel par `/api/health`. Les fonctions RPC sécurisées disposent déjà du privilège de modification nécessaire.
