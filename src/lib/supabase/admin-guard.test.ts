@@ -47,11 +47,11 @@ const RESIDENT_ID  = 'uuid-res-0003';
 
 // ─── Mock DB builder ──────────────────────────────────────────────────────────
 
-function makeAdminClient(role: string | null, dbError = false) {
+function makeAdminClient(role: string | null, dbError = false, status = 'active', isActive = true, profileId = ADMIN_ID) {
   const single = vi.fn().mockResolvedValue(
     dbError
       ? { data: null, error: { message: 'DB error' } }
-      : { data: role ? { id: ADMIN_ID, role } : null, error: null }
+      : { data: role ? { id: profileId, role, status, is_active: isActive } : null, error: null }
   );
   const eqFn = vi.fn(() => ({ single }));
   const selectFn = vi.fn(() => ({ eq: eqFn }));
@@ -167,7 +167,7 @@ describe('getAdminUser()', () => {
     mockCreateAdminClient.mockReturnValue(
       (() => {
         const single = vi.fn().mockResolvedValue({
-          data: { id: MODERATOR_ID, role: 'moderator' }, error: null,
+          data: { id: MODERATOR_ID, role: 'moderator', status: 'active', is_active: true }, error: null,
         });
         const eqFn = vi.fn(() => ({ single }));
         const selectFn = vi.fn(() => ({ eq: eqFn }));
@@ -194,6 +194,30 @@ describe('getAdminUser()', () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.adminClient).toBeDefined();
+  });
+
+  it('refuse 403 pour un compte administrateur suspendu', async () => {
+    mockGetUserFromRequest.mockResolvedValue({ id: ADMIN_ID });
+    mockCreateAdminClient.mockReturnValue(makeAdminClient('admin', false, 'suspended'));
+    const res = await getAdminUser(makeReq());
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.response.status).toBe(403);
+  });
+
+  it('refuse 403 pour un modérateur désactivé', async () => {
+    mockGetUserFromRequest.mockResolvedValue({ id: MODERATOR_ID });
+    mockCreateAdminClient.mockReturnValue(makeAdminClient('moderator', false, 'active', false, MODERATOR_ID));
+    const res = await getAdminUser(makeReq());
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.response.status).toBe(403);
+  });
+
+  it('refuse un profil d’un autre utilisateur malgré son rôle admin', async () => {
+    mockGetUserFromRequest.mockResolvedValue({ id: ADMIN_ID });
+    mockCreateAdminClient.mockReturnValue(makeAdminClient('admin', false, 'active', true, RESIDENT_ID));
+    const res = await getAdminUser(makeReq());
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.response.status).toBe(403);
   });
 
   // ── Messages d'erreur structurés ──────────────────────────────────────────
