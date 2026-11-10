@@ -148,14 +148,22 @@ export async function PATCH(
       console.error('[conversation PATCH] confirmation RPC:', error.code);
       return NextResponse.json({ error: 'Confirmation temporairement indisponible' }, { status: 503 });
     }
-    if (!exchange || !Array.isArray(exchange.confirmed_by)) {
+    // La RPC n'est pas encore présente dans les types TypeScript générés.
+    // Valider sa structure à l'exécution avant de la transmettre au client.
+    const confirmed = exchange as {
+      exchange_status: 'pending_confirmation' | 'done';
+      confirmed_by: string[];
+      confirmed_at: string | null;
+    } | null;
+    if (!confirmed || !Array.isArray(confirmed.confirmed_by)
+        || !['pending_confirmation', 'done'].includes(confirmed.exchange_status)) {
       return NextResponse.json({ error: 'Réponse de confirmation invalide' }, { status: 503 });
     }
     return NextResponse.json({
       ok: true,
-      exchangeStatus: exchange.exchange_status,
-      confirmedBy: exchange.confirmed_by,
-      confirmedAt: exchange.confirmed_at,
+      exchangeStatus: confirmed.exchange_status,
+      confirmedBy: confirmed.confirmed_by,
+      confirmedAt: confirmed.confirmed_at,
     });
   }
 
