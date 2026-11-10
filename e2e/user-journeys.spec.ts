@@ -147,6 +147,40 @@ test.describe('Journey 6 — /annonces listing page', () => {
   });
 });
 
+// ─── Parcours public réel : Services → Artisans → fiche → Contact ─────────────
+test.describe('Parcours artisan — bouton contact (visiteur)', () => {
+  test('la fiche artisan dirige un visiteur vers la connexion sans crash', async ({ page }) => {
+    // Le catalogue dépend de vraies données Supabase. En CI locale sans
+    // fixture E2E_PUBLIC_ARTISAN_ID, il n'y a parfois aucun artisan :
+    // le test n'est PAS validé et doit rester explicitement ignoré.
+    test.skip(!process.env.E2E_PUBLIC_ARTISAN_ID && process.env.STRICT_E2E !== 'true',
+      'Recette artisan non exécutée : E2E_PUBLIC_ARTISAN_ID / base de test réelle requis.');
+    const response = await page.goto('/artisans', { waitUntil: 'domcontentloaded' });
+    expect(response?.status()).toBe(200);
+
+    // Le catalogue est chargé côté client : attendre la donnée réelle
+    // plutôt que lire immédiatement le HTML SSR avant hydratation.
+    let artisanHref: string | undefined;
+    if (process.env.E2E_PUBLIC_ARTISAN_ID) {
+      artisanHref = `/artisans/${process.env.E2E_PUBLIC_ARTISAN_ID}`;
+    } else {
+      await expect.poll(async () => {
+        artisanHref = await page.locator('a[href^="/artisans/"]').evaluateAll(links =>
+          links.map(link => link.getAttribute('href') || '')
+            .find(href => /^\/artisans\/[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(href))
+        );
+        return Boolean(artisanHref);
+      }, { timeout: 20_000, message: 'Fiche artisan absente après chargement du catalogue' }).toBe(true);
+    }
+
+    await page.goto(artisanHref!, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('link', { name: /envoyer un message/i })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('link', { name: /envoyer un message/i }).click();
+    await expect(page).toHaveURL(/\/connexion(?:\?|$)/, { timeout: 15_000 });
+    await expect(page.getByText('Quelque chose s\'est mal passé')).toHaveCount(0);
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // JOURNEY 7 — Messagerie : bouton "Contacter" et liste conversations
 // ─────────────────────────────────────────────────────────────────────────────

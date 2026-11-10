@@ -39,6 +39,24 @@ export default function PrivateError({ error, reset }: ErrorProps) {
         path:     typeof window !== 'undefined' ? window.location.pathname : 'unknown',
       },
     });
+
+    // Sentry est optionnel sur l'offre gratuite ; enregistrer aussi le
+    // diagnostic côté serveur pour les erreurs d'ouverture de messagerie.
+    // Aucun contenu de conversation, identifiant utilisateur ni stack transmis.
+    const path = window.location.pathname;
+    if (path.startsWith('/messages')) {
+      void fetch('/api/diagnostics/messaging-client-error', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path,
+          name: error.name || 'Error',
+          message: (error.message || '').slice(0, 300),
+          digest: error.digest ?? null,
+        }),
+      }).catch(() => undefined);
+    }
   }, [error]);
 
   return (

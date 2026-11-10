@@ -493,6 +493,59 @@ describe('POST /api/messages/start-conversation', () => {
     });
   });
 
+  it('refuse de contacter un faux propriétaire depuis une fiche artisan', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      artisan_profiles: { data: { id: OBJ_ID, user_id: USER_A }, error: null },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, subject: 'Plombier',
+      relatedType: 'artisan', relatedId: OBJ_ID, initialMsg: 'Bonjour',
+    }) as never);
+    expect(res.status).toBe(404);
+    expect(db.from).not.toHaveBeenCalledWith('conversations');
+  });
+
+  it('ouvre une conversation artisan avec son vrai propriétaire et un premier message', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const insertConv = vi.fn(() => makeAutoChain({ data: { id: CONV_ID }, error: null }));
+    const insertMsg = vi.fn().mockResolvedValue({ data: null, error: null });
+    const db = {
+      from: vi.fn((table: string) => {
+        if (table === 'profiles') {
+          return makeAutoChain({ data: { id: USER_B, status: 'active', is_active: true }, error: null });
+        }
+        if (table === 'artisan_profiles') {
+          return makeAutoChain({ data: { id: OBJ_ID, user_id: USER_B }, error: null });
+        }
+        if (table === 'user_blocks') return makeAutoChain({ data: [], error: null });
+        if (table === 'conversation_participants') return makeAutoChain({ data: [], error: null });
+        if (table === 'conversations') return { insert: insertConv };
+        if (table === 'messages') return { insert: insertMsg };
+        if (table === 'notifications') return { insert: vi.fn().mockResolvedValue({ error: null }) };
+        return makeAutoChain({ data: null, error: null });
+      }),
+    };
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, subject: 'Plombier',
+      relatedType: 'artisan', relatedId: OBJ_ID, initialMsg: 'Bonjour, je vous contacte.',
+    }) as never);
+    expect(res.status).toBe(200);
+    expect((await res.json()).conversationId).toBe(CONV_ID);
+    expect(insertConv).toHaveBeenCalledWith(expect.objectContaining({
+      related_type: 'artisan', related_id: OBJ_ID,
+    }));
+    expect(insertMsg).toHaveBeenCalledWith(expect.objectContaining({
+      sender_id: USER_A, conversation_id: CONV_ID,
+    }));
+  });
+
   // ── Happy path ────────────────────────────────────────────────────────────
 
   it('crée une nouvelle conversation et retourne isNew: true', async () => {
