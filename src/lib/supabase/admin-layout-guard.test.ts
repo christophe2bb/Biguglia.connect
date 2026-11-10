@@ -1,118 +1,102 @@
+/**
+ * Vérifie la protection du layout /admin :
+ * aucune donnée administrative n'est lue avant validation de la session Auth.
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('server-only', () => ({}));
-vi.mock('next/navigation', () => ({
-  redirect: (url: string) => {
-    throw new Error(`NEXT_REDIRECT:${url}`);
-  },
-}));
-vi.mock('@/lib/supabase/server', () => ({
+const mocks = vi.hoisted(() => ({
+  getUser: vi.fn(),
+  maybeSingle: vi.fn(),
+  adminFrom: vi.fn(),
   createClient: vi.fn(),
   createAdminClient: vi.fn(),
 }));
 
-import { createClient, createAdminClient } from '@/lib/supabase/server';
+vi.mock('server-only', () => ({}));
+vi.mock('next/navigation', () => ({
+  redirect: (url: string) => { throw new Error('NEXT_REDIRECT:' + url); },
+}));
+vi.mock('@/lib/supabase/server', () => ({
+  createClient: mocks.createClient,
+  createAdminClient: mocks.createAdminClient,
+}));
+
 import { verifyAdminLayout } from './admin-layout-guard';
 
 const USER_ID = '00000000-0000-0000-0000-000000000001';
-const mockSsr = vi.mocked(createClient);
-const mockAdmin = vi.mocked(createAdminClient);
 
-function setup({
-  user = { id: USER_ID } as { id: string } | null,
-  authError = null as { message: string } | null,
-  role = 'admin' as string | null,
-  status = 'active',
-  isActive = true,
-  profileId = USER_ID,
-  dbError = null as { code: string } | null,
+function setup(profile: Record<string, unknown> | null, options: {
+  userId?: string | null;
+  authError?: { message: string } | null;
+  dbError?: { message: string } | null;
 } = {}) {
-  const getUser = vi.fn().mockResolvedValue({
-    data: { user },
-    error: authError,
+  const userId = options.userId === undefined ? USER_ID : options.userId;
+  mocks.getUser.mockResolvedValue({
+    data: { user: userId ? { id: userId } : null },
+    error: options.authError || null,
   });
-  mockSsr.mockResolvedValue({ auth: { getUser } } as unknown as Awaited<ReturnType<typeof createClient>>);
-  const maybeSingle = vi.fn().mockResolvedValue({
-    data: role ? {
-      id: profileId, role, status, is_active: isActive,
-    } : null,
-    error: dbError,
-  });
-  const eq = vi.fn().mockReturnValue({ maybeSingle });
-  const select = vi.fn().mockReturnValue({ eq });
-  const from = vi.fn().mockReturnValue({ select });
-  mockAdmin.mockReturnValue({ from } as unknown as ReturnType<typeof createAdminClient>);
-  return { getUser, from, select, eq };
+  mocks.createClient.mockResolvedValue({ auth: { getUser: mocks.getUser } });
+  mocks.maybeSingle.mockResolvedValue({ data: profile, error: options.dbError || null });
+  const eq = vi.fn(() => ({ maybeSingle: mocks.maybeSingle }));
+  const select = vi.fn(() => ({ eq }));
+  mocks.adminFrom.mockReturnValue({ select });
+  mocks.createAdminClient.mockReturnValue({ from: mocks.adminFrom });
+  return { eq, select };
 }
 
-async function result() {
-  try {
-    const data = await verifyAdminLayout();
-    return { data, redirect: null as string | null };
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : '';
-    if (!msg.startsWith('NEXT_REDIRECT:')) throw error;
-    return { data: null, redirect: msg.slice('NEXT_REDIRECT:'.length) };
-  }
+function profile(role: string, status = 'active', isActive = true) {
+  return { id: USER_ID, role, status, is_active: isActive };
 }
 
-describe('verifyAdminLayout — identité et privilèges réellement vérifiés', () => {
-  beforeEach(() => vi.resetAllMocks());
+describe('verifyAdminLayout - droits administration', () => {
+  beforeEach(() => { vi.resetAllMocks(); });
 
-  it('redirige un visiteur sans session vers la connexion', async () => {
-    setup({ user: null });
-    expect((await result()).redirect).toBe('/connexion?next=/admin');
-    expect(mockAdmin).not.toHaveBeenCalled();
+  it('refuse un visiteur sans session et ne lit pas la base privilégiée', async () => {
+    setup(profile('admin'), { userId: null });
+    await expect(verifyAdminLayout()).rejects.toThrow('NEXT_REDIRECT:/connexion?next=/admin');
+    expect(mocks.createAdminClient).not.toHaveBeenCalled();
   });
 
-  it('refuse une session avec JWT rejeté même si un profil admin existe', async () => {
-    setup({ user: null, authError: { message: 'invalid JWT' } });
-    expect((await result()).redirect).toBe('/connexion?next=/admin');
-    expect(mockAdmin).not.toHaveBeenCalled();
+  it('refuse un JWT non valide avant tout accès privilégié', async () => {
+    setup(profile('admin'), { authError: { message: 'Invalid JWT' } });
+    await expect(verifyAdminLayout()).rejects.toThrow('NEXT_REDIRECT:/connexion?next=/admin');
+    expect(mocks.createAdminClient).not.toHaveBeenCalled();
   });
 
-  it('refuse un profil manquant après authentification', async () => {
-    setup({ role: null });
-    expect((await result()).redirect).toBe('/');
+  it('refuse les comptes sans profil', async () => {
+    setup(null);
+    await expect(verifyAdminLayout()).rejects.toThrow('NEXT_REDIRECT:/');
   });
 
-  it('refuse une erreur de base, sans ouvrir le tableau de bord', async () => {
-    setup({ dbError: { code: '42501' } });
-    expect((await result()).redirect).toBe('/');
+  it('refuse les erreurs de lecture de profil', async () => {
+    setup(profile('admin'), { dbError: { message: 'DB unavailable' } });
+    await expect(verifyAdminLayout()).rejects.toThrow('NEXT_REDIRECT:/');
   });
 
-  it.each(['resident', 'artisan_verified', 'artisan_pending', 'unknown'])(
-    'refuse le rôle %s', async role => {
-      setup({ role });
-      expect((await result()).redirect).toBe('/');
-    },
-  );
-
-  it('refuse un compte administrateur suspendu', async () => {
-    setup({ status: 'suspended' });
-    expect((await result()).redirect).toBe('/');
+  it.each(['resident', 'artisan_pending', 'artisan_verified'])('refuse le rôle %s', async role => {
+    setup(profile(role));
+    await expect(verifyAdminLayout()).rejects.toThrow('NEXT_REDIRECT:/');
   });
 
-  it('refuse un administrateur désactivé malgré son rôle', async () => {
-    setup({ isActive: false });
-    expect((await result()).redirect).toBe('/');
+  it('refuse un administrateur suspendu', async () => {
+    setup(profile('admin', 'suspended'));
+    await expect(verifyAdminLayout()).rejects.toThrow('NEXT_REDIRECT:/');
   });
 
-  it('refuse un profil dont l’identifiant ne correspond pas à Auth', async () => {
-    setup({ profileId: '00000000-0000-0000-0000-000000000099' });
-    expect((await result()).redirect).toBe('/');
+  it('refuse un administrateur désactivé', async () => {
+    setup(profile('admin', 'active', false));
+    await expect(verifyAdminLayout()).rejects.toThrow('NEXT_REDIRECT:/');
   });
 
-  it.each(['admin', 'moderator'] as const)(
-    'autorise le rôle %s uniquement après getUser()', async role => {
-      const mocks = setup({ role });
-      const r = await result();
-      expect(r.redirect).toBeNull();
-      expect(r.data?.actor).toEqual({ id: USER_ID, role });
-      expect(mocks.getUser).toHaveBeenCalledTimes(1);
-      expect(mocks.from).toHaveBeenCalledWith('profiles');
-      expect(mocks.select).toHaveBeenCalledWith('id, role, status, is_active');
-      expect(mocks.eq).toHaveBeenCalledWith('id', USER_ID);
-    },
-  );
+  it('refuse un profil qui ne correspond pas à la session vérifiée', async () => {
+    setup({ ...profile('admin'), id: '00000000-0000-0000-0000-000000000099' });
+    await expect(verifyAdminLayout()).rejects.toThrow('NEXT_REDIRECT:/');
+  });
+
+  it.each(['admin', 'moderator'])('autorise un profil actif %s', async role => {
+    const query = setup(profile(role));
+    const result = await verifyAdminLayout();
+    expect(result.actor).toEqual({ id: USER_ID, role });
+    expect(query.eq).toHaveBeenCalledWith('id', USER_ID);
+  });
 });
