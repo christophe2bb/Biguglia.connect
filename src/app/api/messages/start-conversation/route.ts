@@ -275,6 +275,32 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ error: 'Conversation non autorisée' }, { status: 403 });
   }
 
+  // Une conversation liée à une annonce ne doit pas être associée à un
+  // utilisateur arbitraire ou à une annonce encore en modération.
+  // Cette validation s'effectue côté serveur : les valeurs client ne suffisent pas.
+  if (relatedType === 'listing') {
+    if (!relatedId) {
+      return NextResponse.json({ error: 'Annonce obligatoire' }, { status: 400 });
+    }
+    const { data: linkedListing, error: listingError } = await admin
+      .from('listings')
+      .select('id, user_id, status, moderation_status')
+      .eq('id', relatedId)
+      .maybeSingle();
+    if (listingError) {
+      console.error('[start-conversation] vérification annonce:', listingError.code);
+      return NextResponse.json({ error: 'Annonce momentanément indisponible' }, { status: 503 });
+    }
+    if (
+      !linkedListing ||
+      linkedListing.user_id !== ownerId ||
+      linkedListing.moderation_status !== 'publie' ||
+      !['active', 'reserved'].includes(linkedListing.status)
+    ) {
+      return NextResponse.json({ error: 'Annonce introuvable ou indisponible' }, { status: 404 });
+    }
+  }
+
   // ── Garde anti-duplication (applicatif) ────────────────────────────────────
   // Couche 1 — garde applicatif. Voir section "ANTI-DUPLICATION" en tête de fichier.
   let existingId: string | null;
