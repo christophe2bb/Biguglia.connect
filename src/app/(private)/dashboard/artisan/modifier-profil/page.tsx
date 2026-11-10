@@ -19,7 +19,7 @@ import Textarea from '@/components/ui/Textarea';
 import Badge from '@/components/ui/Badge';
 import ProtectedPage from '@/components/providers/ProtectedPage';
 import toast from 'react-hot-toast';
-import { safeImageExt, uploadFile } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile, isAcceptedImageType, MAX_PHOTO_MB } from '@/lib/upload-utils';
 
 // ─── Carte de visite prévisualisation ──────────────────────────────────────────
 function BusinessCard({
@@ -195,7 +195,8 @@ function ModifierProfilContent() {
 
   const handleAvatarChange = (file: File | null) => {
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { toast.error('Photo trop lourde (max 5 Mo)'); return; }
+    if (!isAcceptedImageType(file)) { toast.error('Format photo non accepté'); return; }
+    if (file.size > MAX_PHOTO_MB * 1024 * 1024) { toast.error(`Photo trop lourde (max ${MAX_PHOTO_MB} Mo avant compression)`); return; }
     if (avatarPreview && !artisanProfile?.avatar_url) URL.revokeObjectURL(avatarPreview);
     setAvatarFile(file);
     setAvatarPreview(URL.createObjectURL(file));
@@ -203,7 +204,9 @@ function ModifierProfilContent() {
 
   const handleGalleryAdd = (files: FileList | null) => {
     if (!files) return;
-    const arr = Array.from(files).filter(f => f.type.startsWith('image/'));
+    const arr = Array.from(files);
+    if (arr.some(f => !isAcceptedImageType(f))) { toast.error('Format photo non accepté'); return; }
+    if (arr.some(f => f.size > MAX_PHOTO_MB * 1024 * 1024)) { toast.error(`Photo trop lourde (max ${MAX_PHOTO_MB} Mo)`); return; }
     const total = existingPhotos.length + newPhotos.length + arr.length;
     if (total > 8) { toast.error('Maximum 8 photos de galerie'); return; }
     const urls = arr.map(f => URL.createObjectURL(f));
@@ -224,26 +227,29 @@ function ModifierProfilContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile || !artisanProfile) return;
-    if (!form.business_name || !form.trade_category_id || !form.description) {
+    if (saving || !profile || !artisanProfile) return;
+    if (!form.business_name.trim() || !form.trade_category_id || !form.description.trim()) {
       toast.error('Nom, métier et présentation sont obligatoires');
       return;
     }
 
     setSaving(true);
     const supabase = createClient();
+    const failures: string[] = [];
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Session expirée');
       // 1. Upload photo principale si changée
       let avatarUrl = artisanProfile.avatar_url as string | null;
       if (avatarFile) {
         const ext = safeImageExt(avatarFile.name);
         const path = `artisans/${artisanProfile.id}/cover-${Date.now()}.${ext}`;  // nosec CWE-22
-        avatarUrl = await uploadFile(avatarFile, 'photos', path, profile.id);
+        avatarUrl = await uploadFile(avatarFile, 'photos', path, profile.id, session.access_token);
       }
 
       // 2. Mettre à jour artisan_profiles
-      const { error: updateError } = await supabase
+      const { data: savedProfile, error: updateError } = await supabase
         .from('artisan_profiles')
         .update({
           business_name: form.business_name,
@@ -256,21 +262,27 @@ function ModifierProfilContent() {
           artisan_type: form.artisan_type,
           avatar_url: avatarUrl,
         })
-        .eq('id', artisanProfile.id);
+        .eq('id', artisanProfile.id)
+        .eq('user_id', profile.id)
+        .select('id')
+        .maybeSingle();
 
-      if (updateError) throw updateError;
+      if (updateError || !savedProfile) throw updateError || new Error('Aucune modification enregistrée');
 
-      // 3. Mettre à jour le téléphone dans profiles
-      if (form.phone) {
-        await supabase
-          .from('profiles')
-          .update({ phone: form.phone })
-          .eq('id', profile.id);
-      }
+      // 3. Mettre à jour le téléphone, y compris si le champ est effacé.
+      const { data: savedContact, error: phoneError } = await supabase
+        .from('profiles')
+        .update({ phone: form.phone.trim() || null })
+        .eq('id', profile.id)
+        .select('id')
+        .maybeSingle();
+      if (phoneError || !savedContact) failures.push('téléphone');
 
       // 4. Supprimer les photos de galerie retirées
       if (deletedPhotoIds.length > 0) {
-        await supabase.from('artisan_photos').delete().in('id', deletedPhotoIds);
+        const { error: removeError } = await supabase.from('artisan_photos')
+          .delete().in('id', deletedPhotoIds).eq('artisan_id', artisanProfile.id);
+        if (removeError) failures.push('suppression de photos');
       }
 
       // 5. Upload les nouvelles photos de galerie
@@ -280,18 +292,21 @@ function ModifierProfilContent() {
         const ext = safeImageExt(photo.name);  // nosec CWE-22
         const path = `artisans/${artisanProfile.id}/gallery-${offset + i}-${Date.now()}.${ext}`;  // nosec CWE-22
         try {
-          const url = await uploadFile(photo, 'photos', path, profile.id);
-          await supabase.from('artisan_photos').insert({
+          const url = await uploadFile(photo, 'photos', path, profile.id, session.access_token);
+          const { error: newPhotoError } = await supabase.from('artisan_photos').insert({
             artisan_id: artisanProfile.id,
             url,
             display_order: offset + i,
           });
+          if (newPhotoError) throw newPhotoError;
         } catch (err) {
           console.error('Photo upload error:', err);
+          failures.push(`photo ${i + 1}`);
         }
       }
 
-      toast.success('Profil mis à jour avec succès !', { duration: 4000 });
+      if (failures.length === 0) toast.success('Profil mis à jour avec succès !', { duration: 4000 });
+      else toast.error(`Profil enregistré, mais éléments non finalisés : ${failures.join(', ')}`, { duration: 7000 });
       router.push('/dashboard/artisan');
     } catch (err) {
       console.error('Save error:', err);
