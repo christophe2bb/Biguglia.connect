@@ -147,6 +147,26 @@ test.describe('Journey 6 — /annonces listing page', () => {
   });
 });
 
+// ─── Parcours public réel : Services → Artisans → fiche → Contact ─────────────
+test.describe('Parcours artisan — bouton contact (visiteur)', () => {
+  test('la fiche artisan dirige un visiteur vers la connexion sans crash', async ({ page }) => {
+    const response = await page.goto('/artisans', { waitUntil: 'domcontentloaded' });
+    expect(response?.status()).toBe(200);
+
+    const artisanHref = await page.locator('a[href^="/artisans/"]').evaluateAll(links =>
+      links.map(link => link.getAttribute('href') || '')
+        .find(href => /^\/artisans\/[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(href))
+    );
+    expect(artisanHref, 'Le catalogue doit contenir une fiche artisan de test accessible').toBeTruthy();
+
+    await page.goto(artisanHref!, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('link', { name: /envoyer un message/i })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('link', { name: /envoyer un message/i }).click();
+    await expect(page).toHaveURL(/\/connexion(?:\?|$)/, { timeout: 15_000 });
+    await expect(page.getByText('Quelque chose s\'est mal passé')).toHaveCount(0);
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // JOURNEY 7 — Messagerie : bouton "Contacter" et liste conversations
 // ─────────────────────────────────────────────────────────────────────────────
