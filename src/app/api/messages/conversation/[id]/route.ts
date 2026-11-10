@@ -132,12 +132,31 @@ export async function PATCH(
     catch (e) { return NextResponse.json({ error: e instanceof Error ? e.message : 'Erreur DB' }, { status: 500 }); }
     if (!part) return FORBIDDEN;
 
-    const { error } = await admin
-      .from('conversations')
-      .update({ exchange_status: body.exchangeStatus, exchange_confirmed_by: userId, exchange_confirmed_at: new Date().toISOString() })
-      .eq('id', conversationId);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true });
+    // Le client peut demander une confirmation, mais il ne choisit pas le
+    // statut final. La RPC verrouille la ligne et ajoute l'UUID dans un uuid[]
+    // avant de marquer l'échange terminé après les DEUX confirmations.
+    const { data: exchange, error } = await admin
+      .rpc('confirm_conversation_exchange', {
+        p_conversation_id: conversationId,
+        p_actor_id: userId,
+      })
+      .single();
+    if (error) {
+      if (error.code === '42501') return FORBIDDEN;
+      if (error.code === 'P0002') return NextResponse.json({ error: 'Conversation introuvable' }, { status: 404 });
+      if (error.code === '23514') return NextResponse.json({ error: 'Deux participants requis' }, { status: 409 });
+      console.error('[conversation PATCH] confirmation RPC:', error.code);
+      return NextResponse.json({ error: 'Confirmation temporairement indisponible' }, { status: 503 });
+    }
+    if (!exchange || !Array.isArray(exchange.confirmed_by)) {
+      return NextResponse.json({ error: 'Réponse de confirmation invalide' }, { status: 503 });
+    }
+    return NextResponse.json({
+      ok: true,
+      exchangeStatus: exchange.exchange_status,
+      confirmedBy: exchange.confirmed_by,
+      confirmedAt: exchange.confirmed_at,
+    });
   }
 
   return NextResponse.json({ error: 'Action inconnue' }, { status: 400 });
