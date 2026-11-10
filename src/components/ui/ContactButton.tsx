@@ -100,6 +100,8 @@ export default function ContactButton({
   const supabase = createClient();
   const conf = SOURCE_CONFIG[sourceType];
   const authPhase = useAuthStore((s) => s.phase);
+  const clientUserId = useAuthStore((s) => s.userId);
+  const effectiveUserId = authPhase === 'authenticated' ? (clientUserId ?? userId) : null;
 
   // ── Tailles ───────────────────────────────────────────────────────────────────
   const sizeClasses = {
@@ -154,10 +156,11 @@ export default function ContactButton({
   }
 
   // Non connecté → lien vers connexion
-  if (!userId) {
+  if (!effectiveUserId) {
+    const returnTo = sourceType === 'artisan' && sourceId ? `/artisans/${sourceId}` : '/';
     return (
       <Link
-        href="/connexion"
+        href={`/connexion?next=${encodeURIComponent(returnTo)}`}
         className={cn(
           'inline-flex items-center font-bold rounded-xl transition-colors',
           sizeClasses, variantClasses, className
@@ -171,7 +174,7 @@ export default function ContactButton({
   }
 
   // Pas de contact avec soi-même
-  if (userId === ownerId) return null;
+  if (effectiveUserId === ownerId) return null;
 
   // ── Déduire le vrai related_type à utiliser ───────────────────────────────────
   // 'artisan' est désormais dans l'enum related_type → on l'envoie tel quel

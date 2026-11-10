@@ -42,6 +42,7 @@ async function fetchArtisan(id: string) {
         gallery:artisan_photos(*)
       `)
       .eq('id', id)
+      .eq('is_verified', true)
       .single();
 
     if (error || !data) return null;
@@ -157,7 +158,7 @@ export default async function ArtisanDetailPage({ params }: Props) {
                     {docCount > 0 && (
                       <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
                         <FileCheck className="w-3.5 h-3.5" />
-                        {docCount} document{docCount > 1 ? 's' : ''} vérifié{docCount > 1 ? 's' : ''}
+                        {docCount} document{docCount > 1 ? 's' : ''} fourni{docCount > 1 ? 's' : ''}
                       </div>
                     )}
                   </div>
@@ -263,10 +264,10 @@ export default async function ArtisanDetailPage({ params }: Props) {
           <div className="bg-brand-50 rounded-2xl p-5">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-sm font-medium text-brand-800">Artisan disponible</span>
+              <span className="text-sm font-medium text-brand-800">Contacter cet artisan</span>
             </div>
             <p className="text-xs text-brand-600">
-              Envoyez votre demande et attendez sa réponse directement dans vos messages.
+              Contactez cet artisan pour connaître ses disponibilités et ses délais d’intervention.
             </p>
           </div>
 
@@ -291,7 +292,7 @@ export default async function ArtisanDetailPage({ params }: Props) {
                   {docCount > 0 && (
                     <li className="flex items-center gap-2">
                       <FileCheck className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                      Documents vérifiés par l&apos;admin
+                      Documents fournis par l’artisan
                     </li>
                   )}
                   <li className="flex items-center gap-2">

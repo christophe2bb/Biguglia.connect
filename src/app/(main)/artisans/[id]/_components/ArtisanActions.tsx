@@ -29,6 +29,7 @@ export default function ArtisanActions({ artisan, variant }: Props) {
   const router = useRouter();
   const { profile } = useAuthStore();
   const [isFavorite,   setIsFavorite]   = useState(false);
+  const [favoriteBusy, setFavoriteBusy] = useState(false);
   const [activePhoto,  setActivePhoto]  = useState(0);
 
   const gallery = artisan.gallery as Array<{ id: string; url: string }> | undefined;
@@ -50,22 +51,24 @@ export default function ArtisanActions({ artisan, variant }: Props) {
   // ── Toggle favorite ────────────────────────────────────────────────────────
   const toggleFavorite = async () => {
     if (!profile) { router.push('/connexion'); return; }
-    const supabase = createClient();
-    if (isFavorite) {
-      await supabase.from('user_favorites').delete()
-        .eq('user_id', profile.id)
-        .eq('target_id', artisan.id)
-        .eq('target_type', 'artisan');
-      setIsFavorite(false);
-      toast.success('Retiré des favoris');
-    } else {
-      await supabase.from('user_favorites').insert({
-        user_id: profile.id,
-        target_id: artisan.id,
-        target_type: 'artisan',
-      });
-      setIsFavorite(true);
-      toast.success('Ajouté aux favoris');
+    if (favoriteBusy) return;
+    setFavoriteBusy(true);
+    try {
+      const supabase = createClient();
+      const query = supabase.from('user_favorites');
+      const { error } = isFavorite
+        ? await query.delete().eq('user_id', profile.id).eq('target_id', artisan.id).eq('target_type', 'artisan')
+        : await query.insert({ user_id: profile.id, target_id: artisan.id, target_type: 'artisan' });
+      if (error) {
+        toast.error('Impossible de modifier les favoris. Réessayez.');
+        return;
+      }
+      setIsFavorite(!isFavorite);
+      toast.success(isFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris');
+    } catch {
+      toast.error('Erreur réseau : les favoris n’ont pas été modifiés.');
+    } finally {
+      setFavoriteBusy(false);
     }
   };
 
@@ -73,6 +76,8 @@ export default function ArtisanActions({ artisan, variant }: Props) {
   if (variant === 'favorite') {
     return (
       <button
+        type="button"
+        disabled={favoriteBusy}
         onClick={toggleFavorite}
         aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
         aria-pressed={isFavorite}
@@ -106,6 +111,8 @@ export default function ArtisanActions({ artisan, variant }: Props) {
             {gallery.map((photo, i) => (
               <button
                 key={photo.id}
+                type="button"
+                aria-label={`Afficher la photo ${i + 1} sur ${gallery.length}`}
                 onClick={() => setActivePhoto(i)}
                 className={`relative flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-colors ${
                   i === activePhoto ? 'border-brand-500' : 'border-transparent'
