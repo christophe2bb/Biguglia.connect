@@ -14,7 +14,7 @@ interface MessageComposerProps {
   relatedType: string | null;
   sending: boolean;
   inputRef: React.RefObject<HTMLInputElement>;
-  onSend: (text: string) => void;
+  onSend: (text: string) => Promise<boolean>;
 }
 
 export function MessageComposer({
@@ -23,12 +23,15 @@ export function MessageComposer({
   const [value, setValue] = useState('');
   const [showQuickReplies, setShowQuickReplies] = useState(false);
 
-  const handleSend = (text?: string) => {
+  const handleSend = async (text?: string) => {
     const content = (text ?? value).trim();
     if (!content || sending) return;
-    if (!text) setValue('');
-    setShowQuickReplies(false);
-    onSend(content);
+    // N'effacer le texte qu'après la confirmation réelle du serveur.
+    const sent = await onSend(content).catch(() => false);
+    if (sent) {
+      if (!text) setValue('');
+      setShowQuickReplies(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

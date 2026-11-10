@@ -70,7 +70,7 @@
  * ## Paramètres FormData
  *
  *   file     : Blob/File — le fichier à uploader
- *   bucket   : string   — "photos" | "job-documents" | "documents"
+ *   bucket   : string   — "photos" | "documents" (les anciens CV publics sont désactivés)
  *   path     : string   — chemin de destination dans le bucket
  *                         (ex. "userId/1234567890.jpg")
  *
@@ -99,14 +99,13 @@ export const dynamic = 'force-dynamic';
 /** Taille maximale par bucket */
 const MAX_SIZE_BY_BUCKET: Record<string, number> = {
   'photos':        5  * 1024 * 1024, // 5 MB
-  'job-documents': 10 * 1024 * 1024, // 10 MB
   'documents':     10 * 1024 * 1024, // 10 MB — bucket privé artisans
 };
 /** Fallback si bucket non listé */
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
 
 /** Buckets autorisés */
-const ALLOWED_BUCKETS = new Set(['photos', 'job-documents', 'documents']);
+const ALLOWED_BUCKETS = new Set(['photos', 'documents']);
 
 /**
  * Types MIME réels autorisés (vérifiés par magic bytes, pas par file.type).
@@ -130,7 +129,6 @@ const BUCKET_ALLOWED_TYPES: Record<string, Set<string>> = {
   // Ne pas accepter AVIF tant que le bucket ne l'autorise pas. Ne jamais
   // déguiser des octets AVIF/HEIC en JPEG sans conversion réelle.
   'photos':        new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif']),
-  'job-documents': new Set(['application/pdf', 'image/jpeg', 'image/png']),
   'documents':     new Set(['application/pdf', 'image/jpeg', 'image/png']),
 };
 

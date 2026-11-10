@@ -546,11 +546,11 @@ describe('POST /api/upload', () => {
     expect(body.error).toContain('"photos"');
   });
 
-  it('accepte un PDF dans le bucket job-documents', async () => {
+  it('refuse un PDF dans le bucket hérité job-documents (ancien stockage public)', async () => {
     const { POST } = await import('../route');
-    mockUpload.mockResolvedValue({ data: { path: `${TEST_USER_ID}/cv.pdf` }, error: null });
     const res = await POST(makeRequest(pdfBuffer(), 'job-documents', `${TEST_USER_ID}/cv.pdf`, 'cv.pdf'));
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(400);
+    expect(mockUpload).not.toHaveBeenCalled();
   });
 
   // ── ⑦ Erreur Supabase Storage ─────────────────────────────────────────────
