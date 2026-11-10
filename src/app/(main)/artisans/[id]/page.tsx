@@ -19,7 +19,6 @@ import {
 import { createClient } from '@/lib/supabase/server';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
-import Button from '@/components/ui/Button';
 import ContactButton from '@/components/ui/ContactButton';
 import RatingWidget from '@/components/ui/RatingWidget';
 import ArtisanActions from './_components/ArtisanActions';
@@ -242,11 +241,12 @@ export default async function ArtisanDetailPage({ params }: Props) {
               className="w-full justify-center"
               variant="primary"
             />
-            <Link href={`/artisans/demande?artisan=${artisan.id}`}>
-              <Button variant="outline" className="w-full mt-2">
-                <Calendar className="w-4 h-4" />
-                Demander un devis
-              </Button>
+            <Link
+              href={`/artisans/demande?artisan=${artisan.id}`}
+              className="inline-flex w-full mt-2 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors"
+            >
+              <Calendar className="w-4 h-4" aria-hidden="true" />
+              Demander un devis
             </Link>
             {profileData?.phone && (
               <a
