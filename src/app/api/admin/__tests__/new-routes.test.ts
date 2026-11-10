@@ -68,17 +68,18 @@ function makeReport(id: string, status = 'pending') {
 // Helper count mock (for SELECT with count: exact, head: true)
 function makeCountDb(counts: Record<string, number>) {
   const from = vi.fn((table: string) => {
-    const tableCount = counts[table] ?? 0;
-    const chain: Record<string, unknown> = {};
-    const countResult = Promise.resolve({ count: tableCount, error: null });
-    chain.select = vi.fn().mockReturnValue({
-      ...chain,
-      neq: vi.fn().mockReturnValue({ ...chain, then: (r: (v: unknown) => unknown) => countResult.then(r), catch: (r: (e: unknown) => unknown) => countResult.catch(r) }),
-      eq:  vi.fn().mockReturnValue({ ...chain, then: (r: (v: unknown) => unknown) => countResult.then(r), catch: (r: (e: unknown) => unknown) => countResult.catch(r) }),
-      then: (r: (v: unknown) => unknown) => countResult.then(r),
-      catch: (r: (e: unknown) => unknown) => countResult.catch(r),
-    });
-    return chain;
+    const countResult = Promise.resolve({ count: counts[table] ?? 0, error: null });
+    // Retourne un vrai builder chaînable : .eq().eq() est utilisé pour
+    // compter les annonces déjà placées dans la file de modération.
+    const query = {
+      eq: vi.fn(),
+      neq: vi.fn(),
+      then: (resolve: (value: { count: number; error: null }) => unknown) => countResult.then(resolve),
+      catch: (reject: (error: unknown) => unknown) => countResult.catch(reject),
+    };
+    query.eq.mockReturnValue(query);
+    query.neq.mockReturnValue(query);
+    return { select: vi.fn().mockReturnValue(query) };
   });
   return { from };
 }
