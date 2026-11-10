@@ -92,20 +92,32 @@ function ArtisanDashboardContent() {
         .select('id, status')
         .eq('artisan_id', ap.id);
 
-      // Avis reçus — système trust : target_user_id = profile.id de l'artisan
-      const { data: revs } = await supabase
-        .from('reviews')
-        .select('id, rating, comment, created_at, source_type, author:profiles!reviews_author_id_fkey(full_name, avatar_url)')
-        .eq('target_user_id', profile.id)
-        .eq('moderation_status', 'visible')
-        .order('created_at', { ascending: false })
-        .limit(5);
+      // Les avis visibles dans la fiche artisan sont enregistrés dans item_ratings.
+      // Les afficher aussi dans cet espace, plutôt que lire l'ancien tableau reviews.
+      const [{ data: revs, error: reviewsError }, { data: ratingRows, error: ratingStatsError }] = await Promise.all([
+        supabase
+          .from('item_ratings')
+          .select('id, rating, comment, created_at, reviewer:profiles!item_ratings_user_id_fkey(full_name, avatar_url)')
+          .eq('target_type', 'artisan')
+          .eq('target_id', ap.id)
+          .gte('rating', 1)
+          .order('created_at', { ascending: false })
+          .limit(5),
+        supabase
+          .from('item_ratings')
+          .select('rating')
+          .eq('target_type', 'artisan')
+          .eq('target_id', ap.id)
+          .gte('rating', 1),
+      ]);
+      if (reviewsError || ratingStatsError) {
+        console.warn('[ArtisanDashboard] avis indisponibles', reviewsError?.code, ratingStatsError?.code);
+      }
 
       setRequests((reqs as ServiceRequest[]) || []);
-      // Normaliser pour le ReviewsPanel qui attend review.reviewer
       const normalizedRevs = (revs || []).map((r: Record<string, unknown> & { rating: number }) => ({
         ...r,
-        reviewer: (r as unknown as { author: { full_name: string; avatar_url?: string } }).author,
+        reviewer: (r as unknown as { reviewer: { full_name: string; avatar_url?: string } }).reviewer,
       }));
       setReviews(normalizedRevs as unknown as Review[]);
 
@@ -114,8 +126,9 @@ function ArtisanDashboardContent() {
       const pendingRequests = allReqs?.filter((r: { status: string }) => ['submitted', 'viewed'].includes(r.status)).length || 0;
       // Terminées = completed uniquement
       const completedRequests = allReqs?.filter((r: { status: string }) => r.status === 'completed').length || 0;
-      const avgRating = revs?.length
-        ? revs.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / revs.length
+      const ratingCount = ratingRows?.length || 0;
+      const avgRating = ratingCount
+        ? (ratingRows || []).reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / ratingCount
         : 0;
 
       setStats({
@@ -123,7 +136,7 @@ function ArtisanDashboardContent() {
         pendingRequests,
         completedRequests,
         avgRating: Math.round(avgRating * 10) / 10,
-        reviewCount: revs?.length || 0,
+        reviewCount: ratingCount,
         totalViews: (ap as ArtisanProfile & { view_count?: number })?.view_count || 0,
       });
 

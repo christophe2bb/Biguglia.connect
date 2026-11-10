@@ -318,67 +318,84 @@ function ArtisanGroupCard({ group }: { group: ArtisanGroup }) {
 export default function AvisPublicsPage() {
   const [reviews, setReviews] = useState<PublicReview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [search, setSearch] = useState('');
   const [filterRating, setFilterRating] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
 
   useEffect(() => {
+    let cancelled = false;
     const fetchReviews = async () => {
-      const supabase = createClient();
+      try {
+        const supabase = createClient();
+        // La fiche et le formulaire d'avis artisans utilisent item_ratings.
+        // L'ancien tableau reviews concernait un autre parcours de confiance.
+        const { data, error } = await supabase
+          .from('item_ratings')
+          .select('id, target_id, rating, comment, created_at, reviewer:profiles!item_ratings_user_id_fkey(full_name, avatar_url)')
+          .eq('target_type', 'artisan')
+          .gte('rating', 1)
+          .order('created_at', { ascending: false })
+          .limit(300);
 
-      const { data, error } = await supabase
-        .from('reviews')
-        .select(`
-          id, rating, comment, created_at,
-          reviewer:profiles!reviews_reviewer_id_fkey(full_name, avatar_url),
-          artisan:artisan_profiles!reviews_artisan_id_fkey(
-            id, business_name, avatar_url,
-            trade_category:trade_categories(name, icon)
-          )
-        `)
-        .eq('moderation_status', 'visible')
-        .order('created_at', { ascending: false })
-        .limit(300);
+        if (error) throw error;
+        const rows = (data || []) as unknown as Array<{
+          id: string; target_id: string; rating: number; comment: string | null;
+          created_at: string;
+          reviewer: { full_name: string | null; avatar_url: string | null } | null;
+        }>;
+        const artisanIds = [...new Set(rows.map(r => r.target_id))];
+        if (!artisanIds.length) {
+          if (!cancelled) { setReviews([]); setLoadError(false); }
+          return;
+        }
 
-      if (error) {
-        console.error('[avis publics]', error.message);
-        setLoading(false);
-        return;
-      }
+        const { data: artisans, error: artisanError } = await supabase
+          .from('artisan_profiles')
+          .select('id, business_name, avatar_url, trade_category:trade_categories(name, icon)')
+          .in('id', artisanIds)
+          .eq('is_verified', true);
+        if (artisanError) throw artisanError;
 
-      type RawReview = {
-        id: string;
-        rating: number;
-        comment: string | null;
-        created_at: string;
-        reviewer: { full_name: string | null; avatar_url: string | null } | null;
-        artisan: {
-          id: string;
-          business_name: string;
-          avatar_url: string | null;
+        type ArtisanRow = {
+          id: string; business_name: string; avatar_url: string | null;
           trade_category: { name: string; icon: string } | null;
-        } | null;
-      };
+        };
+        const artisanById = new Map(
+          ((artisans || []) as unknown as ArtisanRow[]).map(a => [a.id, a]),
+        );
+        const mapped: PublicReview[] = rows.flatMap(r => {
+          const artisan = artisanById.get(r.target_id);
+          if (!artisan) return []; // Ne jamais publier une fiche non validée.
+          const reviewer = Array.isArray(r.reviewer) ? r.reviewer[0] : r.reviewer;
+          const trade = Array.isArray(artisan.trade_category)
+            ? artisan.trade_category[0] : artisan.trade_category;
+          return [{
+            id: r.id,
+            rating: r.rating,
+            comment: r.comment,
+            created_at: r.created_at,
+            reviewer_name: reviewer?.full_name ?? null,
+            reviewer_avatar: reviewer?.avatar_url ?? null,
+            artisan_id: artisan.id,
+            artisan_name: artisan.business_name,
+            artisan_avatar: artisan.avatar_url,
+            artisan_category: trade?.name ?? null,
+            artisan_category_icon: trade?.icon ?? null,
+          }];
+        });
 
-      const mapped: PublicReview[] = ((data ?? []) as unknown as RawReview[]).map(r => ({
-        id: r.id,
-        rating: r.rating,
-        comment: r.comment,
-        created_at: r.created_at,
-        reviewer_name: r.reviewer?.full_name ?? null,
-        reviewer_avatar: r.reviewer?.avatar_url ?? null,
-        artisan_id: r.artisan?.id ?? '',
-        artisan_name: r.artisan?.business_name ?? 'Artisan',
-        artisan_avatar: r.artisan?.avatar_url ?? null,
-        artisan_category: r.artisan?.trade_category?.name ?? null,
-        artisan_category_icon: r.artisan?.trade_category?.icon ?? null,
-      }));
-
-      setReviews(mapped);
-      setLoading(false);
+        if (!cancelled) { setReviews(mapped); setLoadError(false); }
+      } catch (error) {
+        console.error('[avis publics] chargement indisponible', error);
+        if (!cancelled) setLoadError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     };
 
     void fetchReviews();
+    return () => { cancelled = true; };
   }, []);
 
   // ── Filtrage ────────────────────────────────────────────────────────────────
@@ -583,6 +600,10 @@ export default function AvisPublicsPage() {
       {loading ? (
         <div className="space-y-4">
           {[...Array(6)].map((_, i) => <ReviewSkeleton key={i} />)}
+        </div>
+      ) : loadError ? (
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-800 text-sm">
+          Impossible de charger les avis pour le moment. Réessayez en rechargeant la page.
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-20">
