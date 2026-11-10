@@ -128,7 +128,7 @@ describe('GET /api/admin/users', () => {
     expect(json.users).toEqual([]);
   });
 
-  it('accepte un modérateur (role moderator)', async () => {
+  it('refuse la lecture de tous les profils à un modérateur', async () => {
     const db = makeDb();
     vi.spyOn(db, 'from').mockImplementation(() =>
       makeAutoChain({ data: [], error: null }) as unknown as ReturnType<typeof db.from>
@@ -136,7 +136,7 @@ describe('GET /api/admin/users', () => {
     mockGuard.mockResolvedValueOnce(makeAdminGuardOk('moderator', db));
 
     const res = await GET(REQ);
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(403);
   });
 
   it('🔒 PII : les données email/phone sont présentes dans la réponse admin', async () => {
