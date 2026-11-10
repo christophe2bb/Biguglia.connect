@@ -14,7 +14,8 @@ export const revalidate = 0;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(req: NextRequest) {
-  const demandId = req.nextUrl.searchParams.get('demandId') || '';
+  const requestUrl = new URL(req.url);
+  const demandId = requestUrl.searchParams.get('demandId') || '';
   if (!UUID.test(demandId)) {
     return NextResponse.json({ error: 'Demande invalide' }, { status: 400 });
   }
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
   if (!userId) {
     // Ce lien est ouvert depuis un navigateur : orienter vers la connexion.
     const login = new URL('/connexion', req.url);
-    login.searchParams.set('redirect', req.nextUrl.pathname + req.nextUrl.search);
+    login.searchParams.set('redirect', requestUrl.pathname + requestUrl.search);
     return NextResponse.redirect(login, { status: 302, headers: { 'Cache-Control': 'private, no-store' } });
   }
 
