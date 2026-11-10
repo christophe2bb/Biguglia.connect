@@ -301,6 +301,26 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
   }
 
+  // Vérifier le contexte artisan : un profil public ne doit jamais être
+  // utilisé pour contacter arbitrairement un autre utilisateur.
+  if (relatedType === 'artisan') {
+    if (!relatedId) {
+      return NextResponse.json({ error: 'Artisan obligatoire' }, { status: 400 });
+    }
+    const { data: artisan, error: artisanError } = await admin
+      .from('artisan_profiles')
+      .select('id, user_id')
+      .eq('id', relatedId)
+      .maybeSingle();
+    if (artisanError) {
+      console.warn('[start-conversation] vérification artisan indisponible:', artisanError.code);
+      return NextResponse.json({ error: 'Profil artisan momentanément indisponible' }, { status: 503 });
+    }
+    if (!artisan || artisan.user_id !== ownerId) {
+      return NextResponse.json({ error: 'Profil artisan introuvable' }, { status: 404 });
+    }
+  }
+
   // ── Garde anti-duplication (applicatif) ────────────────────────────────────
   // Couche 1 — garde applicatif. Voir section "ANTI-DUPLICATION" en tête de fichier.
   let existingId: string | null;
@@ -449,18 +469,24 @@ export async function POST(req: NextRequest): Promise<Response> {
       (senderProfile as { full_name: string | null } | null)?.full_name ?? "Quelqu'un";
     const preview = initialMsg.length > 60 ? initialMsg.slice(0, 60) + '…' : initialMsg;
 
-    await admin
-      .from('notifications')
-      .insert({
-        user_id: ownerId,
-        type: 'new_message',
-        title: `Message de ${senderName}`,
-        message: preview,
-        link: `/messages/${convId}`,
-      })
-      .then(({ error: ne }) => {
-        if (ne) console.warn('[start-conversation] notification error:', ne.message);
-      });
+    // La notification ne doit jamais annuler une conversation déjà créée.
+    // Elle est secondaire par rapport à l'enregistrement du premier message.
+    try {
+      const { error: notificationError } = await admin
+        .from('notifications')
+        .insert({
+          user_id: ownerId,
+          type: 'new_message',
+          title: `Message de ${senderName}`,
+          message: preview,
+          link: `/messages/${convId}`,
+        });
+      if (notificationError) {
+        console.warn('[start-conversation] notification error:', notificationError.code);
+      }
+    } catch {
+      console.warn('[start-conversation] notification temporairement indisponible');
+    }
   }
 
   return NextResponse.json({ conversationId: convId, isNew: true });
