@@ -127,9 +127,11 @@ const ALLOWED_MIME_TYPES = new Set([
 
 /** Types MIME autorisés par bucket (contrôle secondaire après magic bytes) */
 const BUCKET_ALLOWED_TYPES: Record<string, Set<string>> = {
-  'photos':        new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/heic', 'image/heif']),
-  'job-documents': new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']),
-  'documents':     new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']),
+  // Ne pas accepter AVIF tant que le bucket ne l'autorise pas. Ne jamais
+  // déguiser des octets AVIF/HEIC en JPEG sans conversion réelle.
+  'photos':        new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif']),
+  'job-documents': new Set(['application/pdf', 'image/jpeg', 'image/png']),
+  'documents':     new Set(['application/pdf', 'image/jpeg', 'image/png']),
 };
 
 // ── Validation d'ownership (IDOR — CWE-639) ───────────────────────────────────
@@ -346,15 +348,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   //   • validation magic-bytes (⑦)
   const supabase = createAdminClient();
 
-  // Normaliser le MIME pour Supabase Storage :
-  // AVIF, HEIC et HEIF ne sont pas toujours dans la liste du bucket → on les traite comme JPEG.
-  // Le contenu réel a déjà été validé par magic bytes.
-  const SUPABASE_MIME_NORMALIZE: Record<string, string> = {
-    'image/avif': 'image/jpeg',
-    'image/heic': 'image/jpeg',
-    'image/heif': 'image/jpeg',
-  };
-  const uploadMime = SUPABASE_MIME_NORMALIZE[detectedMime] ?? detectedMime;
+  // Le MIME déclaré doit refléter les octets réels. Un HEIC enregistré comme
+  // image/jpeg sans conversion corrompt l'affichage sur certains appareils.
+  const uploadMime = detectedMime;
 
   const { data, error } = await supabase.storage
     .from(bucket)
