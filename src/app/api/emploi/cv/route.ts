@@ -11,7 +11,7 @@ import { getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(req: NextRequest) {
   const requestUrl = new URL(req.url);
