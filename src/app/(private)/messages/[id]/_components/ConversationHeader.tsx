@@ -151,10 +151,14 @@ export function ConversationHeader({
               )}
 
               <button
-                onClick={() => {
-                  navigator.clipboard.writeText(window.location.href); // nosec — read-only current URL
-                  toast.success('Lien copié !');
-                  setMenuOpen(false);
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(window.location.href);
+                    toast.success('Lien copié !');
+                    setMenuOpen(false);
+                  } catch {
+                    toast.error('Copie impossible — autorisez le presse-papiers dans votre navigateur');
+                  }
                 }}
                 className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm text-gray-500 w-full"
               >
