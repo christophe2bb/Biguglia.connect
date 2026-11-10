@@ -244,7 +244,7 @@ export default function DemandesPageClient() {
       else if (filterStatus === 'resolved') q = q.in('status', ['completed', 'scheduled']);
       if (filterUrgency !== 'all')          q = q.eq('urgency', filterUrgency);
 
-      let { data, error } = await q;
+      const { data, error } = await q;
 
       // Never remove the artisan_id IS NULL filter as a recovery strategy:
       // a schema error must not reveal private customer quotes in public cards.
