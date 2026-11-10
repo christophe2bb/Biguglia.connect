@@ -165,7 +165,13 @@ describe('Sécurité API — absence de debug/diagnostic routes', () => {
 
     for (const routeFile of routeFiles) {
       const content = readFileSync(routeFile, 'utf-8');
-      const hasAuth = AUTH_FUNCTIONS.some(fn => content.includes(fn));
+      // La route courte délègue intégralement au handler de décision
+      // qui valide lui-même le rôle, le JWT et le contrôle CSRF.
+      const isValidatedDelegation =
+        rel(routeFile).replace(/\\/g, '/') === 'src/app/api/admin/moderation/[id]/route.ts' &&
+        content.includes("import { PATCH as applyDetailedDecision } from './decision/route'") &&
+        content.includes('return applyDetailedDecision(forwarded, context)');
+      const hasAuth = isValidatedDelegation || AUTH_FUNCTIONS.some(fn => content.includes(fn));
 
       // Exception : fichier de constantes ou utilitaires dans un sous-dossier
       // (ne définit pas de handler HTTP — pas de export GET/POST/etc.)
