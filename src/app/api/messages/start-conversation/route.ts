@@ -247,11 +247,11 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (ownerError || senderError) {
     return NextResponse.json({ error: 'Vérification des profils indisponible' }, { status: 503 });
   }
-  if (!senderProfile || senderProfile.status !== 'active' || !senderProfile.is_active) {
-    return NextResponse.json({ error: 'Profil expéditeur inactif ou incomplet' }, { status: 403 });
-  }
   if (!ownerProfile || ownerProfile.status !== 'active' || !ownerProfile.is_active) {
     return NextResponse.json({ error: 'Destinataire introuvable' }, { status: 404 });
+  }
+  if (!senderProfile || senderProfile.status !== 'active' || !senderProfile.is_active) {
+    return NextResponse.json({ error: 'Profil expéditeur inactif ou incomplet' }, { status: 403 });
   }
 
   // Un blocage, dans un sens comme dans l'autre, interdit les échanges.
