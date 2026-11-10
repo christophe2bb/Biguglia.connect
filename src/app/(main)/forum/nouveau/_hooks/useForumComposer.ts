@@ -16,6 +16,7 @@ export function useForumComposer() {
   const { profile } = useAuthStore();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const submissionLock = useRef(false);
 
   // ── Step ──────────────────────────────────────────────────────────────────
   const [step, setStep] = useState<Step>(1);
@@ -164,7 +165,7 @@ export function useForumComposer() {
 
   // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = useCallback(async () => {
-    if (!profile) return;
+    if (!profile || loading || submissionLock.current) return;
 
     // ── Vérification mots interdits ───────────────────────────────────────────
     const textToCheck = [form.title, form.content].join(' ');
@@ -174,6 +175,7 @@ export function useForumComposer() {
       return;
     }
 
+    submissionLock.current = true;
     setLoading(true);
     const supabase = createClient();
     let topicId: string | null = null;
@@ -206,40 +208,31 @@ export function useForumComposer() {
       .select()
       .single();
 
-    if (error) {
-      // Fallback: legacy forum_posts table
-      const { data: postData, error: err2 } = await supabase
-        .from('forum_posts')
-        .insert({
-          category_id: form.category_id || null,
-          author_id:   profile.id,
-          title:       form.title.trim(),
-          content:     form.content.trim(),
-        })
-        .select()
-        .single();
-      if (err2) {
-        toast.error('Erreur lors de la publication');
-        setLoading(false);
-        return;
-      }
-      topicId = postData.id;
-    } else {
-      topicId = topicData.id;
+    if (error || !topicData) {
+      // Ne pas créer silencieusement un forum_posts historique en cas de
+      // refus de la base : il ne serait pas visible dans le forum actuel.
+      console.error('[forum] sujet refusé:', error?.code, error?.message);
+      toast.error(error?.code === '23503'
+        ? 'La catégorie ou le secteur est invalide. Rechargez la page.'
+        : 'Le sujet n’a pas pu être publié. Réessayez.');
+      setLoading(false);
+      submissionLock.current = false;
+      return;
+    }
+    topicId = topicData.id;
 
-      // Upsert tags
-      if (form.tags.length > 0) {
-        for (const tagName of form.tags) {
-          const { data: tagRow } = await supabase
-            .from('forum_tags')
-            .upsert({ name: tagName, slug: tagName }, { onConflict: 'slug' })
-            .select('id')
-            .single();
-          if (tagRow) {
-            try {
-              await supabase.from('forum_topic_tags').insert({ topic_id: topicId, tag_id: tagRow.id });
-            } catch { /* table optionnelle */ }
-          }
+    // Upsert des tags facultatifs.
+    if (form.tags.length > 0) {
+      for (const tagName of form.tags) {
+        const { data: tagRow } = await supabase
+          .from('forum_tags')
+          .upsert({ name: tagName, slug: tagName }, { onConflict: 'slug' })
+          .select('id')
+          .single();
+        if (tagRow) {
+          const { error: tagError } = await supabase.from('forum_topic_tags')
+            .insert({ topic_id: topicId, tag_id: tagRow.id });
+          if (tagError) console.warn('[forum] tag ignoré:', tagError.code);
         }
       }
     }
@@ -268,7 +261,7 @@ export function useForumComposer() {
 
     toast.success('Sujet publié avec succès ! 🎉');
     router.push(`/forum/${topicId}`);
-  }, [profile, form, photos, router]);
+  }, [profile, form, photos, router, loading]);
 
   // ── Derived selections ─────────────────────────────────────────────────────
   const selectedSector   = sectors.find(s => s.id === form.sector_id   || s.slug === form.sector_id);
