@@ -401,16 +401,17 @@ export async function POST(req: NextRequest): Promise<Response> {
   //     sont robustes quelle que soit l'état des migrations.
   const now = new Date().toISOString();
 
-  const [insertSelf, insertOwner] = await Promise.all([
-    admin.from('conversation_participants')
-      .insert({ conversation_id: convId, user_id: userId,  joined_at: now })
-      .select('user_id')
-      .maybeSingle(),
-    admin.from('conversation_participants')
-      .insert({ conversation_id: convId, user_id: ownerId, joined_at: now })
-      .select('user_id')
-      .maybeSingle(),
-  ]);
+  // Écritures séquentielles : un trigger AFTER INSERT reconstruit la paire.
+  // Deux INSERT parallèles ont historiquement créé des collisions de clé.
+  const insertSelf = await admin.from('conversation_participants')
+    .insert({ conversation_id: convId, user_id: userId, joined_at: now })
+    .select('user_id')
+    .maybeSingle();
+
+  const insertOwner = await admin.from('conversation_participants')
+    .insert({ conversation_id: convId, user_id: ownerId, joined_at: now })
+    .select('user_id')
+    .maybeSingle();
 
   // Code 23505 = déjà présent (contrainte unique) → acceptable, pas une erreur
   const selfOk  = !insertSelf.error  || insertSelf.error.code  === '23505';
@@ -444,6 +445,27 @@ export async function POST(req: NextRequest): Promise<Response> {
     console.error('[start-conversation] destinataire non ajouté:', insertOwner.error?.code);
     await admin.from('conversations').delete().eq('id', convId);
     return NextResponse.json({ error: 'Impossible d’ajouter le destinataire' }, { status: 500 });
+  }
+
+  // Un code 23505 n'est pas automatiquement une insertion réussie :
+  // il peut venir du trigger conversation_pairs (et non de la présence du membre).
+  // Dans ce cas, vérifier EXPLICITEMENT les deux identités en base.
+  if (insertSelf.error?.code === '23505' || insertOwner.error?.code === '23505') {
+    const { data: memberships, error: membershipError } = await admin
+      .from('conversation_participants')
+      .select('user_id')
+      .eq('conversation_id', convId)
+      .in('user_id', [userId, ownerId]);
+
+    const actualIds = new Set((memberships ?? []).map(m => m.user_id));
+    if (membershipError || !actualIds.has(userId) || !actualIds.has(ownerId)) {
+      console.warn('[start-conversation] collision 23505 sans participants complets');
+      await admin.from('conversations').delete().eq('id', convId);
+      return NextResponse.json(
+        { error: 'Conversation incomplète — veuillez réessayer.' },
+        { status: membershipError ? 503 : 409 },
+      );
+    }
   }
 
   // ── Step 3 : Message initial ────────────────────────────────────────────────
