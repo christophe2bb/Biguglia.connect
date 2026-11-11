@@ -229,6 +229,7 @@ export default function DemandesPageClient() {
   const [search,        setSearch]        = useState('');
   const [privateSearch, setPrivateSearch] = useState('');
   const [publicMetrics, setPublicMetrics] = useState({ total: 0, urgent: 0, newRequests: 0, resolved: 0 });
+  const [sectorCounts, setSectorCounts] = useState<Record<string, number>>({});
   const [filterUrgency, setFilterUrgency] = useState('all');
   const [filterStatus,  setFilterStatus]  = useState('open');
   const [filterSector,  setFilterSector]  = useState<string | null>(null);
@@ -339,11 +340,9 @@ export default function DemandesPageClient() {
   const filtered = requests;
   const filteredDevis = mesDevis;
 
-  // Comptages SUR LES CARTES CHARGÉES (pas un compteur global trompeur).
-  const sectorCounts = SECTORS.reduce<Record<string, number>>((acc, sector) => {
-    acc[sector.id] = requests.filter(req => req.sector_id === sector.id).length;
-    return acc;
-  }, {});
+  // Les badges de quartier doivent conserver leurs vrais totaux lorsque
+  // l'utilisateur filtre un quartier ou charge la page suivante.
+  // Le décompte est obtenu en base, sans se limiter aux 50 cartes chargées.
 
   // Counters are fetched from the entire public-request table, independent
   // of the active pagination and filters. Counts respect RLS.
@@ -351,21 +350,29 @@ export default function DemandesPageClient() {
     let cancelled = false;
     const base = () => supabase.from('service_requests').select('id', { count: 'exact', head: true }).is('artisan_id', null);
     void (async () => {
-      const [all, urgent, fresh, resolved] = await Promise.all([
+      const [all, urgent, fresh, resolved, ...sectorResults] = await Promise.all([
         base(),
         base().in('urgency', ['urgent', 'tres_urgent']),
         base().eq('status', 'submitted'),
         base().eq('status', 'completed'),
+        ...SECTORS.map(sector => base().eq('sector_id', sector.id)),
       ]);
       if (cancelled) return;
       if ([all, urgent, fresh, resolved].some(result => result.error)) {
         console.warn('[Demandes] statistiques indisponibles');
-        return;
+      } else {
+        setPublicMetrics({
+          total: all.count ?? 0, urgent: urgent.count ?? 0,
+          newRequests: fresh.count ?? 0, resolved: resolved.count ?? 0,
+        });
       }
-      setPublicMetrics({
-        total: all.count ?? 0, urgent: urgent.count ?? 0,
-        newRequests: fresh.count ?? 0, resolved: resolved.count ?? 0,
-      });
+      if (sectorResults.some(result => result.error)) {
+        console.warn('[Demandes] comptages quartiers indisponibles');
+      } else {
+        setSectorCounts(Object.fromEntries(SECTORS.map((sector, i) => [
+          sector.id, sectorResults[i]?.count ?? 0,
+        ])));
+      }
     })().catch(error => { if (!cancelled) console.warn('[Demandes] statistiques', error); });
     return () => { cancelled = true; };
   }, [supabase, profile?.id]);
@@ -423,7 +430,7 @@ export default function DemandesPageClient() {
               <p className="text-xs text-gray-500 mt-0.5">Cliquez pour filtrer les demandes</p>
             </div>
             <span className="text-xs text-gray-400 hidden sm:block">
-              {Object.values(sectorCounts).reduce((a, b) => a + b, 0)} demandes géolocalisées parmi les cartes chargées
+              {Object.values(sectorCounts).reduce((a, b) => a + b, 0)} demandes géolocalisées (tous statuts)
             </span>
           </div>
           <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
