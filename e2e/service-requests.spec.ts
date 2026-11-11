@@ -1,0 +1,91 @@
+/**
+ * Recette non destructive — Services / Poster une demande / Tableau des demandes.
+ * Les contrôles sans compte s'exécutent sur chaque CI.
+ * Les contrôles authentifiés sont ignorés sans E2E_TEST_EMAIL/PASSWORD.
+ * Aucun scénario n'insère de demande réelle dans Supabase.
+ */
+import { test, expect, skipIfNoCredentials, loginAs, TEST_CREDENTIALS } from './fixtures';
+
+test.describe('Services — tableau des demandes', () => {
+  test('page publique, boutons de filtre et lien publier sont fonctionnels', async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', error => pageErrors.push(error.message));
+    const response = await page.goto('/demandes', { waitUntil: 'domcontentloaded' });
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole('heading', { name: /demandes d'aide/i })).toBeVisible();
+    const post = page.getByRole('link', { name: /poster une demande/i }).first();
+    await expect(post).toHaveAttribute('href', '/artisans/demande');
+
+    await page.getByRole('button', { name: /toutes/i }).first().click();
+    await page.getByRole('button', { name: /résolues/i }).click();
+    await page.getByRole('button', { name: /annulées/i }).click();
+    await page.getByRole('button', { name: /en cours/i }).click();
+
+    const input = page.getByPlaceholder('Rechercher un titre ou une description…');
+    await expect(input).toBeVisible();
+    await input.fill('plomberie');
+    await expect(input).toHaveValue('plomberie');
+    await input.clear();
+
+    const urgency = page.locator('select').filter({ has: page.locator('option[value="tres_urgent"]') });
+    await expect(urgency).toBeVisible();
+    await urgency.selectOption('urgent');
+    await expect(urgency).toHaveValue('urgent');
+    await urgency.selectOption('all');
+
+    expect(pageErrors, 'Aucune exception JS pendant la recherche et les filtres').toEqual([]);
+    await expect(page.getByText("Quelque chose s'est mal passé")).toHaveCount(0);
+  });
+
+  test('clic Poster une demande préserve le retour après connexion', async ({ page }) => {
+    await page.goto('/demandes', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('link', { name: /poster une demande/i }).first().click();
+    await expect(page).toHaveURL(/\/connexion/, { timeout: 15000 });
+    const url = new URL(page.url());
+    const next = url.searchParams.get('next') || url.searchParams.get('redirect');
+    expect(next, 'L’utilisateur doit revenir au formulaire après connexion').toContain('/artisans/demande');
+  });
+
+  test('détail inconnu ne crashe pas, ni ne publie de données privées dans les métadonnées', async ({ page }) => {
+    const unknown = '00000000-0000-0000-0000-000000000999';
+    const response = await page.goto('/demandes/' + unknown, { waitUntil: 'domcontentloaded' });
+    expect(response?.status()).toBe(200);
+    await expect(page.getByText(/demande introuvable|non accessible|impossible de charger/i)).toBeVisible({ timeout: 15000 });
+    await expect(page).toHaveTitle(/demande de service|biguglia/i);
+    const robots = await page.locator('meta[name="robots"]').getAttribute('content');
+    expect(robots).toContain('noindex');
+  });
+});
+
+test.describe('Services — formulaire authentifié sans publication', () => {
+  test.beforeEach(() => {
+    skipIfNoCredentials(test);
+  });
+
+  test('tous les champs, dates, secteur, photos et annulation sont accessibles', async ({ page }) => {
+    await loginAs(page, TEST_CREDENTIALS.email, TEST_CREDENTIALS.password);
+    const response = await page.goto('/artisans/demande', { waitUntil: 'domcontentloaded' });
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole('heading', { name: /nouvelle demande de service/i })).toBeVisible({ timeout: 15000 });
+    const form = page.locator('form');
+    await expect(form).toBeVisible();
+
+    await expect(page.getByLabel('Titre de la demande')).toBeVisible();
+    await expect(page.getByLabel('Description du problème')).toBeVisible();
+    await expect(page.getByLabel('Catégorie de travaux')).toBeVisible();
+    await expect(page.getByLabel('Urgence')).toBeVisible();
+    await expect(page.getByLabel('Date souhaitée')).toBeVisible();
+    await expect(page.getByLabel('Heure souhaitée')).toBeVisible();
+    await expect(page.getByLabel("Adresse d'intervention")).toBeVisible();
+
+    const submit = page.getByRole('button', { name: /envoyer la demande/i });
+    await expect(submit).toBeVisible();
+    // Validation HTML native : sans titre, description ni catégorie,
+    // la soumission n'atteint jamais Supabase.
+    await submit.click();
+    await expect(page).toHaveURL(/\/artisans\/demande/);
+    await expect(page.locator('input:invalid,textarea:invalid,select:invalid').first()).toBeVisible();
+
+    await expect(page.getByRole('button', { name: /annuler/i })).toBeVisible();
+  });
+});
