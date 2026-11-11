@@ -27,6 +27,12 @@ import {
 import { BADGE_CONFIG } from '@/lib/trust';
 import type { BadgeCode } from '@/lib/trust';
 
+// Les indicateurs communautaires proviennent de Supabase à chaque requête.
+// Ne pas interroger le backend pendant la génération statique Vercel :
+// une indisponibilité momentanée empêchait le déploiement (timeout 60s).
+export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
+
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 
 export const metadata: Metadata = {
@@ -70,14 +76,25 @@ function StatBlock({ icon: Icon, value, label, color }: {
 
 // ─── Page principale ──────────────────────────────────────────────────────────
 
+/** La page reste accessible même si une requête communautaire Supabase se bloque. */
+function withQueryDeadline<T>(task: Promise<T>, timeoutMs = 8_000): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    task,
+    new Promise<never>((_, reject) => {
+      timeout = setTimeout(() => reject(new Error('Données communautaires momentanément indisponibles')), timeoutMs);
+    }),
+  ]).finally(() => { if (timeout) clearTimeout(timeout); });
+}
+
 export default async function CommunautePage() {
   // Fetch en parallèle
   const [stats, artisans, helpers, members, events] = await Promise.allSettled([
-    fetchCommunityStats(),
-    fetchTopArtisans(6),
-    fetchRecentHelpers(6),
-    fetchActiveMembersSpotlight(8),
-    fetchRecentEvents(4),
+    withQueryDeadline(fetchCommunityStats()),
+    withQueryDeadline(fetchTopArtisans(6)),
+    withQueryDeadline(fetchRecentHelpers(6)),
+    withQueryDeadline(fetchActiveMembersSpotlight(8)),
+    withQueryDeadline(fetchRecentEvents(4)),
   ]);
 
   const st = stats.status === 'fulfilled' ? stats.value : { totalMembers: 0, totalHelps: 0, totalEvents: 0, totalListings: 0, totalForumTopics: 0, activeThisWeek: 0 };
