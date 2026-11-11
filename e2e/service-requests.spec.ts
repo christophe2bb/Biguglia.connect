@@ -6,6 +6,48 @@
  */
 import { test, expect, skipIfNoCredentials, loginAs, TEST_CREDENTIALS } from './fixtures';
 
+test.describe('Services — annuaire et fiche artisan', () => {
+  test('recherche de métier : aucun résultat, effacement et retour à la liste', async ({ page }) => {
+    const exceptions: string[] = [];
+    page.on('pageerror', error => exceptions.push(error.message));
+    const response = await page.goto('/artisans', { waitUntil: 'domcontentloaded' });
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole('heading', { name: /artisans de biguglia/i })).toBeVisible();
+
+    const search = page.getByPlaceholder('Rechercher un artisan, un métier…');
+    await expect(search).toBeVisible();
+    await search.fill('zzzz-metier-introuvable-automatique');
+    await expect(page.getByText('Aucun artisan trouvé')).toBeVisible();
+    await page.getByRole('button', { name: 'Effacer la recherche' }).click();
+    await expect(search).toHaveValue('');
+    await expect(page.getByText('Aucun artisan trouvé')).toHaveCount(0);
+    expect(exceptions, 'Pas d’exception JavaScript dans l’annuaire').toEqual([]);
+  });
+
+  test('fiche vérifiée : contact et devis pointent vers les bons parcours', async ({ page }) => {
+    await page.goto('/artisans', { waitUntil: 'domcontentloaded' });
+    const links = await page.locator('a[href^="/artisans/"]').evaluateAll(elements =>
+      elements.map(el => el.getAttribute('href') || ''),
+    );
+    const artisanHref = links.find(href =>
+      /^\/artisans\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(href),
+    );
+    test.skip(!artisanHref, 'Aucun artisan de test vérifié accessible pour cette recette.');
+    const id = artisanHref!.split('/')[2];
+    const response = await page.goto(artisanHref!, { waitUntil: 'domcontentloaded' });
+    expect(response?.status()).toBe(200);
+
+    const quote = page.getByRole('link', { name: /demander un devis/i });
+    await expect(quote).toHaveAttribute('href', `/artisans/demande?artisan=${id}`);
+    const contact = page.getByRole('link', { name: /envoyer un message/i });
+    await expect(contact).toHaveAttribute('href', /\/connexion\?next=/);
+    await quote.click();
+    await expect(page).toHaveURL(/\/connexion/, { timeout: 15000 });
+    const next = new URL(page.url()).searchParams.get('next') || '';
+    expect(next).toContain(`/artisans/demande?artisan=${id}`);
+  });
+});
+
 test.describe('Services — tableau des demandes', () => {
   test('page publique, boutons de filtre et lien publier sont fonctionnels', async ({ page }) => {
     const pageErrors: string[] = [];
