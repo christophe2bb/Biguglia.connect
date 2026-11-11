@@ -21,13 +21,15 @@ import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Select from '@/components/ui/Select';
 import SectorFilter from '@/components/ui/SectorFilter';
-import { safeImageExt, safeStoragePath, uploadFile, isAcceptedImageType, MAX_PHOTO_MB } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile, isAcceptedImageType, MAX_PHOTO_MB } from '@/lib/upload-utils';
+import { servicePhotoLocation, QUOTE_PHOTO_BUCKET } from '@/lib/service-request-photos';
 import { deletePhotoFiles } from '@/lib/delete-photo-files';
 
 // ─── Type minimal pour le chargement initial ────────────────────────────────
 type ServiceRequestRow = {
   id: string;
   resident_id: string;
+  artisan_id: string | null;
   title: string;
   description: string;
   category_id: string | null;
@@ -74,6 +76,7 @@ export default function ModifierDemandeClient({ id }: Props) {
   const [previewUrls, setPreviewUrls]       = useState<string[]>([]);
 
   const [saving, setSaving] = useState(false);
+  const [isPrivateQuote, setIsPrivateQuote] = useState(false);
 
   // Revoke object URLs lors du démontage ou changement
   useEffect(() => {
@@ -104,7 +107,7 @@ export default function ModifierDemandeClient({ id }: Props) {
       const { data, error } = await supabase
         .from('service_requests')
         .select(`
-          id, resident_id, title, description, category_id, urgency,
+          id, resident_id, artisan_id, title, description, category_id, urgency,
           preferred_date, preferred_time, address, sector_id, status,
           photos:service_request_photos(url)
         `)
@@ -146,6 +149,7 @@ export default function ModifierDemandeClient({ id }: Props) {
         address:        row.address,
         sector_id:      row.sector_id ?? '',
       });
+      setIsPrivateQuote(Boolean(row.artisan_id));
       setExistingPhotos(row.photos?.map(p => p.url) ?? []);
       setPhotosToRemove([]);
       } catch (error) {
@@ -194,8 +198,9 @@ export default function ModifierDemandeClient({ id }: Props) {
       const ext   = safeImageExt(photo.name);
       const fileName = `requests/${id}/${Date.now()}_${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
       try {
-        const publicUrl = await uploadFile(photo, 'photos', fileName, profile?.id, accessToken);
-        urls.push(publicUrl);
+        const bucket = isPrivateQuote ? QUOTE_PHOTO_BUCKET : 'photos';
+        const photoUrl = await uploadFile(photo, bucket, fileName, profile?.id, accessToken);
+        urls.push(photoUrl);
       } catch (err) {
         console.error('Photo upload error:', err);
         failures++;
@@ -258,10 +263,10 @@ export default function ModifierDemandeClient({ id }: Props) {
         } else {
           // La demande existe toujours : /api/storage/photos peut vérifier
           // son résident avant de nettoyer les fichiers de cette demande.
-          const path = safeStoragePath(url, 'photos');
-          if (path?.startsWith('requests/' + id + '/')) {
+          const location = servicePhotoLocation(url, id);
+          if (location?.path.startsWith('requests/' + id + '/')) {
             try {
-              await deletePhotoFiles([path]);
+              await deletePhotoFiles([location.path], location.bucket);
             } catch (error) {
               console.warn('[ModifierDemande] photo Storage non supprimée', error);
               failedRemovals++;
@@ -285,15 +290,14 @@ export default function ModifierDemandeClient({ id }: Props) {
         if (photoError) {
           // Une insertion de métadonnées échouée ne doit pas laisser les
           // nouveaux fichiers publics et orphelins dans Supabase Storage.
-          const paths = urls
-            .map(url => safeStoragePath(url, 'photos'))
-            .filter((path): path is string => !!path && path.startsWith(`requests/${id}/`));
-          if (paths.length !== urls.length) {
+          const locations = urls.map(url => servicePhotoLocation(url, id));
+          const bucket = isPrivateQuote ? QUOTE_PHOTO_BUCKET : 'photos';
+          if (!locations.every(location => !!location && location.bucket === bucket)) {
             orphanCleanupFailed = true;
             console.warn('[ModifierDemande] chemins de photos non reconnus ; nettoyage requis');
           } else {
             try {
-              await deletePhotoFiles(paths);
+              await deletePhotoFiles(locations.map(location => location!.path), bucket);
             } catch (cleanupError) {
               orphanCleanupFailed = true;
               console.warn('[ModifierDemande] nettoyage de photos orphelines incomplet', cleanupError);

@@ -12,7 +12,8 @@ import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Select from '@/components/ui/Select';
 import SectorFilter from '@/components/ui/SectorFilter';
-import { safeImageExt, safeStoragePath, uploadFile, isAcceptedImageType, ACCEPTED_IMAGE_TYPES, MAX_PHOTO_MB } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile, isAcceptedImageType, ACCEPTED_IMAGE_TYPES, MAX_PHOTO_MB } from '@/lib/upload-utils';
+import { servicePhotoLocation, QUOTE_PHOTO_BUCKET } from '@/lib/service-request-photos';
 import { deletePhotoFiles } from '@/lib/delete-photo-files';
 
 function DemandeServiceForm() {
@@ -146,8 +147,9 @@ function DemandeServiceForm() {
       const ext = safeImageExt(photo.name);
       const fileName = `requests/${requestId}/${Date.now()}_${i}.${ext}`;
       try {
-        const publicUrl = await uploadFile(photo, 'photos', fileName, profile?.id, accessToken);
-        urls.push(publicUrl);
+        const bucket = artisanId ? QUOTE_PHOTO_BUCKET : 'photos';
+        const photoUrl = await uploadFile(photo, bucket, fileName, profile?.id, accessToken);
+        urls.push(photoUrl);
       } catch (error) {
         console.warn('[DemandeService] pièce jointe refusée', error);
         failed++;
@@ -224,13 +226,12 @@ function DemandeServiceForm() {
         // fichiers déjà transférés ne doivent pas rester publics et orphelins.
         console.warn('[DemandeService] liaison des photos refusée', photoLinkError.code);
         linkedPhotoUrls = [];
-        const storagePaths = photoUrls
-          .map(url => safeStoragePath(url, 'photos'))
-          .filter((path): path is string => !!path && path.startsWith(`requests/${request.id}/`));
+        const locations = photoUrls.map(url => servicePhotoLocation(url, request.id));
+        const bucket = artisanId ? QUOTE_PHOTO_BUCKET : 'photos';
         let cleaned = false;
-        if (storagePaths.length === photoUrls.length) {
+        if (locations.every(location => !!location && location.bucket === bucket)) {
           try {
-            await deletePhotoFiles(storagePaths);
+            await deletePhotoFiles(locations.map(location => location!.path), bucket);
             cleaned = true;
           } catch (cleanupError) {
             console.warn('[DemandeService] nettoyage des photos orphelines à reprendre', cleanupError);
@@ -495,7 +496,10 @@ function DemandeServiceForm() {
             <strong>🔒 Confidentialité :</strong> {artisanId
               ? 'Votre devis est réservé aux participants autorisés et à la modération.'
               : 'Cette demande et son adresse seront visibles par les utilisateurs connectés de la plateforme.'}
-            {' '}Les photos sont actuellement stockées sous des liens publics. Ne joignez aucune photo ou document confidentiel. Biguglia Connect ne garantit pas les travaux.
+            {' '}{artisanId
+              ? 'Les photos du devis sont stockées dans un espace privé, consultable par les participants et la modération.'
+              : 'Les photos jointes à une demande publique sont accessibles aux utilisateurs de la plateforme : ne publiez pas de documents confidentiels.'
+            } Biguglia Connect ne garantit pas les travaux.
           </p>
         </div>
 
