@@ -43,12 +43,21 @@ export function applyApiResponse({
   }
 
   const { conversation: conv, profiles: profilesData, other_user_id, messages: msgs } = apiData;
-  (profilesData || []).forEach(p => { profileCacheRef.current[p.id] = p as unknown as Profile; });
+  // L'API envoie display_name, alors que l'en-tête, les avatars et les
+  // favoris lisent full_name. Réconcilier les deux ici au lieu de perdre
+  // silencieusement le nom du correspondant dans un cast TypeScript.
+  const normalizedProfiles = (profilesData ?? []).map(p => ({
+    ...p,
+    full_name: p.display_name,
+  }));
+  normalizedProfiles.forEach(p => {
+    profileCacheRef.current[p.id] = p as unknown as Profile;
+  });
 
   const otherUserId = other_user_id ?? null;
-  if (otherUserId && !signal.aborted) {
-    const otherProfile = profilesData.find(p => p.id === otherUserId);
-    if (otherProfile) setOtherUser(otherProfile as unknown as ProfileWithEmail);
+  if (!signal.aborted) {
+    const otherProfile = normalizedProfiles.find(p => p.id === otherUserId) ?? null;
+    setOtherUser(otherProfile as unknown as ProfileWithEmail | null);
   }
   if (signal.aborted) return null;
 
