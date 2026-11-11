@@ -1,0 +1,40 @@
+name: Services — base Supabase locale isolée
+
+# Recette sans utilisation d'un projet Supabase hébergé ni facturation Pro.
+# Toutes les données sont créées sur un runner GitHub éphémère et détruites.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/services-qa-local-supabase.yml'
+      - 'supabase/migrations/**'
+      - 'e2e/services-roles.spec.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-db:
+    name: Vérifier la reconstruction Supabase en environnement isolé
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Initialiser un projet uniquement local
+        run: supabase init --force
+      - name: Reconstruire la base avec les migrations GitHub
+        run: supabase start
+      - name: Vérifier que Auth et la base répondent en local
+        run: |
+          curl --fail --silent --show-error http://127.0.0.1:54321/auth/v1/health > /dev/null
+          supabase db lint --local --level warning || true
+          echo 'Supabase isolé démarré : aucune donnée de production copiée'
+      - name: Nettoyer la base temporaire
+        if: always()
+        run: supabase stop --no-backup || true
