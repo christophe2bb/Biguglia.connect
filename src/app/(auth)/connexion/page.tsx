@@ -9,6 +9,8 @@ import { useAuthStore } from '@/lib/auth-store';
 import toast from 'react-hot-toast';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import { safeRedirectPath } from '@/lib/safe-redirect';
+import { AuthTimeoutError, withAuthTimeout } from '@/lib/supabase/with-timeout';
 
 function ConnexionForm() {
   const [email, setEmail] = useState('');
@@ -22,8 +24,8 @@ function ConnexionForm() {
   // Lire le paramètre de redirection post-login.
   // Le middleware envoie ?next= ; certains liens directs utilisent encore ?redirect=.
   const rawNext = searchParams.get('next') || searchParams.get('redirect') || '/';
-  // Refuser toute URL qui ne commence pas par '/' (évite les redirections vers des sites externes)
-  const redirectTo = rawNext.startsWith('/') ? rawNext : '/dashboard';
+  // Bloquer les URLs externes et les boucles de redirection.
+  const redirectTo = safeRedirectPath(rawNext, '/');
 
   // ── Si l'utilisateur est déjà connecté → rediriger immédiatement ─────────
   // Exception : si la destination est /admin, NE PAS rediriger automatiquement
@@ -45,7 +47,10 @@ function ConnexionForm() {
 
     try {
       const supabase = createClient();
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await withAuthTimeout(
+        () => supabase.auth.signInWithPassword({ email, password }),
+        15_000,
+      );
 
       if (error) {
         toast.error(
@@ -68,14 +73,14 @@ function ConnexionForm() {
       toast.success('Connexion réussie !');
 
       // Redirection après un court délai pour laisser les cookies s'établir
-      // redirectTo est validé ligne 26 : doit commencer par '/' (pas de redirect externe)
+      // La destination a été validée par safeRedirectPath.
       setTimeout(() => {
-        router.push(redirectTo); // nosec — redirectTo validated to start with '/'
+        router.push(redirectTo);
       }, 500);
 
     } catch (err) {
       console.error('Login error:', err);
-      toast.error('Erreur inattendue. Réessayez.');
+      toast.error(err instanceof AuthTimeoutError ? err.message : 'Erreur inattendue. Réessayez.');
       setLoading(false);
     }
   };
@@ -112,7 +117,7 @@ function ConnexionForm() {
             : 'Votre session est active. Accédez à l\'administration ci-dessous.'}
         </p>
         <Button
-          onClick={() => router.push(redirectTo)} // nosec — redirectTo validated to start with '/'
+          onClick={() => router.push(redirectTo)}
           className="w-full"
           size="lg"
         >
