@@ -42,7 +42,7 @@
  *  checkRateLimitRedis() — mode fallback mémoire (Redis non configuré)
  *   30.  IP locale → always allowed
  *   31.  Première requête → allowed, retryAfterSecs=0
- *   32.  Groupe login → limit=200 (fallback api)
+ *   32.  Groupe login → limit=10 (fallback strict)
  *   33.  Groupe contact → limit=10 (fallback messages-write)
  *   34.  Groupe publications-write → limit=10 (fallback messages-write)
  *   35.  Dépassement limite messages-write → blocked
@@ -52,7 +52,7 @@
  *  checkRateLimitRedis() — mode Redis (mock Upstash)
  *   38.  Redis success=true → allowed, retryAfterSecs=0
  *   39.  Redis success=false → blocked avec retryAfterSecs calculé
- *   40.  Redis throw → fallback mémoire (fail open)
+ *   40.  Redis throw → fallback mémoire (protection active)
  *   40b. IP locale avec Redis configuré → allowed sans appel Redis
  *
  *  Limites par groupe — valeurs de configuration
@@ -297,11 +297,10 @@ describe('checkRateLimitRedis — fallback mémoire (pas de Redis)', () => {
     expect(result.retryAfterSecs).toBe(0);
   });
 
-  it('[FB-32] Groupe login → fallback api, limit=200', async () => {
+  it('[FB-32] Groupe login → fallback strict, limit=10', async () => {
     const result = await checkRateLimitRedis('5.5.5.5', 'login');
-    // login n'existe pas en mémoire → fallback 'api' → limite 200
     expect(result.allowed).toBe(true);
-    expect(result.limit).toBe(200);
+    expect(result.limit).toBe(10);
   });
 
   it('[FB-33] Groupe contact → fallback messages-write, limit=10', async () => {
@@ -393,6 +392,20 @@ describe('checkRateLimitRedis — mode Redis (mock)', () => {
     // Première requête après erreur Redis → fail open (mémoire fraîche)
     const result = await checkRateLimitRedis('10.10.10.10', 'login');
     expect(result.allowed).toBe(true);
+  });
+
+  it('[RD-40a] Redis bloqué ne bloque pas le middleware plus de 1,2 s', async () => {
+    vi.useFakeTimers();
+    try {
+      mockLimitFn.mockImplementationOnce(() => new Promise(() => {}));
+      const pending = checkRateLimitRedis('10.10.10.11', 'login');
+      await vi.advanceTimersByTimeAsync(1_201);
+      const result = await pending;
+      expect(result.allowed).toBe(true);
+      expect(result.limit).toBe(10); // protection mémoire conservée
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('[RD-40b] IP locale avec Redis → allowed sans appel Redis', async () => {

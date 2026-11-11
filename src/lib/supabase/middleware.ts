@@ -1,4 +1,3 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSupabaseProjectRef } from '@/lib/supabase/env';
 
@@ -219,7 +218,7 @@ function purgeStaleSupabaseCookies(
 }
 
 /**
- * updateSession — Rafraîchit la session Supabase et applique les guards de navigation.
+ * updateSession — Vérifie localement les routes privées sans réseau Supabase.
  *
  * ─── Guards actifs ──────────────────────────────────────────────────────────────
  *
@@ -264,14 +263,8 @@ const PROTECTED_PREFIXES = [
 
 // ─── Variables d'env lues une seule fois au chargement du module ─────────────
 const SUPABASE_URL  = (process.env.NEXT_PUBLIC_SUPABASE_URL  ?? '').trim();
-const SUPABASE_ANON = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').trim();
-
-if (!SUPABASE_URL || !SUPABASE_ANON) {
-  console.error(
-    '[Supabase/middleware] ⚠️  Variables Supabase manquantes — le middleware ' +
-    'ne peut pas valider les sessions. Vérifiez NEXT_PUBLIC_SUPABASE_URL et ' +
-    'NEXT_PUBLIC_SUPABASE_ANON_KEY.',
-  );
+if (!SUPABASE_URL) {
+  console.error('[Supabase/middleware] NEXT_PUBLIC_SUPABASE_URL absente : cookie de session introuvable.');
 }
 
 // ─── Nom du cookie Supabase ───────────────────────────────────────────────────
@@ -318,7 +311,7 @@ function hasValidToken(request: NextRequest): boolean {
 }
 
 /**
- * updateSession — Rafraîchit la session Supabase et applique les guards de navigation.
+ * updateSession — Vérifie localement les routes privées sans réseau Supabase.
  *
  * @param request         La requête entrante (NextRequest original — body stream intact).
  * @param extraReqHeaders Headers supplémentaires à injecter dans la request vue par les
@@ -343,7 +336,7 @@ export async function updateSession(
       })()
     : request.headers;
 
-  let supabaseResponse = NextResponse.next({
+  const supabaseResponse = NextResponse.next({
     request: { headers: requestHeaders },
   });
 
@@ -351,32 +344,10 @@ export async function updateSession(
   const cookiePrefix = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
   purgeStaleSupabaseCookies(request, supabaseResponse, cookiePrefix);
 
-  // ── Client Supabase pour rafraîchir la session ────────────────────────────
-  const supabase = createServerClient(
-    SUPABASE_URL,
-    SUPABASE_ANON,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet: Array<{ name: string; value: string; options?: CookieOptions }>) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          supabaseResponse = NextResponse.next({
-            request: { headers: requestHeaders },
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options as Parameters<typeof supabaseResponse.cookies.set>[2])
-          );
-        },
-      },
-    }
-  );
-
-  // Rafraîchir la session côté serveur (renouvelle le cookie si expiré).
-  await supabase.auth.getSession();
+  // Aucun appel à Supabase Auth dans le middleware : getSession() pouvait
+  // attendre > 25 s pendant les incidents Supabase (504 Vercel). Le contrôle
+  // des droits réels reste dans les Server Components et les API.
+  // Le navigateur/les handlers SSR renouvellent les cookies lors de leurs accès.
 
   // ── Guard léger (sans appel réseau) ──────────────────────────────────────
   const { pathname } = request.nextUrl;
