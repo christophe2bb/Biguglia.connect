@@ -147,49 +147,32 @@ export function safeRemoveChannel(
   if (!channel) return Promise.resolve();
 
   return new Promise<void>((resolve) => {
-    // Accéder à l'état interne du canal (propriété publique de RealtimeChannel)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const state: string = (channel as unknown as Record<string, unknown>).state as string ?? 'closed';
+    let settled = false;
+    let poll: ReturnType<typeof setInterval> | null = null;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
 
-    const doRemove = () => {
-      supabase.removeChannel(channel).catch(() => null).finally(resolve);
+    const remove = () => {
+      if (settled) return;
+      settled = true;
+      if (poll) clearInterval(poll);
+      if (timeout) clearTimeout(timeout);
+      // Ne JAMAIS rappeler channel.subscribe() sur un canal déjà "joining".
+      // Sur les versions récentes de Realtime cela produit un doublon de
+      // souscription et peut déclencher des erreurs postgres_changes.
+      Promise.resolve(supabase.removeChannel(channel)).catch(() => null).then(() => resolve());
     };
 
-    if (state !== 'joining') {
-      // Canal déjà établi, en erreur, fermé ou en cours de fermeture :
-      // removeChannel() est sans danger, l'appeler immédiatement.
-      doRemove();
+    const state = () => (channel as unknown as { state?: string }).state ?? 'closed';
+    if (state() !== 'joining') {
+      remove();
       return;
     }
 
-    // Canal encore en vol (joining) : attendre la réponse du serveur.
-    // On s'abonne temporairement au statut pour détecter la fin de la
-    // connexion, avec un timeout de sécurité pour ne pas bloquer indéfiniment.
-    let settled = false;
-    const timer = setTimeout(() => {
-      if (!settled) { settled = true; doRemove(); }
-    }, SAFE_REMOVE_TIMEOUT_MS);
-
-    // subscribe() accepte un callback additionnel qui est appelé à chaque
-    // changement de statut. On l'utilise ici uniquement pour détecter la fin
-    // de la phase « joining » — peu importe si c'est SUBSCRIBED ou une erreur.
-    try {
-      channel.subscribe((status: string) => {
-        if (!settled && (
-          status === 'SUBSCRIBED'     ||
-          status === 'CHANNEL_ERROR'  ||
-          status === 'TIMED_OUT'      ||
-          status === 'CLOSED'
-        )) {
-          settled = true;
-          clearTimeout(timer);
-          doRemove();
-        }
-      });
-    } catch {
-      // subscribe() peut lever si le canal est dans un état incohérent
-      // (ex. double-invoke React Strict Mode). Forcer la suppression.
-      if (!settled) { settled = true; clearTimeout(timer); doRemove(); }
-    }
+    // Attendre la fin de l'état joining sans ajouter de nouvel abonnement.
+    // L'intervalle ne lit que l'état ; il est toujours nettoyé par remove().
+    poll = setInterval(() => {
+      if (state() !== 'joining') remove();
+    }, 100);
+    timeout = setTimeout(remove, SAFE_REMOVE_TIMEOUT_MS);
   });
 }
