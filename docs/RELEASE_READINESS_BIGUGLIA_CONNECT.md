@@ -47,6 +47,24 @@ désactivé dans `vercel.json`. `main` reste inchangée.
 - UX admin : protection contre les doubles clics, formulaire de révocation
   avec motif, pas de fermeture prématurée du dossier.
 
+## Installation Supabase vérifiée — 11 novembre 2026
+
+- Projet de référence : `qmrkacrpncdkhofiqlrg` (« christophe2bb's Project »).
+- Migration `confirm_conversation_exchange_20261111` **appliquée avec succès** :
+  la fonction `public.confirm_conversation_exchange(uuid, uuid)` existe.
+- Droits vérifiés : `service_role` peut l'exécuter ; `anon` et
+  `authenticated` **ne peuvent pas** l'exécuter.
+- Bucket `service-quote-photos` confirmé **privé**, limité à 5 Mio
+  et aux formats JPEG/PNG/WebP/GIF.
+- RLS activée sur `service_requests`, `service_request_photos`,
+  `request_comments`, `artisan_profiles`, `conversations`,
+  `conversation_participants`, `messages` et `user_blocks`.
+- Correctif GitHub supplémentaire : envoi de message refusé si l'expéditeur
+  ou un destinataire n'est pas actif, avec tests de régression.
+- Aucune nouvelle version Vercel ni fusion dans `main` autorisée.
+- Les essais réels multi-comptes, les accès aux photos avec comptes distincts
+  et les tests mobiles restent requis avant publication.
+
 ## Contrôles avant publication
 
 - [ ] Dernier commit GitHub : TypeScript, lint, tests unitaires, build et
