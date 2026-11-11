@@ -443,7 +443,7 @@ export const MODULES: Module[] = [
     categoryTable: "collection_categories",
     select:
       "id,author_id,title,description,category_id,mode,status,price,condition,rarity_level,year_period,brand,city,sector_id,created_at",
-    publicFilter: { status: "eq.actif" },
+    publicFilter: { status: "eq.active" },
     fields: [
       title,
       category("category_id", "collection_categories"),
@@ -489,14 +489,13 @@ export const MODULES: Module[] = [
       { name: "brand", label: "Marque / éditeur" },
       location("city"),
     ],
-    defaults: { status: "actif", mode: "vente" },
+    defaults: { status: "active", mode: "vente" },
     statuses: opts([
-      ["actif", "En ligne"],
-      ["reserve", "Réservé"],
-      ["vendu", "Vendu"],
-      ["echange", "Échangé"],
-      ["donne", "Donné"],
-      ["archive", "Archivé"],
+      ["active", "En ligne"],
+      ["reserved", "Réservé"],
+      ["sold", "Vendu / donné"],
+      ["exchanged", "Échangé"],
+      ["archived", "Archivé"],
     ]),
     photo: {
       table: "collection_item_photos",
@@ -847,7 +846,7 @@ export const MODULES: Module[] = [
     sector: "sector_id",
     select:
       "id,organizer_id,promenade_id,title,description,outing_date,outing_time,max_participants,meeting_point,status,difficulty,kids_friendly,dogs_allowed,is_registration_open,cover_photo_url,sector_id,created_at",
-    publicFilter: { status: "neq.archive" },
+    publicFilter: { status: "neq.archivee" },
     fields: [
       title,
       description,
@@ -953,16 +952,17 @@ export const MODULES: Module[] = [
     defaults: { status: "active" },
     statuses: opts([
       ["active", "Active"],
-      ["archived", "Archivée"],
+      ["inactive", "Inactive"],
+      ["closed", "Fermée"],
     ]),
     photo: {
       table: "asso_photos",
-      fk: "association_id",
+      fk: "asso_id",
       bucket: "association-photos",
     },
     comment: {
       table: "asso_comments",
-      fk: "association_id",
+      fk: "asso_id",
       content: "content",
       owner: "author_id",
     },
@@ -1033,7 +1033,7 @@ export const MODULES: Module[] = [
     categoryTable: "forum_categories",
     select:
       "id,author_id,title,content,category_id,status,reply_count,reaction_count,is_pinned,created_at",
-    publicFilter: { status: "neq.hidden" },
+    publicFilter: { status: "in.(ouvert,verrouille)" },
     fields: [
       title,
       category("category_id", "forum_categories"),

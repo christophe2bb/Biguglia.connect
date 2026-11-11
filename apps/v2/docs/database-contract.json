@@ -2,6 +2,37 @@
   "project": "qmrkacrpncdkhofiqlrg",
   "capturedAt": "2026-11-11",
   "tables": {
+    "admin_action_logs": [
+      "id",
+      "actor_id",
+      "actor_role",
+      "action",
+      "target_table",
+      "target_id",
+      "reason",
+      "meta",
+      "created_at"
+    ],
+    "appointments": [
+      "id",
+      "request_id",
+      "resident_id",
+      "artisan_id",
+      "proposed_date",
+      "proposed_time",
+      "notes",
+      "status",
+      "created_at",
+      "updated_at"
+    ],
+    "artisan_photos": [
+      "id",
+      "artisan_id",
+      "url",
+      "caption",
+      "display_order",
+      "created_at"
+    ],
     "artisan_profiles": [
       "id",
       "user_id",
@@ -28,6 +59,31 @@
       "intervention_zone",
       "avatar_url",
       "view_count"
+    ],
+    "asso_comments": ["id", "asso_id", "author_id", "content", "created_at"],
+    "asso_photos": ["id", "asso_id", "url", "display_order", "created_at"],
+    "association_memberships_interest": [
+      "id",
+      "association_id",
+      "user_id",
+      "interest_type",
+      "message",
+      "status",
+      "created_at"
+    ],
+    "association_needs": [
+      "id",
+      "association_id",
+      "need_type",
+      "title",
+      "description",
+      "urgency",
+      "status",
+      "sector_id",
+      "created_by",
+      "expires_at",
+      "created_at",
+      "updated_at"
     ],
     "associations": [
       "id",
@@ -86,6 +142,114 @@
       "is_accepting_partners",
       "last_activity_at"
     ],
+    "borrow_requests": [
+      "id",
+      "item_id",
+      "borrower_id",
+      "start_date",
+      "end_date",
+      "message",
+      "status",
+      "created_at",
+      "updated_at"
+    ],
+    "collection_categories": [
+      "id",
+      "name",
+      "slug",
+      "icon",
+      "color",
+      "display_order",
+      "is_custom",
+      "author_id"
+    ],
+    "collection_favorites": ["id", "user_id", "item_id", "created_at"],
+    "collection_item_comments": [
+      "id",
+      "item_id",
+      "author_id",
+      "content",
+      "created_at",
+      "updated_at"
+    ],
+    "collection_item_photos": [
+      "id",
+      "item_id",
+      "url",
+      "display_order",
+      "created_at",
+      "is_cover",
+      "sort_order",
+      "alt_text"
+    ],
+    "collection_items": [
+      "id",
+      "author_id",
+      "category_id",
+      "title",
+      "description",
+      "item_type",
+      "price",
+      "condition",
+      "tags",
+      "status",
+      "views",
+      "created_at",
+      "updated_at",
+      "status_changed_at",
+      "mode",
+      "rarity_level",
+      "year_period",
+      "brand",
+      "series_name",
+      "authenticity_declared",
+      "provenance",
+      "defects_noted",
+      "dimensions",
+      "material",
+      "exchange_expected",
+      "shipping_available",
+      "local_meetup_available",
+      "city",
+      "postal_code",
+      "is_featured",
+      "featured_until",
+      "boost_count",
+      "views_count",
+      "favorites_count",
+      "messages_count",
+      "offers_count",
+      "published_at",
+      "reserved_at",
+      "closed_at",
+      "archived_at",
+      "moderation_status",
+      "moderation_note",
+      "moderated_by",
+      "subcategory",
+      "sector_id"
+    ],
+    "collection_offers": [
+      "id",
+      "item_id",
+      "buyer_id",
+      "seller_id",
+      "offer_type",
+      "offered_price",
+      "offered_item_description",
+      "message",
+      "status",
+      "created_at",
+      "updated_at"
+    ],
+    "collection_views": ["id", "item_id", "viewer_id", "viewed_at"],
+    "conversation_pairs": [
+      "conversation_id",
+      "participant_a",
+      "participant_b",
+      "related_type",
+      "related_id"
+    ],
     "conversation_participants": [
       "id",
       "conversation_id",
@@ -109,6 +273,7 @@
       "owner_id",
       "status"
     ],
+    "equipment_categories": ["id", "name", "slug", "icon", "display_order"],
     "equipment_items": [
       "id",
       "owner_id",
@@ -132,6 +297,98 @@
       "availability_notes",
       "location_area",
       "sector_id"
+    ],
+    "equipment_loans": [
+      "id",
+      "equipment_id",
+      "owner_id",
+      "borrower_id",
+      "request_id",
+      "status",
+      "reserved_at",
+      "loan_started_at",
+      "returned_at",
+      "notes_owner",
+      "notes_borrower",
+      "created_at",
+      "updated_at"
+    ],
+    "equipment_owner_summary": [
+      "owner_id",
+      "total",
+      "disponible",
+      "reserve",
+      "prete",
+      "rendu",
+      "indisponible",
+      "archive",
+      "pending_requests"
+    ],
+    "equipment_photos": ["id", "item_id", "url", "display_order", "is_cover"],
+    "equipment_requests": [
+      "id",
+      "equipment_id",
+      "requester_id",
+      "message",
+      "requested_start_date",
+      "requested_end_date",
+      "status",
+      "owner_note",
+      "created_at",
+      "updated_at"
+    ],
+    "equipment_status_history": [
+      "id",
+      "equipment_id",
+      "old_status",
+      "new_status",
+      "changed_by",
+      "reason",
+      "created_at"
+    ],
+    "event_comments": ["id", "event_id", "author_id", "content", "created_at"],
+    "event_date_history": [
+      "id",
+      "event_id",
+      "old_event_date",
+      "new_event_date",
+      "old_start_time",
+      "new_start_time",
+      "changed_by",
+      "reason",
+      "created_at"
+    ],
+    "event_participants": [
+      "id",
+      "event_id",
+      "user_id",
+      "created_at",
+      "status",
+      "joined_at",
+      "confirmed_at",
+      "cancelled_at",
+      "attendance_marked_at",
+      "notes",
+      "updated_at"
+    ],
+    "event_photos": [
+      "id",
+      "event_id",
+      "url",
+      "display_order",
+      "created_at",
+      "is_cover",
+      "updated_at"
+    ],
+    "event_saves": ["id", "event_id", "user_id", "created_at"],
+    "event_status_history": [
+      "id",
+      "event_id",
+      "old_status",
+      "new_status",
+      "changed_by",
+      "reason",
+      "created_at"
     ],
     "events": [
       "id",
@@ -183,6 +440,101 @@
       "price_amount",
       "views_count"
     ],
+    "forum_categories": [
+      "id",
+      "name",
+      "slug",
+      "description",
+      "icon",
+      "display_order"
+    ],
+    "forum_comments": [
+      "id",
+      "post_id",
+      "author_id",
+      "content",
+      "created_at",
+      "updated_at"
+    ],
+    "forum_follows": [
+      "id",
+      "topic_id",
+      "user_id",
+      "notify_replies",
+      "created_at"
+    ],
+    "forum_moderation_logs": [
+      "id",
+      "moderator_id",
+      "topic_id",
+      "reply_id",
+      "action",
+      "reason",
+      "created_at"
+    ],
+    "forum_posts": [
+      "id",
+      "category_id",
+      "author_id",
+      "title",
+      "content",
+      "is_pinned",
+      "is_closed",
+      "views",
+      "created_at",
+      "updated_at",
+      "search_vector",
+      "moderation_status",
+      "theme"
+    ],
+    "forum_reactions": [
+      "id",
+      "topic_id",
+      "reply_id",
+      "user_id",
+      "emoji",
+      "created_at"
+    ],
+    "forum_replies": [
+      "id",
+      "topic_id",
+      "author_id",
+      "content",
+      "quote_reply_id",
+      "is_solution",
+      "reaction_count",
+      "created_at",
+      "updated_at"
+    ],
+    "forum_reports": [
+      "id",
+      "reporter_id",
+      "topic_id",
+      "reply_id",
+      "reason",
+      "description",
+      "status",
+      "created_at"
+    ],
+    "forum_sectors": [
+      "id",
+      "name",
+      "slug",
+      "description",
+      "icon",
+      "color",
+      "display_order",
+      "created_at"
+    ],
+    "forum_tags": ["id", "name", "slug", "color"],
+    "forum_topic_photos": [
+      "id",
+      "topic_id",
+      "url",
+      "display_order",
+      "created_at"
+    ],
+    "forum_topic_tags": ["topic_id", "tag_id"],
     "forum_topics": [
       "id",
       "sector_id",
@@ -234,6 +586,26 @@
       "archived_at",
       "sector_id"
     ],
+    "help_comments": ["id", "help_id", "author_id", "content", "created_at"],
+    "help_photos": ["id", "help_id", "url", "display_order", "created_at"],
+    "help_request_participants": [
+      "id",
+      "help_request_id",
+      "user_id",
+      "role",
+      "state",
+      "message",
+      "created_at"
+    ],
+    "help_request_status_history": [
+      "id",
+      "help_request_id",
+      "old_status",
+      "new_status",
+      "changed_by",
+      "note",
+      "changed_at"
+    ],
     "help_requests": [
       "id",
       "author_id",
@@ -264,6 +636,52 @@
       "search_vector",
       "moderation_status",
       "sector_id"
+    ],
+    "interactions": [
+      "id",
+      "source_type",
+      "source_id",
+      "requester_id",
+      "receiver_id",
+      "interaction_type",
+      "status",
+      "status_history",
+      "conversation_id",
+      "review_unlocked",
+      "review_requester_done",
+      "review_receiver_done",
+      "started_at",
+      "accepted_at",
+      "in_progress_at",
+      "completed_at",
+      "cancelled_at",
+      "created_at",
+      "updated_at"
+    ],
+    "item_ratings": [
+      "id",
+      "target_type",
+      "target_id",
+      "user_id",
+      "author_id",
+      "rating",
+      "comment",
+      "poll_choice",
+      "created_at",
+      "updated_at"
+    ],
+    "job_contacts": [
+      "id",
+      "offer_id",
+      "demand_id",
+      "sender_id",
+      "receiver_id",
+      "message",
+      "contact_method",
+      "status",
+      "created_at",
+      "read_at",
+      "replied_at"
     ],
     "job_demands": [
       "id",
@@ -369,6 +787,68 @@
       "created_at",
       "updated_at"
     ],
+    "lf_comments": ["id", "item_id", "author_id", "content", "created_at"],
+    "lf_matches": [
+      "id",
+      "lost_item_id",
+      "found_item_id",
+      "match_score",
+      "match_status",
+      "suggested_by",
+      "created_at"
+    ],
+    "lf_photos": [
+      "id",
+      "item_id",
+      "url",
+      "display_order",
+      "created_at",
+      "visibility_type"
+    ],
+    "lf_status_history": [
+      "id",
+      "item_id",
+      "old_status",
+      "new_status",
+      "changed_by",
+      "reason",
+      "created_at"
+    ],
+    "listing_categories": ["id", "name", "slug", "icon", "display_order"],
+    "listing_favorites": ["id", "listing_id", "user_id", "created_at"],
+    "listing_photos": ["id", "listing_id", "url", "display_order"],
+    "listing_reports": [
+      "id",
+      "listing_id",
+      "reporter_id",
+      "reason",
+      "comment",
+      "status",
+      "created_at"
+    ],
+    "listing_saved_searches": [
+      "id",
+      "user_id",
+      "label",
+      "query",
+      "category_id",
+      "listing_type",
+      "sector_id",
+      "price_max",
+      "condition",
+      "notify",
+      "created_at",
+      "last_notified_at"
+    ],
+    "listing_status_history": [
+      "id",
+      "listing_id",
+      "old_status",
+      "new_status",
+      "changed_by",
+      "note",
+      "changed_at"
+    ],
     "listings": [
       "id",
       "user_id",
@@ -437,6 +917,15 @@
       "moderation_status",
       "sector_id"
     ],
+    "message_attachments": [
+      "id",
+      "message_id",
+      "file_url",
+      "file_type",
+      "file_name",
+      "file_size",
+      "created_at"
+    ],
     "messages": [
       "id",
       "conversation_id",
@@ -449,6 +938,56 @@
       "edited_at",
       "deleted_at"
     ],
+    "moderation_history": [
+      "id",
+      "queue_id",
+      "content_type",
+      "content_id",
+      "author_id",
+      "action",
+      "old_status",
+      "new_status",
+      "decision",
+      "reason",
+      "moderator_id",
+      "moderator_note",
+      "created_at"
+    ],
+    "moderation_kpi": [
+      "total",
+      "pending",
+      "published",
+      "refused",
+      "correction",
+      "avg_risk",
+      "last_24h"
+    ],
+    "moderation_queue": [
+      "id",
+      "author_id",
+      "content_type",
+      "content_id",
+      "content_title",
+      "status",
+      "reviewed_by",
+      "reviewed_at",
+      "reject_reason",
+      "created_at",
+      "submitted_at",
+      "updated_at",
+      "risk_score",
+      "risk_level",
+      "completeness",
+      "validation_errors",
+      "author_trust",
+      "content_excerpt",
+      "content_photos",
+      "resubmit_count",
+      "moderator_note",
+      "correction_reason",
+      "refusal_reason",
+      "decision"
+    ],
     "notifications": [
       "id",
       "user_id",
@@ -458,6 +997,64 @@
       "link",
       "is_read",
       "created_at"
+    ],
+    "outing_comments": [
+      "id",
+      "outing_id",
+      "author_id",
+      "content",
+      "created_at"
+    ],
+    "outing_organizer_summary": [
+      "id",
+      "organizer_id",
+      "title",
+      "outing_date",
+      "status",
+      "sector_id",
+      "difficulty",
+      "kids_friendly",
+      "dogs_allowed",
+      "participants_count",
+      "created_at",
+      "updated_at"
+    ],
+    "outing_participants": [
+      "id",
+      "outing_id",
+      "user_id",
+      "created_at",
+      "status",
+      "confirmed_at",
+      "cancelled_at",
+      "attendance_marked_at",
+      "notes",
+      "updated_at",
+      "joined_at"
+    ],
+    "outing_photos": [
+      "id",
+      "outing_id",
+      "url",
+      "display_order",
+      "created_at",
+      "is_cover"
+    ],
+    "outing_status_history": [
+      "id",
+      "outing_id",
+      "old_status",
+      "new_status",
+      "changed_by",
+      "reason",
+      "created_at"
+    ],
+    "profile_badges": [
+      "id",
+      "profile_id",
+      "badge_code",
+      "awarded_at",
+      "awarded_by"
     ],
     "profiles": [
       "id",
@@ -479,6 +1076,14 @@
       "moderation_note",
       "home_sector_id",
       "is_active"
+    ],
+    "promenade_likes": ["id", "promenade_id", "user_id", "created_at"],
+    "promenade_photos": [
+      "id",
+      "promenade_id",
+      "url",
+      "display_order",
+      "created_at"
     ],
     "promenades": [
       "id",
@@ -506,13 +1111,72 @@
       "practical_tips",
       "safety_notes"
     ],
-    "public_profiles": [
+    "public_profiles": ["id", "full_name", "avatar_url", "role", "created_at"],
+    "reports": [
       "id",
-      "full_name",
-      "avatar_url",
-      "role",
+      "reporter_id",
+      "target_type",
+      "target_id",
+      "reason",
+      "description",
+      "status",
+      "created_at",
+      "updated_at",
+      "target_title",
+      "reviewed_at",
+      "reviewed_by"
+    ],
+    "request_comments": [
+      "id",
+      "request_id",
+      "author_id",
+      "content",
       "created_at"
     ],
+    "review_tags": ["id", "review_id", "tag"],
+    "reviews": [
+      "id",
+      "artisan_id",
+      "reviewer_id",
+      "rating",
+      "comment",
+      "created_at",
+      "author_id",
+      "target_user_id",
+      "interaction_id",
+      "source_type",
+      "source_id",
+      "dim_communication",
+      "dim_reliability",
+      "dim_punctuality",
+      "dim_quality",
+      "would_recommend",
+      "moderation_status",
+      "moderation_note",
+      "moderated_by",
+      "moderated_at",
+      "updated_at"
+    ],
+    "sector_stats": [
+      "sector_name",
+      "sector_slug",
+      "total_artisans",
+      "total_requests",
+      "completed_requests",
+      "avg_rating"
+    ],
+    "sectors": [
+      "id",
+      "name",
+      "slug",
+      "icon",
+      "color",
+      "display_order",
+      "description",
+      "is_active",
+      "created_at"
+    ],
+    "service_request_photos": ["id", "request_id", "url", "created_at"],
     "service_requests": [
       "id",
       "resident_id",
@@ -529,6 +1193,28 @@
       "updated_at",
       "sector_id"
     ],
+    "theme_discussion_likes": ["id", "discussion_id", "user_id", "created_at"],
+    "theme_discussions": [
+      "id",
+      "theme_id",
+      "theme_slug",
+      "author_id",
+      "content",
+      "is_pinned",
+      "likes_count",
+      "created_at",
+      "updated_at"
+    ],
+    "theme_memberships": [
+      "id",
+      "user_id",
+      "theme_slug",
+      "status",
+      "visibility",
+      "allow_messages",
+      "joined_at",
+      "last_active_at"
+    ],
     "theme_profiles": [
       "id",
       "user_id",
@@ -543,6 +1229,65 @@
       "location_zone",
       "custom_fields",
       "updated_at"
+    ],
+    "trade_categories": [
+      "id",
+      "name",
+      "slug",
+      "icon",
+      "description",
+      "display_order"
+    ],
+    "trust_interactions": [
+      "id",
+      "source_type",
+      "source_id",
+      "requester_id",
+      "receiver_id",
+      "interaction_type",
+      "status",
+      "review_unlocked",
+      "review_requester_done",
+      "review_receiver_done",
+      "conversation_id",
+      "status_history",
+      "started_at",
+      "accepted_at",
+      "completed_at",
+      "updated_at",
+      "requester_review_allowed",
+      "receiver_review_allowed"
+    ],
+    "trust_profile_stats": [
+      "profile_id",
+      "interactions_total",
+      "interactions_done",
+      "interactions_cancelled",
+      "interactions_disputed",
+      "reviews_received",
+      "avg_rating",
+      "avg_communication",
+      "avg_reliability",
+      "avg_punctuality",
+      "avg_quality",
+      "recommend_pct",
+      "dist_1",
+      "dist_2",
+      "dist_3",
+      "dist_4",
+      "dist_5",
+      "trust_score",
+      "last_computed_at",
+      "updated_at"
+    ],
+    "user_blocks": ["id", "user_id", "target_user_id", "created_at"],
+    "user_favorites": [
+      "id",
+      "user_id",
+      "target_user_id",
+      "created_at",
+      "target_id",
+      "target_type"
     ]
   }
 }

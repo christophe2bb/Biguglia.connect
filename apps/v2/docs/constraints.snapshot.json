@@ -1,0 +1,586 @@
+{
+  "enums": {
+    "action": ["INSERT", "UPDATE", "DELETE", "TRUNCATE", "ERROR"],
+    "aal_level": ["aal1", "aal2", "aal3"],
+    "plan_type": ["free", "basic", "pro", "enterprise"],
+    "user_role": [
+      "resident",
+      "artisan_pending",
+      "artisan_verified",
+      "moderator",
+      "admin"
+    ],
+    "buckettype": ["STANDARD", "ANALYTICS", "VECTOR"],
+    "job_status": [
+      "draft",
+      "published",
+      "paused",
+      "expired",
+      "filled",
+      "archived"
+    ],
+    "equality_op": [
+      "eq",
+      "neq",
+      "lt",
+      "lte",
+      "gt",
+      "gte",
+      "in",
+      "like",
+      "ilike",
+      "is",
+      "match",
+      "imatch",
+      "isdistinct"
+    ],
+    "factor_type": ["totp", "webauthn", "phone", "recovery_code"],
+    "job_category": [
+      "restauration",
+      "hotellerie",
+      "commerce",
+      "artisanat",
+      "batiment",
+      "services_personne",
+      "administratif",
+      "logistique",
+      "nettoyage",
+      "transport",
+      "sante",
+      "animation",
+      "petite_enfance",
+      "association",
+      "evenementiel",
+      "agriculture",
+      "autre"
+    ],
+    "listing_type": ["sale", "wanted", "free", "service", "exchange", "rental"],
+    "related_type": [
+      "service_request",
+      "listing",
+      "equipment",
+      "general",
+      "help_request",
+      "lost_found",
+      "association",
+      "outing",
+      "collection_item",
+      "event",
+      "community",
+      "artisan"
+    ],
+    "borrow_status": [
+      "pending",
+      "approved",
+      "rejected",
+      "borrowed",
+      "returned",
+      "cancelled"
+    ],
+    "contract_type": [
+      "cdi",
+      "cdd",
+      "saisonnier",
+      "mission",
+      "extra",
+      "remplacement",
+      "alternance",
+      "stage",
+      "interim",
+      "freelance"
+    ],
+    "factor_status": ["unverified", "verified"],
+    "mobility_mode": ["car", "public_transport", "bike", "walk"],
+    "report_status": ["pending", "reviewed", "resolved", "dismissed"],
+    "report_target": [
+      "user",
+      "post",
+      "listing",
+      "message",
+      "equipment",
+      "event",
+      "promenade",
+      "outing",
+      "association",
+      "lost_found",
+      "collection_item",
+      "help_request"
+    ],
+    "salary_period": ["hourly", "monthly", "yearly"],
+    "urgency_level": ["normal", "urgent", "tres_urgent"],
+    "account_status": ["active", "pending", "rejected", "suspended"],
+    "contact_status": ["pending", "read", "replied", "archived"],
+    "item_condition": ["excellent", "bon", "usage"],
+    "listing_status": [
+      "active",
+      "sold",
+      "archived",
+      "reserved",
+      "expired",
+      "draft",
+      "given",
+      "exchanged",
+      "closed",
+      "hidden"
+    ],
+    "promotion_type": [
+      "none",
+      "boost_local",
+      "badge_verified",
+      "urgent",
+      "top_position"
+    ],
+    "request_status": [
+      "submitted",
+      "viewed",
+      "replied",
+      "scheduled",
+      "completed",
+      "cancelled"
+    ],
+    "employment_type": ["temps_plein", "temps_partiel", "flexible"],
+    "application_mode": ["email", "phone", "on_site", "mixed"],
+    "experience_level": ["debutant", "junior", "confirme", "senior", "expert"],
+    "visibility_level": ["standard", "featured", "premium"],
+    "availability_type": ["immediate", "week", "month", "date", "flexible"],
+    "oauth_client_type": ["public", "confidential"],
+    "appointment_status": [
+      "pending",
+      "accepted",
+      "declined",
+      "rescheduled",
+      "completed",
+      "cancelled"
+    ],
+    "publication_source": ["web", "mobile", "api"],
+    "oauth_response_type": ["code"],
+    "one_time_token_type": [
+      "confirmation_token",
+      "reauthentication_token",
+      "recovery_token",
+      "email_change_token_new",
+      "email_change_token_current",
+      "phone_change_token"
+    ],
+    "code_challenge_method": ["s256", "plain"],
+    "oauth_registration_type": ["dynamic", "manual"],
+    "oauth_authorization_status": ["pending", "approved", "denied", "expired"]
+  },
+  "checks": [
+    {
+      "name": "collection_offers_offer_type_check",
+      "table": "collection_offers",
+      "definition": "CHECK ((offer_type = ANY (ARRAY['price'::text, 'exchange'::text, 'both'::text])))"
+    },
+    {
+      "name": "collection_offers_status_check",
+      "table": "collection_offers",
+      "definition": "CHECK ((status = ANY (ARRAY['pending'::text, 'accepted'::text, 'refused'::text, 'cancelled'::text, 'expired'::text])))"
+    },
+    {
+      "name": "association_needs_need_type_check",
+      "table": "association_needs",
+      "definition": "CHECK ((need_type = ANY (ARRAY['members'::text, 'volunteers'::text, 'material'::text, 'sponsors'::text, 'donations'::text, 'skills'::text, 'venue'::text, 'communication'::text, 'logistics'::text])))"
+    },
+    {
+      "name": "association_needs_status_check",
+      "table": "association_needs",
+      "definition": "CHECK ((status = ANY (ARRAY['open'::text, 'in_progress'::text, 'fulfilled'::text, 'archived'::text])))"
+    },
+    {
+      "name": "association_needs_urgency_check",
+      "table": "association_needs",
+      "definition": "CHECK ((urgency = ANY (ARRAY['low'::text, 'normal'::text, 'high'::text, 'critical'::text])))"
+    },
+    {
+      "name": "review_tags_tag_check",
+      "table": "review_tags",
+      "definition": "CHECK ((char_length(tag) <= 50))"
+    },
+    {
+      "name": "no_self_review",
+      "table": "reviews",
+      "definition": "CHECK ((author_id <> target_user_id))"
+    },
+    {
+      "name": "reviews_dim_comm_check",
+      "table": "reviews",
+      "definition": "CHECK (((dim_communication >= 1) AND (dim_communication <= 5)))"
+    },
+    {
+      "name": "reviews_dim_punc_check",
+      "table": "reviews",
+      "definition": "CHECK (((dim_punctuality >= 1) AND (dim_punctuality <= 5)))"
+    },
+    {
+      "name": "reviews_dim_qual_check",
+      "table": "reviews",
+      "definition": "CHECK (((dim_quality >= 1) AND (dim_quality <= 5)))"
+    },
+    {
+      "name": "reviews_dim_rel_check",
+      "table": "reviews",
+      "definition": "CHECK (((dim_reliability >= 1) AND (dim_reliability <= 5)))"
+    },
+    {
+      "name": "reviews_modstatus_check",
+      "table": "reviews",
+      "definition": "CHECK ((moderation_status = ANY (ARRAY['visible'::text, 'reported'::text, 'hidden'::text, 'deleted'::text])))"
+    },
+    {
+      "name": "reviews_rating_check",
+      "table": "reviews",
+      "definition": "CHECK (((rating >= 1) AND (rating <= 5)))"
+    },
+    {
+      "name": "lf_matches_match_score_check",
+      "table": "lf_matches",
+      "definition": "CHECK (((match_score >= 0) AND (match_score <= 100)))"
+    },
+    {
+      "name": "lf_matches_match_status_check",
+      "table": "lf_matches",
+      "definition": "CHECK ((match_status = ANY (ARRAY['suggested'::text, 'confirmed'::text, 'rejected'::text])))"
+    },
+    {
+      "name": "messages_message_type_check",
+      "table": "messages",
+      "definition": "CHECK ((message_type = ANY (ARRAY['text'::text, 'system'::text, 'image'::text, 'file'::text, 'location'::text])))"
+    },
+    {
+      "name": "trust_interactions_interaction_type_check",
+      "table": "trust_interactions",
+      "definition": "CHECK ((interaction_type = ANY (ARRAY['transaction'::text, 'material_request'::text, 'help_match'::text, 'participation'::text, 'contact'::text, 'service_request'::text])))"
+    },
+    {
+      "name": "trust_interactions_source_type_check",
+      "table": "trust_interactions",
+      "definition": "CHECK ((source_type = ANY (ARRAY['listing'::text, 'equipment'::text, 'help_request'::text, 'lost_found'::text, 'association'::text, 'outing'::text, 'collection_item'::text, 'event'::text, 'promenade'::text, 'service_request'::text])))"
+    },
+    {
+      "name": "trust_interactions_status_check",
+      "table": "trust_interactions",
+      "definition": "CHECK ((status = ANY (ARRAY['requested'::text, 'pending'::text, 'accepted'::text, 'rejected'::text, 'in_progress'::text, 'done'::text, 'cancelled'::text, 'disputed'::text])))"
+    },
+    {
+      "name": "artisan_profiles_artisan_type_check",
+      "table": "artisan_profiles",
+      "definition": "CHECK ((artisan_type = ANY (ARRAY['professionnel'::text, 'particulier'::text])))"
+    },
+    {
+      "name": "profiles_trust_level_check",
+      "table": "profiles",
+      "definition": "CHECK ((trust_level = ANY (ARRAY['nouveau'::text, 'surveille'::text, 'fiable'::text, 'de_confiance'::text])))"
+    },
+    {
+      "name": "group_outings_difficulty_check",
+      "table": "group_outings",
+      "definition": "CHECK ((difficulty = ANY (ARRAY['facile'::text, 'moyen'::text, 'difficile'::text])))"
+    },
+    {
+      "name": "group_outings_status_check",
+      "table": "group_outings",
+      "definition": "CHECK ((status = ANY (ARRAY['ouverte'::text, 'complete'::text, 'terminee'::text, 'annulee'::text, 'archivee'::text])))"
+    },
+    {
+      "name": "conversation_pairs_canonical",
+      "table": "conversation_pairs",
+      "definition": "CHECK ((participant_a < participant_b))"
+    },
+    {
+      "name": "association_memberships_interest_interest_type_check",
+      "table": "association_memberships_interest",
+      "definition": "CHECK ((interest_type = ANY (ARRAY['member'::text, 'volunteer'::text, 'donor'::text, 'partner'::text, 'info'::text])))"
+    },
+    {
+      "name": "association_memberships_interest_status_check",
+      "table": "association_memberships_interest",
+      "definition": "CHECK ((status = ANY (ARRAY['pending'::text, 'contacted'::text, 'accepted'::text, 'declined'::text])))"
+    },
+    {
+      "name": "forum_topics_status_check",
+      "table": "forum_topics",
+      "definition": "CHECK ((status = ANY (ARRAY['ouvert'::text, 'verrouille'::text, 'masque'::text, 'archive'::text])))"
+    },
+    {
+      "name": "forum_topics_visibility_check",
+      "table": "forum_topics",
+      "definition": "CHECK ((visibility = ANY (ARRAY['public'::text, 'membres'::text, 'secteur'::text])))"
+    },
+    {
+      "name": "equipment_requests_status_check",
+      "table": "equipment_requests",
+      "definition": "CHECK ((status = ANY (ARRAY['en_attente'::text, 'acceptee'::text, 'refusee'::text, 'annulee'::text, 'terminee'::text])))"
+    },
+    {
+      "name": "equipment_loans_status_check",
+      "table": "equipment_loans",
+      "definition": "CHECK ((status = ANY (ARRAY['reserve'::text, 'en_cours'::text, 'retourne'::text, 'annule'::text])))"
+    },
+    {
+      "name": "interactions_interaction_type_check",
+      "table": "interactions",
+      "definition": "CHECK ((interaction_type = ANY (ARRAY['transaction'::text, 'material_request'::text, 'help_match'::text, 'participation'::text, 'contact'::text, 'service_request'::text])))"
+    },
+    {
+      "name": "interactions_source_type_check",
+      "table": "interactions",
+      "definition": "CHECK ((source_type = ANY (ARRAY['listing'::text, 'equipment'::text, 'help_request'::text, 'association'::text, 'collection_item'::text, 'outing'::text, 'event'::text, 'service_request'::text, 'lost_found'::text])))"
+    },
+    {
+      "name": "interactions_status_check",
+      "table": "interactions",
+      "definition": "CHECK ((status = ANY (ARRAY['requested'::text, 'pending'::text, 'accepted'::text, 'rejected'::text, 'in_progress'::text, 'done'::text, 'cancelled'::text, 'disputed'::text])))"
+    },
+    {
+      "name": "forum_reactions_check",
+      "table": "forum_reactions",
+      "definition": "CHECK (((topic_id IS NOT NULL) OR (reply_id IS NOT NULL)))"
+    },
+    {
+      "name": "associations_pub_type_check",
+      "table": "associations",
+      "definition": "CHECK ((pub_type = ANY (ARRAY['vitrine'::text, 'benevoles'::text, 'activite'::text, 'adherents'::text, 'materiel'::text, 'evenement'::text, 'dons'::text, 'partenaires'::text])))"
+    },
+    {
+      "name": "associations_status_check",
+      "table": "associations",
+      "definition": "CHECK ((status = ANY (ARRAY['active'::text, 'inactive'::text, 'closed'::text, 'draft'::text])))"
+    },
+    {
+      "name": "equipment_status_check",
+      "table": "equipment_items",
+      "definition": "CHECK ((status = ANY (ARRAY['disponible'::text, 'reserve'::text, 'prete'::text, 'rendu'::text, 'indisponible'::text, 'archive'::text])))"
+    },
+    {
+      "name": "lost_found_items_status_check",
+      "table": "lost_found_items",
+      "definition": "CHECK ((status = ANY (ARRAY['active'::text, 'resolved'::text, 'restituted'::text, 'closed'::text, 'draft'::text])))"
+    },
+    {
+      "name": "lost_found_items_type_check",
+      "table": "lost_found_items",
+      "definition": "CHECK ((type = ANY (ARRAY['perdu'::text, 'trouve'::text])))"
+    },
+    {
+      "name": "lf_photos_visibility_type_check",
+      "table": "lf_photos",
+      "definition": "CHECK ((visibility_type = ANY (ARRAY['public'::text, 'private_admin'::text, 'private_restitution'::text])))"
+    },
+    {
+      "name": "events_category_check",
+      "table": "events",
+      "definition": "CHECK ((category = ANY (ARRAY['concert'::text, 'fete_locale'::text, 'marche_foire'::text, 'vide_grenier'::text, 'rencontre_asso'::text, 'atelier'::text, 'sortie_famille'::text, 'activite_enfant'::text, 'sport'::text, 'reunion_publique'::text, 'solidaire'::text, 'autres'::text, 'fete'::text, 'culture'::text, 'association'::text, 'citoyen'::text, 'marche'::text, 'famille'::text, 'musique'::text, 'repas'::text, 'nature'::text, 'social'::text, 'conference'::text])))"
+    },
+    {
+      "name": "events_status_check",
+      "table": "events",
+      "definition": "CHECK ((status = ANY (ARRAY['a_venir'::text, 'complet'::text, 'reporte'::text, 'annule'::text, 'passe'::text, 'archive'::text])))"
+    },
+    {
+      "name": "conversations_exchange_status_check",
+      "table": "conversations",
+      "definition": "CHECK ((exchange_status = ANY (ARRAY['pending_confirmation'::text, 'done'::text])))"
+    },
+    {
+      "name": "conversations_related_type_check",
+      "table": "conversations",
+      "definition": "CHECK ((related_type = ANY (ARRAY['listing'::related_type, 'equipment'::related_type, 'general'::related_type, 'help_request'::related_type, 'collection_item'::related_type, 'lost_found'::related_type, 'association'::related_type, 'outing'::related_type, 'event'::related_type, 'service_request'::related_type, 'artisan'::related_type, 'community'::related_type])))"
+    },
+    {
+      "name": "conversations_status_check",
+      "table": "conversations",
+      "definition": "CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text, 'blocked'::text])))"
+    },
+    {
+      "name": "moderation_queue_status_check",
+      "table": "moderation_queue",
+      "definition": "CHECK ((status = ANY (ARRAY['en_attente_validation'::text, 'publie'::text, 'refuse'::text, 'a_corriger'::text, 'pending'::text, 'approved'::text, 'rejected'::text, 'draft'::text])))"
+    },
+    {
+      "name": "job_contacts_check",
+      "table": "job_contacts",
+      "definition": "CHECK ((((offer_id IS NOT NULL) AND (demand_id IS NULL)) OR ((offer_id IS NULL) AND (demand_id IS NOT NULL))))"
+    },
+    {
+      "name": "job_contacts_contact_method_check",
+      "table": "job_contacts",
+      "definition": "CHECK ((contact_method = ANY (ARRAY['internal_message'::text, 'email'::text, 'phone'::text])))"
+    },
+    {
+      "name": "job_contacts_message_check",
+      "table": "job_contacts",
+      "definition": "CHECK (((char_length(message) >= 10) AND (char_length(message) <= 1000)))"
+    },
+    {
+      "name": "listings_price_type_check",
+      "table": "listings",
+      "definition": "CHECK ((price_type = ANY (ARRAY['fixed'::text, 'negotiable'::text, 'free'::text, 'exchange_only'::text, 'contact'::text])))"
+    },
+    {
+      "name": "help_requests_help_type_check",
+      "table": "help_requests",
+      "definition": "CHECK ((help_type = ANY (ARRAY['demande'::text, 'offre'::text, 'echange'::text])))"
+    },
+    {
+      "name": "help_requests_status_check",
+      "table": "help_requests",
+      "definition": "CHECK ((status = ANY (ARRAY['active'::text, 'paused'::text, 'resolved'::text, 'draft'::text])))"
+    },
+    {
+      "name": "help_requests_urgency_check",
+      "table": "help_requests",
+      "definition": "CHECK ((urgency = ANY (ARRAY['flexible'::text, 'cette_semaine'::text, 'rapidement'::text, 'urgent'::text])))"
+    },
+    {
+      "name": "help_requests_visibility_check",
+      "table": "help_requests",
+      "definition": "CHECK ((visibility = ANY (ARRAY['public'::text, 'membres'::text])))"
+    },
+    {
+      "name": "theme_memberships_status_check",
+      "table": "theme_memberships",
+      "definition": "CHECK ((status = ANY (ARRAY['active'::text, 'suspended'::text, 'hidden'::text])))"
+    },
+    {
+      "name": "theme_memberships_visibility_check",
+      "table": "theme_memberships",
+      "definition": "CHECK ((visibility = ANY (ARRAY['public'::text, 'members_only'::text, 'private'::text])))"
+    },
+    {
+      "name": "item_ratings_poll_choice_check",
+      "table": "item_ratings",
+      "definition": "CHECK (((poll_choice >= 0) AND (poll_choice <= 3)))"
+    },
+    {
+      "name": "item_ratings_rating_check",
+      "table": "item_ratings",
+      "definition": "CHECK (((rating >= 0) AND (rating <= 5)))"
+    },
+    {
+      "name": "item_ratings_target_type_check",
+      "table": "item_ratings",
+      "definition": "CHECK ((target_type = ANY (ARRAY['listing'::text, 'equipment'::text, 'help_request'::text, 'lost_found'::text, 'association'::text, 'outing'::text, 'collection_item'::text, 'event'::text, 'promenade'::text, 'service_request'::text, 'artisan'::text])))"
+    },
+    {
+      "name": "collection_item_comments_content_check",
+      "table": "collection_item_comments",
+      "definition": "CHECK (((char_length(content) >= 1) AND (char_length(content) <= 2000)))"
+    },
+    {
+      "name": "user_favorites_target_present",
+      "table": "user_favorites",
+      "definition": "CHECK (((target_user_id IS NOT NULL) OR ((target_type IS NOT NULL) AND (target_id IS NOT NULL))))"
+    },
+    {
+      "name": "forum_moderation_logs_action_check",
+      "table": "forum_moderation_logs",
+      "definition": "CHECK ((action = ANY (ARRAY['masquer'::text, 'verrouiller'::text, 'deplacer'::text, 'epingler'::text, 'archiver'::text, 'supprimer'::text, 'fusionner'::text, 'suspendre'::text, 'deverrouiller'::text])))"
+    },
+    {
+      "name": "outing_participants_status_check",
+      "table": "outing_participants",
+      "definition": "CHECK ((status = ANY (ARRAY['inscrit'::text, 'confirme'::text, 'annule'::text, 'present'::text, 'absent'::text])))"
+    },
+    {
+      "name": "profile_badges_awarded_by_check",
+      "table": "profile_badges",
+      "definition": "CHECK ((awarded_by = ANY (ARRAY['system'::text, 'admin'::text])))"
+    },
+    {
+      "name": "profile_badges_badge_code_check",
+      "table": "profile_badges",
+      "definition": "CHECK ((badge_code = ANY (ARRAY['new_member'::text, 'profile_complete'::text, 'email_verified'::text, 'phone_verified'::text, 'active_member'::text, 'fast_responder'::text, 'reliable_organizer'::text, 'reliable_vendor'::text, 'reliable_helper'::text, 'reliable_borrower'::text, 'trusted_member'::text, 'top_rated'::text, 'veteran'::text, 'admin_validated'::text])))"
+    },
+    {
+      "name": "collection_items_condition_check",
+      "table": "collection_items",
+      "definition": "CHECK ((condition = ANY (ARRAY['neuf'::text, 'excellent'::text, 'bon'::text, 'passable'::text])))"
+    },
+    {
+      "name": "collection_items_item_type_check",
+      "table": "collection_items",
+      "definition": "CHECK ((item_type = ANY (ARRAY['vente'::text, 'troc'::text, 'don'::text, 'recherche'::text])))"
+    },
+    {
+      "name": "collection_items_mode_check",
+      "table": "collection_items",
+      "definition": "CHECK ((mode = ANY (ARRAY['vente'::text, 'echange'::text, 'don'::text, 'recherche'::text])))"
+    },
+    {
+      "name": "collection_items_moderation_status_check",
+      "table": "collection_items",
+      "definition": "CHECK ((moderation_status = ANY (ARRAY['brouillon'::text, 'en_attente_validation'::text, 'publie'::text, 'signale'::text, 'masque'::text, 'supprime_admin'::text])))"
+    },
+    {
+      "name": "collection_items_rarity_level_check",
+      "table": "collection_items",
+      "definition": "CHECK ((rarity_level = ANY (ARRAY['commun'::text, 'peu_commun'::text, 'rare'::text, 'tres_rare'::text, 'unique'::text])))"
+    },
+    {
+      "name": "collection_items_status_check",
+      "table": "collection_items",
+      "definition": "CHECK ((status = ANY (ARRAY['active'::text, 'reserved'::text, 'exchanged'::text, 'sold'::text, 'archived'::text, 'draft'::text])))"
+    },
+    {
+      "name": "promenades_best_time_of_day_check",
+      "table": "promenades",
+      "definition": "CHECK ((best_time_of_day = ANY (ARRAY['morning'::text, 'sunset'::text, 'anytime'::text])))"
+    },
+    {
+      "name": "promenades_difficulty_check",
+      "table": "promenades",
+      "definition": "CHECK ((difficulty = ANY (ARRAY['facile'::text, 'moyen'::text, 'difficile'::text])))"
+    },
+    {
+      "name": "promenades_shade_level_check",
+      "table": "promenades",
+      "definition": "CHECK ((shade_level = ANY (ARRAY['none'::text, 'partial'::text, 'full'::text])))"
+    },
+    {
+      "name": "promenades_status_check",
+      "table": "promenades",
+      "definition": "CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text])))"
+    },
+    {
+      "name": "promenades_type_check",
+      "table": "promenades",
+      "definition": "CHECK ((type = ANY (ARRAY['balade'::text, 'randonnee'::text, 'velo'::text, 'plage'::text, 'nature'::text])))"
+    },
+    {
+      "name": "forum_reports_check",
+      "table": "forum_reports",
+      "definition": "CHECK (((topic_id IS NOT NULL) OR (reply_id IS NOT NULL)))"
+    },
+    {
+      "name": "forum_reports_reason_check",
+      "table": "forum_reports",
+      "definition": "CHECK ((reason = ANY (ARRAY['hors_sujet'::text, 'insulte'::text, 'spam'::text, 'desinformation'::text, 'contenu_sensible'::text, 'autre'::text])))"
+    },
+    {
+      "name": "forum_reports_status_check",
+      "table": "forum_reports",
+      "definition": "CHECK ((status = ANY (ARRAY['en_attente'::text, 'examine'::text, 'resolu'::text, 'rejete'::text])))"
+    },
+    {
+      "name": "help_request_participants_role_check",
+      "table": "help_request_participants",
+      "definition": "CHECK ((role = ANY (ARRAY['author'::text, 'helper'::text, 'interested'::text])))"
+    },
+    {
+      "name": "help_request_participants_state_check",
+      "table": "help_request_participants",
+      "definition": "CHECK ((state = ANY (ARRAY['pending'::text, 'accepted'::text, 'declined'::text, 'done'::text])))"
+    },
+    {
+      "name": "listing_reports_reason_check",
+      "table": "listing_reports",
+      "definition": "CHECK ((reason = ANY (ARRAY['arnaque'::text, 'contenu_interdit'::text, 'produit_dangereux'::text, 'prix_trompeur'::text, 'doublon'::text, 'faux_profil'::text, 'harcelement'::text, 'hors_sujet'::text, 'autre'::text])))"
+    },
+    {
+      "name": "listing_reports_status_check",
+      "table": "listing_reports",
+      "definition": "CHECK ((status = ANY (ARRAY['pending'::text, 'reviewed'::text, 'resolved'::text, 'dismissed'::text])))"
+    }
+  ]
+}

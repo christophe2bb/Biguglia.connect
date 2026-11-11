@@ -108,4 +108,82 @@ create policy bc_v2_quote_insert on storage.objects for insert to authenticated
 with check(bucket_id='service-quote-photos' and bc_v2_private.can_access_quote(name,true)
   and coalesce(metadata->>'mimetype','') in ('image/jpeg','image/png','image/webp'));
 
+-- The live schema had no guard against self-promotion through profiles UPDATE.
+-- Identity and moderation fields must be enforced in the database, not the UI.
+create or replace function bc_v2_private.guard_profile_identity()
+returns trigger language plpgsql security definer set search_path='' as $fn$
+declare v_actor uuid:=auth.uid(); v_role text;
+begin
+  if v_actor is null and (session_user in ('postgres','supabase_admin') or auth.jwt()->>'role'='service_role') then return new; end if;
+  select p.role::text into v_role from public.profiles p where p.id=v_actor;
+  if tg_op='INSERT' then
+    if new.role::text not in ('resident','artisan_pending') or new.status::text not in ('active','pending') or not new.is_active then
+      raise exception 'Création de rôle privilégié interdite' using errcode='42501';
+    end if;
+  else
+    if new.id is distinct from old.id or new.email is distinct from old.email then
+      raise exception 'Identité protégée' using errcode='42501';
+    end if;
+    if new.role is distinct from old.role and v_role is distinct from 'admin' then
+      raise exception 'Modification du rôle réservée à l’administration' using errcode='42501';
+    end if;
+    if (new.status is distinct from old.status or new.is_active is distinct from old.is_active)
+       and coalesce(v_role,'') not in ('admin','moderator') then
+      raise exception 'État du compte protégé' using errcode='42501';
+    end if;
+  end if;
+  return new;
+end;
+$fn$;
+revoke all on function bc_v2_private.guard_profile_identity() from public,anon,authenticated;
+create trigger bc_v2_profiles_identity before insert or update on public.profiles
+for each row execute function bc_v2_private.guard_profile_identity();
+
+create or replace function bc_v2_private.account_enabled()
+returns boolean language sql stable security definer set search_path='' as $fn$
+ select auth.uid() is not null and not exists(
+   select 1 from public.profiles where id=auth.uid() and (status::text='suspended' or not is_active)
+ );
+$fn$;
+revoke all on function bc_v2_private.account_enabled() from public,anon;
+grant execute on function bc_v2_private.account_enabled() to authenticated;
+-- Restrictive policies add a suspension gate to existing ownership policies.
+-- They never grant row access by themselves. Missing profiles can still be
+-- created through the existing self-insert policy and the identity guard above.
+do $block$
+declare t record;
+begin
+ for t in select c.relname from pg_class c join pg_namespace n on n.oid=c.relnamespace
+          where n.nspname='public' and c.relkind in ('r','p') and c.relrowsecurity
+ loop
+   execute format('create policy bc_v2_account_enabled on public.%I as restrictive for all to authenticated using ((select bc_v2_private.account_enabled())) with check ((select bc_v2_private.account_enabled()))',t.relname);
+ end loop;
+end;
+$block$;
+
+create or replace function bc_v2_private.guard_message_identity()
+returns trigger language plpgsql security definer set search_path='' as $fn$
+declare v_actor uuid:=auth.uid();
+begin
+ if v_actor is null and (session_user in ('postgres','supabase_admin') or auth.jwt()->>'role'='service_role') then return new; end if;
+ if v_actor is null or new.sender_id<>v_actor or not bc_v2_private.account_enabled() then
+   raise exception 'Identité de message invalide' using errcode='42501';
+ end if;
+ if exists(select 1 from public.conversation_participants cp join public.user_blocks b on
+    ((b.user_id=v_actor and b.target_user_id=cp.user_id) or (b.user_id=cp.user_id and b.target_user_id=v_actor))
+    where cp.conversation_id=new.conversation_id) then
+   raise exception 'Cet échange n’est pas disponible' using errcode='42501';
+ end if;
+ return new;
+end;
+$fn$;
+revoke all on function bc_v2_private.guard_message_identity() from public,anon,authenticated;
+create trigger bc_v2_messages_identity before insert on public.messages
+for each row execute function bc_v2_private.guard_message_identity();
+
+revoke update on public.conversation_participants from public,anon,authenticated;
+grant update(last_read_at) on public.conversation_participants to authenticated;
+create policy bc_v2_read_receipt on public.conversation_participants for update to authenticated
+using(user_id=(select auth.uid())) with check(user_id=(select auth.uid()));
+
 notify pgrst,'reload schema';

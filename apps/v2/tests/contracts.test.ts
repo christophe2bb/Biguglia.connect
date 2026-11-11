@@ -6,6 +6,7 @@ import {
   moduleBySlug,
 } from "../src/lib/modules";
 import snapshot from "../docs/database-contract.json";
+import constraints from "../docs/constraints.snapshot.json";
 
 const resident = "00000000-0000-4000-8000-000000000001";
 const listing = moduleBySlug("annonces")!;
@@ -107,8 +108,27 @@ describe("publication contract", () => {
         expect(tables[m.table], m.table + "." + col).toContain(col);
       for (const f of m.fields)
         expect(tables[m.table], m.table + "." + f.name).toContain(f.name);
+      if (m.photo)
+        expect(tables[m.photo.table], m.photo.table).toContain(m.photo.fk);
+      if (m.comment)
+        expect(tables[m.comment.table], m.comment.table).toContain(
+          m.comment.fk,
+        );
     }
   });
   it("isolates favorites for all content types", () =>
     expect(new Set(MODULES.map(contentType)).size).toBe(MODULES.length));
+  it("uses lifecycle statuses accepted by the live schema", () => {
+    for (const m of MODULES) {
+      const check = constraints.checks.find(
+        (c) => c.table === m.table && /\bstatus\s*=/.test(c.definition),
+      );
+      const allowed = check
+        ? [...check.definition.matchAll(/'([^']+)'::text/g)].map((x) => x[1])
+        : undefined;
+      if (allowed)
+        for (const status of m.statuses ?? [])
+          expect(allowed, m.table + "." + status.value).toContain(status.value);
+    }
+  });
 });

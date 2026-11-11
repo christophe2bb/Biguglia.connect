@@ -146,13 +146,22 @@ export function ReportDialog({
         method: "POST",
         body: {
           reporter_id: session.user.id,
-          target_type:
-            m.context === "general"
-              ? m.slug === "forum"
-                ? "post"
-                : "other"
-              : m.context,
-          target_id: row.id,
+          target_type: [
+            "listing",
+            "equipment",
+            "event",
+            "promenade",
+            "outing",
+            "association",
+            "lost_found",
+            "collection_item",
+            "help_request",
+          ].includes(m.context)
+            ? m.context
+            : m.context === "artisan"
+              ? "user"
+              : "post",
+          target_id: m.context === "artisan" ? row.user_id : row.id,
           target_title: moduleTitle(m, row).slice(0, 200),
           reason,
           description: detail.trim() || null,
@@ -306,7 +315,7 @@ export function Comments({ module: m, row }: { module: Module; row: Row }) {
             id="comment"
             value={text}
             minLength={2}
-            maxLength={3000}
+            maxLength={2000}
             rows={3}
             placeholder="Partagez un message utile et bienveillant…"
             onChange={(e) => setText(e.target.value)}

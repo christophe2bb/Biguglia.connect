@@ -109,14 +109,14 @@ export function CommunityTheme() {
       const body = {
         theme_slug: theme,
         user_id: session.user.id,
-        status: member ? "left" : "active",
+        status: "active",
       };
       await request("theme_memberships", {
-        method: membership ? "PATCH" : "POST",
+        method: member ? "DELETE" : membership ? "PATCH" : "POST",
         query: membership
           ? { id: `eq.${membership.id}`, user_id: `eq.${session.user.id}` }
           : undefined,
-        body,
+        body: member ? undefined : body,
       });
       memberships.reload();
     } catch (e) {

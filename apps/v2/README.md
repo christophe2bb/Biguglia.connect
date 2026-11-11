@@ -19,6 +19,7 @@ Le projet Vercel de recette est `biguglia-connect-v2`, racine `apps/v2`, équipe
 - `npm run test` : contrats de publication, annulation réseau et cycle de session sur fixtures locales.
 - `npm run test:e2e` : interface réelle sur ordinateur et mobile, avec une panne Supabase simulée. Ces tests n’écrivent pas dans la base.
 - La recette réelle multi-comptes reste séparée. Un test simulé réussi ne la remplace pas.
+- Le schéma capturé couvre 104 tables et vues ; les 44 tests locaux incluent 14 contrôles d’autorisation dans PostgreSQL sur une base jetable. La CI de la première version a également validé 32 tests d’interface ordinateur/mobile et une compilation iOS sans signature.
 - La migration `20261111162735_v2_secure_client_contract.sql` prépare l’ouverture atomique des conversations et les nouvelles règles de photos. Elle n’a pas été appliquée pendant l’indisponibilité de la base. Les échanges et uploads utilisant ce contrat doivent être testés après son application.
 
 ## iOS

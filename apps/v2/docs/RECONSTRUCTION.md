@@ -25,6 +25,17 @@ La présence de l’interface et de l’adaptateur ne constitue pas une validati
 
 Le contrôle de santé de l’application existante renvoie `degraded`, avec un dépassement du délai Supabase de 5 secondes. Les lectures SQL ont ensuite échoué par délai de connexion ; la génération des types a renvoyé une erreur HTTP 522. Les essais réels ont été suspendus pour éviter d’ajouter de la charge. La documentation Supabase recommande de vérifier les requêtes actives et de redémarrer le projet depuis ses réglages si l’instance est bloquée. Aucun redémarrage ni pause de la base n’a été effectué.
 
+Après l’annonce du rétablissement, plusieurs lectures SQL ont abouti : le contrat local couvre désormais 104 tables/vues et 1 196 colonnes. Les appels à l’API HTTP, y compris depuis l’interface dans le navigateur, dépassent encore leur délai ; les lectures SQL restent intermittentes. L’application de la migration V2 a échoué dès l’initialisation de la table d’historique, avant l’exécution du contrat. La migration reste donc à appliquer et à valider sur le projet hébergé.
+
+## Vérifications effectuées
+
+- 44 tests locaux réussis : formulaires, colonnes et statuts réels, cycle de session, délais réseau et 14 scénarios PostgreSQL sur base jetable.
+- Ces scénarios PostgreSQL vérifient notamment le refus d’auto-promotion administrateur, l’isolement d’un tiers, le blocage d’un échange, les droits sur les photos privées et la déduplication du message initial.
+- La première CI GitHub (`5c7df21`) a réussi : 29 tests locaux à cette révision, 32 tests d’interface ordinateur/mobile avec service de données simulé indisponible, compilation web et compilation Xcode pour simulateur sans signature.
+- Déploiement isolé Vercel `biguglia-connect-v2`, protection Vercel activée pour tous les environnements. Aucun lien temporaire de partage n’a été créé après son refus par le contrôle automatique.
+
+Les tests sur base jetable et service simulé ne sont pas une recette réelle entre comptes Supabase. La parité de toutes les options avancées de l’ancienne application et les transactions réelles doivent encore être validées ; cette V2 ne doit pas être présentée comme terminée ou prête à publier sur l’App Store.
+
 ## Conditions avant bascule
 
 1. Supabase disponible ; schéma réel et politiques relus ; migration additive révisée et testée avant application.
