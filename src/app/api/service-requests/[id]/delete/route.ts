@@ -14,7 +14,14 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
   const userId = await getUserIdBearerFirst(req);
   if (!userId) return NextResponse.json({ error: 'Connexion requise' }, { status: 401 });
   const { id } = await context.params;
-  if (!UUID.test(id)) return NextResponse.json({ error: 'Demande invalide' }, { status: 400 });
+  if (!UUID.test(id)) {
+    console.warn('[request-delete] identifiant de route non valide', {
+      type: typeof id,
+      length: typeof id === 'string' ? id.length : null,
+      value: String(id),
+    });
+    return NextResponse.json({ error: 'Demande invalide' }, { status: 400 });
+  }
 
   const admin = createAdminClient();
   const { data: request, error: requestError } = await admin.from('service_requests')
