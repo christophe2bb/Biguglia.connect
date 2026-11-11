@@ -176,8 +176,9 @@ function ArtisanDashboardContent() {
     const isPending = ['submitted', 'viewed'].includes(newStatus);
     setStats(prev => ({
       ...prev,
-      completedRequests: Math.max(0, prev.completedRequests
-        + Number(newStatus === 'completed') - Number(previousReq.status === 'completed')),
+      // L'artisan ne peut plus clôturer : le compteur des dossiers terminés
+      // ne change que lorsqu'un résident confirme sa prestation.
+      completedRequests: prev.completedRequests,
       pendingRequests: Math.max(0, prev.pendingRequests
         + Number(isPending) - Number(wasPending)),
     }));
@@ -186,7 +187,6 @@ function ArtisanDashboardContent() {
       viewed:    'Marquée comme vue',
       replied:   'Marquée comme répondue',
       scheduled: 'Intervention planifiée',
-      completed: 'Intervention terminée ✅',
       cancelled: 'Demande refusée',
     };
     toast.success(labels[newStatus] || 'Statut mis à jour');
