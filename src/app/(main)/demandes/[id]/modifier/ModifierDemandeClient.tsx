@@ -24,6 +24,7 @@ import SectorFilter from '@/components/ui/SectorFilter';
 import { safeImageExt, uploadFile, isAcceptedImageType, MAX_PHOTO_MB } from '@/lib/upload-utils';
 import { servicePhotoLocation, QUOTE_PHOTO_BUCKET } from '@/lib/service-request-photos';
 import { deletePhotoFiles } from '@/lib/delete-photo-files';
+import { isPreferredDatePast, localISODate } from '@/lib/service-request-date';
 
 // ─── Type minimal pour le chargement initial ────────────────────────────────
 type ServiceRequestRow = {
@@ -54,7 +55,11 @@ export default function ModifierDemandeClient({ id }: Props) {
 
   // ── État du chargement ────────────────────────────────────────────────────
   const [initialLoading, setInitialLoading] = useState(true);
+  // Se calcule après hydratation pour éviter toute divergence UTC/SSR.
+  const [localToday, setLocalToday] = useState('');
+  useEffect(() => { setLocalToday(localISODate()); }, []);
   const [categories, setCategories]         = useState<TradeCategory[]>([]);
+  const [originalPreferredDate, setOriginalPreferredDate] = useState('');
 
   // ── Formulaire ────────────────────────────────────────────────────────────
   const [form, setForm] = useState({
@@ -76,6 +81,8 @@ export default function ModifierDemandeClient({ id }: Props) {
   const [previewUrls, setPreviewUrls]       = useState<string[]>([]);
 
   const [saving, setSaving] = useState(false);
+  // Protection immédiate contre deux envois avant le prochain rendu React.
+  const savingRef = useRef(false);
   const [isPrivateQuote, setIsPrivateQuote] = useState(false);
 
   // Revoke object URLs lors du démontage ou changement
@@ -139,6 +146,7 @@ export default function ModifierDemandeClient({ id }: Props) {
       }
 
       // Préremplir le formulaire
+      setOriginalPreferredDate(row.preferred_date ?? '');
       setForm({
         title:          row.title,
         description:    row.description,
@@ -213,12 +221,21 @@ export default function ModifierDemandeClient({ id }: Props) {
   // ── Soumettre la modification ─────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (saving || !profile) return;
+    if (saving || savingRef.current || !profile) return;
     if (!form.title.trim() || !form.description.trim() || !form.category_id || !form.address.trim()) {
       toast.error('Veuillez remplir tous les champs obligatoires.');
       return;
     }
 
+    // Une ancienne demande peut garder sa date historique : ne pas empêcher
+    // l'utilisateur de corriger uniquement son titre ou sa description.
+    // Toute NOUVELLE date choisie doit en revanche être aujourd'hui ou après.
+    if (form.preferred_date !== originalPreferredDate && isPreferredDatePast(form.preferred_date)) {
+      toast.error('La date souhaitée est passée. Choisissez aujourd’hui ou une date future.');
+      return;
+    }
+
+    savingRef.current = true;
     setSaving(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -318,6 +335,7 @@ export default function ModifierDemandeClient({ id }: Props) {
       console.error('[ModifierDemande] erreur', err);
       toast.error('Enregistrement interrompu : réessayez.');
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -397,6 +415,8 @@ export default function ModifierDemandeClient({ id }: Props) {
             <Input
               label="Date souhaitée"
               type="date"
+              min={form.preferred_date === originalPreferredDate && isPreferredDatePast(originalPreferredDate)
+                ? undefined : localToday}
               value={form.preferred_date}
               onChange={e => setForm(f => ({ ...f, preferred_date: e.target.value }))}
             />

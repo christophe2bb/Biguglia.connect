@@ -15,6 +15,7 @@ import SectorFilter from '@/components/ui/SectorFilter';
 import { safeImageExt, uploadFile, isAcceptedImageType, ACCEPTED_IMAGE_TYPES, MAX_PHOTO_MB } from '@/lib/upload-utils';
 import { servicePhotoLocation, QUOTE_PHOTO_BUCKET } from '@/lib/service-request-photos';
 import { deletePhotoFiles } from '@/lib/delete-photo-files';
+import { isPreferredDatePast, localISODate } from '@/lib/service-request-date';
 
 function DemandeServiceForm() {
   const searchParams = useSearchParams();
@@ -51,14 +52,7 @@ function DemandeServiceForm() {
   // Calculé dans le navigateur après hydratation : évite le décalage UTC
   // et un rendu SSR différent pour les utilisateurs en Europe/Paris.
   const [localToday, setLocalToday] = useState('');
-  useEffect(() => {
-    const today = new Date();
-    setLocalToday([
-      String(today.getFullYear()),
-      String(today.getMonth() + 1).padStart(2, '0'),
-      String(today.getDate()).padStart(2, '0'),
-    ].join('-'));
-  }, []);
+  useEffect(() => { setLocalToday(localISODate()); }, []);
 
   const [form, setForm] = useState({
     title: '',
@@ -165,6 +159,11 @@ function DemandeServiceForm() {
     if (dataLoading || dataError || (artisanId && !artisan)) { toast.error('Fiche artisan indisponible'); return; }
     if (!form.title.trim() || !form.description.trim() || !form.category_id || !form.address.trim()) {
       toast.error('Veuillez remplir tous les champs obligatoires.');
+      return;
+    }
+
+    if (isPreferredDatePast(form.preferred_date)) {
+      toast.error('La date souhaitée est passée. Choisissez aujourd’hui ou une date future.');
       return;
     }
 
@@ -498,7 +497,7 @@ function DemandeServiceForm() {
               : 'Cette demande et son adresse seront visibles par les utilisateurs connectés de la plateforme.'}
             {' '}{artisanId
               ? 'Les photos du devis sont stockées dans un espace privé, consultable par les participants et la modération.'
-              : 'Les photos jointes à une demande publique sont accessibles aux utilisateurs de la plateforme : ne publiez pas de documents confidentiels.'
+              : 'Les photos jointes à une demande publique peuvent être consultées par toute personne disposant de leur lien, même sans connexion : ne publiez ni documents confidentiels ni informations personnelles.'
             } Biguglia Connect ne garantit pas les travaux.
           </p>
         </div>
