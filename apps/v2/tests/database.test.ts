@@ -55,7 +55,11 @@ beforeAll(async () => {
     create table public.artisan_profiles(id uuid primary key,user_id uuid,business_name text,is_verified boolean);
     create table public.service_requests(id uuid primary key,resident_id uuid,artisan_id uuid,status text);
     create table public.listings(id uuid primary key,user_id uuid,status text);
-    create table public.equipment_items(id uuid primary key,owner_id uuid,status text);
+    create table public.equipment_items(id uuid primary key,owner_id uuid,status text,title text,is_available boolean default true,updated_at timestamptz,status_changed_at timestamptz);
+    create table public.equipment_requests(id uuid primary key,equipment_id uuid,requester_id uuid,status text default 'en_attente',requested_start_date date,requested_end_date date,updated_at timestamptz);
+    create table public.equipment_loans(id uuid primary key default gen_random_uuid(),equipment_id uuid,owner_id uuid,borrower_id uuid,request_id uuid,status text,reserved_at timestamptz default now(),loan_started_at timestamptz,returned_at timestamptz,created_at timestamptz default now(),updated_at timestamptz);
+    create table public.notifications(id uuid primary key default gen_random_uuid(),user_id uuid,type text,title text,message text,link text);
+    create table public.trust_interactions(source_type text,source_id uuid,requester_id uuid,receiver_id uuid,interaction_type text,status text,review_unlocked boolean,completed_at timestamptz,updated_at timestamptz,unique(source_type,source_id,requester_id));
     create table public.help_requests(id uuid primary key,author_id uuid);
     create table public.associations(id uuid primary key,author_id uuid,status text);
     create table public.collection_items(id uuid primary key,author_id uuid,status text);
@@ -98,6 +102,135 @@ beforeAll(async () => {
 beforeEach(async () => {
   await db.exec("begin");
   await actor(a);
+});
+
+describe("atomic equipment lifecycle", () => {
+  const item = "00000000-0000-4000-8000-000000000050";
+  const req = "00000000-0000-4000-8000-000000000051";
+  const second = "00000000-0000-4000-8000-000000000052";
+  const action = (name: string, id = req) =>
+    db.query("select public.bc_v2_equipment_action($1,$2)", [id, name]);
+  beforeEach(async () => {
+    await db.query(
+      "insert into public.equipment_items(id,owner_id,title,status) values($1,$2,'Échelle de test','disponible')",
+      [item, b],
+    );
+    await db.query(
+      "insert into public.equipment_requests(id,equipment_id,requester_id,requested_start_date,requested_end_date) values($1,$2,$3,'2026-12-01','2026-12-03')",
+      [req, item, a],
+    );
+  });
+  it("reserves once and notifies once on a repeated acceptance", async () => {
+    await actor(b);
+    await action("accept");
+    await action("accept");
+    expect(
+      (await db.query("select status,is_available from public.equipment_items"))
+        .rows[0],
+    ).toEqual({ status: "reserve", is_available: false });
+    expect(
+      (await db.query("select id from public.equipment_loans")).rows,
+    ).toHaveLength(1);
+    expect(
+      (await db.query("select id from public.notifications")).rows,
+    ).toHaveLength(1);
+  });
+  it("rejects acceptance by the borrower", async () => {
+    await expect(action("accept")).rejects.toThrow("réservée");
+  });
+  it("rejects an administrator acting instead of the owner", async () => {
+    await actor(admin);
+    await expect(action("accept")).rejects.toThrow("réservée");
+  });
+  it("allows a borrower to cancel only their pending request", async () => {
+    await action("cancel");
+    await action("cancel");
+    expect(
+      (await db.query("select status from public.equipment_requests")).rows[0],
+    ).toEqual({ status: "annulee" });
+    expect(
+      (await db.query("select id from public.equipment_loans")).rows,
+    ).toHaveLength(0);
+  });
+  it("rejects cancellation by an unrelated member", async () => {
+    await actor(c);
+    await expect(action("cancel")).rejects.toThrow("réservée");
+  });
+  it("requires physical handover before a return can be recorded", async () => {
+    await actor(b);
+    await action("accept");
+    await expect(action("return")).rejects.toThrow("Prêt en cours requis");
+  });
+  it("completes the request, releases equipment and unlocks reviews together", async () => {
+    await actor(b);
+    await action("accept");
+    await action("handover");
+    await action("handover");
+    await action("return");
+    await action("return");
+    expect(
+      (await db.query("select status,is_available from public.equipment_items"))
+        .rows[0],
+    ).toEqual({ status: "disponible", is_available: true });
+    expect(
+      (await db.query("select status from public.equipment_requests")).rows[0],
+    ).toEqual({ status: "terminee" });
+    expect(
+      (await db.query("select status from public.equipment_loans")).rows[0],
+    ).toEqual({ status: "retourne" });
+    expect(
+      (await db.query("select review_unlocked from public.trust_interactions"))
+        .rows[0],
+    ).toEqual({ review_unlocked: true });
+    expect(
+      (await db.query("select id from public.notifications")).rows,
+    ).toHaveLength(3);
+  });
+  it("refuses a second reservation while the equipment is held", async () => {
+    await db.query(
+      "insert into public.equipment_requests(id,equipment_id,requester_id,requested_start_date,requested_end_date) values($1,$2,$3,'2026-12-04','2026-12-05')",
+      [second, item, c],
+    );
+    await actor(b);
+    await action("accept");
+    await expect(action("accept", second)).rejects.toThrow("déjà réservé");
+  });
+  it("rolls back the entire acceptance when notification persistence fails", async () => {
+    await db.exec(
+      "reset role;alter table public.notifications add constraint fixture_notification_failure check(title<>'Demande de matériel acceptée')",
+    );
+    await actor(b);
+    await db.exec("savepoint acceptance");
+    await expect(action("accept")).rejects.toThrow(
+      "fixture_notification_failure",
+    );
+    await db.exec("rollback to savepoint acceptance");
+    expect(
+      (await db.query("select status from public.equipment_requests")).rows[0],
+    ).toEqual({ status: "en_attente" });
+    expect(
+      (await db.query("select status from public.equipment_items")).rows[0],
+    ).toEqual({ status: "disponible" });
+    expect(
+      (await db.query("select id from public.equipment_loans")).rows,
+    ).toHaveLength(0);
+  });
+  it("rejects a reservation between blocked members", async () => {
+    await db.query(
+      "insert into public.user_blocks(user_id,target_user_id) values($1,$2)",
+      [a, b],
+    );
+    await actor(b);
+    await expect(action("accept")).rejects.toThrow("pas disponible");
+  });
+  it("rejects a loan whose recorded parties do not match its request", async () => {
+    await db.query(
+      "insert into public.equipment_loans(equipment_id,owner_id,borrower_id,request_id,status) values($1,$2,$3,$4,'reserve')",
+      [item, c, a, req],
+    );
+    await actor(b);
+    await expect(action("handover")).rejects.toThrow("ne correspond pas");
+  });
 });
 afterEach(async () => {
   await db.exec("rollback");

@@ -124,7 +124,12 @@ export async function request<T = Row[]>(
               ? "Cet élément est encore lié à un échange ou une publication."
               : response.status >= 500
                 ? "Le service de données est temporairement indisponible. Réessayez dans un instant."
-                : payload.message || "Impossible de terminer cette opération.";
+                : ["PGRST202", "PGRST204", "42P01", "42703"].includes(
+                      payload.code || "",
+                    )
+                  ? "Cette fonctionnalité n’est pas disponible pour le moment."
+                  : payload.message ||
+                    "Impossible de terminer cette opération.";
     throw new AppError(message, payload.code, response.status);
   }
   if (response.status === 204 || options.prefer === "return=minimal")

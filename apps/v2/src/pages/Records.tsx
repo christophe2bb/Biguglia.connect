@@ -1,4 +1,5 @@
 import { useState, useRef, type FormEvent } from "react";
+import { formatPrice, formatDate } from "../lib/format";
 import {
   Link,
   useNavigate,
@@ -56,6 +57,7 @@ import {
   Notice,
   PageHeading,
 } from "../components/ui";
+import { LoanActivity } from "./Equipment";
 import {
   Participation,
   EquipmentRequest,
@@ -140,23 +142,7 @@ export function RecordCard({ module: m, row }: { module: Module; row: Row }) {
 function ArrowUpRightIcon() {
   return <ArrowRight size={19} />;
 }
-export function formatPrice(n: number) {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 2,
-  }).format(n);
-}
-export function formatDate(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : new Intl.DateTimeFormat("fr-FR", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }).format(date);
-}
+export { formatPrice, formatDate } from "../lib/format";
 
 export function RecordList({ module: m }: { module: Module }) {
   const { session } = useAuth();
@@ -802,6 +788,9 @@ export function RecordDetail({ module: m }: { module: Module }) {
           )}{" "}
           {m.table === "equipment_items" && !isOwner && (
             <EquipmentRequest row={row} />
+          )}
+          {m.table === "equipment_items" && session && (
+            <LoanActivity equipmentId={row.id} onChange={query.reload} />
           )}{" "}
           {m.table === "help_requests" && !isOwner && (
             <Participation type="help" row={row} owner={owner} />
@@ -872,14 +861,29 @@ export function RecordDetail({ module: m }: { module: Module }) {
                     État de la publication
                     <select
                       value={str(row, "status")}
-                      disabled={busy}
+                      disabled={
+                        busy ||
+                        (m.table === "equipment_items" &&
+                          ["reserve", "prete"].includes(str(row, "status")))
+                      }
                       onChange={(e) => void status(e.target.value)}
                     >
-                      {m.statuses.map((s) => (
-                        <option value={s.value} key={s.value}>
-                          {s.label}
-                        </option>
-                      ))}
+                      {m.statuses
+                        .filter(
+                          (s) =>
+                            m.table !== "equipment_items" ||
+                            [
+                              "disponible",
+                              "indisponible",
+                              "archive",
+                              str(row, "status"),
+                            ].includes(s.value),
+                        )
+                        .map((s) => (
+                          <option value={s.value} key={s.value}>
+                            {s.label}
+                          </option>
+                        ))}
                     </select>
                   </label>
                 )}

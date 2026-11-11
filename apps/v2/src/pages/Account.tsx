@@ -40,6 +40,7 @@ import {
   PageHeading,
 } from "../components/ui";
 import { RecordCard, formatDate } from "./Records";
+import { LoanActivity } from "./Equipment";
 
 export function Profile() {
   const { session, profile, profileError, reloadProfile, signOut } = useAuth();
@@ -317,7 +318,7 @@ export function Dashboard() {
           )}
         </>
       ) : tab === "emprunts" ? (
-        <Loans />
+        <LoanActivity />
       ) : (
         <Registrations />
       )}
@@ -326,150 +327,6 @@ export function Dashboard() {
 }
 function MessageIcon() {
   return <Bell size={22} />;
-}
-
-function Loans() {
-  const { session } = useAuth();
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState("");
-  const data = useQuery(
-    "loans-" + session?.user.id,
-    async (signal) => {
-      const own = await request<Row[]>("equipment_items", {
-        query: {
-          select: "id,title,owner_id",
-          owner_id: `eq.${session?.user.id}`,
-          limit: 100,
-        },
-        signal,
-      });
-      const myRequests = await request<Row[]>("equipment_requests", {
-        query: {
-          select:
-            "id,equipment_id,requester_id,message,requested_start_date,requested_end_date,status",
-          or: `(requester_id.eq.${session?.user.id}${own.length ? ",equipment_id.in.(" + own.map((r) => r.id).join(",") + ")" : ""})`,
-          order: "created_at.desc",
-          limit: 100,
-        },
-        signal,
-      });
-      const ids = [...new Set(myRequests.map((r) => str(r, "equipment_id")))];
-      const equipment = ids.length
-        ? await request<Row[]>("equipment_items", {
-            query: {
-              select: "id,title,owner_id",
-              id: `in.(${ids.join(",")})`,
-              limit: 100,
-            },
-            signal,
-          })
-        : [];
-      return { requests: myRequests, equipment };
-    },
-    !!session,
-  );
-  const update = async (row: Row, status: string) => {
-    setBusy(row.id);
-    setError("");
-    try {
-      const rows = await request<Row[]>("equipment_requests", {
-        method: "PATCH",
-        query: { id: `eq.${row.id}` },
-        body: { status },
-      });
-      if (!rows[0]) throw new Error("La mise à jour n’a pas été confirmée.");
-      data.reload();
-    } catch (e) {
-      setError(errorText(e));
-    } finally {
-      setBusy("");
-    }
-  };
-  return (
-    <section>
-      {data.loading ? (
-        <Loading />
-      ) : data.error ? (
-        <Failure message={data.error} retry={data.reload} />
-      ) : !data.data?.requests.length ? (
-        <Empty
-          title="Aucun emprunt en cours"
-          text="Vos demandes et celles reçues pour votre matériel apparaîtront ici."
-          action={
-            <Link className="button secondary" to="/materiel">
-              Trouver du matériel
-            </Link>
-          }
-        />
-      ) : (
-        <div className="activity-list">
-          {data.data.requests.map((r) => {
-            const item = data.data!.equipment.find(
-              (e) => e.id === r.equipment_id,
-            );
-            const own = item?.owner_id === session?.user.id;
-            return (
-              <article className="activity" key={r.id}>
-                <div>
-                  <span className="badge sage">
-                    {own ? "Demande reçue" : "Votre demande"} ·{" "}
-                    {label(r.status)}
-                  </span>
-                  <h3>
-                    <Link to={"/materiel/" + r.equipment_id}>
-                      {str(item, "title", "Matériel")}
-                    </Link>
-                  </h3>
-                  <p>{str(r, "message")}</p>
-                  <small>
-                    Du {formatDate(str(r, "requested_start_date"))} au{" "}
-                    {formatDate(str(r, "requested_end_date"))}
-                  </small>
-                </div>
-                <div className="activity-actions">
-                  {own && r.status === "en_attente" ? (
-                    <>
-                      <button
-                        className="button"
-                        disabled={busy === r.id}
-                        onClick={() => void update(r, "acceptee")}
-                      >
-                        Accepter
-                      </button>
-                      <button
-                        className="button secondary"
-                        disabled={busy === r.id}
-                        onClick={() => void update(r, "refusee")}
-                      >
-                        Refuser
-                      </button>
-                    </>
-                  ) : !own && r.status === "en_attente" ? (
-                    <button
-                      className="button secondary"
-                      disabled={busy === r.id}
-                      onClick={() => void update(r, "annulee")}
-                    >
-                      Annuler
-                    </button>
-                  ) : own && r.status === "acceptee" ? (
-                    <button
-                      className="button secondary"
-                      disabled={busy === r.id}
-                      onClick={() => void update(r, "terminee")}
-                    >
-                      Clôturer le prêt
-                    </button>
-                  ) : null}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
-      {error && <Failure message={error} />}
-    </section>
-  );
 }
 
 function Registrations() {

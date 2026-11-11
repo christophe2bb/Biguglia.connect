@@ -32,6 +32,28 @@ describe("safe routing", () => {
   );
 });
 describe("network lifecycle", () => {
+  it.each(["PGRST202", "42703"])(
+    "does not expose database details when a backend contract is unavailable (%s)",
+    async (code) => {
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValue(
+            new Response(
+              JSON.stringify({
+                code,
+                message: "Internal database function/column details",
+              }),
+              { status: 400 },
+            ),
+          ),
+      );
+      await expect(request("events")).rejects.toThrow(
+        "Cette fonctionnalité n’est pas disponible",
+      );
+    },
+  );
   it("never treats a publishable API key as a user JWT", () => {
     setBearer();
     expect(authHeaders()).not.toHaveProperty("Authorization");
@@ -78,13 +100,11 @@ describe("network lifecycle", () => {
   it("turns server failures into an error rather than an empty successful list", async () => {
     vi.stubGlobal(
       "fetch",
-      vi
-        .fn()
-        .mockResolvedValue(
-          new Response(JSON.stringify({ message: "internal error" }), {
-            status: 503,
-          }),
-        ),
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ message: "internal error" }), {
+          status: 503,
+        }),
+      ),
     );
     await expect(request("events")).rejects.toThrow(
       "temporairement indisponible",

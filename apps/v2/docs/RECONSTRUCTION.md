@@ -25,16 +25,23 @@ La présence de l’interface et de l’adaptateur ne constitue pas une validati
 
 Le contrôle de santé de l’application existante renvoie `degraded`, avec un dépassement du délai Supabase de 5 secondes. Les lectures SQL ont ensuite échoué par délai de connexion ; la génération des types a renvoyé une erreur HTTP 522. Les essais réels ont été suspendus pour éviter d’ajouter de la charge. La documentation Supabase recommande de vérifier les requêtes actives et de redémarrer le projet depuis ses réglages si l’instance est bloquée. Aucun redémarrage ni pause de la base n’a été effectué.
 
-Après l’annonce du rétablissement, plusieurs lectures SQL ont abouti : le contrat local couvre désormais 104 tables/vues et 1 196 colonnes. Les appels à l’API HTTP, y compris depuis l’interface dans le navigateur, dépassent encore leur délai ; les lectures SQL restent intermittentes. L’application de la migration V2 a échoué dès l’initialisation de la table d’historique, avant l’exécution du contrat. La migration reste donc à appliquer et à valider sur le projet hébergé.
+Après l’annonce du rétablissement, plusieurs lectures SQL ont abouti : le contrat local couvre désormais 104 tables/vues et 1 196 colonnes. Les appels à l’API HTTP, y compris depuis l’interface dans le navigateur, dépassent encore leur délai ; les lectures SQL restent intermittentes. L’application de la migration V2 a échoué dès l’initialisation de la table d’historique, avant l’exécution du contrat. Une seconde tentative a expiré côté connecteur ; la lecture de contrôle ne retrouve ni la fonction V2 ni la migration dans l’historique. La migration reste donc à appliquer et à valider sur le projet hébergé. La connexion sécurisée au tableau Supabase a également expiré avant validation ; aucun redémarrage n’a été effectué.
 
 ## Vérifications effectuées
 
-- 44 tests locaux réussis : formulaires, colonnes et statuts réels, cycle de session, délais réseau et 14 scénarios PostgreSQL sur base jetable.
-- Ces scénarios PostgreSQL vérifient notamment le refus d’auto-promotion administrateur, l’isolement d’un tiers, le blocage d’un échange, les droits sur les photos privées et la déduplication du message initial.
+- 58 tests locaux réussis : formulaires, colonnes et statuts réels, cycle de session, délais réseau et 25 scénarios PostgreSQL sur base jetable.
+- Ces scénarios PostgreSQL vérifient notamment le refus d’auto-promotion administrateur, l’isolement d’un tiers, le blocage d’un échange, les droits sur les photos privées et la déduplication du message initial. Le cycle de prêt vérifie aussi réservation unique, remise, retour, refus des tiers, notifications sans doublons et annulation de toute l’opération en cas d’échec d’écriture.
+- La CI GitHub `2eec7d7` a réussi : 44 tests locaux, 32 tests d’interface avec panne simulée, compilation web et compilation Xcode pour simulateur. Les ajouts ultérieurs sont revérifiés par le même workflow.
 - La première CI GitHub (`5c7df21`) a réussi : 29 tests locaux à cette révision, 32 tests d’interface ordinateur/mobile avec service de données simulé indisponible, compilation web et compilation Xcode pour simulateur sans signature.
 - Déploiement isolé Vercel `biguglia-connect-v2`, protection Vercel activée pour tous les environnements. Aucun lien temporaire de partage n’a été créé après son refus par le contrôle automatique.
 
 Les tests sur base jetable et service simulé ne sont pas une recette réelle entre comptes Supabase. La parité de toutes les options avancées de l’ancienne application et les transactions réelles doivent encore être validées ; cette V2 ne doit pas être présentée comme terminée ou prête à publier sur l’App Store.
+
+## Parité métier
+
+Le suivi matériel V2 utilise `bc_v2_equipment_action` : accepter/réserver, refuser, annuler une demande en attente, confirmer la remise et confirmer le retour. Le propriétaire et l’emprunteur voient le suivi et le nom du correspondant dans la limite des politiques de lecture existantes. Les 100 demandes les plus récentes sont affichées ; les fiches permettent de cibler un matériel. Ce contrat est testé sur base jetable et attend encore son installation et sa recette hébergée.
+
+Les fonctions avancées qui restent à porter et à valider sont recensées dans [la matrice de recette](RECETTE.md).
 
 ## Conditions avant bascule
 

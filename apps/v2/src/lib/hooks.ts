@@ -9,10 +9,13 @@ export function useQuery<T>(
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(enabled);
   const [revision, setRevision] = useState(0);
+  const responseKey = JSON.stringify([key, revision, enabled]);
+  const [activeKey, setActiveKey] = useState("");
   const latest = useRef(load);
   latest.current = load;
   useEffect(() => {
     const abort = new AbortController();
+    setActiveKey(responseKey);
     setData(null);
     setError("");
     setLoading(enabled);
@@ -30,7 +33,14 @@ export function useQuery<T>(
       });
     return () => abort.abort();
   }, [key, revision, enabled]);
-  return { data, loading, error, reload: () => setRevision((x) => x + 1) };
+  // Hide a previous account's response in the first render, before effects run.
+  const current = enabled && activeKey === responseKey;
+  return {
+    data: current ? data : null,
+    loading: enabled && (!current || loading),
+    error: current ? error : "",
+    reload: () => setRevision((x) => x + 1),
+  };
 }
 export function useDebounce(value: string, delay = 300) {
   const [debounced, setDebounced] = useState(value);
