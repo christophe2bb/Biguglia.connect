@@ -316,18 +316,15 @@ describe('B. Escalade de privilèges — séparation admin / moderator', () => {
    * Attendu  : 200 — les modérateurs peuvent approuver les artisans
    */
   it('[B5] Un modérateur PEUT approuver un artisan (action permise)', async () => {
-    mockGuard.mockResolvedValue(makeAdminGuardOk(
-      'moderator',
-      makeDb({
-        profiles: {
-          update: () => ({ data: null, error: null }),
-        },
-        notifications: {
-          insert: () => ({ data: null, error: null }),
-        },
-      }),
-      MOD_UUID,
-    ));
+    // La validation est désormais une RPC transactionnelle. Le test garde la
+    // séparation des rôles et simule la réponse de l'unique opération atomique.
+    const db = Object.assign(
+      makeDb({ notifications: { insert: () => ({ data: null, error: null }) } }),
+      { rpc: vi.fn().mockResolvedValue({
+        data: '00000000-0000-4000-8000-000000000124', error: null,
+      }) },
+    );
+    mockGuard.mockResolvedValue(makeAdminGuardOk('moderator', db, MOD_UUID));
 
     const res = await patchArtisan(
       patchReq(`https://app.test/api/admin/artisans/${TARGET_UUID}`, { action: 'approve' }),
