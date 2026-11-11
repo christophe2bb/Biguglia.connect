@@ -67,6 +67,7 @@ export default function ModifierDemandeClient({ id }: Props) {
 
   // Photos existantes (URLs déjà en base)
   const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
+  const [photosToRemove, setPhotosToRemove] = useState<string[]>([]);
   // Nouvelles photos à uploader
   const [newPhotos, setNewPhotos]           = useState<File[]>([]);
   const [previewUrls, setPreviewUrls]       = useState<string[]>([]);
@@ -90,6 +91,7 @@ export default function ModifierDemandeClient({ id }: Props) {
     if (!profile) { setInitialLoading(false); return; }
 
     const load = async () => {
+      try {
       // Catégories
       const { data: cats } = await supabase
         .from('trade_categories')
@@ -135,7 +137,14 @@ export default function ModifierDemandeClient({ id }: Props) {
         sector_id:      row.sector_id ?? '',
       });
       setExistingPhotos(row.photos?.map(p => p.url) ?? []);
-      setInitialLoading(false);
+      setPhotosToRemove([]);
+      } catch (error) {
+        console.error('[ModifierDemande] chargement interrompu', error);
+        toast.error('Impossible de charger la demande. Réessayez.');
+        router.push('/demandes');
+      } finally {
+        setInitialLoading(false);
+      }
     };
 
     load();
@@ -157,19 +166,11 @@ export default function ModifierDemandeClient({ id }: Props) {
     setNewPhotos(prev => [...prev, ...added]);
   };
 
-  // ── Supprimer une photo existante ─────────────────────────────────────────
-  const removeExistingPhoto = async (url: string) => {
-    const { error } = await supabase
-      .from('service_request_photos')
-      .delete()
-      .eq('request_id', id)
-      .eq('url', url);
-
-    if (error) {
-      toast.error('Erreur lors de la suppression de la photo.');
-    } else {
-      setExistingPhotos(prev => prev.filter(u => u !== url));
-    }
+  // Une suppression ne doit pas être effectuée tant que le formulaire
+  // n'a pas été enregistré : le bouton Annuler doit conserver les photos.
+  const removeExistingPhoto = (url: string) => {
+    setExistingPhotos(prev => prev.filter(item => item !== url));
+    setPhotosToRemove(prev => prev.includes(url) ? prev : [...prev, url]);
   };
 
   // ── Upload des nouvelles photos ───────────────────────────────────────────
@@ -233,6 +234,20 @@ export default function ModifierDemandeClient({ id }: Props) {
         return;
       }
 
+      let failedRemovals = 0;
+      for (const url of photosToRemove) {
+        const { data: removed, error: removeError } = await supabase
+          .from('service_request_photos')
+          .delete()
+          .eq('request_id', id)
+          .eq('url', url)
+          .select('id');
+        if (removeError || !removed?.length) {
+          console.warn('[ModifierDemande] retrait photo refusé', removeError?.code);
+          failedRemovals++;
+        }
+      }
+
       const { urls, failures } = await uploadNewPhotos(session.access_token);
       let associationFailed = false;
       if (urls.length > 0) {
@@ -241,8 +256,8 @@ export default function ModifierDemandeClient({ id }: Props) {
         );
         associationFailed = !!photoError;
       }
-      if (failures || associationFailed) {
-        toast.error('Demande enregistrée, mais certaines photos n’ont pas pu être ajoutées.', { duration: 6500 });
+      if (failures || associationFailed || failedRemovals) {
+        toast.error('Demande modifiée, mais certaines opérations sur les photos ont échoué.', { duration: 6500 });
       } else {
         toast.success('Demande modifiée avec succès !', { duration: 4000 });
       }
@@ -440,7 +455,7 @@ export default function ModifierDemandeClient({ id }: Props) {
                 accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
                 multiple
                 className="hidden"
-                onChange={e => handlePhotoAdd(e.target.files)}
+                onChange={e => { handlePhotoAdd(e.target.files); e.currentTarget.value = ''; }}
               />
             </>
           )}
