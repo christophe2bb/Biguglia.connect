@@ -5,6 +5,7 @@
  * Utilisé avec <Suspense> dans page.tsx.
  */
 import { getHomeFeed } from '@/services/home/feed';
+import { withQueryDeadline } from '@/lib/with-query-deadline';
 import HomeHero from './HomeHero';
 import HomeSection from './HomeSection';
 
@@ -15,7 +16,7 @@ interface Props {
 export default async function HomeFeedSection({ userId }: Props) {
   let feedResult;
   try {
-    feedResult = await getHomeFeed(userId);
+    feedResult = await withQueryDeadline(getHomeFeed(userId), 4_000);
   } catch {
     feedResult = {
       sections: [],
