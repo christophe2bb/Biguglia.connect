@@ -109,7 +109,7 @@ export function useNewListingForm(): UseNewListingFormReturn {
   useEffect(() => {
     if (authLoading) return;
     if (!profile) {
-      router.push('/connexion?redirect=/annonces/nouvelle');
+      router.push('/connexion?next=%2Fannonces%2Fnouvelle');
       return;
     }
     if (profile.home_sector_id) {
@@ -261,25 +261,36 @@ export function useNewListingForm(): UseNewListingFormReturn {
 
     // ── Upload photos inline (stable: uses `photos` captured at call time) ──
     const photoUrls: string[] = [];
+    let photoFailures = 0;
+    const { data: { session } } = await supabase.auth.getSession();
     for (let i = 0; i < photos.length; i++) {
       const photo = photos[i];
       const ext = safeImageExt(photo.name);
-      const fileName = `listings/${listing.id}/${Date.now()}_${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
+      const fileName = `listings/${listing.id}/${Date.now()}_${i}.${ext}`;
       try {
-        const publicUrl = await uploadFile(photo, 'photos', fileName, profile.id);
-        photoUrls.push(publicUrl);
-        await supabase.from('listing_photos').insert({
+        const publicUrl = await uploadFile(photo, 'photos', fileName, profile.id, session?.access_token);
+        const { error: photoError } = await supabase.from('listing_photos').insert({
           listing_id: listing.id,
           url: publicUrl,
           display_order: i,
         });
+        if (photoError) throw photoError;
+        photoUrls.push(publicUrl);
       } catch (err) {
-        toast.error(`Photo ${i + 1} : ${err instanceof Error ? err.message : 'Erreur upload'}`);
+        photoFailures++;
+        console.warn('[Nouvelle annonce] échec de pièce jointe', err);
       }
+    }
+    if (photoFailures > 0) {
+      toast.error(`${photoFailures} photo(s) non enregistrée(s). L’annonce elle-même est conservée.`, {
+        duration: 7000,
+      });
     }
 
     if (asDraft) {
-      toast.success('Brouillon enregistré !');
+      if (!photoFailures) toast.success('Brouillon enregistré !');
+      setLoading(false);
+      submissionLock.current = false;
       router.push(`/annonces/${listing.id}`);
       return;
     }
@@ -304,11 +315,11 @@ export function useNewListingForm(): UseNewListingFormReturn {
       });
       modStatus = modResult?.status || 'en_attente_validation';
     } catch {
-      // file de modération indisponible — l'annonce reste visible en attente
+      // File de modération indisponible — l'annonce reste non publiée en attente
       console.warn('Moderation queue unavailable, listing created anyway');
     }
 
-    toast.success('Annonce soumise — vérification sous 24h');
+    if (photoFailures === 0) toast.success('Annonce soumise à la modération.');
     setModerationStatus(modStatus);
     setPublishedId(listing.id);
     setLoading(false);

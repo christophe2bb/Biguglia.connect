@@ -150,75 +150,91 @@ export default function ModifierAnnoncePage() {
     setExistingPhotos(prev => prev.filter(p => p.id !== photoId));
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!profile || !form.title.trim() || !form.description.trim() || !form.category_id) {
-      toast.error('Remplissez tous les champs obligatoires');
+  const handleSave = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (saving || !profile || !form.title.trim() || !form.description.trim() || !form.category_id) {
+      if (!saving) toast.error('Remplissez tous les champs obligatoires');
       return;
     }
-
     setSaving(true);
     const supabase = createClient();
+    try {
+      const updatePayload: Record<string, unknown> = {
+        title:        form.title.trim(),
+        description:  form.description.trim(),
+        category_id:  form.category_id,
+        listing_type: form.listing_type,
+        price:        form.price ? parseFloat(form.price) : null,
+        is_negotiable: form.is_negotiable,
+        is_urgent:    form.is_urgent,
+        condition:    form.condition || null,
+        location:     form.location || 'Biguglia',
+        sector_id:    form.sector_id || null,
+        status:       form.status,
+        moderation_status: form.status === 'draft' ? 'draft' : 'en_attente_validation',
+        updated_at:   new Date().toISOString(),
+      };
+      if (form.exchange_preferences) updatePayload.exchange_preferences = form.exchange_preferences.trim();
+      if (form.pickup_notes) updatePayload.pickup_notes = form.pickup_notes.trim();
+      if (form.availability_window) updatePayload.availability_window = form.availability_window.trim();
 
-    // Champs de base toujours présents dans le schéma DB
-    const updatePayload: Record<string, unknown> = {
-      title:        form.title.trim(),
-      description:  form.description.trim(),
-      category_id:  form.category_id,
-      listing_type: form.listing_type,
-      price:        form.price ? parseFloat(form.price) : null,
-      is_negotiable: form.is_negotiable,
-      is_urgent:    form.is_urgent,
-      condition:    form.condition || null,
-      location:     form.location || 'Biguglia',
-      sector_id:    form.sector_id || null,
-      status:       form.status,
-      // Toute modification éditoriale repasse par une validation humaine.
-      // Sinon une annonce approuvée pourrait être remplacée sans contrôle.
-      moderation_status: form.status === 'draft' ? 'draft' : 'en_attente_validation',
-      updated_at:   new Date().toISOString(),
-    };
-
-    // ── Colonnes optionnelles (migration 20260413_listings_optional_columns.sql) ──
-    if (form.exchange_preferences) updatePayload.exchange_preferences = form.exchange_preferences.trim();
-    if (form.pickup_notes)         updatePayload.pickup_notes         = form.pickup_notes.trim();
-    if (form.availability_window)  updatePayload.availability_window  = form.availability_window.trim();
-
-    const { error } = await supabase
-      .from('listings')
-      .update(updatePayload)
-      .eq('id', id as string);
-
-    if (error) {
-      toast.error('Erreur lors de la sauvegarde');
-      setSaving(false);
-      return;
-    }
-
-    // Delete removed photos
-    for (const photoId of deletedPhotoIds) {
-      await supabase.from('listing_photos').delete().eq('id', photoId);
-    }
-
-    // Upload new photos
-    for (let i = 0; i < newPhotos.length; i++) {
-      const photo = newPhotos[i];
-      const ext = safeImageExt(photo.name);
-      const fileName = `listings/${id}/${Date.now()}_${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
-      try {
-        const publicUrl = await uploadFile(photo, 'photos', fileName, profile.id);
-        await supabase.from('listing_photos').insert({
-          listing_id: id,
-          url: publicUrl,
-          display_order: existingPhotos.length + i,
-        });
-      } catch (err) {
-        toast.error(`Photo ${i + 1} : ${err instanceof Error ? err.message : 'Erreur upload'}`);
+      // UPDATE sous RLS peut modifier 0 lignes sans produire d'erreur SQL.
+      const { data: updated, error } = await supabase
+        .from('listings')
+        .update(updatePayload)
+        .eq('id', id as string)
+        .select('id')
+        .maybeSingle();
+      if (error || !updated) {
+        toast.error('Modification non enregistrée. Vérifiez vos permissions.');
+        return;
       }
-    }
 
-    toast.success('Annonce modifiée et renvoyée en validation. Elle sera visible après approbation.');
-    router.push(`/annonces/${id}`);
+      const failures: string[] = [];
+      for (const photoId of deletedPhotoIds) {
+        const { error: removeError } = await supabase
+          .from('listing_photos')
+          .delete()
+          .eq('id', photoId)
+          .eq('listing_id', id as string);
+        if (removeError) failures.push('suppression d’une photo');
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      for (let i = 0; i < newPhotos.length; i++) {
+        const photo = newPhotos[i];
+        const ext = safeImageExt(photo.name);
+        const fileName = `listings/${id}/${Date.now()}_${i}.${ext}`;
+        try {
+          const publicUrl = await uploadFile(
+            photo, 'photos', fileName, profile.id, session?.access_token,
+          );
+          const { error: photoError } = await supabase.from('listing_photos').insert({
+            listing_id: id,
+            url: publicUrl,
+            display_order: existingPhotos.length + i,
+          });
+          if (photoError) throw photoError;
+        } catch (photoError) {
+          console.warn('[Modifier annonce] erreur photo', photoError);
+          failures.push(`photo ${i + 1}`);
+        }
+      }
+
+      if (failures.length) {
+        toast.error(`Annonce mise à jour, mais éléments non enregistrés : ${failures.join(', ')}.`, {
+          duration: 7000,
+        });
+      } else {
+        toast.success('Annonce modifiée et renvoyée en validation.');
+      }
+      router.push(`/annonces/${id}`);
+    } catch (error) {
+      console.error('[Modifier annonce] erreur réseau', error);
+      toast.error('Enregistrement interrompu. Réessayez.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
