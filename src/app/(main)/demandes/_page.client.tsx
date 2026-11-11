@@ -250,7 +250,8 @@ export default function DemandesPageClient() {
         .order('created_at', { ascending: false })
         .range(page * 50, page * 50 + 49);
       if (filterStatus === 'open') query = query.in('status', ['submitted','viewed','replied','scheduled']);
-      if (filterStatus === 'resolved') query = query.in('status', ['completed','cancelled']);
+      if (filterStatus === 'resolved') query = query.eq('status', 'completed');
+      if (filterStatus === 'cancelled') query = query.eq('status', 'cancelled');
       if (filterUrgency !== 'all') query = query.eq('urgency', filterUrgency);
       if (filterSector) query = query.eq('sector_id', filterSector);
       const term = search.trim().replace(/[,()%_]/g,' ').replace(/\s+/g,' ').slice(0,100);
@@ -290,7 +291,7 @@ export default function DemandesPageClient() {
     const version = ++privateVersion.current;
     if (privatePage === 0) setLoadingDevis(true); else setLoadingMorePrivate(true);
     try {
-      const { data, count, error } = await supabase.from('service_requests')
+      let query = supabase.from('service_requests')
         .select(`id,title,description,urgency,address,status,created_at,resident_id,artisan_id,sector_id,
           resident:profiles!service_requests_resident_id_fkey(full_name,avatar_url),
           category:trade_categories(id,name,icon),photos:service_request_photos(url)`,
@@ -298,6 +299,9 @@ export default function DemandesPageClient() {
         .not('artisan_id','is',null)
         .order('created_at',{ ascending: false })
         .range(privatePage * 50, privatePage * 50 + 49);
+      const term = search.trim().replace(/[,()%_]/g, ' ').replace(/\s+/g, ' ').slice(0,100);
+      if (term) query = query.or(`title.ilike.%${term}%,description.ilike.%${term}%`);
+      const { data, count, error } = await query;
       if (version !== privateVersion.current) return;
       if (error) {
         console.error('[Demandes] chargement devis refusé', error.code);
@@ -323,7 +327,7 @@ export default function DemandesPageClient() {
         setLoadingMorePrivate(false);
       }
     }
-  }, [supabase, profile?.id, privatePage]);
+  }, [supabase, profile?.id, privatePage, search]);
 
   useEffect(() => { void fetchRequests(); }, [fetchRequests]);
   useEffect(() => {
@@ -331,10 +335,7 @@ export default function DemandesPageClient() {
   }, [activeTab, profile?.id, fetchMesDevis]);
 
   const filtered = requests;
-  const filteredDevis = mesDevis.filter(req =>
-    !search.trim() || req.title.toLowerCase().includes(search.trim().toLowerCase()) ||
-    req.description.toLowerCase().includes(search.trim().toLowerCase())
-  );
+  const filteredDevis = mesDevis;
 
   // Comptages SUR LES CARTES CHARGÉES (pas un compteur global trompeur).
   const sectorCounts = SECTORS.reduce<Record<string, number>>((acc, sector) => {
@@ -347,7 +348,7 @@ export default function DemandesPageClient() {
   const chooseSector = (id: string | null) => { setPage(0); setFilterSector(id); };
   const chooseStatus = (status: string) => { setPage(0); setFilterStatus(status); };
   const chooseUrgency = (urgency: string) => { setPage(0); setFilterUrgency(urgency); };
-  const chooseSearch = (term: string) => { setPage(0); setSearch(term); };
+  const chooseSearch = (term: string) => { setPage(0); setPrivatePage(0); setSearch(term); };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -478,6 +479,7 @@ export default function DemandesPageClient() {
                   { val: 'all',      label: '📋 Toutes' },
                   { val: 'open',     label: '⏳ En cours' },
                   { val: 'resolved', label: '✅ Résolues' },
+                  { val: 'cancelled', label: '⛔ Annulées' },
                 ].map(chip => (
                   <button key={chip.val} type="button"
                     onClick={() => chooseStatus(chip.val)}
