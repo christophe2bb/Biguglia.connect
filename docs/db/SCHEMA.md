@@ -1,7 +1,12 @@
 # Schéma Supabase — Biguglia Connect
-> Dernière mise à jour : 2026-04-12
-> Ce document décrit les tables **réellement présentes** en base de données.
-> Mettre à jour après chaque migration SQL exécutée.
+> **Inventaire historique : mis à jour initialement le 12 avril 2026.**
+> Ce document ne certifie pas la structure de la base réellement en ligne.
+> Le schéma attendu dépend du snapshot, des migrations successives et des
+> interventions éventuellement effectuées hors dépôt. Vérifier le projet
+> Supabase concerné avant tout déploiement.
+>
+> ⚠️ Reconstruction à neuf non fonctionnelle au 11/11/2026 :
+> [incident n° 579](https://github.com/christophe2bb/Biguglia.connect/issues/579).
 
 ---
 
