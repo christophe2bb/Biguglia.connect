@@ -30,6 +30,7 @@ function DemandeServiceForm() {
   const [dataError, setDataError] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
+  const submittingRef = useRef(false);
   /**
    * previewUrls — stable object-URL list derived from `photos`.
    * Revoked on every update and on unmount to avoid memory leaks.
@@ -144,7 +145,7 @@ function DemandeServiceForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loading) return;
+    if (loading || submittingRef.current) return;
     if (phase !== 'authenticated' || !profile) { toast.error('Connexion requise'); return; }
     if (dataLoading || dataError || (artisanId && !artisan)) { toast.error('Fiche artisan indisponible'); return; }
     if (!form.title.trim() || !form.description.trim() || !form.category_id || !form.address.trim()) {
@@ -152,7 +153,9 @@ function DemandeServiceForm() {
       return;
     }
 
+    submittingRef.current = true;
     setLoading(true);
+    try {
 
     // Vérifier la session avant toute opération DB — évite auth.uid() = NULL (→ 403)
     const { data: { session } } = await supabase.auth.getSession();
@@ -284,8 +287,15 @@ function DemandeServiceForm() {
     }
 
     // Cas sans artisan spécifié → demande publique classique
-    toast.success('Demande publiée ! Les habitants peuvent maintenant vous répondre.', { duration: 5000 });
+    toast.success('Demande publiée ! Les habitants connectés peuvent désormais vous répondre.', { duration: 5000 });
     router.push('/demandes');
+    } catch (error) {
+      console.error('[DemandeService] erreur inattendue', error);
+      toast.error('Envoi interrompu. Vérifiez vos demandes avant de réessayer pour éviter un doublon.');
+    } finally {
+      submittingRef.current = false;
+      setLoading(false);
+    }
   };
 
   if (phase === 'initializing' || dataLoading) return <div role="status" className="max-w-2xl mx-auto px-4 py-10">Chargement du formulaire…</div>;
@@ -445,7 +455,10 @@ function DemandeServiceForm() {
 
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
           <p className="text-sm text-blue-700">
-            <strong>🔒 Sécurité :</strong> La demande est accessible aux destinataires autorisés par la plateforme. Attention : les photos sont actuellement stockées sous des liens publics. Ne joignez pas de document ou de photo confidentiels. Biguglia Connect ne garantit pas les travaux.
+            <strong>🔒 Confidentialité :</strong> {artisanId
+              ? 'Votre devis est réservé aux participants autorisés et à la modération.'
+              : 'Cette demande et son adresse seront visibles par les utilisateurs connectés de la plateforme.'}
+            {' '}Les photos sont actuellement stockées sous des liens publics. Ne joignez aucune photo ou document confidentiel. Biguglia Connect ne garantit pas les travaux.
           </p>
         </div>
 
