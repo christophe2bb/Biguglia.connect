@@ -35,6 +35,19 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
   }))];
   const invalidCount = (photos ?? []).length - paths.length;
 
+  // Le dossier peut aussi contenir des fichiers qui ont été importés mais
+  // jamais inscrits dans service_request_photos. Inventorier uniquement le
+  // dossier de CETTE demande, déjà contrôlée comme appartenant au résident.
+  const { data: stored, error: listError } = await admin.storage.from('photos')
+    .list('requests/' + id, { limit: 100, offset: 0 });
+  const unlinkedPaths = (stored ?? []).flatMap(file => {
+    if (!file.id) return []; // sous-dossier : ne pas sortir du périmètre
+    const candidate = prefix + file.name;
+    const safe = safeRelativePath(candidate);
+    return safe === candidate && /^[a-zA-Z0-9_./-]+$/.test(candidate) ? [candidate] : [];
+  });
+  const allPaths = [...new Set([...paths, ...unlinkedPaths])];
+
   // L'ensemble des vérifications de propriété et des lectures a réussi.
   // Les relations request_comments et service_request_photos sont ON DELETE CASCADE.
   const { data: deleted, error: deleteError } = await admin.from('service_requests')
@@ -44,9 +57,9 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
     return NextResponse.json({ error: 'Suppression non confirmée' }, { status: 503 });
   }
 
-  let cleanupWarning = invalidCount > 0;
-  if (paths.length) {
-    const { error: cleanupError } = await admin.storage.from('photos').remove(paths);
+  let cleanupWarning = invalidCount > 0 || Boolean(listError) || (stored?.length === 100);
+  if (allPaths.length) {
+    const { error: cleanupError } = await admin.storage.from('photos').remove(allPaths);
     if (cleanupError) {
       cleanupWarning = true;
       console.warn('[request-delete] nettoyage stockage à reprendre', cleanupError.message);
