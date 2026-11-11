@@ -5,7 +5,7 @@ import { safeRelativePath, safeStoragePath } from '@/lib/upload-utils';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Supprimer une demande et nettoyer uniquement ses photos après DELETE SQL. */
 export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -14,14 +14,7 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
   const userId = await getUserIdBearerFirst(req);
   if (!userId) return NextResponse.json({ error: 'Connexion requise' }, { status: 401 });
   const { id } = await context.params;
-  if (!UUID.test(id)) {
-    console.warn('[request-delete] identifiant de route non valide', {
-      type: typeof id,
-      length: typeof id === 'string' ? id.length : null,
-      value: String(id),
-    });
-    return NextResponse.json({ error: 'Demande invalide' }, { status: 400 });
-  }
+  if (!UUID.test(id)) return NextResponse.json({ error: 'Demande invalide' }, { status: 400 });
 
   const admin = createAdminClient();
   const { data: request, error: requestError } = await admin.from('service_requests')
