@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { assertCsrfSafe, getUserIdBearerFirst } from '@/lib/supabase/auth-helper';
 import { createAdminClient } from '@/lib/supabase/server';
-import { safeRelativePath, safeStoragePath } from '@/lib/upload-utils';
+import { safeRelativePath } from '@/lib/upload-utils';
+import { servicePhotoLocation, QUOTE_PHOTO_BUCKET } from '@/lib/service-request-photos';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,7 +19,7 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
 
   const admin = createAdminClient();
   const { data: request, error: requestError } = await admin.from('service_requests')
-    .select('id,resident_id').eq('id', id).maybeSingle();
+    .select('id,resident_id,artisan_id').eq('id', id).maybeSingle();
   if (requestError) return NextResponse.json({ error: 'Demande momentanément indisponible' }, { status: 503 });
   if (!request) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 });
   if (request.resident_id !== userId) return NextResponse.json({ error: 'Accès interdit' }, { status: 403 });
@@ -28,25 +29,28 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
   if (photoError) return NextResponse.json({ error: 'Photos momentanément indisponibles' }, { status: 503 });
 
   const prefix = 'requests/' + id + '/';
-  const paths = [...new Set((photos ?? []).flatMap(p => {
-    const extracted = safeStoragePath(p.url, 'photos');
-    const safe = extracted && safeRelativePath(extracted);
-    return safe && safe.startsWith(prefix) && /^[a-zA-Z0-9_./-]+$/.test(safe) ? [safe] : [];
-  }))];
-  const invalidCount = (photos ?? []).length - paths.length;
+  const activeBucket = request.artisan_id ? QUOTE_PHOTO_BUCKET : 'photos';
+  // Les anciennes URL publiques et les nouveaux liens privés ne doivent
+  // jamais être confondus au moment du nettoyage.
+  const locations = (photos ?? []).flatMap(p => {
+    const location = servicePhotoLocation(p.url, id);
+    return location && location.path.startsWith(prefix) ? [location] : [];
+  });
+  const invalidCount = (photos ?? []).length - locations.length;
 
-  // Le dossier peut aussi contenir des fichiers qui ont été importés mais
-  // jamais inscrits dans service_request_photos. Inventorier uniquement le
-  // dossier de CETTE demande, déjà contrôlée comme appartenant au résident.
-  const { data: stored, error: listError } = await admin.storage.from('photos')
+  // Également inventorier les éventuels fichiers sans métadonnées dans le
+  // dossier de CETTE demande, sans supprimer ceux d'un autre résident.
+  const { data: stored, error: listError } = await admin.storage.from(activeBucket)
     .list('requests/' + id, { limit: 100, offset: 0 });
-  const unlinkedPaths = (stored ?? []).flatMap(file => {
-    if (!file.id) return []; // sous-dossier : ne pas sortir du périmètre
+  const orphanLocations = (stored ?? []).flatMap(file => {
+    if (!file.id) return []; // sous-dossier
     const candidate = prefix + file.name;
     const safe = safeRelativePath(candidate);
-    return safe === candidate && /^[a-zA-Z0-9_./-]+$/.test(candidate) ? [candidate] : [];
+    return safe === candidate && /^[a-zA-Z0-9_./-]+$/.test(candidate)
+      ? [{ bucket: activeBucket, path: candidate }]
+      : [];
   });
-  const allPaths = [...new Set([...paths, ...unlinkedPaths])];
+  const allLocations = [...locations, ...orphanLocations];
 
   // L'ensemble des vérifications de propriété et des lectures a réussi.
   // Les relations request_comments et service_request_photos sont ON DELETE CASCADE.
@@ -58,8 +62,15 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
   }
 
   let cleanupWarning = invalidCount > 0 || Boolean(listError) || (stored?.length === 100);
-  if (allPaths.length) {
-    const { error: cleanupError } = await admin.storage.from('photos').remove(allPaths);
+  const pathsByBucket = new Map<string, Set<string>>();
+  for (const location of allLocations) {
+    const paths = pathsByBucket.get(location.bucket) ?? new Set<string>();
+    paths.add(location.path);
+    pathsByBucket.set(location.bucket, paths);
+  }
+  for (const [bucket, paths] of pathsByBucket) {
+    if (!paths.size) continue;
+    const { error: cleanupError } = await admin.storage.from(bucket).remove([...paths]);
     if (cleanupError) {
       cleanupWarning = true;
       console.warn('[request-delete] nettoyage stockage à reprendre', cleanupError.message);
