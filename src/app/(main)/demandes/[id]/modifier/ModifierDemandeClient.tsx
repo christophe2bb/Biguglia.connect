@@ -24,6 +24,7 @@ import SectorFilter from '@/components/ui/SectorFilter';
 import { safeImageExt, uploadFile, isAcceptedImageType, MAX_PHOTO_MB } from '@/lib/upload-utils';
 import { servicePhotoLocation, QUOTE_PHOTO_BUCKET } from '@/lib/service-request-photos';
 import { deletePhotoFiles } from '@/lib/delete-photo-files';
+import { isPreferredDatePast, localISODate } from '@/lib/service-request-date';
 
 // ─── Type minimal pour le chargement initial ────────────────────────────────
 type ServiceRequestRow = {
@@ -54,6 +55,9 @@ export default function ModifierDemandeClient({ id }: Props) {
 
   // ── État du chargement ────────────────────────────────────────────────────
   const [initialLoading, setInitialLoading] = useState(true);
+  // Se calcule après hydratation pour éviter toute divergence UTC/SSR.
+  const [localToday, setLocalToday] = useState('');
+  useEffect(() => { setLocalToday(localISODate()); }, []);
   const [categories, setCategories]         = useState<TradeCategory[]>([]);
 
   // ── Formulaire ────────────────────────────────────────────────────────────
@@ -216,6 +220,11 @@ export default function ModifierDemandeClient({ id }: Props) {
     if (saving || !profile) return;
     if (!form.title.trim() || !form.description.trim() || !form.category_id || !form.address.trim()) {
       toast.error('Veuillez remplir tous les champs obligatoires.');
+      return;
+    }
+
+    if (isPreferredDatePast(form.preferred_date)) {
+      toast.error('La date souhaitée est passée. Choisissez aujourd’hui ou une date future.');
       return;
     }
 
@@ -397,6 +406,7 @@ export default function ModifierDemandeClient({ id }: Props) {
             <Input
               label="Date souhaitée"
               type="date"
+              min={localToday}
               value={form.preferred_date}
               onChange={e => setForm(f => ({ ...f, preferred_date: e.target.value }))}
             />
