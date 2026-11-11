@@ -1,43 +1,88 @@
-# Biguglia Connect — préparation de mise en ligne (11 novembre 2026)
+# Biguglia Connect — contrôle de publication / Services
 
-> Document de suivi technique de la même application (dépôt `christophe2bb/Biguglia.connect`, Vercel `webapp`, Supabase existant).
-> La préparation et les contrôles ne valent **pas** autorisation de publier en production.
+**Périmètre exclusif :** Artisans, Poster une demande, Tableau des demandes,
+détails, suivi, commentaires, messagerie, pièces jointes, notifications,
+administration des artisans et règles RLS.
 
-## Déploiements et maîtrise du quota gratuit
+**Dépôt unique :** `christophe2bb/Biguglia.connect`.
+**PR de travail :** #573, `fix/messagerie-integrite-20261110`.
+**Déploiement :** Vercel Hobby ; déploiement automatique de cette branche
+désactivé dans `vercel.json`. `main` reste inchangée.
 
-- Offre Vercel actuellement constatée : **Hobby**.
-- Branche de travail : `fix/messagerie-integrite-20261110` (PR #573, non fusionnée).
-- `vercel.json` : `git.deploymentEnabled["fix/messagerie-integrite-20261110"] = false` pour arrêter les déploiements automatiques de **cette branche** pendant l'audit.
-- `main` conserve son comportement de déploiement existant ; ne pas y pousser/fusionner avant validation de la publication.
-- Les commits sur la branche continuent de déclencher les contrôles GitHub Actions (PR), **sans avoir besoin de Vercel**.
-- Pour la prochaine prévisualisation Vercel : réactiver **uniquement** la branche de travail dans `vercel.json` lors d'un commit de validation, après disponibilité du quota et réussite des contrôles CI. Vérifier qu'un seul aperçu se déclenche ; ne pas déclencher de déploiements redondants.
-- Pour la production : obtenir l'accord de publication, confirmer branche/commit/environnement, ne fusionner qu'après recette et vérification des secrets/configuration. Tester les journaux après la mise en ligne.
+> Une CI réussie valide le code et les scénarios automatisés, **pas** la recette
+> réelle multi-utilisateur ni la production. Ne pas fusionner ni publier sans
+> feu vert explicite et sans lever les blocages ci-dessous.
 
-## Contrôles à réussir avant toute publication
+## Corrections contrôlées / mises en place
 
-- [ ] Dernier commit de la PR #573 : GitHub CI **verte** (typecheck, lint, Vitest, build, Playwright).
-- [ ] Parcours *Services > Poster une demande* : validation des champs, secteur, urgence, rendez-vous, photos, envoi et redirection.
-- [ ] Parcours *Services > Tableau des demandes* : filtres, recherche, pagination, résultats vides, compteurs et navigation.
-- [ ] Parcours détail : consulter, répondre, supprimer un commentaire autorisé, modifier/supprimer sa demande, marquer résolue.
-- [ ] Parcours artisans : réception de devis privé, messagerie, changement de statut, refus et impossibilité d'accéder au devis d'autrui.
-- [ ] Scénarios **réels** sur au moins deux comptes de test distincts et un visiteur non connecté, avec nettoyage des données de test. Les tests sans identifiants E2E peuvent être ignorés : un badge CI vert n'atteste pas de ces parcours réels.
-- [ ] Vérifier la séparation des privilèges, les RLS des tables liées et le contrôle des actions de modération.
-- [ ] Vérifier les photos depuis un navigateur sans session, notamment les devis privés.
+- Annuaire Artisans : vrais IDs de profil, recherche et pagination au-delà
+  de 200 fiches ; notes provenant de `item_ratings`.
+- Favoris Artisans : vérifier que la base a modifié une ligne avant de changer le
+  cœur et d'annoncer un succès.
+- Poster une demande : validation des champs, défense contre les statuts
+  falsifiés à l'INSERT, artisan cible obligatoirement vérifié, protection
+  contre l'envoi à sa propre fiche.
+- Tableau : filtres avant pagination, compteurs quartiers globaux, tab
+  devis privés soumis à RLS.
+- Fiche demande : suppression propriétaire contrôlée côté serveur,
+  nettoyage du stockage après suppression SQL, nettoyage des fichiers
+  orphelins de cette demande ; modification interdite des dossiers clos.
+- Gestion du cycle de vie : le résident peut clôturer, annuler sans supprimer
+  et conserver l'historique ; mises à jour conditionnelles sur ancien statut.
+- Messagerie : retour à la bonne fiche après connexion, contrôle du destinataire
+  et des comptes vérifiés, blocages bidirectionnels recontrôlés avant chaque
+  message et au niveau du trigger SQL, validation de l'expéditeur.
+- Notifications : lorsqu'un artisan modifie le statut, le résident est prévenu ;
+  lorsqu'un résident annule/clôture un devis privé, l'artisan est prévenu ;
+  demande d'avis après clôture maintenue.
+- Photos privées : nouveau bucket `service-quote-photos` (public = false),
+  upload réservé aux devis, URL de lecture interne, contrôle du résident,
+  artisan destinataire, rôle modération, compte actif et métadonnée associée.
+  Les autres photos restent dans `photos` (public) ; pas de bascule globale.
+- RLS photos : URLs et appartenance au bon dossier/bucket obligatoires,
+  refus d'ajouter des pièces jointes après clôture.
+- Administration Artisans : validation/refus via transaction RPC unique,
+  non-exécutable par les comptes ordinaires ; décisions uniquement annoncées
+  après confirmation et signalement séparé d'un échec de notification.
+- UX admin : protection contre les doubles clics, formulaire de révocation
+  avec motif, pas de fermeture prématurée du dossier.
 
-## Risques connus / points bloquants
+## Contrôles avant publication
 
-1. **Photos de devis privés** : les fichiers `requests/` sont actuellement dans le bucket Supabase `photos` **public**. La restriction RLS de `service_requests` ne protège pas à elle seule les fichiers. Un avertissement est déjà affiché dans le formulaire, mais **la confidentialité des pièces jointes n'est pas garantie**. Prévoir un stockage privé avec contrôle serveur et URL signée, sans modifier brutalement le bucket partagé utilisé par les autres fonctionnalités. **Blocage de validation du niveau de confidentialité attendu.**
-2. **Stockage incohérent historique** : audit du 11/11 : 13 objets `requests/`, seulement 2 métadonnées associées dans `service_request_photos` ; 11 objets orphelins ou non reliés. Effectuer un inventaire fiable des références puis un nettoyage autorisé, **pas de suppression en masse**.
-3. **Recette multi-compte non attestée** : la base contient peu de données (5 demandes, 0 commentaire lors du dernier audit). Les tests E2E de publication réelle doivent être exécutés sur des comptes et des demandes de test isolés.
-4. **Erreurs Vercel antérieures** : ne pas confondre un ancien déploiement en erreur avec l'état du code sur le dernier commit ; contrôler l'aperçu correspondant au SHA effectivement testé.
+- [ ] Dernier commit GitHub : TypeScript, lint, tests unitaires, build et
+      Playwright **tous réussis sur le même SHA**.
+- [ ] Recette réelle avec un résident, un artisan vérifié, un administrateur et
+      un tiers non autorisé, sur des comptes **de test**.
+- [ ] Déposer une demande publique : filtre, recherche, compteur, commentaire,
+      statut, notification, résolution, annulation, suppression.
+- [ ] Déposer un devis privé avec photos : vérifier le fil dans la messagerie,
+      la réception artisan, le retour après connexion, les avis et statuts.
+- [ ] Tester avec deux navigateurs : URL privée inaccessible sans connexion,
+      inaccessible au tiers et à un compte suspendu ; accessible au résident,
+      à l'artisan destinataire et au modérateur.
+- [ ] Tester les interruptions réseau, doublons, erreurs de notification et
+      suppression partielle de photos avec retour utilisateur correct.
+- [ ] Tester iPhone et Android (boutons, galerie, zoom, formulaires et clavier).
+- [ ] Nettoyer uniquement après inventaire validé les fichiers historiques
+      potentiellement orphelins ; **ne jamais supprimer en masse**.
 
-## Corrections effectuées sur la branche
+## Dernier inventaire Supabase (11 novembre 2026)
 
-- Nettoyage des photos importées lorsque leur association SQL échoue, avec remontée d'un avertissement si le nettoyage échoue.
-- Harmonisation de l'autorisation de suppression d'un commentaire côté bouton et traitement.
-- Suppression des liens de photos **non associées en base** dans le message initial envoyé à l'artisan.
-- Suspension des déploiements automatiques de la branche d'audit, pour conserver le quota gratuit.
+| Indicateur | Valeur constatée |
+| --- | ---: |
+| Demandes | 5 |
+| Devis privés | 0 |
+| Commentaires | 0 |
+| Artisans vérifiés | 1 |
+| Références de photos | 2 |
+| Fichiers publics dans `requests/` | 13 |
+| Fichiers dans le nouveau bucket privé | 0 |
 
-## Règle de mise en ligne
+**Point de vigilance :** les 13 fichiers publics pour 2 références demandent
+un inventaire et une éventuelle correction manuelle autorisée, pas une suppression
+automatique. Les essais de devis avec de vrais utilisateurs et de vrais fichiers
+privés restent à démontrer avant publication.
 
-**Pas de fusion ni de déploiement en production sans CI verte sur le bon SHA, recette de sécurité et feu vert explicite.**
+**Source de vérité :** PR #573 et états GitHub Actions du commit testé.
+**Règle :** pas d'autre rubrique et pas de fusion en production tant que
+Services n'a pas passé la recette complète.
