@@ -44,6 +44,10 @@ export function useConversationRealtime(
   const channelRef      = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const reconnectRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectIdxRef = useRef(0);
+  // Invalide toutes les anciennes callbacks après démontage ou reconnexion.
+  const connectGenerationRef = useRef(0);
+  // Sérialise la suppression de l'ancien canal avant de recréer son topic.
+  const channelRemovalRef = useRef<Promise<void>>(Promise.resolve());
   const pollRef         = useRef<ReturnType<typeof setInterval> | null>(null);
   /** Timer d'initialisation : attend POLL_INIT_DELAY avant de démarrer le polling initial. */
   const pollInitRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -132,7 +136,18 @@ export function useConversationRealtime(
   // ── Connexion Realtime ────────────────────────────────────────────────────
   const connect = useCallback(() => {
     if (!profile || !conversationId) return;
-    if (channelRef.current) { safeRemoveChannel(supabase, channelRef.current).catch(() => null); channelRef.current = null; }
+    const generation = ++connectGenerationRef.current;
+    if (reconnectRef.current) {
+      clearTimeout(reconnectRef.current);
+      reconnectRef.current = null;
+    }
+    const previous = channelRef.current;
+    channelRef.current = null;
+    if (previous) {
+      channelRemovalRef.current = channelRemovalRef.current
+        .then(() => safeRemoveChannel(supabase, previous))
+        .catch(() => undefined);
+    }
 
     // Polling de secours — démarré après POLL_INIT_DELAY pour laisser le temps
     // au canal Realtime de s'établir sans effectuer une requête inutile.
@@ -146,7 +161,10 @@ export function useConversationRealtime(
       }, POLL_INIT_DELAY);
     }
 
-    const channel = supabase
+    // Une ouverture concurrente ne doit pas réutiliser un canal "joining".
+    void channelRemovalRef.current.then(() => {
+      if (!mountedRef.current || generation !== connectGenerationRef.current) return;
+      const channel = supabase
       .channel(`conv-${conversationId}`, { config: { broadcast: { ack: false } } })
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'messages',
@@ -167,9 +185,12 @@ export function useConversationRealtime(
         }
         if (newMsg.sender_id !== profile.id) await markAsRead();
         scrollToBottom();
-      })
-      .subscribe((status: string) => {
-        if (!mountedRef.current) return;
+      });
+      // Tous les callbacks postgres_changes sont déclarés AVANT subscribe().
+      channelRef.current = channel;
+      channel.subscribe((status: string) => {
+        if (!mountedRef.current || generation !== connectGenerationRef.current ||
+            channelRef.current !== channel) return;
         if (status === 'SUBSCRIBED') {
           setRealtimeOk(true);
           reconnectIdxRef.current = 0;
@@ -189,19 +210,29 @@ export function useConversationRealtime(
           }
         }
       });
-
-    channelRef.current = channel;
+    }).catch((err: unknown) => {
+      console.warn('[useConversationRealtime] connexion impossible:', err);
+      // Le polling prend le relais même si le canal ne peut pas être créé.
+      if (mountedRef.current && generation === connectGenerationRef.current && !pollRef.current) {
+        pollRef.current = setInterval(pollNewMessages, FALLBACK_POLL_INTERVAL);
+      }
+    });
   }, [conversationId, profile, supabase, mountedRef, getSenderProfile, markAsRead, scrollToBottom, pollNewMessages, setMessages, lastMsgIdRef]);
 
   // ── Nettoyage ─────────────────────────────────────────────────────────────
   const cleanup = useCallback(() => {
-    if (channelRef.current) {
-      safeRemoveChannel(supabase, channelRef.current).catch(() => null);
-      channelRef.current = null;
+    // Un connect() asynchrone en attente ne peut plus relancer une souscription.
+    connectGenerationRef.current++;
+    const current = channelRef.current;
+    channelRef.current = null;
+    if (current) {
+      channelRemovalRef.current = channelRemovalRef.current
+        .then(() => safeRemoveChannel(supabase, current))
+        .catch(() => undefined);
     }
-    if (reconnectRef.current) clearTimeout(reconnectRef.current);
-    if (pollRef.current) clearInterval(pollRef.current);
-    if (pollInitRef.current) clearTimeout(pollInitRef.current);
+    if (reconnectRef.current) { clearTimeout(reconnectRef.current); reconnectRef.current = null; }
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    if (pollInitRef.current) { clearTimeout(pollInitRef.current); pollInitRef.current = null; }
   }, [supabase]);
 
   return { realtimeOk, connect, cleanup };
