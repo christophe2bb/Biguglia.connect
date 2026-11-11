@@ -14,7 +14,7 @@ import Link from 'next/link';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
 import ProtectedPage from '@/components/providers/ProtectedPage';
-import { STATUS_LABELS, cn } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 // Lazy-load heavy panels (only fetched after initial render)
@@ -185,61 +185,9 @@ function ArtisanDashboardContent() {
     };
     toast.success(labels[newStatus] || 'Statut mis à jour');
 
-    // Notifier le résident
-    const req = previousReq;
-    if (req) {
-      await supabase.from('notifications').insert({
-        user_id: req.resident_id,
-        type: 'request_update',
-        title: '📋 Demande mise à jour',
-        message: `Votre demande "${req.title}" est maintenant : ${STATUS_LABELS[newStatus]}`,
-        link: `/demandes/${requestId}`,
-      });
-    }
-
-    // Quand l'intervention est terminée → créer/débloquer une trust_interaction
-    // pour que le résident puisse laisser un avis sur l'artisan
-    if (newStatus === 'completed' && req && artisanProfile) {
-      // Chercher une interaction existante pour cette service_request
-      const { data: existing } = await supabase
-        .from('trust_interactions')
-        .select('id')
-        .eq('source_type', 'service_request')
-        .eq('source_id', requestId)
-        .maybeSingle();
-
-      if (existing) {
-        // Mettre à jour l'interaction existante
-        await supabase.from('trust_interactions').update({
-          status: 'done',
-          review_unlocked: true,
-          completed_at: new Date().toISOString(),
-        }).eq('id', existing.id);
-      } else {
-        // Créer l'interaction depuis zéro
-        await supabase.from('trust_interactions').insert({
-          source_type:      'service_request',
-          source_id:        requestId,
-          requester_id:     req.resident_id,
-          receiver_id:      artisanProfile.user_id,
-          interaction_type: 'service_request',
-          status:           'done',
-          review_unlocked:  true,
-          review_requester_done: false,
-          review_receiver_done:  false,
-          completed_at:     new Date().toISOString(),
-        });
-      }
-
-      // Notifier le résident qu'il peut laisser un avis
-      await supabase.from('notifications').insert({
-        user_id: req.resident_id,
-        type:    'review_request',
-        title:   '⭐ Donnez votre avis !',
-        message: `L'intervention de ${artisanProfile.business_name} est terminée. Partagez votre expérience !`,
-        link:    '/dashboard/avis',
-      });
-    }
+    // Les notifications et l'ouverture des avis sont maintenant gérées dans
+    // Supabase par service_request_status_side_effects, APRÈS l'UPDATE réussi.
+    // Le navigateur ne tente plus des INSERT refusés par RLS pour autrui.
   };
 
   if (!profile || profile.role !== 'artisan_verified') return null;
