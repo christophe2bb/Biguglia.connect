@@ -76,7 +76,7 @@ export default function AnnonceDetailClient() {
           <h3 className="text-base font-bold text-gray-900 mb-2">Supprimer cette annonce ?</h3>
           <p className="text-sm text-gray-500 mb-1 font-medium truncate px-2">« {listing.title} »</p>
           <p className="text-sm text-gray-400 mb-6">
-            Cette action est irréversible. L&apos;annonce et toutes ses photos seront définitivement supprimées.
+            Cette action est irréversible. L’annonce sera supprimée. Les photos associées seront nettoyées après confirmation de la suppression.
           </p>
           <div className="flex gap-3">
             <button

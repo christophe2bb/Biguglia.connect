@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 import { toPhotoItems } from '@/components/ui/photo-utils';
-import { safeStoragePath } from '@/lib/upload-utils';
-import { deletePhotoFiles } from '@/lib/delete-photo-files';
 import { useFavorites } from '../../_hooks/useFavorites';
 import toast from 'react-hot-toast';
 import { Listing } from '@/types';
@@ -121,87 +119,54 @@ export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
     void toggleFavorite(id);
   }, [id, toggleFavorite]);
 
-  // ── handleDelete ─────────────────────────────────────────────────────────────
-  // ⚠️ Appelé APRÈS confirmation dans le dialog React (pas de confirm() bloquant ici).
-  // Utilise userId depuis Zustand (0ms) — pas de getSession() dans le handler.
+  // ── Suppression sûre : API serveur dédiée ─────────────────────────────────
   const handleDelete = useCallback(async () => {
-    if (!listing) return;
-
-    // Vérification auth depuis Zustand (mémoire, synchrone)
+    if (!listing || deleting) return;
     if (!userId) {
       toast.error('Connectez-vous pour supprimer cette annonce.');
       router.push('/connexion');
       return;
     }
+    if (userId !== listing.user_id) {
+      toast.error('Seul le propriétaire peut supprimer cette annonce.');
+      return;
+    }
 
     setDeleting(true);
     setConfirmDeleteOpen(false);
-
-    // ── Diagnostic : log userId vs listing.user_id ──────────────────────────
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[handleDelete] START', {
-        listingId: listing.id,
-        listingUserId: listing.user_id,
-        zustandUserId: userId,
-        match: listing.user_id === userId,
-      });
-    }
-
-    // La FK listing_photos -> listings est ON DELETE CASCADE.
-    // Supprimer l'annonce en premier : si l'opération RLS échoue, on ne touche
-    // ni aux photos Storage ni aux métadonnées, évitant une perte irréversible.
-    if (userId !== listing.user_id) {
-      toast.error('Seul le propriétaire peut supprimer cette annonce.');
-      setDeleting(false);
-      return;
-    }
-    const photoPaths = ((listing.photos || []) as Array<{ url: string }>)
-      .map(p => safeStoragePath(p.url, 'photos'))
-      .filter((path): path is string => Boolean(path));
-
-    // 1. Supprimer la ligne (et les listing_photos par cascade).
-    const { data: deleted, error } = await supabase
-      .from('listings')
-      .delete()
-      .eq('id', listing.id)
-      .select('id');
-
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[handleDelete] DELETE result:', {
-        deleted,
-        error,
-        deletedCount: deleted?.length ?? 0,
-      });
-    }
-
-    if (error) {
-      console.error('[handleDelete] Supabase error:', error);
-      toast.error(`Erreur : ${error.message}`, { duration: 8000 });
-      setDeleting(false);
-      return;
-    }
-
-    if (!deleted || deleted.length === 0) {
-      // RLS a bloqué. Afficher un toast avec les infos de debug.
-      const msg = `Suppression bloquée (RLS). userId=${userId?.slice(0,8)} listingUser=${listing.user_id?.slice(0,8)}`;
-      console.error('[handleDelete] RLS block:', msg);
-      toast.error('Suppression bloquée — politique de sécurité. Vérifiez la console.', { duration: 8000 });
-      setDeleting(false);
-      return;
-    }
-
-    // 2. Nettoyer le stockage SEULEMENT après la suppression confirmée.
-    if (photoPaths.length) {
+    try {
+      let token: string | undefined;
       try {
-        await deletePhotoFiles(photoPaths);
-      } catch {
-        console.warn('[annonces] nettoyage du stockage incomplet après suppression');
+        const { data: { session } } = await supabase.auth.getSession();
+        token = session?.access_token;
+      } catch { /* repli sur les cookies de session serveur */ }
+
+      const response = await fetch(`/api/listings/${listing.id}/delete`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const body = await response.json().catch(() => null) as {
+        ok?: boolean; error?: string; cleanupWarning?: boolean;
+      } | null;
+      if (!response.ok || !body?.ok) {
+        toast.error(body?.error || 'Suppression refusée. Réessayez.');
+        return;
       }
+      if (body.cleanupWarning) {
+        toast('Annonce supprimée, nettoyage de certains fichiers à reprendre.', {
+          icon: '⚠️', duration: 6000,
+        });
+      } else {
+        toast.success('Annonce supprimée');
+      }
+      router.replace('/annonces');
+      router.refresh();
+    } catch {
+      toast.error('Erreur réseau pendant la suppression. Réessayez.');
+    } finally {
+      setDeleting(false);
     }
-    toast.success('Annonce supprimée');
-    router.replace('/annonces');
-    router.refresh();
-  }, [listing, userId, router, supabase]);
+  }, [listing, deleting, userId, router, supabase]);
 
   // ── handleStatusChange ───────────────────────────────────────────────────────
   const handleStatusChange = useCallback(async (newStatus: string) => {
