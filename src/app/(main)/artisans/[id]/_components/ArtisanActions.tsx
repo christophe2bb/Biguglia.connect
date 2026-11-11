@@ -56,11 +56,13 @@ export default function ArtisanActions({ artisan, variant }: Props) {
     try {
       const supabase = createClient();
       const query = supabase.from('user_favorites');
-      const { error } = isFavorite
-        ? await query.delete().eq('user_id', profile.id).eq('target_id', artisan.id).eq('target_type', 'artisan')
-        : await query.insert({ user_id: profile.id, target_id: artisan.id, target_type: 'artisan' });
-      if (error) {
-        toast.error('Impossible de modifier les favoris. Réessayez.');
+      // Les politiques RLS peuvent répondre sans erreur tout en ne modifiant
+      // aucune ligne. Exiger la ligne renvoyée avant de changer le cœur.
+      const { data: changed, error } = isFavorite
+        ? await query.delete().eq('user_id', profile.id).eq('target_id', artisan.id).eq('target_type', 'artisan').select('id')
+        : await query.insert({ user_id: profile.id, target_id: artisan.id, target_type: 'artisan' }).select('id');
+      if (error || !changed?.length) {
+        toast.error('Favori non enregistré. Vérifiez votre connexion puis réessayez.');
         return;
       }
       setIsFavorite(!isFavorite);
