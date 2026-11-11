@@ -80,6 +80,8 @@ export default function ModifierDemandeClient({ id }: Props) {
   const [previewUrls, setPreviewUrls]       = useState<string[]>([]);
 
   const [saving, setSaving] = useState(false);
+  // Protection immédiate contre deux envois avant le prochain rendu React.
+  const savingRef = useRef(false);
   const [isPrivateQuote, setIsPrivateQuote] = useState(false);
 
   // Revoke object URLs lors du démontage ou changement
@@ -217,7 +219,7 @@ export default function ModifierDemandeClient({ id }: Props) {
   // ── Soumettre la modification ─────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (saving || !profile) return;
+    if (saving || savingRef.current || !profile) return;
     if (!form.title.trim() || !form.description.trim() || !form.category_id || !form.address.trim()) {
       toast.error('Veuillez remplir tous les champs obligatoires.');
       return;
@@ -228,6 +230,7 @@ export default function ModifierDemandeClient({ id }: Props) {
       return;
     }
 
+    savingRef.current = true;
     setSaving(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -327,6 +330,7 @@ export default function ModifierDemandeClient({ id }: Props) {
       console.error('[ModifierDemande] erreur', err);
       toast.error('Enregistrement interrompu : réessayez.');
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
