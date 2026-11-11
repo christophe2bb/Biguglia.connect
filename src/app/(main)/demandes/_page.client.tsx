@@ -227,6 +227,8 @@ export default function DemandesPageClient() {
   const requestVersion = useRef(0);
   const privateVersion = useRef(0);
   const [search,        setSearch]        = useState('');
+  const [privateSearch, setPrivateSearch] = useState('');
+  const [publicMetrics, setPublicMetrics] = useState({ total: 0, urgent: 0, newRequests: 0, resolved: 0 });
   const [filterUrgency, setFilterUrgency] = useState('all');
   const [filterStatus,  setFilterStatus]  = useState('open');
   const [filterSector,  setFilterSector]  = useState<string | null>(null);
@@ -299,7 +301,7 @@ export default function DemandesPageClient() {
         .not('artisan_id','is',null)
         .order('created_at',{ ascending: false })
         .range(privatePage * 50, privatePage * 50 + 49);
-      const term = search.trim().replace(/[,()%_]/g, ' ').replace(/\s+/g, ' ').slice(0,100);
+      const term = privateSearch.trim().replace(/[,()%_]/g, ' ').replace(/\s+/g, ' ').slice(0,100);
       if (term) query = query.or(`title.ilike.%${term}%,description.ilike.%${term}%`);
       const { data, count, error } = await query;
       if (version !== privateVersion.current) return;
@@ -327,7 +329,7 @@ export default function DemandesPageClient() {
         setLoadingMorePrivate(false);
       }
     }
-  }, [supabase, profile?.id, privatePage, search]);
+  }, [supabase, profile?.id, privatePage, privateSearch]);
 
   useEffect(() => { void fetchRequests(); }, [fetchRequests]);
   useEffect(() => {
@@ -343,12 +345,35 @@ export default function DemandesPageClient() {
     return acc;
   }, {});
 
-  const nbUrgent   = filtered.filter(r => r.urgency === 'urgent' || r.urgency === 'tres_urgent').length;
-  const nbNouveaux = filtered.filter(r => r.status === 'submitted').length;
+  // Counters are fetched from the entire public-request table, independent
+  // of the active pagination and filters. Counts respect RLS.
+  useEffect(() => {
+    let cancelled = false;
+    const base = () => supabase.from('service_requests').select('id', { count: 'exact', head: true }).is('artisan_id', null);
+    void (async () => {
+      const [all, urgent, fresh, resolved] = await Promise.all([
+        base(),
+        base().in('urgency', ['urgent', 'tres_urgent']),
+        base().eq('status', 'submitted'),
+        base().eq('status', 'completed'),
+      ]);
+      if (cancelled) return;
+      if ([all, urgent, fresh, resolved].some(result => result.error)) {
+        console.warn('[Demandes] statistiques indisponibles');
+        return;
+      }
+      setPublicMetrics({
+        total: all.count ?? 0, urgent: urgent.count ?? 0,
+        newRequests: fresh.count ?? 0, resolved: resolved.count ?? 0,
+      });
+    })().catch(error => { if (!cancelled) console.warn('[Demandes] statistiques', error); });
+    return () => { cancelled = true; };
+  }, [supabase, profile?.id]);
   const chooseSector = (id: string | null) => { setPage(0); setFilterSector(id); };
   const chooseStatus = (status: string) => { setPage(0); setFilterStatus(status); };
   const chooseUrgency = (urgency: string) => { setPage(0); setFilterUrgency(urgency); };
-  const chooseSearch = (term: string) => { setPage(0); setPrivatePage(0); setSearch(term); };
+  const chooseSearch = (term: string) => { setPage(0); setSearch(term); };
+  const choosePrivateSearch = (term: string) => { setPrivatePage(0); setPrivateSearch(term); };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -375,10 +400,10 @@ export default function DemandesPageClient() {
           {/* Stats bar — même format que les annonces */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8">
             {[
-              { label: 'Affichées',  value: filtered.length,  icon: '📋' },
-              { label: 'Urgentes',  value: nbUrgent,         icon: '🔥' },
-              { label: 'Nouvelles', value: nbNouveaux,       icon: '🆕' },
-              { label: 'Résolues',  value: requests.filter(r => r.status === 'completed').length, icon: '✅' },
+              { label: 'Demandes', value: publicMetrics.total, icon: '📋' },
+              { label: 'Urgentes', value: publicMetrics.urgent, icon: '🔥' },
+              { label: 'Nouvelles', value: publicMetrics.newRequests, icon: '🆕' },
+              { label: 'Résolues', value: publicMetrics.resolved, icon: '✅' },
             ].map(s => (
               <div key={s.label} className="bg-white/10 backdrop-blur rounded-2xl px-4 py-3 text-center">
                 <div className="text-2xl font-black">{s.value}</div>
@@ -398,7 +423,7 @@ export default function DemandesPageClient() {
               <p className="text-xs text-gray-500 mt-0.5">Cliquez pour filtrer les demandes</p>
             </div>
             <span className="text-xs text-gray-400 hidden sm:block">
-              {Object.values(sectorCounts).reduce((a, b) => a + b, 0)} demandes géolocalisées
+              {Object.values(sectorCounts).reduce((a, b) => a + b, 0)} demandes géolocalisées parmi les cartes chargées
             </span>
           </div>
           <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
@@ -420,7 +445,7 @@ export default function DemandesPageClient() {
                 Tous
               </span>
               <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${!filterSector ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                {requests.length}
+                {publicMetrics.total}
               </span>
             </button>
 
@@ -453,9 +478,9 @@ export default function DemandesPageClient() {
                 activeTab === 'mes_devis' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}>
               <Briefcase className="w-4 h-4" /> {isArtisan ? 'Mes devis reçus / envoyés' : 'Mes devis envoyés'}
-              {mesDevis.filter(d => d.status === 'submitted').length > 0 && (
+              {privateCount > 0 && (
                 <span className="bg-indigo-600 text-white text-xs font-black px-1.5 py-0.5 rounded-full">
-                  {mesDevis.filter(d => d.status === 'submitted').length}
+                  {privateCount}
                 </span>
               )}
             </button>
@@ -574,7 +599,7 @@ export default function DemandesPageClient() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input type="text" placeholder="Rechercher dans mes devis…"
-                  value={search} onChange={e => chooseSearch(e.target.value)}
+                  value={privateSearch} onChange={e => choosePrivateSearch(e.target.value)}
                   className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 />
               </div>
@@ -591,7 +616,7 @@ export default function DemandesPageClient() {
               <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
                 <div className="text-5xl mb-4">📋</div>
                 <p className="text-gray-500 font-semibold text-lg mb-2">
-                  {search ? 'Aucun devis pour cette recherche' : 'Aucun devis reçu pour l\'instant'}
+                  {privateSearch ? 'Aucun devis pour cette recherche' : 'Aucun devis pour l\'instant'}
                 </p>
                 <p className="text-gray-400 text-sm max-w-sm mx-auto">
                   {isArtisan ? 'Vos devis reçus apparaîtront ici.' : 'Vos devis privés adressés aux artisans apparaîtront ici.'}
