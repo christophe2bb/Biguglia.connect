@@ -91,8 +91,13 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
       .eq('user_id', artisanUserId);
 
     if (apError) {
-      // Non bloquant : le rôle est déjà mis à jour, on logue et on continue
+      // Ne jamais déclarer une validation réussie si la fiche reste masquée.
+      // La première écriture a déjà pu réussir : signaler une opération
+      // partielle à l'admin pour qu'il relance ou réconcilie le dossier.
       console.error('[artisan approve] is_verified update failed:', apError.message);
+      return NextResponse.json({
+        error: 'Validation incomplète : la fiche artisan n’a pas été mise à jour. Vérifiez le dossier.',
+      }, { status: 503 });
     }
 
     await adminClient.from('notifications').insert({
@@ -116,18 +121,25 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
   }
 
   // action === 'reject'
+  // Masquer d'abord la fiche publique. Ainsi, si le changement de rôle
+  // échoue ensuite, un artisan refusé n'est pas laissé visible.
+  const { error: artisanRejectError } = await adminClient
+    .from('artisan_profiles')
+    .update({ rejection_reason: body.reason, is_verified: false })
+    .eq('user_id', artisanUserId);
+  if (artisanRejectError) {
+    console.error('[artisan reject] is_verified update failed:', artisanRejectError.message);
+    return NextResponse.json({ error: 'Refus non enregistré : fiche artisan indisponible.' }, { status: 503 });
+  }
+
   const { error: profileErr } = await adminClient
     .from('profiles')
     .update({ role: 'resident', status: 'active' })
     .eq('id', artisanUserId);
 
-  if (profileErr) return NextResponse.json({ error: profileErr.message }, { status: 500 });
-
-  // Réinitialiser is_verified + enregistrer le motif de rejet
-  await adminClient
-    .from('artisan_profiles')
-    .update({ rejection_reason: body.reason, is_verified: false })
-    .eq('user_id', artisanUserId);
+  if (profileErr) return NextResponse.json({
+    error: 'Refus partiellement enregistré : le rôle n’a pas été mis à jour. Vérifiez le dossier.',
+  }, { status: 503 });
 
   await adminClient.from('notifications').insert({
     user_id: artisanUserId,
