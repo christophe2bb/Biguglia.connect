@@ -43,7 +43,11 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
-      - run: npx playwright install chromium --with-deps
+      # Les runners ubuntu-24.04 ont déjà les bibliothèques système de Chromium.
+      # --with-deps déclenche apt-get sur les miroirs Ubuntu et a fait échouer
+      # les CI #921/#922 (DNS azure.archive.ubuntu.com indisponible).
+      # N'installer que le navigateur Playwright, sans apt-get additionnel.
+      - run: npx playwright install chromium
       - run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
