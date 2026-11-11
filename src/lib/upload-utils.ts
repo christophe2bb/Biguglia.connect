@@ -111,16 +111,16 @@ export async function compressImage(
 
 export async function uploadFile(
   file: File | Blob,
-  bucket: 'photos' | 'job-documents' | 'documents',
+  bucket: 'photos' | 'service-quote-photos' | 'job-documents' | 'documents',
   path: string,
   ownerId?: string,
   /** Bearer token Supabase (access_token) — à passer pour garantir l'auth
    *  même si les cookies sont expirés (ex. après timeout AuthProvider). */
   accessToken?: string,
 ): Promise<string> {
-  // Compression automatique pour les photos (bucket 'photos' uniquement)
+  // Compression automatique pour les photos publiques ET les devis privés
   let fileToUpload = file;
-  if (bucket === 'photos' && file instanceof File) {
+  if ((bucket === 'photos' || bucket === 'service-quote-photos') && file instanceof File) {
     fileToUpload = await compressImage(file);
     // Toute conversion JPEG exige que l'extension Storage corresponde aux
     // octets réellement envoyés (HEIC/HEIF/AVIF inclus).

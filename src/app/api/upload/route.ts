@@ -90,6 +90,7 @@ import { fileTypeFromBuffer } from 'file-type';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getUserFromRequest, assertCsrfSafe } from '@/lib/supabase/auth-helper';
 import { safeRelativePath } from '@/lib/upload-utils';
+import { quotePhotoUrl, QUOTE_PHOTO_BUCKET } from '@/lib/service-request-photos';
 
 export const runtime = 'nodejs'; // file-type requires Node.js (Buffer API)
 export const dynamic = 'force-dynamic';
@@ -99,13 +100,14 @@ export const dynamic = 'force-dynamic';
 /** Taille maximale par bucket */
 const MAX_SIZE_BY_BUCKET: Record<string, number> = {
   'photos':        5  * 1024 * 1024, // 5 MB
+  [QUOTE_PHOTO_BUCKET]: 5 * 1024 * 1024, // 5 MB, pièces jointes privées
   'documents':     10 * 1024 * 1024, // 10 MB — bucket privé artisans
 };
 /** Fallback si bucket non listé */
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
 
 /** Buckets autorisés */
-const ALLOWED_BUCKETS = new Set(['photos', 'documents']);
+const ALLOWED_BUCKETS = new Set(['photos', 'documents', QUOTE_PHOTO_BUCKET]);
 
 /**
  * Types MIME réels autorisés (vérifiés par magic bytes, pas par file.type).
@@ -129,6 +131,7 @@ const BUCKET_ALLOWED_TYPES: Record<string, Set<string>> = {
   // Ne pas accepter AVIF tant que le bucket ne l'autorise pas. Ne jamais
   // déguiser des octets AVIF/HEIC en JPEG sans conversion réelle.
   'photos':        new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif']),
+  [QUOTE_PHOTO_BUCKET]: new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']),
   'documents':     new Set(['application/pdf', 'image/jpeg', 'image/png']),
 };
 
@@ -184,9 +187,16 @@ const ENTITY_OWNERSHIP_RULES: Record<string, OwnershipRule> = {
 async function validatePathOwnership(
   safePath: string,
   userId: string,
+  bucket: string,
 ): Promise<NextResponse | null> {
   const segments = safePath.split('/');
   const firstSegment = segments[0];
+
+  // Les photos privées ne sont JAMAIS admises dans un dossier personnel
+  // ou une entité autre qu'une demande de devis.
+  if (bucket === QUOTE_PHOTO_BUCKET && firstSegment !== 'requests') {
+    return NextResponse.json({ error: 'Dossier de devis requis' }, { status: 403 });
+  }
 
   // ── Niveau 1 : chemin user-scoped ────────────────────────────────────────────
   // Le premier segment EST l'userId (UUID v4).
@@ -206,7 +216,7 @@ async function validatePathOwnership(
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from(rule.table)
-      .select(rule.userCol)
+      .select(firstSegment === 'requests' ? 'resident_id, artisan_id, status' : rule.userCol)
       .eq(rule.idColumn, entityId)
       .single();
 
@@ -218,6 +228,22 @@ async function validatePathOwnership(
     const ownerField = data as unknown as Record<string, unknown>;
     if (ownerField[rule.userCol] !== userId) {
       return NextResponse.json({ error: 'Chemin non autorisé' }, { status: 403 });
+    }
+
+    if (firstSegment === 'requests') {
+      // Les nouveaux devis privés NE doivent JAMAIS retomber dans le
+      // bucket public, même si un client tente de forger le bucket.
+      const isQuote = Boolean(ownerField.artisan_id);
+      if ((bucket === QUOTE_PHOTO_BUCKET) !== isQuote ||
+          segments.length !== 3 ||
+          !/^[a-zA-Z0-9_-][a-zA-Z0-9_.-]*\.(jpg|jpeg|png|webp|gif)$/i.test(segments[2]) ||
+          segments[2].includes('..') ||
+          ownerField.status === 'completed' || ownerField.status === 'cancelled') {
+        return NextResponse.json({ error: 'Stockage incompatible avec la demande' }, { status: 403 });
+      }
+      if (bucket === QUOTE_PHOTO_BUCKET && !/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(entityId)) {
+        return NextResponse.json({ error: 'Identifiant de demande invalide' }, { status: 403 });
+      }
     }
 
     return null; // autorisé
@@ -293,7 +319,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // ④-bis Validation d'ownership (anti IDOR — CWE-639)
   // Garantit qu'un utilisateur ne peut écrire QUE dans son périmètre :
   // soit son dossier personnel (userId/…), soit une entité dont il est auteur.
-  const ownershipError = await validatePathOwnership(safePath, userId);
+  const ownershipError = await validatePathOwnership(safePath, userId, bucket);
   if (ownershipError) return ownershipError;
 
   // ⑤ Validation de la taille (avant de lire tout le buffer en mémoire)
@@ -375,6 +401,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // ⑩ Récupérer l'URL publique et retourner url + path
   // Pour les buckets privés (documents), publicUrl sera vide mais path sera utilisable
   // pour créer une URL signée via createSignedUrl().
+  if (bucket === QUOTE_PHOTO_BUCKET) {
+    const pieces = data.path.split('/');
+    const privateUrl = quotePhotoUrl(pieces[1], pieces[2]);
+    return NextResponse.json({ url: privateUrl, path: data.path }, { status: 200 });
+  }
   const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(data.path);
 
   return NextResponse.json({ url: publicUrl, path: data.path }, { status: 200 });
