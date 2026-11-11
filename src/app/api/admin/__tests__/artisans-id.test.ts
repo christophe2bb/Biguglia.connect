@@ -121,7 +121,7 @@ describe('PATCH /api/admin/artisans/[id] — atomique', () => {
     expect(db.from).toHaveBeenCalledWith('notifications');
   });
 
-  it('503 : refus d'une transaction échouée, aucune notification ni faux succès', async () => {
+  it("503 : refus d’une transaction échouée, aucune notification ni faux succès", async () => {
     const db = reviewDb({ data: null, error: { code: '42501', message: 'DB error' } });
     mockGuard.mockResolvedValue(makeAdminGuardOk('admin', db));
     const res = await PATCH(req({ action: 'reject', reason: REASON_OK }), params());
