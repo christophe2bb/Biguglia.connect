@@ -28,7 +28,13 @@ jobs:
           version: latest
       - name: Initialiser un projet uniquement local
         run: supabase init --force
-      - name: Reconstruire la base avec les migrations GitHub
+      - name: Fournir le schéma initial uniquement au runner éphémère
+        run: |
+          # Le snapshot 2026-04-07 précède les migrations incrémentales.
+          # Ne jamais committer ce fichier sous supabase/migrations :
+          # une base Supabase de production existante ne doit pas le réappliquer.
+          cp docs/db/schema.sql supabase/migrations/20260406_initial_schema.sql
+      - name: Reconstruire la base avec le schéma initial puis les migrations GitHub
         run: supabase start
       - name: Vérifier que Auth et la base répondent en local
         run: |
