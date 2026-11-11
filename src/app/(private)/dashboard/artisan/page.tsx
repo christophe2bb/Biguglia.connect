@@ -149,6 +149,12 @@ function ArtisanDashboardContent() {
   const updateRequestStatus = async (requestId: string, newStatus: ServiceRequest['status']) => {
     const previousReq = requests.find(r => r.id === requestId);
     if (!previousReq || !artisanProfile || previousReq.status === newStatus) return;
+    // L'artisan ne peut pas se déclarer lui-même bénéficiaire d'un avis.
+    // Cette règle est également contrôlée en base par un trigger.
+    if (newStatus === 'completed') {
+      toast.error('La clôture doit être confirmée par le résident.');
+      return;
+    }
     const supabase = createClient();
     // SELECT après UPDATE : une requête bloquée par les RLS peut modifier
     // zéro ligne sans retourner d'erreur. Ne jamais afficher un faux succès.

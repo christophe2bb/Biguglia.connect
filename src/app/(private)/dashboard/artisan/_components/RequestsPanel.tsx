@@ -114,11 +114,9 @@ export default function RequestsPanel({ requests, loading, pendingCount, onUpdat
                     </button>
                   )}
                   {['viewed','replied','scheduled'].includes(req.status) && (
-                    <button type="button" disabled={busyId !== null}
-                      onClick={() => changeStatus(req.id, 'completed')}
-                      className="flex items-center gap-1 text-xs text-green-700 hover:text-green-900 disabled:opacity-50">
-                      <CheckCircle className="w-3.5 h-3.5" /> Terminer
-                    </button>
+                    <span className="text-xs text-gray-500" title="Seul le résident peut confirmer la fin de la prestation et débloquer les avis.">
+                      Clôture à confirmer par le résident
+                    </span>
                   )}
                   {['submitted','viewed','replied','scheduled'].includes(req.status) && (
                     <button type="button" disabled={busyId !== null}
