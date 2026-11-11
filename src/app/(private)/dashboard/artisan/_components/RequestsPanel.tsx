@@ -6,6 +6,7 @@ import { Users, Package, Eye, Calendar, CheckCircle, XCircle } from 'lucide-reac
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
 import Card from '@/components/ui/Card';
+import Modal from '@/components/ui/Modal';
 import ContactButton from '@/components/ui/ContactButton';
 import { STATUS_LABELS, URGENCY_LABELS, formatRelative } from '@/lib/utils';
 import type { ServiceRequest } from '@/types';
@@ -20,6 +21,7 @@ interface RequestsPanelProps {
 
 export default function RequestsPanel({ requests, loading, pendingCount, onUpdateStatus, userId }: RequestsPanelProps) {
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [pendingRejectionId, setPendingRejectionId] = useState<string | null>(null);
 
   const changeStatus = async (id: string, status: ServiceRequest['status']) => {
     if (busyId) return;
@@ -30,6 +32,33 @@ export default function RequestsPanel({ requests, loading, pendingCount, onUpdat
 
   return (
     <div>
+      <Modal
+        isOpen={pendingRejectionId !== null}
+        onClose={() => { if (!busyId) setPendingRejectionId(null); }}
+        title="Refuser cette demande ?"
+        size="sm"
+      >
+        <p className="text-sm text-gray-600 mb-5">
+          Le résident sera informé du refus. Cette action clôture le devis et ne peut pas être annulée depuis le tableau de bord artisan.
+        </p>
+        <div className="flex gap-3">
+          <button type="button" disabled={busyId !== null}
+            onClick={() => setPendingRejectionId(null)}
+            className="flex-1 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold disabled:opacity-50">
+            Conserver la demande
+          </button>
+          <button type="button" disabled={busyId !== null}
+            onClick={() => {
+              const id = pendingRejectionId;
+              if (!id) return;
+              setPendingRejectionId(null);
+              void changeStatus(id, 'cancelled');
+            }}
+            className="flex-1 rounded-xl bg-red-600 text-white px-4 py-2 text-sm font-semibold disabled:opacity-50">
+            Confirmer le refus
+          </button>
+        </div>
+      </Modal>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
           <Users className="w-5 h-5 text-blue-500" /> Demandes reçues
@@ -120,7 +149,7 @@ export default function RequestsPanel({ requests, loading, pendingCount, onUpdat
                   )}
                   {['submitted','viewed','replied','scheduled'].includes(req.status) && (
                     <button type="button" disabled={busyId !== null}
-                      onClick={() => changeStatus(req.id, 'cancelled')}
+                      onClick={() => setPendingRejectionId(req.id)}
                       className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800 disabled:opacity-50">
                       <XCircle className="w-3.5 h-3.5" /> Refuser
                     </button>
