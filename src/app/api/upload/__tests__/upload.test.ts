@@ -366,6 +366,64 @@ describe('POST /api/upload', () => {
     });
   });
 
+  describe('devis privés : photo dans le bon bucket', () => {
+    const quoteId = '00000000-0000-4000-8000-000000000441';
+    const path = 'requests/' + quoteId + '/test_2026.jpg';
+
+    it('autorise la photo du devis actif et renvoie une URL de lecture privée', async () => {
+      const { POST } = await import('../route');
+      mockSingle.mockResolvedValue({ data: {
+        resident_id: TEST_USER_ID, artisan_id: '00000000-0000-4000-8000-000000000442',
+        status: 'submitted',
+      }, error: null });
+      mockUpload.mockResolvedValue({ data: { path }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'service-quote-photos', path));
+      expect(res.status).toBe(200);
+      expect((await res.json()).url).toBe('/api/service-requests/' + quoteId + '/photos/test_2026.jpg');
+      expect(mockStorage.from).toHaveBeenCalledWith('service-quote-photos');
+      expect(mockGetUrl).not.toHaveBeenCalled();
+    });
+
+    it('bloque l’envoi du devis privé dans le bucket public', async () => {
+      const { POST } = await import('../route');
+      mockSingle.mockResolvedValue({ data: {
+        resident_id: TEST_USER_ID, artisan_id: '00000000-0000-4000-8000-000000000442',
+        status: 'submitted',
+      }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'photos', path));
+      expect(res.status).toBe(403);
+      expect(mockUpload).not.toHaveBeenCalled();
+    });
+
+    it('bloque un faux devis privé pour une demande publique', async () => {
+      const { POST } = await import('../route');
+      mockSingle.mockResolvedValue({ data: {
+        resident_id: TEST_USER_ID, artisan_id: null, status: 'submitted',
+      }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'service-quote-photos', path));
+      expect(res.status).toBe(403);
+      expect(mockUpload).not.toHaveBeenCalled();
+    });
+
+    it('interdit la modification des photos d’un devis clôturé', async () => {
+      const { POST } = await import('../route');
+      mockSingle.mockResolvedValue({ data: {
+        resident_id: TEST_USER_ID, artisan_id: '00000000-0000-4000-8000-000000000442',
+        status: 'completed',
+      }, error: null });
+      const res = await POST(makeRequest(jpegBuffer(), 'service-quote-photos', path));
+      expect(res.status).toBe(403);
+      expect(mockUpload).not.toHaveBeenCalled();
+    });
+
+    it('ne permet pas un stockage privé hors d’un dossier de demande', async () => {
+      const { POST } = await import('../route');
+      const res = await POST(makeRequest(jpegBuffer(), 'service-quote-photos', TEST_USER_ID + '/photo.jpg'));
+      expect(res.status).toBe(403);
+      expect(mockUpload).not.toHaveBeenCalled();
+    });
+  });
+
   // ── ③-bis : Régression mappings entity-scoped (Bloquant 2) ──────────────────
   // Vérifie que chaque préfixe utilise la bonne table ET la bonne colonne owner.
   // Avant le fix, tous ces préfixes renvoyaient 403 car la colonne était 'user_id'
