@@ -44,7 +44,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 
 // ─── Env hoisting — doit s'exécuter AVANT l'import du middleware ──────────────
@@ -195,6 +195,16 @@ describe("updateSession — guards d'authentification", () => {
     mockChunkCookie  = null;
     redirectCalls.length = 0;
     nextCalled = false;
+  });
+
+  it('ne déclenche aucun appel réseau Supabase pendant le routage', async () => {
+    const source = readFileSync(join(process.cwd(), 'src', 'lib', 'supabase', 'middleware.ts'), 'utf8');
+    expect(source).not.toMatch(/await\s+supabase\.auth\.getSession\s*\(/);
+    expect(source).not.toContain('createServerClient(');
+
+    const response = await updateSession(makeRequest('/'));
+    expect(response).toBeDefined();
+    expect(redirectCalls).toHaveLength(0);
   });
 
   // ── 1. Unicité du middleware ─────────────────────────────────────────────────
