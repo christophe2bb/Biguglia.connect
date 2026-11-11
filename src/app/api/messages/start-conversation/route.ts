@@ -309,15 +309,68 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
     const { data: artisan, error: artisanError } = await admin
       .from('artisan_profiles')
-      .select('id, user_id')
+      .select('id, user_id, is_verified')
       .eq('id', relatedId)
       .maybeSingle();
     if (artisanError) {
       console.warn('[start-conversation] vérification artisan indisponible:', artisanError.code);
       return NextResponse.json({ error: 'Profil artisan momentanément indisponible' }, { status: 503 });
     }
-    if (!artisan || artisan.user_id !== ownerId) {
-      return NextResponse.json({ error: 'Profil artisan introuvable' }, { status: 404 });
+    // Ne jamais démarrer un nouveau contact depuis une fiche suspendue
+    // ou encore non validée, même en appelant l'API directement.
+    if (!artisan || artisan.user_id !== ownerId || artisan.is_verified !== true) {
+      return NextResponse.json({ error: 'Profil artisan introuvable ou non validé' }, { status: 404 });
+    }
+  }
+
+  // Une demande de devis privée appartient à son résident et à son artisan.
+  // Refuser un ownerId arbitraire : le client admin contourne les RLS.
+  let closedServiceRequest = false;
+  if (relatedType === 'service_request') {
+    if (!relatedId) {
+      return NextResponse.json({ error: 'Demande de service obligatoire' }, { status: 400 });
+    }
+    const { data: serviceRequest, error: requestError } = await admin
+      .from('service_requests')
+      .select('id, resident_id, artisan_id, status')
+      .eq('id', relatedId)
+      .maybeSingle();
+    if (requestError) {
+      console.warn('[start-conversation] vérification demande indisponible:', requestError.code);
+      return NextResponse.json({ error: 'Demande momentanément indisponible' }, { status: 503 });
+    }
+    if (!serviceRequest) {
+      return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 });
+    }
+
+    // Le statut fermé est contrôlé après la recherche d'une conversation
+    // existante : ne jamais créer un fil neuf pour une demande clôturée,
+    // mais conserver la possibilité de retrouver son historique.
+    closedServiceRequest = serviceRequest.status === 'completed' || serviceRequest.status === 'cancelled';
+
+    if (!serviceRequest.artisan_id) {
+      // Demande publique : seul le résident propriétaire peut être le destinataire.
+      if (ownerId !== serviceRequest.resident_id) {
+        return NextResponse.json({ error: 'Destinataire de demande invalide' }, { status: 403 });
+      }
+    } else {
+      const { data: artisan, error: artisanError } = await admin
+        .from('artisan_profiles')
+        .select('id, user_id, is_verified')
+        .eq('id', serviceRequest.artisan_id)
+        .maybeSingle();
+      if (artisanError) {
+        return NextResponse.json({ error: 'Vérification artisan indisponible' }, { status: 503 });
+      }
+      if (!artisan || !artisan.user_id || artisan.is_verified !== true) {
+        // Une fiche retirée de l'annuaire ne peut pas recevoir de nouvelles
+        // conversations par simple réutilisation d'un ancien ID de devis.
+        return NextResponse.json({ error: 'Artisan de la demande introuvable ou non validé' }, { status: 404 });
+      }
+      const expected = new Set([serviceRequest.resident_id, artisan.user_id]);
+      if (expected.size !== 2 || !expected.has(userId) || !expected.has(ownerId)) {
+        return NextResponse.json({ error: 'Cette demande ne concerne pas les participants indiqués' }, { status: 403 });
+      }
     }
   }
 
@@ -337,6 +390,11 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
   if (existingId) {
     return NextResponse.json({ conversationId: existingId, isNew: false });
+  }
+  if (closedServiceRequest) {
+    return NextResponse.json({
+      error: 'Cette demande est clôturée : aucun nouveau contact possible.',
+    }, { status: 409 });
   }
 
   // ── Step 1 : Créer la conversation ─────────────────────────────────────────
@@ -401,16 +459,17 @@ export async function POST(req: NextRequest): Promise<Response> {
   //     sont robustes quelle que soit l'état des migrations.
   const now = new Date().toISOString();
 
-  const [insertSelf, insertOwner] = await Promise.all([
-    admin.from('conversation_participants')
-      .insert({ conversation_id: convId, user_id: userId,  joined_at: now })
-      .select('user_id')
-      .maybeSingle(),
-    admin.from('conversation_participants')
-      .insert({ conversation_id: convId, user_id: ownerId, joined_at: now })
-      .select('user_id')
-      .maybeSingle(),
-  ]);
+  // Écritures séquentielles : un trigger AFTER INSERT reconstruit la paire.
+  // Deux INSERT parallèles ont historiquement créé des collisions de clé.
+  const insertSelf = await admin.from('conversation_participants')
+    .insert({ conversation_id: convId, user_id: userId, joined_at: now })
+    .select('user_id')
+    .maybeSingle();
+
+  const insertOwner = await admin.from('conversation_participants')
+    .insert({ conversation_id: convId, user_id: ownerId, joined_at: now })
+    .select('user_id')
+    .maybeSingle();
 
   // Code 23505 = déjà présent (contrainte unique) → acceptable, pas une erreur
   const selfOk  = !insertSelf.error  || insertSelf.error.code  === '23505';
@@ -444,6 +503,27 @@ export async function POST(req: NextRequest): Promise<Response> {
     console.error('[start-conversation] destinataire non ajouté:', insertOwner.error?.code);
     await admin.from('conversations').delete().eq('id', convId);
     return NextResponse.json({ error: 'Impossible d’ajouter le destinataire' }, { status: 500 });
+  }
+
+  // Un code 23505 n'est pas automatiquement une insertion réussie :
+  // il peut venir du trigger conversation_pairs (et non de la présence du membre).
+  // Dans ce cas, vérifier EXPLICITEMENT les deux identités en base.
+  if (insertSelf.error?.code === '23505' || insertOwner.error?.code === '23505') {
+    const { data: memberships, error: membershipError } = await admin
+      .from('conversation_participants')
+      .select('user_id')
+      .eq('conversation_id', convId)
+      .in('user_id', [userId, ownerId]);
+
+    const actualIds = new Set((memberships ?? []).map(m => m.user_id));
+    if (membershipError || !actualIds.has(userId) || !actualIds.has(ownerId)) {
+      console.warn('[start-conversation] collision 23505 sans participants complets');
+      await admin.from('conversations').delete().eq('id', convId);
+      return NextResponse.json(
+        { error: 'Conversation incomplète — veuillez réessayer.' },
+        { status: membershipError ? 503 : 409 },
+      );
+    }
   }
 
   // ── Step 3 : Message initial ────────────────────────────────────────────────

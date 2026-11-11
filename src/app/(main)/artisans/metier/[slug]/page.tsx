@@ -91,8 +91,7 @@ async function fetchArtisansByTrade(tradeSlug: string): Promise<ArtisanRow[]> {
         location,
         is_verified,
         profile:profiles(id, full_name, avatar_url),
-        trade_category:trade_categories!artisan_profiles_trade_category_id_fkey(name, slug),
-        reviews(rating)
+        trade_category:trade_categories!artisan_profiles_trade_category_id_fkey(name, slug)
       `)
       .eq('is_verified', true)
       .eq('trade_category.slug', tradeSlug)
@@ -101,23 +100,45 @@ async function fetchArtisansByTrade(tradeSlug: string): Promise<ArtisanRow[]> {
 
     if (!data) return [];
 
+    // Les fiches artisans utilisent item_ratings (target_type='artisan').
+    // L'ancienne jointure reviews fournissait une moyenne incohérente avec
+    // le système de notation réellement affiché sur /artisans/[id].
+    const ids = data.map(row => row.id);
+    const { data: ratingRows, error: ratingError } = ids.length
+      ? await supabase.from('item_ratings')
+          .select('target_id,rating')
+          .eq('target_type', 'artisan')
+          .in('target_id', ids)
+          .gte('rating', 1)
+          .lte('rating', 5)
+      : { data: [], error: null };
+    if (ratingError) console.warn('[ArtisanTradePage] statistiques avis indisponibles', ratingError.code);
+    const ratingTotals = new Map<string, { sum: number; count: number }>();
+    for (const rating of ratingRows ?? []) {
+      const prev = ratingTotals.get(rating.target_id) ?? { sum: 0, count: 0 };
+      ratingTotals.set(rating.target_id, {
+        sum: prev.sum + Number(rating.rating), count: prev.count + 1,
+      });
+    }
+
     return data
       .filter(row => row.trade_category !== null)
       .map((row) => {
         const profile  = Array.isArray(row.profile) ? row.profile[0] : row.profile;
         const cat      = Array.isArray(row.trade_category) ? row.trade_category[0] : row.trade_category;
-        const reviews  = Array.isArray(row.reviews) ? row.reviews : [];
-        const ratings  = reviews.map((r: { rating: number }) => r.rating).filter(Boolean);
-        const avg_rating   = ratings.length > 0
-          ? Math.round((ratings.reduce((a: number, b: number) => a + b, 0) / ratings.length) * 10) / 10
+        const score = ratingTotals.get(row.id);
+        const avg_rating = score?.count
+          ? Math.round((score.sum / score.count) * 10) / 10
           : null;
         return {
-          id:            profile?.id ?? row.id,
+          // Ne jamais utiliser profiles.id dans le lien vers /artisans/[id].
+          // La route attend artisan_profiles.id, qui est un autre UUID.
+          id:            row.id,
           full_name:     profile?.full_name ?? 'Artisan',
           avatar_url:    profile?.avatar_url ?? null,
           business_name: row.business_name,
           avg_rating,
-          review_count:  ratings.length || null,
+          review_count:  score?.count || null,
           city:          row.location ?? null,
           trade_slug:    cat?.slug ?? tradeSlug,
           trade_name:    cat?.name ?? null,

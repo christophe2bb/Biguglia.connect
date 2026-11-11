@@ -209,20 +209,24 @@ export async function fetchAndBuildProfiles(
  * Envoie des notifications aux autres participants après l'envoi d'un message.
  * Silencieux en cas d'erreur (on ne bloque pas la réponse POST).
  *
- * Les messages système (démarrant par un emoji spécifique) ne génèrent pas
- * de notification.
+ * Les messages internes peuvent être identifiés par leurs emoji historiques,
+ * mais un message réellement écrit par un utilisateur doit TOUJOURS notifier
+ * son correspondant, même s'il commence lui aussi par un emoji.
  */
 export async function sendNewMessageNotifications(
   admin: SupabaseClient,
   conversationId: string,
   senderId: string,
   content: string,
+  userAuthored = false,
 ): Promise<void> {
-  const isSystem =
+  // Ne jamais déduire qu'un message utilisateur est "système" de son texte.
+  // Cette compatibilité historique s'applique uniquement aux appels internes.
+  const isLegacySystem =
     content.startsWith('👋') ||
     content.startsWith('✅') ||
     content.startsWith('🤝');
-  if (isSystem) return;
+  if (!userAuthored && isLegacySystem) return;
 
   const [participantsRes, senderProfileRes] = await Promise.all([
     admin

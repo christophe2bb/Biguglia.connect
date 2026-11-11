@@ -73,79 +73,74 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
 
   const body: PatchBody = parsed.data;
 
-  if (body.action === 'approve') {
-    // 1. Mettre à jour le rôle dans profiles
-    const { error } = await adminClient
-      .from('profiles')
-      .update({ role: 'artisan_verified', status: 'active' })
-      .eq('id', artisanUserId);
+  if (!z.string().uuid().safeParse(artisanUserId).success) {
+    return NextResponse.json({ error: 'Identifiant artisan invalide.' }, { status: 400 });
+  }
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Modifier la fiche ET le rôle en une seule transaction PostgreSQL.
+  // Deux update() successifs pouvaient laisser un état incohérent lorsqu'une
+  // seule des deux opérations échouait (ou modifiait zéro ligne).
+  const approving = body.action === 'approve';
+  const reason = approving ? null : body.reason.trim();
+  const { data: artisanProfileId, error: reviewError } = await adminClient.rpc(
+    'admin_review_artisan_profile',
+    {
+      p_user_id: artisanUserId,
+      p_approve: approving,
+      p_reason: reason,
+    },
+  );
 
-    // 2. Mettre is_verified = true dans artisan_profiles
-    // ⚠️ C'était le bug : la page publique et les widgets filtrent sur is_verified,
-    // mais ce champ n'était jamais mis à jour lors de la validation → artisan invisible.
-    const { error: apError } = await adminClient
-      .from('artisan_profiles')
-      .update({ is_verified: true })
-      .eq('user_id', artisanUserId);
-
-    if (apError) {
-      // Non bloquant : le rôle est déjà mis à jour, on logue et on continue
-      console.error('[artisan approve] is_verified update failed:', apError.message);
+  if (reviewError || !artisanProfileId) {
+    if (reviewError?.code === 'P0002') {
+      return NextResponse.json({ error: 'Dossier artisan introuvable.' }, { status: 404 });
     }
+    console.error('[artisan review] transaction failed:', reviewError?.code);
+    return NextResponse.json(
+      { error: 'Validation non enregistrée. Aucun changement partiel du compte ne doit être conservé.' },
+      { status: 503 },
+    );
+  }
 
-    await adminClient.from('notifications').insert({
-      user_id: artisanUserId,
-      type:    'artisan_approved',
-      title:   '✅ Profil artisan validé !',
-      message: 'Félicitations ! Votre profil artisan a été validé. Vous êtes maintenant visible sur la plateforme Biguglia Connect.',
-      link:    '/dashboard/artisan',
-    });
+  // La décision est COMMISE à ce stade. Une notification défaillante ne doit
+  // pas faire croire à l'admin que la décision a échoué et provoquer un doublon.
+  const notification = approving
+    ? {
+        user_id: artisanUserId,
+        type: 'artisan_approved',
+        title: '✅ Profil artisan validé !',
+        message: 'Félicitations ! Votre profil artisan a été validé. Vous êtes maintenant visible sur Biguglia Connect.',
+        link: '/dashboard/artisan',
+      }
+    : {
+        user_id: artisanUserId,
+        type: 'artisan_rejected',
+        title: '❌ Profil artisan non validé',
+        message: reason,
+        link: '/inscription/artisan-profil',
+      };
+  const { error: notificationError } = await adminClient.from('notifications').insert(notification);
+  if (notificationError) {
+    console.warn('[artisan review] décision enregistrée, notification non envoyée:', notificationError.code);
+  }
 
+  try {
     await logAdminAction({
       adminClient,
       actor,
-      action:      'artisan_approve',
+      action: approving ? 'artisan_approve' : 'artisan_reject',
       targetTable: 'profiles',
-      targetId:    artisanUserId,
-      meta:        { new_role: 'artisan_verified' },
+      targetId: artisanUserId,
+      ...(approving ? {} : { reason: reason ?? undefined }),
+      meta: { new_role: approving ? 'artisan_verified' : 'resident', artisan_profile_id: artisanProfileId },
     });
-
-    return NextResponse.json({ success: true, action: 'approved' });
+  } catch (error) {
+    console.warn('[artisan review] décision enregistrée, journalisation indisponible', error);
   }
 
-  // action === 'reject'
-  const { error: profileErr } = await adminClient
-    .from('profiles')
-    .update({ role: 'resident', status: 'active' })
-    .eq('id', artisanUserId);
-
-  if (profileErr) return NextResponse.json({ error: profileErr.message }, { status: 500 });
-
-  // Réinitialiser is_verified + enregistrer le motif de rejet
-  await adminClient
-    .from('artisan_profiles')
-    .update({ rejection_reason: body.reason, is_verified: false })
-    .eq('user_id', artisanUserId);
-
-  await adminClient.from('notifications').insert({
-    user_id: artisanUserId,
-    type:    'artisan_rejected',
-    title:   '❌ Profil artisan non validé',
-    message: body.reason,
-    link:    '/inscription/artisan-profil',
+  return NextResponse.json({
+    success: true,
+    action: approving ? 'approved' : 'rejected',
+    notificationWarning: Boolean(notificationError),
   });
-
-  await logAdminAction({
-    adminClient,
-    actor,
-    action:      'artisan_reject',
-    targetTable: 'profiles',
-    targetId:    artisanUserId,
-    reason:      body.reason,
-    meta:        { new_role: 'resident' },
-  });
-
-  return NextResponse.json({ success: true, action: 'rejected' });
 }

@@ -1,10 +1,11 @@
 import { createClient } from '@/lib/supabase/client';
+import type { ServicePhotoBucket } from '@/lib/service-request-photos';
 
 /**
  * Suppression de photos par l'API, avec vérification de propriété côté serveur.
  * Ne donne jamais d'accès Storage DELETE direct au navigateur.
  */
-export async function deletePhotoFiles(paths: string[]): Promise<void> {
+export async function deletePhotoFiles(paths: string[], bucket: ServicePhotoBucket = 'photos'): Promise<void> {
   if (paths.length === 0) return;
   const supabase = createClient();
   const { data: { session } } = await supabase.auth.getSession();
@@ -16,7 +17,7 @@ export async function deletePhotoFiles(paths: string[]): Promise<void> {
   const response = await fetch('/api/storage/photos', {
     method: 'DELETE',
     headers,
-    body: JSON.stringify({ paths }),
+    body: JSON.stringify({ paths, bucket }),
   });
 
   if (!response.ok) {

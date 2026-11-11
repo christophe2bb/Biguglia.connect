@@ -47,8 +47,8 @@ interface ArtisanEntry {
 interface ArtisanDrawerProps {
   artisan:   ArtisanEntry;
   onClose:   () => void;
-  onApprove: (userId: string) => void;
-  onReject:  (userId: string, reason: string) => void;
+  onApprove: (userId: string) => Promise<boolean>;
+  onReject:  (userId: string, reason: string) => Promise<boolean>;
 }
 
 export default function ArtisanDrawer({ artisan, onClose, onApprove, onReject }: ArtisanDrawerProps) {

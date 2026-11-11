@@ -109,6 +109,7 @@ function RequestCard({ req, isPrivate = false }: { req: ServiceRequest; isPrivat
           {photo ? (
             <Image
               src={photo}
+              unoptimized={photo.startsWith('/api/service-requests/')}
               alt={req.title}
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -215,100 +216,172 @@ export default function DemandesPageClient() {
   const [requests,      setRequests]      = useState<ServiceRequest[]>([]);
   const [mesDevis,      setMesDevis]      = useState<ServiceRequest[]>([]);
   const [loading,       setLoading]       = useState(true);
+  const [loadError,     setLoadError]     = useState(false);
   const [loadingDevis,  setLoadingDevis]  = useState(false);
+  const [loadErrorDevis, setLoadErrorDevis] = useState(false);
+  const [page, setPage] = useState(0);
+  const [privatePage, setPrivatePage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [privateCount, setPrivateCount] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingMorePrivate, setLoadingMorePrivate] = useState(false);
+  const requestVersion = useRef(0);
+  const privateVersion = useRef(0);
   const [search,        setSearch]        = useState('');
+  const [privateSearch, setPrivateSearch] = useState('');
+  const [publicMetrics, setPublicMetrics] = useState({ total: 0, urgent: 0, newRequests: 0, resolved: 0 });
+  const [sectorCounts, setSectorCounts] = useState<Record<string, number>>({});
   const [filterUrgency, setFilterUrgency] = useState('all');
   const [filterStatus,  setFilterStatus]  = useState('open');
   const [filterSector,  setFilterSector]  = useState<string | null>(null);
 
   const isArtisan = profile?.role === 'artisan_pending' || profile?.role === 'artisan_verified';
 
-  // ── Charger les demandes publiques ──────────────────────────────────────────
+
+  // Les filtres doivent agir sur toute la base, avant pagination.
   const fetchRequests = useCallback(async () => {
-    setLoading(true);
+    const version = ++requestVersion.current;
+    if (page === 0) setLoading(true); else setLoadingMore(true);
     try {
-      const SELECT = `
-        id, title, description, urgency, address, status, created_at, resident_id, sector_id,
-        resident:profiles!service_requests_resident_id_fkey(full_name, avatar_url),
-        category:trade_categories(id, name, icon),
-        photos:service_request_photos(url)
+      const select = `
+        id,title,description,urgency,address,status,created_at,resident_id,sector_id,
+        resident:profiles!service_requests_resident_id_fkey(full_name,avatar_url),
+        category:trade_categories(id,name,icon),photos:service_request_photos(url)
       `;
-      let q = supabase
-        .from('service_requests')
-        .select(SELECT)
-        .order('created_at', { ascending: false })
+      let query = supabase.from('service_requests')
+        .select(select, { count: 'exact' })
         .is('artisan_id', null)
-        .limit(50);
-      if (filterStatus === 'open')          q = q.in('status', ['submitted', 'viewed', 'replied']);
-      else if (filterStatus === 'resolved') q = q.in('status', ['completed', 'scheduled']);
-      if (filterUrgency !== 'all')          q = q.eq('urgency', filterUrgency);
-
-      let { data, error } = await q;
-
-      if (error && (error as { code?: string }).code === '42703') {
-        let q2 = supabase.from('service_requests').select(SELECT)
-          .order('created_at', { ascending: false }).limit(50);
-        if (filterStatus === 'open')          q2 = q2.in('status', ['submitted', 'viewed', 'replied']);
-        else if (filterStatus === 'resolved') q2 = q2.in('status', ['completed', 'scheduled']);
-        if (filterUrgency !== 'all')          q2 = q2.eq('urgency', filterUrgency);
-        const fb = await q2; data = fb.data; error = fb.error;
+        .order('created_at', { ascending: false })
+        .range(page * 50, page * 50 + 49);
+      if (filterStatus === 'open') query = query.in('status', ['submitted','viewed','replied','scheduled']);
+      if (filterStatus === 'resolved') query = query.eq('status', 'completed');
+      if (filterStatus === 'cancelled') query = query.eq('status', 'cancelled');
+      if (filterUrgency !== 'all') query = query.eq('urgency', filterUrgency);
+      if (filterSector) query = query.eq('sector_id', filterSector);
+      const term = search.trim().replace(/[,()%_]/g,' ').replace(/\s+/g,' ').slice(0,100);
+      if (term) query = query.or(`title.ilike.%${term}%,description.ilike.%${term}%`);
+      const { data, count, error } = await query;
+      if (version !== requestVersion.current) return;
+      if (error) {
+        console.error('[Demandes] chargement public refusé', error.code);
+        setLoadError(true);
+        if (page === 0) setRequests([]);
+      } else {
+        setLoadError(false);
+        const rows = (data ?? []) as unknown as ServiceRequest[];
+        setTotalCount(count ?? rows.length);
+        setRequests(previous => page === 0 ? rows : [
+          ...previous,
+          ...rows.filter(row => !previous.some(old => old.id === row.id)),
+        ]);
       }
+    } catch (error) {
+      if (version === requestVersion.current) {
+        console.warn('[Demandes] erreur réseau', error);
+        setLoadError(true);
+        if (page === 0) setRequests([]);
+      }
+    } finally {
+      if (version === requestVersion.current) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    }
+  }, [supabase, page, filterStatus, filterUrgency, filterSector, search]);
 
-      setRequests(error ? [] : (data as unknown as ServiceRequest[]) || []);
-    } catch { setRequests([]); }
-    finally  { setLoading(false); }
-  }, [supabase, filterStatus, filterUrgency]);
-
-  // ── Charger les devis privés ────────────────────────────────────────────────
+  // Les politiques RLS autorisent les vrais résidents expéditeurs et artisans.
   const fetchMesDevis = useCallback(async () => {
     if (!profile?.id) return;
-    setLoadingDevis(true);
+    const version = ++privateVersion.current;
+    if (privatePage === 0) setLoadingDevis(true); else setLoadingMorePrivate(true);
     try {
-      const { data, error } = await supabase
-        .from('service_requests')
-        .select(`
-          id, title, description, urgency, address, status, created_at,
-          resident_id, artisan_id, sector_id,
-          resident:profiles!service_requests_resident_id_fkey(full_name, avatar_url),
-          category:trade_categories(id, name, icon),
-          photos:service_request_photos(url)
-        `)
-        .not('artisan_id', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(50);
-      setMesDevis(error ? [] : (data as unknown as ServiceRequest[]) || []);
-    } catch { setMesDevis([]); }
-    finally  { setLoadingDevis(false); }
-  }, [supabase, profile?.id]);
+      let query = supabase.from('service_requests')
+        .select(`id,title,description,urgency,address,status,created_at,resident_id,artisan_id,sector_id,
+          resident:profiles!service_requests_resident_id_fkey(full_name,avatar_url),
+          category:trade_categories(id,name,icon),photos:service_request_photos(url)`,
+          { count: 'exact' })
+        .not('artisan_id','is',null)
+        .order('created_at',{ ascending: false })
+        .range(privatePage * 50, privatePage * 50 + 49);
+      const term = privateSearch.trim().replace(/[,()%_]/g, ' ').replace(/\s+/g, ' ').slice(0,100);
+      if (term) query = query.or(`title.ilike.%${term}%,description.ilike.%${term}%`);
+      const { data, count, error } = await query;
+      if (version !== privateVersion.current) return;
+      if (error) {
+        console.error('[Demandes] chargement devis refusé', error.code);
+        setLoadErrorDevis(true);
+        if (privatePage === 0) setMesDevis([]);
+      } else {
+        setLoadErrorDevis(false);
+        const rows = (data ?? []) as unknown as ServiceRequest[];
+        setPrivateCount(count ?? rows.length);
+        setMesDevis(previous => privatePage === 0 ? rows : [
+          ...previous, ...rows.filter(row => !previous.some(old => old.id === row.id)),
+        ]);
+      }
+    } catch (error) {
+      if (version === privateVersion.current) {
+        console.warn('[Demandes] erreur réseau devis', error);
+        setLoadErrorDevis(true);
+        if (privatePage === 0) setMesDevis([]);
+      }
+    } finally {
+      if (version === privateVersion.current) {
+        setLoadingDevis(false);
+        setLoadingMorePrivate(false);
+      }
+    }
+  }, [supabase, profile?.id, privatePage, privateSearch]);
 
-  useEffect(() => { fetchRequests(); }, [fetchRequests]);
+  useEffect(() => { void fetchRequests(); }, [fetchRequests]);
   useEffect(() => {
-    if (activeTab === 'mes_devis' && isArtisan) fetchMesDevis();
-  }, [activeTab, isArtisan, fetchMesDevis]);
+    if (activeTab === 'mes_devis' && profile?.id) void fetchMesDevis();
+  }, [activeTab, profile?.id, fetchMesDevis]);
 
-  const filtered = requests.filter(r => {
-    if (filterSector && r.sector_id !== filterSector) return false;
-    if (search &&
-      !r.title.toLowerCase().includes(search.toLowerCase()) &&
-      !r.description.toLowerCase().includes(search.toLowerCase()) &&
-      !r.category?.name.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
+  const filtered = requests;
+  const filteredDevis = mesDevis;
 
-  const filteredDevis = mesDevis.filter(r =>
-    !search ||
-    r.title.toLowerCase().includes(search.toLowerCase()) ||
-    r.description.toLowerCase().includes(search.toLowerCase())
-  );
+  // Les badges de quartier doivent conserver leurs vrais totaux lorsque
+  // l'utilisateur filtre un quartier ou charge la page suivante.
+  // Le décompte est obtenu en base, sans se limiter aux 50 cartes chargées.
 
-  // Compteurs par secteur
-  const sectorCounts = SECTORS.reduce<Record<string, number>>((acc, s) => {
-    acc[s.id] = requests.filter(r => r.sector_id === s.id).length;
-    return acc;
-  }, {});
-
-  const nbUrgent   = filtered.filter(r => r.urgency === 'urgent' || r.urgency === 'tres_urgent').length;
-  const nbNouveaux = filtered.filter(r => r.status === 'submitted').length;
+  // Counters are fetched from the entire public-request table, independent
+  // of the active pagination and filters. Counts respect RLS.
+  useEffect(() => {
+    let cancelled = false;
+    const base = () => supabase.from('service_requests').select('id', { count: 'exact', head: true }).is('artisan_id', null);
+    void (async () => {
+      const [all, urgent, fresh, resolved, ...sectorResults] = await Promise.all([
+        base(),
+        base().in('urgency', ['urgent', 'tres_urgent']),
+        base().eq('status', 'submitted'),
+        base().eq('status', 'completed'),
+        ...SECTORS.map(sector => base().eq('sector_id', sector.id)),
+      ]);
+      if (cancelled) return;
+      if ([all, urgent, fresh, resolved].some(result => result.error)) {
+        console.warn('[Demandes] statistiques indisponibles');
+      } else {
+        setPublicMetrics({
+          total: all.count ?? 0, urgent: urgent.count ?? 0,
+          newRequests: fresh.count ?? 0, resolved: resolved.count ?? 0,
+        });
+      }
+      if (sectorResults.some(result => result.error)) {
+        console.warn('[Demandes] comptages quartiers indisponibles');
+      } else {
+        setSectorCounts(Object.fromEntries(SECTORS.map((sector, i) => [
+          sector.id, sectorResults[i]?.count ?? 0,
+        ])));
+      }
+    })().catch(error => { if (!cancelled) console.warn('[Demandes] statistiques', error); });
+    return () => { cancelled = true; };
+  }, [supabase, profile?.id]);
+  const chooseSector = (id: string | null) => { setPage(0); setFilterSector(id); };
+  const chooseStatus = (status: string) => { setPage(0); setFilterStatus(status); };
+  const chooseUrgency = (urgency: string) => { setPage(0); setFilterUrgency(urgency); };
+  const chooseSearch = (term: string) => { setPage(0); setSearch(term); };
+  const choosePrivateSearch = (term: string) => { setPrivatePage(0); setPrivateSearch(term); };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -335,10 +408,10 @@ export default function DemandesPageClient() {
           {/* Stats bar — même format que les annonces */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8">
             {[
-              { label: 'Demandes',  value: filtered.length,  icon: '📋' },
-              { label: 'Urgentes',  value: nbUrgent,         icon: '🔥' },
-              { label: 'Nouvelles', value: nbNouveaux,       icon: '🆕' },
-              { label: 'Résolues',  value: requests.filter(r => r.status === 'completed').length, icon: '✅' },
+              { label: 'Demandes', value: publicMetrics.total, icon: '📋' },
+              { label: 'Urgentes', value: publicMetrics.urgent, icon: '🔥' },
+              { label: 'Nouvelles', value: publicMetrics.newRequests, icon: '🆕' },
+              { label: 'Résolues', value: publicMetrics.resolved, icon: '✅' },
             ].map(s => (
               <div key={s.label} className="bg-white/10 backdrop-blur rounded-2xl px-4 py-3 text-center">
                 <div className="text-2xl font-black">{s.value}</div>
@@ -358,14 +431,14 @@ export default function DemandesPageClient() {
               <p className="text-xs text-gray-500 mt-0.5">Cliquez pour filtrer les demandes</p>
             </div>
             <span className="text-xs text-gray-400 hidden sm:block">
-              {Object.values(sectorCounts).reduce((a, b) => a + b, 0)} demandes géolocalisées
+              {Object.values(sectorCounts).reduce((a, b) => a + b, 0)} demandes géolocalisées (tous statuts)
             </span>
           </div>
           <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
             {/* Toute la ville */}
             <button
               type="button"
-              onClick={() => setFilterSector(null)}
+              onClick={() => chooseSector(null)}
               className={`
                 flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3
                 transition-all duration-200 cursor-pointer
@@ -380,7 +453,7 @@ export default function DemandesPageClient() {
                 Tous
               </span>
               <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${!filterSector ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                {requests.length}
+                {publicMetrics.total}
               </span>
             </button>
 
@@ -390,7 +463,7 @@ export default function DemandesPageClient() {
                 sector={sector}
                 count={sectorCounts[sector.id] || 0}
                 isActive={filterSector === sector.id}
-                onClick={() => setFilterSector(filterSector === sector.id ? null : sector.id)}
+                onClick={() => chooseSector(filterSector === sector.id ? null : sector.id)}
               />
             ))}
           </div>
@@ -400,7 +473,7 @@ export default function DemandesPageClient() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* ── Onglets artisan ── */}
-        {isArtisan && (
+        {profile && (
           <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 mb-6 w-fit">
             <button type="button" onClick={() => setActiveTab('public')}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-colors ${
@@ -412,10 +485,10 @@ export default function DemandesPageClient() {
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-colors ${
                 activeTab === 'mes_devis' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}>
-              <Briefcase className="w-4 h-4" /> Mes devis reçus
-              {mesDevis.filter(d => d.status === 'submitted').length > 0 && (
+              <Briefcase className="w-4 h-4" /> {isArtisan ? 'Mes devis reçus / envoyés' : 'Mes devis envoyés'}
+              {privateCount > 0 && (
                 <span className="bg-indigo-600 text-white text-xs font-black px-1.5 py-0.5 rounded-full">
-                  {mesDevis.filter(d => d.status === 'submitted').length}
+                  {privateCount}
                 </span>
               )}
             </button>
@@ -429,8 +502,8 @@ export default function DemandesPageClient() {
             <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-6">
               <div className="relative mb-3">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input type="text" placeholder="Rechercher (titre, catégorie, secteur, description…)"
-                  value={search} onChange={e => setSearch(e.target.value)}
+                <input type="text" placeholder="Rechercher un titre ou une description…"
+                  value={search} onChange={e => chooseSearch(e.target.value)}
                   className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -439,9 +512,10 @@ export default function DemandesPageClient() {
                   { val: 'all',      label: '📋 Toutes' },
                   { val: 'open',     label: '⏳ En cours' },
                   { val: 'resolved', label: '✅ Résolues' },
+                  { val: 'cancelled', label: '⛔ Annulées' },
                 ].map(chip => (
                   <button key={chip.val} type="button"
-                    onClick={() => setFilterStatus(chip.val)}
+                    onClick={() => chooseStatus(chip.val)}
                     className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
                       filterStatus === chip.val
                         ? 'bg-blue-600 text-white shadow-sm'
@@ -452,7 +526,7 @@ export default function DemandesPageClient() {
                 ))}
                 <div className="flex items-center gap-1.5 ml-auto">
                   <Filter className="w-3.5 h-3.5 text-gray-400" />
-                  <select value={filterUrgency} onChange={e => setFilterUrgency(e.target.value)}
+                  <select value={filterUrgency} onChange={e => chooseUrgency(e.target.value)}
                     className="text-xs border border-gray-200 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white font-medium">
                     <option value="all">Toutes urgences</option>
                     <option value="tres_urgent">🔴 Très urgent</option>
@@ -467,6 +541,7 @@ export default function DemandesPageClient() {
             {!loading && filtered.length > 0 && (
               <p className="text-sm text-gray-500 mb-4 font-medium">
                 {filtered.length} demande{filtered.length > 1 ? 's' : ''}
+                {` sur ${totalCount} résultats au total`}
                 {search && ` pour « ${search} »`}
               </p>
             )}
@@ -484,12 +559,16 @@ export default function DemandesPageClient() {
                   </div>
                 ))}
               </div>
+            ) : loadError ? (
+              <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-8 text-red-800 text-sm text-center">
+                Impossible de charger les demandes. Réessayez après avoir vérifié votre connexion.
+              </div>
             ) : filtered.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
                 <div className="text-5xl mb-4">🔧</div>
                 <h3 className="text-lg font-bold text-gray-900 mb-2">Aucune demande trouvée</h3>
                 <p className="text-gray-500 text-sm mb-6">
-                  {search ? 'Essayez avec d\'autres termes.' : 'Soyez le premier à poster une demande !'}
+                  {!profile ? 'Connectez-vous pour consulter les demandes des habitants.' : search ? 'Essayez avec d\'autres termes.' : 'Soyez le premier à poster une demande !'}
                 </p>
                 <Link href="/artisans/demande"
                   className="inline-flex items-center gap-2 bg-blue-600 text-white font-bold px-6 py-3 rounded-xl text-sm hover:bg-blue-700 transition-colors">
@@ -497,23 +576,30 @@ export default function DemandesPageClient() {
                 </Link>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filtered.map(req => <RequestCard key={req.id} req={req} />)}
-              </div>
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filtered.map(req => <RequestCard key={req.id} req={req} />)}
+                </div>
+                {requests.length < totalCount && (
+                  <button type="button" disabled={loadingMore} onClick={() => setPage(p => p + 1)}
+                    className="mx-auto block mt-6 px-6 py-3 bg-white border rounded-xl text-blue-700 disabled:opacity-50">
+                    {loadingMore ? 'Chargement…' : 'Afficher davantage (' + requests.length + ' sur ' + totalCount + ')'}
+                  </button>
+                )}
+              </>
             )}
           </>
         )}
 
         {/* ══ MES DEVIS REÇUS ══════════════════════════════════════════════ */}
-        {activeTab === 'mes_devis' && isArtisan && (
+        {activeTab === 'mes_devis' && profile && (
           <>
             <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 mb-6 flex gap-3">
               <Lock className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-bold text-indigo-900 text-sm">Devis privés</p>
                 <p className="text-indigo-700 text-sm mt-0.5">
-                  Ces demandes vous ont été adressées directement depuis votre page artisan.
-                  Elles ne sont visibles que par vous et le résident.
+                  Ces devis privés ne sont visibles que par les participants autorisés.
                 </p>
               </div>
             </div>
@@ -521,7 +607,7 @@ export default function DemandesPageClient() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input type="text" placeholder="Rechercher dans mes devis…"
-                  value={search} onChange={e => setSearch(e.target.value)}
+                  value={privateSearch} onChange={e => choosePrivateSearch(e.target.value)}
                   className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 />
               </div>
@@ -530,20 +616,32 @@ export default function DemandesPageClient() {
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
               </div>
+            ) : loadErrorDevis ? (
+              <div role="alert" className="border border-red-200 bg-red-50 rounded-xl p-6 text-red-800">
+                Impossible de charger vos devis. Vérifiez votre connexion puis réessayez.
+              </div>
             ) : filteredDevis.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
                 <div className="text-5xl mb-4">📋</div>
                 <p className="text-gray-500 font-semibold text-lg mb-2">
-                  {search ? 'Aucun devis pour cette recherche' : 'Aucun devis reçu pour l\'instant'}
+                  {privateSearch ? 'Aucun devis pour cette recherche' : 'Aucun devis pour l\'instant'}
                 </p>
                 <p className="text-gray-400 text-sm max-w-sm mx-auto">
-                  Les demandes de devis envoyées via votre page artisan apparaîtront ici.
+                  {isArtisan ? 'Vos devis reçus apparaîtront ici.' : 'Vos devis privés adressés aux artisans apparaîtront ici.'}
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredDevis.map(req => <RequestCard key={req.id} req={req} isPrivate />)}
-              </div>
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredDevis.map(req => <RequestCard key={req.id} req={req} isPrivate />)}
+                </div>
+                {mesDevis.length < privateCount && (
+                  <button type="button" disabled={loadingMorePrivate} onClick={() => setPrivatePage(p => p + 1)}
+                    className="mx-auto block mt-6 px-6 py-3 bg-white border rounded-xl text-indigo-700 disabled:opacity-50">
+                    {loadingMorePrivate ? 'Chargement…' : 'Afficher davantage (' + mesDevis.length + ' sur ' + privateCount + ')'}
+                  </button>
+                )}
+              </>
             )}
           </>
         )}

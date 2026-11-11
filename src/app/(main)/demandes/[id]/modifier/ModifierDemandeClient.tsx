@@ -21,12 +21,15 @@ import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Select from '@/components/ui/Select';
 import SectorFilter from '@/components/ui/SectorFilter';
-import { safeImageExt, uploadFile } from '@/lib/upload-utils';
+import { safeImageExt, uploadFile, isAcceptedImageType, MAX_PHOTO_MB } from '@/lib/upload-utils';
+import { servicePhotoLocation, QUOTE_PHOTO_BUCKET } from '@/lib/service-request-photos';
+import { deletePhotoFiles } from '@/lib/delete-photo-files';
 
 // ─── Type minimal pour le chargement initial ────────────────────────────────
 type ServiceRequestRow = {
   id: string;
   resident_id: string;
+  artisan_id: string | null;
   title: string;
   description: string;
   category_id: string | null;
@@ -45,9 +48,9 @@ interface Props {
 
 export default function ModifierDemandeClient({ id }: Props) {
   const router = useRouter();
-  const { profile } = useAuthStore();
+  const { profile, phase } = useAuthStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const supabase = createClient();
+  const supabase = useRef(createClient()).current;
 
   // ── État du chargement ────────────────────────────────────────────────────
   const [initialLoading, setInitialLoading] = useState(true);
@@ -67,11 +70,13 @@ export default function ModifierDemandeClient({ id }: Props) {
 
   // Photos existantes (URLs déjà en base)
   const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
+  const [photosToRemove, setPhotosToRemove] = useState<string[]>([]);
   // Nouvelles photos à uploader
   const [newPhotos, setNewPhotos]           = useState<File[]>([]);
   const [previewUrls, setPreviewUrls]       = useState<string[]>([]);
 
   const [saving, setSaving] = useState(false);
+  const [isPrivateQuote, setIsPrivateQuote] = useState(false);
 
   // Revoke object URLs lors du démontage ou changement
   useEffect(() => {
@@ -82,12 +87,15 @@ export default function ModifierDemandeClient({ id }: Props) {
 
   // ── Chargement initial ────────────────────────────────────────────────────
   useEffect(() => {
-    if (!profile) {
-      router.push(`/connexion?redirect=/demandes/${id}/modifier`);
+    if (phase === 'initializing') return;
+    if (phase === 'unauthenticated') {
+      router.replace(`/connexion?next=${encodeURIComponent(`/demandes/${id}/modifier`)}`);
       return;
     }
+    if (!profile) { setInitialLoading(false); return; }
 
     const load = async () => {
+      try {
       // Catégories
       const { data: cats } = await supabase
         .from('trade_categories')
@@ -99,7 +107,7 @@ export default function ModifierDemandeClient({ id }: Props) {
       const { data, error } = await supabase
         .from('service_requests')
         .select(`
-          id, resident_id, title, description, category_id, urgency,
+          id, resident_id, artisan_id, title, description, category_id, urgency,
           preferred_date, preferred_time, address, sector_id, status,
           photos:service_request_photos(url)
         `)
@@ -121,6 +129,15 @@ export default function ModifierDemandeClient({ id }: Props) {
         return;
       }
 
+      // Même règle que le bouton de la fiche et le trigger Supabase :
+      // un lien direct vers /modifier ne doit pas proposer un formulaire
+      // inutilisable pour une demande déjà clôturée.
+      if (row.status === 'completed' || row.status === 'cancelled') {
+        toast.error('Cette demande est clôturée et ne peut plus être modifiée.');
+        router.replace(`/demandes/${id}`);
+        return;
+      }
+
       // Préremplir le formulaire
       setForm({
         title:          row.title,
@@ -132,17 +149,29 @@ export default function ModifierDemandeClient({ id }: Props) {
         address:        row.address,
         sector_id:      row.sector_id ?? '',
       });
+      setIsPrivateQuote(Boolean(row.artisan_id));
       setExistingPhotos(row.photos?.map(p => p.url) ?? []);
-      setInitialLoading(false);
+      setPhotosToRemove([]);
+      } catch (error) {
+        console.error('[ModifierDemande] chargement interrompu', error);
+        toast.error('Impossible de charger la demande. Réessayez.');
+        router.push('/demandes');
+      } finally {
+        setInitialLoading(false);
+      }
     };
 
     load();
-  }, [profile, id, router, supabase]);
+  }, [phase, profile, id, router, supabase]);
 
   // ── Ajouter de nouvelles photos ───────────────────────────────────────────
   const handlePhotoAdd = (files: FileList | null) => {
     if (!files) return;
-    const added = Array.from(files).filter(f => f.type.startsWith('image/'));
+    const added = Array.from(files);
+    if (added.some(f => !isAcceptedImageType(f) || f.size > MAX_PHOTO_MB * 1024 * 1024)) {
+      toast.error(`Photo refusée : format non accepté ou taille supérieure à ${MAX_PHOTO_MB} Mo.`);
+      return;
+    }
     const total = existingPhotos.length + newPhotos.length + added.length;
     if (total > 5) {
       toast.error(`Maximum 5 photos (${existingPhotos.length + newPhotos.length} déjà présentes)`);
@@ -151,84 +180,146 @@ export default function ModifierDemandeClient({ id }: Props) {
     setNewPhotos(prev => [...prev, ...added]);
   };
 
-  // ── Supprimer une photo existante ─────────────────────────────────────────
-  const removeExistingPhoto = async (url: string) => {
-    const { error } = await supabase
-      .from('service_request_photos')
-      .delete()
-      .eq('request_id', id)
-      .eq('url', url);
-
-    if (error) {
-      toast.error('Erreur lors de la suppression de la photo.');
-    } else {
-      setExistingPhotos(prev => prev.filter(u => u !== url));
-    }
+  // Une suppression ne doit pas être effectuée tant que le formulaire
+  // n'a pas été enregistré : le bouton Annuler doit conserver les photos.
+  const removeExistingPhoto = (url: string) => {
+    setExistingPhotos(prev => prev.filter(item => item !== url));
+    setPhotosToRemove(prev => prev.includes(url) ? prev : [...prev, url]);
   };
 
   // ── Upload des nouvelles photos ───────────────────────────────────────────
-  const uploadNewPhotos = async (): Promise<string[]> => {
-    if (newPhotos.length === 0) return [];
+  const uploadNewPhotos = async (accessToken: string): Promise<{ urls: string[]; failures: number }> => {
+    if (newPhotos.length === 0) return { urls: [], failures: 0 };
     const urls: string[] = [];
+    let failures = 0;
 
     for (let i = 0; i < newPhotos.length; i++) {
       const photo = newPhotos[i];
       const ext   = safeImageExt(photo.name);
       const fileName = `requests/${id}/${Date.now()}_${i}.${ext}`;  // nosec CWE-22 — chemin composé de UUID/ID serveur + Date.now() + ext validée, aucune entrée utilisateur
       try {
-        const publicUrl = await uploadFile(photo, 'photos', fileName, profile?.id);
-        urls.push(publicUrl);
+        const bucket = isPrivateQuote ? QUOTE_PHOTO_BUCKET : 'photos';
+        const photoUrl = await uploadFile(photo, bucket, fileName, profile?.id, accessToken);
+        urls.push(photoUrl);
       } catch (err) {
         console.error('Photo upload error:', err);
+        failures++;
         // On continue sur les autres photos
       }
     }
-    return urls;
+    return { urls, failures };
   };
 
   // ── Soumettre la modification ─────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile) return;
-    if (!form.title.trim() || !form.description.trim() || !form.category_id) {
+    if (saving || !profile) return;
+    if (!form.title.trim() || !form.description.trim() || !form.category_id || !form.address.trim()) {
       toast.error('Veuillez remplir tous les champs obligatoires.');
       return;
     }
 
     setSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error('Session expirée : reconnectez-vous.');
+        return;
+      }
 
-    // UPDATE de la demande
-    const { error } = await supabase
-      .from('service_requests')
-      .update({
-        title:          form.title.trim(),
-        description:    form.description.trim(),
-        category_id:    form.category_id,
-        urgency:        form.urgency,
-        preferred_date: form.preferred_date || null,
-        preferred_time: form.preferred_time || null,
-        address:        form.address,
-        sector_id:      form.sector_id || null,
-      })
-      .eq('id', id)
-      .eq('resident_id', profile.id); // sécurité côté client (RLS côté serveur aussi)
+      // UPDATE must return one row; RLS can silently update zero rows.
+      const { data: saved, error } = await supabase
+        .from('service_requests')
+        .update({
+          title: form.title.trim(),
+          description: form.description.trim(),
+          category_id: form.category_id,
+          urgency: form.urgency,
+          preferred_date: form.preferred_date || null,
+          preferred_time: form.preferred_time || null,
+          address: form.address.trim(),
+          sector_id: form.sector_id || null,
+        })
+        .eq('id', id)
+        .eq('resident_id', profile.id)
+        .select('id')
+        .maybeSingle();
+      if (error || !saved) {
+        toast.error('La demande n’a pas été modifiée. Vérifiez votre accès.');
+        return;
+      }
 
-    if (error) {
-      toast.error(`Erreur lors de la modification : ${error.message}`);
+      let failedRemovals = 0;
+      for (const url of photosToRemove) {
+        const { data: removed, error: removeError } = await supabase
+          .from('service_request_photos')
+          .delete()
+          .eq('request_id', id)
+          .eq('url', url)
+          .select('id');
+        if (removeError || !removed?.length) {
+          console.warn('[ModifierDemande] retrait photo refusé', removeError?.code);
+          failedRemovals++;
+        } else {
+          // La demande existe toujours : /api/storage/photos peut vérifier
+          // son résident avant de nettoyer les fichiers de cette demande.
+          const location = servicePhotoLocation(url, id);
+          if (location?.path.startsWith('requests/' + id + '/')) {
+            try {
+              await deletePhotoFiles([location.path], location.bucket);
+            } catch (error) {
+              console.warn('[ModifierDemande] photo Storage non supprimée', error);
+              failedRemovals++;
+            }
+          } else {
+            // Impossible de supprimer en sécurité un chemin étranger.
+            console.warn('[ModifierDemande] URL Storage hors dossier');
+            failedRemovals++;
+          }
+        }
+      }
+
+      const { urls, failures } = await uploadNewPhotos(session.access_token);
+      let associationFailed = false;
+      let orphanCleanupFailed = false;
+      if (urls.length > 0) {
+        const { error: photoError } = await supabase.from('service_request_photos').insert(
+          urls.map(url => ({ request_id: id, url })),
+        );
+        associationFailed = !!photoError;
+        if (photoError) {
+          // Une insertion de métadonnées échouée ne doit pas laisser les
+          // nouveaux fichiers publics et orphelins dans Supabase Storage.
+          const locations = urls.map(url => servicePhotoLocation(url, id));
+          const bucket = isPrivateQuote ? QUOTE_PHOTO_BUCKET : 'photos';
+          if (!locations.every(location => !!location && location.bucket === bucket)) {
+            orphanCleanupFailed = true;
+            console.warn('[ModifierDemande] chemins de photos non reconnus ; nettoyage requis');
+          } else {
+            try {
+              await deletePhotoFiles(locations.map(location => location!.path), bucket);
+            } catch (cleanupError) {
+              orphanCleanupFailed = true;
+              console.warn('[ModifierDemande] nettoyage de photos orphelines incomplet', cleanupError);
+            }
+          }
+        }
+      }
+      if (orphanCleanupFailed) {
+        toast.error('Certaines photos non enregistrées nécessitent un nettoyage du stockage.', { duration: 7000 });
+      }
+      if (failures || associationFailed || failedRemovals) {
+        toast.error('Demande modifiée, mais certaines opérations sur les photos ont échoué.', { duration: 6500 });
+      } else {
+        toast.success('Demande modifiée avec succès !', { duration: 4000 });
+      }
+      router.push(`/demandes/${id}`);
+    } catch (err) {
+      console.error('[ModifierDemande] erreur', err);
+      toast.error('Enregistrement interrompu : réessayez.');
+    } finally {
       setSaving(false);
-      return;
     }
-
-    // Upload nouvelles photos et les enregistrer
-    const newUrls = await uploadNewPhotos();
-    if (newUrls.length > 0) {
-      await supabase.from('service_request_photos').insert(
-        newUrls.map(url => ({ request_id: id, url })),
-      );
-    }
-
-    toast.success('✅ Demande modifiée avec succès !', { duration: 4000 });
-    router.push(`/demandes/${id}`);
   };
 
   // ── Loading ───────────────────────────────────────────────────────────────
@@ -363,8 +454,9 @@ export default function ModifierDemandeClient({ id }: Props) {
                   <button
                     type="button"
                     onClick={() => removeExistingPhoto(url)}
-                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute -top-2 -right-2 w-7 h-7 bg-red-600 text-white rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
                     title="Supprimer cette photo"
+                    aria-label={`Retirer la photo existante ${i + 1}`}
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -390,6 +482,7 @@ export default function ModifierDemandeClient({ id }: Props) {
                     onClick={() => setNewPhotos(p => p.filter((_, j) => j !== i))}
                     className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Retirer cette photo"
+                    aria-label={`Retirer la nouvelle photo ${i + 1}`}
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -416,7 +509,7 @@ export default function ModifierDemandeClient({ id }: Props) {
                 accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
                 multiple
                 className="hidden"
-                onChange={e => handlePhotoAdd(e.target.files)}
+                onChange={e => { handlePhotoAdd(e.target.files); e.currentTarget.value = ''; }}
               />
             </>
           )}

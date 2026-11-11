@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import {
@@ -102,37 +102,52 @@ export default function AdminArtisansPage() {
   // Reset page when search changes
   useEffect(() => { setPage(1); }, [search]);
 
-  const approveArtisan = async (artisanUserId: string) => {
-    const res = await adminFetch(`/api/admin/artisans/${artisanUserId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'approve' }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      toast.error('Erreur lors de la validation : ' + (data.error ?? res.statusText));
-      return;
+  // Une validation administrative ne doit pas être envoyée deux fois
+  // (double clic, clic depuis la carte pendant qu'un drawer est ouvert).
+  const decisionBusyRef = useRef(false);
+
+  const submitDecision = async (
+    artisanUserId: string,
+    action: 'approve' | 'reject',
+    reason?: string,
+  ): Promise<boolean> => {
+    if (decisionBusyRef.current) return false;
+    decisionBusyRef.current = true;
+    try {
+      const res = await adminFetch(`/api/admin/artisans/${artisanUserId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(action === 'approve' ? { action } : { action, reason }),
+      });
+      const result = await res.json().catch(() => ({})) as {
+        error?: string;
+        success?: boolean;
+        notificationWarning?: boolean;
+      };
+      if (!res.ok || !result.success) {
+        toast.error('Décision non enregistrée : ' + (result.error ?? res.statusText));
+        return false;
+      }
+      if (result.notificationWarning) {
+        toast('Décision enregistrée, mais la notification n’a pas pu être envoyée.', { icon: '⚠️' });
+      } else {
+        toast.success(action === 'approve'
+          ? 'Artisan approuvé et notifié !' : 'Artisan refusé et notifié !');
+      }
+      setSelectedArtisan(null);
+      void fetchArtisans();
+      return true;
+    } catch (error) {
+      console.warn('[admin/artisans] échec réseau de décision', error);
+      toast.error('Connexion interrompue : vérifiez le dossier avant de réessayer.');
+      return false;
+    } finally {
+      decisionBusyRef.current = false;
     }
-    toast.success('Artisan approuvé et notifié !');
-    setSelectedArtisan(null);
-    fetchArtisans();
   };
 
-  const rejectArtisan = async (artisanUserId: string, reason: string) => {
-    const res = await adminFetch(`/api/admin/artisans/${artisanUserId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'reject', reason }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      toast.error('Erreur lors du refus : ' + (data.error ?? res.statusText));
-      return;
-    }
-    toast.success('Artisan refusé et notifié');
-    setSelectedArtisan(null);
-    fetchArtisans();
-  };
+  const approveArtisan = (id: string) => submitDecision(id, 'approve');
+  const rejectArtisan = (id: string, reason: string) => submitDecision(id, 'reject', reason);
 
   const filtered = useMemo(() => artisans.filter(a =>
     !search ||

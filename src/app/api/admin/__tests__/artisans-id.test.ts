@@ -1,195 +1,146 @@
 /**
- * Tests — PATCH /api/admin/artisans/[id]
- * ─────────────────────────────────────────────────────────────────────────────
- * Couverture :
+ * Services — validation/refus d'un artisan : transaction atomique.
  *
- *  Auth & CSRF
- *    – 401 si pas de session
- *    – 403 si rôle insuffisant
- *    – CSRF bloquant (si assertCsrfSafe retourne une Response)
- *
- *  Validation Zod
- *    – 400 corps non-JSON
- *    – 400 action inconnue
- *    – 400 reject sans reason
- *    – 400 reject reason trop courte (< 10 chars)
- *    – 400 reject reason trop longue (> 500 chars)
- *
- *  approve
- *    – 200 + profiles.update role=artisan_verified, status=active
- *    – 200 + notification insérée
- *    – 500 si DB update profiles échoue
- *
- *  reject
- *    – 200 + profiles.update role=resident, status=active
- *    – 200 + artisan_profiles.update rejection_reason
- *    – 200 + notification insérée
- *    – 500 si DB update profiles échoue
- *
- *  Isolation
- *    – Moderator peut approuver (rôle admin OU moderator suffit pour getAdminUser)
+ * Les changements profiles + artisan_profiles doivent réussir ensemble.
+ * Aucun avis de succès ni notification si la fonction PostgreSQL échoue.
  */
-
 import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
 import { PATCH } from '@/app/api/admin/artisans/[id]/route';
 import {
-  makeAdminGuardOk, makeAdminGuardFail,
-  makeDb, makeReq,
-  MODERATOR_ID, TARGET_ID,
+  makeAdminGuardOk, makeAdminGuardFail, makeDb, makeReq, MODERATOR_ID,
 } from './_mock-admin-guard';
-
-// ─── Mocks ────────────────────────────────────────────────────────────────────
 
 vi.mock('@/lib/supabase/admin-guard', () => ({ getAdminUser: vi.fn() }));
 vi.mock('@/lib/supabase/auth-helper', () => ({ assertCsrfSafe: vi.fn(() => null) }));
 vi.mock('server-only', () => ({}));
 
-import { getAdminUser }   from '@/lib/supabase/admin-guard';
+import { getAdminUser } from '@/lib/supabase/admin-guard';
 import { assertCsrfSafe } from '@/lib/supabase/auth-helper';
 
-const mockGuard = getAdminUser   as MockedFunction<typeof getAdminUser>;
-const mockCsrf  = assertCsrfSafe as MockedFunction<typeof assertCsrfSafe>;
+const mockGuard = getAdminUser as MockedFunction<typeof getAdminUser>;
+const mockCsrf = assertCsrfSafe as MockedFunction<typeof assertCsrfSafe>;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const ARTISAN_USER = '00000000-0000-4000-8000-000000000123';
+const ARTISAN_PROFILE = '00000000-0000-4000-8000-000000000124';
+const REASON_OK = 'Dossier incomplet, justificatifs manquants.';
+const params = (id = ARTISAN_USER) => ({ params: Promise.resolve({ id }) });
+const req = (body: unknown) => makeReq(
+  `https://app.test/api/admin/artisans/${ARTISAN_USER}`, 'PATCH', body,
+);
 
-const REASON_OK  = 'Dossier incomplet, photos manquantes.';
-const REASON_SHORT = 'Court';
-const REASON_LONG  = 'x'.repeat(501);
-
-function makeParams(id = TARGET_ID) { return { params: Promise.resolve({ id }) }; }
-
-function patchReq(body: unknown) {
-  return makeReq(`https://app.test/api/admin/artisans/${TARGET_ID}`, 'PATCH', body);
-}
-
-function makeOkDb() {
-  return makeDb({
-    profiles:         { update: () => ({ data: null, error: null }) },
-    artisan_profiles: { update: () => ({ data: null, error: null }) },
-    notifications:    { insert: () => ({ data: null, error: null }) },
+function reviewDb(result: { data: string | null; error: { code?: string; message?: string } | null } = {
+  data: ARTISAN_PROFILE,
+  error: null,
+}) {
+  const db = makeDb({
+    notifications: { insert: () => ({ data: null, error: null }) },
   });
+  return Object.assign(db, { rpc: vi.fn().mockResolvedValue(result) });
 }
 
-// ─── Suite ────────────────────────────────────────────────────────────────────
-
-describe('PATCH /api/admin/artisans/[id]', () => {
-
+describe('PATCH /api/admin/artisans/[id] — atomique', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCsrf.mockReturnValue(null);
   });
 
-  // ── Auth ───────────────────────────────────────────────────────────────────
-
-  it('401 si pas de session', async () => {
+  it('401 si utilisateur non authentifié', async () => {
     mockGuard.mockResolvedValue(makeAdminGuardFail(401));
-    const res = await PATCH(patchReq({ action: 'approve' }), makeParams());
-    expect(res.status).toBe(401);
+    expect((await PATCH(req({ action: 'approve' }), params())).status).toBe(401);
   });
 
   it('403 si rôle insuffisant', async () => {
     mockGuard.mockResolvedValue(makeAdminGuardFail(403));
-    const res = await PATCH(patchReq({ action: 'approve' }), makeParams());
-    expect(res.status).toBe(403);
+    expect((await PATCH(req({ action: 'approve' }), params())).status).toBe(403);
   });
 
-  it('bloque si CSRF échoue', async () => {
-    mockCsrf.mockReturnValue(
-      new Response(JSON.stringify({ error: 'CSRF' }), { status: 403 }) as unknown as null
-    );
-    const res = await PATCH(patchReq({ action: 'approve' }), makeParams());
-    expect(res.status).toBe(403);
+  it('403 si la protection CSRF rejette', async () => {
+    mockCsrf.mockReturnValueOnce(new Response('CSRF', { status: 403 }) as never);
+    const db = reviewDb();
+    mockGuard.mockResolvedValue(makeAdminGuardOk('admin', db));
+    expect((await PATCH(req({ action: 'approve' }), params())).status).toBe(403);
+    expect(db.rpc).not.toHaveBeenCalled();
   });
 
-  // ── Validation Zod ────────────────────────────────────────────────────────
-
-  it('400 corps non-JSON', async () => {
-    mockGuard.mockResolvedValue(makeAdminGuardOk('admin', makeDb()));
-    const req = new Request(`https://app.test/api/admin/artisans/${TARGET_ID}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json', Origin: 'https://app.test' },
+  it('400 si JSON invalide', async () => {
+    const db = reviewDb();
+    mockGuard.mockResolvedValue(makeAdminGuardOk('admin', db));
+    const raw = new Request(`https://app.test/api/admin/artisans/${ARTISAN_USER}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Origin: 'https://app.test' },
       body: '{{bad json',
     });
-    const res = await PATCH(req, makeParams());
-    expect(res.status).toBe(400);
+    expect((await PATCH(raw, params())).status).toBe(400);
+    expect(db.rpc).not.toHaveBeenCalled();
   });
 
-  it('400 action inconnue', async () => {
-    mockGuard.mockResolvedValue(makeAdminGuardOk('admin', makeDb()));
-    const res = await PATCH(patchReq({ action: 'ban' }), makeParams());
-    expect(res.status).toBe(400);
-  });
-
-  it('400 reject sans reason', async () => {
-    mockGuard.mockResolvedValue(makeAdminGuardOk('admin', makeDb()));
-    const res = await PATCH(patchReq({ action: 'reject' }), makeParams());
-    expect(res.status).toBe(400);
-  });
-
-  it('400 reject reason trop courte (< 10 chars)', async () => {
-    mockGuard.mockResolvedValue(makeAdminGuardOk('admin', makeDb()));
-    const res = await PATCH(patchReq({ action: 'reject', reason: REASON_SHORT }), makeParams());
-    expect(res.status).toBe(400);
-    const json = await res.json();
-    expect(json.fieldErrors?.reason).toBeDefined();
-  });
-
-  it('400 reject reason trop longue (> 500 chars)', async () => {
-    mockGuard.mockResolvedValue(makeAdminGuardOk('admin', makeDb()));
-    const res = await PATCH(patchReq({ action: 'reject', reason: REASON_LONG }), makeParams());
-    expect(res.status).toBe(400);
-  });
-
-  // ── approve ───────────────────────────────────────────────────────────────
-
-  it('200 approve → role=artisan_verified, status=active', async () => {
-    const db = makeOkDb();
+  it('400 si action invalide, refus sans motif ou motif trop court', async () => {
+    const db = reviewDb();
     mockGuard.mockResolvedValue(makeAdminGuardOk('admin', db));
-    const res = await PATCH(patchReq({ action: 'approve' }), makeParams());
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.success).toBe(true);
-    expect(json.action).toBe('approved');
-    // Vérifie que profiles.update a été appelé
-    expect(db.from).toHaveBeenCalledWith('profiles');
+    expect((await PATCH(req({ action: 'ban' }), params())).status).toBe(400);
+    expect((await PATCH(req({ action: 'reject' }), params())).status).toBe(400);
+    expect((await PATCH(req({ action: 'reject', reason: 'court' }), params())).status).toBe(400);
+    expect((await PATCH(req({ action: 'reject', reason: 'x'.repeat(501) }), params())).status).toBe(400);
+    expect(db.rpc).not.toHaveBeenCalled();
   });
 
-  it('200 approve par un moderator (rôle autorisé)', async () => {
-    const db = makeOkDb();
-    mockGuard.mockResolvedValue(makeAdminGuardOk('moderator', db, MODERATOR_ID));
-    const res = await PATCH(patchReq({ action: 'approve' }), makeParams());
-    expect(res.status).toBe(200);
+  it('400 si UUID artisan invalide', async () => {
+    const db = reviewDb();
+    mockGuard.mockResolvedValue(makeAdminGuardOk('admin', db));
+    expect((await PATCH(req({ action: 'approve' }), params('un-uuid-invalide'))).status).toBe(400);
+    expect(db.rpc).not.toHaveBeenCalled();
   });
 
-  it('500 si DB update profiles échoue sur approve', async () => {
-    const db = makeDb({
-      profiles: { update: () => ({ data: null, error: { message: 'constraint' } }) },
+  it('200 approve : la fonction atomique est appelée et la notification seulement après', async () => {
+    const db = reviewDb();
+    mockGuard.mockResolvedValue(makeAdminGuardOk('admin', db));
+    const res = await PATCH(req({ action: 'approve' }), params());
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ success: true, action: 'approved' });
+    expect(db.rpc).toHaveBeenCalledWith('admin_review_artisan_profile', {
+      p_user_id: ARTISAN_USER, p_approve: true, p_reason: null,
     });
-    mockGuard.mockResolvedValue(makeAdminGuardOk('admin', db));
-    const res = await PATCH(patchReq({ action: 'approve' }), makeParams());
-    expect(res.status).toBe(500);
-  });
-
-  // ── reject ────────────────────────────────────────────────────────────────
-
-  it('200 reject → role=resident + artisan_profiles.rejection_reason', async () => {
-    const db = makeOkDb();
-    mockGuard.mockResolvedValue(makeAdminGuardOk('admin', db));
-    const res = await PATCH(patchReq({ action: 'reject', reason: REASON_OK }), makeParams());
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.action).toBe('rejected');
-    // artisan_profiles doit être touché
-    expect(db.from).toHaveBeenCalledWith('artisan_profiles');
-    // notification insérée
     expect(db.from).toHaveBeenCalledWith('notifications');
   });
 
-  it('500 si DB update profiles échoue sur reject', async () => {
-    const db = makeDb({
-      profiles: { update: () => ({ data: null, error: { message: 'db error' } }) },
-    });
+  it('200 approve : un moderator autorisé peut valider', async () => {
+    const db = reviewDb();
+    mockGuard.mockResolvedValue(makeAdminGuardOk('moderator', db, MODERATOR_ID));
+    expect((await PATCH(req({ action: 'approve' }), params())).status).toBe(200);
+  });
+
+  it('200 reject : conserve le motif et effectue une transaction unique', async () => {
+    const db = reviewDb();
     mockGuard.mockResolvedValue(makeAdminGuardOk('admin', db));
-    const res = await PATCH(patchReq({ action: 'reject', reason: REASON_OK }), makeParams());
-    expect(res.status).toBe(500);
+    const res = await PATCH(req({ action: 'reject', reason: REASON_OK }), params());
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ success: true, action: 'rejected' });
+    expect(db.rpc).toHaveBeenCalledWith('admin_review_artisan_profile', {
+      p_user_id: ARTISAN_USER, p_approve: false, p_reason: REASON_OK,
+    });
+    expect(db.from).toHaveBeenCalledWith('notifications');
+  });
+
+  it("503 : refus d’une transaction échouée, aucune notification ni faux succès", async () => {
+    const db = reviewDb({ data: null, error: { code: '42501', message: 'DB error' } });
+    mockGuard.mockResolvedValue(makeAdminGuardOk('admin', db));
+    const res = await PATCH(req({ action: 'reject', reason: REASON_OK }), params());
+    expect(res.status).toBe(503);
+    expect((await res.json()).success).not.toBe(true);
+    expect(db.from).not.toHaveBeenCalledWith('notifications');
+  });
+
+  it('503 : résultat vide de RPC ne vaut pas validation', async () => {
+    const db = reviewDb({ data: null, error: null });
+    mockGuard.mockResolvedValue(makeAdminGuardOk('admin', db));
+    expect((await PATCH(req({ action: 'approve' }), params())).status).toBe(503);
+    expect(db.from).not.toHaveBeenCalledWith('notifications');
+  });
+
+  it('404 : dossier absent, aucune notification', async () => {
+    const db = reviewDb({ data: null, error: { code: 'P0002', message: 'not found' } });
+    mockGuard.mockResolvedValue(makeAdminGuardOk('admin', db));
+    expect((await PATCH(req({ action: 'approve' }), params())).status).toBe(404);
+    expect(db.from).not.toHaveBeenCalledWith('notifications');
   });
 });

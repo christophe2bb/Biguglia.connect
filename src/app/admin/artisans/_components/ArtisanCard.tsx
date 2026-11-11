@@ -49,8 +49,8 @@ export interface ArtisanEntry {
 
 interface ArtisanCardProps {
   artisan: ArtisanEntry;
-  onApprove: (userId: string) => void;
-  onReject: (userId: string, reason: string) => void;
+  onApprove: (userId: string) => Promise<boolean>;
+  onReject: (userId: string, reason: string) => Promise<boolean>;
 }
 
 export default function ArtisanCard({ artisan, onApprove, onReject }: ArtisanCardProps) {

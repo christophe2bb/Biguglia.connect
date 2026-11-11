@@ -108,12 +108,18 @@ export default function ConversationPage() {
         fetchError={messagesFetchError}
       />
 
-      <MessageComposer
-        relatedType={relatedType}
-        sending={sending}
-        inputRef={inputRef}
-        onSend={sendMessage}
-      />
+      {isBlocked ? (
+        <div role="status" className="border-t border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700 rounded-xl">
+          Vous avez bloqué cette personne. Débloquez-la depuis le menu de conversation pour lui écrire de nouveau.
+        </div>
+      ) : (
+        <MessageComposer
+          relatedType={relatedType}
+          sending={sending}
+          inputRef={inputRef}
+          onSend={sendMessage}
+        />
+      )}
 
     </div>
   );

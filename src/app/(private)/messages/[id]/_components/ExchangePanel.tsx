@@ -20,7 +20,7 @@ import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { ExchangeInfo } from '../_types';
-import { EXCHANGEABLE_TYPES } from '../_config';
+import { EXCHANGEABLE_TYPES, CONTEXT_CONFIG } from '../_config';
 
 interface ExchangePanelProps {
   conversationId: string;
@@ -53,39 +53,50 @@ export function ExchangePanel({
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
 
-      const newConfirmedBy = [...exchange.confirmedBy, userId];
-      const bothDone = newConfirmedBy.length >= 2;
-
       const patchRes = await fetch(`/api/messages/conversation/${conversationId}`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify({
           action: 'update_exchange_status',
-          exchangeStatus: bothDone ? 'done' : 'pending_confirmation',
+          exchangeStatus: 'pending_confirmation', // demande, pas décision client
         }),
       }).catch(() => null);
 
       if (!patchRes?.ok) { toast.error('Erreur de confirmation'); return; }
+      const result = await patchRes.json().catch(() => null) as {
+        exchangeStatus: 'pending_confirmation' | 'done';
+        confirmedBy: string[];
+        confirmedAt: string | null;
+      } | null;
+      if (!result || !Array.isArray(result.confirmedBy)
+          || !result.confirmedBy.includes(userId)
+          || !['pending_confirmation', 'done'].includes(result.exchangeStatus)) {
+        toast.error('Confirmation non vérifiée par le serveur');
+        return;
+      }
+      const bothDone = result.exchangeStatus === 'done';
+      onExchangeUpdated({
+        ...exchange,
+        status: result.exchangeStatus,
+        confirmedBy: result.confirmedBy,
+        confirmedAt: result.confirmedAt,
+      });
 
       const msgText = bothDone
         ? '✅ Échange confirmé par les deux parties — les avis sont maintenant débloqués.'
         : `🤝 J'ai confirmé la fin de ${conf.verb}. En attente de confirmation de l'autre partie.`;
 
+      // Le message système est secondaire : la confirmation DB est déjà acquise.
       await fetch(`/api/messages/conversation/${conversationId}`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ content: msgText }),
       }).catch(() => null);
 
-      onExchangeUpdated({
-        ...exchange,
-        status: bothDone ? 'done' : 'pending_confirmation',
-        confirmedBy: newConfirmedBy,
-        confirmedAt: bothDone ? new Date().toISOString() : null,
-      });
-
       if (bothDone) toast.success('Échange confirmé ! Vous pouvez maintenant laisser un avis.');
       else toast.success("Confirmation envoyée ! En attente de l'autre partie.");
+    } catch {
+      toast.error('Erreur réseau pendant la confirmation');
     } finally {
       setConfirming(false);
     }
@@ -95,11 +106,9 @@ export function ExchangePanel({
   if (isDone) {
     const reviewHref = (() => {
       const t = exchange.relatedType;
-      if (t === 'listing')         return `/annonces/${exchange.relatedId}`;
-      if (t === 'equipment')       return `/materiel/${exchange.relatedId}`;
-      if (t === 'help_request')    return `/coups-de-main/${exchange.relatedId}`;
-      if (t === 'collection_item') return `/collectionneurs/${exchange.relatedId}`;
-      return `/${t}/${exchange.relatedId}`;
+      return t && exchange.relatedId
+        ? CONTEXT_CONFIG[t]?.href(exchange.relatedId) ?? '/mes-echanges'
+        : '/mes-echanges';
     })();
 
     return (

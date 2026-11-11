@@ -43,6 +43,8 @@ export function useConversationActions(
 ): ConversationActionsResult {
   const [sending, setSending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const favoriteBusyRef = useRef(false);
+  const blockBusyRef = useRef(false);
 
   // ── Envoi de message ──────────────────────────────────────────────────────
   // Le brouillon n'est effacé par MessageComposer qu'après accusé de réception.
@@ -129,34 +131,53 @@ export function useConversationActions(
     }
   };
 
-  // ── Favori ────────────────────────────────────────────────────────────────
+  // ── Favoris : ne changer l'icône qu'après confirmation SQL ──────────────
   const toggleFavorite = async (): Promise<void> => {
-    if (!profile || !otherUser) return;
-    if (isFavorite) {
-      await supabase.from('user_favorites').delete()
-        .eq('user_id', profile.id).eq('target_user_id', otherUser.id);
-      setIsFavorite(false);
-      toast.success(`${otherUser.full_name || 'Utilisateur'} retiré des favoris`);
-    } else {
-      await supabase.from('user_favorites').insert({ user_id: profile.id, target_user_id: otherUser.id });
-      setIsFavorite(true);
-      toast.success(`${otherUser.full_name || 'Utilisateur'} ajouté aux favoris ⭐`);
+    if (!profile || !otherUser || favoriteBusyRef.current) return;
+    favoriteBusyRef.current = true;
+    try {
+      const table = supabase.from('user_favorites');
+      const { data: changed, error } = isFavorite
+        ? await table.delete()
+            .eq('user_id', profile.id).eq('target_user_id', otherUser.id).select('id')
+        : await table.insert({ user_id: profile.id, target_user_id: otherUser.id }).select('id');
+      if (error || !changed?.length) {
+        toast.error('Favori non enregistré : vérifiez votre connexion.');
+        return;
+      }
+      setIsFavorite(!isFavorite);
+      toast.success(isFavorite
+        ? `${otherUser.full_name || 'Utilisateur'} retiré des favoris`
+        : `${otherUser.full_name || 'Utilisateur'} ajouté aux favoris ⭐`);
+    } catch {
+      toast.error('Erreur réseau : favori non confirmé.');
+    } finally {
+      favoriteBusyRef.current = false;
     }
   };
 
-  // ── Blocage ───────────────────────────────────────────────────────────────
+  // ── Blocage : aucune fausse confirmation si la base refuse ─────────────
   const toggleBlock = async (): Promise<void> => {
-    if (!profile || !otherUser) return;
-    if (isBlocked) {
-      await supabase.from('user_blocks').delete()
-        .eq('user_id', profile.id).eq('target_user_id', otherUser.id);
-      setIsBlocked(false);
-      toast.success(`${otherUser.full_name || 'Utilisateur'} débloqué`);
-    } else {
-      // ⚠️ Appelé APRÈS confirmation dans l'UI (pas de confirm() bloquant).
-      await supabase.from('user_blocks').insert({ user_id: profile.id, target_user_id: otherUser.id });
-      setIsBlocked(true);
-      toast.success(`${otherUser.full_name || 'Utilisateur'} bloqué`);
+    if (!profile || !otherUser || blockBusyRef.current) return;
+    blockBusyRef.current = true;
+    try {
+      const table = supabase.from('user_blocks');
+      const { data: changed, error } = isBlocked
+        ? await table.delete()
+            .eq('user_id', profile.id).eq('target_user_id', otherUser.id).select('id')
+        : await table.insert({ user_id: profile.id, target_user_id: otherUser.id }).select('id');
+      if (error || !changed?.length) {
+        toast.error('Blocage non enregistré : vérifiez votre connexion.');
+        return;
+      }
+      setIsBlocked(!isBlocked);
+      toast.success(isBlocked
+        ? `${otherUser.full_name || 'Utilisateur'} débloqué`
+        : `${otherUser.full_name || 'Utilisateur'} bloqué`);
+    } catch {
+      toast.error('Erreur réseau : blocage non confirmé.');
+    } finally {
+      blockBusyRef.current = false;
     }
   };
 

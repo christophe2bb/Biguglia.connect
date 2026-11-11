@@ -46,6 +46,7 @@ export interface UseListingsPageReturn {
   listings: Listing[];
   categories: ListingCategory[];
   loading: boolean;
+  loadError: boolean;
   // Derived
   filtered: Listing[];
   paginated: Listing[];
@@ -92,6 +93,7 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
   const [categories, setCategories]     = useState<ListingCategory[]>([]);
   const categoriesRef                   = useRef<ListingCategory[]>([]);
   const [loading, setLoading]           = useState(true);
+  const [loadError, setLoadError]       = useState(false);
   const [currentPage, setCurrentPage]   = useState(1);
   const [totalCount, setTotalCount]     = useState(0);   // total côté serveur
   const [allSectorCounts, setAllSectorCounts] = useState<Record<string, number>>({});
@@ -152,7 +154,7 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
     else if (selectedStatus === 'sold')     r = r.in('status', ['sold', 'given', 'exchanged']);
     else if (selectedStatus === 'expired')  r = r.eq('status', 'expired');
     else if (selectedStatus === 'archived') r = r.eq('status', 'archived');
-    else                                    r = r.neq('status', 'archived');
+    else if (selectedStatus !== 'all')      r = r.neq('status', 'archived');
 
     if (selectedCategory) {
       const cat = categoriesRef.current.find(c => c.slug === selectedCategory);
@@ -162,7 +164,11 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
     if (filterSector)   r = r.eq('sector_id', filterSector);
     if (showUrgentOnly) r = r.eq('is_urgent', true);
     if (showFreeOnly)   r = r.or('listing_type.eq.free,price.eq.0');
-    if (debouncedSearch) r = r.ilike('title', `%${debouncedSearch}%`);
+    if (debouncedSearch.trim()) {
+      // Ne pas interpréter les séparateurs PostgREST saisis dans la recherche.
+      const search = debouncedSearch.trim().replace(/[,%()]/g, ' ').replace(/\s+/g, ' ');
+      if (search) r = r.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
+    }
 
     return r;
   }, [selectedCategory, selectedType, selectedStatus, filterSector, showUrgentOnly, showFreeOnly, debouncedSearch]);
@@ -177,7 +183,7 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
     else if (selectedStatus === 'sold')     q = q.in('status', ['sold', 'given', 'exchanged']);
     else if (selectedStatus === 'expired')  q = q.eq('status', 'expired');
     else if (selectedStatus === 'archived') q = q.eq('status', 'archived');
-    else                                    q = q.neq('status', 'archived');
+    else if (selectedStatus !== 'all')      q = q.neq('status', 'archived');
     if (selectedType) q = q.eq('listing_type', selectedType);
     if (selectedCategory) {
       const cat = categoriesRef.current.find(c => c.slug === selectedCategory);
@@ -248,8 +254,16 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
           });
         }
       }
-      setListings((data as unknown as Listing[]) || []);
-      setTotalCount((data as unknown[])?.length ?? 0);
+      if (error) {
+        console.warn('[Annonces] favoris indisponibles', error.code);
+        setLoadError(true);
+        setListings([]);
+        setTotalCount(0);
+      } else {
+        setLoadError(false);
+        setListings((data as unknown as Listing[]) || []);
+        setTotalCount((data as unknown[])?.length ?? 0);
+      }
       setLoading(false);
       return;
     }
@@ -267,9 +281,17 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
     };
 
     // Requête COUNT (total pour pagination)
-    const { count } = await applyBaseFilters(
+    const { count, error: countError } = await applyBaseFilters(
       supabase.from('listings').select('*', { count: 'exact', head: true })
     );
+    if (countError) {
+      console.warn('[Annonces] compteur indisponible', countError.code);
+      setLoadError(true);
+      setListings([]);
+      setTotalCount(0);
+      setLoading(false);
+      return;
+    }
     setTotalCount(count ?? 0);
 
     // Requête DATA (seulement la page courante)
@@ -294,7 +316,14 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
       }
     }
 
-    setListings((data as unknown as Listing[]) || []);
+    if (error) {
+      console.warn('[Annonces] chargement indisponible', error.code);
+      setLoadError(true);
+      setListings([]);
+    } else {
+      setLoadError(false);
+      setListings((data as unknown as Listing[]) || []);
+    }
     setLoading(false);
   }, [applyBaseFilters, sortBy, isFavMode]);
 
@@ -367,6 +396,7 @@ export function useListingsPage(savedIds: Set<string>): UseListingsPageReturn {
     listings,
     categories,
     loading,
+    loadError,
     filtered: filteredForCount as Listing[],
     paginated,
     totalPages,

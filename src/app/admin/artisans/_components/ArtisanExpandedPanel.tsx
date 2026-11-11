@@ -28,8 +28,8 @@ interface ArtisanExpandedPanelProps {
     doc_id_url?: string;
     profile?: { role?: string };
   };
-  onApprove: (userId: string) => void;
-  onReject: (userId: string, reason: string) => void;
+  onApprove: (userId: string) => Promise<boolean>;
+  onReject: (userId: string, reason: string) => Promise<boolean>;
 }
 
 const REJECT_SUGGESTIONS = [
@@ -45,6 +45,31 @@ export default function ArtisanExpandedPanel({ artisan, onApprove, onReject }: A
   const [rejecting, setRejecting]         = useState(false);
   const [reason, setReason]               = useState('');
   const [confirmedLocal, setConfirmedLocal] = useState(false);
+  const [decisionPending, setDecisionPending] = useState(false);
+
+  const confirmApprove = async () => {
+    if (decisionPending || !confirmedLocal) return;
+    setDecisionPending(true);
+    try { await onApprove(artisan.user_id); }
+    finally { setDecisionPending(false); }
+  };
+
+  const confirmReject = async () => {
+    if (decisionPending) return;
+    if (reason.trim().length < 10) {
+      toast.error('Le motif doit contenir au moins 10 caractères.');
+      return;
+    }
+    setDecisionPending(true);
+    try {
+      if (await onReject(artisan.user_id, reason.trim())) {
+        setRejecting(false);
+        setReason('');
+      }
+    } finally {
+      setDecisionPending(false);
+    }
+  };
 
   const isPending  = artisan.profile?.role === 'artisan_pending';
   const isVerified = artisan.profile?.role === 'artisan_verified';
@@ -130,17 +155,11 @@ export default function ArtisanExpandedPanel({ artisan, onApprove, onReject }: A
                 <XCircle className="w-4 h-4" /> Refuser
               </button>
               <button
-                onClick={() => {
-                  if (!confirmedLocal) {
-                    toast.error('Cochez d\'abord la case "Artisan de Biguglia"');
-                    return;
-                  }
-                  onApprove(artisan.user_id);
-                }}
-                disabled={!confirmedLocal}
+                onClick={() => void confirmApprove()}
+                disabled={!confirmedLocal || decisionPending}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <CheckCircle className="w-4 h-4" /> ✅ Approuver le profil artisan
+                <CheckCircle className="w-4 h-4" /> {decisionPending ? 'Validation…' : '✅ Approuver le profil artisan'}
               </button>
             </div>
           ) : (
@@ -177,13 +196,11 @@ export default function ArtisanExpandedPanel({ artisan, onApprove, onReject }: A
                   Annuler
                 </button>
                 <button
-                  onClick={() => {
-                    if (!reason.trim()) { toast.error('Indiquez un motif de refus'); return; }
-                    onReject(artisan.user_id, reason);
-                  }}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition-colors"
+                  onClick={() => void confirmReject()}
+                  disabled={decisionPending || reason.trim().length < 10}
+                  className="flex-1 disabled:opacity-50 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition-colors"
                 >
-                  Confirmer le refus et notifier l&apos;artisan
+                  {decisionPending ? 'Enregistrement…' : 'Confirmer le refus et notifier l’artisan'}
                 </button>
               </div>
             </div>
@@ -193,20 +210,49 @@ export default function ArtisanExpandedPanel({ artisan, onApprove, onReject }: A
 
       {/* ── Actions : artisan vérifié ── */}
       {isVerified && (
-        <div className="border-t border-gray-200 pt-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-green-600 text-sm">
-            <CheckCircle className="w-4 h-4" />
-            <span className="font-medium">Profil validé et visible sur la plateforme</span>
+        <div className="border-t border-gray-200 pt-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-green-600 text-sm">
+              <CheckCircle className="w-4 h-4" />
+              <span className="font-medium">Profil validé et visible sur la plateforme</span>
+            </div>
+            {!rejecting && (
+              <button
+                type="button"
+                onClick={() => setRejecting(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+              >
+                <XCircle className="w-3.5 h-3.5" /> Révoquer
+              </button>
+            )}
           </div>
-          <button
-            onClick={() => {
-              const r = window.prompt('Motif de révocation (sera envoyé à l\'artisan) :');
-              if (r !== null) onReject(artisan.user_id, r || 'Profil suspendu par l\'administrateur.');
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
-          >
-            <XCircle className="w-3.5 h-3.5" /> Révoquer
-          </button>
+          {rejecting && (
+            <div className="space-y-2 rounded-xl border border-red-200 bg-red-50 p-3">
+              <label htmlFor="artisan-revocation-reason" className="block text-xs font-semibold text-red-800">
+                Motif de révocation (10 caractères minimum)
+              </label>
+              <textarea
+                id="artisan-revocation-reason"
+                value={reason}
+                onChange={e => setReason(e.target.value)}
+                placeholder="Expliquez à l’artisan la raison de la révocation…"
+                className="w-full h-24 rounded-lg border border-red-200 bg-white p-2 text-sm"
+                maxLength={500}
+              />
+              <div className="flex gap-2">
+                <button type="button" disabled={decisionPending}
+                  onClick={() => { setRejecting(false); setReason(''); }}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:opacity-50">
+                  Annuler
+                </button>
+                <button type="button" disabled={decisionPending || reason.trim().length < 10}
+                  onClick={() => void confirmReject()}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                  {decisionPending ? 'Enregistrement…' : 'Confirmer la révocation'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

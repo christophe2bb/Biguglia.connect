@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Loader2, Clock, AlertCircle, Flame, MapPin,
   Calendar, MessageSquare, Send, Wrench, CheckCircle,
-  Trash2, User, Pencil,
+  Trash2, User, Pencil, XCircle,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import Modal from '@/components/ui/Modal';
@@ -38,6 +38,8 @@ type ServiceRequest = {
   preferred_date?: string | null;
   preferred_time?: string | null;
   resident_id: string;
+  artisan_id?: string | null;
+  artisan?: { user_id: string; business_name: string } | null;
   sector_id?: string | null;
   resident?: { id: string; full_name: string; avatar_url?: string } | null;
   category?: { id: string; name: string; icon: string } | null;
@@ -81,12 +83,16 @@ export default function DemandeDetailClient() {
   const [request, setRequest]         = useState<ServiceRequest | null>(null);
   const [comments, setComments]       = useState<RequestComment[]>([]);
   const [loading, setLoading]         = useState(true);
+  const [loadError, setLoadError]     = useState(false);
+  const [commentsError, setCommentsError] = useState(false);
   const [newComment, setNewComment]   = useState('');
   const [submitting, setSubmitting]   = useState(false);
   const [deleting, setDeleting]       = useState(false);
   // ── Dialog state (remplace window.confirm() bloquant) ────────────────────
   const [confirmDeleteRequest, setConfirmDeleteRequest]   = useState(false);
   const [confirmResolve,       setConfirmResolve]         = useState(false);
+  const [confirmCancel,        setConfirmCancel]          = useState(false);
+  const [changingStatus,       setChangingStatus]         = useState(false);
   const [pendingDeleteComment, setPendingDeleteComment]   = useState<RequestComment | null>(null);
 
   // ── Charger la demande ──────────────────────────────────────────────────
@@ -99,7 +105,8 @@ export default function DemandeDetailClient() {
       .from('service_requests')
       .select(`
         id, title, description, urgency, address, status, created_at,
-        preferred_date, preferred_time, resident_id, sector_id,
+        preferred_date, preferred_time, resident_id, artisan_id, sector_id,
+        artisan:artisan_profiles!service_requests_artisan_id_fkey(user_id, business_name),
         resident:profiles(id, full_name, avatar_url),
         category:trade_categories(id, name, icon),
         photos:service_request_photos(url)
@@ -107,13 +114,20 @@ export default function DemandeDetailClient() {
       .eq('id', id)
       .single();
 
-    if (!error && data) setRequest(data as unknown as ServiceRequest);
+    if (error || !data) {
+      console.warn('[Demande] chargement détail refusé', error?.code);
+      setRequest(null);
+      setLoadError(Boolean(error));
+    } else {
+      setRequest(data as unknown as ServiceRequest);
+      setLoadError(false);
+    }
     setLoading(false);
   }, [supabase, id]);
 
   // ── Charger les commentaires ────────────────────────────────────────────
   const fetchComments = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('request_comments')
       .select(`
         id, content, created_at, author_id,
@@ -122,7 +136,13 @@ export default function DemandeDetailClient() {
       .eq('request_id', id)
       .order('created_at', { ascending: true });
 
-    setComments((data as unknown as RequestComment[]) || []);
+    if (error) {
+      console.warn('[Demande] chargement commentaires refusé', error.code);
+      setCommentsError(true);
+    } else {
+      setCommentsError(false);
+      setComments((data as unknown as RequestComment[]) || []);
+    }
   }, [supabase, id]);
 
   useEffect(() => {
@@ -130,50 +150,42 @@ export default function DemandeDetailClient() {
     fetchComments();
   }, [fetchRequest, fetchComments]);
 
-  // ── Poster un commentaire ────────────────────────────────────────────────
-  const handleSubmitComment = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // ── Réponses : la base passe le statut en "replied" APRÈS un commentaire
+  // autorisé d'un autre utilisateur (trigger SQL, jamais par le navigateur).
+  const handleSubmitComment = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!profile) { toast.error('Connectez-vous pour répondre'); return; }
-    if (!newComment.trim()) return;
-
+    if (submitting || !newComment.trim()) return;
     setSubmitting(true);
-    const { error } = await supabase.from('request_comments').insert({
-      request_id: id,
-      author_id: profile.id,
-      content: newComment.trim(),
-    });
-
-    if (error) {
-      // Table manquante → créer via migration
-      if (error.code === 'PGRST205' || error.code === '42P01' || error.message?.includes('schema cache') || error.message?.includes('Could not find')) {
-        toast.error('Table manquante — exécutez la migration dans /admin/migration');
-      } else {
-        toast.error(`Erreur : ${error.message}`);
+    try {
+      const { data: inserted, error } = await supabase.from('request_comments')
+        .insert({ request_id: id, author_id: profile.id, content: newComment.trim() })
+        .select('id').maybeSingle();
+      if (error || !inserted) {
+        console.warn('[Demande] réponse refusée', error?.code);
+        toast.error('Votre réponse n’a pas été enregistrée. Réessayez.');
+        return;
       }
-    } else {
-      toast.success('✅ Réponse publiée !', { duration: 3000 });
       setNewComment('');
-      fetchComments();
-      // Marquer la demande comme "replied" si elle était submitted/viewed
-      if (request && ['submitted', 'viewed'].includes(request.status) && profile.id !== request.resident_id) {
-        await supabase
-          .from('service_requests')
-          .update({ status: 'replied' })
-          .eq('id', id)
-          .in('status', ['submitted', 'viewed']);
-        fetchRequest();
-      }
+      toast.success('Réponse publiée');
+      await Promise.all([fetchComments(), fetchRequest()]);
+    } catch (error) {
+      console.error('[Demande] erreur réseau commentaire', error);
+      toast.error('Erreur réseau : réponse non confirmée.');
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   // ── Supprimer un commentaire ─────────────────────────────────────────────
   // ⚠️ Appelé APRÈS confirmation dans le dialog React (pas de confirm() bloquant).
   const doDeleteComment = async (comment: RequestComment) => {
-    if (!profile) return;
-    const isOwner = profile.id === comment.author_id;
+    if (!profile || !request) return;
+    const isCommentAuthor = profile.id === comment.author_id;
+    const isRequestOwner = profile.id === request.resident_id;
     const isAdmin = profile.role === 'admin' || profile.role === 'moderator';
-    if (!isOwner && !isAdmin) return;
+    // Même autorisation que le bouton et la politique RLS de Supabase.
+    if (!isCommentAuthor && !isRequestOwner && !isAdmin) return;
 
     const { data: deleted, error } = await supabase
       .from('request_comments')
@@ -193,75 +205,98 @@ export default function DemandeDetailClient() {
     }
   };
 
-  // ── Supprimer la demande ─────────────────────────────────────────────────
-  // ⚠️ Appelé APRÈS confirmation dans le dialog React (pas de confirm() bloquant).
+  // ── Suppression : contrôle serveur de propriété avant DB puis Storage ──────
   const doDeleteRequest = async () => {
-    if (!request || !profile) return;
-
-    // Vérification côté client : l'utilisateur doit être le propriétaire
+    if (!request || !profile || deleting) return;
     if (profile.id !== request.resident_id) {
-      toast.error('Vous n\'êtes pas autorisé à supprimer cette demande.');
+      toast.error('Vous ne pouvez supprimer que vos propres demandes.');
       return;
     }
-
     setDeleting(true);
-
-    // .select('id') permet de détecter le cas « 0 lignes supprimées » (RLS silencieux)
-    const { data: deleted, error } = await supabase
-      .from('service_requests')
-      .delete()
-      .eq('id', id)
-      .eq('resident_id', profile.id)
-      .select('id');
-
-    if (error) {
-      console.error('[doDeleteRequest] Supabase error:', error);
-      toast.error(`Erreur lors de la suppression : ${error.message}`);
-      setDeleting(false);
-      return;
-    }
-
-    if (!deleted || deleted.length === 0) {
-      // RLS a bloqué silencieusement — la politique DELETE n'est pas encore déployée
-      console.warn('[doDeleteRequest] 0 rows deleted — RLS policy missing or mismatch', {
-        id,
-        resident_id: profile.id,
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(`/api/service-requests/${id}/delete`, {
+        method: 'DELETE',
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
       });
-      toast.error(
-        'Suppression bloquée par la politique de sécurité. ' +
-        'Vérifiez que la migration RLS a bien été exécutée dans Supabase.',
-        { duration: 6000 }
-      );
+      const body = await response.json().catch(() => null) as {
+        ok?: boolean; error?: string; cleanupWarning?: boolean;
+      } | null;
+      if (!response.ok || !body?.ok) {
+        toast.error(body?.error || 'La demande n’a pas été supprimée.');
+        return;
+      }
+      if (body.cleanupWarning) {
+        toast('Demande supprimée, mais le nettoyage de certains fichiers reste à vérifier.', {
+          icon: '⚠️', duration: 6500,
+        });
+      } else {
+        toast.success('Demande supprimée');
+      }
+      router.push('/demandes');
+    } catch (error) {
+      console.warn('[Demande] suppression réseau interrompue', error);
+      toast.error('Suppression non confirmée. Réactualisez vos demandes avant de réessayer.');
+    } finally {
       setDeleting(false);
-      return;
     }
-
-    console.info('[doDeleteRequest] Supprimé avec succès :', deleted[0].id);
-    toast.success('Demande supprimée.', { duration: 3000 });
-    router.push('/demandes');
   };
 
   // ── Marquer comme résolue ─────────────────────────────────────────────────
   // ⚠️ Appelé APRÈS confirmation dans le dialog React (pas de confirm() bloquant).
   const doMarkResolved = async () => {
-    if (!request || !profile || profile.id !== request.resident_id) return;
-
-    const { data: updated, error } = await supabase
-      .from('service_requests')
-      .update({ status: 'completed' })
-      .eq('id', id)
-      .eq('resident_id', profile.id)
-      .select('id');
-
-    if (error) {
-      console.error('[doMarkResolved] Supabase error:', error);
-      toast.error(`Erreur : ${error.message}`);
-    } else if (!updated || updated.length === 0) {
-      console.warn('[doMarkResolved] 0 rows updated — RLS UPDATE policy may be missing');
-      toast.error('Mise à jour bloquée — politique de sécurité (migration RLS requise).');
-    } else {
+    if (!request || !profile || changingStatus || profile.id !== request.resident_id) return;
+    if (request.status === 'completed' || request.status === 'cancelled') return;
+    setChangingStatus(true);
+    try {
+      const { data: updated, error } = await supabase
+        .from('service_requests')
+        .update({ status: 'completed' })
+        .eq('id', id)
+        .eq('resident_id', profile.id)
+        // Ne pas écraser un changement intervenu depuis l'ouverture de la page.
+        .eq('status', request.status)
+        .select('id, status')
+        .maybeSingle();
+      if (error || !updated) {
+        toast.error('Clôture non confirmée. Actualisez la demande avant de réessayer.');
+        return;
+      }
       toast.success('✅ Demande marquée comme résolue !', { duration: 4000 });
-      fetchRequest();
+      await fetchRequest();
+    } catch (error) {
+      console.warn('[Demande] clôture réseau interrompue', error);
+      toast.error('Erreur réseau : clôture non confirmée.');
+    } finally {
+      setChangingStatus(false);
+    }
+  };
+
+  // ── Annuler sa demande sans la supprimer (conserve l'historique) ──────
+  const doCancelRequest = async () => {
+    if (!request || !profile || changingStatus || profile.id !== request.resident_id) return;
+    if (request.status === 'completed' || request.status === 'cancelled') return;
+    setChangingStatus(true);
+    try {
+      const { data: updated, error } = await supabase
+        .from('service_requests')
+        .update({ status: 'cancelled' })
+        .eq('id', id)
+        .eq('resident_id', profile.id)
+        .eq('status', request.status)
+        .select('id, status')
+        .maybeSingle();
+      if (error || !updated) {
+        toast.error('Annulation non confirmée. Actualisez la demande et réessayez.');
+        return;
+      }
+      toast.success('Demande annulée. Son historique reste consultable.');
+      await fetchRequest();
+    } catch (error) {
+      console.warn('[Demande] annulation interrompue', error);
+      toast.error('Erreur réseau : annulation non confirmée.');
+    } finally {
+      setChangingStatus(false);
     }
   };
 
@@ -277,7 +312,7 @@ export default function DemandeDetailClient() {
   if (!request) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
-        <p className="text-gray-500 font-semibold">Demande introuvable.</p>
+        <p className="text-gray-500 font-semibold">{loadError ? 'Impossible de charger cette demande pour le moment.' : 'Demande introuvable ou non accessible.'}</p>
         <Link href="/demandes" className="text-blue-600 hover:underline flex items-center gap-1">
           <ArrowLeft className="w-4 h-4" /> Retour aux demandes
         </Link>
@@ -331,6 +366,31 @@ export default function DemandeDetailClient() {
             <button type="button" onClick={() => { setConfirmResolve(false); doMarkResolved(); }}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors">
               <CheckCircle className="w-4 h-4" /> Confirmer
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={confirmCancel} onClose={() => { if (!changingStatus) setConfirmCancel(false); }} size="sm">
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
+            <XCircle className="h-6 w-6 text-amber-700" />
+          </div>
+          <h3 className="text-base font-bold text-gray-900 mb-2">Annuler cette demande ?</h3>
+          <p className="text-sm text-gray-500 mb-6">
+            Elle ne recevra plus de nouvelles réponses. Son historique restera consultable.
+          </p>
+          <div className="flex gap-3">
+            <button type="button" onClick={() => setConfirmCancel(false)}
+              disabled={changingStatus}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold disabled:opacity-50">
+              Retour
+            </button>
+            <button type="button"
+              onClick={() => { setConfirmCancel(false); void doCancelRequest(); }}
+              disabled={changingStatus}
+              className="flex-1 px-4 py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50">
+              Confirmer l’annulation
             </button>
           </div>
         </div>
@@ -444,9 +504,17 @@ export default function DemandeDetailClient() {
                     </Link>
 
                     {/* Marquer résolue */}
-                    <button onClick={() => setConfirmResolve(true)}
-                      className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl hover:bg-emerald-100 transition-colors">
+                    <button type="button" onClick={() => setConfirmResolve(true)}
+                      disabled={changingStatus}
+                      className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl hover:bg-emerald-100 transition-colors disabled:opacity-50">
                       <CheckCircle className="w-4 h-4" /> Marquer résolue
+                    </button>
+
+                    {/* Annuler sans effacer l'historique */}
+                    <button type="button" onClick={() => setConfirmCancel(true)}
+                      disabled={changingStatus}
+                      className="inline-flex items-center gap-1.5 text-sm font-bold text-amber-700 bg-amber-50 border border-amber-200 px-4 py-2 rounded-xl hover:bg-amber-100 transition-colors disabled:opacity-50">
+                      <XCircle className="w-4 h-4" /> Annuler la demande
                     </button>
 
                     {/* Supprimer */}
@@ -477,14 +545,33 @@ export default function DemandeDetailClient() {
                   </button>
                 )}
 
+                {/* Pour un devis privé, le résident peut aussi contacter l'artisan. */}
+                {isOwner && profile && request.artisan?.user_id && (
+                  <ContactButton
+                    sourceType="service_request"
+                    sourceId={request.id}
+                    sourceTitle={request.title}
+                    ownerId={request.artisan.user_id}
+                    userId={profile.id}
+                    ctaLabel="Contacter l’artisan"
+                    size="sm"
+                    variant="secondary"
+                  />
+                )}
+
                 {/* Message privé — visible pour les non-auteurs connectés */}
-                {!isOwner && profile && request.resident_id && (
+                {!isOwner && request.resident_id &&
+                  // Un visiteur peut demander à se connecter pour un contact public :
+                  // le lien de retour lui permet de reprendre la demande.
+                  // Les devis privés restent réservés à l'artisan destinataire.
+                  (!isResolved || !!request.artisan_id) &&
+                  (!request.artisan_id || request.artisan?.user_id === profile?.id) && (
                   <ContactButton
                     sourceType="service_request"
                     sourceId={request.id}
                     sourceTitle={request.title}
                     ownerId={request.resident_id}
-                    userId={profile.id}
+                    userId={profile?.id}
                     ctaLabel="Message privé"
                     prefillMsg={`Bonjour, je vous contacte suite à votre demande « ${request.title} ».`}
                     size="sm"
@@ -507,11 +594,17 @@ export default function DemandeDetailClient() {
             </h2>
           </div>
 
+          {commentsError && (
+            <p role="alert" className="px-6 py-3 bg-red-50 text-red-700 text-sm">
+              Impossible de récupérer les réponses pour le moment.
+            </p>
+          )}
+
           {/* Liste commentaires */}
           {comments.length > 0 && (
             <div className="divide-y divide-gray-50">
               {comments.map(comment => {
-                const canDelete = profile && (profile.id === comment.author_id || profile.role === 'admin' || profile.role === 'moderator');
+                const canDelete = profile && (profile.id === comment.author_id || profile.id === request.resident_id || profile.role === 'admin' || profile.role === 'moderator');
                 const isCommentOwner = profile?.id === comment.author_id;
                 const isArtisan = comment.author?.role === 'artisan_verified';
                 return (
@@ -598,7 +691,9 @@ export default function DemandeDetailClient() {
             <div className="px-6 py-5 border-t border-gray-100 text-center">
               <p className="text-gray-400 text-sm flex items-center justify-center gap-2">
                 <CheckCircle className="w-4 h-4 text-emerald-400" />
-                Cette demande a été résolue — les commentaires sont fermés.
+                {request.status === 'cancelled'
+                  ? 'Cette demande a été annulée — les commentaires sont fermés.'
+                  : 'Cette demande a été résolue — les commentaires sont fermés.'}
               </p>
             </div>
           )}

@@ -122,8 +122,18 @@ export async function checkEligibility(
     // et related_id=targetId. Pas besoin d'exchange_status='done' : le fait
     // d'avoir échangé des messages constitue une interaction réelle suffisante.
     case 'artisan': {
-      const { conversationId } = await checkConversationViaAPI('artisan', targetId, authToken);
-      return !!conversationId;
+      // Même source de vérité que la politique INSERT de item_ratings :
+      // le serveur vérifie deux participants et au moins un message envoyé
+      // par le client, et interdit toute auto-notation.
+      const { data, error } = await supabase.rpc('can_rate_item', {
+        p_target_type: 'artisan',
+        p_target_id: targetId,
+      });
+      if (error) {
+        console.warn('[RatingWidget] éligibilité artisan non vérifiable', error.code);
+        return false;
+      }
+      return data === true;
     }
 
     // ── Artisan : auteur de la demande uniquement ─────────────────────────────

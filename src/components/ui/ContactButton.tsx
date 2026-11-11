@@ -100,6 +100,8 @@ export default function ContactButton({
   const supabase = createClient();
   const conf = SOURCE_CONFIG[sourceType];
   const authPhase = useAuthStore((s) => s.phase);
+  const clientUserId = useAuthStore((s) => s.userId);
+  const effectiveUserId = authPhase === 'authenticated' ? (clientUserId ?? userId) : null;
 
   // ── Tailles ───────────────────────────────────────────────────────────────────
   const sizeClasses = {
@@ -154,10 +156,17 @@ export default function ContactButton({
   }
 
   // Non connecté → lien vers connexion
-  if (!userId) {
+  if (!effectiveUserId) {
+    // Après connexion, reprendre la fiche et le bouton de contact d'origine.
+    // Une demande ne doit pas ramener l'utilisateur à l'accueil.
+    const returnTo = sourceType === 'artisan' && sourceId
+      ? `/artisans/${sourceId}`
+      : sourceType === 'service_request' && sourceId
+        ? `/demandes/${sourceId}`
+        : '/';
     return (
       <Link
-        href="/connexion"
+        href={`/connexion?next=${encodeURIComponent(returnTo)}`}
         className={cn(
           'inline-flex items-center font-bold rounded-xl transition-colors',
           sizeClasses, variantClasses, className
@@ -171,7 +180,7 @@ export default function ContactButton({
   }
 
   // Pas de contact avec soi-même
-  if (userId === ownerId) return null;
+  if (effectiveUserId === ownerId) return null;
 
   // ── Déduire le vrai related_type à utiliser ───────────────────────────────────
   // 'artisan' est désormais dans l'enum related_type → on l'envoie tel quel
@@ -209,7 +218,9 @@ export default function ContactButton({
           ? `Bonjour, je vous contacte depuis la communauté ${sourceTitle || ''}.`
           : sourceType === 'listing'
             ? `Bonjour, je suis intéressé(e) par votre annonce${sourceTitle ? ` "${sourceTitle}"` : ''} — est-elle toujours disponible ?`
-            : `Bonjour${sourceTitle ? ` ${sourceTitle.split(' ')[0]}` : ''}, je vous contacte via Biguglia Connect.`
+            : sourceType === 'service_request'
+              ? `Bonjour, je vous contacte au sujet de la demande${sourceTitle ? ` « ${sourceTitle} »` : ''} sur Biguglia Connect.`
+              : `Bonjour${sourceTitle ? ` ${sourceTitle.split(' ')[0]}` : ''}, je vous contacte via Biguglia Connect.`
         );
 
 

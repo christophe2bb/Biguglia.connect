@@ -1,53 +1,17 @@
 /**
- * Page: Détail d'une demande de service
- * Route: /demandes/[id]
- *
- * Server Component — fetches minimal SEO data server-side,
- * delegates all interactive rendering to DemandeDetailClient.
+ * Les demandes d'aide nécessitent une session. Une recherche publique sans
+ * cookie ne peut pas récupérer l'objet en RLS et retourne toujours "introuvable".
+ * Ne jamais publier de titres/descriptions/adresses de devis privés en SEO.
  */
-
 import type { Metadata } from 'next';
-import { fetchDemandeSEO } from './queries';
 import DemandeDetailClient from './DemandeDetailClient';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
+export const metadata: Metadata = {
+  title: 'Détail d’une demande de service — Biguglia Connect',
+  description: 'Consultez et répondez à une demande de service sur Biguglia Connect après connexion.',
+  robots: { index: false, follow: false },
+};
 
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
-
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { id } = await params;
-  const item = await fetchDemandeSEO(id);
-  if (!item) {
-    return { title: 'Demande introuvable — Biguglia Connect' };
-  }
-
-  const urgencyLabel =
-    item.urgency === 'tres_urgent' ? 'Très urgent' :
-    item.urgency === 'urgent'      ? 'Urgent'      :
-    'Demande de service';
-
-  const title = `${item.title} — ${urgencyLabel} à Biguglia | Biguglia Connect`;
-  const description = item.description
-    ? item.description.slice(0, 155)
-    : `${urgencyLabel} : ${item.title} — Biguglia Connect`;
-
-  return {
-    title,
-    description,
-    openGraph: {
-      title,
-      description,
-      url: `${SITE_URL}/demandes/${id}`,
-    },
-    alternates: {
-      canonical: `${SITE_URL}/demandes/${id}`,
-    },
-  };
-}
-
-export default async function DemandeDetailPage({ params }: PageProps) {
-  await params;
+export default function DemandeDetailPage() {
   return <DemandeDetailClient />;
 }

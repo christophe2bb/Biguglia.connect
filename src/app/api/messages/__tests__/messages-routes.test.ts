@@ -493,6 +493,138 @@ describe('POST /api/messages/start-conversation', () => {
     });
   });
 
+  it('refuse de contacter un tiers au nom d’une demande de devis privée', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const artisanOwner = '00000000-0000-0000-0000-000000000003';
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      service_requests: {
+        data: { id: OBJ_ID, resident_id: USER_B, artisan_id: CONV_ID }, error: null,
+      },
+      artisan_profiles: { data: { id: CONV_ID, user_id: artisanOwner, is_verified: true }, error: null },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'service_request', relatedId: OBJ_ID, initialMsg: 'Bonjour',
+    }) as never);
+    expect(res.status).toBe(403);
+    expect(db.from).not.toHaveBeenCalledWith('conversations');
+  });
+
+  it('refuse un nouveau fil lié à un devis si le profil artisan a perdu sa validation', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      service_requests: {
+        data: { id: OBJ_ID, resident_id: USER_B, artisan_id: CONV_ID, status: 'submitted' }, error: null,
+      },
+      artisan_profiles: {
+        data: { id: CONV_ID, user_id: USER_A, is_verified: false }, error: null,
+      },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'service_request', relatedId: OBJ_ID, initialMsg: 'Bonjour',
+    }) as never);
+    expect(res.status).toBe(404);
+    expect(db.from).not.toHaveBeenCalledWith('conversations');
+  });
+
+  it('autorise la création du fil pour les vrais participants du devis', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      service_requests: {
+        data: { id: OBJ_ID, resident_id: USER_B, artisan_id: CONV_ID }, error: null,
+      },
+      artisan_profiles: { data: { id: CONV_ID, user_id: USER_A, is_verified: true }, error: null },
+      conversation_participants: { data: [], error: null },
+      conversations: { data: null, error: { code: '23514', message: 'stop after eligibility gate' } },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+    await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'service_request', relatedId: OBJ_ID, initialMsg: 'Bonjour',
+    }) as never);
+    expect(db.from).toHaveBeenCalledWith('conversations');
+  });
+
+  it('refuse d’ouvrir une demande publique vers un autre destinataire que son résident', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      service_requests: {
+        data: { id: OBJ_ID, resident_id: '00000000-0000-0000-0000-000000000003', artisan_id: null }, error: null,
+      },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'service_request', relatedId: OBJ_ID,
+    }) as never);
+    expect(res.status).toBe(403);
+    expect(db.from).not.toHaveBeenCalledWith('conversations');
+  });
+
+  it('récupère une conversation déjà ouverte même si la demande publique a été clôturée', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      service_requests: {
+        data: { id: OBJ_ID, resident_id: USER_B, artisan_id: null, status: 'completed' }, error: null,
+      },
+      conversation_participants: { data: [{ conversation_id: CONV_ID }], error: null },
+      conversations: { data: { id: CONV_ID }, error: null },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+    const response = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'service_request', relatedId: OBJ_ID,
+    }) as never);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ conversationId: CONV_ID, isNew: false });
+  });
+
+  it('refuse un nouveau fil de devis privé lorsque le résident a déjà clôturé la demande', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      service_requests: {
+        data: { id: OBJ_ID, resident_id: USER_B, artisan_id: CONV_ID, status: 'cancelled' },
+        error: null,
+      },
+      artisan_profiles: { data: { id: CONV_ID, user_id: USER_A, is_verified: true }, error: null },
+      conversation_participants: { data: [], error: null },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+    const response = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'service_request', relatedId: OBJ_ID,
+    }) as never);
+    expect(response.status).toBe(409);
+  });
+
+  it('refuse un nouveau message privé sur une demande publique déjà clôturée', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      service_requests: {
+        data: { id: OBJ_ID, resident_id: USER_B, artisan_id: null, status: 'completed' },
+        error: null,
+      },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'service_request', relatedId: OBJ_ID,
+      initialMsg: 'Bonjour, je propose mon aide.',
+    }) as never);
+    expect(res.status).toBe(409);
+    expect(db.from).not.toHaveBeenCalledWith('conversations');
+  });
+
   it('refuse de contacter un faux propriétaire depuis une fiche artisan', async () => {
     mockGetUserId.mockResolvedValueOnce(USER_A);
     const db = makeDb({
@@ -510,6 +642,22 @@ describe('POST /api/messages/start-conversation', () => {
     expect(db.from).not.toHaveBeenCalledWith('conversations');
   });
 
+  it('refuse une conversation avec un artisan non vérifié, même si ownerId est correct', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      artisan_profiles: { data: { id: OBJ_ID, user_id: USER_B, is_verified: false }, error: null },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, subject: 'Artisan non vérifié',
+      relatedType: 'artisan', relatedId: OBJ_ID, initialMsg: 'Bonjour',
+    }) as never);
+    expect(res.status).toBe(404);
+    expect(db.from).not.toHaveBeenCalledWith('conversations');
+  });
+
   it('ouvre une conversation artisan avec son vrai propriétaire et un premier message', async () => {
     mockGetUserId.mockResolvedValueOnce(USER_A);
     const insertConv = vi.fn(() => makeAutoChain({ data: { id: CONV_ID }, error: null }));
@@ -520,7 +668,7 @@ describe('POST /api/messages/start-conversation', () => {
           return makeAutoChain({ data: { id: USER_B, status: 'active', is_active: true }, error: null });
         }
         if (table === 'artisan_profiles') {
-          return makeAutoChain({ data: { id: OBJ_ID, user_id: USER_B }, error: null });
+          return makeAutoChain({ data: { id: OBJ_ID, user_id: USER_B, is_verified: true }, error: null });
         }
         if (table === 'user_blocks') return makeAutoChain({ data: [], error: null });
         if (table === 'conversation_participants') return makeAutoChain({ data: [], error: null });
@@ -544,6 +692,49 @@ describe('POST /api/messages/start-conversation', () => {
     expect(insertMsg).toHaveBeenCalledWith(expect.objectContaining({
       sender_id: USER_A, conversation_id: CONV_ID,
     }));
+  });
+
+  it('ne transforme pas un conflit trigger 23505 en conversation utilisable sans destinataire', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    let insertCount = 0;
+    const db = {
+      from: vi.fn((table: string) => {
+        if (table === 'profiles') return makeAutoChain({
+          data: { id: USER_B, status: 'active', is_active: true }, error: null,
+        });
+        if (table === 'user_blocks') return makeAutoChain({ data: [], error: null });
+        if (table === 'conversation_participants') {
+          return {
+            select: (field: string) => field === 'user_id'
+              ? { eq: () => ({ in: async () => ({ data: [{ user_id: USER_A }], error: null }) }) }
+              : makeAutoChain({ data: [], error: null }),
+            insert: () => ({
+              select: () => ({
+                maybeSingle: async () => {
+                  insertCount += 1;
+                  return insertCount === 1
+                    ? { data: { user_id: USER_A }, error: null }
+                    : { data: null, error: { code: '23505', message: 'duplicate key conversation_pairs_pkey' } };
+                },
+              }),
+            }),
+          };
+        }
+        if (table === 'conversations') {
+          return makeAutoChain({ data: { id: CONV_ID }, error: null });
+        }
+        return makeAutoChain({ data: null, error: null });
+      }),
+    };
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'general', relatedId: null, initialMsg: 'Bonjour',
+    }) as never);
+    expect(res.status).toBe(409);
+    expect((await res.json()).conversationId).toBeUndefined();
+    expect(db.from).not.toHaveBeenCalledWith('messages');
+    expect(insertCount).toBe(2);
   });
 
   // ── Happy path ────────────────────────────────────────────────────────────

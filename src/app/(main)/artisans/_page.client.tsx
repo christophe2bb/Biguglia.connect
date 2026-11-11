@@ -213,40 +213,70 @@ function ArtisansContent() {
   const [artisans,  setArtisans]  = useState<EnrichedArtisan[]>([]);
   const [categories, setCategories] = useState<TradeCategory[]>([]);
   const [loading,    setLoading]    = useState(true);
+  const [loadError,  setLoadError]  = useState(false);
   const [search,     setSearch]     = useState('');
   const [activeSlug, setActiveSlug] = useState(searchParams.get('categorie') || '');
 
   useEffect(() => {
-    (async () => {
-      const supabase = createClient();
+    let cancelled = false;
+    const fetchArtisans = async () => {
+      try {
+        const supabase = createClient();
+        const categoriesPromise = supabase.from('trade_categories')
+          .select('*').order('display_order');
 
-      const { data: cats } = await supabase
-        .from('trade_categories')
-        .select('*')
-        .order('display_order');
-      setCategories(cats || []);
+        // Ne pas tronquer silencieusement l'annuaire à 200 profils.
+        // La pagination sur les artisans vérifiés garde un ordre stable.
+        const pageSize = 200;
+        const allArtisans: EnrichedArtisan[] = [];
+        let artisanErrorCode: string | undefined;
+        for (let offset = 0; ; offset += pageSize) {
+          const { data, error } = await supabase.from('artisan_profiles').select(`
+            id, user_id, business_name, trade_name, description,
+            location, intervention_zone, is_featured, is_verified, siret,
+            avatar_url, artisan_type, service_area, years_experience,
+            profile:profiles(id, full_name, avatar_url, role),
+            trade_category:trade_categories(id, name, slug, icon),
+            gallery:artisan_photos(url, display_order)
+          `)
+            .eq('is_verified', true)
+            .order('is_featured', { ascending: false })
+            .order('id', { ascending: true })
+            .range(offset, offset + pageSize - 1);
+          if (cancelled) return;
+          if (error) {
+            artisanErrorCode = error.code;
+            break;
+          }
+          const rows = (data || []) as unknown as EnrichedArtisan[];
+          allArtisans.push(...rows);
+          if (rows.length < pageSize) break;
+        }
 
-      const { data } = await supabase
-        .from('artisan_profiles')
-        .select(`
-          id, user_id, business_name, trade_name, description,
-          location, intervention_zone, is_featured, is_verified, siret,
-          avatar_url, artisan_type, service_area, years_experience,
-          profile:profiles(id, full_name, avatar_url, role),
-          trade_category:trade_categories(id, name, slug, icon),
-          gallery:artisan_photos(url, display_order)
-        `)
-        .order('is_featured', { ascending: false })
-        .limit(200);
-
-      const enriched = ((data || []).filter((a: Record<string, unknown>) => {
-        const role = (a.profile as { role?: string } | null)?.role;
-        return (a as { is_verified?: boolean }).is_verified === true || role === 'artisan_verified';
-      })) as unknown as EnrichedArtisan[];
-
-      setArtisans(enriched);
-      setLoading(false);
-    })();
+        const categoriesResponse = await categoriesPromise;
+        if (cancelled) return;
+        if (categoriesResponse.error || artisanErrorCode) {
+          console.error('[ArtisansPage] chargement impossible', {
+            categoriesCode: categoriesResponse.error?.code,
+            artisansCode: artisanErrorCode,
+          });
+          setLoadError(true);
+          return;
+        }
+        setCategories(categoriesResponse.data || []);
+        setArtisans(allArtisans);
+        setLoadError(false);
+      } catch (error) {
+        if (!cancelled) {
+          console.error('[ArtisansPage] erreur réseau', error);
+          setLoadError(true);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void fetchArtisans();
+    return () => { cancelled = true; };
   }, []);
 
   // Filtrage texte
@@ -312,6 +342,7 @@ function ArtisansContent() {
         {search && (
           <button
             onClick={() => setSearch('')}
+            aria-label="Effacer la recherche"
             className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg leading-none"
           >
             ×
@@ -368,6 +399,10 @@ function ArtisansContent() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      ) : loadError ? (
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-6 text-center text-sm text-red-800">
+          Impossible de charger les artisans pour le moment. Vérifiez votre connexion puis rechargez la page.
         </div>
       ) : displayed.length === 0 ? (
         <EmptyState

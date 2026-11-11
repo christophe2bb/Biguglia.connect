@@ -14,7 +14,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
   ChevronLeft, MapPin, Clock, Shield, Star, Phone,
-  Calendar, HardHat, Users, CheckCircle, FileCheck,
+  Calendar, HardHat, Users, CheckCircle,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import Avatar from '@/components/ui/Avatar';
@@ -36,17 +36,19 @@ async function fetchArtisan(id: string) {
     const { data, error } = await supabase
       .from('artisan_profiles')
       .select(`
-        *,
+        id, user_id, business_name, description, service_area, years_experience,
+        siret, artisan_type, is_verified, avatar_url,
         profile:profiles!artisan_profiles_user_id_fkey(id, full_name, avatar_url, phone),
         trade_category:trade_categories(*),
         gallery:artisan_photos(*)
       `)
       .eq('id', id)
+      .eq('is_verified', true)
       .single();
 
     if (error || !data) return null;
 
-    return { artisan: data as ArtisanProfile };
+    return { artisan: data as unknown as ArtisanProfile };
   } catch (err) {
     console.error('[ArtisanDetailPage] fetchArtisan error:', err);
     return null;
@@ -98,7 +100,6 @@ export default async function ArtisanDetailPage({ params }: Props) {
   const { artisan } = result;
   const gallery    = artisan.gallery as Array<{ id: string; url: string }> | undefined;
   const profileData = artisan.profile as { id?: string; full_name?: string; avatar_url?: string; phone?: string } | undefined;
-  const docCount   = [artisan.doc_kbis_url, artisan.doc_insurance_url, artisan.doc_id_url].filter(Boolean).length;
   const isPro      = artisan.artisan_type === 'professionnel';
 
   return (
@@ -154,12 +155,6 @@ export default async function ArtisanDetailPage({ params }: Props) {
                     <Badge variant="success">
                       <Shield className="w-3 h-3 mr-1" /> Vérifié
                     </Badge>
-                    {docCount > 0 && (
-                      <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
-                        <FileCheck className="w-3.5 h-3.5" />
-                        {docCount} document{docCount > 1 ? 's' : ''} vérifié{docCount > 1 ? 's' : ''}
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -263,10 +258,10 @@ export default async function ArtisanDetailPage({ params }: Props) {
           <div className="bg-brand-50 rounded-2xl p-5">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-sm font-medium text-brand-800">Artisan disponible</span>
+              <span className="text-sm font-medium text-brand-800">Contacter cet artisan</span>
             </div>
             <p className="text-xs text-brand-600">
-              Envoyez votre demande et attendez sa réponse directement dans vos messages.
+              Contactez cet artisan pour connaître ses disponibilités et ses délais d’intervention.
             </p>
           </div>
 
@@ -286,12 +281,6 @@ export default async function ArtisanDetailPage({ params }: Props) {
                     <li className="flex items-center gap-2">
                       <CheckCircle className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
                       SIRET déclaré : {artisan.siret}
-                    </li>
-                  )}
-                  {docCount > 0 && (
-                    <li className="flex items-center gap-2">
-                      <FileCheck className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                      Documents vérifiés par l&apos;admin
                     </li>
                   )}
                   <li className="flex items-center gap-2">

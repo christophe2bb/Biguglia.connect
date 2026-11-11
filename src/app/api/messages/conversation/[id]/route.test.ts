@@ -149,6 +149,11 @@ interface AdminMockOptions {
   deleteError?:         { message: string } | null;
   msgForDelete?:        { id: string; sender_id: string; conversation_id: string } | null;
   notifError?:          { message: string } | null;
+  blockRows?:           Array<{ id: string }>;
+  blockError?:          { message: string } | null;
+  inactiveUsers?:      string[];
+  missingUsers?:       string[];
+  accountsError?:      { message: string } | null;
 }
 
 // ─── Builder de mock admin ────────────────────────────────────────────────────
@@ -186,6 +191,11 @@ function buildAdminMock(opts: AdminMockOptions = {}) {
     deleteError        = null,
     msgForDelete       = { id: MSG_ID, sender_id: USER_A, conversation_id: CONV_ID },
     notifError         = null,
+    blockRows          = [],
+    blockError         = null,
+    inactiveUsers      = [],
+    missingUsers       = [],
+    accountsError      = null,
   } = opts;
 
   const fromMock = vi.fn().mockImplementation((table: string) => {
@@ -268,10 +278,37 @@ function buildAdminMock(opts: AdminMockOptions = {}) {
     // ── profiles ──────────────────────────────────────────────────────────
     if (table === 'profiles') {
       const chain: Record<string, unknown> = {};
-      ['select', 'eq', 'in'].forEach(m => { chain[m] = () => chain; });
+      let statusLookup = false;
+      chain['select'] = (columns: string) => {
+        statusLookup = columns.includes('status') && columns.includes('is_active');
+        return chain;
+      };
+      ['eq', 'in'].forEach(m => { chain[m] = () => chain; });
       chain['maybeSingle'] = () => Promise.resolve({ data: fallbackProfile, error: null });
-      chain['then']        = (cb: (v: unknown) => void) =>
-        cb({ data: profileError ? null : profiles, error: profileError });
+      chain['then'] = (cb: (v: unknown) => void) => {
+        if (statusLookup) {
+          cb({
+            data: accountsError ? null : [USER_A, USER_B]
+              .filter(id => !missingUsers.includes(id))
+              .map(id => ({
+                id, status: inactiveUsers.includes(id) ? 'suspended' : 'active',
+                is_active: !inactiveUsers.includes(id),
+              })),
+            error: accountsError,
+          });
+        } else {
+          cb({ data: profileError ? null : profiles, error: profileError });
+        }
+      };
+      return chain;
+    }
+
+    // ── user_blocks : lecture côté admin avant chaque POST ───────────────
+    if (table === 'user_blocks') {
+      const chain: Record<string, unknown> = {};
+      ['select', 'or', 'limit'].forEach(m => { chain[m] = () => chain; });
+      chain['then'] = (cb: (v: unknown) => void) =>
+        cb({ data: blockError ? null : blockRows, error: blockError });
       return chain;
     }
 
@@ -292,7 +329,19 @@ function buildAdminMock(opts: AdminMockOptions = {}) {
     return generic;
   });
 
-  return { from: fromMock };
+  return {
+    from: fromMock,
+    rpc: vi.fn(() => ({
+      single: async () => ({
+        data: patchError ? null : {
+          exchange_status: 'pending_confirmation',
+          confirmed_by: [USER_A],
+          confirmed_at: null,
+        },
+        error: patchError ? { ...patchError, code: '57014' } : null,
+      }),
+    })),
+  };
 }
 
 // ─── Factories de requêtes ────────────────────────────────────────────────────
@@ -707,26 +756,33 @@ describe('PATCH /api/messages/conversation/[id]', () => {
     expect((await res.json()).error).toBe('connection lost');
   });
 
-  it('update_exchange_status → 500 si le update conversations échoue', async () => {
-    // On simule une erreur sur la mise à jour de la conversation.
-    // La participation est valide, mais le update conversations retourne une erreur.
-    const adminWithConvUpdateError = buildAdminMock();
-    // On surcharge from() : conversations.update().eq() doit retourner une erreur
-    const originalFrom = adminWithConvUpdateError.from;
-    adminWithConvUpdateError.from = vi.fn().mockImplementation((table: string) => {
-      if (table === 'conversations') {
-        const chain: Record<string, unknown> = {};
-        ['select', 'eq', 'update'].forEach(m => { chain[m] = () => chain; });
-        chain['single'] = () => Promise.resolve({ data: CONVERSATION, error: null });
-        chain['then']   = (cb: (v: unknown) => void) =>
-          cb({ data: null, error: { message: 'conversations update error' } });
-        return chain;
-      }
-      return originalFrom(table);
+  it('update_exchange_status → 503 si la RPC atomique échoue', async () => {
+    mockCreateAdmin.mockReturnValue(
+      buildAdminMock({ patchError: { message: 'RPC unavailable' } }) as unknown as ReturnType<typeof createAdminClient>,
+    );
+    const res = await PATCH(
+      makePatchReq({ action: 'update_exchange_status', exchangeStatus: 'done' }),
+      routeParams(),
+    );
+    expect(res.status).toBe(503);
+    expect((await res.json()).ok).toBeUndefined();
+  });
+
+  it('le navigateur ne peut pas forcer done sans la deuxième confirmation', async () => {
+    const admin = buildAdminMock();
+    mockCreateAdmin.mockReturnValue(admin as unknown as ReturnType<typeof createAdminClient>);
+    const res = await PATCH(
+      makePatchReq({ action: 'update_exchange_status', exchangeStatus: 'done' }),
+      routeParams(),
+    );
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.exchangeStatus).toBe('pending_confirmation');
+    expect(body.confirmedBy).toEqual([USER_A]);
+    expect(admin.rpc).toHaveBeenCalledWith('confirm_conversation_exchange', {
+      p_conversation_id: CONV_ID,
+      p_actor_id: USER_A,
     });
-    mockCreateAdmin.mockReturnValue(adminWithConvUpdateError as unknown as ReturnType<typeof createAdminClient>);
-    const res = await PATCH(makePatchReq({ action: 'update_exchange_status', exchangeStatus: 'done' }), routeParams());
-    expect(res.status).toBe(500);
   });
 });
 
@@ -800,6 +856,54 @@ describe('POST /api/messages/conversation/[id]', () => {
   });
 
   // ── Erreur insert message ─────────────────────────────────────────────────
+
+  it('403 si un utilisateur est bloqué malgré un fil existant', async () => {
+    const admin = buildAdminMock({ blockRows: [{ id: '00000000-0000-0000-0000-000000000099' }] });
+    mockCreateAdmin.mockReturnValue(admin as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makePostReq({ content: 'Message bloqué' }), routeParams());
+    expect(res.status).toBe(403);
+    expect(admin.from).not.toHaveBeenCalledWith('messages');
+  });
+
+  it('403 : un expéditeur suspendu ne peut plus écrire dans un ancien fil', async () => {
+    const admin = buildAdminMock({ inactiveUsers: [USER_A] });
+    mockCreateAdmin.mockReturnValue(admin as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makePostReq({ content: 'Envoi interdit' }), routeParams());
+    expect(res.status).toBe(403);
+    expect(admin.from).not.toHaveBeenCalledWith('messages');
+  });
+
+  it('403 : un destinataire suspendu ne peut plus recevoir de message', async () => {
+    const admin = buildAdminMock({ inactiveUsers: [USER_B] });
+    mockCreateAdmin.mockReturnValue(admin as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makePostReq({ content: 'Envoi interdit' }), routeParams());
+    expect(res.status).toBe(403);
+    expect(admin.from).not.toHaveBeenCalledWith('messages');
+  });
+
+  it('403 : un participant supprimé de profiles ne peut plus être contacté', async () => {
+    const admin = buildAdminMock({ missingUsers: [USER_B] });
+    mockCreateAdmin.mockReturnValue(admin as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makePostReq({ content: 'Envoi interdit' }), routeParams());
+    expect(res.status).toBe(403);
+    expect(admin.from).not.toHaveBeenCalledWith('messages');
+  });
+
+  it('503 : une panne de vérification des comptes interdit tout envoi', async () => {
+    const admin = buildAdminMock({ accountsError: { message: 'base indisponible' } });
+    mockCreateAdmin.mockReturnValue(admin as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makePostReq({ content: 'Envoi interdit' }), routeParams());
+    expect(res.status).toBe(503);
+    expect(admin.from).not.toHaveBeenCalledWith('messages');
+  });
+
+  it('503 si la vérification du blocage échoue avant l’envoi', async () => {
+    const admin = buildAdminMock({ blockError: { message: 'database unavailable' } });
+    mockCreateAdmin.mockReturnValue(admin as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makePostReq({ content: 'Message non envoyé' }), routeParams());
+    expect(res.status).toBe(503);
+    expect(admin.from).not.toHaveBeenCalledWith('messages');
+  });
 
   it('retourne 500 si l\'insert du message échoue', async () => {
     mockCreateAdmin.mockReturnValue(buildAdminMock({
@@ -1039,6 +1143,13 @@ describe('sendNewMessageNotifications()', () => {
     const admin = buildNotifAdmin({ insertFn });
     await sendNewMessageNotifications(admin, CONV_ID, USER_A, '🤝 Accord');
     expect(insertFn).not.toHaveBeenCalled();
+  });
+
+  it('notifie un vrai message utilisateur même s’il commence par 👋', async () => {
+    const insertFn = vi.fn();
+    const admin = buildNotifAdmin({ insertFn });
+    await sendNewMessageNotifications(admin, CONV_ID, USER_A, '👋 Bonjour, je réponds au devis', true);
+    expect(insertFn).toHaveBeenCalledOnce();
   });
 
   it('envoie une notification pour un message normal', async () => {

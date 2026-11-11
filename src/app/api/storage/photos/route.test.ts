@@ -16,17 +16,19 @@ const mockId = vi.mocked(getUserIdBearerFirst);
 const mockCsrf = vi.mocked(assertCsrfSafe);
 const mockAdmin = vi.mocked(createAdminClient);
 
-function request(paths: string[]) {
+function request(paths: string[], bucket: 'photos' | 'service-quote-photos' = 'photos') {
   return new NextRequest('https://app.test/api/storage/photos', {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json', 'Origin': 'https://app.test' },
-    body: JSON.stringify({ paths }),
+    body: JSON.stringify({ paths, bucket }),
   });
 }
 
-function adminClient(foundOwner: string = OWNER) {
+function adminClient(foundOwner: string = OWNER, quoteArtisan: string | null = null) {
   const remove = vi.fn().mockResolvedValue({ data: [], error: null });
-  const maybeSingle = vi.fn().mockResolvedValue({ data: { user_id: foundOwner }, error: null });
+  const maybeSingle = vi.fn().mockResolvedValue({ data: {
+    user_id: foundOwner, resident_id: foundOwner, artisan_id: quoteArtisan,
+  }, error: null });
   const eq = vi.fn().mockReturnValue({ maybeSingle });
   const select = vi.fn().mockReturnValue({ eq });
   const from = vi.fn().mockReturnValue({ select });
@@ -99,6 +101,36 @@ describe('DELETE /api/storage/photos', () => {
       `${OWNER}/avatar.jpg`, `listings/${LISTING_ID}/other.jpg`,
     ]));
     expect(res.status).toBe(403);
+    expect(client.remove).not.toHaveBeenCalled();
+  });
+
+  it('autorise le résident à retirer une photo de son devis privé', async () => {
+    const client = adminClient(OWNER, OTHER);
+    const path = 'requests/' + LISTING_ID + '/devis.jpg';
+    const result = await DELETE(request([path], 'service-quote-photos'));
+    expect(result.status).toBe(200);
+    expect(client.from).toHaveBeenCalledWith('service_requests');
+    expect(client.storageFrom).toHaveBeenCalledWith('service-quote-photos');
+    expect(client.remove).toHaveBeenCalledWith([path]);
+  });
+
+  it('refuse un bucket privé pour une demande publique', async () => {
+    const client = adminClient(OWNER, null);
+    const path = 'requests/' + LISTING_ID + '/devis.jpg';
+    expect((await DELETE(request([path], 'service-quote-photos'))).status).toBe(403);
+    expect(client.remove).not.toHaveBeenCalled();
+  });
+
+  it('refuse de supprimer un devis privé depuis le bucket public', async () => {
+    const client = adminClient(OWNER, OTHER);
+    const path = 'requests/' + LISTING_ID + '/devis.jpg';
+    expect((await DELETE(request([path], 'photos'))).status).toBe(403);
+    expect(client.remove).not.toHaveBeenCalled();
+  });
+
+  it('refuse un dossier personnel dans le bucket de devis privés', async () => {
+    const client = adminClient();
+    expect((await DELETE(request([OWNER + '/avatar.jpg'], 'service-quote-photos'))).status).toBe(403);
     expect(client.remove).not.toHaveBeenCalled();
   });
 

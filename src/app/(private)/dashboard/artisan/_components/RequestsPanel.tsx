@@ -2,43 +2,63 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Users, Package, Eye, MessageSquare, Calendar, CheckCircle, Trash2, AlertTriangle } from 'lucide-react';
+import { Users, Package, Eye, Calendar, CheckCircle, XCircle } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
 import Card from '@/components/ui/Card';
+import Modal from '@/components/ui/Modal';
+import ContactButton from '@/components/ui/ContactButton';
 import { STATUS_LABELS, URGENCY_LABELS, formatRelative } from '@/lib/utils';
-import { createClient } from '@/lib/supabase/client';
-import toast from 'react-hot-toast';
 import type { ServiceRequest } from '@/types';
 
 interface RequestsPanelProps {
   requests: ServiceRequest[];
   loading: boolean;
   pendingCount: number;
-  onUpdateStatus: (id: string, status: ServiceRequest['status']) => void;
-  onDelete?: (id: string) => void;
+  userId: string;
+  onUpdateStatus: (id: string, status: ServiceRequest['status']) => Promise<void>;
 }
 
-export default function RequestsPanel({ requests, loading, pendingCount, onUpdateStatus, onDelete }: RequestsPanelProps) {
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
+export default function RequestsPanel({ requests, loading, pendingCount, onUpdateStatus, userId }: RequestsPanelProps) {
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [pendingRejectionId, setPendingRejectionId] = useState<string | null>(null);
 
-  const handleDelete = async (id: string) => {
-    setDeleting(true);
-    const supabase = createClient();
-    const { error } = await supabase.from('service_requests').delete().eq('id', id);
-    if (error) {
-      toast.error('Erreur lors de la suppression');
-    } else {
-      toast.success('Demande supprimée');
-      onDelete?.(id);
-    }
-    setConfirmDeleteId(null);
-    setDeleting(false);
+  const changeStatus = async (id: string, status: ServiceRequest['status']) => {
+    if (busyId) return;
+    setBusyId(id);
+    try { await onUpdateStatus(id, status); }
+    finally { setBusyId(null); }
   };
 
   return (
     <div>
+      <Modal
+        isOpen={pendingRejectionId !== null}
+        onClose={() => { if (!busyId) setPendingRejectionId(null); }}
+        title="Refuser cette demande ?"
+        size="sm"
+      >
+        <p className="text-sm text-gray-600 mb-5">
+          Le résident sera informé du refus. Cette action clôture le devis et ne peut pas être annulée depuis le tableau de bord artisan.
+        </p>
+        <div className="flex gap-3">
+          <button type="button" disabled={busyId !== null}
+            onClick={() => setPendingRejectionId(null)}
+            className="flex-1 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold disabled:opacity-50">
+            Conserver la demande
+          </button>
+          <button type="button" disabled={busyId !== null}
+            onClick={() => {
+              const id = pendingRejectionId;
+              if (!id) return;
+              setPendingRejectionId(null);
+              void changeStatus(id, 'cancelled');
+            }}
+            className="flex-1 rounded-xl bg-red-600 text-white px-4 py-2 text-sm font-semibold disabled:opacity-50">
+            Confirmer le refus
+          </button>
+        </div>
+      </Modal>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
           <Users className="w-5 h-5 text-blue-500" /> Demandes reçues
@@ -64,113 +84,84 @@ export default function RequestsPanel({ requests, loading, pendingCount, onUpdat
         <div className="space-y-3">
           {requests.map(req => (
             <Card key={req.id} className="p-4">
-              {/* Confirmation suppression */}
-              {confirmDeleteId === req.id ? (
-                <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-3">
-                  <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                  <p className="text-sm text-red-700 flex-1 font-medium">Supprimer cette demande ?</p>
-                  <button
-                    onClick={() => handleDelete(req.id)}
-                    disabled={deleting}
-                    className="text-xs font-bold text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-60"
-                  >
-                    {deleting ? '...' : 'Supprimer'}
-                  </button>
-                  <button
-                    onClick={() => setConfirmDeleteId(null)}
-                    className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1.5 rounded-lg transition-colors"
-                  >
-                    Annuler
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-start gap-3">
-                    <Avatar
-                      src={(req.resident as { avatar_url?: string })?.avatar_url}
-                      name={(req.resident as { full_name?: string })?.full_name || 'Habitant'}
-                      size="sm"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-800 text-sm truncate">{req.title}</p>
-                      <p className="text-xs text-gray-500 mb-2">
-                        {(req.resident as { full_name?: string })?.full_name || 'Habitant'} · {formatRelative(req.created_at)}
-                      </p>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge
-                          variant={req.urgency === 'tres_urgent' ? 'danger' : req.urgency === 'urgent' ? 'warning' : 'default'}
-                          className="text-xs"
-                        >
-                          {URGENCY_LABELS[req.urgency]}
-                        </Badge>
-                        <Badge
-                          variant={
-                            req.status === 'completed' ? 'success' :
-                            req.status === 'cancelled' ? 'danger' :
-                            ['submitted', 'viewed'].includes(req.status) ? 'warning' : 'info'
-                          }
-                          className="text-xs"
-                        >
-                          {STATUS_LABELS[req.status]}
-                        </Badge>
-                      </div>
-                    </div>
-                    {/* Bouton supprimer */}
-                    <button
-                      onClick={() => setConfirmDeleteId(req.id)}
-                      title="Supprimer cette demande"
-                      className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
+              <div className="flex items-start gap-3">
+                <Avatar
+                  src={(req.resident as { avatar_url?: string })?.avatar_url}
+                  name={(req.resident as { full_name?: string })?.full_name || 'Habitant'}
+                  size="sm"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-800 text-sm truncate">{req.title}</p>
+                  <p className="text-xs text-gray-500 mb-2">
+                    {(req.resident as { full_name?: string })?.full_name || 'Habitant'} · {formatRelative(req.created_at)}
+                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge
+                      variant={req.urgency === 'tres_urgent' ? 'danger' : req.urgency === 'urgent' ? 'warning' : 'default'}
+                      className="text-xs"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      {URGENCY_LABELS[req.urgency]}
+                    </Badge>
+                    <Badge
+                      variant={req.status === 'completed' ? 'success' : req.status === 'cancelled' ? 'danger' :
+                        ['submitted', 'viewed'].includes(req.status) ? 'warning' : 'info'}
+                      className="text-xs"
+                    >
+                      {STATUS_LABELS[req.status]}
+                    </Badge>
+                  </div>
+                </div>
+                <Link href={`/demandes/${req.id}`} className="text-xs font-semibold text-brand-600 hover:underline">
+                  Voir
+                </Link>
+              </div>
+
+              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 flex-wrap">
+                <ContactButton
+                  sourceType="service_request"
+                  sourceId={req.id}
+                  sourceTitle={req.title}
+                  ownerId={req.resident_id}
+                  userId={userId}
+                  size="sm"
+                  variant="ghost"
+                  ctaLabel="Répondre"
+                />
+                <div className="ml-auto flex items-center gap-2 flex-wrap">
+                  {req.status === 'submitted' && (
+                    <button type="button" disabled={busyId !== null}
+                      onClick={() => changeStatus(req.id, 'viewed')}
+                      className="flex items-center gap-1 text-xs text-gray-600 hover:text-gray-800 disabled:opacity-50">
+                      <Eye className="w-3.5 h-3.5" /> Marquer vue
                     </button>
-                  </div>
-
-                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-                    <Link href="/messages" className="flex items-center gap-1 text-xs text-brand-600 hover:underline font-medium">
-                      <MessageSquare className="w-3.5 h-3.5" /> Répondre
-                    </Link>
-
-                    <div className="ml-auto flex items-center gap-2">
-                      {/* Vue → depuis submitted */}
-                      {req.status === 'submitted' && (
-                        <button
-                          onClick={() => onUpdateStatus(req.id, 'viewed')}
-                          className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
-                        >
-                          <Eye className="w-3.5 h-3.5" /> Marquer vue
-                        </button>
-                      )}
-                      {/* Planifier → depuis viewed ou replied */}
-                      {['viewed', 'replied'].includes(req.status) && (
-                        <button
-                          onClick={() => onUpdateStatus(req.id, 'scheduled')}
-                          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
-                        >
-                          <Calendar className="w-3.5 h-3.5" /> Planifier
-                        </button>
-                      )}
-                      {/* Terminer → depuis replied, scheduled ou viewed */}
-                      {['replied', 'scheduled', 'viewed'].includes(req.status) && (
-                        <button
-                          onClick={() => onUpdateStatus(req.id, 'completed')}
-                          className="flex items-center gap-1 text-xs text-green-600 hover:text-green-800 font-medium"
-                        >
-                          <CheckCircle className="w-3.5 h-3.5" /> Terminer
-                        </button>
-                      )}
-                      {/* Statut final */}
-                      {req.status === 'completed' && (
-                        <span className="flex items-center gap-1 text-xs text-green-600 font-semibold">
-                          <CheckCircle className="w-3.5 h-3.5" /> Terminée — avis débloqué
-                        </span>
-                      )}
-                      {req.status === 'cancelled' && (
-                        <span className="text-xs text-gray-400">Annulée</span>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
+                  )}
+                  {['viewed','replied'].includes(req.status) && (
+                    <button type="button" disabled={busyId !== null}
+                      onClick={() => changeStatus(req.id, 'scheduled')}
+                      className="flex items-center gap-1 text-xs text-blue-700 hover:text-blue-900 disabled:opacity-50">
+                      <Calendar className="w-3.5 h-3.5" /> Marquer planifiée
+                    </button>
+                  )}
+                  {['viewed','replied','scheduled'].includes(req.status) && (
+                    <span className="text-xs text-gray-500" title="Seul le résident peut confirmer la fin de la prestation et débloquer les avis.">
+                      Clôture à confirmer par le résident
+                    </span>
+                  )}
+                  {['submitted','viewed','replied','scheduled'].includes(req.status) && (
+                    <button type="button" disabled={busyId !== null}
+                      onClick={() => setPendingRejectionId(req.id)}
+                      className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800 disabled:opacity-50">
+                      <XCircle className="w-3.5 h-3.5" /> Refuser
+                    </button>
+                  )}
+                  {req.status === 'completed' && (
+                    <span className="flex items-center gap-1 text-xs text-green-700 font-semibold">
+                      <CheckCircle className="w-3.5 h-3.5" /> Terminée — avis débloqué
+                    </span>
+                  )}
+                  {req.status === 'cancelled' && <span className="text-xs text-gray-500">Refusée ou annulée</span>}
+                </div>
+              </div>
             </Card>
           ))}
         </div>

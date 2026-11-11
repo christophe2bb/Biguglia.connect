@@ -14,7 +14,7 @@ import Link from 'next/link';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
 import ProtectedPage from '@/components/providers/ProtectedPage';
-import { STATUS_LABELS, cn } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 // Lazy-load heavy panels (only fetched after initial render)
@@ -92,20 +92,32 @@ function ArtisanDashboardContent() {
         .select('id, status')
         .eq('artisan_id', ap.id);
 
-      // Avis reçus — système trust : target_user_id = profile.id de l'artisan
-      const { data: revs } = await supabase
-        .from('reviews')
-        .select('id, rating, comment, created_at, source_type, author:profiles!reviews_author_id_fkey(full_name, avatar_url)')
-        .eq('target_user_id', profile.id)
-        .eq('moderation_status', 'visible')
-        .order('created_at', { ascending: false })
-        .limit(5);
+      // Les avis visibles dans la fiche artisan sont enregistrés dans item_ratings.
+      // Les afficher aussi dans cet espace, plutôt que lire l'ancien tableau reviews.
+      const [{ data: revs, error: reviewsError }, { data: ratingRows, error: ratingStatsError }] = await Promise.all([
+        supabase
+          .from('item_ratings')
+          .select('id, rating, comment, created_at, reviewer:profiles!item_ratings_user_id_fkey(full_name, avatar_url)')
+          .eq('target_type', 'artisan')
+          .eq('target_id', ap.id)
+          .gte('rating', 1)
+          .order('created_at', { ascending: false })
+          .limit(5),
+        supabase
+          .from('item_ratings')
+          .select('rating')
+          .eq('target_type', 'artisan')
+          .eq('target_id', ap.id)
+          .gte('rating', 1),
+      ]);
+      if (reviewsError || ratingStatsError) {
+        console.warn('[ArtisanDashboard] avis indisponibles', reviewsError?.code, ratingStatsError?.code);
+      }
 
       setRequests((reqs as ServiceRequest[]) || []);
-      // Normaliser pour le ReviewsPanel qui attend review.reviewer
       const normalizedRevs = (revs || []).map((r: Record<string, unknown> & { rating: number }) => ({
         ...r,
-        reviewer: (r as unknown as { author: { full_name: string; avatar_url?: string } }).author,
+        reviewer: (r as unknown as { reviewer: { full_name: string; avatar_url?: string } }).reviewer,
       }));
       setReviews(normalizedRevs as unknown as Review[]);
 
@@ -114,8 +126,9 @@ function ArtisanDashboardContent() {
       const pendingRequests = allReqs?.filter((r: { status: string }) => ['submitted', 'viewed'].includes(r.status)).length || 0;
       // Terminées = completed uniquement
       const completedRequests = allReqs?.filter((r: { status: string }) => r.status === 'completed').length || 0;
-      const avgRating = revs?.length
-        ? revs.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / revs.length
+      const ratingCount = ratingRows?.length || 0;
+      const avgRating = ratingCount
+        ? (ratingRows || []).reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / ratingCount
         : 0;
 
       setStats({
@@ -123,7 +136,7 @@ function ArtisanDashboardContent() {
         pendingRequests,
         completedRequests,
         avgRating: Math.round(avgRating * 10) / 10,
-        reviewCount: revs?.length || 0,
+        reviewCount: ratingCount,
         totalViews: (ap as ArtisanProfile & { view_count?: number })?.view_count || 0,
       });
 
@@ -134,87 +147,53 @@ function ArtisanDashboardContent() {
   }, [profile, router]);
 
   const updateRequestStatus = async (requestId: string, newStatus: ServiceRequest['status']) => {
+    const previousReq = requests.find(r => r.id === requestId);
+    if (!previousReq || !artisanProfile || previousReq.status === newStatus) return;
+    // L'artisan ne peut pas se déclarer lui-même bénéficiaire d'un avis.
+    // Cette règle est également contrôlée en base par un trigger.
+    if (newStatus === 'completed') {
+      toast.error('La clôture doit être confirmée par le résident.');
+      return;
+    }
     const supabase = createClient();
-    const { error } = await supabase
+    // SELECT après UPDATE : une requête bloquée par les RLS peut modifier
+    // zéro ligne sans retourner d'erreur. Ne jamais afficher un faux succès.
+    const { data: updated, error } = await supabase
       .from('service_requests')
       .update({ status: newStatus })
-      .eq('id', requestId);
+      .eq('id', requestId)
+      .eq('artisan_id', artisanProfile.id)
+      .select('id, status')
+      .maybeSingle();
 
-    if (error) {
-      toast.error('Erreur lors de la mise à jour');
+    if (error || !updated) {
+      toast.error('Statut non enregistré. Vérifiez vos permissions et réessayez.');
       return;
     }
 
     setRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: newStatus } : r));
-
-    // Mettre à jour le compteur Terminées en temps réel
-    if (newStatus === 'completed') {
-      setStats(prev => ({ ...prev, completedRequests: prev.completedRequests + 1 }));
-    }
+    const wasPending = ['submitted', 'viewed'].includes(previousReq.status);
+    const isPending = ['submitted', 'viewed'].includes(newStatus);
+    setStats(prev => ({
+      ...prev,
+      // L'artisan ne peut plus clôturer : le compteur des dossiers terminés
+      // ne change que lorsqu'un résident confirme sa prestation.
+      completedRequests: prev.completedRequests,
+      pendingRequests: Math.max(0, prev.pendingRequests
+        + Number(isPending) - Number(wasPending)),
+    }));
 
     const labels: Record<string, string> = {
       viewed:    'Marquée comme vue',
       replied:   'Marquée comme répondue',
       scheduled: 'Intervention planifiée',
-      completed: 'Intervention terminée ✅',
+      cancelled: 'Demande refusée',
     };
     toast.success(labels[newStatus] || 'Statut mis à jour');
 
-    // Notifier le résident
-    const req = requests.find(r => r.id === requestId);
-    if (req) {
-      await supabase.from('notifications').insert({
-        user_id: req.resident_id,
-        type: 'request_update',
-        title: '📋 Demande mise à jour',
-        message: `Votre demande "${req.title}" est maintenant : ${STATUS_LABELS[newStatus]}`,
-        link: `/artisans/demande/${requestId}`,
-      });
-    }
-
-    // Quand l'intervention est terminée → créer/débloquer une trust_interaction
-    // pour que le résident puisse laisser un avis sur l'artisan
-    if (newStatus === 'completed' && req && artisanProfile) {
-      // Chercher une interaction existante pour cette service_request
-      const { data: existing } = await supabase
-        .from('trust_interactions')
-        .select('id')
-        .eq('source_type', 'service_request')
-        .eq('source_id', requestId)
-        .maybeSingle();
-
-      if (existing) {
-        // Mettre à jour l'interaction existante
-        await supabase.from('trust_interactions').update({
-          status: 'done',
-          review_unlocked: true,
-          completed_at: new Date().toISOString(),
-        }).eq('id', existing.id);
-      } else {
-        // Créer l'interaction depuis zéro
-        await supabase.from('trust_interactions').insert({
-          source_type:      'service_request',
-          source_id:        requestId,
-          requester_id:     req.resident_id,
-          receiver_id:      artisanProfile.user_id,
-          interaction_type: 'service_request',
-          status:           'done',
-          review_unlocked:  true,
-          review_requester_done: false,
-          review_receiver_done:  false,
-          completed_at:     new Date().toISOString(),
-        });
-      }
-
-      // Notifier le résident qu'il peut laisser un avis
-      await supabase.from('notifications').insert({
-        user_id: req.resident_id,
-        type:    'review_request',
-        title:   '⭐ Donnez votre avis !',
-        message: `L'intervention de ${artisanProfile.business_name} est terminée. Partagez votre expérience !`,
-        link:    '/dashboard/avis',
-      });
-    }
+    // Les notifications et l'ouverture des avis sont maintenant gérées dans
+    // Supabase par service_request_status_side_effects, APRÈS l'UPDATE réussi.
+    // Le navigateur ne tente plus des INSERT refusés par RLS pour autrui.
   };
 
   if (!profile || profile.role !== 'artisan_verified') return null;
@@ -319,14 +298,7 @@ function ArtisanDashboardContent() {
           loading={loading}
           pendingCount={stats.pendingRequests}
           onUpdateStatus={updateRequestStatus}
-          onDelete={(id) => {
-            setRequests(prev => prev.filter(r => r.id !== id));
-            setStats(prev => ({
-              ...prev,
-              totalRequests: Math.max(0, prev.totalRequests - 1),
-              pendingRequests: Math.max(0, prev.pendingRequests - 1),
-            }));
-          }}
+          userId={profile.id}
         />
 
         {/* Avis clients — lazy panel */}
