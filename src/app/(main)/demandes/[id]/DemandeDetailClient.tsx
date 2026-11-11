@@ -178,10 +178,12 @@ export default function DemandeDetailClient() {
   // ── Supprimer un commentaire ─────────────────────────────────────────────
   // ⚠️ Appelé APRÈS confirmation dans le dialog React (pas de confirm() bloquant).
   const doDeleteComment = async (comment: RequestComment) => {
-    if (!profile) return;
-    const isOwner = profile.id === comment.author_id;
+    if (!profile || !request) return;
+    const isCommentAuthor = profile.id === comment.author_id;
+    const isRequestOwner = profile.id === request.resident_id;
     const isAdmin = profile.role === 'admin' || profile.role === 'moderator';
-    if (!isOwner && !isAdmin) return;
+    // Même autorisation que le bouton et la politique RLS de Supabase.
+    if (!isCommentAuthor && !isRequestOwner && !isAdmin) return;
 
     const { data: deleted, error } = await supabase
       .from('request_comments')
@@ -615,7 +617,9 @@ export default function DemandeDetailClient() {
             <div className="px-6 py-5 border-t border-gray-100 text-center">
               <p className="text-gray-400 text-sm flex items-center justify-center gap-2">
                 <CheckCircle className="w-4 h-4 text-emerald-400" />
-                Cette demande a été résolue — les commentaires sont fermés.
+                {request.status === 'cancelled'
+                  ? 'Cette demande a été annulée — les commentaires sont fermés.'
+                  : 'Cette demande a été résolue — les commentaires sont fermés.'}
               </p>
             </div>
           )}
