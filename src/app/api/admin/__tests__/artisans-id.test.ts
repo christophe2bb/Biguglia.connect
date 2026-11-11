@@ -160,6 +160,19 @@ describe('PATCH /api/admin/artisans/[id]', () => {
     expect(res.status).toBe(200);
   });
 
+  it('503 si la validation du profil artisan échoue : jamais de faux succès', async () => {
+    const db = makeDb({
+      profiles: { update: () => ({ data: null, error: null }) },
+      artisan_profiles: { update: () => ({ data: null, error: { message: 'storage/db unavailable' } }) },
+    });
+    mockGuard.mockResolvedValue(makeAdminGuardOk('admin', db));
+    const res = await PATCH(patchReq({ action: 'approve' }), makeParams());
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.success).not.toBe(true);
+    expect(db.from).not.toHaveBeenCalledWith('notifications');
+  });
+
   it('500 si DB update profiles échoue sur approve', async () => {
     const db = makeDb({
       profiles: { update: () => ({ data: null, error: { message: 'constraint' } }) },
@@ -184,12 +197,23 @@ describe('PATCH /api/admin/artisans/[id]', () => {
     expect(db.from).toHaveBeenCalledWith('notifications');
   });
 
-  it('500 si DB update profiles échoue sur reject', async () => {
+  it('503 si le refus ne peut pas masquer la fiche artisan', async () => {
+    const db = makeDb({
+      artisan_profiles: { update: () => ({ data: null, error: { message: 'db denied' } }) },
+    });
+    mockGuard.mockResolvedValue(makeAdminGuardOk('admin', db));
+    const res = await PATCH(patchReq({ action: 'reject', reason: REASON_OK }), makeParams());
+    expect(res.status).toBe(503);
+    expect(db.from).not.toHaveBeenCalledWith('profiles');
+    expect(db.from).not.toHaveBeenCalledWith('notifications');
+  });
+
+  it('503 si DB update profiles échoue sur reject', async () => {
     const db = makeDb({
       profiles: { update: () => ({ data: null, error: { message: 'db error' } }) },
     });
     mockGuard.mockResolvedValue(makeAdminGuardOk('admin', db));
     const res = await PATCH(patchReq({ action: 'reject', reason: REASON_OK }), makeParams());
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(503);
   });
 });
