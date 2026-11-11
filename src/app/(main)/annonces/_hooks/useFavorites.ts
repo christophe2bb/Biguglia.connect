@@ -11,6 +11,12 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 
 const LS_KEY = 'annonces_favorites';
+const FAVORITES_EVENT = 'biguglia:listing-favorite-change';
+function notifyFavorite(id: string, saved: boolean) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(FAVORITES_EVENT, { detail: { id, saved } }));
+  }
+}
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function lsRead(): string[] {
@@ -35,6 +41,23 @@ export function useFavorites(): UseFavoritesReturn {
   const userId = phase === 'authenticated' ? (profile?.id ?? null) : null;
   const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set(lsRead()));
   const inFlight = useRef<Set<string>>(new Set());
+
+  // La fiche SSR monte plusieurs instances d'AnnonceActions (topbar,
+  // sidebar et barre mobile). Synchroniser leur état lors d'un clic.
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ id?: string; saved?: boolean }>).detail;
+      if (!detail?.id || !UUID.test(detail.id) || typeof detail.saved !== 'boolean') return;
+      setSavedIds(prev => {
+        const next = new Set(prev);
+        if (detail.saved) next.add(detail.id);
+        else next.delete(detail.id);
+        return next;
+      });
+    };
+    window.addEventListener(FAVORITES_EVENT, handler);
+    return () => window.removeEventListener(FAVORITES_EVENT, handler);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -94,6 +117,7 @@ export function useFavorites(): UseFavoritesReturn {
         lsWrite(Array.from(next));
         return next;
       });
+      notifyFavorite(id, !currentlySaved);
       toast(currentlySaved ? 'Retirée des favoris de cet appareil' : 'Ajoutée aux favoris de cet appareil', {
         icon: currentlySaved ? '💔' : '❤️',
       });
@@ -119,6 +143,7 @@ export function useFavorites(): UseFavoritesReturn {
         if (currentlySaved) next.delete(id); else next.add(id);
         return next;
       });
+      notifyFavorite(id, !currentlySaved);
       toast.success(currentlySaved ? 'Annonce retirée des favoris' : 'Annonce enregistrée en favoris');
     } catch {
       toast.error('Erreur réseau : le favori n’a pas été modifié.');
