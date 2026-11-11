@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Loader2, Clock, AlertCircle, Flame, MapPin,
   Calendar, MessageSquare, Send, Wrench, CheckCircle,
-  Trash2, User, Pencil,
+  Trash2, User, Pencil, XCircle,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import Modal from '@/components/ui/Modal';
@@ -91,6 +91,8 @@ export default function DemandeDetailClient() {
   // ── Dialog state (remplace window.confirm() bloquant) ────────────────────
   const [confirmDeleteRequest, setConfirmDeleteRequest]   = useState(false);
   const [confirmResolve,       setConfirmResolve]         = useState(false);
+  const [confirmCancel,        setConfirmCancel]          = useState(false);
+  const [changingStatus,       setChangingStatus]         = useState(false);
   const [pendingDeleteComment, setPendingDeleteComment]   = useState<RequestComment | null>(null);
 
   // ── Charger la demande ──────────────────────────────────────────────────
@@ -264,6 +266,34 @@ export default function DemandeDetailClient() {
     }
   };
 
+  // ── Annuler sa demande sans la supprimer (conserve l'historique) ──────
+  const doCancelRequest = async () => {
+    if (!request || !profile || changingStatus || profile.id !== request.resident_id) return;
+    if (request.status === 'completed' || request.status === 'cancelled') return;
+    setChangingStatus(true);
+    try {
+      const { data: updated, error } = await supabase
+        .from('service_requests')
+        .update({ status: 'cancelled' })
+        .eq('id', id)
+        .eq('resident_id', profile.id)
+        .eq('status', request.status)
+        .select('id, status')
+        .maybeSingle();
+      if (error || !updated) {
+        toast.error('Annulation non confirmée. Actualisez la demande et réessayez.');
+        return;
+      }
+      toast.success('Demande annulée. Son historique reste consultable.');
+      await fetchRequest();
+    } catch (error) {
+      console.warn('[Demande] annulation interrompue', error);
+      toast.error('Erreur réseau : annulation non confirmée.');
+    } finally {
+      setChangingStatus(false);
+    }
+  };
+
   // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -330,6 +360,31 @@ export default function DemandeDetailClient() {
             <button type="button" onClick={() => { setConfirmResolve(false); doMarkResolved(); }}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors">
               <CheckCircle className="w-4 h-4" /> Confirmer
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={confirmCancel} onClose={() => { if (!changingStatus) setConfirmCancel(false); }} size="sm">
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
+            <XCircle className="h-6 w-6 text-amber-700" />
+          </div>
+          <h3 className="text-base font-bold text-gray-900 mb-2">Annuler cette demande ?</h3>
+          <p className="text-sm text-gray-500 mb-6">
+            Elle ne recevra plus de nouvelles réponses. Son historique restera consultable.
+          </p>
+          <div className="flex gap-3">
+            <button type="button" onClick={() => setConfirmCancel(false)}
+              disabled={changingStatus}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold disabled:opacity-50">
+              Retour
+            </button>
+            <button type="button"
+              onClick={() => { setConfirmCancel(false); void doCancelRequest(); }}
+              disabled={changingStatus}
+              className="flex-1 px-4 py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50">
+              Confirmer l’annulation
             </button>
           </div>
         </div>
@@ -446,6 +501,13 @@ export default function DemandeDetailClient() {
                     <button onClick={() => setConfirmResolve(true)}
                       className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl hover:bg-emerald-100 transition-colors">
                       <CheckCircle className="w-4 h-4" /> Marquer résolue
+                    </button>
+
+                    {/* Annuler sans effacer l'historique */}
+                    <button type="button" onClick={() => setConfirmCancel(true)}
+                      disabled={changingStatus}
+                      className="inline-flex items-center gap-1.5 text-sm font-bold text-amber-700 bg-amber-50 border border-amber-200 px-4 py-2 rounded-xl hover:bg-amber-100 transition-colors disabled:opacity-50">
+                      <XCircle className="w-4 h-4" /> Annuler la demande
                     </button>
 
                     {/* Supprimer */}
