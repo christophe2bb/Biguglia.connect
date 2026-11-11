@@ -12,7 +12,8 @@ import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Select from '@/components/ui/Select';
 import SectorFilter from '@/components/ui/SectorFilter';
-import { safeImageExt, uploadFile, isAcceptedImageType, ACCEPTED_IMAGE_TYPES, MAX_PHOTO_MB } from '@/lib/upload-utils';
+import { safeImageExt, safeStoragePath, uploadFile, isAcceptedImageType, ACCEPTED_IMAGE_TYPES, MAX_PHOTO_MB } from '@/lib/upload-utils';
+import { deletePhotoFiles } from '@/lib/delete-photo-files';
 
 function DemandeServiceForm() {
   const searchParams = useSearchParams();
@@ -204,7 +205,29 @@ function DemandeServiceForm() {
       const { error: photoLinkError } = await supabase.from('service_request_photos').insert(
         photoUrls.map(url => ({ request_id: request.id, url }))
       );
-      if (photoLinkError) toast.error('Pièces jointes envoyées, mais liaison aux demandes impossible.', { duration: 6000 });
+      if (photoLinkError) {
+        // L'insertion des métadonnées est atomique : si elle échoue, les
+        // fichiers déjà transférés ne doivent pas rester publics et orphelins.
+        console.warn('[DemandeService] liaison des photos refusée', photoLinkError.code);
+        const storagePaths = photoUrls
+          .map(url => safeStoragePath(url, 'photos'))
+          .filter((path): path is string => !!path && path.startsWith(`requests/${request.id}/`));
+        let cleaned = false;
+        if (storagePaths.length === photoUrls.length) {
+          try {
+            await deletePhotoFiles(storagePaths);
+            cleaned = true;
+          } catch (cleanupError) {
+            console.warn('[DemandeService] nettoyage des photos orphelines à reprendre', cleanupError);
+          }
+        }
+        toast.error(
+          cleaned
+            ? 'Demande enregistrée sans photos : les fichiers non associés ont été retirés.'
+            : 'Demande enregistrée sans photos : certains fichiers importés nécessitent un nettoyage.',
+          { duration: 7000 },
+        );
+      }
     }
 
     // Créer une conversation privée avec l'artisan via l'API admin (contourne RLS récursive)
