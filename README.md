@@ -103,25 +103,23 @@ SENTRY_PROJECT=votre-project-slug
 
 ## Base de données (Supabase)
 
-### Source canonique des migrations
+### Migrations Supabase : vérifier avant d'exécuter
 
-**`supabase/migrations/`** est la seule source de vérité.  
-Exécuter dans l'ordre dans Supabase → SQL Editor :
+Les migrations sont versionnées dans `supabase/migrations/`, mais la liste
+ci-dessous ne représente **ni l'historique réel du projet hébergé**, ni une
+procédure fiable de création d'une base vierge.
 
-| # | Fichier | Description |
-|---|---------|-------------|
-| 1 | `20260407_baseline_rls_indexes.sql` | Index FK, performances, RLS corrigée |
-| 2 | `20260408_fixes_rls_categories.sql` | Fix RLS forum, emploi, tables catégories |
-| 3 | `20260409_emploi_local.sql` | Module Emploi Local |
-| 4 | `20260411_events_cdc_fields.sql` | Événements — champs CDC |
-| 5 | `20260411_associations_cdc.sql` | Associations |
-| 6 | `20260411_group_outings_enriched.sql` | Sorties — outing_photos, comments |
-| 7 | `20260411_help_requests_cdc.sql` | Coups de main |
-| 8 | `20260411_lost_found_cdc.sql` | Perdu/Trouvé |
-| 9 | `20260411_annonces_cdc.sql` | Petites Annonces |
-| 10 | `20260506_rls_moderation_kpi.sql` | RLS vue moderation_kpi (admin only) |
+Avant toute migration : identifier le projet cible, comparer son historique
+(`supabase_migrations.schema_migrations`) et les objets SQL existants, examiner
+les préconditions et les politiques RLS touchées, puis utiliser un environnement
+de test. **Ne jamais rejouer toutes les migrations en production à l'aveugle.**
 
-> Pour déployer sur une nouvelle instance Supabase, commencer par `docs/db/schema.sql` (snapshot initial) puis appliquer les migrations dans l'ordre.
+Le snapshot `docs/db/schema.sql` est ancien et incomplet pour un bootstrap
+automatique : trois essais de reconstruction ont échoué le 11 novembre 2026
+sur des tables manquantes. Voir [l'incident n° 579](https://github.com/christophe2bb/Biguglia.connect/issues/579)
+et `docs/DEPLOY.md`.
+
+Le compte Vercel et le compte Supabase ont leurs abonnements indépendants.
 
 ### Audit RLS
 

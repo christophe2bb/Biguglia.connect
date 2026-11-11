@@ -3,13 +3,16 @@
 ## Organisation
 
 Toutes les migrations sont dans `supabase/migrations/` au format `YYYYMMDD_description.sql`.
-Elles sont **idempotentes** (utilisent `IF NOT EXISTS` / `IF EXISTS`) et peuvent être
-relancées sans risque.
+Leur présence dans GitHub ne prouve pas leur application sur un projet donné.
+**Ne pas les rejouer en bloc : plusieurs fichiers supposent des tables préexistantes
+ou modifient/suppriment des politiques RLS.** Contrôler l'historique Supabase,
+les dépendances et les effets de chaque migration avant exécution.
 
 ## Politique RLS (Row Level Security)
 
 **RLS activé sur toutes les tables** contenant des données utilisateur.
-100 policies versionnées dans 20 fichiers de migration (sur 33 fichiers au total — les autres ajoutent des colonnes, index ou corrections de schéma).
+Les politiques ont évolué : utiliser l'inventaire et les audits de la base cible
+plutôt que des nombres historiques de fichiers ou de politiques.
 
 ### Principes appliqués
 
@@ -41,12 +44,16 @@ relancées sans risque.
 
 Voir `docs/DEPLOY.md` pour la procédure complète d'exécution dans Supabase SQL Editor.
 
-**Ordre obligatoire** : les fichiers sont préfixés par date (`YYYYMMDD`) — trier par nom = ordre correct.
+**Attention : l'ordre alphabétique n'est pas un bootstrap valide sur une base vierge.**
+Les essais GitHub Actions du 11/11/2026 ont échoué sur des dépendances de tables
+(`appointments`, `asso_comments`, `job_demands`) absentes au moment des migrations.
+Voir l'[incident de reconstruction](https://github.com/christophe2bb/Biguglia.connect/issues/579).
+Ne pas corriger l'historique des migrations déjà appliquées en production.
 
 ## Ajouter une migration
 
 1. Créer un fichier `supabase/migrations/YYYYMMDD_description.sql`
-2. Utiliser `IF NOT EXISTS` / `IF EXISTS` pour l'idempotence
+2. Vérifier les dépendances, les effets et le comportement lors d'une relance (un `IF EXISTS` ne garantit pas la sécurité)
 3. Documenter le contexte en commentaire en tête de fichier
 4. Ajouter l'entrée dans `docs/DEPLOY.md` (tableau des migrations)
 5. Tester en staging avant production
@@ -72,7 +79,8 @@ ORDER BY tablename;
 
 ## Backup et restauration
 
-Les backups automatiques sont gérés par Supabase (tier Pro : PITR sur 7 jours).
+La politique de sauvegarde dépend du **plan Supabase** et de ses options activées.
+Ne pas la déduire du plan Vercel ; vérifier la sauvegarde et la restauration sur le projet Supabase.
 Pour un export manuel du schéma :
 
 ```bash

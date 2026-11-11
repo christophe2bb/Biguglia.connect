@@ -1,74 +1,30 @@
 # Guide de déploiement — Biguglia Connect
 
-## 🗄️ Étape 1 : Créer les tables Supabase
+## 🗄️ Étape 1 : vérifier la base Supabase cible
 
-Exécuter les migrations dans l'ordre dans **Supabase → SQL Editor** :
+**Ne pas exécuter les anciens tableaux de migrations comme un script d'installation.**
+La présence d'un fichier SQL dans `supabase/migrations/` n'établit pas
+qu'il a été appliqué, qu'il est idempotent, ni que ses dépendances existent.
 
-| # | Fichier | Description |
-|---|---------|-------------|
-| 1 | `supabase/migrations/20260407_baseline_rls_indexes.sql` | Index FK, performances, RLS corrigée |
-| 2 | `supabase/migrations/20260408_fixes_rls_categories.sql` | Fix RLS forum, emploi, catégories |
-| 3 | `supabase/migrations/20260409_emploi_local.sql` | Module Emploi Local |
-| 4 | `supabase/migrations/20260411_events_cdc_fields.sql` | Évènements CDC |
-| 5 | `supabase/migrations/20260411_associations_cdc.sql` | Associations CDC |
-| 6 | `supabase/migrations/20260411_group_outings_enriched.sql` | Sorties enrichies |
-| 7 | `supabase/migrations/20260411_help_requests_cdc.sql` | Module Coups de main |
-| 8 | `supabase/migrations/20260411_lost_found_cdc.sql` | Module Perdu / Trouvé |
-| 9 | `supabase/migrations/20260411_annonces_cdc.sql` | Module Petites Annonces CDC |
-| 10 | `supabase/migrations/20260412_conversations_unique.sql` | Anti-duplication conversations |
-| 11 | `supabase/migrations/20260413_listings_all_missing_columns.sql` | Colonnes manquantes table listings (consolidé) |
-| 12 | `supabase/migrations/20260413_listings_optional_columns.sql` | Colonnes optionnelles manquantes listings |
-| 13 | `supabase/migrations/20260413_moderation_queue_fix.sql` | Correction colonnes manquantes moderation_queue |
-| 14 | `supabase/migrations/20260414_admin_full_fix.sql` | Fix complet Admin + Listings + Profiles RLS |
-| 15 | `supabase/migrations/20260414_profiles_rls_fix.sql` | Correction RLS profiles |
-| 16 | `supabase/migrations/20260416_event_comments_delete_policy.sql` | Politique DELETE commentaires événements |
-| 17 | `supabase/migrations/20260416_help_participants_rls.sql` | RLS participants coups de main |
-| 18 | `supabase/migrations/20260416_help_status_history_rls.sql` | RLS historique statuts coups de main |
-| 19 | `supabase/migrations/20260416_job_demands_rls_normalize.sql` | Normalisation RLS demandes emploi |
-| 20 | `supabase/migrations/20260416_lf_matches_rls.sql` | RLS correspondances perdu/trouvé |
-| 21 | `supabase/migrations/20260416_listing_status_history_rls.sql` | RLS historique statuts annonces |
-| 22 | `supabase/migrations/20260416_profiles_rls_final.sql` | RLS profiles — version finale |
-| 23 | `supabase/migrations/20260416_profiles_rls_hardening.sql` | Durcissement RLS profiles |
-| 24 | `supabase/migrations/20260416_rls_security_audit_fixes.sql` | Corrections audit sécurité RLS |
-| 25 | `supabase/migrations/20260417_fix_admin_access.sql` | Correction accès admin |
-| 26 | `supabase/migrations/20260417_rls_close_open_policies.sql` | Fermeture policies RLS ouvertes |
-| 27 | `supabase/migrations/20260417_rls_fix_real_issues.sql` | Correction problèmes RLS réels |
-| 28 | `supabase/migrations/20260418_perf_indexes.sql` | Index de performance |
-| 29 | `supabase/migrations/20260421_cleanup_duplicate_policies.sql` | Nettoyage policies RLS dupliquées |
-| 30 | `supabase/migrations/20260421_unindexed_fk.sql` | Index sur clés étrangères non couvertes |
-| 31 | `supabase/migrations/20260422_service_requests_sector_id.sql` | Ajout colonne `sector_id` sur `service_requests` |
-| 32 | `supabase/migrations/20260423_listings_delete_rls_fix.sql` | ⚠️ **CRITIQUE** — **Remplace toutes les policies DELETE existantes** sur `listings` puis recrée une policy canonique unique (`listings_delete_owner_or_admin`). Corrige les suppressions silencieuses dues à une policy absente ou en doublon. |
-| 33 | `supabase/migrations/20260423_service_requests_delete_rls.sql` | ⚠️ **CRITIQUE** — Policy RLS DELETE manquante sur `service_requests` et `request_comments` : idem + policy UPDATE auteur/artisan |
+1. Identifier l'environnement exact (production, recette ou développement).
+2. Consulter `supabase_migrations.schema_migrations` et l'inventaire des tables,
+   fonctions, déclencheurs, buckets et politiques RLS réellement présents.
+3. Évaluer les dépendances et effets des **nouvelles** migrations, en particulier
+   `DROP POLICY`, fonctions `SECURITY DEFINER` et changements de privilèges.
+4. Vérifier les sauvegardes et disposer d'un plan de restauration avant toute
+   opération de production.
+5. Appliquer uniquement les migrations nécessaires après tests et approbation.
 
-> **Ordre d'exécution obligatoire** : respecter impérativement le numéro `#` du tableau.
-> Les noms de fichiers commencent par une date (`YYYYMMDD`) : trier par nom = trier par ordre correct.
-> Ne pas exécuter plusieurs fichiers d'une même date dans un ordre arbitraire.
->
-> **Dépendances critiques** :
-> - `#11` (`20260413_listings_all_missing_columns`) et `#12` (`20260413_listings_optional_columns`)
->   **doivent être exécutées avant** `#14` (`20260414_admin_full_fix`) — ce dernier référence
->   des colonnes (`listing_type` enum étendu, `is_negotiable`, etc.) créées par les deux précédentes.
->   Exécuter `#14` seul sur une base vierge produira une erreur `column does not exist`.
-> - `#32` et `#33` (**migrations 20260423**) corrigent des **suppressions silencieuses dues à RLS** :
->   sans ces migrations, un DELETE sur `listings` ou `service_requests` retourne `0 lignes supprimées`
->   **sans erreur visible** — l'UI semble fonctionner mais l'enregistrement reste en base.
->   **Ne pas déployer l'application sans avoir appliqué `#32` et `#33`.**
-> - `#32` est **destructive par conception** : elle supprime *toutes* les policies DELETE existantes
->   sur `listings` avant de recréer une policy unique canonique. Les noms historiques ciblés sont
->   `listings_delete` et `listings_delete_own` (baseline #1). Si une policy DELETE personnalisée
->   avait été ajoutée manuellement entre #1 et #32, elle sera supprimée — vérifier l'absence de
->   policies DELETE inattendues dans Supabase → Authentication → Policies avant d'exécuter.
-> - Plus généralement, chaque migration suppose que toutes les précédentes ont réussi.
->
-> **Idempotence** : tous les fichiers utilisent `IF NOT EXISTS` / `IF EXISTS` — ils peuvent être
-> relancés sans risque si une exécution précédente a échoué à mi-chemin.
->
-> Pour chaque fichier : copier le contenu → coller dans SQL Editor → cliquer **Run** → vérifier "Success. No rows returned."
+**Blocage connu, vérifié le 11 novembre 2026 :** une base vierge ne se
+reconstruit pas directement depuis le snapshot historique suivi des migrations.
+Les trois essais ont rencontré des tables manquantes :
+`appointments`, `asso_comments` et `job_demands`.
+Suivre [l'incident n° 579](https://github.com/christophe2bb/Biguglia.connect/issues/579).
+Ne jamais déplacer/réappliquer des migrations historiques sur la base en ligne
+pour contourner ce blocage.
 
-### Schéma de référence
-
-Pour créer la base depuis zéro, utiliser `docs/db/schema.sql` (snapshot initial).
-Les migrations ci-dessus **s'appliquent par-dessus** ce schéma.
+Les abonnements **Vercel Pro** et **Supabase Pro** sont indépendants ;
+l'un n'active pas les branches de développement de l'autre.
 
 ---
 
