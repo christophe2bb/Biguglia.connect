@@ -21,6 +21,7 @@ const DeleteSchema = z.object({
 
 const ENTITY_RULES: Record<string, { table: string; ownerColumn: string }> = {
   listings: { table: 'listings', ownerColumn: 'user_id' },
+  requests: { table: 'service_requests', ownerColumn: 'resident_id' },
   forum: { table: 'forum_topics', ownerColumn: 'author_id' },
   equipment: { table: 'equipment_items', ownerColumn: 'owner_id' },
 };
