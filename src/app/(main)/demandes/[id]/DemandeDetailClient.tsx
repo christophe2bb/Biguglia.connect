@@ -245,24 +245,30 @@ export default function DemandeDetailClient() {
   // ── Marquer comme résolue ─────────────────────────────────────────────────
   // ⚠️ Appelé APRÈS confirmation dans le dialog React (pas de confirm() bloquant).
   const doMarkResolved = async () => {
-    if (!request || !profile || profile.id !== request.resident_id) return;
-
-    const { data: updated, error } = await supabase
-      .from('service_requests')
-      .update({ status: 'completed' })
-      .eq('id', id)
-      .eq('resident_id', profile.id)
-      .select('id');
-
-    if (error) {
-      console.error('[doMarkResolved] Supabase error:', error);
-      toast.error(`Erreur : ${error.message}`);
-    } else if (!updated || updated.length === 0) {
-      console.warn('[doMarkResolved] 0 rows updated — RLS UPDATE policy may be missing');
-      toast.error('Mise à jour bloquée — politique de sécurité (migration RLS requise).');
-    } else {
+    if (!request || !profile || changingStatus || profile.id !== request.resident_id) return;
+    if (request.status === 'completed' || request.status === 'cancelled') return;
+    setChangingStatus(true);
+    try {
+      const { data: updated, error } = await supabase
+        .from('service_requests')
+        .update({ status: 'completed' })
+        .eq('id', id)
+        .eq('resident_id', profile.id)
+        // Ne pas écraser un changement intervenu depuis l'ouverture de la page.
+        .eq('status', request.status)
+        .select('id, status')
+        .maybeSingle();
+      if (error || !updated) {
+        toast.error('Clôture non confirmée. Actualisez la demande avant de réessayer.');
+        return;
+      }
       toast.success('✅ Demande marquée comme résolue !', { duration: 4000 });
-      fetchRequest();
+      await fetchRequest();
+    } catch (error) {
+      console.warn('[Demande] clôture réseau interrompue', error);
+      toast.error('Erreur réseau : clôture non confirmée.');
+    } finally {
+      setChangingStatus(false);
     }
   };
 
@@ -498,8 +504,9 @@ export default function DemandeDetailClient() {
                     </Link>
 
                     {/* Marquer résolue */}
-                    <button onClick={() => setConfirmResolve(true)}
-                      className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl hover:bg-emerald-100 transition-colors">
+                    <button type="button" onClick={() => setConfirmResolve(true)}
+                      disabled={changingStatus}
+                      className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl hover:bg-emerald-100 transition-colors disabled:opacity-50">
                       <CheckCircle className="w-4 h-4" /> Marquer résolue
                     </button>
 
