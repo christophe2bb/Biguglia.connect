@@ -7,19 +7,10 @@ import { useAuthStore } from '@/lib/auth-store';
 import { toPhotoItems } from '@/components/ui/photo-utils';
 import { safeStoragePath } from '@/lib/upload-utils';
 import { deletePhotoFiles } from '@/lib/delete-photo-files';
+import { useFavorites } from '../../_hooks/useFavorites';
 import toast from 'react-hot-toast';
 import { Listing } from '@/types';
 import type { ExtListing, ShareMethod, AuthorProfile } from '../_types';
-
-const LS_KEY = 'annonces_favorites';
-
-// ── localStorage helpers (fallback non connecté) ─────────────────────────────
-function lsRead(): string[] {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) ?? '[]'); } catch { return []; }
-}
-function lsWrite(ids: string[]) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(ids)); } catch { /* ignore */ }
-}
 
 export type UseAnnonceDetailReturn = {
   listing: ExtListing | null;
@@ -49,6 +40,7 @@ export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
   const supabase = supabaseRef.current;
   // userId depuis Zustand (mémoire, 0ms — pas d'appel réseau dans les handlers)
   const { userId } = useAuthStore();
+  const { savedIds, toggleSave: toggleFavorite } = useFavorites();
 
   const [listing,           setListing]           = useState<ExtListing | null>(null);
   const [similar,           setSimilar]           = useState<Listing[]>([]);
@@ -56,32 +48,13 @@ export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
   const [notFound,          setNotFound]          = useState(false);
   const [deleting,          setDeleting]          = useState(false);
   const [currentStatus,     setCurrentStatus]     = useState<string>('active');
-  const [isSaved,           setIsSaved]           = useState(false);
+  const isSaved = savedIds.has(id);
   const [showSharePanel,    setShowSharePanel]    = useState(false);
   // État du dialog de confirmation suppression (remplace window.confirm())
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const openDeleteConfirm  = useCallback(() => setConfirmDeleteOpen(true),  []);
   const closeDeleteConfirm = useCallback(() => setConfirmDeleteOpen(false), []);
-
-  // ── Load saved state — Supabase si connecté, localStorage sinon ────────────
-  useEffect(() => {
-    if (!id) return;
-    if (userId) {
-      // Connecté : vérifier en base
-      supabase
-        .from('user_favorites')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('target_id', id)
-        .eq('target_type', 'listing')
-        .maybeSingle()
-        .then(({ data }: { data: unknown }) => setIsSaved(!!data));
-    } else {
-      // Non connecté : localStorage
-      setIsSaved(lsRead().includes(id));
-    }
-  }, [id, userId, supabase]);
 
   // ── Fetch listing + author + similar ────────────────────────────────────────
   useEffect(() => {
@@ -137,44 +110,16 @@ export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
         setSimilar((simData as Listing[]) || []);
       }
 
-      // Increment view counter (fire-and-forget)
-      if (data.views_count !== undefined) {
-        supabase
-          .from('listings')
-          .update({ views_count: (data.views_count || 0) + 1 })
-          .eq('id', id)
-          .then(() => { /* ignore */ });
-      }
+      // Le compteur de vues doit être incrémenté par un endpoint serveur dédié.
+      // Un UPDATE direct depuis un visiteur contournerait les règles métier,
+      // et échoue silencieusement sous RLS pour les non-propriétaires.
     })();
   }, [id, supabase]);
 
-  // ── toggleSave — Supabase si connecté, localStorage sinon ──────────────────
+  // ── Favoris : utiliser le même flux vérifié que le catalogue ──────────────
   const toggleSave = useCallback(() => {
-    if (!id) return;
-    setIsSaved(prev => {
-      const next = !prev;
-      toast(next ? 'Annonce sauvegardée en favoris !' : 'Retirée des favoris', {
-        icon: next ? '❤️' : '💔',
-      });
-      if (userId) {
-        // Connecté → Supabase (fire-and-forget)
-        if (next) {
-          supabase.from('user_favorites').insert({
-            user_id: userId, target_id: id, target_type: 'listing',
-          }).then(() => { /* ignore */ });
-        } else {
-          supabase.from('user_favorites').delete()
-            .eq('user_id', userId).eq('target_id', id).eq('target_type', 'listing')
-            .then(() => { /* ignore */ });
-        }
-      } else {
-        // Non connecté → localStorage
-        const list = lsRead();
-        lsWrite(next ? [...list, id] : list.filter(s => s !== id));
-      }
-      return next;
-    });
-  }, [id, userId, supabase]);
+    void toggleFavorite(id);
+  }, [id, toggleFavorite]);
 
   // ── handleDelete ─────────────────────────────────────────────────────────────
   // ⚠️ Appelé APRÈS confirmation dans le dialog React (pas de confirm() bloquant ici).
@@ -202,21 +147,19 @@ export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
       });
     }
 
-    // 1. Supprimer les photos du storage (ne pas bloquer sur erreur)
-    const photos = listing.photos as Array<{ id: string; url: string }> | undefined;
-    if (photos?.length) {
-      const paths = photos
-        .map(p => safeStoragePath(p.url, 'photos'))
-        .filter(Boolean) as string[];
-      if (paths.length) {
-        await deletePhotoFiles(paths).catch(() => console.warn('[handleDelete] nettoyage photo incomplet'));
-      }
-      await supabase.from('listing_photos').delete().eq('listing_id', listing.id);
+    // La FK listing_photos -> listings est ON DELETE CASCADE.
+    // Supprimer l'annonce en premier : si l'opération RLS échoue, on ne touche
+    // ni aux photos Storage ni aux métadonnées, évitant une perte irréversible.
+    if (userId !== listing.user_id) {
+      toast.error('Seul le propriétaire peut supprimer cette annonce.');
+      setDeleting(false);
+      return;
     }
+    const photoPaths = ((listing.photos || []) as Array<{ url: string }>)
+      .map(p => safeStoragePath(p.url, 'photos'))
+      .filter((path): path is string => Boolean(path));
 
-    // 2. Supprimer l'annonce — eq('id') UNIQUEMENT, la RLS se charge du user_id
-    // Ne pas ajouter eq('user_id') : si la RLS est misconfigurée elle retourne
-    // 0 lignes même pour le propriétaire. On laisse la RLS faire son travail.
+    // 1. Supprimer la ligne (et les listing_photos par cascade).
     const { data: deleted, error } = await supabase
       .from('listings')
       .delete()
@@ -247,7 +190,15 @@ export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
       return;
     }
 
-    toast.success('Annonce supprimée ✅');
+    // 2. Nettoyer le stockage SEULEMENT après la suppression confirmée.
+    if (photoPaths.length) {
+      try {
+        await deletePhotoFiles(photoPaths);
+      } catch {
+        console.warn('[annonces] nettoyage du stockage incomplet après suppression');
+      }
+    }
+    toast.success('Annonce supprimée');
     router.replace('/annonces');
     router.refresh();
   }, [listing, userId, router, supabase]);
@@ -255,14 +206,18 @@ export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
   // ── handleStatusChange ───────────────────────────────────────────────────────
   const handleStatusChange = useCallback(async (newStatus: string) => {
     if (!listing) return;
-    const { error } = await supabase
+    if (!userId || userId !== listing.user_id) throw new Error('Action réservée au propriétaire');
+    const { data, error } = await supabase
       .from('listings')
       .update({ status: newStatus, updated_at: new Date().toISOString() })
-      .eq('id', listing.id);
-    if (error) throw error;
+      .eq('id', listing.id)
+      .eq('user_id', userId)
+      .select('id, status')
+      .maybeSingle();
+    if (error || !data) throw new Error('Le changement de statut n’a pas été enregistré.');
     setCurrentStatus(newStatus);
     setListing(prev => prev ? { ...prev, status: newStatus as ExtListing['status'] } : prev);
-  }, [listing, supabase]);
+  }, [listing, userId, supabase]);
 
   // ── handleShare ──────────────────────────────────────────────────────────────
   const handleShare = useCallback(async (method: ShareMethod) => {
@@ -284,9 +239,13 @@ export function useAnnonceDetail(id: string): UseAnnonceDetailReturn {
       return;
     }
     // copy
-    navigator.clipboard.writeText(shareUrl);
-    toast.success('Lien copié !');
-    setShowSharePanel(false);
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success('Lien copié !');
+      setShowSharePanel(false);
+    } catch {
+      toast.error('Impossible de copier le lien. Vérifiez les autorisations du navigateur.');
+    }
   }, [listing]);
 
   // ── Derived ──────────────────────────────────────────────────────────────────

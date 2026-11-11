@@ -1,9 +1,8 @@
 'use client';
 
-import { Clock, AlertTriangle } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { Clock } from 'lucide-react';
+import ReportButton from '@/components/ui/ReportButton';
 import { formatDate } from '@/lib/utils';
-import toast from 'react-hot-toast';
 import { SellerCard }       from './SellerCard';
 import { SellerReputation } from './SellerReputation';
 import type { ExtListing } from '../_types';
@@ -27,20 +26,6 @@ export function ListingSidebar({
     ? new Date(listing.expires_at) < new Date()
     : false;
 
-  const handleReport = async () => {
-    if (!profileId) return;
-    const reason = prompt('Motif du signalement :');
-    if (!reason) return;
-    const supabase = createClient();
-    await supabase.from('reports').insert({
-      reporter_id: profileId,
-      target_type: 'listing',
-      target_id: listing.id,
-      reason,
-      status: 'pending',
-    });
-    toast.success("Signalement envoyé à l'équipe de modération");
-  };
 
   return (
     <div className="space-y-4">
@@ -88,13 +73,10 @@ export function ListingSidebar({
 
       {/* ── Report button (visitors only) ─────────────────────────────────── */}
       {!isOwner && profileId && (
-        <button
-          onClick={handleReport}
-          className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors mx-auto"
-        >
-          <AlertTriangle className="w-3.5 h-3.5" />
-          Signaler cette annonce
-        </button>
+        <div className="flex justify-center">
+          <ReportButton targetType="listing" targetId={listing.id}
+            targetTitle={listing.title} variant="text" />
+        </div>
       )}
     </div>
   );

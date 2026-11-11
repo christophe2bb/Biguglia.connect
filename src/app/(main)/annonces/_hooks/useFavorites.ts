@@ -1,142 +1,131 @@
 'use client';
 
 /**
- * useFavorites — Favoris annonces persistants
- *
- * • Connecté   → Supabase user_favorites (target_type='listing')
- *               + migration automatique des IDs localStorage → base
- * • Non connecté → localStorage 'annonces_favorites' (fallback)
- *
- * L'interface publique est identique : { savedIds, toggleSave }
+ * Favoris annonces : base Supabase comme source de vérité dès la connexion.
+ * Hors connexion : localStorage uniquement. La sauvegarde ne doit jamais
+ * afficher un succès si INSERT/DELETE en base a échoué.
  */
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/lib/auth-store';
 
 const LS_KEY = 'annonces_favorites';
-
-// ── localStorage helpers ──────────────────────────────────────────────────────
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function lsRead(): string[] {
   if (typeof window === 'undefined') return [];
   try {
-    return JSON.parse(localStorage.getItem(LS_KEY) ?? '[]');
-  } catch {
-    return [];
-  }
+    const value: unknown = JSON.parse(localStorage.getItem(LS_KEY) ?? '[]');
+    return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string' && UUID.test(id)) : [];
+  } catch { return []; }
 }
 
 function lsWrite(ids: string[]) {
-  try {
-    localStorage.setItem(LS_KEY, JSON.stringify(ids));
-  } catch { /* ignore */ }
+  try { localStorage.setItem(LS_KEY, JSON.stringify(ids)); } catch { /* storage disabled */ }
 }
-
-function lsClear() {
-  try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
-}
-
-// ── Hook ─────────────────────────────────────────────────────────────────────
 
 export interface UseFavoritesReturn {
   savedIds: Set<string>;
-  toggleSave: (id: string, e: React.MouseEvent) => void;
+  toggleSave: (id: string, e?: React.MouseEvent) => void;
 }
 
 export function useFavorites(): UseFavoritesReturn {
-  const { profile } = useAuthStore();
-  const userId = profile?.id ?? null;
-
-  // Initialise depuis localStorage (avant que Supabase réponde)
+  const { profile, phase } = useAuthStore();
+  const userId = phase === 'authenticated' ? (profile?.id ?? null) : null;
   const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set(lsRead()));
-  // Évite de déclencher la migration plusieurs fois
-  const migratedRef = useRef(false);
+  const inFlight = useRef<Set<string>>(new Set());
 
-  // ── Chargement / migration depuis Supabase quand connecté ─────────────────
   useEffect(() => {
+    let cancelled = false;
+    if (phase === 'initializing') return;
     if (!userId) {
-      // Non connecté : on reste sur localStorage
       setSavedIds(new Set(lsRead()));
       return;
     }
 
-    const supabase = createClient();
-
-    (async () => {
-      // 1. Lire les favoris déjà en base
-      const { data } = await supabase
+    const load = async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
         .from('user_favorites')
         .select('target_id')
         .eq('user_id', userId)
         .eq('target_type', 'listing');
 
-      const dbIds = new Set((data ?? []).map((r: { target_id: string }) => r.target_id));
-
-      // 2. Migration one-shot : IDs localStorage → Supabase
-      if (!migratedRef.current) {
-        migratedRef.current = true;
-        const localIds = lsRead().filter(id => !dbIds.has(id));
-        if (localIds.length > 0) {
-          await supabase.from('user_favorites').insert(
-            localIds.map(id => ({
-              user_id:     userId,
-              target_id:   id,
-              target_type: 'listing',
-            }))
-          );
-          localIds.forEach(id => dbIds.add(id));
-        }
-        lsClear(); // localStorage nettoyé après migration
+      if (cancelled) return;
+      if (error) {
+        console.warn('[Favoris] lecture impossible', error.code);
+        toast.error('Impossible de récupérer vos favoris pour le moment.');
+        return;
       }
-
-      setSavedIds(new Set(dbIds) as Set<string>);
-    })();
-  }, [userId]);
-
-  // ── Toggle ─────────────────────────────────────────────────────────────────
-  const toggleSave = useCallback((id: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    setSavedIds(prev => {
-      const next = new Set(prev);
-      const removing = next.has(id);
-
-      if (removing) {
-        next.delete(id);
-        toast('Annonce retirée des favoris', { icon: '💔' });
-      } else {
-        next.add(id);
-        toast.success('Annonce sauvegardée en favoris !');
-      }
-
-      // Persistance
-      if (userId) {
-        // Connecté → Supabase (fire-and-forget)
-        const supabase = createClient();
-        if (removing) {
-          supabase.from('user_favorites').delete()
-            .eq('user_id', userId)
-            .eq('target_id', id)
-            .eq('target_type', 'listing')
-            .then(() => { /* ignore */ });
+      const dbIds = new Set((data ?? []).flatMap(r => r.target_id ? [r.target_id] : []));
+      const pendingIds = lsRead().filter(id => !dbIds.has(id));
+      if (pendingIds.length > 0) {
+        const { error: migrationError } = await supabase
+          .from('user_favorites')
+          .insert(pendingIds.map(id => ({ user_id: userId, target_type: 'listing', target_id: id })));
+        if (cancelled) return;
+        if (migrationError) {
+          console.warn('[Favoris] transfert local impossible', migrationError.code);
+          toast.error('Certains favoris locaux n’ont pas pu être synchronisés.');
         } else {
-          supabase.from('user_favorites').insert({
-            user_id:     userId,
-            target_id:   id,
-            target_type: 'listing',
-          }).then(() => { /* ignore */ });
+          pendingIds.forEach(id => dbIds.add(id));
+          lsWrite([]);
         }
       } else {
-        // Non connecté → localStorage
-        lsWrite(Array.from(next));
+        lsWrite([]);
       }
+      if (!cancelled) setSavedIds(dbIds);
+    };
 
-      return next;
-    });
-  }, [userId]);
+    void load();
+    return () => { cancelled = true; };
+  }, [userId, phase]);
+
+  const toggleSave = useCallback(async (id: string, e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    if (!UUID.test(id) || inFlight.current.has(id)) return;
+    const currentlySaved = savedIds.has(id);
+    if (!userId) {
+      setSavedIds(prev => {
+        const next = new Set(prev);
+        if (currentlySaved) next.delete(id); else next.add(id);
+        lsWrite(Array.from(next));
+        return next;
+      });
+      toast(currentlySaved ? 'Retirée des favoris de cet appareil' : 'Ajoutée aux favoris de cet appareil', {
+        icon: currentlySaved ? '💔' : '❤️',
+      });
+      return;
+    }
+
+    inFlight.current.add(id);
+    try {
+      const supabase = createClient();
+      const { error } = currentlySaved
+        ? await supabase.from('user_favorites').delete()
+            .eq('user_id', userId).eq('target_id', id).eq('target_type', 'listing')
+        : await supabase.from('user_favorites').insert({
+            user_id: userId, target_id: id, target_type: 'listing',
+          });
+      if (error) {
+        console.warn('[Favoris] écriture refusée', error.code);
+        toast.error('Le favori n’a pas été enregistré. Réessayez.');
+        return;
+      }
+      setSavedIds(prev => {
+        const next = new Set(prev);
+        if (currentlySaved) next.delete(id); else next.add(id);
+        return next;
+      });
+      toast.success(currentlySaved ? 'Annonce retirée des favoris' : 'Annonce enregistrée en favoris');
+    } catch {
+      toast.error('Erreur réseau : le favori n’a pas été modifié.');
+    } finally {
+      inFlight.current.delete(id);
+    }
+  }, [savedIds, userId]);
 
   return { savedIds, toggleSave };
 }
