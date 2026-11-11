@@ -240,9 +240,8 @@ function DemandeServiceForm() {
           artisanProfileId: artisan.id,
         });
         // La demande est créée, on redirige quand même avec un toast d'avertissement
-        toast.success('Demande enregistrée ; le destinataire n’a pas pu être identifié.', { duration: 5000 });
-        toast.error('La conversation privée n\'a pas pu être créée (profil artisan incomplet).', { duration: 6000 });
-        router.push(`/artisans/${artisanId}`);
+        toast('Demande enregistrée, mais la messagerie ne peut pas identifier cet artisan.', { icon: '⚠️', duration: 6500 });
+        router.push(`/demandes/${request.id}`);
         setLoading(false);
         return;
       }
@@ -304,7 +303,7 @@ function DemandeServiceForm() {
       } else {
         // La demande est créée même si la conversation a échoué — l'artisan
         // verra le devis dans "Mes devis reçus" depuis /demandes
-        router.push(`/demandes`);
+        router.push(`/demandes/${request.id}`);
       }
       return;
     }
@@ -352,6 +351,7 @@ function DemandeServiceForm() {
             label="Catégorie de travaux"
             value={form.category_id}
             onChange={(e) => setForm(f => ({ ...f, category_id: e.target.value }))}
+            disabled={Boolean(artisan)}
             required
           >
             <option value="">Sélectionner...</option>
@@ -466,7 +466,7 @@ function DemandeServiceForm() {
                   <button
                     type="button"
                     onClick={() => setPhotos(p => p.filter((_, j) => j !== i))}
-                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -486,7 +486,7 @@ function DemandeServiceForm() {
         </div>
 
         <div className="flex gap-3">
-          <Button type="button" variant="outline" className="flex-1" onClick={() => router.back()}>
+          <Button type="button" variant="outline" className="flex-1" onClick={() => router.push('/demandes')}>
             Annuler
           </Button>
           <Button type="submit" className="flex-1" loading={loading}>
