@@ -11,6 +11,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { safeRedirectPath } from '@/lib/safe-redirect';
 import { AuthTimeoutError, withAuthTimeout } from '@/lib/supabase/with-timeout';
+import { formatSignInError } from '@/lib/supabase/auth-error-message';
 
 function ConnexionForm() {
   const [email, setEmail] = useState('');
@@ -53,11 +54,7 @@ function ConnexionForm() {
       );
 
       if (error) {
-        toast.error(
-          error.message === 'Invalid login credentials'
-            ? 'Email ou mot de passe incorrect'
-            : `Erreur : ${error.message}`
-        );
+        toast.error(formatSignInError(error));
         setLoading(false);
         return;
       }
