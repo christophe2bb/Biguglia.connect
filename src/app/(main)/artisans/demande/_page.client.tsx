@@ -47,13 +47,17 @@ function DemandeServiceForm() {
     return () => urls.forEach(url => URL.revokeObjectURL(url));
   }, [photos]);
 
-  // HTML date input expects a local calendar date, not a UTC ISO day.
-  const today = new Date();
-  const localToday = [
-    String(today.getFullYear()),
-    String(today.getMonth() + 1).padStart(2, '0'),
-    String(today.getDate()).padStart(2, '0'),
-  ].join('-');
+  // Calculé dans le navigateur après hydratation : évite le décalage UTC
+  // et un rendu SSR différent pour les utilisateurs en Europe/Paris.
+  const [localToday, setLocalToday] = useState('');
+  useEffect(() => {
+    const today = new Date();
+    setLocalToday([
+      String(today.getFullYear()),
+      String(today.getMonth() + 1).padStart(2, '0'),
+      String(today.getDate()).padStart(2, '0'),
+    ].join('-'));
+  }, []);
 
   const [form, setForm] = useState({
     title: '',
