@@ -35,7 +35,8 @@ describe('Suppression demande : sécurité', () => {
       })),
       storage: { from: () => ({ remove }) },
     } as never);
-    expect((await DELETE(request() as never, ctx())).status).toBe(403);
+    const denied = await DELETE(request() as never, ctx());
+    expect(denied.status, await denied.clone().text()).toBe(403);
     expect(deleteRow).not.toHaveBeenCalled();
     expect(remove).not.toHaveBeenCalled();
   });
@@ -58,7 +59,7 @@ describe('Suppression demande : sécurité', () => {
       storage: { from: () => ({ remove }) },
     } as never);
     const result = await DELETE(request() as never, ctx());
-    expect(result.status).toBe(200);
+    expect(result.status, await result.clone().text()).toBe(200);
     expect((await result.json()).cleanupWarning).toBe(true);
     expect(order).toEqual(['database', 'storage']);
   });
@@ -75,7 +76,8 @@ describe('Suppression demande : sécurité', () => {
         }),
       storage: { from: () => ({ remove }) },
     } as never);
-    expect((await DELETE(request() as never, ctx())).status).toBe(503);
+    const failed = await DELETE(request() as never, ctx());
+    expect(failed.status, await failed.clone().text()).toBe(503);
     expect(remove).not.toHaveBeenCalled();
   });
 });
