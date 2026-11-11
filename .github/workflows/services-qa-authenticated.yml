@@ -1,0 +1,55 @@
+name: Services - recette authentifiée à trois comptes
+
+# Déclenchement volontaire uniquement : aucun test ne publie de données.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  services-auth:
+    name: Habitants / Artisan / Administrateur
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Vérifier la présence de comptes de test dédiés
+        env:
+          E2E_RESIDENT_EMAIL: ${{ secrets.E2E_RESIDENT_EMAIL }}
+          E2E_RESIDENT_PASSWORD: ${{ secrets.E2E_RESIDENT_PASSWORD }}
+          E2E_ARTISAN_EMAIL: ${{ secrets.E2E_ARTISAN_EMAIL }}
+          E2E_ARTISAN_PASSWORD: ${{ secrets.E2E_ARTISAN_PASSWORD }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+        run: |
+          for name in E2E_RESIDENT_EMAIL E2E_RESIDENT_PASSWORD E2E_ARTISAN_EMAIL E2E_ARTISAN_PASSWORD E2E_ADMIN_EMAIL E2E_ADMIN_PASSWORD; do
+            if [ -z "${!name}" ]; then echo "::error::Secret QA manquant: $name"; exit 1; fi
+          done
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - name: Recette stricte Services (lecture seule, build local)
+        run: npx playwright test e2e/services-roles.spec.ts --project=chromium --reporter=list,html
+        env:
+          CI: 'true'
+          STRICT_E2E: 'true'
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          E2E_RESIDENT_EMAIL: ${{ secrets.E2E_RESIDENT_EMAIL }}
+          E2E_RESIDENT_PASSWORD: ${{ secrets.E2E_RESIDENT_PASSWORD }}
+          E2E_ARTISAN_EMAIL: ${{ secrets.E2E_ARTISAN_EMAIL }}
+          E2E_ARTISAN_PASSWORD: ${{ secrets.E2E_ARTISAN_PASSWORD }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: services-qa-authenticated-report
+          path: playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
