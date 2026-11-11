@@ -208,6 +208,26 @@ export async function POST(
   if (memberError) return NextResponse.json({ error: 'Participants indisponibles' }, { status: 503 });
   const others = [...new Set((members ?? []).map(m => m.user_id).filter(id => id !== userId))];
   if (!others.length) return NextResponse.json({ error: 'Destinataire manquant' }, { status: 409 });
+
+  // Une conversation ancienne ne donne pas le droit de contacter un compte
+  // suspendu, désactivé ou supprimé. Le contrôle est effectué à chaque envoi
+  // car les comptes peuvent changer d'état après l'ouverture de la discussion.
+  const partyIds = [userId, ...others];
+  const { data: activeParties, error: partiesError } = await admin
+    .from('profiles')
+    .select('id, status, is_active')
+    .in('id', partyIds);
+  if (partiesError) {
+    return NextResponse.json({ error: 'Vérification des comptes indisponible' }, { status: 503 });
+  }
+  const partyStates = new Map((activeParties ?? []).map(p => [p.id, p]));
+  if (partyIds.some(id => {
+    const account = partyStates.get(id);
+    return !account || account.status !== 'active' || account.is_active !== true;
+  })) {
+    return NextResponse.json({ error: 'Messagerie indisponible pour un participant' }, { status: 403 });
+  }
+
   const blockPairs = others.flatMap(other => [
     `and(user_id.eq.${userId},target_user_id.eq.${other})`,
     `and(user_id.eq.${other},target_user_id.eq.${userId})`,
