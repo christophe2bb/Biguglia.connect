@@ -151,6 +151,9 @@ interface AdminMockOptions {
   notifError?:          { message: string } | null;
   blockRows?:           Array<{ id: string }>;
   blockError?:          { message: string } | null;
+  inactiveUsers?:      string[];
+  missingUsers?:       string[];
+  accountsError?:      { message: string } | null;
 }
 
 // ─── Builder de mock admin ────────────────────────────────────────────────────
@@ -190,6 +193,9 @@ function buildAdminMock(opts: AdminMockOptions = {}) {
     notifError         = null,
     blockRows          = [],
     blockError         = null,
+    inactiveUsers      = [],
+    missingUsers       = [],
+    accountsError      = null,
   } = opts;
 
   const fromMock = vi.fn().mockImplementation((table: string) => {
@@ -272,10 +278,28 @@ function buildAdminMock(opts: AdminMockOptions = {}) {
     // ── profiles ──────────────────────────────────────────────────────────
     if (table === 'profiles') {
       const chain: Record<string, unknown> = {};
-      ['select', 'eq', 'in'].forEach(m => { chain[m] = () => chain; });
+      let statusLookup = false;
+      chain['select'] = (columns: string) => {
+        statusLookup = columns.includes('status') && columns.includes('is_active');
+        return chain;
+      };
+      ['eq', 'in'].forEach(m => { chain[m] = () => chain; });
       chain['maybeSingle'] = () => Promise.resolve({ data: fallbackProfile, error: null });
-      chain['then']        = (cb: (v: unknown) => void) =>
-        cb({ data: profileError ? null : profiles, error: profileError });
+      chain['then'] = (cb: (v: unknown) => void) => {
+        if (statusLookup) {
+          cb({
+            data: accountsError ? null : [USER_A, USER_B]
+              .filter(id => !missingUsers.includes(id))
+              .map(id => ({
+                id, status: inactiveUsers.includes(id) ? 'suspended' : 'active',
+                is_active: !inactiveUsers.includes(id),
+              })),
+            error: accountsError,
+          });
+        } else {
+          cb({ data: profileError ? null : profiles, error: profileError });
+        }
+      };
       return chain;
     }
 
@@ -838,6 +862,38 @@ describe('POST /api/messages/conversation/[id]', () => {
     mockCreateAdmin.mockReturnValue(admin as unknown as ReturnType<typeof createAdminClient>);
     const res = await POST(makePostReq({ content: 'Message bloqué' }), routeParams());
     expect(res.status).toBe(403);
+    expect(admin.from).not.toHaveBeenCalledWith('messages');
+  });
+
+  it('403 : un expéditeur suspendu ne peut plus écrire dans un ancien fil', async () => {
+    const admin = buildAdminMock({ inactiveUsers: [USER_A] });
+    mockCreateAdmin.mockReturnValue(admin as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makePostReq({ content: 'Envoi interdit' }), routeParams());
+    expect(res.status).toBe(403);
+    expect(admin.from).not.toHaveBeenCalledWith('messages');
+  });
+
+  it('403 : un destinataire suspendu ne peut plus recevoir de message', async () => {
+    const admin = buildAdminMock({ inactiveUsers: [USER_B] });
+    mockCreateAdmin.mockReturnValue(admin as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makePostReq({ content: 'Envoi interdit' }), routeParams());
+    expect(res.status).toBe(403);
+    expect(admin.from).not.toHaveBeenCalledWith('messages');
+  });
+
+  it('403 : un participant supprimé de profiles ne peut plus être contacté', async () => {
+    const admin = buildAdminMock({ missingUsers: [USER_B] });
+    mockCreateAdmin.mockReturnValue(admin as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makePostReq({ content: 'Envoi interdit' }), routeParams());
+    expect(res.status).toBe(403);
+    expect(admin.from).not.toHaveBeenCalledWith('messages');
+  });
+
+  it('503 : une panne de vérification des comptes interdit tout envoi', async () => {
+    const admin = buildAdminMock({ accountsError: { message: 'base indisponible' } });
+    mockCreateAdmin.mockReturnValue(admin as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makePostReq({ content: 'Envoi interdit' }), routeParams());
+    expect(res.status).toBe(503);
     expect(admin.from).not.toHaveBeenCalledWith('messages');
   });
 
