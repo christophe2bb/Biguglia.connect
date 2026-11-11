@@ -126,6 +126,15 @@ export default function ModifierDemandeClient({ id }: Props) {
         return;
       }
 
+      // Même règle que le bouton de la fiche et le trigger Supabase :
+      // un lien direct vers /modifier ne doit pas proposer un formulaire
+      // inutilisable pour une demande déjà clôturée.
+      if (row.status === 'completed' || row.status === 'cancelled') {
+        toast.error('Cette demande est clôturée et ne peut plus être modifiée.');
+        router.replace(`/demandes/${id}`);
+        return;
+      }
+
       // Préremplir le formulaire
       setForm({
         title:          row.title,
