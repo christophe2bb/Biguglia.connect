@@ -198,6 +198,28 @@ export async function POST(
   catch (e) { return NextResponse.json({ error: e instanceof Error ? e.message : 'Erreur DB' }, { status: 500 }); }
   if (!part) return FORBIDDEN;
 
+  // Un blocage postérieur à l'ouverture du fil doit interdire les messages.
+  // Le contrôle doit être refait avant chaque INSERT, dans les deux sens.
+  const { data: members, error: memberError } = await admin
+    .from('conversation_participants')
+    .select('user_id')
+    .eq('conversation_id', conversationId)
+    .neq('user_id', userId);
+  if (memberError) return NextResponse.json({ error: 'Participants indisponibles' }, { status: 503 });
+  const others = [...new Set((members ?? []).map(m => m.user_id).filter(id => id !== userId))];
+  if (!others.length) return NextResponse.json({ error: 'Destinataire manquant' }, { status: 409 });
+  const blockPairs = others.flatMap(other => [
+    `and(user_id.eq.${userId},target_user_id.eq.${other})`,
+    `and(user_id.eq.${other},target_user_id.eq.${userId})`,
+  ]);
+  const { data: blocks, error: blockError } = await admin
+    .from('user_blocks')
+    .select('id')
+    .or(blockPairs.join(','))
+    .limit(1);
+  if (blockError) return NextResponse.json({ error: 'Vérification des blocages indisponible' }, { status: 503 });
+  if (blocks?.length) return NextResponse.json({ error: 'Message interdit : utilisateur bloqué' }, { status: 403 });
+
   const { data: msg, error } = await admin
     .from('messages')
     .insert({ conversation_id: conversationId, sender_id: userId, content })

@@ -149,6 +149,8 @@ interface AdminMockOptions {
   deleteError?:         { message: string } | null;
   msgForDelete?:        { id: string; sender_id: string; conversation_id: string } | null;
   notifError?:          { message: string } | null;
+  blockRows?:           Array<{ id: string }>;
+  blockError?:          { message: string } | null;
 }
 
 // ─── Builder de mock admin ────────────────────────────────────────────────────
@@ -186,6 +188,8 @@ function buildAdminMock(opts: AdminMockOptions = {}) {
     deleteError        = null,
     msgForDelete       = { id: MSG_ID, sender_id: USER_A, conversation_id: CONV_ID },
     notifError         = null,
+    blockRows          = [],
+    blockError         = null,
   } = opts;
 
   const fromMock = vi.fn().mockImplementation((table: string) => {
@@ -272,6 +276,15 @@ function buildAdminMock(opts: AdminMockOptions = {}) {
       chain['maybeSingle'] = () => Promise.resolve({ data: fallbackProfile, error: null });
       chain['then']        = (cb: (v: unknown) => void) =>
         cb({ data: profileError ? null : profiles, error: profileError });
+      return chain;
+    }
+
+    // ── user_blocks : lecture côté admin avant chaque POST ───────────────
+    if (table === 'user_blocks') {
+      const chain: Record<string, unknown> = {};
+      ['select', 'or', 'limit'].forEach(m => { chain[m] = () => chain; });
+      chain['then'] = (cb: (v: unknown) => void) =>
+        cb({ data: blockError ? null : blockRows, error: blockError });
       return chain;
     }
 
@@ -819,6 +832,22 @@ describe('POST /api/messages/conversation/[id]', () => {
   });
 
   // ── Erreur insert message ─────────────────────────────────────────────────
+
+  it('403 si un utilisateur est bloqué malgré un fil existant', async () => {
+    const admin = buildAdminMock({ blockRows: [{ id: '00000000-0000-0000-0000-000000000099' }] });
+    mockCreateAdmin.mockReturnValue(admin as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makePostReq({ content: 'Message bloqué' }), routeParams());
+    expect(res.status).toBe(403);
+    expect(admin.from).not.toHaveBeenCalledWith('messages');
+  });
+
+  it('503 si la vérification du blocage échoue avant l’envoi', async () => {
+    const admin = buildAdminMock({ blockError: { message: 'database unavailable' } });
+    mockCreateAdmin.mockReturnValue(admin as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makePostReq({ content: 'Message non envoyé' }), routeParams());
+    expect(res.status).toBe(503);
+    expect(admin.from).not.toHaveBeenCalledWith('messages');
+  });
 
   it('retourne 500 si l\'insert du message échoue', async () => {
     mockCreateAdmin.mockReturnValue(buildAdminMock({
