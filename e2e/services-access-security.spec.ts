@@ -19,6 +19,46 @@ test.describe('Services — accès privé en utilisateur déconnecté', () => {
     }
   });
 
+  test('les dossiers administratifs artisans et utilisateurs sont inaccessibles sans connexion', async ({ request }) => {
+    for (const path of ['/api/admin/artisans', '/api/admin/users']) {
+      const response = await request.get(path, { maxRedirects: 0 });
+      expect(response.status(), 'Accès anonyme interdit : ' + path).toBe(401);
+      const body = await response.json() as Record<string, unknown>;
+      expect(body.error).toBeTruthy();
+      expect(body).not.toHaveProperty('artisans');
+      expect(body).not.toHaveProperty('users');
+    }
+  });
+
+  test('ouvrir une conversation privée ou envoyer un message exige une session', async ({ request }) => {
+    const origin = new URL(test.info().project.use.baseURL ?? 'http://localhost:3000').origin;
+    const attempts = [
+      { path: '/api/messages/start-conversation', body: { ownerId: UNKNOWN_ID, relatedType: 'artisan', relatedId: UNKNOWN_ID, initialMsg: 'QA sans session' } },
+      { path: '/api/messages/conversation/' + UNKNOWN_ID, body: { content: 'QA sans session' } },
+    ];
+    for (const attempt of attempts) {
+      const response = await request.post(attempt.path, {
+        data: attempt.body,
+        headers: { Origin: origin },
+        maxRedirects: 0,
+      });
+      expect(response.status(), attempt.path + ' doit refuser tout envoi anonyme').toBe(401);
+      const body = await response.json() as Record<string, unknown>;
+      expect(body.error).toBeTruthy();
+      expect(body).not.toHaveProperty('conversationId');
+    }
+  });
+
+  test('une origine externe ne peut pas déclencher un démarrage de conversation', async ({ request }) => {
+    const response = await request.post('/api/messages/start-conversation', {
+      data: { ownerId: UNKNOWN_ID, relatedType: 'artisan', relatedId: UNKNOWN_ID },
+      headers: { Origin: 'https://site-etranger-invalide.example' },
+      maxRedirects: 0,
+    });
+    expect(response.status()).toBe(403);
+    const body = await response.json() as Record<string, unknown>;
+    expect(body.error).toBeTruthy();
+  });
   test('le détail d’une conversation exige une authentification', async ({ request }) => {
     const response = await request.get(`/api/messages/conversation/${UNKNOWN_ID}`, { maxRedirects: 0 });
     expect(response.status()).toBe(401);
