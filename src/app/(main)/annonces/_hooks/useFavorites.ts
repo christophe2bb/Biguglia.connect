@@ -81,7 +81,7 @@ export function useFavorites(): UseFavoritesReturn {
         toast.error('Impossible de récupérer vos favoris pour le moment.');
         return;
       }
-      const dbIds = new Set((data ?? []).flatMap(r => r.target_id ? [r.target_id] : []));
+      const dbIds = new Set<string>((data ?? []).flatMap((r: { target_id: string | null }) => r.target_id ? [r.target_id] : []));
       const pendingIds = lsRead().filter(id => !dbIds.has(id));
       if (pendingIds.length > 0) {
         const { error: migrationError } = await supabase
