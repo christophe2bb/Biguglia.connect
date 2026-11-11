@@ -59,6 +59,7 @@ export default function ModifierDemandeClient({ id }: Props) {
   const [localToday, setLocalToday] = useState('');
   useEffect(() => { setLocalToday(localISODate()); }, []);
   const [categories, setCategories]         = useState<TradeCategory[]>([]);
+  const [originalPreferredDate, setOriginalPreferredDate] = useState('');
 
   // ── Formulaire ────────────────────────────────────────────────────────────
   const [form, setForm] = useState({
@@ -145,6 +146,7 @@ export default function ModifierDemandeClient({ id }: Props) {
       }
 
       // Préremplir le formulaire
+      setOriginalPreferredDate(row.preferred_date ?? '');
       setForm({
         title:          row.title,
         description:    row.description,
@@ -225,7 +227,10 @@ export default function ModifierDemandeClient({ id }: Props) {
       return;
     }
 
-    if (isPreferredDatePast(form.preferred_date)) {
+    // Une ancienne demande peut garder sa date historique : ne pas empêcher
+    // l'utilisateur de corriger uniquement son titre ou sa description.
+    // Toute NOUVELLE date choisie doit en revanche être aujourd'hui ou après.
+    if (form.preferred_date !== originalPreferredDate && isPreferredDatePast(form.preferred_date)) {
       toast.error('La date souhaitée est passée. Choisissez aujourd’hui ou une date future.');
       return;
     }
@@ -410,7 +415,8 @@ export default function ModifierDemandeClient({ id }: Props) {
             <Input
               label="Date souhaitée"
               type="date"
-              min={localToday}
+              min={form.preferred_date === originalPreferredDate && isPreferredDatePast(originalPreferredDate)
+                ? undefined : localToday}
               value={form.preferred_date}
               onChange={e => setForm(f => ({ ...f, preferred_date: e.target.value }))}
             />
