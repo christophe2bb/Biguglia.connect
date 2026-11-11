@@ -568,6 +568,44 @@ describe('POST /api/messages/start-conversation', () => {
     expect(db.from).not.toHaveBeenCalledWith('conversations');
   });
 
+  it('récupère une conversation déjà ouverte même si la demande publique a été clôturée', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      service_requests: {
+        data: { id: OBJ_ID, resident_id: USER_B, artisan_id: null, status: 'completed' }, error: null,
+      },
+      conversation_participants: { data: [{ conversation_id: CONV_ID }], error: null },
+      conversations: { data: { id: CONV_ID }, error: null },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+    const response = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'service_request', relatedId: OBJ_ID,
+    }) as never);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ conversationId: CONV_ID, isNew: false });
+  });
+
+  it('refuse un nouveau fil de devis privé lorsque le résident a déjà clôturé la demande', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      service_requests: {
+        data: { id: OBJ_ID, resident_id: USER_B, artisan_id: CONV_ID, status: 'cancelled' },
+        error: null,
+      },
+      artisan_profiles: { data: { id: CONV_ID, user_id: USER_A, is_verified: true }, error: null },
+      conversation_participants: { data: [], error: null },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+    const response = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'service_request', relatedId: OBJ_ID,
+    }) as never);
+    expect(response.status).toBe(409);
+  });
+
   it('refuse un nouveau message privé sur une demande publique déjà clôturée', async () => {
     mockGetUserId.mockResolvedValueOnce(USER_A);
     const db = makeDb({
