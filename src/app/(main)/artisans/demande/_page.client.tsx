@@ -213,6 +213,8 @@ function DemandeServiceForm() {
     // Upload photos
     const { urls: photoUrls, failed: failedPhotos } = await uploadPhotos(request.id, session.access_token);
     if (failedPhotos > 0) toast.error(`${failedPhotos} photo(s) non enregistrée(s). Votre demande est conservée.`, { duration: 6000 });
+    // Seules les photos réellement liées à la demande peuvent figurer dans la messagerie.
+    let linkedPhotoUrls = photoUrls;
     if (photoUrls.length > 0) {
       const { error: photoLinkError } = await supabase.from('service_request_photos').insert(
         photoUrls.map(url => ({ request_id: request.id, url }))
@@ -221,6 +223,7 @@ function DemandeServiceForm() {
         // L'insertion des métadonnées est atomique : si elle échoue, les
         // fichiers déjà transférés ne doivent pas rester publics et orphelins.
         console.warn('[DemandeService] liaison des photos refusée', photoLinkError.code);
+        linkedPhotoUrls = [];
         const storagePaths = photoUrls
           .map(url => safeStoragePath(url, 'photos'))
           .filter((path): path is string => !!path && path.startsWith(`requests/${request.id}/`));
@@ -270,9 +273,9 @@ function DemandeServiceForm() {
         (form.preferred_time ? `**Heure :** ${form.preferred_time}\n` : '') +
         `**Lieu :** ${form.address}\n\n` +
         `**Description :**\n${form.description}` +
-        (photoUrls.length > 0
+        (linkedPhotoUrls.length > 0
           ? `\n\n─────────────────────\n**Photos jointes :**\n` +
-            photoUrls.map(url => url).join('\n')
+            linkedPhotoUrls.map(url => url).join('\n')
           : '');
 
       let conversationId: string | null = null;
