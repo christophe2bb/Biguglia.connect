@@ -50,7 +50,7 @@ test.describe('Services — annuaire et fiche artisan', () => {
 });
 
 test.describe('Services — pages artisans par métier', () => {
-  test('une fiche affichée dans un métier ouvre le BON identifiant artisan', async ({ page }) => {
+  test('une fiche affichée dans un métier ouvre le bon identifiant artisan', async ({ page }) => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     test.skip(!url || !key, 'Clé publique Supabase de test absente.');
@@ -67,63 +67,12 @@ test.describe('Services — pages artisans par métier', () => {
     const slug = category?.slug;
     test.skip(!item?.id || !slug, 'Aucun artisan vérifié avec métier défini.');
 
-    const response = await page.goto(`/artisans/metier/${slug}`, { waitUntil: 'domcontentloaded' });
+    const response = await page.goto('/artisans/metier/' + slug, { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBe(200);
-    const cardLink = page.locator(`a[href="/artisans/${item!.id}"]`).first();
+    const cardLink = page.locator('a[href="/artisans/' + item!.id + '"]').first();
     await expect(cardLink).toBeVisible({ timeout: 15000 });
     await cardLink.click();
-    await expect(page).toHaveURL(new RegExp(`/artisans/${item!.id}/**
- * Recette non destructive — Services / Poster une demande / Tableau des demandes.
- * Les contrôles sans compte s'exécutent sur chaque CI.
- * Les contrôles authentifiés sont ignorés sans E2E_TEST_EMAIL/PASSWORD.
- * Aucun scénario n'insère de demande réelle dans Supabase.
- */
-import { test, expect, skipIfNoCredentials, loginAs, TEST_CREDENTIALS } from './fixtures';
-import { createClient as createSupabaseTestClient } from '@supabase/supabase-js';
-
-test.describe('Services — annuaire et fiche artisan', () => {
-  test('recherche de métier : aucun résultat, effacement et retour à la liste', async ({ page }) => {
-    const exceptions: string[] = [];
-    page.on('pageerror', error => exceptions.push(error.message));
-    const response = await page.goto('/artisans', { waitUntil: 'domcontentloaded' });
-    expect(response?.status()).toBe(200);
-    await expect(page.getByRole('heading', { name: /artisans de biguglia/i })).toBeVisible();
-
-    const search = page.getByPlaceholder('Rechercher un artisan, un métier…');
-    await expect(search).toBeVisible();
-    await search.fill('zzzz-metier-introuvable-automatique');
-    await expect(page.getByText('Aucun artisan trouvé')).toBeVisible();
-    await page.getByRole('button', { name: 'Effacer la recherche' }).click();
-    await expect(search).toHaveValue('');
-    await expect(page.getByText('Aucun artisan trouvé')).toHaveCount(0);
-    expect(exceptions, 'Pas d’exception JavaScript dans l’annuaire').toEqual([]);
-  });
-
-  test('fiche vérifiée : contact et devis pointent vers les bons parcours', async ({ page }) => {
-    await page.goto('/artisans', { waitUntil: 'domcontentloaded' });
-    const links = await page.locator('a[href^="/artisans/"]').evaluateAll(elements =>
-      elements.map(el => el.getAttribute('href') || ''),
-    );
-    const artisanHref = links.find(href =>
-      /^\/artisans\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(href),
-    );
-    test.skip(!artisanHref, 'Aucun artisan de test vérifié accessible pour cette recette.');
-    const id = artisanHref!.split('/')[2];
-    const response = await page.goto(artisanHref!, { waitUntil: 'domcontentloaded' });
-    expect(response?.status()).toBe(200);
-
-    const quote = page.getByRole('link', { name: /demander un devis/i });
-    await expect(quote).toHaveAttribute('href', `/artisans/demande?artisan=${id}`);
-    const contact = page.getByRole('link', { name: /envoyer un message/i });
-    await expect(contact).toHaveAttribute('href', /\/connexion\?next=/);
-    await quote.click();
-    await expect(page).toHaveURL(/\/connexion/, { timeout: 15000 });
-    const next = new URL(page.url()).searchParams.get('next') || '';
-    expect(next).toContain(`/artisans/demande?artisan=${id}`);
-  });
-});
-
-));
+    await expect(page).toHaveURL(url => url.pathname === '/artisans/' + item!.id);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   });
 });
