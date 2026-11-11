@@ -61,6 +61,11 @@ désactivé dans `vercel.json`. `main` reste inchangée.
   `conversation_participants`, `messages` et `user_blocks`.
 - Correctif GitHub supplémentaire : envoi de message refusé si l'expéditeur
   ou un destinataire n'est pas actif, avec tests de régression.
+- Protection SQL `guard_inactive_service_conversation_participants_20261111`
+  **appliquée** : trigger `messages_guard_inactive_service_parties` actif
+  avant insertion. Empêche également le contournement de cette règle par une
+  requête SQL directe sur `messages` pour les conversations Services.
+  Fonction trigger non exécutable directement par `anon` et `authenticated`.
 - Aucune nouvelle version Vercel ni fusion dans `main` autorisée.
 - Les essais réels multi-comptes, les accès aux photos avec comptes distincts
   et les tests mobiles restent requis avant publication.
