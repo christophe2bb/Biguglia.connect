@@ -274,8 +274,7 @@ function DemandeServiceForm() {
         `**Lieu :** ${form.address}\n\n` +
         `**Description :**\n${form.description}` +
         (linkedPhotoUrls.length > 0
-          ? `\n\n─────────────────────\n**Photos jointes :**\n` +
-            linkedPhotoUrls.map(url => url).join('\n')
+          ? `\n\n─────────────────────\n**Photos jointes :** ${linkedPhotoUrls.length}. Consultez la fiche de la demande pour les voir.`
           : '');
 
       let conversationId: string | null = null;
