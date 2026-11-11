@@ -24,6 +24,8 @@ const req = () => new NextRequest('https://biguglia.test/api/service-requests/' 
 function setup(options: {
   request?: { id: string; resident_id: string; artisan_id: string | null } | null;
   role?: string;
+  accountStatus?: string;
+  isActive?: boolean;
   linked?: boolean;
   storageError?: boolean;
   databaseError?: boolean;
@@ -38,7 +40,11 @@ function setup(options: {
     let data: unknown = null;
     if (table === 'service_requests') data = quote;
     if (table === 'artisan_profiles') data = { user_id: artisanUser };
-    if (table === 'profiles') data = { role: options.role ?? 'resident' };
+    if (table === 'profiles') data = {
+      role: options.role ?? 'resident',
+      status: options.accountStatus ?? 'active',
+      is_active: options.isActive ?? true,
+    };
     if (table === 'service_request_photos') data = options.linked === false ? null : { id: 'link-id' };
     return {
       select: () => ({
@@ -113,6 +119,18 @@ describe('Services — GET photo devis privé', () => {
     mockAuth.mockResolvedValue(stranger);
     setup({ role: 'admin' });
     expect((await GET(req(), ctx())).status).toBe(200);
+  });
+
+  it('403 : compte désactivé ne peut pas lire ses anciennes photos', async () => {
+    const db = setup({ accountStatus: 'suspended' });
+    expect((await GET(req(), ctx())).status).toBe(403);
+    expect(db.download).not.toHaveBeenCalled();
+  });
+
+  it('403 : compte sans activation ne peut pas lire les photos', async () => {
+    const db = setup({ isActive: false });
+    expect((await GET(req(), ctx())).status).toBe(403);
+    expect(db.download).not.toHaveBeenCalled();
   });
 
   it('404 : aucune photo privée pour une demande publique', async () => {
