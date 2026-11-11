@@ -65,10 +65,16 @@ export async function GET(req: NextRequest, context: {
   if (storageError || !file) {
     return NextResponse.json({ error: 'Photo indisponible' }, { status: 404, headers });
   }
-  const mime = {
-    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
-    webp: 'image/webp', gif: 'image/gif',
-  }[filename.split('.').pop()!.toLowerCase()] || 'application/octet-stream';
+  const detected = file.type.toLowerCase();
+  // La signature est validée lors du dépôt ; respecter le MIME enregistré
+  // dans Storage, même si le fichier a été renommé .jpg par l'utilisateur.
+  const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+  const mime = allowedTypes.has(detected)
+    ? detected
+    : ({
+        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+        webp: 'image/webp', gif: 'image/gif',
+      } as Record<string, string>)[filename.split('.').pop()!.toLowerCase()] || 'application/octet-stream';
 
   return new NextResponse(await file.arrayBuffer(), {
     status: 200,

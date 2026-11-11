@@ -29,13 +29,14 @@ function setup(options: {
   linked?: boolean;
   storageError?: boolean;
   databaseError?: boolean;
+  mime?: string;
 } = {}) {
   const quote = options.request === undefined
     ? { id: requestId, resident_id: resident, artisan_id: artisanProfile }
     : options.request;
   const download = vi.fn().mockResolvedValue(options.storageError
     ? { data: null, error: { message: 'not found' } }
-    : { data: new Blob([new Uint8Array([0xff, 0xd8, 0xff])]), error: null });
+    : { data: new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: options.mime ?? '' }), error: null });
   const from = vi.fn((table: string) => {
     let data: unknown = null;
     if (table === 'service_requests') data = quote;
@@ -95,6 +96,13 @@ describe('Services — GET photo devis privé', () => {
     expect(response.headers.get('cache-control')).toContain('no-store');
     expect(response.headers.get('content-type')).toBe('image/jpeg');
     expect(db.download).toHaveBeenCalledWith('requests/' + requestId + '/' + file);
+  });
+
+  it('utilise le type MIME réel du fichier quand il diffère de son extension', async () => {
+    setup({ mime: 'image/png' });
+    const response = await GET(req(), ctx('photo_2026.jpg'));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe('image/png');
   });
 
   it('200 : artisan du devis destinataire', async () => {

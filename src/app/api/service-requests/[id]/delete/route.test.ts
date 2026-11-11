@@ -71,6 +71,41 @@ describe('Suppression demande : sécurité', () => {
     expect((await result.json()).cleanupWarning).toBe(true);
     expect(order).toEqual(['database', 'storage']);
   });
+  it('supprime les pièces du devis privé seulement dans son bucket privé', async () => {
+    const privateUrl = '/api/service-requests/' + id + '/photos/quote.jpg';
+    const storageFrom = vi.fn().mockImplementation((bucket: string) => {
+      expect(bucket).toBe('service-quote-photos');
+      return {
+        list: async () => ({ data: [
+          { id: 'linked', name: 'quote.jpg' },
+          { id: 'unlinked', name: 'orphan.jpg' },
+        ], error: null }),
+        remove: async (paths: string[]) => {
+          expect(paths).toEqual(['requests/' + id + '/quote.jpg', 'requests/' + id + '/orphan.jpg']);
+          return { error: null };
+        },
+      };
+    });
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: vi.fn((table: string) => table === 'service_request_photos'
+        ? { select: () => ({ eq: async () => ({ data: [{ url: privateUrl }], error: null }) }) }
+        : {
+          select: () => ({ eq: () => ({ maybeSingle: async () => ({
+            data: { id, resident_id: user, artisan_id: '00000000-0000-0000-0000-000000000888' },
+            error: null,
+          }) }) }),
+          delete: () => ({ eq: () => ({ eq: () => ({ select: () => ({
+            maybeSingle: async () => ({ data: { id }, error: null }),
+          }) }) }) }),
+        }),
+      storage: { from: storageFrom },
+    } as never);
+    const res = await DELETE(request() as never, ctx());
+    expect(res.status).toBe(200);
+    expect((await res.json()).cleanupWarning).toBe(false);
+    expect(storageFrom).toHaveBeenCalledWith('service-quote-photos');
+  });
+
   it('ne supprime pas les photos si DELETE SQL échoue', async () => {
     const remove = vi.fn();
     vi.mocked(createAdminClient).mockReturnValue({
