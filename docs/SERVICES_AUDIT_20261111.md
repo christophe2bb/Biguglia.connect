@@ -19,6 +19,14 @@ détails, réponses, modification, photos, messagerie, statuts et modération.
   `20261111115000_consolidate_services_insert_policies.sql` appliquée.
   Les trois tables n'ont désormais qu'une politique INSERT,
   chacune avec les vérifications nécessaires ; données conservées.
+- Également confirmé : des politiques RLS anciennes permettaient à un compte
+  d'ajouter/déplacer sa participation vers une conversation dont il connaissait
+  l'ID, révélant potentiellement les messages. Les routes serveur existantes
+  utilisent déjà `service_role` et contrôlent l'appartenance.
+  Migrations `20261111120500_harden_conversation_membership_mutations.sql`
+  et `20261111121600_close_conversation_direct_updates.sql` appliquées :
+  pas de mutation directe des participants ou de l'état des conversations par
+  des clients ordinaires. Les API demeurent accessibles.
 - Test de lecture sous un UUID simulé non membre : aucun message ni commentaire
   visible ; les demandes publiques restent visibles aux comptes connectés.
 - Inventaire au moment de l'audit : cinq demandes, zéro devis privé,
