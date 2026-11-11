@@ -325,6 +325,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // Une demande de devis privée appartient à son résident et à son artisan.
   // Refuser un ownerId arbitraire : le client admin contourne les RLS.
+  let closedServiceRequest = false;
   if (relatedType === 'service_request') {
     if (!relatedId) {
       return NextResponse.json({ error: 'Demande de service obligatoire' }, { status: 400 });
@@ -342,12 +343,12 @@ export async function POST(req: NextRequest): Promise<Response> {
       return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 });
     }
 
+    // Le statut fermé est contrôlé après la recherche d'une conversation
+    // existante : ne jamais créer un fil neuf pour une demande clôturée,
+    // mais conserver la possibilité de retrouver son historique.
+    closedServiceRequest = serviceRequest.status === 'completed' || serviceRequest.status === 'cancelled';
+
     if (!serviceRequest.artisan_id) {
-      // Une demande publique clôturée ne doit plus recevoir de NOUVEAUX
-      // contacts. Les conversations déjà ouvertes restent consultables.
-      if (serviceRequest.status === 'completed' || serviceRequest.status === 'cancelled') {
-        return NextResponse.json({ error: 'Cette demande est clôturée' }, { status: 409 });
-      }
       // Demande publique : seul le résident propriétaire peut être le destinataire.
       if (ownerId !== serviceRequest.resident_id) {
         return NextResponse.json({ error: 'Destinataire de demande invalide' }, { status: 403 });
@@ -389,6 +390,11 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
   if (existingId) {
     return NextResponse.json({ conversationId: existingId, isNew: false });
+  }
+  if (closedServiceRequest) {
+    return NextResponse.json({
+      error: 'Cette demande est clôturée : aucun nouveau contact possible.',
+    }, { status: 409 });
   }
 
   // ── Step 1 : Créer la conversation ─────────────────────────────────────────
