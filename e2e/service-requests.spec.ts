@@ -8,24 +8,47 @@ import { test, expect, skipIfNoCredentials, loginAs, TEST_CREDENTIALS } from './
 import { createClient as createSupabaseTestClient } from '@supabase/supabase-js';
 
 test.describe('Services — annuaire et fiche artisan', () => {
-  test('recherche de métier : aucun résultat, effacement et retour à la liste', async ({ page }) => {
+  test('recherche artisan : filtrage et effacement sur données de test stables', async ({ page }) => {
+    // Cette recette de l'interface fonctionne même si Supabase de CI est
+    // volontairement non configuré : pas d'accès à de vrais comptes/artisans.
+    const testArtisanId = '00000000-0000-4000-8000-000000000251';
+    const categoryId = '00000000-0000-4000-8000-000000000252';
+    await page.route('**/rest/v1/trade_categories*', route => route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify([{ id: categoryId, name: 'Plomberie', slug: 'plomberie', icon: '🔧', display_order: 1 }]),
+    }));
+    await page.route('**/rest/v1/artisan_profiles*', route => route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify([{
+        id: testArtisanId, user_id: '00000000-0000-4000-8000-000000000253',
+        business_name: 'Artisan Test Plomberie', trade_name: 'Plombier',
+        description: 'Réparation et entretien plomberie', location: 'Biguglia',
+        intervention_zone: 'Biguglia', is_featured: false, is_verified: true,
+        avatar_url: null, artisan_type: 'professionnel',
+        service_area: 'Biguglia', years_experience: 5,
+        profile: { id: '00000000-0000-4000-8000-000000000253', full_name: 'Artisan Test', avatar_url: null, role: 'artisan_verified' },
+        trade_category: { id: categoryId, name: 'Plomberie', slug: 'plomberie', icon: '🔧' },
+        gallery: [],
+      }]),
+    }));
     const exceptions: string[] = [];
     page.on('pageerror', error => exceptions.push(error.message));
     const response = await page.goto('/artisans', { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBe(200);
     await expect(page.getByRole('heading', { name: /artisans de biguglia/i })).toBeVisible();
-
     const search = page.getByPlaceholder('Rechercher un artisan, un métier…');
     await expect(search).toBeVisible();
+    await expect(page.getByText('Artisan Test Plomberie')).toBeVisible({ timeout: 15000 });
     await search.fill('zzzz-metier-introuvable-automatique');
     await expect(page.getByText('Aucun artisan trouvé')).toBeVisible();
     await page.getByRole('button', { name: 'Effacer la recherche' }).click();
     await expect(search).toHaveValue('');
-    await expect(page.getByText('Aucun artisan trouvé')).toHaveCount(0);
-    expect(exceptions, 'Pas d’exception JavaScript dans l’annuaire').toEqual([]);
+    await expect(page.getByText('Artisan Test Plomberie')).toBeVisible();
+    expect(exceptions, 'Pas d’exception JS dans la recherche et ses filtres').toEqual([]);
   });
 
   test('fiche vérifiée : contact et devis pointent vers les bons parcours', async ({ page }) => {
+    test.skip(process.env.STRICT_E2E !== 'true', 'Nécessite un artisan de test et une connexion réelle à Supabase.');
     await page.goto('/artisans', { waitUntil: 'domcontentloaded' });
     const links = await page.locator('a[href^="/artisans/"]').evaluateAll(elements =>
       elements.map(el => el.getAttribute('href') || ''),
@@ -51,6 +74,7 @@ test.describe('Services — annuaire et fiche artisan', () => {
 
 test.describe('Services — pages artisans par métier', () => {
   test('une fiche affichée dans un métier ouvre le bon identifiant artisan', async ({ page }) => {
+    test.skip(process.env.STRICT_E2E !== 'true', 'Nécessite un vrai jeu de données Supabase de test.');
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     test.skip(!url || !key, 'Clé publique Supabase de test absente.');

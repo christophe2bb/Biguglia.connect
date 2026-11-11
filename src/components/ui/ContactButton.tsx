@@ -157,7 +157,13 @@ export default function ContactButton({
 
   // Non connecté → lien vers connexion
   if (!effectiveUserId) {
-    const returnTo = sourceType === 'artisan' && sourceId ? `/artisans/${sourceId}` : '/';
+    // Après connexion, reprendre la fiche et le bouton de contact d'origine.
+    // Une demande ne doit pas ramener l'utilisateur à l'accueil.
+    const returnTo = sourceType === 'artisan' && sourceId
+      ? `/artisans/${sourceId}`
+      : sourceType === 'service_request' && sourceId
+        ? `/demandes/${sourceId}`
+        : '/';
     return (
       <Link
         href={`/connexion?next=${encodeURIComponent(returnTo)}`}

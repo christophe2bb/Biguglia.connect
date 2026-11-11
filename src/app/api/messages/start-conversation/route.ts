@@ -309,15 +309,17 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
     const { data: artisan, error: artisanError } = await admin
       .from('artisan_profiles')
-      .select('id, user_id')
+      .select('id, user_id, is_verified')
       .eq('id', relatedId)
       .maybeSingle();
     if (artisanError) {
       console.warn('[start-conversation] vérification artisan indisponible:', artisanError.code);
       return NextResponse.json({ error: 'Profil artisan momentanément indisponible' }, { status: 503 });
     }
-    if (!artisan || artisan.user_id !== ownerId) {
-      return NextResponse.json({ error: 'Profil artisan introuvable' }, { status: 404 });
+    // Ne jamais démarrer un nouveau contact depuis une fiche suspendue
+    // ou encore non validée, même en appelant l'API directement.
+    if (!artisan || artisan.user_id !== ownerId || artisan.is_verified !== true) {
+      return NextResponse.json({ error: 'Profil artisan introuvable ou non validé' }, { status: 404 });
     }
   }
 

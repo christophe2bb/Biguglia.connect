@@ -565,6 +565,22 @@ describe('POST /api/messages/start-conversation', () => {
     expect(db.from).not.toHaveBeenCalledWith('conversations');
   });
 
+  it('refuse une conversation avec un artisan non vérifié, même si ownerId est correct', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      artisan_profiles: { data: { id: OBJ_ID, user_id: USER_B, is_verified: false }, error: null },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, subject: 'Artisan non vérifié',
+      relatedType: 'artisan', relatedId: OBJ_ID, initialMsg: 'Bonjour',
+    }) as never);
+    expect(res.status).toBe(404);
+    expect(db.from).not.toHaveBeenCalledWith('conversations');
+  });
+
   it('ouvre une conversation artisan avec son vrai propriétaire et un premier message', async () => {
     mockGetUserId.mockResolvedValueOnce(USER_A);
     const insertConv = vi.fn(() => makeAutoChain({ data: { id: CONV_ID }, error: null }));
@@ -575,7 +591,7 @@ describe('POST /api/messages/start-conversation', () => {
           return makeAutoChain({ data: { id: USER_B, status: 'active', is_active: true }, error: null });
         }
         if (table === 'artisan_profiles') {
-          return makeAutoChain({ data: { id: OBJ_ID, user_id: USER_B }, error: null });
+          return makeAutoChain({ data: { id: OBJ_ID, user_id: USER_B, is_verified: true }, error: null });
         }
         if (table === 'user_blocks') return makeAutoChain({ data: [], error: null });
         if (table === 'conversation_participants') return makeAutoChain({ data: [], error: null });

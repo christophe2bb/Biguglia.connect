@@ -491,7 +491,10 @@ export default function DemandeDetailClient() {
                 )}
 
                 {/* Message privé — visible pour les non-auteurs connectés */}
-                {!isOwner && profile && request.resident_id && (
+                {!isOwner && profile && request.resident_id &&
+                  // Sur un devis privé, seul l'artisan destinataire peut contacter le résident.
+                  // Les modérateurs peuvent consulter, mais ne sont pas participants au devis.
+                  (!request.artisan_id || request.artisan?.user_id === profile.id) && (
                   <ContactButton
                     sourceType="service_request"
                     sourceId={request.id}
