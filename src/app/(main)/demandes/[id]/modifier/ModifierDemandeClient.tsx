@@ -267,11 +267,33 @@ export default function ModifierDemandeClient({ id }: Props) {
 
       const { urls, failures } = await uploadNewPhotos(session.access_token);
       let associationFailed = false;
+      let orphanCleanupFailed = false;
       if (urls.length > 0) {
         const { error: photoError } = await supabase.from('service_request_photos').insert(
           urls.map(url => ({ request_id: id, url })),
         );
         associationFailed = !!photoError;
+        if (photoError) {
+          // Une insertion de métadonnées échouée ne doit pas laisser les
+          // nouveaux fichiers publics et orphelins dans Supabase Storage.
+          const paths = urls
+            .map(url => safeStoragePath(url, 'photos'))
+            .filter((path): path is string => !!path && path.startsWith(`requests/${id}/`));
+          if (paths.length !== urls.length) {
+            orphanCleanupFailed = true;
+            console.warn('[ModifierDemande] chemins de photos non reconnus ; nettoyage requis');
+          } else {
+            try {
+              await deletePhotoFiles(paths);
+            } catch (cleanupError) {
+              orphanCleanupFailed = true;
+              console.warn('[ModifierDemande] nettoyage de photos orphelines incomplet', cleanupError);
+            }
+          }
+        }
+      }
+      if (orphanCleanupFailed) {
+        toast.error('Certaines photos non enregistrées nécessitent un nettoyage du stockage.', { duration: 7000 });
       }
       if (failures || associationFailed || failedRemovals) {
         toast.error('Demande modifiée, mais certaines opérations sur les photos ont échoué.', { duration: 6500 });
