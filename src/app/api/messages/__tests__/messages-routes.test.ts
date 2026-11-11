@@ -502,13 +502,33 @@ describe('POST /api/messages/start-conversation', () => {
       service_requests: {
         data: { id: OBJ_ID, resident_id: USER_B, artisan_id: CONV_ID }, error: null,
       },
-      artisan_profiles: { data: { id: CONV_ID, user_id: artisanOwner }, error: null },
+      artisan_profiles: { data: { id: CONV_ID, user_id: artisanOwner, is_verified: true }, error: null },
     });
     mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
     const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
       ownerId: USER_B, relatedType: 'service_request', relatedId: OBJ_ID, initialMsg: 'Bonjour',
     }) as never);
     expect(res.status).toBe(403);
+    expect(db.from).not.toHaveBeenCalledWith('conversations');
+  });
+
+  it('refuse un nouveau fil lié à un devis si le profil artisan a perdu sa validation', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      service_requests: {
+        data: { id: OBJ_ID, resident_id: USER_B, artisan_id: CONV_ID, status: 'submitted' }, error: null,
+      },
+      artisan_profiles: {
+        data: { id: CONV_ID, user_id: USER_A, is_verified: false }, error: null,
+      },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'service_request', relatedId: OBJ_ID, initialMsg: 'Bonjour',
+    }) as never);
+    expect(res.status).toBe(404);
     expect(db.from).not.toHaveBeenCalledWith('conversations');
   });
 
@@ -520,7 +540,7 @@ describe('POST /api/messages/start-conversation', () => {
       service_requests: {
         data: { id: OBJ_ID, resident_id: USER_B, artisan_id: CONV_ID }, error: null,
       },
-      artisan_profiles: { data: { id: CONV_ID, user_id: USER_A }, error: null },
+      artisan_profiles: { data: { id: CONV_ID, user_id: USER_A, is_verified: true }, error: null },
       conversation_participants: { data: [], error: null },
       conversations: { data: null, error: { code: '23514', message: 'stop after eligibility gate' } },
     });

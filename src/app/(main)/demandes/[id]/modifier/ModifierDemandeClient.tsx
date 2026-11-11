@@ -454,8 +454,9 @@ export default function ModifierDemandeClient({ id }: Props) {
                   <button
                     type="button"
                     onClick={() => removeExistingPhoto(url)}
-                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute -top-2 -right-2 w-7 h-7 bg-red-600 text-white rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
                     title="Supprimer cette photo"
+                    aria-label={`Retirer la photo existante ${i + 1}`}
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -481,6 +482,7 @@ export default function ModifierDemandeClient({ id }: Props) {
                     onClick={() => setNewPhotos(p => p.filter((_, j) => j !== i))}
                     className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Retirer cette photo"
+                    aria-label={`Retirer la nouvelle photo ${i + 1}`}
                   >
                     <X className="w-3 h-3" />
                   </button>

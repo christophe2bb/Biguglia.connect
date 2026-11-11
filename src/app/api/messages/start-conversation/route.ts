@@ -355,14 +355,16 @@ export async function POST(req: NextRequest): Promise<Response> {
     } else {
       const { data: artisan, error: artisanError } = await admin
         .from('artisan_profiles')
-        .select('id, user_id')
+        .select('id, user_id, is_verified')
         .eq('id', serviceRequest.artisan_id)
         .maybeSingle();
       if (artisanError) {
         return NextResponse.json({ error: 'Vérification artisan indisponible' }, { status: 503 });
       }
-      if (!artisan || !artisan.user_id) {
-        return NextResponse.json({ error: 'Artisan de la demande introuvable' }, { status: 404 });
+      if (!artisan || !artisan.user_id || artisan.is_verified !== true) {
+        // Une fiche retirée de l'annuaire ne peut pas recevoir de nouvelles
+        // conversations par simple réutilisation d'un ancien ID de devis.
+        return NextResponse.json({ error: 'Artisan de la demande introuvable ou non validé' }, { status: 404 });
       }
       const expected = new Set([serviceRequest.resident_id, artisan.user_id]);
       if (expected.size !== 2 || !expected.has(userId) || !expected.has(ownerId)) {
