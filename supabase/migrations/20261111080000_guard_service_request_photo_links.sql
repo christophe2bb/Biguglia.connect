@@ -17,15 +17,15 @@ WITH CHECK (
           sr.artisan_id IS NOT NULL
           AND url LIKE '/api/service-requests/' || sr.id::text || '/photos/%'
           AND url ~ ('^/api/service-requests/' || sr.id::text
-              || '/photos/[a-zA-Z0-9_-][a-zA-Z0-9_.-]{0,180}\\.(jpg|jpeg|png|webp|gif)$')
+              || '/photos/[a-zA-Z0-9_-][a-zA-Z0-9_.-]{0,180}[.](jpg|jpeg|png|webp|gif)$')
           AND position('..' in url) = 0
         )
         OR
         (
           sr.artisan_id IS NULL
           AND url LIKE 'https://%.supabase.co/storage/v1/object/public/photos/requests/' || sr.id::text || '/%'
-          AND url ~ ('^https://[a-z0-9-]+\\.supabase\\.co/storage/v1/object/public/photos/requests/'
-              || sr.id::text || '/[a-zA-Z0-9_-][a-zA-Z0-9_.-]{0,180}\\.(jpg|jpeg|png|webp|gif)$')
+          AND url ~ ('^https://[a-z0-9-]+[.]supabase[.]co/storage/v1/object/public/photos/requests/'
+              || sr.id::text || '/[a-zA-Z0-9_-][a-zA-Z0-9_.-]{0,180}[.](jpg|jpeg|png|webp|gif)$')
           AND position('..' in url) = 0
         )
       )
