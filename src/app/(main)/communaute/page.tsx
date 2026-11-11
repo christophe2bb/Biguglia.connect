@@ -27,6 +27,12 @@ import {
 import { BADGE_CONFIG } from '@/lib/trust';
 import type { BadgeCode } from '@/lib/trust';
 
+// Les indicateurs communautaires proviennent de Supabase à chaque requête.
+// Ne pas interroger le backend pendant la génération statique Vercel :
+// une indisponibilité momentanée empêchait le déploiement (timeout 60s).
+export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
+
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://biguglia-connect.vercel.app';
 
 export const metadata: Metadata = {
