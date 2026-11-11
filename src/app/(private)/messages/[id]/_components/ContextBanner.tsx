@@ -220,6 +220,7 @@ export function ContextBanner({ relatedType, relatedId, subject }: ContextBanner
               {contextData.photo ? (
                 <Image
                   src={contextData.photo}
+                  unoptimized={contextData.photo.startsWith('/api/service-requests/')}
                   alt={contextData.title}
                   width={56}
                   height={56}

@@ -174,7 +174,7 @@ export function PhotoLightbox({ photos, initialIndex = 0, onClose, title }: Phot
               priority
               className="object-contain select-none"
               sizes="100vw"
-              unoptimized={photo.url.startsWith('blob:')}
+              unoptimized={photo.url.startsWith('blob:') || photo.url.startsWith('/api/service-requests/')}
             />
           </div>
 
@@ -203,7 +203,7 @@ export function PhotoLightbox({ photos, initialIndex = 0, onClose, title }: Phot
                     i === idx ? 'border-white scale-110 shadow-lg' : 'border-white/20 opacity-60 hover:opacity-100 hover:border-white/50'
                   }`}
                 >
-                  <Image src={p.url} alt="" fill sizes="56px" unoptimized={p.url.startsWith('blob:')} className="object-cover" />
+                  <Image src={p.url} alt="" fill sizes="56px" unoptimized={p.url.startsWith('blob:') || p.url.startsWith('/api/service-requests/')} className="object-cover" />
                   {(p.isPrimary || i === 0) && (
                     <div className="absolute top-0.5 left-0.5">
                       <Crown className="w-2.5 h-2.5 text-amber-400 drop-shadow" aria-hidden="true" />

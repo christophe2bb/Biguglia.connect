@@ -55,7 +55,7 @@ export function PhotoGalleryComponent({
           <Image
             src={primary.url} alt={title || 'Photo'} fill
             sizes="(max-width:640px) 100vw, 50vw"
-            unoptimized={primary.url.startsWith('blob:')}
+            unoptimized={primary.url.startsWith('blob:') || primary.url.startsWith('/api/service-requests/')}
             className="object-cover group-hover:scale-105 transition-transform duration-300"
           />
           {extra > 0 && (
@@ -89,7 +89,7 @@ export function PhotoGalleryComponent({
           <Image
             src={primary.url} alt={title || 'Photo principale'} fill
             sizes="(max-width:640px) 100vw, (max-width:1024px) 75vw, 60vw"
-            unoptimized={primary.url.startsWith('blob:')}
+            unoptimized={primary.url.startsWith('blob:') || primary.url.startsWith('/api/service-requests/')}
             className="object-cover group-hover:scale-[1.02] transition-transform duration-300"
           />
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors flex items-center justify-center">
@@ -124,7 +124,7 @@ export function PhotoGalleryComponent({
                   onClick={() => openAt(i + 1)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAt(i + 1); } }}
                 >
-                  <Image src={p.url} alt="" fill sizes="(max-width:640px) 96px, 128px" unoptimized={p.url.startsWith('blob:')} className="object-cover group-hover:scale-105 transition-transform duration-200" />
+                  <Image src={p.url} alt="" fill sizes="(max-width:640px) 96px, 128px" unoptimized={p.url.startsWith('blob:') || p.url.startsWith('/api/service-requests/')} className="object-cover group-hover:scale-105 transition-transform duration-200" />
                   {isLast && (
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                       <span className="text-white font-black text-lg">+{remaining + 1}</span>

@@ -109,6 +109,7 @@ function RequestCard({ req, isPrivate = false }: { req: ServiceRequest; isPrivat
           {photo ? (
             <Image
               src={photo}
+              unoptimized={photo.startsWith('/api/service-requests/')}
               alt={req.title}
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
