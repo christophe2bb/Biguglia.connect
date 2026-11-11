@@ -47,6 +47,14 @@ function DemandeServiceForm() {
     return () => urls.forEach(url => URL.revokeObjectURL(url));
   }, [photos]);
 
+  // HTML date input expects a local calendar date, not a UTC ISO day.
+  const today = new Date();
+  const localToday = [
+    String(today.getFullYear()),
+    String(today.getMonth() + 1).padStart(2, '0'),
+    String(today.getDate()).padStart(2, '0'),
+  ].join('-');
+
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -390,7 +398,7 @@ function DemandeServiceForm() {
               type="date"
               value={form.preferred_date}
               onChange={(e) => setForm(f => ({ ...f, preferred_date: e.target.value }))}
-              min={new Date().toISOString().split('T')[0]}
+              min={localToday}
             />
             <Input
               label="Heure souhaitée"
