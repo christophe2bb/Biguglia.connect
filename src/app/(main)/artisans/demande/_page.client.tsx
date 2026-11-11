@@ -497,7 +497,7 @@ function DemandeServiceForm() {
               : 'Cette demande et son adresse seront visibles par les utilisateurs connectés de la plateforme.'}
             {' '}{artisanId
               ? 'Les photos du devis sont stockées dans un espace privé, consultable par les participants et la modération.'
-              : 'Les photos jointes à une demande publique sont accessibles aux utilisateurs de la plateforme : ne publiez pas de documents confidentiels.'
+              : 'Les photos jointes à une demande publique peuvent être consultées par toute personne disposant de leur lien, même sans connexion : ne publiez ni documents confidentiels ni informations personnelles.'
             } Biguglia Connect ne garantit pas les travaux.
           </p>
         </div>
