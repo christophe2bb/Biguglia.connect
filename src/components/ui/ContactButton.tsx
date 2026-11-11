@@ -218,7 +218,9 @@ export default function ContactButton({
           ? `Bonjour, je vous contacte depuis la communauté ${sourceTitle || ''}.`
           : sourceType === 'listing'
             ? `Bonjour, je suis intéressé(e) par votre annonce${sourceTitle ? ` "${sourceTitle}"` : ''} — est-elle toujours disponible ?`
-            : `Bonjour${sourceTitle ? ` ${sourceTitle.split(' ')[0]}` : ''}, je vous contacte via Biguglia Connect.`
+            : sourceType === 'service_request'
+              ? `Bonjour, je vous contacte au sujet de la demande${sourceTitle ? ` « ${sourceTitle} »` : ''} sur Biguglia Connect.`
+              : `Bonjour${sourceTitle ? ` ${sourceTitle.split(' ')[0]}` : ''}, je vous contacte via Biguglia Connect.`
         );
 
 

@@ -491,17 +491,18 @@ export default function DemandeDetailClient() {
                 )}
 
                 {/* Message privé — visible pour les non-auteurs connectés */}
-                {!isOwner && profile && request.resident_id &&
-                  // Les demandes publiques closes ne reçoivent plus de nouveaux contacts.
-                  // Sur un devis privé, seul l'artisan destinataire voit ce bouton.
+                {!isOwner && request.resident_id &&
+                  // Un visiteur peut demander à se connecter pour un contact public :
+                  // le lien de retour lui permet de reprendre la demande.
+                  // Les devis privés restent réservés à l'artisan destinataire.
                   (!isResolved || !!request.artisan_id) &&
-                  (!request.artisan_id || request.artisan?.user_id === profile.id) && (
+                  (!request.artisan_id || request.artisan?.user_id === profile?.id) && (
                   <ContactButton
                     sourceType="service_request"
                     sourceId={request.id}
                     sourceTitle={request.title}
                     ownerId={request.resident_id}
-                    userId={profile.id}
+                    userId={profile?.id}
                     ctaLabel="Message privé"
                     prefillMsg={`Bonjour, je vous contacte suite à votre demande « ${request.title} ».`}
                     size="sm"
