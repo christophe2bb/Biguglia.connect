@@ -1,4 +1,13 @@
 # Audit Pré-Production — Biguglia Connect
+
+> **ARCHIVE HISTORIQUE — NE CONSTITUE PAS UNE VALIDATION ACTUELLE DE PRODUCTION.**
+> Les scores 100/100 et la décision « GO SOLID » ci-dessous concernent
+> exclusivement l'audit d'avril 2026. Ils ne certifient ni les commits
+> de novembre, ni les tests authentifiés, ni l'état actuel de Supabase/Vercel.
+> La recette Services multi-comptes et la reconstruction des migrations
+> restent des points ouverts (voir
+> [incident n° 579](https://github.com/christophe2bb/Biguglia.connect/issues/579)).
+
 **Date initiale :** 2026-04-22  
 **Auditeur :** Genspark AI Developer  
 **Mis à jour :** 2026-04-27 (PRs #425–#427 — tous les P0/P1/P2/P3 résolus)  
