@@ -39,7 +39,8 @@ export interface UseFavoritesReturn {
 export function useFavorites(): UseFavoritesReturn {
   const { profile, phase } = useAuthStore();
   const userId = phase === 'authenticated' ? (profile?.id ?? null) : null;
-  const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set(lsRead()));
+  // Même état initial côté serveur et navigateur : évite une erreur d’hydratation React.
+  const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set<string>());
   const inFlight = useRef<Set<string>>(new Set());
 
   // La fiche SSR monte plusieurs instances d'AnnonceActions (topbar,
@@ -48,10 +49,12 @@ export function useFavorites(): UseFavoritesReturn {
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<{ id?: string; saved?: boolean }>).detail;
       if (!detail?.id || !UUID.test(detail.id) || typeof detail.saved !== 'boolean') return;
+      const id = detail.id;
+      const saved = detail.saved;
       setSavedIds(prev => {
         const next = new Set(prev);
-        if (detail.saved) next.add(detail.id);
-        else next.delete(detail.id);
+        if (saved) next.add(id);
+        else next.delete(id);
         return next;
       });
     };
