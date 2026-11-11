@@ -21,7 +21,8 @@ import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Select from '@/components/ui/Select';
 import SectorFilter from '@/components/ui/SectorFilter';
-import { safeImageExt, uploadFile, isAcceptedImageType, MAX_PHOTO_MB } from '@/lib/upload-utils';
+import { safeImageExt, safeStoragePath, uploadFile, isAcceptedImageType, MAX_PHOTO_MB } from '@/lib/upload-utils';
+import { deletePhotoFiles } from '@/lib/delete-photo-files';
 
 // ─── Type minimal pour le chargement initial ────────────────────────────────
 type ServiceRequestRow = {
@@ -245,6 +246,22 @@ export default function ModifierDemandeClient({ id }: Props) {
         if (removeError || !removed?.length) {
           console.warn('[ModifierDemande] retrait photo refusé', removeError?.code);
           failedRemovals++;
+        } else {
+          // La demande existe toujours : /api/storage/photos peut vérifier
+          // son résident avant de nettoyer les fichiers de cette demande.
+          const path = safeStoragePath(url, 'photos');
+          if (path?.startsWith('requests/' + id + '/')) {
+            try {
+              await deletePhotoFiles([path]);
+            } catch (error) {
+              console.warn('[ModifierDemande] photo Storage non supprimée', error);
+              failedRemovals++;
+            }
+          } else {
+            // Impossible de supprimer en sécurité un chemin étranger.
+            console.warn('[ModifierDemande] URL Storage hors dossier');
+            failedRemovals++;
+          }
         }
       }
 
