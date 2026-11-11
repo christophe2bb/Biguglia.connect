@@ -40,6 +40,13 @@ test.describe('Services — trois rôles authentifiés (recette stricte)', () =>
     await expect(page.getByRole('button', { name: /envoyer la demande/i })).toBeVisible();
     await page.goto('/demandes');
     await expect(page.getByRole('button', { name: /mes devis envoyés/i })).toBeVisible();
+    // Un résident connecté ne peut pas consulter les documents administratifs.
+    const adminResponse = await page.request.get('/api/admin/artisans');
+    expect(adminResponse.status()).toBe(403);
+    const foreignConversation = await page.request.get(
+      '/api/messages/conversation/00000000-0000-4000-8000-000000000999',
+    );
+    expect(foreignConversation.status()).toBe(403);
   });
 
   test('artisan vérifié : accès à son espace et aux demandes', async ({ page }) => {
@@ -48,6 +55,8 @@ test.describe('Services — trois rôles authentifiés (recette stricte)', () =>
     await expect(page.getByRole('heading', { name: /espace artisan/i })).toBeVisible();
     await page.goto('/demandes');
     await expect(page.getByRole('button', { name: /mes devis reçus/i })).toBeVisible();
+    const adminResponse = await page.request.get('/api/admin/artisans');
+    expect(adminResponse.status()).toBe(403);
   });
 
   test('administrateur : accès à la gestion des artisans', async ({ page }) => {
@@ -55,5 +64,10 @@ test.describe('Services — trois rôles authentifiés (recette stricte)', () =>
     const response = await page.goto('/admin/artisans');
     expect(response?.status()).toBe(200);
     await expect(page.getByRole('heading', { name: /gestion des artisans/i })).toBeVisible();
+    // Le rôle administrateur est vérifié côté serveur (pas seulement dans l'interface).
+    const artisansResponse = await page.request.get('/api/admin/artisans');
+    expect(artisansResponse.status()).toBe(200);
+    const usersResponse = await page.request.get('/api/admin/users');
+    expect(usersResponse.status()).toBe(200);
   });
 });
