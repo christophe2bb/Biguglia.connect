@@ -232,7 +232,7 @@ export async function POST(
   // surtout pas renvoyer 500 et pousser l'utilisateur à envoyer un doublon.
   const sideEffects = await Promise.allSettled([
     admin.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', conversationId),
-    sendNewMessageNotifications(admin, conversationId, userId, content),
+    sendNewMessageNotifications(admin, conversationId, userId, content, true),
   ]);
   if (sideEffects.some(result => result.status === 'rejected')) {
     console.warn('[conversation POST] échec d\'une opération secondaire après enregistrement');

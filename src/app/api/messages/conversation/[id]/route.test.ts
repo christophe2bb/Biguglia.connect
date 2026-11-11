@@ -1089,6 +1089,13 @@ describe('sendNewMessageNotifications()', () => {
     expect(insertFn).not.toHaveBeenCalled();
   });
 
+  it('notifie un vrai message utilisateur même s’il commence par 👋', async () => {
+    const insertFn = vi.fn();
+    const admin = buildNotifAdmin({ insertFn });
+    await sendNewMessageNotifications(admin, CONV_ID, USER_A, '👋 Bonjour, je réponds au devis', true);
+    expect(insertFn).toHaveBeenCalledOnce();
+  });
+
   it('envoie une notification pour un message normal', async () => {
     const insertFn = vi.fn();
     const admin = buildNotifAdmin({ insertFn });
