@@ -38,6 +38,8 @@ type ServiceRequest = {
   preferred_date?: string | null;
   preferred_time?: string | null;
   resident_id: string;
+  artisan_id?: string | null;
+  artisan?: { user_id: string; business_name: string } | null;
   sector_id?: string | null;
   resident?: { id: string; full_name: string; avatar_url?: string } | null;
   category?: { id: string; name: string; icon: string } | null;
@@ -81,6 +83,8 @@ export default function DemandeDetailClient() {
   const [request, setRequest]         = useState<ServiceRequest | null>(null);
   const [comments, setComments]       = useState<RequestComment[]>([]);
   const [loading, setLoading]         = useState(true);
+  const [loadError, setLoadError]     = useState(false);
+  const [commentsError, setCommentsError] = useState(false);
   const [newComment, setNewComment]   = useState('');
   const [submitting, setSubmitting]   = useState(false);
   const [deleting, setDeleting]       = useState(false);
@@ -99,7 +103,8 @@ export default function DemandeDetailClient() {
       .from('service_requests')
       .select(`
         id, title, description, urgency, address, status, created_at,
-        preferred_date, preferred_time, resident_id, sector_id,
+        preferred_date, preferred_time, resident_id, artisan_id, sector_id,
+        artisan:artisan_profiles!service_requests_artisan_id_fkey(user_id, business_name),
         resident:profiles(id, full_name, avatar_url),
         category:trade_categories(id, name, icon),
         photos:service_request_photos(url)
@@ -107,13 +112,20 @@ export default function DemandeDetailClient() {
       .eq('id', id)
       .single();
 
-    if (!error && data) setRequest(data as unknown as ServiceRequest);
+    if (error || !data) {
+      console.warn('[Demande] chargement détail refusé', error?.code);
+      setRequest(null);
+      setLoadError(Boolean(error));
+    } else {
+      setRequest(data as unknown as ServiceRequest);
+      setLoadError(false);
+    }
     setLoading(false);
   }, [supabase, id]);
 
   // ── Charger les commentaires ────────────────────────────────────────────
   const fetchComments = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('request_comments')
       .select(`
         id, content, created_at, author_id,
@@ -122,7 +134,13 @@ export default function DemandeDetailClient() {
       .eq('request_id', id)
       .order('created_at', { ascending: true });
 
-    setComments((data as unknown as RequestComment[]) || []);
+    if (error) {
+      console.warn('[Demande] chargement commentaires refusé', error.code);
+      setCommentsError(true);
+    } else {
+      setCommentsError(false);
+      setComments((data as unknown as RequestComment[]) || []);
+    }
   }, [supabase, id]);
 
   useEffect(() => {
@@ -130,41 +148,31 @@ export default function DemandeDetailClient() {
     fetchComments();
   }, [fetchRequest, fetchComments]);
 
-  // ── Poster un commentaire ────────────────────────────────────────────────
-  const handleSubmitComment = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // ── Réponses : la base passe le statut en "replied" APRÈS un commentaire
+  // autorisé d'un autre utilisateur (trigger SQL, jamais par le navigateur).
+  const handleSubmitComment = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!profile) { toast.error('Connectez-vous pour répondre'); return; }
-    if (!newComment.trim()) return;
-
+    if (submitting || !newComment.trim()) return;
     setSubmitting(true);
-    const { error } = await supabase.from('request_comments').insert({
-      request_id: id,
-      author_id: profile.id,
-      content: newComment.trim(),
-    });
-
-    if (error) {
-      // Table manquante → créer via migration
-      if (error.code === 'PGRST205' || error.code === '42P01' || error.message?.includes('schema cache') || error.message?.includes('Could not find')) {
-        toast.error('Table manquante — exécutez la migration dans /admin/migration');
-      } else {
-        toast.error(`Erreur : ${error.message}`);
+    try {
+      const { data: inserted, error } = await supabase.from('request_comments')
+        .insert({ request_id: id, author_id: profile.id, content: newComment.trim() })
+        .select('id').maybeSingle();
+      if (error || !inserted) {
+        console.warn('[Demande] réponse refusée', error?.code);
+        toast.error('Votre réponse n’a pas été enregistrée. Réessayez.');
+        return;
       }
-    } else {
-      toast.success('✅ Réponse publiée !', { duration: 3000 });
       setNewComment('');
-      fetchComments();
-      // Marquer la demande comme "replied" si elle était submitted/viewed
-      if (request && ['submitted', 'viewed'].includes(request.status) && profile.id !== request.resident_id) {
-        await supabase
-          .from('service_requests')
-          .update({ status: 'replied' })
-          .eq('id', id)
-          .in('status', ['submitted', 'viewed']);
-        fetchRequest();
-      }
+      toast.success('Réponse publiée');
+      await Promise.all([fetchComments(), fetchRequest()]);
+    } catch (error) {
+      console.error('[Demande] erreur réseau commentaire', error);
+      toast.error('Erreur réseau : réponse non confirmée.');
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   // ── Supprimer un commentaire ─────────────────────────────────────────────
@@ -193,52 +201,41 @@ export default function DemandeDetailClient() {
     }
   };
 
-  // ── Supprimer la demande ─────────────────────────────────────────────────
-  // ⚠️ Appelé APRÈS confirmation dans le dialog React (pas de confirm() bloquant).
+  // ── Suppression : contrôle serveur de propriété avant DB puis Storage ──────
   const doDeleteRequest = async () => {
-    if (!request || !profile) return;
-
-    // Vérification côté client : l'utilisateur doit être le propriétaire
+    if (!request || !profile || deleting) return;
     if (profile.id !== request.resident_id) {
-      toast.error('Vous n\'êtes pas autorisé à supprimer cette demande.');
+      toast.error('Vous ne pouvez supprimer que vos propres demandes.');
       return;
     }
-
     setDeleting(true);
-
-    // .select('id') permet de détecter le cas « 0 lignes supprimées » (RLS silencieux)
-    const { data: deleted, error } = await supabase
-      .from('service_requests')
-      .delete()
-      .eq('id', id)
-      .eq('resident_id', profile.id)
-      .select('id');
-
-    if (error) {
-      console.error('[doDeleteRequest] Supabase error:', error);
-      toast.error(`Erreur lors de la suppression : ${error.message}`);
-      setDeleting(false);
-      return;
-    }
-
-    if (!deleted || deleted.length === 0) {
-      // RLS a bloqué silencieusement — la politique DELETE n'est pas encore déployée
-      console.warn('[doDeleteRequest] 0 rows deleted — RLS policy missing or mismatch', {
-        id,
-        resident_id: profile.id,
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(`/api/service-requests/${id}/delete`, {
+        method: 'DELETE',
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
       });
-      toast.error(
-        'Suppression bloquée par la politique de sécurité. ' +
-        'Vérifiez que la migration RLS a bien été exécutée dans Supabase.',
-        { duration: 6000 }
-      );
+      const body = await response.json().catch(() => null) as {
+        ok?: boolean; error?: string; cleanupWarning?: boolean;
+      } | null;
+      if (!response.ok || !body?.ok) {
+        toast.error(body?.error || 'La demande n’a pas été supprimée.');
+        return;
+      }
+      if (body.cleanupWarning) {
+        toast('Demande supprimée, mais le nettoyage de certains fichiers reste à vérifier.', {
+          icon: '⚠️', duration: 6500,
+        });
+      } else {
+        toast.success('Demande supprimée');
+      }
+      router.push('/demandes');
+    } catch (error) {
+      console.warn('[Demande] suppression réseau interrompue', error);
+      toast.error('Suppression non confirmée. Réactualisez vos demandes avant de réessayer.');
+    } finally {
       setDeleting(false);
-      return;
     }
-
-    console.info('[doDeleteRequest] Supprimé avec succès :', deleted[0].id);
-    toast.success('Demande supprimée.', { duration: 3000 });
-    router.push('/demandes');
   };
 
   // ── Marquer comme résolue ─────────────────────────────────────────────────
@@ -277,7 +274,7 @@ export default function DemandeDetailClient() {
   if (!request) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
-        <p className="text-gray-500 font-semibold">Demande introuvable.</p>
+        <p className="text-gray-500 font-semibold">{loadError ? 'Impossible de charger cette demande pour le moment.' : 'Demande introuvable ou non accessible.'}</p>
         <Link href="/demandes" className="text-blue-600 hover:underline flex items-center gap-1">
           <ArrowLeft className="w-4 h-4" /> Retour aux demandes
         </Link>
@@ -477,6 +474,20 @@ export default function DemandeDetailClient() {
                   </button>
                 )}
 
+                {/* Pour un devis privé, le résident peut aussi contacter l'artisan. */}
+                {isOwner && profile && request.artisan?.user_id && (
+                  <ContactButton
+                    sourceType="service_request"
+                    sourceId={request.id}
+                    sourceTitle={request.title}
+                    ownerId={request.artisan.user_id}
+                    userId={profile.id}
+                    ctaLabel="Contacter l’artisan"
+                    size="sm"
+                    variant="secondary"
+                  />
+                )}
+
                 {/* Message privé — visible pour les non-auteurs connectés */}
                 {!isOwner && profile && request.resident_id && (
                   <ContactButton
@@ -507,11 +518,17 @@ export default function DemandeDetailClient() {
             </h2>
           </div>
 
+          {commentsError && (
+            <p role="alert" className="px-6 py-3 bg-red-50 text-red-700 text-sm">
+              Impossible de récupérer les réponses pour le moment.
+            </p>
+          )}
+
           {/* Liste commentaires */}
           {comments.length > 0 && (
             <div className="divide-y divide-gray-50">
               {comments.map(comment => {
-                const canDelete = profile && (profile.id === comment.author_id || profile.role === 'admin' || profile.role === 'moderator');
+                const canDelete = profile && (profile.id === comment.author_id || profile.id === request.resident_id || profile.role === 'admin' || profile.role === 'moderator');
                 const isCommentOwner = profile?.id === comment.author_id;
                 const isArtisan = comment.author?.role === 'artisan_verified';
                 return (
