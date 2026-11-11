@@ -26,8 +26,8 @@ interface ArtisanDecisionFooterProps {
   userId:    string;
   isPending: boolean;
   isVerified: boolean;
-  onApprove: (userId: string) => void;
-  onReject:  (userId: string, reason: string) => void;
+  onApprove: (userId: string) => Promise<boolean>;
+  onReject:  (userId: string, reason: string) => Promise<boolean>;
   onClose:   () => void;
 }
 
@@ -37,6 +37,30 @@ export default function ArtisanDecisionFooter({
   const [confirmedLocal, setConfirmedLocal] = useState(false);
   const [rejecting,      setRejecting]      = useState(false);
   const [reason,         setReason]         = useState('');
+  const [decisionPending, setDecisionPending] = useState(false);
+
+  const confirmApprove = async () => {
+    if (!confirmedLocal || decisionPending) return;
+    setDecisionPending(true);
+    try {
+      if (await onApprove(userId)) onClose();
+    } finally {
+      setDecisionPending(false);
+    }
+  };
+
+  const confirmReject = async () => {
+    if (reason.trim().length < 10 || decisionPending) {
+      if (reason.trim().length < 10) toast.error('Le motif doit contenir au moins 10 caractères.');
+      return;
+    }
+    setDecisionPending(true);
+    try {
+      if (await onReject(userId, reason.trim())) onClose();
+    } finally {
+      setDecisionPending(false);
+    }
+  };
 
   if (!isPending && !isVerified) return null;
 
@@ -66,22 +90,18 @@ export default function ArtisanDecisionFooter({
               <XCircle className="w-4 h-4" /> Refuser
             </button>
             <button
-              onClick={() => {
-                if (!confirmedLocal) { toast.error('Cochez d\'abord la case "Artisan de Biguglia"'); return; }
-                onApprove(userId);
-                onClose();
-              }}
-              disabled={!confirmedLocal}
+              onClick={() => void confirmApprove()}
+              disabled={!confirmedLocal || decisionPending}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <CheckCircle className="w-4 h-4" /> ✅ Approuver le profil
+              <CheckCircle className="w-4 h-4" /> {decisionPending ? 'Validation…' : '✅ Approuver le profil'}
             </button>
           </div>
         </>
       )}
 
       {/* ── En attente : formulaire de refus ── */}
-      {isPending && rejecting && (
+      {(isPending || isVerified) && rejecting && (
         <div className="space-y-3">
           <div>
             <p className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -114,30 +134,24 @@ export default function ArtisanDecisionFooter({
               Annuler
             </button>
             <button
-              onClick={() => {
-                if (!reason.trim()) { toast.error('Indiquez un motif de refus'); return; }
-                onReject(userId, reason);
-                onClose();
-              }}
-              className="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition-colors"
+              onClick={() => void confirmReject()}
+              disabled={decisionPending || reason.trim().length < 10}
+              className="flex-1 disabled:opacity-50 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition-colors"
             >
-              Confirmer le refus
+              {decisionPending ? 'Enregistrement…' : isVerified ? 'Confirmer la révocation' : 'Confirmer le refus'}
             </button>
           </div>
         </div>
       )}
 
       {/* ── Vérifié : révocation ── */}
-      {isVerified && (
+      {isVerified && !rejecting && (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
             <CheckCircle className="w-4 h-4" /> Profil validé
           </div>
           <button
-            onClick={() => {
-              const r = window.prompt('Motif de révocation (sera envoyé à l\'artisan) :');
-              if (r !== null) { onReject(userId, r || 'Profil suspendu par l\'administrateur.'); onClose(); }
-            }}
+            onClick={() => setRejecting(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
           >
             <XCircle className="w-3.5 h-3.5" /> Révoquer

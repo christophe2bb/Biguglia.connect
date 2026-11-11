@@ -138,5 +138,9 @@ export async function PATCH(req: Request, { params }: RouteParams): Promise<Resp
     console.warn('[artisan review] décision enregistrée, journalisation indisponible', error);
   }
 
-  return NextResponse.json({ success: true, action: approving ? 'approved' : 'rejected' });
+  return NextResponse.json({
+    success: true,
+    action: approving ? 'approved' : 'rejected',
+    notificationWarning: Boolean(notificationError),
+  });
 }

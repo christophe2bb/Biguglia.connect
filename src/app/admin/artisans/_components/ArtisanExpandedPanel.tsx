@@ -28,8 +28,8 @@ interface ArtisanExpandedPanelProps {
     doc_id_url?: string;
     profile?: { role?: string };
   };
-  onApprove: (userId: string) => void;
-  onReject: (userId: string, reason: string) => void;
+  onApprove: (userId: string) => Promise<boolean>;
+  onReject: (userId: string, reason: string) => Promise<boolean>;
 }
 
 const REJECT_SUGGESTIONS = [
