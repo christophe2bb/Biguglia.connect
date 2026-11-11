@@ -44,7 +44,7 @@ describe('Suppression demande : sécurité', () => {
     const order: string[] = [];
     const remove = vi.fn(async (paths: string[]) => {
       order.push('storage');
-      expect(paths).toEqual(['requests/' + id + '/photo.jpg']);
+      expect(paths).toEqual(['requests/' + id + '/photo.jpg', 'requests/' + id + '/orphan.jpg']);
       return { error: null };
     });
     vi.mocked(createAdminClient).mockReturnValue({
@@ -56,7 +56,15 @@ describe('Suppression demande : sécurité', () => {
             maybeSingle: async () => { order.push('database'); return { data: { id }, error: null }; },
           }) }) }) }),
         }),
-      storage: { from: () => ({ remove }) },
+      storage: { from: () => ({
+        list: async () => ({ data: [
+          { id: 'stored-linked', name: 'photo.jpg' },
+          { id: 'stored-orphan', name: 'orphan.jpg' },
+          { id: null, name: 'nested-folder' },
+          { id: 'malicious', name: '../elsewhere.jpg' },
+        ], error: null }),
+        remove,
+      }) },
     } as never);
     const result = await DELETE(request() as never, ctx());
     expect(result.status, await result.clone().text()).toBe(200);
@@ -74,7 +82,10 @@ describe('Suppression demande : sécurité', () => {
             maybeSingle: async () => ({ data: null, error: { code: '42501' } }),
           }) }) }) }),
         }),
-      storage: { from: () => ({ remove }) },
+      storage: { from: () => ({
+        list: async () => ({ data: [{ id: 'stored-orphan', name: 'orphan.jpg' }], error: null }),
+        remove,
+      }) },
     } as never);
     const failed = await DELETE(request() as never, ctx());
     expect(failed.status, await failed.clone().text()).toBe(503);
