@@ -331,7 +331,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
     const { data: serviceRequest, error: requestError } = await admin
       .from('service_requests')
-      .select('id, resident_id, artisan_id')
+      .select('id, resident_id, artisan_id, status')
       .eq('id', relatedId)
       .maybeSingle();
     if (requestError) {
@@ -343,6 +343,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
 
     if (!serviceRequest.artisan_id) {
+      // Une demande publique clôturée ne doit plus recevoir de NOUVEAUX
+      // contacts. Les conversations déjà ouvertes restent consultables.
+      if (serviceRequest.status === 'completed' || serviceRequest.status === 'cancelled') {
+        return NextResponse.json({ error: 'Cette demande est clôturée' }, { status: 409 });
+      }
       // Demande publique : seul le résident propriétaire peut être le destinataire.
       if (ownerId !== serviceRequest.resident_id) {
         return NextResponse.json({ error: 'Destinataire de demande invalide' }, { status: 403 });

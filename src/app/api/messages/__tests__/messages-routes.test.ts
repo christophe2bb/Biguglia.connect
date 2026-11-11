@@ -548,6 +548,25 @@ describe('POST /api/messages/start-conversation', () => {
     expect(db.from).not.toHaveBeenCalledWith('conversations');
   });
 
+  it('refuse un nouveau message privé sur une demande publique déjà clôturée', async () => {
+    mockGetUserId.mockResolvedValueOnce(USER_A);
+    const db = makeDb({
+      profiles: { data: { id: USER_B, status: 'active', is_active: true }, error: null },
+      user_blocks: { data: [], error: null },
+      service_requests: {
+        data: { id: OBJ_ID, resident_id: USER_B, artisan_id: null, status: 'completed' },
+        error: null,
+      },
+    });
+    mockAdminClient.mockReturnValue(db as unknown as ReturnType<typeof createAdminClient>);
+    const res = await POST(makeReq('https://app.test/api/messages/start-conversation', 'POST', {
+      ownerId: USER_B, relatedType: 'service_request', relatedId: OBJ_ID,
+      initialMsg: 'Bonjour, je propose mon aide.',
+    }) as never);
+    expect(res.status).toBe(409);
+    expect(db.from).not.toHaveBeenCalledWith('conversations');
+  });
+
   it('refuse de contacter un faux propriétaire depuis une fiche artisan', async () => {
     mockGetUserId.mockResolvedValueOnce(USER_A);
     const db = makeDb({
