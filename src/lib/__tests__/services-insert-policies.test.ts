@@ -12,14 +12,14 @@ const migration = readFileSync(
   'utf8',
 );
 
-describe('Services — consolidation de l'identité et des pièces jointes', () => {
+describe("Services — consolidation de l’identité et des pièces jointes", () => {
   it('retire la règle qui permettait de créer une demande avec n’importe quel statut', () => {
     expect(migration).toContain('DROP POLICY IF EXISTS "service_requests_insert_resident"');
   });
   it('retire la règle qui permettait une URL arbitraire dans les photos', () => {
     expect(migration).toContain('DROP POLICY IF EXISTS "Résident ajoute photos"');
   });
-  it('consolide l'identité et l'appartenance pour l'ajout d'un message', () => {
+  it("consolide l’identité et l’appartenance pour l’ajout d’un message", () => {
     expect(migration).toContain('DROP POLICY IF EXISTS "messages_insert_participant"');
     expect(migration).toContain('DROP POLICY IF EXISTS "messages_sender_identity_guard"');
     expect(migration).toContain('FOR INSERT');
