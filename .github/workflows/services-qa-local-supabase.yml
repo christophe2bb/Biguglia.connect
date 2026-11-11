@@ -34,6 +34,12 @@ jobs:
           # Ne jamais committer ce fichier sous supabase/migrations :
           # une base Supabase de production existante ne doit pas le réappliquer.
           cp docs/db/schema.sql supabase/migrations/20260406_initial_schema.sql
+          # Index transversaux datés trop tôt : asso_comments est créé après
+          # le 07/04. Réordonner uniquement dans cet espace de QA éphémère,
+          # après les migrations de création des tables et avant les correctifs
+          # de sécurité de novembre.
+          mv supabase/migrations/20260407_baseline_rls_indexes.sql \
+             supabase/migrations/20261110000000_baseline_rls_indexes.sql
       - name: Reconstruire la base avec le schéma initial puis les migrations GitHub
         run: supabase start
       - name: Vérifier que Auth et la base répondent en local
