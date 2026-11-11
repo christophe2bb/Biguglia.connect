@@ -6,6 +6,7 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { getRecentJobOffers, getRecentJobDemands } from '@/services/jobs/queries';
+import { withQueryDeadline } from '@/lib/with-query-deadline';
 import type { JobOfferSearchResult, JobDemandSearchResult } from '@/types/jobs/_search';
 import { JobOfferHomeCard, JobDemandHomeCard } from './JobHomeCard';
 
@@ -14,10 +15,12 @@ export default async function HomeJobsSection() {
   let recentDemands: JobDemandSearchResult[] = [];
 
   try {
-    [recentOffers, recentDemands] = await Promise.all([
-      getRecentJobOffers(3),
-      getRecentJobDemands(3),
+    const [offers, demands] = await Promise.allSettled([
+      withQueryDeadline(getRecentJobOffers(3), 4_000),
+      withQueryDeadline(getRecentJobDemands(3), 4_000),
     ]);
+    if (offers.status === 'fulfilled') recentOffers = offers.value;
+    if (demands.status === 'fulfilled') recentDemands = demands.value;
   } catch { /* table inexistante → tableaux vides */ }
 
   const hasContent = recentOffers.length > 0 || recentDemands.length > 0;

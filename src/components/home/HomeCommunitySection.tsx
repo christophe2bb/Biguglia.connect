@@ -12,6 +12,7 @@ import {
   fetchRecentEvents,
 } from '@/services/community/queries';
 import CommunitySpotlight from './CommunitySpotlight';
+import { withQueryDeadline } from '@/lib/with-query-deadline';
 import type { SpotlightArtisan, SpotlightHelper, SpotlightMember, SpotlightEvent, CommunityStats } from '@/services/community/queries';
 
 export default async function HomeCommunitySection() {
@@ -23,11 +24,11 @@ export default async function HomeCommunitySection() {
 
   try {
     const [cs, sa, rh, am, re] = await Promise.allSettled([
-      fetchCommunityStats(),
-      fetchTopArtisans(4),
-      fetchRecentHelpers(5),
-      fetchActiveMembersSpotlight(6),
-      fetchRecentEvents(3),
+      withQueryDeadline(fetchCommunityStats(), 4_000),
+      withQueryDeadline(fetchTopArtisans(4), 4_000),
+      withQueryDeadline(fetchRecentHelpers(5), 4_000),
+      withQueryDeadline(fetchActiveMembersSpotlight(6), 4_000),
+      withQueryDeadline(fetchRecentEvents(3), 4_000),
     ]);
     if (cs.status === 'fulfilled') communityStats = cs.value;
     if (sa.status === 'fulfilled') spotlightArtisans = sa.value;

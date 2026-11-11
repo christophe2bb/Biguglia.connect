@@ -11,6 +11,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { safeRedirectPath } from '@/lib/safe-redirect';
 import { AuthTimeoutError, withAuthTimeout } from '@/lib/supabase/with-timeout';
+import { formatSignInError } from '@/lib/supabase/auth-error-message';
 
 function ConnexionForm() {
   const [email, setEmail] = useState('');
@@ -49,15 +50,11 @@ function ConnexionForm() {
       const supabase = createClient();
       const { data, error } = await withAuthTimeout(
         () => supabase.auth.signInWithPassword({ email, password }),
-        15_000,
+        10_000,
       );
 
       if (error) {
-        toast.error(
-          error.message === 'Invalid login credentials'
-            ? 'Email ou mot de passe incorrect'
-            : `Erreur : ${error.message}`
-        );
+        toast.error(formatSignInError(error));
         setLoading(false);
         return;
       }
@@ -85,15 +82,9 @@ function ConnexionForm() {
     }
   };
 
-  // Pendant l'initialisation → afficher un spinner
-  if (phase === 'initializing') {
-    return (
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
-        <div className="w-10 h-10 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-gray-500 text-sm">Vérification en cours...</p>
-      </div>
-    );
-  }
+  // Même si INITIAL_SESSION est bloqué par le réseau, le formulaire doit
+  // toujours être disponible. L'état initialising n'empêche plus de saisir
+  // ses identifiants. Une session valide tardive sera traitée par AuthProvider.
 
   // Déjà connecté et destination non-admin → spinner (redirection auto en cours)
   if (phase === 'authenticated' && !isAdminRedirect) {

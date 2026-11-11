@@ -60,10 +60,9 @@ import { useAuthStore } from '@/lib/auth-store';
 import type { Profile } from '@/types';
 
 /** Durée avant déblocage forcé de l'UI si Supabase ne répond pas */
-const AUTH_TIMEOUT_MS = 15_000; // 15s max — marge pour connexions mobiles/lentes
-// Augmenté de 5s à 15s : le timeout de 5s était trop court sur mobile ou réseau
-// lent → passait en unauthenticated alors que l'utilisateur était connecté,
-// bloquant les PATCH/INSERT via RLS Supabase.
+const AUTH_TIMEOUT_MS = 5_000;
+// Au-delà de ce délai, la navigation publique reste utilisable. La session
+// pourra encore être rétablie par INITIAL_SESSION / SIGNED_IN lorsqu'ils arrivent.
 
 // ─── Purge client-side des cookies Supabase obsolètes ────────────────────────
 //
@@ -220,26 +219,15 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       }
     };
 
-    // ── Timeout de sécurité ───────────────────────────────────────────────────
-    // Si INITIAL_SESSION n'arrive pas dans AUTH_TIMEOUT_MS, on vérifie la session
-    // directement plutôt que de passer aveuglément en unauthenticated.
-    // Cela évite de bloquer les PATCH/INSERT via RLS sur réseau lent.
-    timeoutId = setTimeout(async () => {
+    // ── Timeout sans réseau : ne jamais relancer getSession() ici ────────────
+    // Lorsqu'Auth est indisponible, getSession() pouvait attendre à son tour
+    // indéfiniment : l'interface restait sur « Vérification en cours… ».
+    // Un éventuel INITIAL_SESSION tardif peut rétablir le compte ensuite.
+    timeoutId = setTimeout(() => {
       if (!mounted) return;
-      console.warn(`[AuthProvider] Timeout ${AUTH_TIMEOUT_MS / 1000}s — INITIAL_SESSION non reçu. Vérification session…`);
-      try {
-        const { data } = await supabase.auth.getSession();
-        if (!mounted) return;
-        if (data.session?.user) {
-          console.info('[AuthProvider] Session récupérée après timeout — utilisateur authentifié.');
-          setAuthRef.current('authenticated', data.session.user.id, null);
-          fetchProfile(data.session.user.id);
-        } else {
-          console.warn('[AuthProvider] Aucune session — passage en unauthenticated.');
-          setAuthRef.current('unauthenticated', null, null);
-        }
-      } catch {
-        if (mounted) setAuthRef.current('unauthenticated', null, null);
+      if (useAuthStore.getState().phase === 'initializing') {
+        console.warn('[AuthProvider] Auth indisponible au démarrage : affichage non bloquant');
+        setAuthRef.current('unauthenticated', null, null);
       }
     }, AUTH_TIMEOUT_MS);
 
