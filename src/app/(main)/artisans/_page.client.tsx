@@ -222,28 +222,49 @@ function ArtisansContent() {
     const fetchArtisans = async () => {
       try {
         const supabase = createClient();
-        const [categoriesResponse, artisansResponse] = await Promise.all([
-          supabase.from('trade_categories').select('*').order('display_order'),
-          supabase.from('artisan_profiles').select(`
+        const categoriesPromise = supabase.from('trade_categories')
+          .select('*').order('display_order');
+
+        // Ne pas tronquer silencieusement l'annuaire à 200 profils.
+        // La pagination sur les artisans vérifiés garde un ordre stable.
+        const pageSize = 200;
+        const allArtisans: EnrichedArtisan[] = [];
+        let artisanErrorCode: string | undefined;
+        for (let offset = 0; ; offset += pageSize) {
+          const { data, error } = await supabase.from('artisan_profiles').select(`
             id, user_id, business_name, trade_name, description,
             location, intervention_zone, is_featured, is_verified, siret,
             avatar_url, artisan_type, service_area, years_experience,
             profile:profiles(id, full_name, avatar_url, role),
             trade_category:trade_categories(id, name, slug, icon),
             gallery:artisan_photos(url, display_order)
-          `).eq('is_verified', true).order('is_featured', { ascending: false }).limit(200),
-        ]);
+          `)
+            .eq('is_verified', true)
+            .order('is_featured', { ascending: false })
+            .order('id', { ascending: true })
+            .range(offset, offset + pageSize - 1);
+          if (cancelled) return;
+          if (error) {
+            artisanErrorCode = error.code;
+            break;
+          }
+          const rows = (data || []) as unknown as EnrichedArtisan[];
+          allArtisans.push(...rows);
+          if (rows.length < pageSize) break;
+        }
+
+        const categoriesResponse = await categoriesPromise;
         if (cancelled) return;
-        if (categoriesResponse.error || artisansResponse.error) {
+        if (categoriesResponse.error || artisanErrorCode) {
           console.error('[ArtisansPage] chargement impossible', {
             categoriesCode: categoriesResponse.error?.code,
-            artisansCode: artisansResponse.error?.code,
+            artisansCode: artisanErrorCode,
           });
           setLoadError(true);
           return;
         }
         setCategories(categoriesResponse.data || []);
-        setArtisans((artisansResponse.data || []) as unknown as EnrichedArtisan[]);
+        setArtisans(allArtisans);
         setLoadError(false);
       } catch (error) {
         if (!cancelled) {
