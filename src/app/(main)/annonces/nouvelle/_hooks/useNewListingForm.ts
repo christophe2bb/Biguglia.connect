@@ -262,13 +262,20 @@ export function useNewListingForm(): UseNewListingFormReturn {
     // ── Upload photos inline (stable: uses `photos` captured at call time) ──
     const photoUrls: string[] = [];
     let photoFailures = 0;
-    const { data: { session } } = await supabase.auth.getSession();
+    let bearer: string | undefined;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      bearer = session?.access_token;
+    } catch {
+      // L'API d'upload peut encore authentifier les cookies serveur.
+      console.warn('[Nouvelle annonce] session locale indisponible');
+    }
     for (let i = 0; i < photos.length; i++) {
       const photo = photos[i];
       const ext = safeImageExt(photo.name);
       const fileName = `listings/${listing.id}/${Date.now()}_${i}.${ext}`;
       try {
-        const publicUrl = await uploadFile(photo, 'photos', fileName, profile.id, session?.access_token);
+        const publicUrl = await uploadFile(photo, 'photos', fileName, profile.id, bearer);
         const { error: photoError } = await supabase.from('listing_photos').insert({
           listing_id: listing.id,
           url: publicUrl,
