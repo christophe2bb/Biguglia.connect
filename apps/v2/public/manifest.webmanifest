@@ -1,0 +1,7 @@
+{
+  "id": "/", "name": "Biguglia Connect", "short_name": "Biguglia", "lang": "fr",
+  "description": "La vie d’ici, plus proche. La communauté des habitants de Biguglia.",
+  "start_url": "/", "scope": "/", "display": "standalone", "orientation": "any",
+  "background_color": "#f7f8f5", "theme_color": "#173d33",
+  "icons": [{"src":"/icons/icon-192.png","sizes":"192x192","type":"image/png"},{"src":"/icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}]
+}

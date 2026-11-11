@@ -1,0 +1,67 @@
+name: Biguglia Connect V2
+on:
+  push:
+    branches: ['rebuild/v2-20261111']
+    paths: ['apps/v2/**', '.github/workflows/v2.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: v2-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  web:
+    name: V2 · contrats, authentification et compilation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/v2
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: apps/v2/package-lock.json
+      - run: npm ci
+      - run: npm run test
+      - run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://qmrkacrpncdkhofiqlrg.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      - run: npx playwright install chromium
+      - run: npx playwright test
+        env:
+          VITE_SUPABASE_URL: https://qmrkacrpncdkhofiqlrg.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: fixture-public-key-for-interface-tests
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: failure()
+        with:
+          name: v2-interface-failures
+          path: apps/v2/test-results/
+          retention-days: 3
+  ios:
+    name: V2 · compilation iOS sans signature
+    runs-on: macos-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: apps/v2
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: apps/v2/package-lock.json
+      - run: npm ci
+      - run: npm run ios:sync
+        env:
+          VITE_SUPABASE_URL: https://qmrkacrpncdkhofiqlrg.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      - run: xcodebuild -project ios/App/App.xcodeproj -scheme App -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/biguglia-connect-v2 CODE_SIGNING_ALLOWED=NO build

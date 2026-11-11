@@ -1,0 +1,340 @@
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  ArrowRight,
+  Eye,
+  EyeOff,
+  Leaf,
+  LockKeyhole,
+  Mail,
+  ShieldCheck,
+} from "lucide-react";
+import {
+  authClient,
+  configured,
+  errorText,
+  safeLocalPath,
+} from "../lib/client";
+import { useAuth } from "../lib/auth";
+import { authRedirect } from "../components/NativeBridge";
+import { Failure, Loading, Notice } from "../components/ui";
+export default function Auth({
+  mode = "login",
+}: {
+  mode?: "login" | "signup" | "password" | "callback";
+}) {
+  const { session, loading } = useAuth();
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [name, setName] = useState("");
+  const [consent, setConsent] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const next = safeLocalPath(params.get("next"), "/dashboard");
+  const recovery = mode === "password" && params.get("recovery") === "1";
+  useEffect(() => {
+    if (session && (mode === "login" || mode === "callback"))
+      navigate(next, { replace: true });
+  }, [session, mode, navigate, next]);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      if (!configured)
+        throw new Error("Le service de connexion n’est pas encore configuré.");
+      if (mode === "login") {
+        const result = await authClient.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (result.error) throw result.error;
+        if (!result.data.session)
+          throw new Error("La connexion n’a pas été confirmée.");
+        navigate(next, { replace: true });
+      }
+      if (mode === "signup") {
+        if (!consent)
+          throw new Error("Votre accord sur les conditions est nécessaire.");
+        if (password !== confirmation)
+          throw new Error("Les deux mots de passe ne correspondent pas.");
+        const result = await authClient.auth.signUp({
+          email: email.trim(),
+          password,
+          options: {
+            data: { full_name: name.trim(), legal_consent: true },
+            emailRedirectTo: authRedirect("/auth/callback"),
+          },
+        });
+        if (result.error) throw result.error;
+        if (result.data.session) navigate("/dashboard", { replace: true });
+        else
+          setNotice(
+            "Votre demande d’inscription est envoyée. Consultez votre e-mail pour confirmer votre compte. Si cette adresse est déjà inscrite, connectez-vous.",
+          );
+      }
+      if (mode === "password" && !recovery) {
+        const result = await authClient.auth.resetPasswordForEmail(
+          email.trim(),
+          { redirectTo: authRedirect("/mot-de-passe?recovery=1") },
+        );
+        if (result.error) throw result.error;
+        setNotice(
+          "Si un compte correspond à cette adresse, un lien pour changer le mot de passe vous a été envoyé.",
+        );
+      }
+      if (recovery) {
+        if (password !== confirmation)
+          throw new Error("Les deux mots de passe ne correspondent pas.");
+        const result = await authClient.auth.updateUser({ password });
+        if (result.error) throw result.error;
+        setNotice("Votre nouveau mot de passe est enregistré.");
+        setPassword("");
+        setConfirmation("");
+      }
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (mode === "callback")
+    return (
+      <div className="auth-callback">
+        {loading ? (
+          <Loading text="Confirmation de votre session…" />
+        ) : (
+          <>
+            <h1>
+              {params.has("error")
+                ? "Ce lien ne peut pas être utilisé"
+                : "Votre lien a été traité"}
+            </h1>
+            <p>
+              Vous pouvez maintenant vous connecter. Un lien de confirmation
+              expiré peut être renvoyé depuis la connexion.
+            </p>
+            <Link className="button" to="/connexion">
+              Se connecter
+            </Link>
+          </>
+        )}
+      </div>
+    );
+  return (
+    <div className="auth-layout">
+      <section className="auth-art">
+        <img
+          src="/images/biguglia-etang.webp"
+          alt="L’étang de Biguglia et les montagnes de Haute-Corse"
+        />
+        <div className="auth-art-copy">
+          <Leaf size={28} />
+          <h2>
+            On est bien,
+            <br />
+            <em>entre voisins.</em>
+          </h2>
+          <p>
+            Les bonnes rencontres commencent
+            <br />
+            tout près de chez vous.
+          </p>
+        </div>
+        <span className="auth-art-place">
+          L’étang de Biguglia · Haute-Corse
+        </span>
+      </section>
+      <section className="auth-form">
+        <span className="eyebrow">BIENVENUE CHEZ VOUS</span>
+        <h1>
+          {mode === "signup"
+            ? "Rejoignez la vie d’ici."
+            : mode === "password"
+              ? "Un nouveau départ."
+              : "Heureux de vous retrouver."}
+        </h1>
+        <p>
+          {mode === "signup"
+            ? "Un seul compte pour participer à toute la vie locale."
+            : mode === "password"
+              ? "Retrouvez l’accès à votre compte en toute simplicité."
+              : "Connectez-vous pour retrouver vos échanges et vos projets."}
+        </p>
+        {notice && <Notice>{notice}</Notice>}
+        <form onSubmit={submit}>
+          {mode === "signup" && (
+            <label className="form-field">
+              Votre nom
+              <input
+                autoComplete="name"
+                required
+                maxLength={100}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </label>
+          )}
+          {!recovery && (
+            <label className="form-field">
+              Adresse e-mail
+              <input
+                type="email"
+                autoComplete="email"
+                required
+                maxLength={254}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="vous@exemple.fr"
+              />
+            </label>
+          )}
+          {(mode !== "password" || recovery) && (
+            <>
+              <label className="form-field">
+                Mot de passe
+                <div className="password-input">
+                  <input
+                    autoComplete={
+                      mode === "login" ? "current-password" : "new-password"
+                    }
+                    type={visible ? "text" : "password"}
+                    required
+                    minLength={mode === "login" ? 1 : 12}
+                    maxLength={128}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label={
+                      visible
+                        ? "Masquer le mot de passe"
+                        : "Afficher le mot de passe"
+                    }
+                    onClick={() => setVisible(!visible)}
+                  >
+                    {visible ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                {mode !== "login" && (
+                  <small>
+                    Au moins 12 caractères. Utilisez un mot de passe unique.
+                  </small>
+                )}
+              </label>
+              {(mode === "signup" || recovery) && (
+                <label className="form-field">
+                  Confirmez le mot de passe
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    minLength={12}
+                    value={confirmation}
+                    onChange={(e) => setConfirmation(e.target.value)}
+                  />
+                </label>
+              )}
+            </>
+          )}
+          {mode === "login" && (
+            <div className="forgot">
+              <Link to="/mot-de-passe">Mot de passe oublié ?</Link>
+            </div>
+          )}
+          {mode === "signup" && (
+            <label className="consent">
+              <input
+                type="checkbox"
+                required
+                checked={consent}
+                onChange={(e) => setConsent(e.target.checked)}
+              />
+              <span>
+                J’accepte les{" "}
+                <Link to="/cgu" target="_blank">
+                  conditions d’utilisation
+                </Link>{" "}
+                et la{" "}
+                <Link to="/confidentialite" target="_blank">
+                  politique de confidentialité
+                </Link>
+                .
+              </span>
+            </label>
+          )}
+          {error && <Failure message={error} />}
+          <button type="submit" className="button full" disabled={busy}>
+            {busy
+              ? "Un instant…"
+              : mode === "login"
+                ? "Se connecter"
+                : mode === "signup"
+                  ? "Créer mon compte"
+                  : recovery
+                    ? "Enregistrer le nouveau mot de passe"
+                    : "Recevoir le lien"}
+            <ArrowRight size={18} />
+          </button>
+        </form>
+        <div className="auth-switch">
+          {mode === "login" ? (
+            <>
+              Pas encore de compte ?{" "}
+              <Link to="/inscription">Rejoindre Biguglia Connect</Link>
+            </>
+          ) : (
+            <Link to="/connexion">Revenir à la connexion</Link>
+          )}
+        </div>
+        {mode === "login" && (
+          <button
+            className="text-button resend"
+            onClick={() =>
+              void (async () => {
+                if (!email) {
+                  setError("Saisissez d’abord votre adresse e-mail.");
+                  return;
+                }
+                setBusy(true);
+                try {
+                  const result = await authClient.auth.resend({
+                    type: "signup",
+                    email,
+                    options: {
+                      emailRedirectTo: authRedirect("/auth/callback"),
+                    },
+                  });
+                  if (result.error) throw result.error;
+                  setNotice(
+                    "Si une confirmation est nécessaire, un nouvel e-mail vous a été envoyé.",
+                  );
+                } catch (e) {
+                  setError(errorText(e));
+                } finally {
+                  setBusy(false);
+                }
+              })()
+            }
+            disabled={busy}
+          >
+            Renvoyer l’e-mail de confirmation
+          </button>
+        )}
+        <div className="auth-security">
+          <ShieldCheck size={16} />
+          Vos échanges restent entre vous.
+        </div>
+      </section>
+    </div>
+  );
+}
