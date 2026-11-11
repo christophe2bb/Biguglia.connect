@@ -306,7 +306,16 @@ export async function checkRateLimitRedis(
   // ── Chemin Redis ──────────────────────────────────────────────────────────
   if (limiter) {
     try {
-      const { success, limit, reset } = await limiter.limit(ip);
+      // Redis peut lui aussi attendre sans répondre ; le middleware Vercel
+      // doit terminer bien avant sa limite de 25 secondes.
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      const result = await Promise.race([
+        limiter.limit(ip),
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(() => reject(new Error('Redis rate-limit deadline')), 1_200);
+        }),
+      ]).finally(() => { if (timeout) clearTimeout(timeout); });
+      const { success, limit, reset } = result;
 
       if (success) {
         return { allowed: true, limit, retryAfterSecs: 0 };
@@ -327,13 +336,8 @@ export async function checkRateLimitRedis(
   }
 
   // ── Fallback mémoire ──────────────────────────────────────────────────────
-  // Si Redis est configuré mais en erreur (token invalide, réseau), on laisse
-  // passer sans bloquer — mieux vaut pas de rate-limit que bloquer les admins.
-  if (isRedisConfigured()) {
-    console.warn('[rate-limit-redis] Redis configuré mais inaccessible — bypass rate-limit');
-    return { allowed: true, limit: config.maxRequests, retryAfterSecs: 0 };
-  }
-  // Redis absent (dev local) → fallback mémoire
+  // Si Redis est configuré mais indisponible, garder un contrôle mémoire
+  // temporaire plutôt que d'ouvrir l'écriture API sans limite.
   const memoryGroup = mapToMemoryGroup(group);
   return checkRateLimitMemory(ip, memoryGroup);
 }
@@ -345,7 +349,7 @@ export async function checkRateLimitRedis(
  */
 function mapToMemoryGroup(group: RouteGroupRedis): MemoryRouteGroup {
   switch (group) {
-    case 'login':              return 'api';           // 200/min fallback
+    case 'login':              return 'messages-write'; // fallback strict pour la connexion
     case 'publications-write': return 'messages-write'; // 10/min fallback
     case 'contact':            return 'messages-write'; // 10/min fallback
     default:                   return group as MemoryRouteGroup;
