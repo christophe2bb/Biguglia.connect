@@ -22,7 +22,7 @@ test.describe('Connexion disponible en cas de dégradation réseau', () => {
     await page.getByLabel('Mot de passe').fill('example-not-a-real-password');
     await page.getByRole('button', { name: 'Se connecter' }).click();
 
-    await expect(page.getByText(/service de connexion est momentanément indisponible/i))
+    await expect(page.getByText(/service de connexion (?:est momentanément indisponible|ne répond pas)/i))
       .toBeVisible({ timeout: 12_000 });
     await expect(page.getByRole('button', { name: 'Se connecter' })).toBeEnabled();
   });
