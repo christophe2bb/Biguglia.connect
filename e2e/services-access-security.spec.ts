@@ -62,9 +62,16 @@ test.describe('Services — accès privé en utilisateur déconnecté', () => {
   test('le détail d’une conversation exige une authentification', async ({ request }) => {
     const response = await request.get(`/api/messages/conversation/${UNKNOWN_ID}`, { maxRedirects: 0 });
     expect(response.status()).toBe(401);
-    const body = await response.json() as Record<string, unknown>;
-    expect(body).not.toHaveProperty('participants');
-    expect(body).not.toHaveProperty('messages');
+    // Le garde d'auth peut refuser avant Next.js avec un corps vide.
+    // La confidentialité se vérifie indépendamment du format de l'erreur.
+    const raw = await response.text();
+    expect(raw).not.toContain('"participants"');
+    expect(raw).not.toContain('"messages"');
+    if (raw && response.headers()['content-type']?.includes('application/json')) {
+      const body = JSON.parse(raw) as Record<string, unknown>;
+      expect(body).not.toHaveProperty('participants');
+      expect(body).not.toHaveProperty('messages');
+    }
   });
 
   test('une photo de devis privé est protégée, sans stockage navigateur', async ({ request }) => {
