@@ -46,6 +46,10 @@ Le suivi matériel V2 utilise `bc_v2_equipment_action` : accepter/réserver, ref
 
 Les fonctions avancées qui restent à porter et à valider sont recensées dans [la matrice de recette](RECETTE.md).
 
+## Contrôle du navigateur avec données réelles
+
+Le 12 novembre, le catalogue des artisans, les catégories, la fiche détaillée, les photos, une recherche sans résultat et le retour à la liste complète ont été vérifiés depuis le navigateur sur l’aperçu local raccordé au vrai projet Supabase. Voir [la capture de contrôle](preview-live-artisans.jpg). Aucun formulaire d’authentification n’a été soumis et aucun contenu utilisateur n’a été modifié pendant ce contrôle.
+
 ## Administration V2
 
 Les changements d’état des comptes et la validation des artisans passent par `bc_v2_admin_decision` : droits contrôlés sur le serveur, motif, confirmation, journal et notification. Un administrateur ne peut pas utiliser cette action pour modifier son propre compte ni un compte administrateur/modérateur. La V2 réserve ces décisions et le journal aux administrateurs ; les modérateurs conservent les vues signalements et contenus. La validation artisan par un modérateur, présente dans l’ancienne API serveur, reste un écart de parité explicite.
