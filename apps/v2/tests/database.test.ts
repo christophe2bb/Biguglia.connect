@@ -51,8 +51,11 @@ beforeAll(async () => {
     create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),'')::jsonb,'{}'::jsonb)$$;
     grant usage on schema auth to anon,authenticated;grant execute on all functions in schema auth to anon,authenticated;
     create type public.related_type as enum('service_request','listing','equipment','general','help_request','lost_found','association','outing','collection_item','event','artisan','community');
-    create table public.profiles(id uuid primary key,email text,full_name text,role text default 'resident',status text default 'active',is_active boolean default true);
-    create table public.artisan_profiles(id uuid primary key,user_id uuid,business_name text,is_verified boolean);
+    create type public.user_role as enum('resident','artisan_pending','artisan_verified','moderator','admin');
+    create type public.account_status as enum('active','pending','rejected','suspended');
+    create table public.profiles(id uuid primary key,email text,full_name text,role public.user_role default 'resident',status public.account_status default 'active',is_active boolean default true);
+    create table public.artisan_profiles(id uuid primary key,user_id uuid,business_name text,is_verified boolean,rejection_reason text);
+    create table public.admin_action_logs(id uuid primary key default gen_random_uuid(),actor_id uuid,actor_role text,action text,target_table text,target_id text,reason text,meta jsonb default '{}',created_at timestamptz default now());
     create table public.service_requests(id uuid primary key,resident_id uuid,artisan_id uuid,status text);
     create table public.listings(id uuid primary key,user_id uuid,status text);
     create table public.equipment_items(id uuid primary key,owner_id uuid,status text,title text,is_available boolean default true,updated_at timestamptz,status_changed_at timestamptz);
@@ -75,6 +78,8 @@ beforeAll(async () => {
     alter table storage.objects enable row level security;
     grant usage on schema storage to authenticated;grant execute on function storage.foldername(text) to authenticated;
     grant select,insert,update,delete on all tables in schema public to authenticated;
+    revoke update on public.profiles from authenticated;
+    grant update(full_name) on public.profiles to authenticated;
     grant select,insert,delete on storage.objects to authenticated;
     alter table public.profiles enable row level security;
     create policy fixture_profiles_self on public.profiles for all to authenticated using (id=auth.uid()) with check(id=auth.uid());
@@ -85,23 +90,133 @@ beforeAll(async () => {
     alter table public.messages enable row level security;
     create policy fixture_messages_member on public.messages for all to authenticated using(exists(select 1 from public.conversation_participants cp where cp.conversation_id=messages.conversation_id and cp.user_id=auth.uid())) with check(sender_id=auth.uid());
     insert into public.profiles(id,email,full_name,role) values('${a}','a@example.invalid','Fixture A','resident'),('${b}','b@example.invalid','Fixture B','resident'),('${c}','c@example.invalid','Fixture C','resident'),('${admin}','admin@example.invalid','Fixture admin','admin');
-    insert into public.artisan_profiles values('${artisan}','${b}','Fixture artisan',true);
+    insert into public.artisan_profiles(id,user_id,business_name,is_verified) values('${artisan}','${b}','Fixture artisan',true);
     insert into public.service_requests values('${quote}','${a}','${artisan}','submitted');
     insert into public.listings values('${listing}','${b}','active');
   `);
-  await db.exec(
-    await readFile(
-      new URL(
-        "../../../supabase/migrations/20261111162735_v2_secure_client_contract.sql",
-        import.meta.url,
+  for (const migration of [
+    "20261111173446_v2_secure_client_contract.sql",
+    "20261112031348_v2_transactional_workflows.sql",
+  ]) {
+    await db.exec(
+      await readFile(
+        new URL("../../../supabase/migrations/" + migration, import.meta.url),
+        "utf8",
       ),
-      "utf8",
-    ),
-  );
+    );
+  }
 }, 30000);
 beforeEach(async () => {
   await db.exec("begin");
   await actor(a);
+});
+
+describe("audited administrative decisions", () => {
+  const decision = (
+    target: string,
+    action: string,
+    reason = "Décision administrative de test.",
+  ) =>
+    db.query("select public.bc_v2_admin_decision($1,$2,$3)", [
+      target,
+      action,
+      reason,
+    ]);
+  it("rejects decisions by an ordinary resident", async () => {
+    await expect(decision(b, "suspend")).rejects.toThrow(
+      "administrateur actif",
+    );
+  });
+  it("rejects a moderator who tries to change protected account state", async () => {
+    await db.exec(
+      "reset role;select set_config('request.jwt.claims','{}',true)",
+    );
+    await db.query("update public.profiles set role='moderator' where id=$1", [
+      c,
+    ]);
+    await actor(c);
+    await expect(decision(b, "suspend")).rejects.toThrow(
+      "administrateur actif",
+    );
+  });
+  it("suspends a member atomically and records one decision on retry", async () => {
+    await actor(admin);
+    await decision(b, "suspend");
+    await decision(b, "suspend");
+    await db.exec("reset role");
+    expect(
+      (
+        await db.query(
+          "select status,is_active from public.profiles where id=$1",
+          [b],
+        )
+      ).rows[0],
+    ).toEqual({ status: "suspended", is_active: false });
+    expect(
+      (await db.query("select id from public.admin_action_logs")).rows,
+    ).toHaveLength(1);
+    expect(
+      (await db.query("select id from public.notifications")).rows,
+    ).toHaveLength(1);
+  });
+  it("does not let an administrator suspend their own account", async () => {
+    await actor(admin);
+    await expect(decision(admin, "suspend")).rejects.toThrow(
+      "ne peut pas être modifié",
+    );
+  });
+  it("rejects a decision without an explanatory reason", async () => {
+    await actor(admin);
+    await expect(decision(b, "suspend", "")).rejects.toThrow("10 et 500");
+  });
+  it("updates both the artisan verification and the account role", async () => {
+    await actor(admin);
+    await decision(b, "approve_artisan");
+    await decision(b, "approve_artisan");
+    await db.exec("reset role");
+    expect(
+      (await db.query("select role from public.profiles where id=$1", [b]))
+        .rows[0],
+    ).toEqual({ role: "artisan_verified" });
+    expect(
+      (
+        await db.query(
+          "select is_verified from public.artisan_profiles where user_id=$1",
+          [b],
+        )
+      ).rows[0],
+    ).toEqual({ is_verified: true });
+    expect(
+      (await db.query("select id from public.admin_action_logs")).rows,
+    ).toHaveLength(1);
+  });
+  it("rolls back a suspension if writing its audit record fails", async () => {
+    await db.exec(
+      "reset role;alter table public.admin_action_logs add constraint fixture_audit_failure check(action<>'suspend')",
+    );
+    await actor(admin);
+    await db.exec("savepoint decision");
+    await expect(decision(b, "suspend")).rejects.toThrow(
+      "fixture_audit_failure",
+    );
+    await db.exec("rollback to savepoint decision;reset role");
+    expect(
+      (
+        await db.query(
+          "select status,is_active from public.profiles where id=$1",
+          [b],
+        )
+      ).rows[0],
+    ).toEqual({ status: "active", is_active: true });
+    expect(
+      (await db.query("select id from public.notifications")).rows,
+    ).toHaveLength(0);
+  });
+  it("does not expose the decision journal to residents", async () => {
+    await expect(
+      db.query("select * from public.bc_v2_admin_history()"),
+    ).rejects.toThrow("réservé");
+  });
 });
 
 describe("atomic equipment lifecycle", () => {
@@ -282,7 +397,7 @@ describe("database authorization and message integrity", () => {
   it("prevents an account from assigning itself admin", async () => {
     await expect(
       db.query("update public.profiles set role=$1 where id=$2", ["admin", a]),
-    ).rejects.toThrow("réservée");
+    ).rejects.toThrow(/réservée|permission denied/);
   });
   it("allows normal profile edits", async () => {
     await db.query("update public.profiles set full_name=$1 where id=$2", [

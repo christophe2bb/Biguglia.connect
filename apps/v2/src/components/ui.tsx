@@ -1,4 +1,4 @@
-import { Component, useEffect, type ReactNode } from "react";
+import { Component, useEffect, useRef, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   AlertCircle,
@@ -120,6 +120,8 @@ export function Modal({
   children: ReactNode;
   onClose: () => void;
 }) {
+  const latestClose = useRef(onClose);
+  latestClose.current = onClose;
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
     const dialog = document.querySelector(
@@ -128,12 +130,12 @@ export function Modal({
     const focusable = () =>
       Array.from(
         dialog?.querySelectorAll<HTMLElement>(
-          "button:not(:disabled),input,select,textarea,a[href]",
+          "button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href]",
         ) ?? [],
       );
     focusable()[0]?.focus();
     const key = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") latestClose.current();
       if (event.key === "Tab") {
         const nodes = focusable();
         const first = nodes[0],
@@ -148,13 +150,14 @@ export function Modal({
       }
     };
     document.addEventListener("keydown", key);
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", key);
-      document.body.style.overflow = "";
+      document.body.style.overflow = previousOverflow;
       prev?.focus();
     };
-  }, [onClose]);
+  }, []);
   return (
     <div
       className="modal-backdrop"
@@ -170,7 +173,7 @@ export function Modal({
       >
         <div className="modal-heading">
           <h2 id="dialog-title">{title}</h2>
-          <button className="icon-button" aria-label="Fermer" onClick={onClose}>
+          <button type="button" className="icon-button" aria-label="Fermer" onClick={onClose}>
             <X />
           </button>
         </div>

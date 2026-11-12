@@ -6,9 +6,9 @@ Cette matrice décrit le nouveau client. L’ancienne application reste disponib
 | --- | --- | --- |
 | Session | Connexion, inscription, déconnexion, récupération, changement de mot de passe, profil, renouvellement et reprise mobile | Redirections Supabase ; vrais e-mails et sessions sur appareil ; suppression de compte |
 | Services | Profils artisans, demande publique ou devis ciblé, catégories, photos publiques/privées, commentaires, favoris, statut, contact | Rendez-vous, disponibilité, justificatifs de vérification et recette résident/artisan/administrateur |
-| Messagerie | Conversations liées à une publication, fil privé, envoi, réception temps réel, lecture, blocage | Installation du RPC ; échanges réels entre comptes ; historique au-delà des 100 derniers messages ; confirmation d’échange |
+| Messagerie | Conversations liées à une publication, fil privé, envoi, réception temps réel, lecture, blocage | Échanges réels entre comptes ; historique au-delà des 100 derniers messages ; confirmation d’échange |
 | Annonces | Recherche, catégories, fiche, formulaire, modification, statut, photos, favoris et contact | Toutes les transitions métier et interactions liées aux avis |
-| Matériel | Demandes datées, suivi propriétaire/emprunteur, réservation, remise et retour transactionnels, notifications et déblocage des avis | Installation du RPC ; concurrence HTTP réelle ; notes des deux parties ; pagination complète |
+| Matériel | Demandes datées, suivi propriétaire/emprunteur, réservation, remise et retour transactionnels, notifications et déblocage des avis | Concurrence HTTP réelle ; notes des deux parties ; pagination complète |
 | Collections | Catalogue, fiche, formulaire, photos, commentaires et contact | Offres de prix/troc et acceptation transactionnelle |
 | Perdu/trouvé | Publications, recherche, catégories, photos, statut et contact | Rapprochements et validation de restitution |
 | Emploi | Offres et demandes, filtres, publication, modification et contact | CV privé, accès aux documents et parcours complet de candidature |
@@ -17,7 +17,7 @@ Cette matrice décrit le nouveau client. L’ancienne application reste disponib
 | Associations | Fiches, photos, publication, commentaires et contact | Besoins et réponses structurées, gestion des membres et médias |
 | Entraide | Publication, proposition d’aide, commentaire et contact | Acceptation/refus des propositions, réalisation et avis liés |
 | Communauté et forum | Groupes, adhésion, publications et commentaires | Recette des droits et de toutes les actions de modération |
-| Administration | Files de signalement, utilisateurs, artisans et contenus ; décisions sous contrôle RLS | Recette de chaque rôle et des justificatifs ; historique des décisions |
+| Administration | Files de signalement, utilisateurs, artisans et contenus ; décisions administratives transactionnelles, motifs, confirmation et journal | Recette réelle de chaque rôle et des justificatifs ; parité de validation artisan par un modérateur |
 | iOS | Projet natif Capacitor, ressources embarquées, liens de retour et compilation simulateur | Tests iPhone/iPad, signature, suppression de compte, identité éditeur et soumission Apple |
 
 ## Recette hébergée à exécuter
