@@ -1,0 +1,26 @@
+{
+  "project": "qmrkacrpncdkhofiqlrg",
+  "verifiedOn": "2026-11-12",
+  "siteUrl": "https://biguglia-connect-v2.vercel.app",
+  "redirectUrls": [
+    "https://biguglia-connect-v2.vercel.app/auth/callback",
+    "https://biguglia-connect-v2.vercel.app/mot-de-passe?recovery=1",
+    "https://biguglia-connect.vercel.app/auth/callback",
+    "https://biguglia-connect.vercel.app/auth/reset-password",
+    "https://webapp-sepia-seven-96.vercel.app/auth/callback",
+    "https://webapp-sepia-seven-96.vercel.app/auth/reset-password",
+    "https://biguglia-connect-v2-git-rebuild-03de5c-christophe2bbs-projects.vercel.app/auth/callback",
+    "https://biguglia-connect-v2-git-rebuild-03de5c-christophe2bbs-projects.vercel.app/mot-de-passe?recovery=1",
+    "fr.bigugliaconnect.app://auth/callback?next=**",
+    "http://127.0.0.1:4173/auth/callback",
+    "http://127.0.0.1:4173/mot-de-passe?recovery=1"
+  ],
+  "negativeTokenChecks": {
+    "webRecoveryAllowed": true,
+    "nativeCallbackAllowed": true,
+    "externalOriginRejected": true
+  },
+  "verificationLimit": "Jetons volontairement invalides, aucun e-mail envoyé, aucun jeton utilisateur émis. La réception et la consommation réelle des e-mails restent à vérifier.",
+  "vercelProtection": "SSO activée pour tous les environnements du projet V2",
+  "deployedCommit": "91c06f1920fe7fe944b3a5d3b8ba69440c82258a"
+}

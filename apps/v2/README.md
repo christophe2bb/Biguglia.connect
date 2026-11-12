@@ -30,6 +30,6 @@ npm run ios:sync
 npm run ios:open
 ```
 
-Le dossier `ios/` est un projet Xcode ; aucune signature ou publication Apple n’est incluse. La CI tente une compilation pour simulateur sans signature. Ajouter le retour `fr.bigugliaconnect.app://auth/callback` et le domaine de recette aux URL de redirection Supabase, puis vérifier confirmation d’e-mail et récupération sur appareil réel.
+Le dossier `ios/` est un projet Xcode ; aucune signature ou publication Apple n’est incluse. La CI tente une compilation pour simulateur sans signature. Les retours web et `fr.bigugliaconnect.app://auth/callback` sont configurés dans Supabase ; vérifier encore la réception/consommation des e-mails et la récupération sur appareil réel. Le relevé est dans `docs/auth-redirects.snapshot.json`.
 
 Avant publication App Store : recette réelle de toutes les fonctions, suppression de compte, identité et contact de l’éditeur, politique de conservation, déclaration de confidentialité, signature et validation sur iPhone/iPad. Voir [le suivi de reconstruction](docs/RECONSTRUCTION.md).

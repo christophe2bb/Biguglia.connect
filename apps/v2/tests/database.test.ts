@@ -53,10 +53,12 @@ beforeAll(async () => {
     create type public.related_type as enum('service_request','listing','equipment','general','help_request','lost_found','association','outing','collection_item','event','artisan','community');
     create type public.user_role as enum('resident','artisan_pending','artisan_verified','moderator','admin');
     create type public.account_status as enum('active','pending','rejected','suspended');
+    create type public.appointment_status as enum('pending','accepted','declined','rescheduled','completed','cancelled');
     create table public.profiles(id uuid primary key,email text,full_name text,role public.user_role default 'resident',status public.account_status default 'active',is_active boolean default true);
     create table public.artisan_profiles(id uuid primary key,user_id uuid,business_name text,is_verified boolean,rejection_reason text);
     create table public.admin_action_logs(id uuid primary key default gen_random_uuid(),actor_id uuid,actor_role text,action text,target_table text,target_id text,reason text,meta jsonb default '{}',created_at timestamptz default now());
-    create table public.service_requests(id uuid primary key,resident_id uuid,artisan_id uuid,status text);
+    create table public.service_requests(id uuid primary key,resident_id uuid,artisan_id uuid,status text,title text default 'Devis de recette',updated_at timestamptz default now());
+    create table public.appointments(id uuid primary key,request_id uuid,resident_id uuid not null,artisan_id uuid not null,proposed_date date not null,proposed_time time not null,notes text,status public.appointment_status default 'pending',created_at timestamptz default now(),updated_at timestamptz default now());
     create table public.listings(id uuid primary key,user_id uuid,status text);
     create table public.equipment_items(id uuid primary key,owner_id uuid,status text,title text,is_available boolean default true,updated_at timestamptz,status_changed_at timestamptz);
     create table public.equipment_requests(id uuid primary key,equipment_id uuid,requester_id uuid,status text default 'en_attente',requested_start_date date,requested_end_date date,updated_at timestamptz);
@@ -83,6 +85,8 @@ beforeAll(async () => {
     grant select,insert,delete on storage.objects to authenticated;
     alter table public.profiles enable row level security;
     create policy fixture_profiles_self on public.profiles for all to authenticated using (id=auth.uid()) with check(id=auth.uid());
+    alter table public.appointments enable row level security;
+    create policy fixture_appointments_parties on public.appointments for select to authenticated using(resident_id=auth.uid() or exists(select 1 from public.artisan_profiles a where a.id=appointments.artisan_id and a.user_id=auth.uid()));
     alter table public.conversations enable row level security;
     alter table public.conversation_participants enable row level security;
     create policy fixture_participant_self on public.conversation_participants for select to authenticated using(user_id=auth.uid());
@@ -91,12 +95,13 @@ beforeAll(async () => {
     create policy fixture_messages_member on public.messages for all to authenticated using(exists(select 1 from public.conversation_participants cp where cp.conversation_id=messages.conversation_id and cp.user_id=auth.uid())) with check(sender_id=auth.uid());
     insert into public.profiles(id,email,full_name,role) values('${a}','a@example.invalid','Fixture A','resident'),('${b}','b@example.invalid','Fixture B','resident'),('${c}','c@example.invalid','Fixture C','resident'),('${admin}','admin@example.invalid','Fixture admin','admin');
     insert into public.artisan_profiles(id,user_id,business_name,is_verified) values('${artisan}','${b}','Fixture artisan',true);
-    insert into public.service_requests values('${quote}','${a}','${artisan}','submitted');
+    insert into public.service_requests(id,resident_id,artisan_id,status) values('${quote}','${a}','${artisan}','submitted');
     insert into public.listings values('${listing}','${b}','active');
   `);
   for (const migration of [
     "20261111173446_v2_secure_client_contract.sql",
     "20261112031348_v2_transactional_workflows.sql",
+    "20261112040922_v2_service_appointments.sql",
   ]) {
     await db.exec(
       await readFile(
@@ -105,6 +110,12 @@ beforeAll(async () => {
       ),
     );
   }
+  await db.exec(
+    await readFile(
+      new URL("./fixtures/service-status-trigger.sql", import.meta.url),
+      "utf8",
+    ),
+  );
 }, 30000);
 beforeEach(async () => {
   await db.exec("begin");
@@ -216,6 +227,251 @@ describe("audited administrative decisions", () => {
     await expect(
       db.query("select * from public.bc_v2_admin_history()"),
     ).rejects.toThrow("réservé");
+  });
+});
+
+describe("service appointments", () => {
+  const appointment = "00000000-0000-4000-8000-000000000060";
+  const second = "00000000-0000-4000-8000-000000000061";
+  const otherQuote = "00000000-0000-4000-8000-000000000062";
+  const day = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+  const propose = (
+    id = appointment,
+    request = quote,
+    time = "10:00",
+    duration = 60,
+    date = day,
+  ) =>
+    db.query("select public.bc_v2_propose_appointment($1,$2,$3,$4,$5,$6)", [
+      id,
+      request,
+      date,
+      time,
+      duration,
+      "Proposition de recette.",
+    ]);
+  const decide = (action: string, id = appointment) =>
+    db.query("select public.bc_v2_appointment_action($1,$2)", [id, action]);
+  const addQuote = () =>
+    db.query(
+      "insert into public.service_requests(id,resident_id,artisan_id,status) values($1,$2,$3,'submitted')",
+      [otherQuote, a, artisan],
+    );
+  beforeEach(async () => {
+    await db.exec(
+      "reset role;select set_config('request.jwt.claims','{}',true)",
+    );
+    await db.query(
+      "update public.profiles set role='artisan_verified' where id=$1",
+      [b],
+    );
+    await actor(a);
+  });
+  it("saves one proposal and one notification when retried", async () => {
+    await propose();
+    await propose();
+    expect(
+      (await db.query("select proposed_by,status from public.appointments"))
+        .rows,
+    ).toEqual([{ proposed_by: a, status: "pending" }]);
+    expect(
+      (await db.query("select id from public.notifications")).rows,
+    ).toHaveLength(1);
+  });
+  it("rejects a third party proposing a date for a private quote", async () => {
+    await actor(c);
+    await expect(propose()).rejects.toThrow("ne participez pas");
+  });
+  it("allows a resident to accept a proposal from the artisan", async () => {
+    await actor(b);
+    await propose();
+    await actor(a);
+    await decide("accept");
+    expect(
+      (await db.query("select status from public.appointments")).rows[0],
+    ).toEqual({ status: "accepted" });
+  });
+  it("prevents the proposer from confirming their own proposal", async () => {
+    await propose();
+    await expect(decide("accept")).rejects.toThrow("destinataire");
+  });
+  it("schedules the quote and keeps acceptance retries harmless", async () => {
+    await propose();
+    await actor(b);
+    await decide("accept");
+    await decide("accept");
+    expect(
+      (
+        await db.query(
+          "select status from public.service_requests where id=$1",
+          [quote],
+        )
+      ).rows[0],
+    ).toEqual({ status: "scheduled" });
+    expect(
+      (await db.query("select id from public.notifications")).rows,
+    ).toHaveLength(2);
+  });
+  it("keeps a declined proposal out of the confirmed calendar", async () => {
+    await propose();
+    await actor(b);
+    await decide("decline");
+    await decide("decline");
+    expect(
+      (await db.query("select status from public.appointments")).rows[0],
+    ).toEqual({ status: "declined" });
+  });
+  it("cancels a confirmed appointment and reopens scheduling", async () => {
+    await propose();
+    await actor(b);
+    await decide("accept");
+    await actor(a);
+    await decide("cancel");
+    await decide("cancel");
+    expect(
+      (
+        await db.query(
+          "select status from public.service_requests where id=$1",
+          [quote],
+        )
+      ).rows[0],
+    ).toEqual({ status: "replied" });
+    await propose(second);
+    await actor(b);
+    await decide("accept", second);
+    expect(
+      (
+        await db.query(
+          "select id from public.appointments where status='accepted'",
+        )
+      ).rows,
+    ).toHaveLength(1);
+  });
+  it("allows only the resident to confirm completion", async () => {
+    await propose();
+    await actor(b);
+    await decide("accept");
+    await expect(decide("complete")).rejects.toThrow("Seul le résident");
+  });
+  it("completes the appointment and quote, and unlocks the existing review once", async () => {
+    await propose();
+    await actor(b);
+    await decide("accept");
+    await actor(a);
+    await decide("complete");
+    await decide("complete");
+    expect(
+      (await db.query("select status from public.appointments")).rows[0],
+    ).toEqual({ status: "completed" });
+    expect(
+      (
+        await db.query(
+          "select status,review_unlocked from public.trust_interactions",
+        )
+      ).rows[0],
+    ).toEqual({ status: "done", review_unlocked: true });
+    expect(
+      (await db.query("select id from public.notifications")).rows,
+    ).toHaveLength(4);
+  });
+  it("closes calendar entries when the resident cancels the quote from its normal form", async () => {
+    await propose();
+    await actor(b);
+    await decide("accept");
+    await actor(a);
+    await db.query(
+      "update public.service_requests set status='cancelled' where id=$1",
+      [quote],
+    );
+    expect(
+      (await db.query("select status from public.appointments")).rows[0],
+    ).toEqual({ status: "cancelled" });
+  });
+  it("rechecks overlapping appointments when accepting two pending proposals", async () => {
+    await addQuote();
+    await propose();
+    await propose(second, otherQuote, "10:30");
+    await actor(b);
+    await decide("accept");
+    await expect(decide("accept", second)).rejects.toThrow(
+      "vient d’être réservé",
+    );
+  });
+  it("allows adjacent appointments", async () => {
+    await addQuote();
+    await propose();
+    await propose(second, otherQuote, "11:00");
+    await actor(b);
+    await decide("accept");
+    await decide("accept", second);
+    expect(
+      (
+        await db.query(
+          "select id from public.appointments where status='accepted'",
+        )
+      ).rows,
+    ).toHaveLength(2);
+  });
+  it("rejects a date in the past", async () => {
+    await expect(
+      propose(appointment, quote, "10:00", 60, "2000-01-01"),
+    ).rejects.toThrow("heure future");
+  });
+  it("rejects a nonexistent local time at the spring daylight-saving change", async () => {
+    const lastMarchDay = new Date(
+      Date.UTC(new Date().getUTCFullYear() + 1, 3, 0),
+    );
+    lastMarchDay.setUTCDate(
+      lastMarchDay.getUTCDate() - lastMarchDay.getUTCDay(),
+    );
+    await expect(
+      propose(
+        appointment,
+        quote,
+        "02:30",
+        60,
+        lastMarchDay.toISOString().slice(0, 10),
+      ),
+    ).rejects.toThrow("heure future valide");
+  });
+  it("rejects an excessive duration", async () => {
+    await expect(propose(appointment, quote, "10:00", 481)).rejects.toThrow(
+      "invalide",
+    );
+  });
+  it("prevents bypassing the contract with a direct table insert", async () => {
+    await expect(
+      db.query(
+        "insert into public.appointments(id,request_id,resident_id,artisan_id,proposed_date,proposed_time,status) values($1,$2,$3,$4,$5,'10:00','accepted')",
+        [appointment, quote, a, artisan, day],
+      ),
+    ).rejects.toThrow("permission denied");
+  });
+  it("keeps appointment details private to their participants", async () => {
+    await propose();
+    await actor(c);
+    expect(
+      (await db.query("select id from public.appointments")).rows,
+    ).toHaveLength(0);
+  });
+  it("honors a block when proposing an appointment", async () => {
+    await db.query(
+      "insert into public.user_blocks(user_id,target_user_id) values($1,$2)",
+      [a, b],
+    );
+    await expect(propose()).rejects.toThrow("pas disponible");
+  });
+  it("rolls back the proposal if its notification cannot be persisted", async () => {
+    await db.exec(
+      "reset role;alter table public.notifications add constraint fixture_appointment_notification check(type<>'appointment_proposed')",
+    );
+    await actor(a);
+    await db.exec("savepoint proposal");
+    await expect(propose()).rejects.toThrow("fixture_appointment_notification");
+    await db.exec("rollback to savepoint proposal");
+    expect(
+      (await db.query("select id from public.appointments")).rows,
+    ).toHaveLength(0);
   });
 });
 

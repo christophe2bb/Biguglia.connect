@@ -1,6 +1,6 @@
 {
   "project": "qmrkacrpncdkhofiqlrg",
-  "capturedAt": "2026-11-11",
+  "capturedAt": "2026-11-12",
   "tables": {
     "admin_action_logs": [
       "id",
@@ -23,7 +23,9 @@
       "notes",
       "status",
       "created_at",
-      "updated_at"
+      "updated_at",
+      "proposed_by",
+      "duration_minutes"
     ],
     "artisan_photos": [
       "id",

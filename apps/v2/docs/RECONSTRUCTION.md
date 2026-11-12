@@ -31,9 +31,10 @@ Le script `tests/hosted-contract.sql` a réussi sur la base hébergée : prêt c
 
 ## Vérifications effectuées
 
-- 69 tests locaux réussis : formulaires, colonnes et statuts réels, cycle de session, délais réseau et 33 scénarios PostgreSQL sur base jetable.
+- 93 tests locaux réussis : formulaires, colonnes et statuts réels, cycle de session, délais réseau, interfaces administratives/rendez-vous et 52 scénarios PostgreSQL sur base jetable.
 - Ces scénarios PostgreSQL vérifient notamment le refus d’auto-promotion administrateur, l’isolement d’un tiers, le blocage d’un échange, les droits sur les photos privées et la déduplication du message initial. Le cycle de prêt vérifie aussi réservation unique, remise, retour, refus des tiers, notifications sans doublons et annulation de toute l’opération en cas d’échec d’écriture.
 - La CI GitHub `2cabcfb` a réussi : 58 tests, 32 contrôles d’interface avec panne simulée et compilations web et iOS pour simulateur.
+- La CI GitHub `ba4414b` a réussi : 69 tests, 32 contrôles d’interface avec panne simulée et compilations web et iOS pour simulateur. Les nouveaux rendez-vous déclenchent à nouveau ces contrôles.
 - La CI GitHub `2eec7d7` a réussi : 44 tests locaux, 32 tests d’interface avec panne simulée, compilation web et compilation Xcode pour simulateur. Les ajouts ultérieurs sont revérifiés par le même workflow.
 - La première CI GitHub (`5c7df21`) a réussi : 29 tests locaux à cette révision, 32 tests d’interface ordinateur/mobile avec service de données simulé indisponible, compilation web et compilation Xcode pour simulateur sans signature.
 - Déploiement isolé Vercel `biguglia-connect-v2`, protection Vercel activée pour tous les environnements. Aucun lien temporaire de partage n’a été créé après son refus par le contrôle automatique.
@@ -46,9 +47,25 @@ Le suivi matériel V2 utilise `bc_v2_equipment_action` : accepter/réserver, ref
 
 Les fonctions avancées qui restent à porter et à valider sont recensées dans [la matrice de recette](RECETTE.md).
 
+## Rendez-vous des devis privés
+
+La migration hébergée `20261112040922_v2_service_appointments.sql` ajoute l’auteur de proposition et une durée de 15 à 480 minutes. Les deux participants peuvent proposer ; seul le destinataire accepte/refuse ; seul le résident confirme la fin. Les écritures directes sont révoquées et les fonctions contrôlent identité, compte actif, artisan vérifié et blocages. Le verrou de l’artisan empêche deux confirmations qui se chevauchent. Les heures sont interprétées en Corse, y compris le refus d’une heure inexistante au passage à l’heure d’été.
+
+La confirmation programme le devis ; l’annulation libère le créneau ; la clôture déclenche le contrat historique d’avis. Fermer le devis par son autre parcours annule aussi ses propositions encore actives. Les relances conservent l’identifiant et ne doublent pas les notifications.
+
+Le script `tests/hosted-appointments.sql` a réussi sur Supabase avec les vrais triggers et des identités simulées au niveau SQL : proposition, relance, refus d’auto-confirmation et d’un tiers, isolement, interdiction d’écriture directe, conflit de créneaux, confirmation, clôture, avis et annulation liée au devis. La transaction a été annulée ; la lecture suivante confirme zéro rendez-vous et zéro devis de recette restants. Ce contrôle ne constitue pas une connexion Auth réelle entre deux navigateurs. Les avertissements de sécurité préexistants sont inchangés et le contrôle de santé est vide.
+
 ## Contrôle du navigateur avec données réelles
 
 Le 12 novembre, le catalogue des artisans, les catégories, la fiche détaillée, les photos, une recherche sans résultat et le retour à la liste complète ont été vérifiés depuis le navigateur sur l’aperçu local raccordé au vrai projet Supabase. Voir [la capture de contrôle](preview-live-artisans.jpg). Aucun formulaire d’authentification n’a été soumis et aucun contenu utilisateur n’a été modifié pendant ce contrôle.
+
+## Retours Auth et adresse stable
+
+L’adresse fixe `https://biguglia-connect-v2.vercel.app` sert la révision `91c06f1` dans le projet V2 protégé par Vercel Authentication. Le domaine de l’ancienne application reste rattaché au projet `webapp`.
+
+La connexion au tableau Supabase a abouti. L’ancien Site URL était `http://localhost:3000` et la liste de redirection était vide. Le Site URL pointe maintenant sur l’adresse fixe de la V2 ; 11 retours ont été ajoutés pour les routes web de confirmation/récupération, les adresses existantes, l’aperçu stable, le client iOS et l’aperçu local. L’enregistrement a été vérifié après rechargement.
+
+Les contrôles HTTP avec un jeton volontairement invalide ont confirmé le retour web, le retour iOS et le refus d’une origine extérieure. Ils n’envoient aucun e-mail et ne constituent pas un test d’émission/consommation d’un vrai jeton utilisateur. Le détail public des URL est dans [le relevé de configuration](auth-redirects.snapshot.json).
 
 ## Administration V2
 

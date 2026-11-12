@@ -4,8 +4,8 @@ Cette matrice décrit le nouveau client. L’ancienne application reste disponib
 
 | Domaine | Parcours codés | Travaux avant bascule |
 | --- | --- | --- |
-| Session | Connexion, inscription, déconnexion, récupération, changement de mot de passe, profil, renouvellement et reprise mobile | Redirections Supabase ; vrais e-mails et sessions sur appareil ; suppression de compte |
-| Services | Profils artisans, demande publique ou devis ciblé, catégories, photos publiques/privées, commentaires, favoris, statut, contact | Rendez-vous, disponibilité, justificatifs de vérification et recette résident/artisan/administrateur |
+| Session | Connexion, inscription, déconnexion, récupération, changement de mot de passe, profil, renouvellement et reprise mobile ; redirections Supabase enregistrées et contrôlées | Vrais e-mails et sessions sur appareil ; suppression de compte |
+| Services | Profils artisans, demande publique ou devis ciblé, catégories, photos publiques/privées, commentaires, favoris, statut, contact ; proposition/confirmation/refus/annulation/clôture des rendez-vous, durée et refus des chevauchements confirmés | Disponibilité récurrente, justificatifs de vérification, parcours d’avis et recette navigateur résident/artisan/administrateur |
 | Messagerie | Conversations liées à une publication, fil privé, envoi, réception temps réel, lecture, blocage | Échanges réels entre comptes ; historique au-delà des 100 derniers messages ; confirmation d’échange |
 | Annonces | Recherche, catégories, fiche, formulaire, modification, statut, photos, favoris et contact | Toutes les transitions métier et interactions liées aux avis |
 | Matériel | Demandes datées, suivi propriétaire/emprunteur, réservation, remise et retour transactionnels, notifications et déblocage des avis | Concurrence HTTP réelle ; notes des deux parties ; pagination complète |

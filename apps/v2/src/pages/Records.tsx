@@ -58,6 +58,7 @@ import {
   PageHeading,
 } from "../components/ui";
 import { LoanActivity } from "./Equipment";
+import { Appointments } from "./Appointments";
 import {
   Participation,
   EquipmentRequest,
@@ -795,6 +796,9 @@ export function RecordDetail({ module: m }: { module: Module }) {
           {m.table === "help_requests" && !isOwner && (
             <Participation type="help" row={row} owner={owner} />
           )}{" "}
+          {m.table === "service_requests" && !!row.artisan_id && (
+            <Appointments row={row} onChange={query.reload} />
+          )}
           {m.comment && <Comments module={m} row={row} />}
           <Rating module={m} row={row} />
         </article>
