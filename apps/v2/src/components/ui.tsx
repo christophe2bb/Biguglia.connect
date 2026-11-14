@@ -20,15 +20,17 @@ export function Loading({ text = "Chargement…" }: { text?: string }) {
 export function Failure({
   message,
   retry,
+  title = "Le chargement n’a pas abouti",
 }: {
   message: string;
   retry?: () => void;
+  title?: string;
 }) {
   return (
     <div className="notice error" role="alert">
       <AlertCircle size={22} />
       <div>
-        <strong>Le chargement n’a pas abouti</strong>
+        <strong>{title}</strong>
         <p>{message}</p>
         {retry && (
           <button className="text-button" onClick={retry}>

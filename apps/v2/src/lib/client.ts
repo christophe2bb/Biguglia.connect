@@ -24,16 +24,32 @@ export class AppError extends Error {
 }
 export function errorText(error: unknown): string {
   if (error instanceof AppError) return error.message;
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? String(error.code)
+      : "";
+  if (code === "email_not_confirmed")
+    return "Votre adresse e-mail doit encore être confirmée. Utilisez le dernier e-mail reçu ou demandez un nouvel envoi ci-dessous.";
+  if (code === "invalid_credentials")
+    return "Adresse e-mail ou mot de passe incorrect. Utilisez les identifiants de votre compte Biguglia Connect. Si nécessaire, choisissez « Mot de passe oublié ? ».";
+  if (code === "email_address_not_authorized")
+    return "L’envoi d’e-mails n’est pas encore disponible pour cette adresse. Le service d’envoi de Biguglia Connect doit être configuré.";
+  if (code === "over_email_send_rate_limit")
+    return "La limite d’envoi d’e-mails est atteinte. Patientez avant de demander un nouveau lien.";
+  if (code === "otp_expired")
+    return "Ce lien a expiré ou a déjà été utilisé. Demandez un nouveau lien.";
   const raw = error instanceof Error ? error.message : String(error);
   if (/invalid login credentials/i.test(raw))
     return "Adresse e-mail ou mot de passe incorrect.";
   if (/email not confirmed/i.test(raw))
     return "Confirmez votre adresse e-mail avant de vous connecter.";
+  if (/error sending (confirmation|recovery|magic link|email)|smtp/i.test(raw))
+    return "Le service n’a pas pu envoyer l’e-mail. Réessayez plus tard ; si le problème persiste, contactez l’assistance.";
   if (/rate limit|too many|429/i.test(raw))
     return "Trop de tentatives. Patientez quelques minutes avant de réessayer.";
   if (/timeout|abort|timed out|signal|lock/i.test(raw))
     return "Le service met trop de temps à répondre. Vous pouvez réessayer.";
-  if (/fetch|network|failed|connexion/i.test(raw))
+  if (/fetch|network|failed/i.test(raw))
     return "Connexion au service impossible. Vérifiez votre accès Internet puis réessayez.";
   return raw.length < 240
     ? raw

@@ -14,6 +14,21 @@ npm run build
 
 Le projet Vercel de recette est `biguglia-connect-v2`, racine `apps/v2`, équipe `christophe2bbs-projects`. L’ancien projet `webapp` et son domaine ne sont pas remplacés.
 
+## Ouvrir la bonne version
+
+| Version | Source GitHub | Application Vercel |
+| --- | --- | --- |
+| Reconstruction V2 en cours | [`rebuild/v2-20261111`, dossier `apps/v2`](https://github.com/christophe2bb/Biguglia.connect/tree/rebuild/v2-20261111/apps/v2) | [biguglia-connect-v2.vercel.app](https://biguglia-connect-v2.vercel.app), accès protégé |
+| Ancienne application | Branche `main`, racine du dépôt | [biguglia-connect.vercel.app](https://biguglia-connect.vercel.app), projet `webapp` |
+
+Les deux interfaces sont différentes parce qu’elles correspondent à deux clients distincts dans le même dépôt. Les comptes et les données restent dans le même projet Supabase `qmrkacrpncdkhofiqlrg`. Les connexions de l’application, de GitHub et de Vercel sont distinctes. Le déploiement V2 actuellement livré et ses contrôles sont identifiés dans [le relevé de livraison](docs/deployment-v2.snapshot.json).
+
+## Connexion et e-mails
+
+Les erreurs d’identifiants, d’adresse non confirmée et d’envoi d’e-mail sont distinguées. Le renvoi efface les anciens messages d’erreur ; la page de retour n’annonce pas une confirmation sans session, et le changement de mot de passe attend une session authentifiée. Ces parcours sont couverts par 11 tests d’interface supplémentaires sans envoyer d’e-mail réel.
+
+Le diagnostic du 14 novembre a relevé `invalid_credentials` dans Supabase, pas `email_not_confirmed`. Aucune nouvelle inscription récente n’apparaissait dans le projet à ce contrôle. Cela ne permet pas d’identifier l’adresse saisie ni de conclure à une panne SMTP. La réception réelle des e-mails et la configuration SMTP restent à vérifier. Un compte déjà confirmé ne reçoit pas de nouvel e-mail de confirmation lors d’une nouvelle tentative d’inscription ; utiliser la connexion ou la récupération du mot de passe.
+
 ## Vérification
 
 - `npm run test` : contrats de publication, annulation réseau et cycle de session sur fixtures locales.

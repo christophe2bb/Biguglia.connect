@@ -45,12 +45,12 @@ export default function App() {
                 <Route index element={<Home />} />
                 <Route path="explorer" element={<Explore />} />
                 <Route path="publier" element={<Explore publish />} />
-                <Route path="connexion" element={<Auth />} />
-                <Route path="inscription" element={<Auth mode="signup" />} />
-                <Route path="mot-de-passe" element={<Auth mode="password" />} />
+                <Route path="connexion" element={<Auth key="login" />} />
+                <Route path="inscription" element={<Auth key="signup" mode="signup" />} />
+                <Route path="mot-de-passe" element={<Auth key="password" mode="password" />} />
                 <Route
                   path="auth/callback"
-                  element={<Auth mode="callback" />}
+                  element={<Auth key="callback" mode="callback" />}
                 />
                 <Route
                   path="auth/reset-password"
