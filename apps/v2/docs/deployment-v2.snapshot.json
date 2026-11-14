@@ -1,0 +1,25 @@
+{
+  "verifiedOn": "2026-11-14",
+  "project": "biguglia-connect-v2",
+  "projectId": "prj_Gk0asFRcyonnIxCGvUHwzFnj1gPy",
+  "deploymentId": "dpl_EUPn9Rrc1xH1vevxiFD92kWr9DiU",
+  "releaseCommit": "fc2f0c8df5e69d61406b0b8bd752dc8cc66351d6",
+  "url": "https://biguglia-connect-v2.vercel.app",
+  "target": "production",
+  "state": "READY",
+  "vercelAuthentication": "all",
+  "githubWorkflowRun": 43557791350,
+  "tests": {
+    "unitAndPostgres": 126,
+    "postgresScenariosIncluded": 72,
+    "browserWithSimulatedOutage": 32,
+    "webBuild": "passed",
+    "iosSimulatorBuildUnsigned": "passed",
+    "hostedSqlContractsWithRollback": "passed",
+    "publicBrowserWithLiveSupabase": "passed",
+    "realAuthenticatedMultiAccountBrowser": "pending"
+  },
+  "existingProductionProject": "webapp",
+  "existingProductionDomainChanged": false,
+  "readyForPublicLaunchOrAppStore": false
+}
