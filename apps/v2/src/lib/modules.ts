@@ -282,6 +282,7 @@ export const MODULES: Module[] = [
     defaults: { status: "submitted" },
     statuses: opts([
       ["submitted", "Publiée"],
+      ["replied", "Échange en cours"],
       ["scheduled", "Programmée"],
       ["completed", "Terminée"],
       ["cancelled", "Annulée"],

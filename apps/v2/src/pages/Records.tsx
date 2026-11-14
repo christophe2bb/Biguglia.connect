@@ -480,6 +480,25 @@ function FieldInput({
 }
 
 export function RecordForm({
+  module,
+  editing = false,
+}: {
+  module: Module;
+  editing?: boolean;
+}) {
+  const { id } = useParams();
+  const { session } = useAuth();
+  const [params] = useSearchParams();
+  return (
+    <RecordFormView
+      key={`${module.slug}:${id || "new"}:${editing}:${params.get("artisan") || "public"}:${session?.user.id || "guest"}`}
+      module={module}
+      editing={editing}
+    />
+  );
+}
+
+function RecordFormView({
   module: m,
   editing = false,
 }: {
@@ -704,6 +723,17 @@ export function RecordForm({
 
 export function RecordDetail({ module: m }: { module: Module }) {
   const { id } = useParams();
+  const { session } = useAuth();
+  return (
+    <RecordDetailView
+      key={`${m.slug}:${id}:${session?.user.id || "guest"}`}
+      module={m}
+    />
+  );
+}
+
+function RecordDetailView({ module: m }: { module: Module }) {
+  const { id } = useParams();
   const { session, profile } = useAuth();
   const navigate = useNavigate();
   const [actionError, setActionError] = useState("");
@@ -724,6 +754,35 @@ export function RecordDetail({ module: m }: { module: Module }) {
       }),
     !m.authOnly || !!session,
   );
+  const quote = query.data?.[0];
+  const privateQuote = m.table === "service_requests" && !!quote?.artisan_id;
+  const quoteContact = useQuery(
+    `quote-contact-${id}-${quote?.artisan_id}-${session?.user.id}`,
+    async (signal) => {
+      const [artisans, conversations] = await Promise.all([
+        request<Row[]>("artisan_profiles", {
+          query: {
+            select: "id,user_id,business_name",
+            id: `eq.${quote?.artisan_id}`,
+            limit: 1,
+          },
+          signal,
+        }),
+        request<Row[]>("conversations", {
+          query: {
+            select: "id",
+            related_type: "eq.service_request",
+            related_id: `eq.${id}`,
+            order: "created_at.asc,id.asc",
+            limit: 1,
+          },
+          signal,
+        }),
+      ]);
+      return { artisan: artisans[0], conversation: conversations[0] };
+    },
+    privateQuote && !!session,
+  );
   if (m.authOnly && !session) return <LoginPrompt />;
   if (query.loading) return <Loading />;
   if (query.error)
@@ -733,12 +792,31 @@ export function RecordDetail({ module: m }: { module: Module }) {
   const owner = str(row, m.owner),
     isOwner = owner === session?.user.id,
     canEdit = isOwner || isStaff(profile);
+  const artisanUser = str(quoteContact.data?.artisan, "user_id");
+  const quoteParty = !!session && (isOwner || artisanUser === session.user.id);
+  const recipient = privateQuote
+    ? isOwner
+      ? artisanUser
+      : quoteParty
+        ? owner
+        : ""
+    : owner;
+  const quoteClosed =
+    privateQuote && ["completed", "cancelled"].includes(str(row, "status"));
+  const existingExchange =
+    privateQuote && quoteParty
+      ? quoteContact.data?.conversation?.id
+      : undefined;
+  const canContact = privateQuote
+    ? quoteParty && !!recipient && !quoteClosed
+    : !isOwner;
   const contact = async (e: FormEvent) => {
     e.preventDefault();
     if (!session) {
       navigate("/connexion?next=" + encodeURIComponent(location.pathname));
       return;
     }
+    if (!canContact || !recipient || busy) return;
     setBusy(true);
     setActionError("");
     try {
@@ -746,7 +824,7 @@ export function RecordDetail({ module: m }: { module: Module }) {
         p_subject: moduleTitle(m, row),
         p_type: m.context,
         p_record: row.id,
-        p_recipient: owner,
+        p_recipient: recipient,
         p_content: content.trim(),
         p_message_id: firstMessage.current,
       });
@@ -892,16 +970,20 @@ export function RecordDetail({ module: m }: { module: Module }) {
               <m.icon size={26} />
             </span>
             <h2>
-              {isOwner
-                ? "Votre publication"
-                : m.table === "artisan_profiles"
-                  ? "Parlons de votre projet"
-                  : "Envie d’en savoir plus ?"}
+              {privateQuote
+                ? "Votre devis privé"
+                : isOwner
+                  ? "Votre publication"
+                  : m.table === "artisan_profiles"
+                    ? "Parlons de votre projet"
+                    : "Envie d’en savoir plus ?"}
             </h2>
             <p>
-              {isOwner
-                ? "Gérez les informations et le suivi de votre publication."
-                : "Échangez directement avec l’auteur dans la messagerie Biguglia Connect."}
+              {privateQuote && quoteParty
+                ? "Retrouvez votre échange privé avec votre correspondant pour ce devis."
+                : isOwner
+                  ? "Gérez les informations et le suivi de votre publication."
+                  : "Échangez directement avec l’auteur dans la messagerie Biguglia Connect."}
             </p>
             {!isOwner &&
               m.table === "artisan_profiles" &&
@@ -913,21 +995,50 @@ export function RecordDetail({ module: m }: { module: Module }) {
                   Demander un devis
                 </Link>
               )}
-            {!isOwner && (
-              <button
+            {privateQuote && quoteContact.loading && (
+              <Loading text="Chargement de votre échange…" />
+            )}
+            {privateQuote && quoteContact.error && (
+              <Failure
+                message={quoteContact.error}
+                retry={quoteContact.reload}
+              />
+            )}
+            {existingExchange ? (
+              <Link
                 className="button full"
-                onClick={() =>
-                  session
-                    ? setMessage(true)
-                    : navigate(
-                        "/connexion?next=" +
-                          encodeURIComponent(location.pathname),
-                      )
-                }
+                to={`/messages/${existingExchange}`}
               >
                 <MessageCircle size={18} />
-                Contacter
-              </button>
+                Ouvrir notre échange
+              </Link>
+            ) : (
+              canContact && (
+                <button
+                  className="button full"
+                  onClick={() =>
+                    session
+                      ? setMessage(true)
+                      : navigate(
+                          "/connexion?next=" +
+                            encodeURIComponent(location.pathname),
+                        )
+                  }
+                >
+                  <MessageCircle size={18} />
+                  {privateQuote
+                    ? isOwner
+                      ? "Écrire à l’artisan"
+                      : "Écrire au résident"
+                    : "Contacter"}
+                </button>
+              )
+            )}
+            {privateQuote && quoteParty && quoteClosed && !existingExchange && (
+              <p>
+                Ce devis est clos. Vos conversations déjà commencées restent
+                dans votre messagerie.
+              </p>
             )}
             {canEdit && (
               <>
@@ -948,24 +1059,39 @@ export function RecordDetail({ module: m }: { module: Module }) {
                   <label className="form-field">
                     État de la publication
                     <select
+                      aria-label="État de la publication"
+                      aria-describedby={
+                        privateQuote && !quoteClosed
+                          ? "quote-status-help"
+                          : undefined
+                      }
                       value={str(row, "status")}
                       disabled={
                         busy ||
+                        (m.table === "service_requests" &&
+                          ["completed", "cancelled"].includes(
+                            str(row, "status"),
+                          )) ||
                         (m.table === "equipment_items" &&
                           ["reserve", "prete"].includes(str(row, "status")))
                       }
                       onChange={(e) => void status(e.target.value)}
                     >
                       {m.statuses
-                        .filter(
-                          (s) =>
-                            m.table !== "equipment_items" ||
-                            [
-                              "disponible",
-                              "indisponible",
-                              "archive",
-                              str(row, "status"),
-                            ].includes(s.value),
+                        .filter((s) =>
+                          privateQuote
+                            ? [
+                                "completed",
+                                "cancelled",
+                                str(row, "status"),
+                              ].includes(s.value)
+                            : m.table !== "equipment_items" ||
+                              [
+                                "disponible",
+                                "indisponible",
+                                "archive",
+                                str(row, "status"),
+                              ].includes(s.value),
                         )
                         .map((s) => (
                           <option value={s.value} key={s.value}>
@@ -973,6 +1099,12 @@ export function RecordDetail({ module: m }: { module: Module }) {
                           </option>
                         ))}
                     </select>
+                    {privateQuote && !quoteClosed && (
+                      <small id="quote-status-help">
+                        La confirmation du rendez-vous programme le devis. Son
+                        annulation libère le créneau.
+                      </small>
+                    )}
                   </label>
                 )}
               </>

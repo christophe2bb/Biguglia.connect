@@ -31,11 +31,12 @@ Le script `tests/hosted-contract.sql` a réussi sur la base hébergée : prêt c
 
 ## Vérifications effectuées
 
-- 111 tests locaux réussis : formulaires, colonnes et statuts réels, cycle de session, délais réseau, interfaces administratives/rendez-vous/avis et 65 scénarios PostgreSQL sur base jetable.
+- 126 tests locaux réussis : formulaires, colonnes et statuts réels, cycle de session, délais réseau, interfaces administratives/rendez-vous/avis/contact et 72 scénarios PostgreSQL sur base jetable.
 - Ces scénarios PostgreSQL vérifient notamment le refus d’auto-promotion administrateur, l’isolement d’un tiers, le blocage d’un échange, les droits sur les photos privées et la déduplication du message initial. Le cycle de prêt vérifie aussi réservation unique, remise, retour, refus des tiers, notifications sans doublons et annulation de toute l’opération en cas d’échec d’écriture.
 - La CI GitHub `2cabcfb` a réussi : 58 tests, 32 contrôles d’interface avec panne simulée et compilations web et iOS pour simulateur.
 - La CI GitHub `ba4414b` a réussi : 69 tests, 32 contrôles d’interface avec panne simulée et compilations web et iOS pour simulateur. Les nouveaux rendez-vous déclenchent à nouveau ces contrôles.
 - La CI GitHub `6cff076` a réussi : 93 tests, 32 contrôles d’interface avec panne simulée et compilations web et iOS pour simulateur. Le workflow suit maintenant aussi les changements de migrations.
+- La CI GitHub `62c155e` a réussi : 111 tests, 32 contrôles d’interface avec panne simulée et compilations web et iOS pour simulateur.
 - La CI GitHub `2eec7d7` a réussi : 44 tests locaux, 32 tests d’interface avec panne simulée, compilation web et compilation Xcode pour simulateur. Les ajouts ultérieurs sont revérifiés par le même workflow.
 - La première CI GitHub (`5c7df21`) a réussi : 29 tests locaux à cette révision, 32 tests d’interface ordinateur/mobile avec service de données simulé indisponible, compilation web et compilation Xcode pour simulateur sans signature.
 - Déploiement isolé Vercel `biguglia-connect-v2`, protection Vercel activée pour tous les environnements. Aucun lien temporaire de partage n’a été créé après son refus par le contrôle automatique.
@@ -66,7 +67,19 @@ Les migrations `20261112042137_v2_verified_service_reviews.sql` et `202611140419
 
 Le 14 novembre, `tests/hosted-service-reviews.sql` a réussi avec les vrais triggers : avis après clôture, refus d’un tiers, relance unique, statistiques, notification, preuve immuable, modération et visibilité auteur/tiers. Toute la transaction a été annulée ; zéro devis et zéro avis de recette restent en base. Ce contrôle simule les identités SQL ; les connexions réelles et les parcours sur appareil restent à vérifier.
 
+## Contact privé et conservation du contexte
+
+La migration `20261114043322_v2_bidirectional_quote_contact.sql` corrige le contact unidirectionnel des devis : le résident peut commencer l’échange avec l’artisan affecté et l’artisan avec le résident. Les deux sens et les relances retrouvent la même conversation. Son propriétaire de contexte reste le résident. Les tiers restent refusés, et un devis clos ne permet pas de démarrer un nouvel échange. La fiche ouvre directement une conversation déjà commencée, y compris après clôture.
+
+La même vérification a identifié le risque de `ON DELETE SET NULL` : supprimer un artisan pouvait retirer `artisan_id` des devis privés et les faire apparaître parmi les demandes publiques. Un trigger bloque désormais cette suppression lorsqu’un devis y est lié ; la désactivation reste le parcours à utiliser. Aucun devis ni profil existant n’a été supprimé.
+
+Le script hébergé `tests/hosted-quote-contact.sql` a réussi : résident vers artisan, réponse inverse, unicité, relance, contexte propriétaire, isolement des messages, refus d’auto-validation artisan par un résident et conservation du caractère privé lors d’une tentative de suppression. Tout a été annulé ; la lecture suivante confirme zéro devis et zéro message de recette restants.
+
+Les formulaires et brouillons sont réinitialisés lorsqu’on change de fiche ou de compte. Les tests d’interface couvrent les deux destinataires, la conversation existante, le lecteur administrateur non participant et l’absence de brouillon d’un autre contexte. Un devis privé est programmé par son rendez-vous ; son sélecteur n’offre pas de transition manuelle qui désynchroniserait les deux. Les états clos sont en lecture seule.
+
 ## Contrôle du navigateur avec données réelles
+
+Le 14 novembre, le catalogue, les catégories, la fiche artisan, les photos et la section d’avis après intervention ont été contrôlés à nouveau sur l’aperçu relié au vrai Supabase. Les liens « Demander un devis » et « Mes avis » conduisent à la protection de connexion avec la bonne destination de retour. Voir [la capture de contrôle Services](preview-services-20261114.jpg). Ce navigateur n’a pas de session utilisateur de l’application : aucune publication ni message n’a été envoyé dans ce contrôle. Les seules erreurs de console observées provenaient de l’extension du navigateur, pas du code de l’application.
 
 Le 12 novembre, le catalogue des artisans, les catégories, la fiche détaillée, les photos, une recherche sans résultat et le retour à la liste complète ont été vérifiés depuis le navigateur sur l’aperçu local raccordé au vrai projet Supabase. Voir [la capture de contrôle](preview-live-artisans.jpg). Aucun formulaire d’authentification n’a été soumis et aucun contenu utilisateur n’a été modifié pendant ce contrôle.
 

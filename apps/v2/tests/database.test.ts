@@ -114,6 +114,7 @@ beforeAll(async () => {
     "20261112040922_v2_service_appointments.sql",
     "20261112042137_v2_verified_service_reviews.sql",
     "20261114041938_v2_review_stats_permissions.sql",
+    "20261114043322_v2_bidirectional_quote_contact.sql",
   ]) {
     await db.exec(
       await readFile(
@@ -800,6 +801,74 @@ afterAll(async () => {
 });
 
 describe("database authorization and message integrity", () => {
+  it("lets the resident initiate a private quote conversation with the assigned artisan", async () => {
+    await call(b, "service_request", quote);
+    expect(
+      (
+        await db.query(
+          "select related_id,owner_id,created_by from public.conversations",
+        )
+      ).rows[0],
+    ).toEqual({ related_id: quote, owner_id: a, created_by: a });
+  });
+  it("reuses the same private conversation in the reverse direction", async () => {
+    const initial = await call(b, "service_request", quote);
+    await actor(b);
+    const reverse = await call(
+      a,
+      "service_request",
+      quote,
+      "Réponse de l’artisan.",
+      "00000000-0000-4000-8000-000000000043",
+    );
+    expect(reverse.rows[0].id).toBe(initial.rows[0].id);
+    expect(
+      (await db.query("select id from public.conversations")).rows,
+    ).toHaveLength(1);
+    expect(
+      (await db.query("select id from public.messages")).rows,
+    ).toHaveLength(2);
+  });
+  it("rejects an unrelated member contacting a private quote owner", async () => {
+    await actor(c);
+    await expect(call(a, "service_request", quote)).rejects.toThrow(
+      "Publication indisponible",
+    );
+  });
+  it("rejects the resident choosing an unrelated recipient for a private quote", async () => {
+    await expect(call(c, "service_request", quote)).rejects.toThrow(
+      "Publication indisponible",
+    );
+  });
+  it("does not start a new conversation for a closed quote", async () => {
+    await db.exec("reset role");
+    await db.query(
+      "update public.service_requests set status='completed' where id=$1",
+      [quote],
+    );
+    await actor(a);
+    await expect(call(b, "service_request", quote)).rejects.toThrow(
+      "Publication indisponible",
+    );
+  });
+  it("preserves public request contact with its resident author", async () => {
+    await db.exec("reset role");
+    await db.query(
+      "update public.service_requests set artisan_id=null where id=$1",
+      [quote],
+    );
+    await actor(c);
+    await call(a, "service_request", quote);
+    expect(
+      (await db.query("select owner_id from public.conversations")).rows[0],
+    ).toEqual({ owner_id: a });
+  });
+  it("prevents deleting an artisan profile from turning private quotes public", async () => {
+    await db.exec("reset role");
+    await expect(
+      db.query("delete from public.artisan_profiles where id=$1", [artisan]),
+    ).rejects.toThrow("devis privés");
+  });
   it("creates one conversation and one initial message on retry", async () => {
     const first = await call();
     const again = await call();

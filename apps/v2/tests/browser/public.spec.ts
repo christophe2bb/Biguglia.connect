@@ -92,6 +92,7 @@ test("private areas are protected before any data is fetched", async ({
   for (const route of [
     "messages",
     "dashboard",
+    "dashboard/avis",
     "profil",
     "favoris",
     "notifications",
