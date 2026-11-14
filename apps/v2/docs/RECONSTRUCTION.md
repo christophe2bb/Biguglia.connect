@@ -21,7 +21,7 @@ Artisans et demandes de service ; annonces ; prêt de matériel ; collections ; 
 
 La présence de l’interface et de l’adaptateur ne constitue pas une validation réelle du métier. Les tests HTTP entre comptes, les règles de visibilité, les envois d’e-mails, les remboursements / paiements éventuels (non présents), les pièces privées et les transitions concurrentes doivent être recensés dans la recette avant mise en production.
 
-## État Supabase au 12 novembre 2026
+## État Supabase au 14 novembre 2026
 
 L’incident du 11 novembre est résolu lors des derniers contrôles : l’API REST répond et les contrôles de santé ne renvoient plus d’alerte. La première migration avait finalement abouti après l’expiration de l’appel. Son fichier local a été réconcilié avec l’historique hébergé `20261111173446_v2_secure_client_contract.sql`, sans rejouer ses politiques.
 
@@ -31,10 +31,11 @@ Le script `tests/hosted-contract.sql` a réussi sur la base hébergée : prêt c
 
 ## Vérifications effectuées
 
-- 93 tests locaux réussis : formulaires, colonnes et statuts réels, cycle de session, délais réseau, interfaces administratives/rendez-vous et 52 scénarios PostgreSQL sur base jetable.
+- 111 tests locaux réussis : formulaires, colonnes et statuts réels, cycle de session, délais réseau, interfaces administratives/rendez-vous/avis et 65 scénarios PostgreSQL sur base jetable.
 - Ces scénarios PostgreSQL vérifient notamment le refus d’auto-promotion administrateur, l’isolement d’un tiers, le blocage d’un échange, les droits sur les photos privées et la déduplication du message initial. Le cycle de prêt vérifie aussi réservation unique, remise, retour, refus des tiers, notifications sans doublons et annulation de toute l’opération en cas d’échec d’écriture.
 - La CI GitHub `2cabcfb` a réussi : 58 tests, 32 contrôles d’interface avec panne simulée et compilations web et iOS pour simulateur.
 - La CI GitHub `ba4414b` a réussi : 69 tests, 32 contrôles d’interface avec panne simulée et compilations web et iOS pour simulateur. Les nouveaux rendez-vous déclenchent à nouveau ces contrôles.
+- La CI GitHub `6cff076` a réussi : 93 tests, 32 contrôles d’interface avec panne simulée et compilations web et iOS pour simulateur. Le workflow suit maintenant aussi les changements de migrations.
 - La CI GitHub `2eec7d7` a réussi : 44 tests locaux, 32 tests d’interface avec panne simulée, compilation web et compilation Xcode pour simulateur. Les ajouts ultérieurs sont revérifiés par le même workflow.
 - La première CI GitHub (`5c7df21`) a réussi : 29 tests locaux à cette révision, 32 tests d’interface ordinateur/mobile avec service de données simulé indisponible, compilation web et compilation Xcode pour simulateur sans signature.
 - Déploiement isolé Vercel `biguglia-connect-v2`, protection Vercel activée pour tous les environnements. Aucun lien temporaire de partage n’a été créé après son refus par le contrôle automatique.
@@ -54,6 +55,16 @@ La migration hébergée `20261112040922_v2_service_appointments.sql` ajoute l’
 La confirmation programme le devis ; l’annulation libère le créneau ; la clôture déclenche le contrat historique d’avis. Fermer le devis par son autre parcours annule aussi ses propositions encore actives. Les relances conservent l’identifiant et ne doublent pas les notifications.
 
 Le script `tests/hosted-appointments.sql` a réussi sur Supabase avec les vrais triggers et des identités simulées au niveau SQL : proposition, relance, refus d’auto-confirmation et d’un tiers, isolement, interdiction d’écriture directe, conflit de créneaux, confirmation, clôture, avis et annulation liée au devis. La transaction a été annulée ; la lecture suivante confirme zéro rendez-vous et zéro devis de recette restants. Ce contrôle ne constitue pas une connexion Auth réelle entre deux navigateurs. Les avertissements de sécurité préexistants sont inchangés et le contrôle de santé est vide.
+
+## Avis après intervention et tableau des demandes
+
+Le tableau Services propose trois vues : demandes publiques (`artisan_id is null`), demandes et devis du résident, devis reçus par ses profils artisans. Si aucun profil artisan n’est trouvé, la vue reçue reste vide et ne retombe jamais sur l’ensemble des demandes.
+
+La page `/dashboard/avis` reçoit les notifications historiques de fin d’intervention. Elle présente les interventions éligibles, les avis donnés et les avis reçus. Le dépôt utilise `bc_v2_submit_service_review` : devis terminé, preuve d’interaction, identité résident/artisan, note de 1 à 5, commentaire et période de 30 jours contrôlés par le serveur ; avis, indicateur de réalisation et notification sont atomiques. L’identifiant est conservé après une panne réseau. La contrainte historique d’un avis par résident et artisan est conservée. Les avis vérifiés ne peuvent être réattribués ni réécrits ; seule la modération change leur visibilité. Les fiches artisan montrent les avis visibles liés à une intervention vérifiée.
+
+Les migrations `20261112042137_v2_verified_service_reviews.sql` et `20261114041938_v2_review_stats_permissions.sql` sont installées. Le contrôle hébergé a révélé que le trigger historique de statistiques bloquait la modération par RLS et produisait des valeurs nulles lorsqu’aucun avis visible ne restait. Un trigger privé calcule désormais les agrégats sans autoriser les clients à écrire les statistiques ; zéro avis visible produit zéro note et zéro compteur. Les avis historiques sans destinataire restent compatibles. Une politique restrictive protège les avis masqués malgré les anciennes politiques de lecture permissives.
+
+Le 14 novembre, `tests/hosted-service-reviews.sql` a réussi avec les vrais triggers : avis après clôture, refus d’un tiers, relance unique, statistiques, notification, preuve immuable, modération et visibilité auteur/tiers. Toute la transaction a été annulée ; zéro devis et zéro avis de recette restent en base. Ce contrôle simule les identités SQL ; les connexions réelles et les parcours sur appareil restent à vérifier.
 
 ## Contrôle du navigateur avec données réelles
 

@@ -76,6 +76,10 @@ export default function Shell() {
           <Heart size={18} />
           Mes favoris
         </NavLink>
+        <NavLink className="nav-item" to="/dashboard/avis">
+          <ShieldCheck size={18} />
+          Mes avis
+        </NavLink>
         <NavLink className="nav-item" to="/communaute">
           <UsersIcon />
           Communautés

@@ -2,7 +2,7 @@ name: Biguglia Connect V2
 on:
   push:
     branches: ['rebuild/v2-20261111']
-    paths: ['apps/v2/**', '.github/workflows/v2.yml']
+    paths: ['apps/v2/**', 'supabase/migrations/**', '.github/workflows/v2.yml']
   workflow_dispatch:
 permissions:
   contents: read

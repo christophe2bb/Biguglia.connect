@@ -64,7 +64,11 @@ beforeAll(async () => {
     create table public.equipment_requests(id uuid primary key,equipment_id uuid,requester_id uuid,status text default 'en_attente',requested_start_date date,requested_end_date date,updated_at timestamptz);
     create table public.equipment_loans(id uuid primary key default gen_random_uuid(),equipment_id uuid,owner_id uuid,borrower_id uuid,request_id uuid,status text,reserved_at timestamptz default now(),loan_started_at timestamptz,returned_at timestamptz,created_at timestamptz default now(),updated_at timestamptz);
     create table public.notifications(id uuid primary key default gen_random_uuid(),user_id uuid,type text,title text,message text,link text);
-    create table public.trust_interactions(source_type text,source_id uuid,requester_id uuid,receiver_id uuid,interaction_type text,status text,review_unlocked boolean,completed_at timestamptz,updated_at timestamptz,unique(source_type,source_id,requester_id));
+    create table public.trust_interactions(id uuid primary key default gen_random_uuid(),source_type text,source_id uuid,requester_id uuid,receiver_id uuid,interaction_type text,status text,review_unlocked boolean,review_requester_done boolean default false,review_receiver_done boolean default false,completed_at timestamptz,updated_at timestamptz,unique(source_type,source_id,requester_id));
+    create table public.reviews(id uuid primary key,artisan_id uuid not null,reviewer_id uuid not null,author_id uuid,target_user_id uuid,interaction_id uuid,source_type text,source_id uuid,rating integer check(rating between 1 and 5),comment text,moderation_status text default 'visible',moderation_note text,moderated_by uuid,moderated_at timestamptz,updated_at timestamptz,created_at timestamptz default now(),dim_communication integer,dim_reliability integer,dim_punctuality integer,dim_quality integer,would_recommend boolean,unique(artisan_id,reviewer_id),unique(interaction_id,author_id));
+    create table public.trust_profile_stats(profile_id uuid primary key,reviews_received integer not null default 0,avg_rating numeric not null default 0,avg_communication numeric,avg_reliability numeric,avg_punctuality numeric,avg_quality numeric,recommend_pct integer,dist_1 integer not null default 0,dist_2 integer not null default 0,dist_3 integer not null default 0,dist_4 integer not null default 0,dist_5 integer not null default 0,trust_score integer not null default 0,last_computed_at timestamptz not null default now(),updated_at timestamptz not null default now());
+    create function public.recalc_trust_stats() returns trigger language plpgsql as $$begin return new;end$$;
+    create function public.is_moderator_or_admin() returns boolean language sql security definer set search_path='' as $$select exists(select 1 from public.profiles where id=auth.uid() and role::text in ('admin','moderator'))$$;
     create table public.help_requests(id uuid primary key,author_id uuid);
     create table public.associations(id uuid primary key,author_id uuid,status text);
     create table public.collection_items(id uuid primary key,author_id uuid,status text);
@@ -85,6 +89,12 @@ beforeAll(async () => {
     grant select,insert,delete on storage.objects to authenticated;
     alter table public.profiles enable row level security;
     create policy fixture_profiles_self on public.profiles for all to authenticated using (id=auth.uid()) with check(id=auth.uid());
+    alter table public.reviews enable row level security;
+    create policy fixture_reviews_read on public.reviews for select to anon,authenticated using(true);
+    create policy fixture_reviews_write on public.reviews for all to authenticated using(reviewer_id=auth.uid()) with check(reviewer_id=auth.uid());
+    create policy fixture_reviews_staff on public.reviews for all to authenticated using(public.is_moderator_or_admin()) with check(public.is_moderator_or_admin());
+    alter table public.trust_profile_stats enable row level security;
+    create policy fixture_stats_read on public.trust_profile_stats for select to authenticated using(true);
     alter table public.appointments enable row level security;
     create policy fixture_appointments_parties on public.appointments for select to authenticated using(resident_id=auth.uid() or exists(select 1 from public.artisan_profiles a where a.id=appointments.artisan_id and a.user_id=auth.uid()));
     alter table public.conversations enable row level security;
@@ -102,6 +112,8 @@ beforeAll(async () => {
     "20261111173446_v2_secure_client_contract.sql",
     "20261112031348_v2_transactional_workflows.sql",
     "20261112040922_v2_service_appointments.sql",
+    "20261112042137_v2_verified_service_reviews.sql",
+    "20261114041938_v2_review_stats_permissions.sql",
   ]) {
     await db.exec(
       await readFile(
@@ -472,6 +484,183 @@ describe("service appointments", () => {
     expect(
       (await db.query("select id from public.appointments")).rows,
     ).toHaveLength(0);
+  });
+});
+
+describe("verified service reviews", () => {
+  const review = "00000000-0000-4000-8000-000000000080";
+  const submit = (
+    id = review,
+    score = 5,
+    text = "Intervention soignée et ponctuelle.",
+  ) =>
+    db.query("select public.bc_v2_submit_service_review($1,$2,$3,$4)", [
+      id,
+      quote,
+      score,
+      text,
+    ]);
+  const complete = async () => {
+    await db.exec("reset role");
+    await db.query(
+      "update public.service_requests set status='completed' where id=$1",
+      [quote],
+    );
+    await actor(a);
+  };
+  it("requires a completed quote before creating a review", async () => {
+    await expect(submit()).rejects.toThrow("Preuve d’intervention");
+  });
+  it("records the review, proof flag and notification once on retry", async () => {
+    await complete();
+    await submit();
+    await submit();
+    expect(
+      (
+        await db.query(
+          "select id,reviewer_id,target_user_id from public.reviews",
+        )
+      ).rows,
+    ).toEqual([{ id: review, reviewer_id: a, target_user_id: b }]);
+    expect(
+      (
+        await db.query(
+          "select review_requester_done from public.trust_interactions",
+        )
+      ).rows[0],
+    ).toEqual({ review_requester_done: true });
+    expect(
+      (
+        await db.query(
+          "select id from public.notifications where type='new_review'",
+        )
+      ).rows,
+    ).toHaveLength(1);
+  });
+  it("computes visible review statistics without giving the client aggregate writes", async () => {
+    await complete();
+    await submit();
+    expect(
+      (
+        await db.query(
+          "select reviews_received,avg_rating,dist_5 from public.trust_profile_stats",
+        )
+      ).rows[0],
+    ).toEqual({ reviews_received: 1, avg_rating: "5.00", dist_5: 1 });
+    expect(
+      (
+        await db.query(
+          "update public.trust_profile_stats set reviews_received=200",
+        )
+      ).affectedRows,
+    ).toBe(0);
+    expect(
+      (
+        await db.query(
+          "select reviews_received from public.trust_profile_stats",
+        )
+      ).rows[0],
+    ).toEqual({ reviews_received: 1 });
+  });
+  it("rejects an outsider’s review", async () => {
+    await complete();
+    await actor(c);
+    await expect(submit()).rejects.toThrow("évaluer cette intervention");
+  });
+  it("does not let the artisan rate their own intervention", async () => {
+    await complete();
+    await actor(b);
+    await expect(submit()).rejects.toThrow("évaluer cette intervention");
+  });
+  it("enforces the 30-day review period", async () => {
+    await complete();
+    await db.exec(
+      "reset role;update public.trust_interactions set completed_at=now()-interval '31 days'",
+    );
+    await actor(a);
+    await expect(submit()).rejects.toThrow("pendant 30 jours");
+  });
+  it("refuses an out-of-range score", async () => {
+    await complete();
+    await expect(submit(review, 6)).rejects.toThrow("une note de 1 à 5");
+  });
+  it("refuses an empty comment", async () => {
+    await complete();
+    await expect(submit(review, 5, " ")).rejects.toThrow("10 à 2000");
+  });
+  it("rejects a second identifier for an already reviewed artisan", async () => {
+    await complete();
+    await submit();
+    await expect(
+      submit("00000000-0000-4000-8000-000000000081"),
+    ).rejects.toThrow("déjà donné");
+  });
+  it("prevents direct insertion with forged target identity", async () => {
+    await complete();
+    await expect(
+      db.query(
+        "insert into public.reviews(id,artisan_id,reviewer_id,author_id,target_user_id,interaction_id,source_type,source_id,rating,comment) select $1,$2,$3,$3,$4,id,'service_request',$5,5,'Avis forgé de recette.' from public.trust_interactions",
+        [review, artisan, a, c, quote],
+      ),
+    ).rejects.toThrow("devis terminé et vérifié");
+  });
+  it("keeps review proof immutable after submission", async () => {
+    await complete();
+    await submit();
+    await expect(
+      db.query(
+        "update public.reviews set source_type=null,interaction_id=null where id=$1",
+        [review],
+      ),
+    ).rejects.toThrow("réattribué ou réécrit");
+  });
+  it("hides moderated reviews from outsiders despite legacy permissive policies", async () => {
+    await complete();
+    await submit();
+    await actor(admin);
+    await db.query(
+      "update public.reviews set moderation_status='hidden' where id=$1",
+      [review],
+    );
+    expect(
+      (
+        await db.query(
+          "select reviews_received,avg_rating,dist_5 from public.trust_profile_stats",
+        )
+      ).rows[0],
+    ).toEqual({ reviews_received: 0, avg_rating: "0", dist_5: 0 });
+    await actor(c);
+    expect((await db.query("select id from public.reviews")).rows).toHaveLength(
+      0,
+    );
+    await actor(a);
+    expect((await db.query("select id from public.reviews")).rows).toHaveLength(
+      1,
+    );
+    await actor(b);
+    expect((await db.query("select id from public.reviews")).rows).toHaveLength(
+      1,
+    );
+  });
+  it("rolls back review and proof flag if notifying fails", async () => {
+    await complete();
+    await db.exec(
+      "reset role;alter table public.notifications add constraint fixture_review_notification check(type<>'new_review')",
+    );
+    await actor(a);
+    await db.exec("savepoint review_submission");
+    await expect(submit()).rejects.toThrow("fixture_review_notification");
+    await db.exec("rollback to savepoint review_submission");
+    expect((await db.query("select id from public.reviews")).rows).toHaveLength(
+      0,
+    );
+    expect(
+      (
+        await db.query(
+          "select review_requester_done from public.trust_interactions",
+        )
+      ).rows[0],
+    ).toEqual({ review_requester_done: false });
   });
 });
 

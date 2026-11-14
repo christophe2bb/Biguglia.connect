@@ -59,6 +59,7 @@ import {
 } from "../components/ui";
 import { LoanActivity } from "./Equipment";
 import { Appointments } from "./Appointments";
+import { VerifiedReviews } from "./ReviewDisplay";
 import {
   Participation,
   EquipmentRequest,
@@ -148,20 +149,41 @@ export { formatPrice, formatDate } from "../lib/format";
 export function RecordList({ module: m }: { module: Module }) {
   const { session } = useAuth();
   const [params, setParams] = useSearchParams();
+  const services = m.table === "service_requests";
+  const received = services && params.get("vue") === "recus";
   const [search, setSearch] = useState(params.get("q") || "");
   const q = params.get("q") || "",
     sector = params.get("secteur") || "",
     cat = params.get("categorie") || "",
     page = Math.max(0, Number(params.get("page") || 0) || 0),
-    own = params.get("mes") === "1";
+    own = !received && params.get("mes") === "1";
   const allowed = !m.authOnly || !!session;
   const rows = useQuery(
     `${m.slug}:${params}:${session?.user.id || ""}`,
-    (signal) =>
-      request<Row[]>(m.table, {
+    async (signal) => {
+      let scope: Record<string, string> = own
+        ? { [m.owner]: `eq.${session?.user.id}` }
+        : services
+          ? { artisan_id: "is.null" }
+          : m.publicFilter || {};
+      if (received) {
+        const artisans = await request<Row[]>("artisan_profiles", {
+          query: {
+            select: "id",
+            user_id: `eq.${session?.user.id}`,
+            limit: 100,
+          },
+          signal,
+        });
+        if (!artisans.length) return [];
+        scope = {
+          artisan_id: `in.(${artisans.map((row) => row.id).join(",")})`,
+        };
+      }
+      return request<Row[]>(m.table, {
         query: {
           select: m.select,
-          ...(own ? { [m.owner]: `eq.${session?.user.id}` } : m.publicFilter),
+          ...scope,
           ...(q
             ? {
                 [m.titleField]: `ilike.*${q.replace(/[*,().%_]/g, " ").slice(0, 100)}*`,
@@ -176,8 +198,9 @@ export function RecordList({ module: m }: { module: Module }) {
           offset: page * 24,
         },
         signal,
-      }),
-    allowed && (!own || !!session),
+      });
+    },
+    allowed && (!(own || received) || !!session),
   );
   const cats = useQuery(
     "categories-" + m.categoryTable,
@@ -221,6 +244,35 @@ export function RecordList({ module: m }: { module: Module }) {
           >
             Candidatures locales
           </Link>
+        </div>
+      )}
+      {services && session && (
+        <div className="tabs" aria-label="Demandes de service">
+          {[
+            ["public", "Demandes des habitants"],
+            ["mine", "Mes demandes et devis"],
+            ["received", "Devis reçus comme artisan"],
+          ].map(([key, text]) => (
+            <button
+              key={key}
+              className={
+                (received ? "received" : own ? "mine" : "public") === key
+                  ? "active"
+                  : ""
+              }
+              onClick={() => {
+                const next = new URLSearchParams(params);
+                next.delete("page");
+                next.delete("mes");
+                next.delete("vue");
+                if (key === "mine") next.set("mes", "1");
+                if (key === "received") next.set("vue", "recus");
+                setParams(next);
+              }}
+            >
+              {text}
+            </button>
+          ))}
         </div>
       )}
       <div className="filters">
@@ -268,7 +320,7 @@ export function RecordList({ module: m }: { module: Module }) {
             ))}
           </select>
         )}
-        {session && (
+        {session && !services && (
           <button
             className={`filter-toggle ${own ? "selected" : ""}`}
             onClick={() => change("mes", own ? "" : "1")}
@@ -288,12 +340,18 @@ export function RecordList({ module: m }: { module: Module }) {
           title={
             q || sector || cat
               ? "Aucun résultat pour ces critères"
-              : "La place est libre pour votre publication"
+              : received
+                ? "Aucun devis reçu pour le moment"
+                : own && services
+                  ? "Vous n’avez pas encore de demande"
+                  : "La place est libre pour votre publication"
           }
           text={
             q || sector || cat
               ? "Essayez un autre mot ou un quartier différent."
-              : `Partagez ${m.singular} avec les habitants de Biguglia.`
+              : received
+                ? "Les devis adressés à votre profil artisan apparaîtront ici, avec leur suivi et leurs rendez-vous."
+                : `Partagez ${m.singular} avec les habitants de Biguglia.`
           }
           action={
             <Link className="button secondary" to={`/${m.slug}/nouveau`}>
@@ -305,7 +363,11 @@ export function RecordList({ module: m }: { module: Module }) {
       ) : (
         <>
           <div className="results-caption">
-            {own ? "Vos publications" : "Les dernières publications"}
+            {received
+              ? "Les devis adressés à votre activité"
+              : own
+                ? "Vos publications"
+                : "Les dernières publications"}
             <span>
               {sector
                 ? SECTORS.find((s) => s.value === sector)?.label
@@ -800,7 +862,29 @@ export function RecordDetail({ module: m }: { module: Module }) {
             <Appointments row={row} onChange={query.reload} />
           )}
           {m.comment && <Comments module={m} row={row} />}
-          <Rating module={m} row={row} />
+          {m.table === "artisan_profiles" ? (
+            <VerifiedReviews artisanId={row.id} />
+          ) : m.table === "service_requests" ? (
+            row.status === "completed" &&
+            row.resident_id === session?.user.id &&
+            row.artisan_id ? (
+              <section className="detail-section">
+                <h2>Votre expérience compte</h2>
+                <p>
+                  Vous pouvez donner votre avis pendant 30 jours après
+                  l’intervention.
+                </p>
+                <Link
+                  className="button secondary"
+                  to={`/dashboard/avis?demande=${row.id}`}
+                >
+                  Donner mon avis
+                </Link>
+              </section>
+            ) : null
+          ) : (
+            <Rating module={m} row={row} />
+          )}
         </article>
         <aside className="detail-aside">
           <div className="contact-card">

@@ -9,6 +9,7 @@ import Home, { Explore } from "./pages/Home";
 import { RecordDetail, RecordForm, RecordList } from "./pages/Records";
 const Auth = lazy(() => import("./pages/Auth"));
 const Messages = lazy(() => import("./pages/Messages"));
+const Reviews = lazy(() => import("./pages/Reviews"));
 const Admin = lazy(() => import("./pages/Admin"));
 const Info = lazy(() => import("./pages/Info"));
 const Profile = lazy(() =>
@@ -91,6 +92,7 @@ export default function App() {
                 <Route path="messages/:id" element={<Messages />} />
                 <Route path="profil" element={<Profile />} />
                 <Route path="dashboard" element={<Dashboard />} />
+                <Route path="dashboard/avis" element={<Reviews />} />
                 <Route path="notifications" element={<Notifications />} />
                 <Route path="favoris" element={<Favorites />} />
                 <Route path="communaute" element={<Community />} />
