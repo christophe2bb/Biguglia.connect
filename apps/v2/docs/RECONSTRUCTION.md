@@ -86,7 +86,7 @@ Le 12 novembre, le catalogue des artisans, les catégories, la fiche détaillée
 
 ## Retours Auth et adresse stable
 
-L’adresse fixe `https://biguglia-connect-v2.vercel.app` sert la révision `fc2f0c8` depuis le 14 novembre. Le déploiement V2 `dpl_EUPn9Rrc1xH1vevxiFD92kWr9DiU` est READY, cible production du projet V2 protégé par Vercel Authentication pour tous les environnements. La cible « production » n’indique pas une ouverture au public ni une recette complète. Le domaine de l’ancienne application reste rattaché au projet `webapp`. Voir [le relevé de livraison](deployment-v2.snapshot.json).
+L’adresse fixe `https://biguglia-connect-v2.vercel.app` sert la révision `31e6a34` depuis le 14 novembre. Le déploiement V2 `dpl_6gShL9x5G7n8xcDxWjs64btaDhEu` est READY, cible production du projet V2 protégé par Vercel Authentication pour tous les environnements. La cible « production » n’indique pas une ouverture au public ni une recette complète. Le domaine de l’ancienne application reste rattaché au projet `webapp`. Voir [le relevé de livraison](deployment-v2.snapshot.json).
 
 La connexion au tableau Supabase a abouti. L’ancien Site URL était `http://localhost:3000` et la liste de redirection était vide. Le Site URL pointe maintenant sur l’adresse fixe de la V2 ; 11 retours ont été ajoutés pour les routes web de confirmation/récupération, les adresses existantes, l’aperçu stable, le client iOS et l’aperçu local. L’enregistrement a été vérifié après rechargement.
 
@@ -112,3 +112,11 @@ Les contrôles Supabase conservent des avertissements antérieurs à cette modif
 6. Identité exacte de l’éditeur, contact de support et durées de conservation à confirmer avant publication publique. Les informations de l’ancien site étaient incomplètes ; aucun opérateur juridique n’a été inventé.
 
 Ne pas présenter cette version comme prête pour l’App Store avant ces validations.
+
+## Diagnostic connexion et e-mails du 14 novembre
+
+La correction `31e6a34` distingue les identifiants incorrects, une adresse non confirmée et les erreurs de distribution. La page de retour sans session n’annonce plus une confirmation réussie, y compris lorsque l’erreur arrive dans le fragment URL. La récupération attend une session authentifiée avant de proposer un nouveau mot de passe. Changer de page de connexion efface le mot de passe saisi, et le renvoi de confirmation efface les notices ou erreurs précédentes.
+
+Les 137 tests et la compilation web ont réussi sur une extraction isolée du commit livré, sans les travaux de messagerie encore en cours. La CI `43565732157` a aussi réussi : 137 tests, 32 contrôles d’interface et compilation iOS pour simulateur sans signature. Le diagnostic des journaux indique `invalid_credentials`, sans preuve actuelle d’une panne SMTP. L’accès aux réglages SMTP nécessite encore la connexion au tableau de bord ; aucun mot de passe de compte ni réglage d’envoi n’a été changé et aucun e-mail réel n’a été envoyé pendant ces tests.
+
+Les correspondances entre branches GitHub et projets Vercel sont détaillées dans le README V2. L’ancienne branche `main` demeure à `78636d2` ; la V2 ne remplace pas encore son domaine public.

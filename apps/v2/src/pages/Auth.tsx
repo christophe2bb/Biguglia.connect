@@ -217,8 +217,8 @@ export default function Auth({
                     <input
                       aria-label="Mot de passe"
                       aria-describedby={
-                      mode === "login" ? undefined : "password-hint"
-                    }
+                        mode === "login" ? undefined : "password-hint"
+                      }
                       autoComplete={
                         mode === "login" ? "current-password" : "new-password"
                       }

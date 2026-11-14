@@ -2,24 +2,31 @@
   "verifiedOn": "2026-11-14",
   "project": "biguglia-connect-v2",
   "projectId": "prj_Gk0asFRcyonnIxCGvUHwzFnj1gPy",
-  "deploymentId": "dpl_EUPn9Rrc1xH1vevxiFD92kWr9DiU",
-  "releaseCommit": "fc2f0c8df5e69d61406b0b8bd752dc8cc66351d6",
+  "deploymentId": "dpl_6gShL9x5G7n8xcDxWjs64btaDhEu",
+  "releaseCommit": "31e6a34bbc02e1b7114cb51a3a73bf23e847bcc2",
   "url": "https://biguglia-connect-v2.vercel.app",
   "target": "production",
   "state": "READY",
   "vercelAuthentication": "all",
-  "githubWorkflowRun": 43557791350,
+  "githubWorkflowRun": 43565732157,
   "tests": {
-    "unitAndPostgres": 126,
+    "unitAndPostgres": 137,
     "postgresScenariosIncluded": 72,
     "browserWithSimulatedOutage": 32,
     "webBuild": "passed",
     "iosSimulatorBuildUnsigned": "passed",
     "hostedSqlContractsWithRollback": "passed",
     "publicBrowserWithLiveSupabase": "passed",
-    "realAuthenticatedMultiAccountBrowser": "pending"
+    "realAuthenticatedMultiAccountBrowser": "pending",
+    "realEmailDelivery": "pending_smtp_dashboard_access"
   },
   "existingProductionProject": "webapp",
   "existingProductionDomainChanged": false,
-  "readyForPublicLaunchOrAppStore": false
+  "readyForPublicLaunchOrAppStore": false,
+  "authDiagnostics": {
+    "observedLoginError": "invalid_credentials",
+    "smtpDeliveryFailureConfirmed": false,
+    "accountPasswordChanged": false,
+    "smtpConfigurationChanged": false
+  }
 }
