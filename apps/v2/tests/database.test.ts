@@ -78,7 +78,7 @@ beforeAll(async () => {
     create table public.user_blocks(id uuid primary key default gen_random_uuid(),user_id uuid,target_user_id uuid);
     create table public.conversations(id uuid primary key default gen_random_uuid(),subject text,related_type public.related_type,related_id uuid,created_by uuid,owner_id uuid,source_title text,created_at timestamptz default now());
     create table public.conversation_participants(id uuid primary key default gen_random_uuid(),conversation_id uuid,user_id uuid,last_read_at timestamptz,unique(conversation_id,user_id));
-    create table public.messages(id uuid primary key,conversation_id uuid,sender_id uuid,content text);
+    create table public.messages(id uuid primary key,conversation_id uuid,sender_id uuid,content text,created_at timestamptz not null default now());
     create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text,metadata jsonb);
     create function storage.foldername(text) returns text[] language sql immutable as $$select string_to_array($1,'/')$$;
     alter table storage.objects enable row level security;
@@ -115,6 +115,7 @@ beforeAll(async () => {
     "20261112042137_v2_verified_service_reviews.sql",
     "20261114041938_v2_review_stats_permissions.sql",
     "20261114043322_v2_bidirectional_quote_contact.sql",
+    "20261114054427_v2_monotonic_message_reads.sql",
   ]) {
     await db.exec(
       await readFile(
@@ -133,6 +134,114 @@ beforeAll(async () => {
 beforeEach(async () => {
   await db.exec("begin");
   await actor(a);
+});
+
+describe("conversation read markers", () => {
+  it("moves the current participant’s marker without changing the other participant", async () => {
+    const conversation = (await call()).rows[0].id;
+    await db.exec("reset role");
+    await db.query(
+      "update public.messages set created_at='2026-11-01T10:00:00Z' where id=$1",
+      [message],
+    );
+    await actor(a);
+    await db.query("select public.bc_v2_mark_conversation_read($1,$2)", [
+      conversation,
+      message,
+    ]);
+    expect(
+      (
+        await db.query(
+          "select last_read_at='2026-11-01T10:00:00Z'::timestamptz as correct from public.conversation_participants",
+        )
+      ).rows,
+    ).toEqual([{ correct: true }]);
+    await db.exec("reset role");
+    expect(
+      (
+        await db.query(
+          "select last_read_at is null as unread from public.conversation_participants where user_id=$1",
+          [b],
+        )
+      ).rows[0],
+    ).toEqual({ unread: true });
+  });
+  it("keeps a newer marker when an older read request arrives late", async () => {
+    const conversation = (await call()).rows[0].id;
+    const newer = "00000000-0000-4000-8000-000000000044";
+    await call(b, "listing", listing, "Second message de recette.", newer);
+    await db.exec("reset role");
+    await db.query(
+      "update public.messages set created_at=case when id=$1 then '2026-11-02T10:00:00Z'::timestamptz else '2026-11-01T10:00:00Z'::timestamptz end",
+      [newer],
+    );
+    await actor(a);
+    await db.query("select public.bc_v2_mark_conversation_read($1,$2)", [
+      conversation,
+      newer,
+    ]);
+    await db.query("select public.bc_v2_mark_conversation_read($1,$2)", [
+      conversation,
+      message,
+    ]);
+    expect(
+      (
+        await db.query(
+          "select last_read_at='2026-11-02T10:00:00Z'::timestamptz as correct from public.conversation_participants",
+        )
+      ).rows[0],
+    ).toEqual({ correct: true });
+  });
+  it("returns no marker to an outsider", async () => {
+    const conversation = (await call()).rows[0].id;
+    await actor(c);
+    expect(
+      (
+        await db.query(
+          "select public.bc_v2_mark_conversation_read($1,$2) is null as denied",
+          [conversation, message],
+        )
+      ).rows[0],
+    ).toEqual({ denied: true });
+  });
+  it("does not mark one conversation through another conversation’s message", async () => {
+    const first = (await call()).rows[0].id;
+    const other = "00000000-0000-4000-8000-000000000045";
+    await call(b, "general", null, "Autre échange de recette.", other);
+    expect(
+      (
+        await db.query(
+          "select public.bc_v2_mark_conversation_read($1,$2) is null as denied",
+          [first, other],
+        )
+      ).rows[0],
+    ).toEqual({ denied: true });
+  });
+  it("never moves the marker into the future", async () => {
+    const conversation = (await call()).rows[0].id;
+    await db.exec(
+      "reset role;update public.messages set created_at=now()+interval '1 day'",
+    );
+    await actor(a);
+    expect(
+      (
+        await db.query(
+          "select public.bc_v2_mark_conversation_read($1,$2)<=statement_timestamp() as valid",
+          [conversation, message],
+        )
+      ).rows[0],
+    ).toEqual({ valid: true });
+  });
+  it("rejects anonymous invocation", async () => {
+    const conversation = (await call()).rows[0].id;
+    await db.exec("set local role anon");
+    await expect(
+      db.query("select public.bc_v2_mark_conversation_read($1,$2)", [
+        conversation,
+        message,
+      ]),
+    ).rejects.toThrow("permission denied");
+  });
 });
 
 describe("audited administrative decisions", () => {

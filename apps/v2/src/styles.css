@@ -1966,6 +1966,8 @@ main {
   background: #f8faf3;
   min-height: 0;
 }
+.history-actions { display: flex; justify-content: center; margin-bottom: 18px; }
+.message-day { text-align: center; color: #66745b; font-size: 12px; margin: 22px 0 10px; }
 .bubble-wrap {
   display: flex;
   justify-content: flex-start;
