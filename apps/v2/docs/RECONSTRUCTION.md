@@ -86,7 +86,7 @@ Le 12 novembre, le catalogue des artisans, les catégories, la fiche détaillée
 
 ## Retours Auth et adresse stable
 
-L’adresse fixe `https://biguglia-connect-v2.vercel.app` sert la révision `31e6a34` depuis le 14 novembre. Le déploiement V2 `dpl_6gShL9x5G7n8xcDxWjs64btaDhEu` est READY, cible production du projet V2 protégé par Vercel Authentication pour tous les environnements. La cible « production » n’indique pas une ouverture au public ni une recette complète. Le domaine de l’ancienne application reste rattaché au projet `webapp`. Voir [le relevé de livraison](deployment-v2.snapshot.json).
+L’adresse fixe `https://biguglia-connect-v2.vercel.app` sert la révision `087ccc3` depuis le 14 novembre. Le déploiement V2 `dpl_5BL59U4fVzEKmGVGbTt1gz4Bk2tE` est READY, cible production du projet V2 protégé par Vercel Authentication pour tous les environnements. La cible « production » n’indique pas une ouverture au public ni une recette complète. Le domaine de l’ancienne application reste rattaché au projet `webapp`. Voir [le relevé de livraison](deployment-v2.snapshot.json).
 
 La connexion au tableau Supabase a abouti. L’ancien Site URL était `http://localhost:3000` et la liste de redirection était vide. Le Site URL pointe maintenant sur l’adresse fixe de la V2 ; 11 retours ont été ajoutés pour les routes web de confirmation/récupération, les adresses existantes, l’aperçu stable, le client iOS et l’aperçu local. L’enregistrement a été vérifié après rechargement.
 
@@ -120,3 +120,11 @@ La correction `31e6a34` distingue les identifiants incorrects, une adresse non c
 Les 137 tests et la compilation web ont réussi sur une extraction isolée du commit livré, sans les travaux de messagerie encore en cours. La CI `43565732157` a aussi réussi : 137 tests, 32 contrôles d’interface et compilation iOS pour simulateur sans signature. Le diagnostic des journaux indique `invalid_credentials`, sans preuve actuelle d’une panne SMTP. L’accès aux réglages SMTP nécessite encore la connexion au tableau de bord ; aucun mot de passe de compte ni réglage d’envoi n’a été changé et aucun e-mail réel n’a été envoyé pendant ces tests.
 
 Les correspondances entre branches GitHub et projets Vercel sont détaillées dans le README V2. L’ancienne branche `main` demeure à `78636d2` ; la V2 ne remplace pas encore son domaine public.
+
+## Résultat inconnu après délai de transport
+
+La révision `087ccc3` distingue la perte de réponse d’une preuve d’échec de l’envoi. Les inscriptions, récupérations et renvois indiquent un résultat non confirmé, sans renvoi automatique. Le délai reste de 12 secondes et les erreurs explicites du fournisseur restent distinctes. La CI `43573715377` a réussi : 140 tests, 32 contrôles d’interface et compilation iOS pour simulateur sans signature.
+
+Le contrôle réel a reçu une réponse HTTP 200 de la passerelle pour la récupération après une expiration côté client ; la distribution de l’e-mail reste inconnue. Le projet Supabase présente une alerte de santé Data API et des délais SQL. Brevo est accessible dans le compte existant. Aucune nouvelle configuration SMTP, aucun compte ou projet, et aucun changement de forfait n’a été créé. Les contrôles et interventions dont le résultat n’a pas pu être confirmé sont consignés dans [le relevé d’incident](INCIDENT_CONNEXION_20261114.md). Ce déploiement ne constitue pas un rétablissement du serveur Supabase.
+
+Le travail de messagerie paginée est sauvegardé sur la branche `checkpoint/v2-messaging-20261114-087ccc3`, commit `7082e296d451e875bdc55645e23f0450f066e54a`. Ses 168 tests locaux ont réussi. Ce travail ne figure pas sur l’adresse V2 stable ; sa migration de lecture des messages reste non installée sur Supabase. Le dernier contrôle du navigateur sur les artisans de la V2 déployée a encore expiré sur le chargement des données.

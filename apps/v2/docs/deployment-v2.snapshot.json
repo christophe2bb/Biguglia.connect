@@ -2,23 +2,23 @@
   "verifiedOn": "2026-11-14",
   "project": "biguglia-connect-v2",
   "projectId": "prj_Gk0asFRcyonnIxCGvUHwzFnj1gPy",
-  "deploymentId": "dpl_6gShL9x5G7n8xcDxWjs64btaDhEu",
-  "releaseCommit": "31e6a34bbc02e1b7114cb51a3a73bf23e847bcc2",
+  "deploymentId": "dpl_5BL59U4fVzEKmGVGbTt1gz4Bk2tE",
+  "releaseCommit": "087ccc3e5cd5643025827c1bfcd3b2db0ff19532",
   "url": "https://biguglia-connect-v2.vercel.app",
   "target": "production",
   "state": "READY",
   "vercelAuthentication": "all",
-  "githubWorkflowRun": 43565732157,
+  "githubWorkflowRun": 43573715377,
   "tests": {
-    "unitAndPostgres": 137,
+    "unitAndPostgres": 140,
     "postgresScenariosIncluded": 72,
     "browserWithSimulatedOutage": 32,
     "webBuild": "passed",
     "iosSimulatorBuildUnsigned": "passed",
-    "hostedSqlContractsWithRollback": "passed",
-    "publicBrowserWithLiveSupabase": "passed",
+    "hostedSqlContractsWithRollback": "previously_passed_recheck_after_service_recovery",
+    "publicBrowserWithLiveSupabase": "failed_data_timeout",
     "realAuthenticatedMultiAccountBrowser": "pending",
-    "realEmailDelivery": "pending_smtp_dashboard_access"
+    "realEmailDelivery": "unconfirmed"
   },
   "existingProductionProject": "webapp",
   "existingProductionDomainChanged": false,
@@ -27,6 +27,24 @@
     "observedLoginError": "invalid_credentials",
     "smtpDeliveryFailureConfirmed": false,
     "accountPasswordChanged": false,
-    "smtpConfigurationChanged": false
+    "smtpConfigurationChanged": false,
+    "recoveryGatewayStatus": 200,
+    "recoveryClientResponse": "timeout",
+    "staleReadConnectionsTermination": "unconfirmed_after_sql_and_mcp_timeouts"
+  },
+  "supabaseHealth": {
+    "state": "degraded",
+    "advisor": "log_data_api_error_rate_high",
+    "failedRequests": 46,
+    "observedRequests": 46,
+    "observedAt": "2026-11-14T08:09:09.171Z",
+    "incidentReport": "INCIDENT_CONNEXION_20261114.md"
+  },
+  "workInProgress": {
+    "messagingCheckpointBranch": "checkpoint/v2-messaging-20261114-087ccc3",
+    "sourceCommit": "7082e296d451e875bdc55645e23f0450f066e54a",
+    "localTests": 168,
+    "deployedToStableV2": false,
+    "hostedReadRpcMigrationApplied": false
   }
 }
