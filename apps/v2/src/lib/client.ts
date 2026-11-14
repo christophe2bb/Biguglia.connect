@@ -61,13 +61,22 @@ export async function timedFetch(
   init: RequestInit = {},
 ): Promise<Response> {
   const controller = new AbortController();
+  let deadlineReached = false;
   const cancel = () => controller.abort();
   if (init.signal?.aborted) cancel();
   else init.signal?.addEventListener("abort", cancel, { once: true });
-  const deadline = setTimeout(cancel, 12000);
+  const deadline = setTimeout(() => {
+    deadlineReached = true;
+    cancel();
+  }, 12000);
   try {
     return await fetch(input, { ...init, signal: controller.signal });
   } catch (error) {
+    if (deadlineReached)
+      throw new AppError(
+        "Le service met trop de temps à répondre. Vous pouvez réessayer.",
+        "request_timeout",
+      );
     throw new AppError(errorText(error));
   } finally {
     clearTimeout(deadline);

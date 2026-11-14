@@ -10,9 +10,9 @@ import {
 import {
   authClient,
   configured,
-  errorText,
   safeLocalPath,
 } from "../lib/client";
+import { authFeedback } from "../lib/authFeedback";
 import { useAuth } from "../lib/auth";
 import { authRedirect } from "../components/NativeBridge";
 import { Failure, Loading, Notice } from "../components/ui";
@@ -32,7 +32,7 @@ export default function Auth({
   const [consent, setConsent] = useState(false);
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<ReturnType<typeof authFeedback> | null>(null);
   const [notice, setNotice] = useState("");
   const next = safeLocalPath(params.get("next"), "/dashboard");
   const recovery = mode === "password" && params.get("recovery") === "1";
@@ -48,7 +48,7 @@ export default function Auth({
     e.preventDefault();
     if (busy) return;
     setBusy(true);
-    setError("");
+    setError(null);
     setNotice("");
     try {
       if (!configured)
@@ -103,7 +103,16 @@ export default function Auth({
         setConfirmation("");
       }
     } catch (e) {
-      setError(errorText(e));
+      setError(
+        authFeedback(
+          e,
+          mode === "signup"
+            ? "signup"
+            : mode === "password" && !recovery
+              ? "email"
+              : "other",
+        ),
+      );
     } finally {
       setBusy(false);
     }
@@ -289,7 +298,7 @@ export default function Auth({
                 </span>
               </label>
             )}
-            {error && <Failure title="La demande n’a pas abouti" message={error} />}
+            {error && <Failure title={error.title} message={error.message} />}
             <button type="submit" className="button full" disabled={busy}>
               {busy
                 ? "Un instant…"
@@ -320,10 +329,13 @@ export default function Auth({
             onClick={() =>
               void (async () => {
                 if (busy) return;
-                setError("");
+                setError(null);
                 setNotice("");
                 if (!email.trim()) {
-                  setError("Saisissez d’abord votre adresse e-mail.");
+                  setError({
+                    title: "Adresse e-mail manquante",
+                    message: "Saisissez d’abord votre adresse e-mail.",
+                  });
                   return;
                 }
                 setBusy(true);
@@ -342,7 +354,7 @@ export default function Auth({
                     "Si cette adresse attend encore une confirmation, un nouvel e-mail a été demandé. Consultez aussi vos courriers indésirables. Pour un compte déjà confirmé, connectez-vous ou utilisez « Mot de passe oublié ? ».",
                   );
                 } catch (e) {
-                  setError(errorText(e));
+                  setError(authFeedback(e, "email"));
                 } finally {
                   setBusy(false);
                 }

@@ -25,6 +25,8 @@ Les deux interfaces sont différentes parce qu’elles correspondent à deux cli
 
 ## Connexion et e-mails
 
+Le contrôle réel du 14 novembre a mis en évidence des erreurs et délais côté projet Supabase. Une réponse perdue ne permet pas de conclure que l’e-mail n’a pas été envoyé ; le client signale ce résultat incertain sans renvoi automatique. Voir [le relevé de contrôle et les points restant à valider](docs/INCIDENT_CONNEXION_20261114.md).
+
 Les erreurs d’identifiants, d’adresse non confirmée et d’envoi d’e-mail sont distinguées. Le renvoi efface les anciens messages d’erreur ; la page de retour n’annonce pas une confirmation sans session, et le changement de mot de passe attend une session authentifiée. Ces parcours sont couverts par 11 tests d’interface supplémentaires sans envoyer d’e-mail réel.
 
 Le diagnostic du 14 novembre a relevé `invalid_credentials` dans Supabase, pas `email_not_confirmed`. Aucune nouvelle inscription récente n’apparaissait dans le projet à ce contrôle. Cela ne permet pas d’identifier l’adresse saisie ni de conclure à une panne SMTP. La réception réelle des e-mails et la configuration SMTP restent à vérifier. Un compte déjà confirmé ne reçoit pas de nouvel e-mail de confirmation lors d’une nouvelle tentative d’inscription ; utiliser la connexion ou la récupération du mot de passe.

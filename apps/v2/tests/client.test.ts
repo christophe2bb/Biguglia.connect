@@ -74,7 +74,10 @@ describe("network lifecycle", () => {
       ),
     );
     const result = timedFetch("https://example.test/");
-    const assertion = expect(result).rejects.toThrow("trop de temps");
+    const assertion = expect(result).rejects.toMatchObject({
+      code: "request_timeout",
+      message: expect.stringContaining("trop de temps"),
+    });
     await vi.advanceTimersByTimeAsync(12000);
     await assertion;
   });

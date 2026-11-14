@@ -21,6 +21,7 @@ vi.mock("../src/components/NativeBridge", () => ({
   authRedirect: (path: string) => "https://fixture.example" + path,
 }));
 import Auth from "../src/pages/Auth";
+import { AppError } from "../src/lib/client";
 
 function open(path = "/connexion") {
   render(
@@ -50,6 +51,54 @@ beforeEach(() => {
 });
 
 describe("account access feedback", () => {
+  it("treats a recovery transport timeout as an unknown delivery result without retrying", async () => {
+    fixture.resetPasswordForEmail.mockResolvedValue({
+      data: {},
+      error: Object.assign(new Error("Le service met trop de temps à répondre."), {
+        name: "AuthRetryableFetchError",
+      }),
+    });
+    open("/mot-de-passe");
+    fireEvent.change(screen.getByLabelText("Adresse e-mail"), {
+      target: { value: "resident@example.invalid" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Recevoir le lien", exact: true }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Envoi non confirmé");
+    expect(alert).toHaveTextContent("L’e-mail peut avoir été envoyé");
+    expect(screen.queryByText(/un lien pour changer le mot de passe vous a été envoyé/)).not.toBeInTheDocument();
+    expect(fixture.resetPasswordForEmail).toHaveBeenCalledTimes(1);
+  });
+  it("does not claim an interrupted signup failed before the server could create the account", async () => {
+    fixture.signUp.mockResolvedValue({
+      data: { session: null },
+      error: new AppError("Le service met trop de temps à répondre.", "request_timeout"),
+    });
+    open("/inscription");
+    enterCredentials();
+    fireEvent.change(screen.getByLabelText("Votre nom"), { target: { value: "Essai local" } });
+    fireEvent.change(screen.getByLabelText("Confirmez le mot de passe"), { target: { value: "fixture-password" } });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "Créer mon compte" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Votre inscription peut avoir été enregistrée");
+    expect(screen.queryByText(/Votre demande a été prise en compte/)).not.toBeInTheDocument();
+    expect(fixture.signUp).toHaveBeenCalledTimes(1);
+  });
+  it("clears a prior resend success when the next delivery result is unknown", async () => {
+    open();
+    enterCredentials();
+    const resend = screen.getByRole("button", { name: "Renvoyer l’e-mail de confirmation" });
+    fireEvent.click(resend);
+    await screen.findByText(/un nouvel e-mail a été demandé/);
+    fixture.resend.mockResolvedValue({
+      data: {},
+      error: new AppError("Le service met trop de temps à répondre.", "request_timeout"),
+    });
+    fireEvent.click(resend);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Envoi non confirmé");
+    expect(screen.queryByText(/un nouvel e-mail a été demandé/)).not.toBeInTheDocument();
+    expect(fixture.resend).toHaveBeenCalledTimes(2);
+  });
   it("distinguishes wrong credentials from an unconfirmed address", async () => {
     open();
     enterCredentials();
